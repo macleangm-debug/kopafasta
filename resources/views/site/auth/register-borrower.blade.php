@@ -80,25 +80,20 @@
                             <h2 class="text-2xl font-bold text-gray-900">Select your country</h2>
                             <p class="mt-1 text-sm text-gray-600">KopaFasta is live in a small number of markets today. Pick your country to continue.</p>
 
-                            <div class="mt-8 grid gap-3 sm:grid-cols-2">
-                                <template x-for="country in countries" :key="country.code">
-                                    <button type="button"
-                                            @click="chooseCountry(country)"
-                                            :class="country.code === form.country ? 'border-amber-500 bg-amber-50 shadow-sm' : (country.active ? 'border-gray-200 bg-white hover:border-amber-400' : 'border-gray-200 bg-gray-50 hover:border-amber-400')"
-                                            class="group relative rounded-3xl border p-5 text-left transition duration-200 focus:outline-none focus:ring-4 focus:ring-amber-500/20 cursor-pointer">
-                                        <div class="flex items-start justify-between gap-3">
-                                            <div>
-                                                <p class="text-2xl"><span x-text="country.emoji"></span></p>
-                                                <p class="mt-3 text-base font-semibold text-gray-900" x-text="country.label"></p>
-                                                <p class="mt-1 text-sm text-gray-600" x-text="country.prefix + ' ' + country.label"></p>
-                                            </div>
-                                            <span class="rounded-full px-3 py-1 text-xs font-semibold uppercase"
-                                                  :class="country.active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'"
-                                                  x-text="country.active ? 'Live now' : 'Coming soon'"></span>
-                                        </div>
-                                        <p class="mt-4 text-sm text-gray-500" x-text="country.note"></p>
-                                    </button>
-                                </template>
+                            <div class="mt-8">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Country</label>
+                                <div class="relative">
+                                    <select x-model="form.country" @change="chooseCountry(countries.find(c => c.code === form.country))"
+                                            class="block w-full rounded-3xl border border-gray-300 bg-white px-4 py-3 pr-10 text-sm text-gray-900 outline-none transition focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10">
+                                        <template x-for="country in countries" :key="country.code">
+                                            <option :value="country.code" x-text="country.emoji + ' ' + country.label + ' (' + country.prefix + ')'" :selected="country.code === form.country"></option>
+                                        </template>
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400">
+                                        <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 8l4 4 4-4"/></svg>
+                                    </div>
+                                </div>
+                                <p class="mt-3 text-sm text-gray-600">Choose your country to see whether Kopafasta is operational there today.</p>
                             </div>
 
                             <div class="mt-8 grid gap-4">
