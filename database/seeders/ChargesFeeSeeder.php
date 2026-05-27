@@ -1,0 +1,102 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\ChargesFee;
+use Illuminate\Database\Seeder;
+
+class ChargesFeeSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $fees = [
+            [
+                'name'        => 'Loan application fee',
+                'code'        => 'APP_FEE',
+                'type'        => 'processing',
+                'basis'       => 'fixed',
+                'amount'      => 5000,
+                'charge_when' => 'application',
+                'description' => 'One-time fee charged when a loan application is submitted.',
+            ],
+            [
+                'name'        => 'Registration fee',
+                'code'        => 'REG_FEE',
+                'type'        => 'processing',
+                'basis'       => 'fixed',
+                'amount'      => 10000,
+                'charge_when' => 'application',
+                'description' => 'Flat customer onboarding / registration fee.',
+            ],
+            [
+                'name'        => 'Loan origination fee',
+                'code'        => 'ORIG_FEE',
+                'type'        => 'origination',
+                'basis'       => 'percentage',
+                'amount'      => 2.0000,
+                'min_amount'  => 5000,
+                'max_amount'  => 500000,
+                'charge_when' => 'disbursement',
+                'description' => '2% of approved amount, deducted at disbursement.',
+            ],
+            [
+                'name'        => 'Insurance premium',
+                'code'        => 'INS_FEE',
+                'type'        => 'insurance',
+                'basis'       => 'percentage',
+                'amount'      => 1.0000,
+                'charge_when' => 'disbursement',
+                'description' => '1% loan insurance premium.',
+            ],
+            [
+                'name'        => 'Late payment penalty',
+                'code'        => 'LATE_FEE',
+                'type'        => 'late_fee',
+                'basis'       => 'per_day',
+                'amount'      => 0.1000,
+                'charge_when' => 'late',
+                'description' => '0.1% of overdue principal per day late.',
+            ],
+            [
+                'name'        => 'Early settlement fee',
+                'code'        => 'EARLY_FEE',
+                'type'        => 'early_settlement',
+                'basis'       => 'percentage',
+                'amount'      => 1.0000,
+                'charge_when' => 'event',
+                'description' => '1% of outstanding balance on early settlement.',
+            ],
+            [
+                'name'        => 'Restructure fee',
+                'code'        => 'RESTR_FEE',
+                'type'        => 'restructure',
+                'basis'       => 'fixed',
+                'amount'      => 10000,
+                'charge_when' => 'event',
+                'description' => 'Fee charged when a loan is restructured.',
+            ],
+            [
+                'name'        => 'GPS tracker fee',
+                'code'        => 'GPS_FEE',
+                'type'        => 'gps',
+                'basis'       => 'fixed',
+                'amount'      => 50000,
+                'charge_when' => 'disbursement',
+                'description' => 'Asset-finance GPS device installation fee.',
+            ],
+            [
+                'name'        => 'Valuation fee',
+                'code'        => 'VAL_FEE',
+                'type'        => 'valuation',
+                'basis'       => 'fixed',
+                'amount'      => 25000,
+                'charge_when' => 'application',
+                'description' => 'Collateral valuation fee.',
+            ],
+        ];
+
+        foreach ($fees as $f) {
+            ChargesFee::updateOrCreate(['code' => $f['code']], $f + ['is_active' => true]);
+        }
+    }
+}

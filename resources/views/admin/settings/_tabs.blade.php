@@ -1,0 +1,20 @@
+@props(['active' => 'company'])
+@php
+    $tabs = [
+        'company'    => ['Company Profile', 'admin.settings.company'],
+        'gateways'   => ['SMS / Email',     'admin.settings.gateways'],
+        'kyc'        => ['KYC Rules',       'admin.settings.kyc'],
+        'loan-rules' => ['Loan Rules',      'admin.settings.loan-rules'],
+        'membership' => ['Membership',      'admin.settings.membership'],
+        'aml'        => ['AML Thresholds',  'admin.settings.aml'],
+    ];
+@endphp
+<nav class="flex flex-wrap gap-2 mb-6 border-b border-gray-200 pb-3">
+    @foreach ($tabs as $key => [$label, $route])
+        @php($isActive = $active === $key)
+        <a href="{{ route($route) }}"
+           class="px-3 py-1.5 rounded-md text-sm font-medium transition {{ $isActive ? 'bg-amber-500 text-gray-900' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
+            {{ $label }}
+        </a>
+    @endforeach
+</nav>
