@@ -24,6 +24,30 @@
         </div>
     @endif
 
+    {{-- Available loan products --}}
+    <div class="mb-6">
+        <h2 class="font-semibold mb-3">Available loan products</h2>
+        @if(isset($products) && $products->isNotEmpty())
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                @foreach($products as $p)
+                    <div class="bg-white rounded-2xl border border-gray-200 p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="font-semibold text-sm truncate">{{ $p->name }}</p>
+                                <p class="text-xs text-gray-500 mt-1">TZS {{ number_format($p->min_amount) }} — TZS {{ number_format($p->max_amount) }} · {{ number_format((float)$p->interest_rate,2) }}% APR</p>
+                            </div>
+                            <div class="flex items-center">
+                                <a href="{{ route('site.apply.show', ['product' => $p->id]) }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-3 py-1.5 rounded-full text-sm">Apply</a>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <div class="text-sm text-gray-500">No loan products available at the moment.</div>
+        @endif
+    </div>
+
     {{-- KYC reminder --}}
     @php
         $kycStatus = $kyc->status ?? 'pending';

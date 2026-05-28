@@ -14,6 +14,7 @@ use App\Models\LoanApplication;
 use App\Models\NotificationLog;
 use App\Models\Repayment;
 use App\Models\RepaymentSchedule;
+use App\Models\LoanProduct;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -102,10 +103,14 @@ class BorrowerController extends Controller
         $kycProgress   = $kycRequired > 0 ? (int) round(($kycUploaded / $kycRequired) * 100) : 0;
         $kycMissing    = $kycTypes->reject(fn ($t) => $kycUploadedTypeIds->contains($t->id))->values();
 
+        // Active loan products available for application
+        $products = LoanProduct::where('is_active', true)->orderBy('name')->get();
+
         return view('site.borrower.dashboard', compact(
             'customer','activeLoan','nextDue','applicationsCount',
             'latestApplication','notifications','eligibility',
-            'kyc','kycRequired','kycUploaded','kycProgress','kycMissing'
+            'kyc','kycRequired','kycUploaded','kycProgress','kycMissing',
+            'products'
         ));
     }
 
