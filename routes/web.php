@@ -59,8 +59,8 @@ Route::name('site.')->group(function () {
     Route::get('/invest',           [\App\Http\Controllers\Site\PageController::class, 'invest'])->name('invest');
     Route::get('/capital-partners', [\App\Http\Controllers\Site\PageController::class, 'capitalPartners'])->name('capital-partners');
 
-    // Guest auth
-    Route::middleware('guest')->group(function () {
+    // Guest auth (explicit web guard)
+    Route::middleware('guest:web')->group(function () {
         Route::get('/login',  [\App\Http\Controllers\Site\AuthController::class, 'showLogin'])->name('login');
         Route::post('/login', [\App\Http\Controllers\Site\AuthController::class, 'login'])->name('login.post');
 
@@ -76,8 +76,8 @@ Route::name('site.')->group(function () {
         Route::post('/register/capital-partner',[\App\Http\Controllers\Site\AuthController::class, 'registerCapital'])->name('register.capital.post');
     });
 
-    // Authenticated public area
-    Route::middleware('auth')->group(function () {
+    // Authenticated public area (explicit web guard)
+    Route::middleware('auth:web')->group(function () {
         Route::post('/logout', [\App\Http\Controllers\Site\AuthController::class, 'logout'])->name('logout');
 
         // Borrower wizard + dashboard
