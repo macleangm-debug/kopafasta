@@ -4,10 +4,13 @@ namespace App\Policies;
 
 use App\Models\LoanApplication;
 use App\Models\User;
+use App\Policies\Concerns\StaffAccess;
 use App\Services\PermissionService;
 
 class LoanApplicationPolicy
 {
+    use StaffAccess;
+
     public function viewAny(User $user): bool
     {
         return app(PermissionService::class)->has($user, 'applications.view');
@@ -49,18 +52,5 @@ class LoanApplicationPolicy
                 'applications.reject',
                 'applications.disburse',
             ]);
-    }
-
-    private function sameBranch(User $user, ?int $recordBranchId): bool
-    {
-        if (in_array($user->role, ['admin', 'super_admin'], true)) {
-            return true;
-        }
-
-        if (! $user->branch_id || ! $recordBranchId) {
-            return false;
-        }
-
-        return (int) $user->branch_id === (int) $recordBranchId;
     }
 }

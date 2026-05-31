@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\IpRule;
 use App\Models\User;
 use App\Services\IpRuleService;
+use App\Services\RoleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,10 @@ use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
 {
+    public function __construct(private RoleService $roles)
+    {
+    }
+
     public function users()
     {
         return response()->json(User::query()->latest()->paginate(20));
@@ -21,11 +26,13 @@ class AdminController extends Controller
 
     public function assignRole(Request $request, User $user)
     {
+        $staffRoles = $this->roles->staffRoles();
+
         $data = $request->validate([
-            'role' => ['required', 'string', 'max:50'],
+            'role' => ['required', 'string', 'max:50', Rule::in($staffRoles)],
             'approval_limit' => ['nullable', 'numeric', 'min:0'],
             'branch_id' => [
-                Rule::requiredIf(fn () => in_array($request->input('role'), ['manager', 'officer', 'collector', 'credit_analyst'], true)),
+                Rule::requiredIf(fn () => in_array($request->input('role'), $this->roles->branchScopedStaffRoles(), true)),
                 'nullable',
                 'exists:branches,id',
             ],

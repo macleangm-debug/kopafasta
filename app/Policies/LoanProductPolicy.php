@@ -9,7 +9,7 @@ class LoanProductPolicy
 {
     public function viewAny(User $user): bool
     {
-        return in_array($user->role, ['customer', 'officer', 'manager', 'admin', 'credit_analyst', 'collector'], true);
+        return in_array($user->role, ['customer', 'borrower', 'officer', 'manager', 'admin', 'super_admin', 'credit_analyst', 'collector'], true);
     }
 
     public function view(User $user, LoanProduct $loanProduct): bool
@@ -19,7 +19,7 @@ class LoanProductPolicy
 
     public function create(User $user): bool
     {
-        return in_array($user->role, ['manager', 'admin'], true);
+        return in_array($user->role, ['manager', 'admin', 'super_admin'], true);
     }
 
     public function update(User $user, LoanProduct $loanProduct): bool
@@ -29,6 +29,6 @@ class LoanProductPolicy
 
     public function delete(User $user, LoanProduct $loanProduct): bool
     {
-        return in_array($user->role, ['admin'], true);
+        return $user->role === 'admin';
     }
 }

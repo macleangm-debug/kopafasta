@@ -9,6 +9,7 @@ return [
         'applications' => 'Loan applications',
         'loans'        => 'Loans & disbursement',
         'customers'    => 'Customers & KYC',
+        'support'      => 'Support',
         'finance'      => 'Finance',
         'settings'     => 'Settings & admin',
     ],
@@ -38,14 +39,16 @@ return [
         // Settings
         'settings.manage'                => ['label' => 'Manage settings & roles', 'module' => 'settings'],
         'audit.view'                     => ['label' => 'View audit logs', 'module' => 'settings'],
+
+        // Support
+        'support.tickets'                => ['label' => 'Manage support tickets', 'module' => 'support'],
     ],
 
     /** Fallback when roles table has no row for users.role */
     'defaults' => [
         'officer' => [
-            'applications.view', 'applications.acknowledge', 'applications.review',
-            'applications.request_documents', 'customers.view', 'kyc.review',
-            'membership.approve_payments',
+            'applications.view', 'applications.edit', 'applications.request_documents',
+            'customers.view', 'kyc.review', 'membership.approve_payments',
         ],
         'manager' => [
             'applications.view', 'applications.acknowledge', 'applications.review',
@@ -60,6 +63,12 @@ return [
         ],
         'collector' => [
             'loans.view', 'customers.view',
+        ],
+        'agent' => [
+            'support.tickets',
+        ],
+        'auditor' => [
+            'audit.view',
         ],
     ],
 ];

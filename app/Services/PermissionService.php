@@ -13,7 +13,7 @@ class PermissionService
 
     public function has(User $user, string $permission): bool
     {
-        if (in_array($user->role, ['admin', 'super_admin'], true)) {
+        if (app(RoleService::class)->hasPermissionBypass($user)) {
             return true;
         }
 

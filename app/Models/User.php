@@ -45,9 +45,17 @@ class User extends Authenticatable
      */
     public function canAccessConsole(): bool
     {
-        return in_array($this->role, ['admin', 'super_admin', 'manager', 'officer'], true)
-            && (bool) ($this->is_active ?? true)
-            && ! ($this->locked_until && $this->locked_until->isFuture());
+        return app(\App\Services\RoleService::class)->hasConsoleAccess($this);
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isStaff(): bool
+    {
+        return app(\App\Services\RoleService::class)->isStaff($this->role);
     }
 
     public function hasPermission(string $permission): bool

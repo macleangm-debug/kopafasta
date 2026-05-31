@@ -1,5 +1,5 @@
 <div>
-<x-admin.table-shell :records="$rows" :statuses="$roles" statusKey="role" statusLabel="All roles"
+<x-admin.table-shell :records="$rows" :statuses="$filterRoles" statusKey="role" statusLabel="All roles"
                      searchPlaceholder="Search name, email, phone…">
     <x-slot:headers>
         <x-admin.th :sort="$sort" :direction="$direction" col="name"       label="Name" />

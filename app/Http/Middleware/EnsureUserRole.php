@@ -3,12 +3,17 @@
 namespace App\Http\Middleware;
 
 use App\Models\AuditLog;
+use App\Services\RoleService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureUserRole
 {
+    public function __construct(private RoleService $roles)
+    {
+    }
+
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
         $user = $request->user();
@@ -17,8 +22,10 @@ class EnsureUserRole
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        if (! in_array($user->role, $roles, true)) {
-            $this->logDenied($request, $user, $roles);
+        $allowedRoles = $this->roles->resolveApiRoles($roles);
+
+        if (! in_array($user->role, $allowedRoles, true)) {
+            $this->logDenied($request, $user, $allowedRoles);
 
             return response()->json(['message' => 'Forbidden'], 403);
         }
@@ -26,6 +33,7 @@ class EnsureUserRole
         return $next($request);
     }
 
+    /** @param  list<string>  $roles */
     private function logDenied(Request $request, $user, array $roles): void
     {
         try {

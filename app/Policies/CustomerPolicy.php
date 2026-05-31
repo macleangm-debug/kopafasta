@@ -4,12 +4,15 @@ namespace App\Policies;
 
 use App\Models\Customer;
 use App\Models\User;
+use App\Policies\Concerns\StaffAccess;
 
 class CustomerPolicy
 {
+    use StaffAccess;
+
     public function viewAny(User $user): bool
     {
-        return in_array($user->role, ['officer', 'manager', 'admin', 'credit_analyst', 'collector'], true);
+        return in_array($user->role, ['officer', 'manager', 'admin', 'super_admin', 'credit_analyst', 'collector'], true);
     }
 
     public function view(User $user, Customer $customer): bool
@@ -19,7 +22,7 @@ class CustomerPolicy
 
     public function create(User $user): bool
     {
-        return in_array($user->role, ['officer', 'manager', 'admin'], true);
+        return in_array($user->role, ['officer', 'manager', 'admin', 'super_admin'], true);
     }
 
     public function update(User $user, Customer $customer): bool
@@ -29,20 +32,7 @@ class CustomerPolicy
 
     public function delete(User $user, Customer $customer): bool
     {
-        return in_array($user->role, ['manager', 'admin'], true)
+        return in_array($user->role, ['manager', 'admin', 'super_admin'], true)
             && $this->sameBranch($user, $customer->branch_id);
-    }
-
-    private function sameBranch(User $user, ?int $recordBranchId): bool
-    {
-        if ($user->role === 'admin') {
-            return true;
-        }
-
-        if (! $user->branch_id || ! $recordBranchId) {
-            return false;
-        }
-
-        return (int) $user->branch_id === (int) $recordBranchId;
     }
 }

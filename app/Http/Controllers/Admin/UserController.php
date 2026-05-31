@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Models\Branch;
 use App\Models\User;
+use App\Services\RoleService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -15,15 +16,20 @@ class UserController extends ResourceController
     protected string $viewFolder = 'users';
     protected string $singular = 'user';
 
+    public function __construct(private RoleService $roles)
+    {
+    }
+
     protected function rules(?Model $model = null): array
     {
         $id = $model?->id;
+        $allowedRoles = $this->roles->userFormRoles();
 
         return [
             'name'           => ['required', 'string', 'max:150'],
             'email'          => ['required', 'email', 'max:150', Rule::unique('users', 'email')->ignore($id)],
             'phone'          => ['nullable', 'string', 'max:30'],
-            'role'           => ['required', 'in:admin,super_admin,manager,officer,agent,customer'],
+            'role'           => ['required', Rule::in($allowedRoles)],
             'branch_id'      => ['nullable', 'exists:branches,id'],
             'approval_limit' => ['nullable', 'numeric', 'min:0'],
             'is_active'      => ['nullable', 'boolean'],
@@ -33,16 +39,15 @@ class UserController extends ResourceController
 
     protected function formData(): array
     {
+        $roleOptions = [];
+
+        foreach ($this->roles->userFormRoles() as $code) {
+            $roleOptions[$code] = $this->roles->label($code);
+        }
+
         return [
             'branches' => Branch::orderBy('name')->pluck('name', 'id'),
-            'roles'    => [
-                'super_admin' => 'Super admin',
-                'admin'       => 'Admin',
-                'manager'     => 'Manager',
-                'officer'     => 'Officer',
-                'agent'       => 'Agent',
-                'customer'    => 'Customer',
-            ],
+            'roles'    => $roleOptions,
         ];
     }
 
@@ -54,6 +59,7 @@ class UserController extends ResourceController
             unset($data['password']);
         }
         $data['is_active'] = (bool) ($data['is_active'] ?? false);
+
         return $data;
     }
 }

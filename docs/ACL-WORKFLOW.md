@@ -1,6 +1,45 @@
 # ACL & loan application workflow
 
-This document describes permission-based access control and the admin loan application workflow introduced after the platform review.
+This document describes permission-based access control, the role matrix, and the admin loan application workflow.
+
+## Role matrix
+
+Canonical definitions live in `config/roles.php` and are accessed via `App\Services\RoleService`.
+
+| Role | Console login | Typical use |
+|------|---------------|-------------|
+| `admin` | Yes | Full access — hardcoded permission and policy bypass |
+| `super_admin` | Yes | Console access; permissions from `roles` table; **not** treated like `admin` in policies (branch scoping applies) |
+| `manager` | Yes | Approve transitions, disbursement, restructures (within limits) |
+| `officer` | Yes | View/edit applications, request documents — **no** workflow stage transitions |
+| `collector` | No | API only — repayments and arrears |
+| `credit_analyst` | No | API only — underwriting via policies/permissions |
+| `agent` | No | Support tickets (API) |
+| `auditor` | No | Audit log access (API); appears in admin users **filter** only |
+| `borrower` / `customer` | Portal | Borrower portal |
+| `vendor` | Portal | Vendor portal |
+| `investor` | Portal | Investor portal |
+
+### Admin user form roles
+
+Settings → Users allows assigning only console roles: `admin`, `super_admin`, `manager`, `officer`.
+
+Staff roles such as `collector`, `credit_analyst`, and `agent` are assigned via the API (`POST /api/system/users/{id}/assign-role`).
+
+### API capability groups
+
+API middleware accepts capability tokens defined in `config/roles.php` → `api_capabilities`:
+
+| Capability | Roles |
+|------------|-------|
+| `core` | officer, manager, admin, super_admin, credit_analyst |
+| `collections` | officer, manager, admin, super_admin, collector |
+| `reports` | officer, manager, admin, super_admin |
+| `system` | manager, admin, super_admin |
+| `security` | **admin only** |
+| `audit` | auditor, admin, super_admin |
+| `support` | agent, manager, admin, super_admin |
+| `portal` | customer, borrower |
 
 ## Permission system
 
@@ -13,18 +52,11 @@ Runtime checks go through:
 - Laravel `Gate` — one gate per permission key
 - Blade — `@perm('applications.view')` and `@permany('applications.view', 'applications.edit')`
 
-**Admin bypass:** users with role `admin` or `super_admin` receive all permissions automatically.
+**Admin bypass:** only role `admin` receives automatic permission bypass.
+
+**Super admin:** all permissions are seeded on the `super_admin` role row, but checks run through `PermissionService` (no bypass).
 
 **Fallback:** if no row exists in `roles` for a user's role, defaults from `config/permissions.php` → `defaults` are used.
-
-### Default roles (seeded)
-
-| Role | Typical use |
-|------|-------------|
-| `officer` | Acknowledge, screen, request documents |
-| `manager` | Full application workflow through disbursement |
-| `credit_analyst` | Credit review and document requests |
-| `admin` / `super_admin` | Full access |
 
 Seed roles on deploy or manually:
 
@@ -45,7 +77,7 @@ Sidebar sections are hidden when the user lacks any required permission for that
 | Compliance | `audit.view` |
 | Settings | `settings.manage` |
 
-Other sections remain visible to all authenticated admin users until finer permissions are added.
+Other sections remain visible to all authenticated console users until finer permissions are added.
 
 ## Loan application workflow
 
@@ -61,6 +93,8 @@ Actions are defined in `LoanApplicationWorkflowService::ACTIONS` and exposed on 
 | Final approve | pre_approval | approval | `applications.approve` |
 | Mark ready for disbursement | approval | disbursement | `applications.disburse` |
 | Reject | submitted … approval | rejected | `applications.reject` |
+
+**Officers** do not receive workflow transition permissions by default.
 
 Each transition:
 
@@ -79,4 +113,6 @@ Admin → Settings → Roles & Permissions. The form shows a grouped checkbox li
 
 ## Branch scoping
 
-`LoanApplicationPolicy` still enforces branch matching for non-admin users. Workflow actions additionally respect approval limits inside `LoanApplicationWorkflowService` where configured.
+Only role `admin` bypasses branch checks in policies (`StaffAccess` trait). All other staff — including `super_admin` — are branch-scoped when `branch_id` is set.
+
+Workflow actions additionally respect approval limits inside `LoanApplicationWorkflowService` where configured.

@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Models\User;
+use App\Services\RoleService;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -28,7 +29,7 @@ class UsersTable extends Component
         $this->sort = $col;
     }
 
-    public function render()
+    public function render(RoleService $roles)
     {
         $rows = User::query()
             ->when($this->search !== '', function ($q) {
@@ -43,8 +44,8 @@ class UsersTable extends Component
             ->orderBy($this->sort, $this->direction)
             ->paginate($this->perPage);
 
-        $roles = ['admin', 'super_admin', 'manager', 'officer', 'auditor'];
+        $filterRoles = $roles->usersFilterRoles();
 
-        return view('livewire.admin.users-table', compact('rows', 'roles'));
+        return view('livewire.admin.users-table', compact('rows', 'filterRoles'));
     }
 }

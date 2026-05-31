@@ -194,7 +194,7 @@ class ApiAuthAndAccessTest extends TestCase
         $this->postJson('/api/loan-applications/'.$loanApplication->id.'/transition', [
             'to_stage' => 'approval',
         ])->assertStatus(422)->assertJsonFragment([
-            'message' => 'Approval limit exceeded',
+            'message' => 'Approval limit exceeded.',
         ]);
     }
 
@@ -361,13 +361,14 @@ class ApiAuthAndAccessTest extends TestCase
             'status' => 'active',
             'first_name' => 'Policy',
             'last_name' => 'Customer',
+            'monthly_income' => 2_000_000,
         ]);
 
         $product = LoanProduct::create([
             'code' => 'PRD001',
             'name' => 'Policy Test Product',
             'category' => 'salary_loan',
-            'interest_rate' => 12,
+            'interest_rate' => 0.01,
             'tenure_min_months' => 3,
             'tenure_max_months' => 24,
             'min_amount' => 100000,

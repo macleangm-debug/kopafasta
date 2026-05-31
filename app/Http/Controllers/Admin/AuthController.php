@@ -3,13 +3,16 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\RoleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    private const ADMIN_ROLES = ['admin', 'super_admin', 'manager', 'officer'];
+    public function __construct(private RoleService $roles)
+    {
+    }
 
     public function showLogin()
     {
@@ -31,7 +34,7 @@ class AuthController extends Controller
 
         $user = Auth::guard('admin')->user();
 
-        if (! in_array($user->role ?? null, self::ADMIN_ROLES, true)) {
+        if (! $this->roles->hasConsoleAccess($user)) {
             Auth::guard('admin')->logout();
             throw ValidationException::withMessages([
                 'email' => 'You are not authorised to access the admin.',

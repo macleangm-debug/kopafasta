@@ -4,12 +4,15 @@ namespace App\Policies;
 
 use App\Models\Repayment;
 use App\Models\User;
+use App\Policies\Concerns\StaffAccess;
 
 class RepaymentPolicy
 {
+    use StaffAccess;
+
     public function viewAny(User $user): bool
     {
-        return in_array($user->role, ['officer', 'manager', 'admin', 'collector'], true);
+        return in_array($user->role, ['officer', 'manager', 'admin', 'super_admin', 'collector'], true);
     }
 
     public function view(User $user, Repayment $repayment): bool
@@ -20,19 +23,6 @@ class RepaymentPolicy
 
     public function create(User $user): bool
     {
-        return in_array($user->role, ['officer', 'manager', 'admin', 'collector'], true);
-    }
-
-    private function sameBranch(User $user, ?int $recordBranchId): bool
-    {
-        if ($user->role === 'admin') {
-            return true;
-        }
-
-        if (! $user->branch_id || ! $recordBranchId) {
-            return false;
-        }
-
-        return (int) $user->branch_id === (int) $recordBranchId;
+        return in_array($user->role, ['officer', 'manager', 'admin', 'super_admin', 'collector'], true);
     }
 }

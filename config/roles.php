@@ -1,0 +1,127 @@
+<?php
+
+/**
+ * Canonical role definitions for KopaFasta.
+ *
+ * @see docs/ACL-WORKFLOW.md
+ */
+return [
+    'definitions' => [
+        'admin' => [
+            'label'              => 'Administrator',
+            'console_access'     => true,
+            'staff'              => true,
+            'permission_bypass'  => true,
+            'policy_bypass'      => true,
+            'user_form'          => true,
+            'users_filter'       => true,
+            'api_capabilities'   => ['core', 'reports', 'system', 'security', 'collections', 'support', 'audit'],
+        ],
+        'super_admin' => [
+            'label'              => 'Super administrator',
+            'console_access'     => true,
+            'staff'              => true,
+            'permission_bypass'  => false,
+            'policy_bypass'      => false,
+            'user_form'          => true,
+            'users_filter'       => true,
+            'api_capabilities'   => ['core', 'reports', 'system', 'collections', 'support', 'audit'],
+        ],
+        'manager' => [
+            'label'              => 'Credit manager',
+            'console_access'     => true,
+            'staff'              => true,
+            'permission_bypass'  => false,
+            'policy_bypass'      => false,
+            'user_form'          => true,
+            'users_filter'       => true,
+            'api_capabilities'   => ['core', 'reports', 'system', 'collections', 'support'],
+        ],
+        'officer' => [
+            'label'              => 'Loan officer',
+            'console_access'     => true,
+            'staff'              => true,
+            'permission_bypass'  => false,
+            'policy_bypass'      => false,
+            'user_form'          => true,
+            'users_filter'       => true,
+            'api_capabilities'   => ['core', 'reports'],
+        ],
+        'collector' => [
+            'label'              => 'Collector',
+            'console_access'     => false,
+            'staff'              => true,
+            'permission_bypass'  => false,
+            'policy_bypass'      => false,
+            'user_form'          => false,
+            'users_filter'       => false,
+            'api_capabilities'   => ['collections'],
+        ],
+        'credit_analyst' => [
+            'label'              => 'Credit analyst',
+            'console_access'     => false,
+            'staff'              => true,
+            'permission_bypass'  => false,
+            'policy_bypass'      => false,
+            'user_form'          => false,
+            'users_filter'       => false,
+            'api_capabilities'   => ['core'],
+        ],
+        'agent' => [
+            'label'              => 'Support agent',
+            'console_access'     => false,
+            'staff'              => true,
+            'permission_bypass'  => false,
+            'policy_bypass'      => false,
+            'user_form'          => false,
+            'users_filter'       => false,
+            'api_capabilities'   => ['support'],
+        ],
+        'auditor' => [
+            'label'              => 'Auditor',
+            'console_access'     => false,
+            'staff'              => true,
+            'permission_bypass'  => false,
+            'policy_bypass'      => false,
+            'user_form'          => false,
+            'users_filter'       => true,
+            'api_capabilities'   => ['audit'],
+        ],
+        'borrower' => [
+            'label'              => 'Borrower',
+            'console_access'     => false,
+            'staff'              => false,
+            'portal'             => 'borrower',
+        ],
+        'customer' => [
+            'label'              => 'Customer',
+            'console_access'     => false,
+            'staff'              => false,
+            'portal'             => 'borrower',
+        ],
+        'vendor' => [
+            'label'              => 'Vendor',
+            'console_access'     => false,
+            'staff'              => false,
+            'portal'             => 'vendor',
+        ],
+        'investor' => [
+            'label'              => 'Investor',
+            'console_access'     => false,
+            'staff'              => false,
+            'portal'             => 'investor',
+        ],
+    ],
+
+    /** Maps capability tokens used in API middleware to role codes. */
+    'api_capabilities' => [
+        'core'        => ['officer', 'manager', 'admin', 'super_admin', 'credit_analyst'],
+        'collections' => ['officer', 'manager', 'admin', 'super_admin', 'collector'],
+        'reports'     => ['officer', 'manager', 'admin', 'super_admin'],
+        'system'      => ['manager', 'admin', 'super_admin'],
+        'security'    => ['admin'],
+        'support'     => ['agent', 'manager', 'admin', 'super_admin'],
+        'audit'       => ['auditor', 'admin', 'super_admin'],
+        'portal'      => ['customer', 'borrower'],
+    ],
+];

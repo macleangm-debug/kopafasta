@@ -37,13 +37,13 @@ Route::prefix('auth')->group(function (): void {
 });
 
 Route::middleware('auth:sanctum')->group(function (): void {
-    Route::prefix('portal')->middleware('role:customer,officer,manager,admin')->group(function (): void {
+    Route::prefix('portal')->middleware('role:portal')->group(function (): void {
         Route::get('dashboard', [CustomerPortalController::class, 'dashboard']);
         Route::post('kyc', [CustomerPortalController::class, 'submitKyc']);
         Route::get('applications/{loanApplication}', [CustomerPortalController::class, 'trackApplication']);
     });
 
-    Route::middleware('role:officer,manager,admin')->group(function (): void {
+    Route::middleware('role:core')->group(function (): void {
         Route::apiResource('customers', CustomerController::class);
         Route::apiResource('loan-products', LoanProductController::class)->parameters(['loan-products' => 'loanProduct']);
         Route::apiResource('loan-applications', LoanApplicationController::class)->parameters(['loan-applications' => 'loanApplication']);
@@ -55,15 +55,18 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('loans/{loan}/disburse', [LoanController::class, 'disburse']);
         Route::apiResource('disbursements', DisbursementController::class);
         Route::post('disbursements/{disbursement}/release', [DisbursementController::class, 'release']);
-        Route::apiResource('repayments', RepaymentController::class)->only(['index', 'store', 'show']);
-        Route::get('loans/{loan}/schedule', [RepaymentController::class, 'schedule']);
-        Route::apiResource('arrears', ArrearController::class)->only(['index', 'show', 'update'])->parameters(['arrears' => 'arrearCase']);
-        Route::post('arrears/{arrearCase}/actions', [ArrearController::class, 'addAction']);
         Route::apiResource('restructures', RestructureController::class)->parameters(['restructures' => 'restructureRequest']);
         Route::post('restructures/{restructureRequest}/approve', [RestructureController::class, 'approve']);
     });
 
-    Route::prefix('reports')->middleware('role:officer,manager,admin')->group(function (): void {
+    Route::middleware('role:collections')->group(function (): void {
+        Route::apiResource('repayments', RepaymentController::class)->only(['index', 'store', 'show']);
+        Route::get('loans/{loan}/schedule', [RepaymentController::class, 'schedule']);
+        Route::apiResource('arrears', ArrearController::class)->only(['index', 'show', 'update'])->parameters(['arrears' => 'arrearCase']);
+        Route::post('arrears/{arrearCase}/actions', [ArrearController::class, 'addAction']);
+    });
+
+    Route::prefix('reports')->middleware('role:reports')->group(function (): void {
         Route::get('portfolio', [ReportController::class, 'portfolio']);
         Route::get('disbursement', [ReportController::class, 'disbursement']);
         Route::get('repayment', [ReportController::class, 'repayment']);
@@ -75,18 +78,18 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('customer-risk', [ReportController::class, 'customerRisk']);
     });
 
-    Route::prefix('system')->middleware('role:manager,admin')->group(function (): void {
+    Route::prefix('system')->middleware('role:system')->group(function (): void {
         Route::get('users', [AdminController::class, 'users']);
         Route::post('users/{user}/assign-role', [AdminController::class, 'assignRole']);
-        Route::post('users/{user}/lock', [AdminController::class, 'lockUser'])->middleware('role:admin');
-        Route::post('users/{user}/unlock', [AdminController::class, 'unlockUser'])->middleware('role:admin');
+        Route::post('users/{user}/lock', [AdminController::class, 'lockUser'])->middleware('role:security');
+        Route::post('users/{user}/unlock', [AdminController::class, 'unlockUser'])->middleware('role:security');
         Route::get('settings', [AdminController::class, 'settings']);
         Route::post('settings', [AdminController::class, 'upsertSetting']);
-        Route::get('audit-logs', [AdminController::class, 'auditLogs']);
-        Route::get('security/anomalies', [AdminController::class, 'securityAnomalies'])->middleware('role:admin');
-        Route::get('security/ip-rules', [AdminController::class, 'ipRules'])->middleware('role:admin');
-        Route::post('security/ip-rules', [AdminController::class, 'createIpRule'])->middleware('role:admin');
-        Route::delete('security/ip-rules/{ipRule}', [AdminController::class, 'deleteIpRule'])->middleware('role:admin')->whereNumber('ipRule');
-        Route::delete('security/blocks/{ip}', [AdminController::class, 'unblockIp'])->middleware('role:admin')->where('ip', '[0-9a-fA-F:.]+');
+        Route::get('audit-logs', [AdminController::class, 'auditLogs'])->middleware('role:audit');
+        Route::get('security/anomalies', [AdminController::class, 'securityAnomalies'])->middleware('role:security');
+        Route::get('security/ip-rules', [AdminController::class, 'ipRules'])->middleware('role:security');
+        Route::post('security/ip-rules', [AdminController::class, 'createIpRule'])->middleware('role:security');
+        Route::delete('security/ip-rules/{ipRule}', [AdminController::class, 'deleteIpRule'])->middleware('role:security')->whereNumber('ipRule');
+        Route::delete('security/blocks/{ip}', [AdminController::class, 'unblockIp'])->middleware('role:security')->where('ip', '[0-9a-fA-F:.]+');
     });
 });
