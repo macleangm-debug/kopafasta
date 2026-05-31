@@ -54,7 +54,7 @@
                 ], ['loans.view']],
                 ['Loan Products', 'M20 7L12 3 4 7m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', [
                     ['Loan Product Configuration', 'admin.settings.loan-products'],
-                ], ['settings.manage'                ], null],
+                ], ['settings.manage']],
                 ['Partners', 'M3 7h18M3 12h18M3 17h18', [
                     ['All Partners',         'admin.vendors.index'],
                     ['Vendor Applications', 'admin.vendors.applications'],
@@ -69,33 +69,33 @@
                     ['Lender Investments', 'admin.lender-investments.index'],
                 ], null],
                 ['Finance', 'M12 8c-1.66 0-3 .9-3 2s1.34 2 3 2 3 .9 3 2-1.34 2-3 2m0-8v8m0 0v2m-9-5a9 9 0 1018 0 9 9 0 00-18 0z', [
-                    ['Chart of Accounts',     'admin.chart-of-accounts.index'],
-                    ['Bank Accounts',         'admin.bank-accounts.index'],
-                    ['Mobile Money Accounts', 'admin.mobile-money-accounts.index'],
-                    ['Disbursement Methods',  'admin.disbursement-methods.index'],
-                    ['Repayment Methods',     'admin.repayment-methods.index'],
-                    ['Charges & Fees',        'admin.charges-fees.index'],
-                    ['Write-off Rules',       'admin.write-off-rules.index'],
-                    ['Expenses',              'admin.expenses.index'],
-                    ['Settlements',           'admin.settlements.index'],
-                    ['Reconciliations',       'admin.reconciliations.index'],
-                    ['Journal Entries',       'admin.journal-entries.index'],
-                ], null],
+                    ['Chart of Accounts',     'admin.chart-of-accounts.index',     'finance.accounts'],
+                    ['Bank Accounts',         'admin.bank-accounts.index',         'finance.accounts'],
+                    ['Mobile Money Accounts', 'admin.mobile-money-accounts.index', 'finance.accounts'],
+                    ['Disbursement Methods',  'admin.disbursement-methods.index',  'finance.methods'],
+                    ['Repayment Methods',     'admin.repayment-methods.index',     'finance.methods'],
+                    ['Charges & Fees',        'admin.charges-fees.index',          'finance.methods'],
+                    ['Write-off Rules',       'admin.write-off-rules.index',       'finance.methods'],
+                    ['Expenses',              'admin.expenses.index',              'finance.operations'],
+                    ['Settlements',           'admin.settlements.index',           'finance.operations'],
+                    ['Reconciliations',       'admin.reconciliations.index',       'finance.operations'],
+                    ['Journal Entries',       'admin.journal-entries.index',       'finance.operations'],
+                ], ['finance.accounts', 'finance.methods', 'finance.operations']],
                 ['Reports', 'M3 3v18h18M7 17V9m4 8V5m4 12v-7m4 7V11', [
-                    ['Financial Overview','admin.reports.financial-overview'],
-                    ['Portfolio',         'admin.reports.portfolio'],
-                    ['Disbursements',     'admin.reports.disbursements'],
-                    ['Repayments',        'admin.reports.repayments'],
-                    ['Arrears',           'admin.reports.arrears'],
-                    ['PAR',               'admin.reports.par'],
-                    ['NPL',               'admin.reports.npl'],
-                    ['Customers',         'admin.reports.customers'],
-                    ['Trial Balance',     'admin.reports.trial-balance'],
-                    ['Income Statement',  'admin.reports.income-statement'],
-                    ['Balance Sheet',     'admin.reports.balance-sheet'],
-                    ['Cash Flow',         'admin.reports.cash-flow'],
-                    ['Vendor Performance','admin.reports.vendor-performance'],
-                ], null],
+                    ['Financial Overview','admin.reports.financial-overview', 'finance.reports'],
+                    ['Portfolio',         'admin.reports.portfolio',          'reports.view'],
+                    ['Disbursements',     'admin.reports.disbursements',      'reports.view'],
+                    ['Repayments',        'admin.reports.repayments',         'reports.view'],
+                    ['Arrears',           'admin.reports.arrears',            'reports.view'],
+                    ['PAR',               'admin.reports.par',                'reports.view'],
+                    ['NPL',               'admin.reports.npl',                'finance.reports'],
+                    ['Customers',         'admin.reports.customers',          'reports.view'],
+                    ['Trial Balance',     'admin.reports.trial-balance',      'finance.reports'],
+                    ['Income Statement',  'admin.reports.income-statement',   'finance.reports'],
+                    ['Balance Sheet',     'admin.reports.balance-sheet',      'finance.reports'],
+                    ['Cash Flow',         'admin.reports.cash-flow',          'finance.reports'],
+                    ['Vendor Performance','admin.reports.vendor-performance', 'reports.view'],
+                ], ['reports.view', 'finance.reports']],
                 ['Compliance', 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z', [
                     ['BOT Reports',         'admin.compliance.bot-reports'],
                     ['AML Reports',         'admin.compliance.aml-reports'],
@@ -139,14 +139,33 @@
                 return auth()->check() && $permissionService->hasAny(auth()->user(), $perms);
             };
 
+            $filterNavItems = function (array $items) use ($permissionService) {
+                return array_values(array_filter($items, function (array $item) use ($permissionService) {
+                    $permission = $item[2] ?? null;
+
+                    if ($permission === null) {
+                        return true;
+                    }
+
+                    return auth()->check() && $permissionService->has(auth()->user(), $permission);
+                }));
+            };
+
             // Resolve the tab items belonging to the section that owns the current route.
             $activeSectionTabs = [];
             foreach ($sections as [$__l, $__ic, $__items, $__perms]) {
                 if (! $canSeeSection($__perms)) {
                     continue;
                 }
-                if (in_array($currentRoute, array_column($__items, 1), true)) {
-                    $activeSectionTabs = $__items;
+
+                $visibleItems = $filterNavItems($__items);
+
+                if (count($visibleItems) === 0) {
+                    continue;
+                }
+
+                if (in_array($currentRoute, array_column($visibleItems, 1), true)) {
+                    $activeSectionTabs = $visibleItems;
                     break;
                 }
             }
@@ -158,9 +177,13 @@
                     @continue
                 @endif
                 @php
-                    $childRoutes    = array_column($items, 1);
+                    $visibleItems   = $filterNavItems($items);
+                    if (count($visibleItems) === 0) {
+                        continue;
+                    }
+                    $childRoutes    = array_column($visibleItems, 1);
                     $isActiveBranch = in_array($currentRoute, $childRoutes, true);
-                    $targetRoute    = $items[0][1];
+                    $targetRoute    = $visibleItems[0][1];
                 @endphp
                 <a href="{{ route($targetRoute) }}"
                    class="flex items-center gap-3 px-3 py-2 rounded-lg transition

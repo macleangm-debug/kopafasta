@@ -74,8 +74,34 @@ Sidebar sections are hidden when the user lacks any required permission for that
 | Customers | `customers.view`, `kyc.review`, `membership.approve_payments` |
 | Loans | `loans.view` |
 | Loan Products | `settings.manage` |
+| Finance | `finance.accounts`, `finance.methods`, `finance.operations` |
+| Reports | `reports.view`, `finance.reports` |
 | Compliance | `audit.view` |
-| Settings | `settings.manage` |
+| Settings | `settings.manage`, `users.view`, `users.manage` |
+
+Within **Finance** and **Reports**, individual tabs are filtered by the specific permission on each menu item (see below).
+
+### Finance & reports permissions
+
+Configure these under **Settings → Roles & Permissions** in the **Finance** and **Reports & analytics** modules:
+
+| Permission | Controls |
+|------------|----------|
+| `finance.accounts` | Chart of accounts, bank accounts, mobile money accounts |
+| `finance.methods` | Disbursement/repayment methods, charges & fees, write-off rules |
+| `finance.operations` | Expenses, settlements, reconciliations, journal entries |
+| `finance.reports` | Trial balance, income statement, balance sheet, cash flow, NPL, financial overview |
+| `reports.view` | Portfolio, disbursements, repayments, arrears, PAR, vendor performance, customer reports |
+
+**Default role access:**
+
+| Role | Finance / reports |
+|------|-------------------|
+| `manager` | All finance + reports permissions |
+| `officer` | `reports.view` only |
+| `auditor` | `finance.reports`, `reports.view`, `audit.view` |
+| `collector` | `reports.view` |
+| `admin` | All (bypass) |
 
 Other sections remain visible to all authenticated console users until finer permissions are added.
 

@@ -289,21 +289,26 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         $registerResource('funding-pools',      'funding_pool',       FundingPoolController::class);
         $registerResource('lender-investments', 'lender_investment',  LenderInvestmentController::class);
 
-        // Finance
-        $registerResource('expenses',        'expense',        ExpenseController::class);
-        Route::post('expenses/{expense}/post', [ExpenseController::class, 'post'])->name('expenses.post');
-        $registerResource('settlements',     'settlement',     SettlementController::class);
-        $registerResource('reconciliations', 'reconciliation', ReconciliationController::class);
-        Route::get('journal-entries',                [JournalEntryController::class, 'index'])->name('journal-entries.index');
-        Route::get('journal-entries/{journal_entry}', [JournalEntryController::class, 'show'])->name('journal-entries.show');
+        // Finance — operations
+        Route::middleware('permission:finance.operations')->group(function () use ($registerResource): void {
+            $registerResource('expenses',        'expense',        ExpenseController::class);
+            Route::post('expenses/{expense}/post', [ExpenseController::class, 'post'])->name('expenses.post');
+            $registerResource('settlements',     'settlement',     SettlementController::class);
+            $registerResource('reconciliations', 'reconciliation', ReconciliationController::class);
+            Route::get('journal-entries',                [JournalEntryController::class, 'index'])->name('journal-entries.index');
+            Route::get('journal-entries/{journal_entry}', [JournalEntryController::class, 'show'])->name('journal-entries.show');
+        });
 
-        // Reports
-        Route::view('reports/portfolio',          'admin.reports.portfolio')          ->name('reports.portfolio');
-        Route::view('reports/disbursements',      'admin.reports.disbursements')      ->name('reports.disbursements');
-        Route::view('reports/repayments',         'admin.reports.repayments')         ->name('reports.repayments');
-        Route::view('reports/arrears',            'admin.reports.arrears')            ->name('reports.arrears');
-        Route::view('reports/par',                'admin.reports.par')                ->name('reports.par');
-        Route::view('reports/vendor-performance', 'admin.reports.vendor-performance') ->name('reports.vendor-performance');
+        // Reports — operational
+        Route::middleware('permission:reports.view')->group(function (): void {
+            Route::view('reports/portfolio',          'admin.reports.portfolio')          ->name('reports.portfolio');
+            Route::view('reports/disbursements',      'admin.reports.disbursements')      ->name('reports.disbursements');
+            Route::view('reports/repayments',         'admin.reports.repayments')         ->name('reports.repayments');
+            Route::view('reports/arrears',            'admin.reports.arrears')            ->name('reports.arrears');
+            Route::view('reports/par',                'admin.reports.par')                ->name('reports.par');
+            Route::view('reports/vendor-performance', 'admin.reports.vendor-performance') ->name('reports.vendor-performance');
+            Route::get('reports/customers',        [FinanceReportsController::class, 'customers'])      ->name('reports.customers');
+        });
 
         // Support
         $registerResource('support-tickets', 'support_ticket', SupportTicketController::class);
@@ -322,22 +327,28 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::post('users/{user}/toggle-active', [UserController::class, 'toggleActive'])->name('users.toggle-active');
 
         // ========== FINANCE (extended) ==========
-        $registerResource('chart-of-accounts',      'chart_of_account',      ChartOfAccountController::class);
-        $registerResource('bank-accounts',          'bank_account',          BankAccountController::class);
-        $registerResource('mobile-money-accounts',  'mobile_money_account',  MobileMoneyAccountController::class);
-        $registerResource('disbursement-methods',   'disbursement_method',   DisbursementMethodController::class);
-        $registerResource('repayment-methods',      'repayment_method',      RepaymentMethodController::class);
-        $registerResource('charges-fees',           'charges_fee',           ChargesFeeController::class);
-        $registerResource('write-off-rules',        'write_off_rule',        WriteOffRuleController::class);
+        Route::middleware('permission:finance.accounts')->group(function () use ($registerResource): void {
+            $registerResource('chart-of-accounts',      'chart_of_account',      ChartOfAccountController::class);
+            $registerResource('bank-accounts',          'bank_account',          BankAccountController::class);
+            $registerResource('mobile-money-accounts',  'mobile_money_account',  MobileMoneyAccountController::class);
+        });
+
+        Route::middleware('permission:finance.methods')->group(function () use ($registerResource): void {
+            $registerResource('disbursement-methods',   'disbursement_method',   DisbursementMethodController::class);
+            $registerResource('repayment-methods',      'repayment_method',      RepaymentMethodController::class);
+            $registerResource('charges-fees',           'charges_fee',           ChargesFeeController::class);
+            $registerResource('write-off-rules',        'write_off_rule',        WriteOffRuleController::class);
+        });
 
         // Finance reports
-        Route::get('reports/trial-balance',    [FinanceReportsController::class, 'trialBalance'])   ->name('reports.trial-balance');
-        Route::get('reports/income-statement', [FinanceReportsController::class, 'incomeStatement'])->name('reports.income-statement');
-        Route::get('reports/balance-sheet',    [FinanceReportsController::class, 'balanceSheet'])   ->name('reports.balance-sheet');
-        Route::get('reports/cash-flow',        [FinanceReportsController::class, 'cashFlow'])       ->name('reports.cash-flow');
-        Route::get('reports/npl',              [FinanceReportsController::class, 'npl'])            ->name('reports.npl');
-        Route::get('reports/customers',        [FinanceReportsController::class, 'customers'])      ->name('reports.customers');
-        Route::get('reports/financial-overview',[FinanceReportsController::class, 'financialOverview'])->name('reports.financial-overview');
+        Route::middleware('permission:finance.reports')->group(function (): void {
+            Route::get('reports/trial-balance',    [FinanceReportsController::class, 'trialBalance'])   ->name('reports.trial-balance');
+            Route::get('reports/income-statement', [FinanceReportsController::class, 'incomeStatement'])->name('reports.income-statement');
+            Route::get('reports/balance-sheet',    [FinanceReportsController::class, 'balanceSheet'])   ->name('reports.balance-sheet');
+            Route::get('reports/cash-flow',        [FinanceReportsController::class, 'cashFlow'])       ->name('reports.cash-flow');
+            Route::get('reports/npl',              [FinanceReportsController::class, 'npl'])            ->name('reports.npl');
+            Route::get('reports/financial-overview',[FinanceReportsController::class, 'financialOverview'])->name('reports.financial-overview');
+        });
 
         // ========== KYC / RISK ==========
         $registerResource('risk-scoring-rules',   'risk_scoring_rule',   RiskScoringRuleController::class);

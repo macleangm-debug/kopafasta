@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'membership.active' => EnsureActiveMembership::class,
             'borrower.pin' => \App\Http\Middleware\EnsureBorrowerPin::class,
             'role' => EnsureUserRole::class,
+            'permission' => \App\Http\Middleware\EnsurePermission::class,
         ]);
 
         $middleware->redirectGuestsTo(function ($request) {

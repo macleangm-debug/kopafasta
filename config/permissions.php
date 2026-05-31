@@ -11,6 +11,7 @@ return [
         'customers'    => 'Customers & KYC',
         'support'      => 'Support',
         'finance'      => 'Finance',
+        'reports'      => 'Reports & analytics',
         'settings'     => 'Settings & admin',
     ],
 
@@ -36,6 +37,15 @@ return [
         'loans.view'                     => ['label' => 'View loans', 'module' => 'loans'],
         'loans.disburse'                 => ['label' => 'Disburse loans', 'module' => 'loans'],
 
+        // Finance — configuration
+        'finance.accounts'               => ['label' => 'Chart of accounts & bank accounts', 'module' => 'finance'],
+        'finance.methods'                => ['label' => 'Disbursement/repayment methods, charges & write-offs', 'module' => 'finance'],
+        'finance.operations'             => ['label' => 'Expenses, settlements, reconciliations & journals', 'module' => 'finance'],
+        'finance.reports'                => ['label' => 'Financial statements & trial balance', 'module' => 'finance'],
+
+        // Reports — portfolio & operations
+        'reports.view'                   => ['label' => 'Portfolio, PAR, disbursements & operational reports', 'module' => 'reports'],
+
         // Settings
         'settings.manage'                => ['label' => 'Manage settings & roles', 'module' => 'settings'],
         'users.view'                     => ['label' => 'View users', 'module' => 'settings'],
@@ -51,6 +61,7 @@ return [
         'officer' => [
             'applications.view', 'applications.edit', 'applications.request_documents',
             'customers.view', 'kyc.review', 'membership.approve_payments',
+            'reports.view',
         ],
         'manager' => [
             'applications.view', 'applications.acknowledge', 'applications.review',
@@ -58,19 +69,23 @@ return [
             'applications.disburse', 'applications.request_documents', 'applications.edit',
             'customers.view', 'customers.edit', 'kyc.review', 'membership.approve_payments',
             'loans.view', 'loans.disburse', 'users.view',
+            'finance.accounts', 'finance.methods', 'finance.operations', 'finance.reports',
+            'reports.view',
         ],
         'credit_analyst' => [
             'applications.view', 'applications.review', 'applications.request_documents',
             'customers.view', 'kyc.review',
+            'reports.view',
         ],
         'collector' => [
             'loans.view', 'customers.view',
+            'reports.view',
         ],
         'agent' => [
             'support.tickets',
         ],
         'auditor' => [
-            'audit.view',
+            'audit.view', 'finance.reports', 'reports.view',
         ],
         'borrower' => [],
         'customer' => [],
