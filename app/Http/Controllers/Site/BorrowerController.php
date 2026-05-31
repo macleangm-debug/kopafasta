@@ -6,12 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\CustomerDocument;
 use App\Models\CustomerGuarantor;
-use App\Models\CustomerGuarantor;
 use App\Models\CustomerKyc;
 use App\Models\DocumentType;
 use App\Models\Guarantor;
 use App\Models\Loan;
 use App\Models\LoanApplication;
+use App\Models\LoanApplicationDocumentRequest;
 use App\Models\NotificationLog;
 use App\Models\Repayment;
 use App\Models\RepaymentSchedule;
@@ -20,6 +20,7 @@ use App\Models\TrustedDevice;
 use App\Rules\FourDigitPin;
 use App\Rules\MinimumAge;
 use App\Rules\ValidNidaNumber;
+use App\Services\ApplicationDocumentRequestService;
 use App\Services\FaceVerificationService;
 use App\Services\GuarantorInvitationService;
 use App\Services\KycFreshnessService;
@@ -119,11 +120,13 @@ class BorrowerController extends Controller
         // Active loan products available for application
         $products = LoanProduct::where('is_active', true)->orderBy('name')->get();
 
+        $openDocumentRequests = app(ApplicationDocumentRequestService::class)->openRequestsForCustomer($customer);
+
         return view('site.borrower.dashboard', compact(
             'customer','activeLoan','nextDue','applicationsCount',
             'latestApplication','notifications','eligibility',
             'kyc','kycRequired','kycUploaded','kycProgress','kycMissing',
-            'products'
+            'products','openDocumentRequests'
         ));
     }
 
@@ -158,7 +161,7 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         abort_if($application->customer_id !== $customer->id, 404);
 
-        $application->load('product.requirements');
+        $application->load('product.requirements', 'documentRequests.uploads');
 
         // Documents already uploaded for THIS application
         $uploads = CustomerDocument::where('customer_id', $customer->id)
@@ -173,9 +176,60 @@ class BorrowerController extends Controller
         $satisfiedCount = $requirements->where('is_required', true)
             ->filter(fn ($r) => $uploads->has($r->id))->count();
 
+        $documentRequests = $application->documentRequests()->with('uploads')->latest()->get();
+
         return view('site.borrower.application', compact(
-            'customer','application','requirements','uploads','requiredCount','satisfiedCount'
+            'customer','application','requirements','uploads','requiredCount','satisfiedCount','documentRequests'
         ));
+    }
+
+    public function uploadDocumentRequest(
+        Request $request,
+        LoanApplication $application,
+        LoanApplicationDocumentRequest $documentRequest,
+        ApplicationDocumentRequestService $docRequests,
+    ): RedirectResponse {
+        $customer = $this->customer();
+        abort_if($application->customer_id !== $customer->id, 404);
+        abort_if($documentRequest->loan_application_id !== $application->id, 404);
+
+        if (! $documentRequest->needsBorrowerAction()) {
+            return back()->withErrors(['upload' => 'This request is no longer open for uploads.']);
+        }
+
+        $files = array_filter(array_merge(
+            $request->file('files', []) ?? [],
+            $request->file('file') ? [$request->file('file')] : [],
+        ));
+
+        if ($documentRequest->type === 'clarification') {
+            $data = $request->validate([
+                'response' => ['nullable', 'string', 'max:2000'],
+            ]);
+
+            if (empty($data['response']) && empty($files)) {
+                return back()->withErrors(['response' => 'Please provide a written response or upload supporting files.']);
+            }
+
+            if (! empty($data['response'])) {
+                $docRequests->recordClarification($documentRequest, $data['response']);
+            }
+        } elseif (empty($files)) {
+            return back()->withErrors(['files' => 'Please upload at least one file.']);
+        }
+
+        if (! empty($files)) {
+            $request->validate([
+                'files.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                'file'    => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            ]);
+
+            $docRequests->recordUploads($documentRequest, $customer, $files);
+        }
+
+        return redirect()
+            ->route('site.borrower.application', $application->id)
+            ->with('status', 'Submitted — our team will review it shortly.');
     }
 
     public function uploadApplicationDocument(Request $request, LoanApplication $application): RedirectResponse

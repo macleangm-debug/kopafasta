@@ -62,4 +62,9 @@ class LoanApplication extends Model
     {
         return $this->hasMany(CustomerGuarantor::class);
     }
+
+    public function documentRequests(): HasMany
+    {
+        return $this->hasMany(LoanApplicationDocumentRequest::class);
+    }
 }

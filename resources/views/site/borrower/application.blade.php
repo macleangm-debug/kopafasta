@@ -69,6 +69,72 @@
         </div>
     @endif
 
+    {{-- Ad-hoc document requests from underwriting --}}
+    @if ($documentRequests->isNotEmpty())
+        <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-6">
+            <div class="px-5 py-4 border-b border-gray-200">
+                <h2 class="font-semibold">Requested documents</h2>
+                <p class="text-xs text-gray-500 mt-0.5">Underwriting has asked for the following. Upload using camera, gallery, or PDF.</p>
+            </div>
+            <ul class="divide-y divide-gray-100">
+                @foreach ($documentRequests as $docReq)
+                    @php
+                        $reqBadge = match ($docReq->status) {
+                            'satisfied' => 'bg-emerald-100 text-emerald-700',
+                            'uploaded'  => 'bg-amber-100 text-amber-700',
+                            'rejected'  => 'bg-red-100 text-red-700',
+                            default     => 'bg-sky-100 text-sky-700',
+                        };
+                    @endphp
+                    <li class="p-5">
+                        <div class="flex items-start justify-between gap-3 mb-3 flex-wrap">
+                            <div>
+                                <p class="font-semibold text-gray-900">{{ $docReq->label }}</p>
+                                <p class="text-xs text-gray-500 mt-0.5">
+                                    {{ ucfirst($docReq->type) }}
+                                    @if ($docReq->due_at) · Due {{ $docReq->due_at->format('d M Y') }} @endif
+                                </p>
+                                @if ($docReq->instructions)
+                                    <p class="text-sm text-gray-600 mt-2">{{ $docReq->instructions }}</p>
+                                @endif
+                                @if ($docReq->admin_notes && $docReq->status === 'rejected')
+                                    <p class="text-xs text-red-700 bg-red-50 ring-1 ring-red-200 rounded-lg px-3 py-2 mt-2">{{ $docReq->admin_notes }}</p>
+                                @endif
+                                @if ($docReq->borrower_response && $docReq->status !== 'pending')
+                                    <p class="text-xs text-gray-500 mt-2">Your response: {{ $docReq->borrower_response }}</p>
+                                @endif
+                            </div>
+                            <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $reqBadge }}">{{ ucfirst($docReq->status) }}</span>
+                        </div>
+
+                        @if ($docReq->uploads->isNotEmpty())
+                            <div class="flex flex-wrap gap-2 mb-3">
+                                @foreach ($docReq->uploads as $upload)
+                                    <a href="{{ asset('storage/'.$upload->file_path) }}" target="_blank"
+                                       class="text-xs font-semibold text-amber-700 hover:underline">
+                                        View uploaded file
+                                    </a>
+                                @endforeach
+                            </div>
+                        @endif
+
+                        @if ($docReq->needsBorrowerAction())
+                            <x-site.document-upload
+                                :action="route('site.borrower.application.document-requests.store', [$application, $docReq])"
+                                :show-clarification="$docReq->type === 'clarification'"
+                                :multiple="true"
+                            />
+                        @elseif ($docReq->status === 'uploaded')
+                            <p class="text-sm text-amber-700">Submitted — awaiting underwriting review.</p>
+                        @elseif ($docReq->status === 'satisfied')
+                            <p class="text-sm text-emerald-700">This request has been satisfied.</p>
+                        @endif
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     {{-- Requirements checklist --}}
     <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
         <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-3 flex-wrap">

@@ -34,6 +34,22 @@
                 Reconfirm now →
             </a>
         </div>
+    @elseif (($openDocumentRequests ?? collect())->isNotEmpty())
+        <div class="mb-6 rounded-2xl bg-violet-50 ring-1 ring-violet-200 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <p class="font-semibold text-violet-900">Documents requested by underwriting</p>
+                <p class="text-sm text-violet-800 mt-1">
+                    You have {{ $openDocumentRequests->count() }} open request{{ $openDocumentRequests->count() === 1 ? '' : 's' }}.
+                    @if ($req = $openDocumentRequests->first())
+                        Latest: {{ $req->label }} ({{ $req->application->application_number ?? 'application' }}).
+                    @endif
+                </p>
+            </div>
+            <a href="{{ route('site.borrower.application', $openDocumentRequests->first()->loan_application_id) }}"
+               class="inline-flex bg-violet-600 hover:bg-violet-700 text-white font-semibold px-5 py-2.5 rounded-full text-sm whitespace-nowrap">
+                Upload now →
+            </a>
+        </div>
     @endif
 
     {{-- Greeting --}}

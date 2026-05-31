@@ -36,4 +36,9 @@ class CustomerDocument extends Model
     {
         return $this->belongsTo(LoanProductRequirement::class, 'loan_product_requirement_id');
     }
+
+    public function documentRequest(): BelongsTo
+    {
+        return $this->belongsTo(LoanApplicationDocumentRequest::class, 'loan_application_document_request_id');
+    }
 }

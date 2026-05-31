@@ -101,6 +101,13 @@ class NotificationTemplateSeeder extends Seeder
                 'subject' => 'Welcome to KopaFasta',
                 'body'    => 'Karibu KopaFasta {{ name }}! Namba yako ya uanachama ni {{ member_no }}. Imeanza {{ issued_at }} na itaisha {{ expires_at }}. — KopaFasta',
             ],
+            [
+                'code' => 'application_document_request',
+                'name' => 'Application Document Request',
+                'channel' => 'all',
+                'subject' => 'Document needed for {{ application_number }}',
+                'body'    => 'Hi {{ name }}, underwriting needs "{{ label }}" for application {{ application_number }}. {{ instructions }} Please upload by {{ due_date }}: {{ upload_url }} — Kopa Fasta',
+            ],
         ];
 
         foreach ($templates as $t) {

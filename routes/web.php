@@ -25,6 +25,7 @@ use App\Http\Controllers\Admin\GuarantorController;
 use App\Http\Controllers\Admin\LenderController;
 use App\Http\Controllers\Admin\LenderInvestmentController;
 use App\Http\Controllers\Admin\LoanApplicationController;
+use App\Http\Controllers\Admin\LoanApplicationDocumentRequestController;
 use App\Http\Controllers\Admin\LoanController;
 use App\Http\Controllers\Admin\LoanProductController;
 use App\Http\Controllers\Admin\MembershipPaymentController;
@@ -110,6 +111,7 @@ Route::name('site.')->group(function () {
             Route::get('/borrower/applications',                   [\App\Http\Controllers\Site\BorrowerController::class, 'applications']) ->name('borrower.applications');
             Route::get('/borrower/applications/{application}',     [\App\Http\Controllers\Site\BorrowerController::class, 'application'])  ->name('borrower.application');
             Route::post('/borrower/applications/{application}/documents', [\App\Http\Controllers\Site\BorrowerController::class, 'uploadApplicationDocument'])->name('borrower.application.documents.store');
+            Route::post('/borrower/applications/{application}/document-requests/{documentRequest}', [\App\Http\Controllers\Site\BorrowerController::class, 'uploadDocumentRequest'])->name('borrower.application.document-requests.store');
             Route::get('/borrower/applications/{application}/agreement',                [\App\Http\Controllers\Site\LoanAgreementController::class, 'show'])      ->name('borrower.application.agreement');
             Route::post('/borrower/applications/{application}/agreement/otp',           [\App\Http\Controllers\Site\LoanAgreementController::class, 'requestOtp'])->name('borrower.application.agreement.otp');
             Route::post('/borrower/applications/{application}/agreement/sign',          [\App\Http\Controllers\Site\LoanAgreementController::class, 'sign'])      ->name('borrower.application.agreement.sign');
@@ -232,6 +234,12 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         $registerResource('loan-applications', 'loan_application', LoanApplicationController::class);
         Route::post('loan-applications/{loan_application}/agreement', [\App\Http\Controllers\Admin\LoanAgreementController::class, 'generate'])
             ->name('loan-applications.agreement.generate');
+        Route::post('loan-applications/{loan_application}/document-requests', [LoanApplicationDocumentRequestController::class, 'store'])
+            ->name('loan-applications.document-requests.store');
+        Route::post('loan-application-document-requests/{documentRequest}/satisfy', [LoanApplicationDocumentRequestController::class, 'satisfy'])
+            ->name('loan-application-document-requests.satisfy');
+        Route::post('loan-application-document-requests/{documentRequest}/reject', [LoanApplicationDocumentRequestController::class, 'reject'])
+            ->name('loan-application-document-requests.reject');
 
         // Customers
         $registerResource('customers',     'customer',      CustomerController::class);
