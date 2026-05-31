@@ -36,6 +36,7 @@ $icon = function (string $name) {
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title }}</title>
     @vite(['resources/css/app.css','resources/js/app.js'])
+    @stack('styles')
     <style>[x-cloak]{display:none!important}</style>
 </head>
 <body class="bg-gray-50 text-gray-900 antialiased" x-data="{open:false}">

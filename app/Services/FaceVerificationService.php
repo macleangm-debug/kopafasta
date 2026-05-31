@@ -172,4 +172,39 @@ class FaceVerificationService
             default    => ['Incomplete', 'bg-amber-100 text-amber-800'],
         };
     }
+
+    /**
+     * @return array{order: list<string>, current_index: int, current_angle: string|null, complete: bool, total: int}
+     */
+    public function wizardState(Customer $customer): array
+    {
+        $order = $this->requiredAngleKeys();
+        $latest = $this->latestByAngle($customer);
+
+        if ($customer->face_verification_status === 'rejected') {
+            $latest = $latest->filter(fn (FaceVerification $photo) => $photo->status !== 'rejected');
+        }
+
+        $total = count($order);
+        $currentIndex = 0;
+
+        foreach ($order as $index => $angle) {
+            if (! $latest->has($angle)) {
+                $currentIndex = $index;
+                break;
+            }
+            $currentIndex = $index + 1;
+        }
+
+        $complete = $latest->count() >= $total;
+        $activeIndex = min($currentIndex, max($total - 1, 0));
+
+        return [
+            'order'          => $order,
+            'current_index'  => $activeIndex,
+            'current_angle'  => $order[$activeIndex] ?? null,
+            'complete'       => $complete,
+            'total'          => $total,
+        ];
+    }
 }

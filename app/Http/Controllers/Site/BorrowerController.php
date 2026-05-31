@@ -672,9 +672,10 @@ class BorrowerController extends Controller
         $progress = $faces->progress($customer);
         $status = $faces->statusLabel($customer);
         $angles = $faces->angles();
+        $wizard = $faces->wizardState($customer);
 
         return view('site.borrower.face-verification', compact(
-            'customer', 'photos', 'progress', 'status', 'angles'
+            'customer', 'photos', 'progress', 'status', 'angles', 'wizard'
         ));
     }
 
