@@ -25,7 +25,7 @@
                 </svg>
             </div>
             <h2 class="text-xl font-bold text-gray-900 mb-2">Face ID verification</h2>
-            <p class="text-sm text-gray-500 mb-6">We will guide you through four poses — front, left, right, and NIDA — and save each photo automatically.</p>
+            <p class="text-sm text-gray-500 mb-4">Sit close to your webcam, allow camera access when prompted, and follow the on-screen head movements. Works in Chrome, Safari, and Edge.</p>
             <ul class="text-left text-sm text-gray-600 space-y-2 mb-6">
                 <template x-for="(step, i) in steps" :key="step.key">
                     <li class="flex items-center gap-2">
@@ -67,15 +67,18 @@
         </div>
 
         {{-- Detection status --}}
-        <div class="absolute top-16 left-0 right-0 flex justify-center px-4">
+        <div class="absolute top-16 left-0 right-0 flex flex-col items-center gap-2 px-4 z-10">
             <span class="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-full backdrop-blur-sm"
                   :class="faceVisible
                     ? (poseOk ? 'bg-emerald-500/90 text-white' : 'bg-amber-500/90 text-gray-900')
                     : 'bg-black/50 text-white/90'">
-                <span class="w-2.5 h-2.5 rounded-full animate-pulse"
-                      :class="faceVisible ? (poseOk ? 'bg-white' : 'bg-gray-900') : 'bg-red-400'"></span>
+                <span class="w-2.5 h-2.5 rounded-full"
+                      :class="faceVisible ? (poseOk ? 'bg-white animate-pulse' : 'bg-gray-900 animate-pulse') : 'bg-red-400 animate-pulse'"></span>
                 <span x-text="detectionLabel"></span>
             </span>
+            <span x-show="phase === 'scanning' && holdProgress > 0" x-cloak
+                  class="text-xs font-mono text-white/80 bg-black/40 px-3 py-1 rounded-full"
+                  x-text="Math.round(holdProgress) + '%'"></span>
         </div>
 
         {{-- Step badge --}}
@@ -86,9 +89,13 @@
         </div>
 
         {{-- Status --}}
-        <div class="absolute bottom-0 inset-x-0 px-6 pb-8 pt-16 bg-gradient-to-t from-black via-black/80 to-transparent text-center">
+        <div class="absolute bottom-0 inset-x-0 px-6 pb-24 pt-16 bg-gradient-to-t from-black via-black/80 to-transparent text-center z-10">
             <p class="text-lg font-semibold text-white" x-text="statusTitle"></p>
             <p class="text-sm text-white/70 mt-1" x-text="statusSubtitle"></p>
+            <button type="button" @click="manualCapture()" :disabled="isUploading || phase === 'saving'"
+                    class="mt-4 inline-flex bg-white/15 hover:bg-white/25 backdrop-blur text-white font-semibold px-5 py-2 rounded-full text-sm border border-white/30">
+                Capture now
+            </button>
         </div>
 
         {{-- Saving flash --}}
@@ -149,11 +156,17 @@
                     lastTick: null,
                     isUploading: false,
                     scanStartedAt: null,
+                    stepStartedAt: null,
+                    simpleMode: false,
+                    uiTick: 0,
+                    uiTimer: null,
 
                     get detectionLabel() {
+                        void this.uiTick;
                         if (this.phase === 'saving') return 'Saving photo…';
-                        if (!this.detectorActive && !this.landmarkerActive) return 'Camera only — hold your face in the oval';
-                        if (!this.faceVisible) return 'No face detected — move closer';
+                        if (this.simpleMode) return 'Hold still — photo saves automatically';
+                        if (!this.detectorActive && !this.landmarkerActive) return 'Browser mode — hold your face in the oval';
+                        if (!this.faceVisible) return 'No face detected — sit closer to the camera';
                         if (this.poseOk) return '✓ Perfect — hold still';
                         if (this.holdProgress > 0) return 'Almost there — keep holding';
                         return 'Face detected — adjust your head';
@@ -175,7 +188,8 @@
                         if (this.phase === 'saving') return 'Uploading photo securely';
                         const step = this.currentStep;
                         if (!step) return '';
-                        if (!this.faceVisible) return 'Move your face into the oval';
+                        if (this.simpleMode) return 'Follow the instruction above, then hold still for 2 seconds. Or tap Capture now.';
+                        if (!this.faceVisible) return 'Fill the oval with your face — sit closer to the webcam';
                         if (step.key === 'holding_nida') {
                             return this.poseOk ? 'Keep NIDA and face visible' : 'Hold your NIDA card beside your face';
                         }
@@ -183,6 +197,18 @@
                         if (step.pose === 'left') return 'Slowly turn your head to the left';
                         if (step.pose === 'right') return 'Slowly turn your head to the right';
                         return 'Look straight at the camera';
+                    },
+
+                    startUiTimer() {
+                        this.stopUiTimer();
+                        this.uiTimer = setInterval(() => { this.uiTick++; }, 250);
+                    },
+
+                    stopUiTimer() {
+                        if (this.uiTimer) {
+                            clearInterval(this.uiTimer);
+                            this.uiTimer = null;
+                        }
                     },
 
                     async init() {
@@ -213,11 +239,16 @@
                             } catch (e) { /* landmarker optional */ }
 
                             if (!this.detectorActive && !this.landmarkerActive) {
-                                this.notice = 'Auto-detection unavailable — photos will save when you hold still in the oval.';
+                                this.simpleMode = true;
+                                this.notice = 'Using browser mode — hold still in the oval and photos save automatically.';
                             }
                         } catch (e) {
-                            this.notice = 'Auto-detection unavailable — photos will save when you hold still in the oval.';
+                            this.simpleMode = true;
+                            this.notice = 'Using browser mode — hold still in the oval and photos save automatically.';
                         } finally {
+                            if (!this.detectorActive && !this.landmarkerActive) {
+                                this.simpleMode = true;
+                            }
                             this.ready = true;
                             while (this.stepIndex < this.steps.length && this.steps[this.stepIndex]?.done) {
                                 this.stepIndex++;
@@ -237,10 +268,17 @@
                         this.loading = true;
                         this.notice = null;
                         try {
-                            this.stream = await navigator.mediaDevices.getUserMedia({
-                                video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+                            const constraints = {
+                                video: {
+                                    width: { ideal: 1280 },
+                                    height: { ideal: 720 },
+                                },
                                 audio: false,
-                            });
+                            };
+                            if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                                constraints.video.facingMode = 'user';
+                            }
+                            this.stream = await navigator.mediaDevices.getUserMedia(constraints);
                             const video = this.$refs.video;
                             video.srcObject = this.stream;
                             await video.play();
@@ -249,7 +287,9 @@
                             this.phase = 'scanning';
                             this.lastTick = performance.now();
                             this.scanStartedAt = performance.now();
+                            this.stepStartedAt = performance.now();
                             this.startLoop();
+                            this.startUiTimer();
                         } catch (e) {
                             this.notice = 'Allow camera access in your browser settings, then try again.';
                         } finally {
@@ -259,9 +299,11 @@
 
                     cancelScan() {
                         this.stopLoop();
+                        this.stopUiTimer();
                         this.stopCamera();
                         this.phase = 'intro';
                         this.holdProgress = 0;
+                        this.simpleMode = false;
                     },
 
                     startLoop() {
@@ -280,6 +322,22 @@
 
                             const step = this.currentStep;
                             if (!step) return;
+
+                            if (!this.simpleMode && this.stepStartedAt && (now - this.stepStartedAt) > 3500 && !this.faceVisible) {
+                                this.simpleMode = true;
+                            }
+
+                            if (this.simpleMode) {
+                                this.faceVisible = true;
+                                this.poseOk = true;
+                                this.clearOverlay(overlay);
+                                const elapsed = now - (this.stepStartedAt || now);
+                                this.holdProgress = Math.min(100, (elapsed / 2200) * 100);
+                                if (this.holdProgress >= 100 && !this.isUploading) {
+                                    this.autoCapture();
+                                }
+                                return;
+                            }
 
                             this.faceVisible = false;
                             this.poseOk = false;
@@ -364,7 +422,7 @@
                         if (!box || !video.videoWidth) return step.key === 'holding_nida';
                         const cx = (box.originX + box.width / 2) / video.videoWidth;
                         const size = box.width / video.videoWidth;
-                        if (size < 0.12) return false;
+                        if (size < 0.06) return false;
                         if (step.key === 'holding_nida') return true;
                         if (step.pose === 'front') return cx > 0.32 && cx < 0.68;
                         if (step.pose === 'left') return cx > 0.52;
@@ -407,8 +465,15 @@
 
                     stopCamera() {
                         this.stopLoop();
+                        this.stopUiTimer();
                         this.stream?.getTracks().forEach(t => t.stop());
                         this.stream = null;
+                    },
+
+                    manualCapture() {
+                        if (this.isUploading || this.phase !== 'scanning') return;
+                        this.holdProgress = 100;
+                        this.autoCapture();
                     },
 
                     captureBlob() {
@@ -461,6 +526,7 @@
                             step.done = true;
                             this.holdProgress = 0;
                             this.poseOk = false;
+                            this.stepStartedAt = performance.now();
 
                             await new Promise(r => setTimeout(r, 700));
 
