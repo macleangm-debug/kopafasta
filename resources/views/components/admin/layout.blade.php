@@ -39,6 +39,7 @@
                 ]],
                 ['Customers', 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-5a4 4 0 11-8 0 4 4 0 018 0z', [
                     ['All Customers', 'admin.customers.index'],
+                    ['Membership Payments', 'admin.membership-payments.index'],
                     ['KYC',           'admin.customer-kycs.index'],
                     ['Guarantors',    'admin.guarantors.index'],
                 ]],
@@ -273,6 +274,12 @@
             @if (session('status'))
                 <div class="mb-4 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-800">
                     {{ session('status') }}
+                </div>
+            @endif
+
+            @if (session('error'))
+                <div class="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
+                    {{ session('error') }}
                 </div>
             @endif
 

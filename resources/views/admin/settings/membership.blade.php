@@ -2,6 +2,12 @@
     @include('admin.settings._tabs', ['active' => 'membership'])
     @if (session('status'))<div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>@endif
 
+    <div class="mb-6">
+        <a href="{{ route('admin.membership-payments.index') }}"
+           class="inline-flex items-center gap-2 rounded-lg bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 ring-1 ring-amber-200 hover:bg-amber-100">
+            Review pending bank payments
+        </a>
+    </div>
     <form method="POST" action="{{ route('admin.settings.membership.save') }}" class="space-y-6">
         @csrf @method('PUT')
 

@@ -38,9 +38,15 @@ class MembershipService
     /**
      * Issue a brand-new membership for a customer (on registration approval / first payment).
      */
-    public function issue(Customer $customer, ?CarbonImmutable $startDate = null, ?string $paymentReference = null, ?int $actorUserId = null): Customer
-    {
-        return DB::transaction(function () use ($customer, $startDate, $paymentReference, $actorUserId) {
+    public function issue(
+        Customer $customer,
+        ?CarbonImmutable $startDate = null,
+        ?string $paymentReference = null,
+        ?int $actorUserId = null,
+        ?float $feeAmount = null,
+        ?string $channel = null,
+    ): Customer {
+        return DB::transaction(function () use ($customer, $startDate, $paymentReference, $actorUserId, $feeAmount, $channel) {
             $cfg = self::config();
             $start = $startDate ?? CarbonImmutable::today();
             $expires = $start->addDays($cfg['duration_days']);
@@ -60,9 +66,9 @@ class MembershipService
                 'issued_at'           => $start->toDateString(),
                 'expires_at'          => $expires->toDateString(),
                 'renewal_count_after' => $customer->renewal_count,
-                'fee_amount'          => null,
+                'fee_amount'          => $feeAmount,
                 'payment_reference'   => $paymentReference,
-                'channel'             => $paymentReference ? 'system' : null,
+                'channel'             => $channel ?? ($paymentReference ? 'system' : null),
                 'actor_user_id'       => $actorUserId,
             ]);
 $this->notify($customer, 'membership_issued');
@@ -226,6 +232,62 @@ $this->notify($customer, 'membership_issued');
             'channel'           => $channel,
             'actor_user_id'     => $actorUserId,
             'notes'             => $isFirstTime ? 'Registration fee awaiting verification' : 'Renewal fee awaiting verification',
+        ]);
+    }
+
+    /**
+     * Approve a pending bank transfer and activate or renew membership.
+     */
+    public function approvePendingPayment(MembershipHistory $pending, ?int $actorUserId = null, ?string $adminNotes = null): Customer
+    {
+        if (! $pending->isPending()) {
+            throw new \InvalidArgumentException('This payment is not pending approval.');
+        }
+
+        return DB::transaction(function () use ($pending, $actorUserId, $adminNotes) {
+            $customer = Customer::query()->lockForUpdate()->findOrFail($pending->customer_id);
+            $ref = $pending->payment_reference;
+            $channel = $pending->channel ?? 'bank';
+            $fee = $pending->fee_amount !== null ? (float) $pending->fee_amount : null;
+            $isRegistration = $pending->isRegistrationPayment() || ! $customer->hasMembership();
+
+            $notes = $pending->notes;
+            if ($adminNotes) {
+                $notes = trim(($notes ?? '')."\nApproved: ".$adminNotes);
+            }
+
+            $pending->update([
+                'event'         => 'payment_approved',
+                'actor_user_id' => $actorUserId,
+                'notes'         => $notes,
+            ]);
+
+            if ($isRegistration) {
+                return $this->issue($customer, null, $ref, $actorUserId, $fee, $channel);
+            }
+
+            return $this->renew($customer, $ref, $channel, $actorUserId);
+        });
+    }
+
+    /**
+     * Reject a pending bank transfer.
+     */
+    public function rejectPendingPayment(MembershipHistory $pending, ?int $actorUserId = null, ?string $adminNotes = null): void
+    {
+        if (! $pending->isPending()) {
+            throw new \InvalidArgumentException('This payment is not pending approval.');
+        }
+
+        $notes = $pending->notes;
+        if ($adminNotes) {
+            $notes = trim(($notes ?? '')."\nRejected: ".$adminNotes);
+        }
+
+        $pending->update([
+            'event'         => 'payment_rejected',
+            'actor_user_id' => $actorUserId,
+            'notes'         => $notes,
         ]);
     }
 

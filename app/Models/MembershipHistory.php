@@ -28,4 +28,24 @@ class MembershipHistory extends Model
     {
         return $this->belongsTo(User::class, 'actor_user_id');
     }
+
+    public function scopePending($query)
+    {
+        return $query->where('event', 'payment_pending');
+    }
+
+    public function isPending(): bool
+    {
+        return $this->event === 'payment_pending';
+    }
+
+    public function isRegistrationPayment(): bool
+    {
+        return str_contains($this->notes ?? '', 'Registration');
+    }
+
+    public function paymentTypeLabel(): string
+    {
+        return $this->isRegistrationPayment() ? 'Registration' : 'Renewal';
+    }
 }

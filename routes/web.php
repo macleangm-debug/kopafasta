@@ -26,6 +26,7 @@ use App\Http\Controllers\Admin\LenderInvestmentController;
 use App\Http\Controllers\Admin\LoanApplicationController;
 use App\Http\Controllers\Admin\LoanController;
 use App\Http\Controllers\Admin\LoanProductController;
+use App\Http\Controllers\Admin\MembershipPaymentController;
 use App\Http\Controllers\Admin\MobileMoneyAccountController;
 use App\Http\Controllers\Admin\NotificationTemplateController;
 use App\Http\Controllers\Admin\PepFlagController;
@@ -266,6 +267,11 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         // Support
         $registerResource('support-tickets', 'support_ticket', SupportTicketController::class);
         $registerResource('complaints',      'complaint',      ComplaintController::class);
+
+        // Membership bank payments
+        Route::get('membership-payments', [MembershipPaymentController::class, 'index'])->name('membership-payments.index');
+        Route::post('membership-payments/{membershipHistory}/approve', [MembershipPaymentController::class, 'approve'])->name('membership-payments.approve');
+        Route::post('membership-payments/{membershipHistory}/reject', [MembershipPaymentController::class, 'reject'])->name('membership-payments.reject');
 
         // System
         $registerResource('branches', 'branch', BranchController::class);
