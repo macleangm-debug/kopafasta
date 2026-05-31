@@ -23,21 +23,21 @@ return new class extends Migration
             $table->timestamp('satisfied_at')->nullable();
             $table->timestamps();
 
-            $table->index(['loan_application_id', 'status']);
+            $table->index(['loan_application_id', 'status'], 'la_doc_req_app_status_idx');
         });
 
         Schema::table('customer_documents', function (Blueprint $table) {
             $table->unsignedBigInteger('loan_application_document_request_id')
                 ->nullable()
                 ->after('loan_product_requirement_id');
-            $table->index('loan_application_document_request_id');
+            $table->index('loan_application_document_request_id', 'cust_docs_la_doc_req_idx');
         });
     }
 
     public function down(): void
     {
         Schema::table('customer_documents', function (Blueprint $table) {
-            $table->dropIndex(['loan_application_document_request_id']);
+            $table->dropIndex('cust_docs_la_doc_req_idx');
             $table->dropColumn('loan_application_document_request_id');
         });
 
