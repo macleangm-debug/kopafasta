@@ -17,48 +17,58 @@ class ApplyController extends Controller
 {
     public function show(Request $request): View
     {
-        $products = LoanProduct::where('is_active', true)->orderBy('id')->get();
+        $products = LoanProduct::where('is_active', true)->orderBy('name')->get();
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         $preselect = $request->query('product');
-        $registrationFee = (int) config('site.registration_fee', 10000);
-        $applicationFee  = (int) (optional(ChargesFee::where('code', 'APP_FEE')->where('is_active', true)->first())->amount ?? 0);
-        $payChannels = config('site.fee_channels', [
-            ['name' => 'M-Pesa',  'till' => '123456', 'note' => 'Lipa na M-Pesa → Pay Bill → Business no.'],
-            ['name' => 'Tigo Pesa','till' => '654321', 'note' => 'Lipa kwa Tigo Pesa'],
-            ['name' => 'Airtel Money', 'till' => '987654', 'note' => 'Pay merchant'],
-            ['name' => 'Bank (CRDB)', 'till' => '0150-XXXXX-00', 'note' => 'Kopafasta Microfinance Ltd'],
-        ]);
-        return view('site.apply.wizard', compact('products', 'customer', 'preselect', 'registrationFee', 'applicationFee', 'payChannels'));
+
+        if ($preselect) {
+            $selected = LoanProduct::where('is_active', true)
+                ->where(function ($query) use ($preselect) {
+                    $query->where('id', $preselect)
+                          ->orWhere('code', $preselect);
+                })
+                ->first();
+
+            $preselect = $selected?->id;
+        }
+
+        $applicationFee = (int) (optional(ChargesFee::where('code', 'APP_FEE')->where('is_active', true)->first())->amount ?? 0);
+
+        return view('site.apply.wizard', compact('products', 'customer', 'preselect', 'applicationFee'));
     }
 
     public function submit(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            // Step 1 - registration fee
-            'registration_fee_channel'   => ['required', 'string', 'max:30'],
-            'registration_fee_reference' => ['required', 'string', 'max:60'],
-
-            // Step 2 - product
             'loan_product_id'         => ['required', 'exists:loan_products,id'],
             'requested_amount'        => ['required', 'numeric', 'min:1000'],
             'requested_tenure_months' => ['required', 'integer', 'min:1', 'max:60'],
             'purpose'                 => ['required', 'string', 'max:500'],
-
-            // Step 3 - personal (may already exist on customer)
-            'first_name'   => ['required', 'string', 'max:60'],
-            'last_name'    => ['required', 'string', 'max:60'],
-            'date_of_birth'=> ['nullable', 'date'],
-            'national_id'  => ['required', 'string', 'max:30'],
-            'address'      => ['required', 'string', 'max:255'],
-
-            // Step 4 - employment / income
-            'employment_type' => ['required', 'string', 'max:30'],
-            'business_name'   => ['nullable', 'string', 'max:120'],
-            'monthly_income'  => ['required', 'numeric', 'min:0'],
-
-            // Step 5 - review (consent)
-            'consent' => ['accepted'],
+            'first_name'              => ['required', 'string', 'max:60'],
+            'last_name'               => ['required', 'string', 'max:60'],
+            'date_of_birth'           => ['nullable', 'date'],
+            'national_id'             => ['required', 'string', 'max:30'],
+            'address'                 => ['required', 'string', 'max:255'],
+            'employment_type'         => ['required', 'string', 'max:30'],
+            'business_name'           => ['nullable', 'string', 'max:120'],
+            'monthly_income'          => ['required', 'numeric', 'min:0'],
+            'consent'                 => ['accepted'],
         ]);
+
+        $loanProduct = LoanProduct::where('id', $data['loan_product_id'])
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        $amount = (float) $data['requested_amount'];
+        $tenure = (int) $data['requested_tenure_months'];
+
+        if ($amount < $loanProduct->min_amount || $amount > $loanProduct->max_amount) {
+            return back()->withInput()->withErrors(['requested_amount' => 'Requested amount must be between '.number_format($loanProduct->min_amount).' and '.number_format($loanProduct->max_amount).'.']);
+        }
+
+        if ($tenure < $loanProduct->tenure_min_months || $tenure > $loanProduct->tenure_max_months) {
+            return back()->withInput()->withErrors(['requested_tenure_months' => 'Tenure must be between '.$loanProduct->tenure_min_months.' and '.$loanProduct->tenure_max_months.' months.']);
+        }
 
         $user = Auth::user();
         $customer = Customer::firstOrNew(['user_id' => $user->id]);
@@ -80,31 +90,32 @@ class ApplyController extends Controller
         ])->save();
 
         $app = LoanApplication::create([
-            'customer_id'             => $customer->id,
-            'loan_product_id'         => $data['loan_product_id'],
-            'application_number'      => 'APP-'.strtoupper(Str::random(8)),
-            'requested_amount'        => $data['requested_amount'],
-            'requested_tenure_months' => $data['requested_tenure_months'],
-            'status'                  => 'submitted',
-            'current_stage'           => 'submitted',
-            'purpose'                 => $data['purpose'],
-            'registration_fee_amount'    => (int) config('site.registration_fee', 10000),
-            'registration_fee_status'    => 'pending',
-            'registration_fee_channel'   => $data['registration_fee_channel'],
-            'registration_fee_reference' => $data['registration_fee_reference'],
-            'registration_fee_paid_at'   => now(),
+            'customer_id'                => $customer->id,
+            'loan_product_id'            => $data['loan_product_id'],
+            'application_number'         => 'APP-'.strtoupper(Str::random(8)),
+            'requested_amount'           => $data['requested_amount'],
+            'requested_tenure_months'    => $data['requested_tenure_months'],
+            'status'                     => 'submitted',
+            'current_stage'              => 'submitted',
+            'purpose'                    => $data['purpose'],
+            'registration_fee_amount'    => 0,
+            'registration_fee_status'    => 'waived',
+            'registration_fee_channel'   => null,
+            'registration_fee_reference' => null,
+            'registration_fee_paid_at'   => null,
             'application_fee_amount'     => (int) (optional(ChargesFee::where('code', 'APP_FEE')->where('is_active', true)->first())->amount ?? 0),
             'application_fee_status'     => 'unpaid',
-            'submitted_at'            => now(),
+            'submitted_at'               => now(),
         ]);
 
-        return redirect()->route('site.apply.success', $app)->with('status', 'Application received.');
+        return redirect()->route('site.borrower.apply.success', $app)->with('status', 'Application received.');
     }
 
     public function success(LoanApplication $application): View
     {
         abort_unless($application->customer && $application->customer->user_id === Auth::id(), 403);
         $application->load('product');
+
         return view('site.apply.success', compact('application'));
     }
 }

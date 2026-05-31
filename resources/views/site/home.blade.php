@@ -70,9 +70,12 @@
                     </div>
                 </div>
 
-                <a :href="'{{ route('site.apply.show') }}?product=' + current.id"
-                   class="block text-center w-full bg-gray-900 hover:bg-gray-800 text-white font-semibold py-3 rounded-full transition">
-                    Apply with these terms
+                <a :href="current.status === 'coming_soon' ? '#' : '{{ route('site.apply.show') }}?product=' + current.id"
+                   :class="current.status === 'coming_soon' ? 'cursor-not-allowed bg-slate-400 hover:bg-slate-400' : 'bg-gray-900 hover:bg-gray-800'"
+                   class="block text-center w-full text-white font-semibold py-3 rounded-full transition"
+                   :aria-disabled="current.status === 'coming_soon'"
+                   :tabindex="current.status === 'coming_soon' ? -1 : 0">
+                    <span x-text="current.status === 'coming_soon' ? 'Coming soon' : 'Apply with these terms'"></span>
                 </a>
                 <p class="text-[11px] text-gray-500 mt-3 text-center">Estimates only. Final terms confirmed during application.</p>
             </div>
@@ -99,8 +102,11 @@
             @foreach ($products as $product)
                 <a href="{{ route('site.product', $product->code) }}"
                    class="group block rounded-2xl border border-gray-200 hover:border-amber-400 hover:shadow-lg transition p-6 bg-white">
-                    <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-start justify-between mb-3 gap-3">
                         <span class="inline-flex items-center text-[11px] font-mono font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded">{{ $product->code }}</span>
+                        <span class="inline-flex items-center rounded-full text-[11px] font-semibold px-2.5 py-1.5 text-white {{ $product->status === 'coming_soon' ? 'bg-slate-500' : 'bg-emerald-600' }}">
+                            {{ ucfirst(str_replace('_', ' ', $product->status)) }}
+                        </span>
                         <span class="text-xs text-gray-500">from <span class="font-bold text-gray-900">{{ number_format($product->interest_rate * 100, 1) }}%</span> / mo</span>
                     </div>
                     <h3 class="text-lg font-semibold group-hover:text-amber-700">{{ $product->name }}</h3>

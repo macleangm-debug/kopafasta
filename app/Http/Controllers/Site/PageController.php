@@ -11,19 +11,21 @@ class PageController extends Controller
 {
     public function home(): View
     {
-        $products = LoanProduct::where('is_active', true)->orderBy('id')->get();
+        $products = LoanProduct::whereIn('status', ['active', 'coming_soon'])->orderBy('id')->get();
         return view('site.home', compact('products'));
     }
 
     public function products(): View
     {
-        $products = LoanProduct::where('is_active', true)->orderBy('id')->get();
+        $products = LoanProduct::whereIn('status', ['active', 'coming_soon'])->orderBy('id')->get();
         return view('site.products.index', compact('products'));
     }
 
     public function product(string $code): View
     {
-        $product = LoanProduct::where('code', $code)->where('is_active', true)->firstOrFail();
+        $product = LoanProduct::where('code', $code)
+            ->whereIn('status', ['active', 'coming_soon'])
+            ->firstOrFail();
         return view('site.products.show', compact('product'));
     }
 

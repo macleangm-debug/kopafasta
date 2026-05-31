@@ -14,6 +14,39 @@
 
     @if ($customer)
         <x-site.member-card :customer="$customer" />
+
+        <div class="mt-8 grid gap-4 sm:grid-cols-2">
+            <section class="bg-white rounded-xl ring-1 ring-gray-200 p-5">
+                <h2 class="font-semibold text-gray-900">Who are you?</h2>
+                <p class="text-xs text-gray-500 mt-1">Personal details</p>
+                <dl class="mt-3 text-sm space-y-1">
+                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Name</dt><dd class="font-medium">{{ $customer->first_name }} {{ $customer->last_name }}</dd></div>
+                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Phone</dt><dd class="font-medium">{{ $customer->phone ?? '—' }}</dd></div>
+                    <div class="flex justify-between gap-2"><dt class="text-gray-500">NIDA</dt><dd class="font-medium">{{ $customer->national_id ?? '—' }}</dd></div>
+                </dl>
+                <a href="{{ route('site.borrower.profile') }}" class="mt-3 inline-block text-xs text-amber-600 font-semibold hover:underline">Edit profile →</a>
+            </section>
+            <section class="bg-white rounded-xl ring-1 ring-gray-200 p-5">
+                <h2 class="font-semibold text-gray-900">What do you do?</h2>
+                <p class="text-xs text-gray-500 mt-1">Employment & business</p>
+                <dl class="mt-3 text-sm space-y-1">
+                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Type</dt><dd class="font-medium capitalize">{{ str_replace('_', ' ', $customer->employment_type ?? '—') }}</dd></div>
+                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Business</dt><dd class="font-medium">{{ $customer->business_name ?? '—' }}</dd></div>
+                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Income</dt><dd class="font-medium">{{ $customer->monthly_income ? 'TZS '.number_format($customer->monthly_income) : '—' }}</dd></div>
+                </dl>
+            </section>
+            <section class="bg-white rounded-xl ring-1 ring-gray-200 p-5">
+                <h2 class="font-semibold text-gray-900">Where do you live?</h2>
+                <p class="text-xs text-gray-500 mt-1">Residence information</p>
+                <p class="mt-3 text-sm text-gray-700">{{ $customer->address ?? 'Add your address in profile.' }}</p>
+            </section>
+            <section class="bg-white rounded-xl ring-1 ring-gray-200 p-5">
+                <h2 class="font-semibold text-gray-900">KYC information</h2>
+                <p class="text-xs text-gray-500 mt-1">Verification documents</p>
+                <p class="mt-3 text-sm text-gray-700">Upload KYC during your loan application process.</p>
+                <a href="{{ route('site.borrower.applications') }}" class="mt-3 inline-block text-xs text-amber-600 font-semibold hover:underline">View applications →</a>
+            </section>
+        </div>
     @else
         <div class="rounded-lg bg-gray-50 ring-1 ring-gray-200 p-6 text-sm text-gray-700">
             No customer profile linked to this account yet.

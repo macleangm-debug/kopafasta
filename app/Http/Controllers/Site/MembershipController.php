@@ -22,46 +22,79 @@ class MembershipController extends Controller
         ]);
     }
 
-    public function renewForm(Request $request): View|RedirectResponse
+    public function renewForm(Request $request, MembershipService $service): View|RedirectResponse
     {
         $customer = $this->resolveCustomer($request);
         if (! $customer) {
             return redirect()->route('site.borrower.dashboard');
         }
 
+        if ($customer->isMembershipActive() && ! $customer->isMembershipExpiringSoon(30)) {
+            return redirect()->route('site.membership.show')
+                ->with('status', 'Your membership is active. Renewal opens within 30 days of expiry.');
+        }
+
+        $cfg = MembershipService::config();
+        $isFirstTime = ! $customer->hasMembership();
+        $paymentReference = $service->generatePaymentReference($customer);
+        $request->session()->put('membership_payment_ref', $paymentReference);
+
+        $bankAccounts = config('site.membership_bank_accounts', [
+            ['bank' => 'CRDB Bank', 'account_name' => 'Kopafasta Microfinance Ltd', 'account_number' => '0150-XXXXX-00', 'branch' => 'Dar es Salaam'],
+        ]);
+
         return view('site.borrower.membership-renew', [
-            'customer' => $customer,
-            'config'   => MembershipService::config(),
+            'customer'         => $customer,
+            'config'           => $cfg,
+            'isFirstTime'      => $isFirstTime,
+            'paymentReference' => $paymentReference,
+            'feeAmount'        => $isFirstTime ? $cfg['registration_fee'] : $cfg['renewal_fee'],
+            'bankAccounts'     => $bankAccounts,
         ]);
     }
 
     public function renew(Request $request, MembershipService $service): RedirectResponse
     {
         $data = $request->validate([
-            'payment_reference' => ['required', 'string', 'max:80'],
-            'channel'           => ['required', 'in:mobile_money,bank,cash,wallet'],
+            'channel'      => ['required', 'in:mobile_money,bank'],
+            'payment_phone'=> ['required_if:channel,mobile_money', 'nullable', 'string', 'max:20'],
         ]);
 
         $customer = $this->resolveCustomer($request);
         if (! $customer) {
             return redirect()->route('site.borrower.dashboard')
-                ->with('error', 'Membership renewal requires a customer profile.');
+                ->with('error', 'Membership payment requires a customer profile.');
         }
 
-        // NOTE: Actual payment verification (M-Pesa/Airtel/etc) happens via the
-        // payment gateway webhook; this endpoint trusts that a verified reference
-        // has already been posted. For self-service mobile money flow, the gateway
-        // callback should call $service->renew(...) directly instead.
-        $service->renew($customer, $data['payment_reference'], $data['channel'], $request->user()?->id);
+        $paymentReference = $request->session()->pull('membership_payment_ref')
+            ?? $service->generatePaymentReference($customer);
+
+        $isFirstTime = ! $customer->hasMembership();
+
+        if ($data['channel'] === 'mobile_money') {
+            if ($isFirstTime) {
+                $service->issue($customer, null, $paymentReference, $request->user()?->id);
+                $message = 'Registration fee received. Your membership is now active!';
+            } else {
+                $service->renew($customer, $paymentReference, 'mobile_money', $request->user()?->id);
+                $message = 'Membership renewed successfully!';
+            }
+
+            return redirect()->route('site.membership.show')
+                ->with('confetti', true)
+                ->with('status', $message);
+        }
+
+        $service->recordPendingPayment($customer, $paymentReference, 'bank', $request->user()?->id);
 
         return redirect()->route('site.membership.show')
-            ->with('confetti', true)
-            ->with('status', 'Membership renewed successfully!');
+            ->with('warning', 'Bank payment submitted. We will activate your membership after verifying your transfer. Reference: '.$paymentReference);
     }
 
     private function resolveCustomer(Request $request): ?\App\Models\Customer
     {
         $user = $request->user();
+
         return $user?->customer;
     }
 }

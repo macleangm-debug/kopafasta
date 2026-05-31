@@ -18,6 +18,7 @@ class LoanProduct extends Model
             'requires_guarantor' => 'boolean',
             'collateral_rules' => 'array',
             'is_active' => 'boolean',
+            'status' => 'string',
         ];
     }
 

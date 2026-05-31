@@ -3,17 +3,12 @@
 @php
 $nav = [
     ['key' => 'dashboard',     'label' => 'Dashboard',     'route' => 'site.borrower.dashboard',     'icon' => 'home'],
-    ['key' => 'applications',  'label' => 'Applications',  'route' => 'site.borrower.applications',  'icon' => 'doc'],
-    ['key' => 'loans',         'label' => 'My loans',      'route' => 'site.borrower.loans',         'icon' => 'wallet'],
-    ['key' => 'schedule',      'label' => 'Repayment schedule', 'route' => 'site.borrower.schedule', 'icon' => 'calendar'],
-    ['key' => 'payments',      'label' => 'Make payment',  'route' => 'site.borrower.payments',      'icon' => 'pay'],
-    ['key' => 'documents',     'label' => 'Documents',     'route' => 'site.borrower.documents',     'icon' => 'folder'],
-    ['key' => 'kyc',           'label' => 'KYC verification','route' => 'site.borrower.kyc',         'icon' => 'shield'],
-    ['key' => 'guarantors',    'label' => 'Guarantors',    'route' => 'site.borrower.guarantors',    'icon' => 'users'],
     ['key' => 'membership',    'label' => 'Membership',    'route' => 'site.membership.show',        'icon' => 'shield'],
-    ['key' => 'notifications', 'label' => 'Notifications', 'route' => 'site.borrower.notifications', 'icon' => 'bell'],
-    ['key' => 'profile',       'label' => 'Profile & KYC', 'route' => 'site.borrower.profile',       'icon' => 'user'],
+    ['key' => 'loans',         'label' => 'Loans',         'route' => 'site.borrower.loans',         'icon' => 'wallet'],
+    ['key' => 'applications',  'label' => 'Applications',  'route' => 'site.borrower.applications',  'icon' => 'doc'],
+    ['key' => 'payments',      'label' => 'Payments',      'route' => 'site.borrower.payments',      'icon' => 'pay'],
     ['key' => 'support',       'label' => 'Support',       'route' => 'site.borrower.support',       'icon' => 'help'],
+    ['key' => 'profile',       'label' => 'Profile',       'route' => 'site.borrower.profile',       'icon' => 'user'],
 ];
 
 $icon = function (string $name) {

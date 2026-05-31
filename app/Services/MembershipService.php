@@ -27,6 +27,7 @@ class MembershipService
         $group = Setting::group('membership');
         return [
             'duration_days'     => (int) ($group['duration_days']     ?? 365),
+            'registration_fee'  => (float) ($group['registration_fee'] ?? $group['renewal_fee'] ?? 10000),
             'renewal_fee'       => (float) ($group['renewal_fee']     ?? 10000),
             'grace_period_days' => (int) ($group['grace_period_days'] ?? 14),
             'max_expiry_years'  => (int) ($group['max_expiry_years']  ?? 1),
@@ -198,6 +199,34 @@ $this->notify($customer, 'membership_issued');
         } while (Customer::where('member_no', $code)->exists());
 
         return $code;
+    }
+
+    public function generatePaymentReference(Customer $customer): string
+    {
+        do {
+            $ref = 'KPF-'.strtoupper(Str::random(10));
+        } while (MembershipHistory::where('payment_reference', $ref)->exists());
+
+        return $ref;
+    }
+
+    /**
+     * Record a bank transfer submitted for manual verification.
+     */
+    public function recordPendingPayment(Customer $customer, string $paymentReference, string $channel = 'bank', ?int $actorUserId = null): void
+    {
+        $cfg = self::config();
+        $isFirstTime = ! $customer->hasMembership();
+
+        MembershipHistory::create([
+            'customer_id'       => $customer->id,
+            'event'             => 'payment_pending',
+            'fee_amount'        => $isFirstTime ? $cfg['registration_fee'] : $cfg['renewal_fee'],
+            'payment_reference' => $paymentReference,
+            'channel'           => $channel,
+            'actor_user_id'     => $actorUserId,
+            'notes'             => $isFirstTime ? 'Registration fee awaiting verification' : 'Renewal fee awaiting verification',
+        ]);
     }
 
     /**

@@ -5,13 +5,13 @@
             <h1 class="text-2xl font-bold">My applications</h1>
             <p class="text-sm text-gray-500">Track every loan request and its status.</p>
         </div>
-        <a href="{{ route('site.apply.show') }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">+ New application</a>
+        <a href="{{ route('site.borrower.apply') }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">+ New application</a>
     </div>
 
     @if ($applications->isEmpty())
         <div class="bg-white rounded-2xl border border-gray-200 p-12 text-center">
             <p class="text-gray-500">You haven't applied yet.</p>
-            <a href="{{ route('site.apply.show') }}" class="mt-4 inline-block bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">Start your first application</a>
+            <a href="{{ route('site.borrower.apply') }}" class="mt-4 inline-block bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">Start your first application</a>
         </div>
     @else
         <div class="grid sm:grid-cols-2 gap-4">

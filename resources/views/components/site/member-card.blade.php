@@ -66,23 +66,37 @@
     </div>
 
     {{-- Circular status widget --}}
-    <div class="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-6 flex flex-col items-center justify-center">
-        <p class="text-xs uppercase tracking-wider text-gray-500">Membership Status</p>
-        <div class="relative mt-3">
-            <svg class="w-32 h-32 -rotate-90">
-                <circle cx="64" cy="64" r="44" stroke-width="10" class="stroke-gray-200" fill="none"></circle>
-                <circle cx="64" cy="64" r="44" stroke-width="10" class="{{ $ringClass }}" fill="none"
+    <div class="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-6 flex flex-col items-center justify-center min-h-[220px]">
+        <p class="text-xs uppercase tracking-wider text-gray-500 mb-4">Membership status</p>
+        <div class="relative w-40 h-40 shrink-0">
+            <svg class="w-full h-full -rotate-90" viewBox="0 0 128 128">
+                <circle cx="64" cy="64" r="48" stroke-width="10" class="stroke-gray-200" fill="none"></circle>
+                <circle cx="64" cy="64" r="48" stroke-width="10" class="{{ $ringClass }}" fill="none"
                         stroke-linecap="round"
-                        stroke-dasharray="{{ number_format($circ, 2, '.', '') }}"
-                        stroke-dashoffset="{{ number_format($dash, 2, '.', '') }}"></circle>
+                        stroke-dasharray="{{ number_format(2 * M_PI * 48, 2, '.', '') }}"
+                        stroke-dashoffset="{{ number_format((2 * M_PI * 48) - ($pct / 100) * (2 * M_PI * 48), 2, '.', '') }}"></circle>
             </svg>
-            <div class="absolute inset-0 flex flex-col items-center justify-center">
-                <span class="text-3xl font-bold text-gray-900">{{ $days }}</span>
-                <span class="text-[10px] uppercase tracking-wider text-gray-500">days remaining</span>
+            <div class="absolute inset-0 flex flex-col items-center justify-center px-3 text-center pointer-events-none">
+                <span class="text-3xl font-bold text-gray-900 leading-none">{{ $days }}</span>
+                <span class="text-[10px] uppercase tracking-wide text-gray-500 mt-2 leading-tight">days<br>remaining</span>
             </div>
         </div>
+        <dl class="mt-5 w-full grid grid-cols-2 gap-3 text-center text-xs">
+            <div class="rounded-lg bg-gray-50 p-2">
+                <dt class="text-gray-500">Started</dt>
+                <dd class="font-semibold text-gray-900 mt-0.5">{{ $issued }}</dd>
+            </div>
+            <div class="rounded-lg bg-gray-50 p-2">
+                <dt class="text-gray-500">Expires</dt>
+                <dd class="font-semibold text-gray-900 mt-0.5">{{ $expires }}</dd>
+            </div>
+        </dl>
 
-        @if ($customer->isMembershipExpired())
+        @if (! $customer->hasMembership())
+            <a href="{{ route('site.membership.renew') }}" class="mt-5 inline-flex items-center bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-sm">
+                Pay registration fee
+            </a>
+        @elseif ($customer->isMembershipExpired())
             <a href="{{ route('site.membership.renew') }}" class="mt-5 inline-flex items-center bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-sm">
                 Renew now
             </a>

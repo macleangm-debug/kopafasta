@@ -113,9 +113,10 @@
                                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Phone</label>
                                             <div class="flex items-center gap-2 rounded-2xl border border-gray-300 bg-white px-3 py-3">
                                                 <span class="text-base font-semibold text-gray-900" x-text="activeCountry.prefix"></span>
-                                                <input type="tel" inputmode="numeric" name="local_phone" x-model="form.local_phone" :disabled="!activeCountry.active" placeholder="7XX XXX XXX"
+                                                <input type="tel" inputmode="numeric" name="local_phone" x-model="form.local_phone" @input="validatePhone()" :disabled="!activeCountry.active" placeholder="7XX XXX XXX"
                                                        class="w-full bg-transparent text-sm outline-none" />
                                             </div>
+                                            <p x-show="errors.phone" x-cloak class="mt-2 text-xs text-red-600" x-text="errors.phone"></p>
                                             <p class="mt-2 text-xs text-gray-500">Enter your mobile number without the leading zero.</p>
                                         </div>
                                         <div class="rounded-3xl border border-dashed p-4"
@@ -175,8 +176,12 @@
                                     </div>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Email address <span class="text-red-500">*</span></label>
-                                    <input type="email" name="email" x-model="form.email" required placeholder="you@example.com" class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Email address <span class="text-gray-400 font-normal">(optional)</span></label>
+                                    <input type="email" name="email" x-model="form.email" @input="validateEmail()"
+                                           class="w-full px-3.5 py-3 rounded-xl bg-white border text-sm outline-none transition"
+                                           :class="errors.email ? 'border-red-400 focus:ring-red-200' : 'border-gray-300 focus:border-amber-500 focus:ring-amber-500/10'"
+                                           placeholder="you@example.com">
+                                    <p x-show="errors.email" x-cloak class="mt-1 text-xs text-red-600" x-text="errors.email"></p>
                                 </div>
                             </div>
                         </div>
@@ -190,17 +195,21 @@
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Password <span class="text-red-500">*</span></label>
                                     <div class="relative">
-                                        <input :type="show ? 'text' : 'password'" name="password" required minlength="8"
-                                               class="w-full pr-14 px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition">
-                                        <button type="button" @click="show = !show" class="absolute inset-y-0 right-0 grid place-items-center pr-3 text-xs text-gray-500 hover:text-gray-700 font-medium">
+                                        <input :type="show ? 'text' : 'password'" name="password" x-model="form.password" @input="validatePasswords()" required minlength="8"
+                                               class="w-full pr-14 px-3.5 py-3 rounded-xl bg-white border text-sm outline-none transition"
+                                               :class="errors.password ? 'border-red-400' : 'border-gray-300 focus:border-amber-500'">
+                                        <button type="button" @click="show = !show" class="absolute inset-y-0 right-0 grid place-items-center pr-3 text-xs text-gray-500 font-medium">
                                             <span x-text="show ? 'Hide' : 'Show'"></span>
                                         </button>
                                     </div>
+                                    <p x-show="errors.password" x-cloak class="mt-1 text-xs text-red-600" x-text="errors.password"></p>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Confirm password <span class="text-red-500">*</span></label>
-                                    <input :type="show ? 'text' : 'password'" name="password_confirmation" required minlength="8"
-                                           class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition">
+                                    <input :type="show ? 'text' : 'password'" name="password_confirmation" x-model="form.password_confirmation" @input="validatePasswords()" required minlength="8"
+                                           class="w-full px-3.5 py-3 rounded-xl bg-white border text-sm outline-none transition"
+                                           :class="errors.password_confirmation ? 'border-red-400' : 'border-gray-300 focus:border-amber-500'">
+                                    <p x-show="errors.password_confirmation" x-cloak class="mt-1 text-xs text-red-600" x-text="errors.password_confirmation"></p>
                                 </div>
 
                                 <div class="rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-900 flex items-start gap-2">
@@ -258,14 +267,29 @@
                     first_name: initial.first_name || '',
                     last_name: initial.last_name || '',
                     email: initial.email || '',
+                    password: '',
+                    password_confirmation: '',
                     waitlist_email: initial.waitlist_email || '',
                     waitlist_phone: initial.waitlist_phone || '',
                 },
+                errors: { phone: '', email: '', password: '', password_confirmation: '' },
                 get activeCountry() {
                     return this.countries.find(c => c.code === this.form.country) ?? this.countries[0];
                 },
                 get canContinueStep1() {
-                    return this.activeCountry.active && this.form.local_phone.trim().length >= 7;
+                    return this.activeCountry.active && this.form.local_phone.trim().length >= 7 && !this.errors.phone;
+                },
+                validatePhone() {
+                    const digits = (this.form.local_phone || '').replace(/\D/g, '');
+                    this.errors.phone = digits.length >= 9 ? '' : 'Enter a valid phone number (at least 9 digits).';
+                },
+                validateEmail() {
+                    if (!this.form.email) { this.errors.email = ''; return; }
+                    this.errors.email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.form.email) ? '' : 'Enter a valid email address.';
+                },
+                validatePasswords() {
+                    this.errors.password = (this.form.password || '').length >= 8 ? '' : 'Password must be at least 8 characters.';
+                    this.errors.password_confirmation = this.form.password === this.form.password_confirmation ? '' : 'Passwords do not match.';
                 },
                 chooseCountry(country) {
                     this.form.country = country.code;
@@ -276,17 +300,21 @@
                 },
                 next() {
                     if (this.step === 1) {
+                        this.validatePhone();
                         if (!this.canContinueStep1) {
                             if (!this.activeCountry.active) {
                                 return alert('KopaFasta is not yet operational in this country. Please join the waitlist.');
                             }
-                            return alert('Please enter your phone number.');
+                            return;
                         }
                     }
                     if (this.step === 2) {
-                        if (!this.form.first_name || !this.form.last_name || !this.form.email) {
-                            return alert('Please fill in all fields.');
+                        this.validateEmail();
+                        if (!this.form.first_name || !this.form.last_name) {
+                            this.errors.email = this.errors.email || '';
+                            return alert('Please enter your first and last name.');
                         }
+                        if (this.errors.email) return;
                     }
                     if (this.step < 3) this.step++;
                     window.scrollTo({ top: 0, behavior: 'smooth' });

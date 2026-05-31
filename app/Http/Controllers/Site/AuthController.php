@@ -25,17 +25,23 @@ class AuthController extends Controller
     public function login(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'email'    => ['required', 'email'],
+            'login'    => ['required', 'string'],
             'password' => ['required', 'string'],
         ]);
 
-        if (! Auth::attempt($data, $request->boolean('remember'))) {
+        $login = trim($data['login']);
+        $user = User::query()
+            ->where('email', $login)
+            ->orWhere('phone', $login)
+            ->first();
+
+        if (! $user || ! Hash::check($data['password'], $user->password)) {
             return back()
-                ->withErrors(['email' => 'Those credentials do not match. Please try again.'])
-                ->onlyInput('email');
+                ->withErrors(['login' => 'Those credentials do not match. Please try again.'])
+                ->onlyInput('login');
         }
 
-        $user = Auth::user();
+        Auth::login($user, $request->boolean('remember'));
 
         // Public site login is for borrowers, vendors and investors.
         // Admin and staff roles must use the admin console login.
@@ -71,15 +77,21 @@ class AuthController extends Controller
             'country'    => ['required', 'string', 'in:TZ,KE,UG'],
             'first_name' => ['required', 'string', 'max:60'],
             'last_name'  => ['required', 'string', 'max:60'],
-            'email'      => ['required', 'email', 'unique:users,email'],
-            'phone'      => ['required', 'string', 'max:20'],
+            'email'      => ['nullable', 'email', 'max:255', 'unique:users,email'],
+            'phone'      => ['required', 'string', 'max:20', 'unique:users,phone'],
             'password'   => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
-        $user = DB::transaction(function () use ($data) {
+        $email = $data['email'] ?? null;
+        if (empty($email)) {
+            $digits = preg_replace('/\D/', '', $data['phone']) ?: Str::random(8);
+            $email = $digits.'@phone.kopafasta.local';
+        }
+
+        $user = DB::transaction(function () use ($data, $email) {
             $user = User::create([
                 'name'      => $data['first_name'].' '.$data['last_name'],
-                'email'     => $data['email'],
+                'email'     => $email,
                 'phone'     => $data['phone'],
                 'password'  => Hash::make($data['password']),
                 'role'      => 'borrower',
@@ -93,7 +105,7 @@ class AuthController extends Controller
                 'status'          => 'active',
                 'first_name'      => $data['first_name'],
                 'last_name'       => $data['last_name'],
-                'email'           => $data['email'],
+                'email'           => $data['email'] ?? null,
                 'phone'           => $data['phone'],
                 'onboarded_at'    => now(),
             ]);
@@ -104,7 +116,8 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('site.apply.show');
+        return redirect()->route('site.membership.renew')
+            ->with('status', 'Welcome! Pay your registration fee to unlock loans and services.');
     }
 
     public function storeWaitlistRequest(Request $request): RedirectResponse

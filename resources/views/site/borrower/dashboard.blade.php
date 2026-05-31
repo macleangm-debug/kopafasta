@@ -7,7 +7,7 @@
             <h1 class="text-2xl sm:text-3xl font-bold">Habari, {{ $customer->first_name ?? Auth::user()->name }} 👋</h1>
             <p class="text-sm text-gray-500 mt-1">Customer #{{ $customer->customer_number ?? '—' }}</p>
         </div>
-        <a href="{{ route('site.apply.show') }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full inline-flex items-center gap-2 text-sm">
+        <a href="{{ route('site.borrower.apply') }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full inline-flex items-center gap-2 text-sm">
             + New application
         </a>
     </div>
@@ -20,25 +20,41 @@
                 <p class="mt-1 text-3xl sm:text-4xl font-extrabold">TZS {{ number_format($eligibility['amount']) }}</p>
                 <p class="mt-2 text-xs text-gray-300 max-w-md">Based on your income {{ $eligibility['has_data'] ? '' : '(estimate — complete your profile for a better offer)' }}. Final approval after credit check.</p>
             </div>
-            <a href="{{ route('site.apply.show') }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-3 rounded-full text-sm whitespace-nowrap inline-flex items-center gap-2">Apply now →</a>
+            <a href="{{ route('site.borrower.apply') }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-3 rounded-full text-sm whitespace-nowrap inline-flex items-center gap-2">Apply now →</a>
         </div>
     @endif
 
     {{-- Available loan products --}}
-    <div class="mb-6">
-        <h2 class="font-semibold mb-3">Available loan products</h2>
+    <div class="mb-8">
+        <h2 class="text-lg font-semibold mb-4">Available loan products</h2>
         @if(isset($products) && $products->isNotEmpty())
-            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="space-y-4" x-data="{ open: null }">
                 @foreach($products as $p)
-                    <div class="bg-white rounded-2xl border border-gray-200 p-4">
-                        <div class="flex items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <p class="font-semibold text-sm truncate">{{ $p->name }}</p>
-                                <p class="text-xs text-gray-500 mt-1">TZS {{ number_format($p->min_amount) }} — TZS {{ number_format($p->max_amount) }} · {{ number_format((float)$p->interest_rate,2) }}% APR</p>
+                    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                        <button type="button" @click="open = open === {{ $p->id }} ? null : {{ $p->id }}"
+                                class="w-full text-left p-5 sm:p-6 flex items-start justify-between gap-4 hover:bg-gray-50 transition">
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-2 mb-2">
+                                    <span class="text-[10px] font-mono font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded">{{ $p->code }}</span>
+                                    <span class="text-xs text-gray-500">{{ number_format((float)$p->interest_rate * 100, 1) }}% monthly · {{ $p->tenure_min_months }}–{{ $p->tenure_max_months }} mo</span>
+                                </div>
+                                <h3 class="text-lg font-bold text-gray-900">{{ $p->name }}</h3>
+                                <p class="text-sm text-gray-600 mt-1 line-clamp-2">{{ $p->description ?: 'Configured loan product from admin settings.' }}</p>
+                                <p class="text-sm font-semibold text-gray-900 mt-2">TZS {{ number_format($p->min_amount) }} – {{ number_format($p->max_amount) }}</p>
                             </div>
-                            <div class="flex items-center">
-                                <a href="{{ route('site.apply.show', ['product' => $p->id]) }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-3 py-1.5 rounded-full text-sm">Apply</a>
-                            </div>
+                            <svg class="w-5 h-5 text-gray-400 shrink-0 transition-transform" :class="open === {{ $p->id }} && 'rotate-180'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+                        </button>
+                        <div x-show="open === {{ $p->id }}" x-transition x-cloak class="border-t border-gray-100 px-5 sm:px-6 pb-5">
+                            <dl class="grid sm:grid-cols-2 gap-3 text-sm pt-4">
+                                <div><dt class="text-gray-500">Eligibility</dt><dd class="font-medium">{{ Str::limit($p->description ?: 'Active membership and completed application required', 80) }}</dd></div>
+                                <div><dt class="text-gray-500">Repayment period</dt><dd class="font-medium">{{ $p->tenure_min_months }}–{{ $p->tenure_max_months }} months</dd></div>
+                                <div><dt class="text-gray-500">Rate range</dt><dd class="font-medium">{{ number_format((float)$p->interest_rate * 100, 2) }}% per month</dd></div>
+                                <div><dt class="text-gray-500">Loan limits</dt><dd class="font-medium">TZS {{ number_format($p->min_amount) }} – {{ number_format($p->max_amount) }}</dd></div>
+                            </dl>
+                            <a href="{{ route('site.borrower.apply', ['product' => $p->id]) }}"
+                               class="mt-4 inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                                Apply for {{ $p->name }} →
+                            </a>
                         </div>
                     </div>
                 @endforeach
@@ -182,7 +198,7 @@
             @else
                 <div class="p-10 text-center text-sm text-gray-500">
                     No applications yet.
-                    <a href="{{ route('site.apply.show') }}" class="text-amber-600 font-medium hover:underline ml-1">Start your first →</a>
+                    <a href="{{ route('site.borrower.apply') }}" class="text-amber-600 font-medium hover:underline ml-1">Start your first →</a>
                 </div>
             @endif
         </div>

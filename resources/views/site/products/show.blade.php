@@ -7,14 +7,26 @@
         <div class="mt-4 flex items-start justify-between gap-6 flex-wrap">
             <div>
                 <span class="inline-flex items-center text-[11px] font-mono font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded">{{ $product->code }}</span>
+                <span class="inline-flex items-center ml-3 rounded-full text-[11px] font-semibold px-2.5 py-1.5 text-white {{ $product->status === 'coming_soon' ? 'bg-slate-500' : 'bg-emerald-600' }}">
+                    {{ ucfirst(str_replace('_', ' ', $product->status)) }}
+                </span>
                 <h1 class="mt-2 text-3xl sm:text-4xl font-bold tracking-tight">{{ $product->name }}</h1>
                 <p class="mt-3 text-gray-600 max-w-2xl">{{ $product->description }}</p>
             </div>
-            <a href="{{ route('site.apply.show', ['product' => $product->id]) }}"
-               class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-3 rounded-full shadow-sm">
-                Apply for this loan
-                <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
-            </a>
+            <div>
+                @if ($product->status === 'coming_soon')
+                    <button type="button" disabled
+                        class="inline-flex items-center gap-2 bg-slate-400 text-white font-semibold px-6 py-3 rounded-full shadow-sm cursor-not-allowed">
+                        Coming soon
+                    </button>
+                @else
+                    <a href="{{ route('site.apply.show', ['product' => $product->id]) }}"
+                       class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-3 rounded-full shadow-sm">
+                        Apply for this loan
+                        <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
+                    </a>
+                @endif
+            </div>
         </div>
 
         <div class="mt-10 grid sm:grid-cols-3 gap-4">

@@ -13,7 +13,7 @@
                         'emergency'     => 'Emergency',
                     ]"
                     :value="$r?->category" />
-    <x-admin.select name="is_active"           label="Status"              :options="['1' => 'Active', '0' => 'Inactive']" :value="(string) ($r?->is_active ?? '1')" required />
+    <x-admin.select name="status"              label="Visibility"          :options="['active' => 'Active', 'coming_soon' => 'Coming soon', 'inactive' => 'Inactive']" :value="$r?->status ?? 'active'" required />
     <div class="md:col-span-2">
         <x-admin.textarea name="description" label="Description" :value="$r?->description" rows="3" />
     </div>

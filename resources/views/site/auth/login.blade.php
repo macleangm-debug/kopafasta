@@ -68,14 +68,14 @@
                 <form method="POST" action="{{ route('site.login.post') }}" class="mt-8 space-y-5">
                     @csrf
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Email address</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Email or phone number</label>
                         <div class="relative">
                             <span class="absolute inset-y-0 left-0 grid place-items-center pl-3 text-gray-400">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 8l9 6 9-6M5 6h14a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z"/></svg>
                             </span>
-                            <input type="email" name="email" value="{{ old('email') }}" required autofocus
+                            <input type="text" name="login" value="{{ old('login') }}" required autofocus
                                    class="w-full pl-10 pr-3 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition"
-                                   placeholder="you@example.com">
+                                   placeholder="you@example.com or +2557XXXXXXXX">
                         </div>
                     </div>
 

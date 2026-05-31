@@ -26,7 +26,7 @@ class LoanProductController extends ResourceController
             'max_amount'          => ['required', 'numeric', 'min:0'],
             'requires_collateral' => ['nullable', 'boolean'],
             'requires_guarantor'  => ['nullable', 'boolean'],
-            'is_active'           => ['nullable', 'boolean'],
+            'status'              => ['required', 'in:active,inactive,coming_soon'],
         ];
     }
 
@@ -34,7 +34,8 @@ class LoanProductController extends ResourceController
     {
         $data['requires_collateral'] = (bool) ($data['requires_collateral'] ?? false);
         $data['requires_guarantor']  = (bool) ($data['requires_guarantor'] ?? false);
-        $data['is_active']           = (bool) ($data['is_active'] ?? false);
+        $data['status']              = $data['status'] ?? 'inactive';
+        $data['is_active']           = $data['status'] === 'active';
         return $data;
     }
 }

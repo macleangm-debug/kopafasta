@@ -82,9 +82,12 @@ Route::name('site.')->group(function () {
 
         // Borrower wizard + dashboard
         Route::middleware('membership.active')->group(function () {
-            Route::get('/apply',  [\App\Http\Controllers\Site\ApplyController::class, 'show'])->name('apply.show');
+            Route::get('/borrower/apply',  [\App\Http\Controllers\Site\ApplyController::class, 'show'])->name('borrower.apply');
+            Route::post('/borrower/apply', [\App\Http\Controllers\Site\ApplyController::class, 'submit'])->name('borrower.apply.submit');
+            Route::get('/apply', fn () => redirect()->route('site.borrower.apply'))->name('apply.show');
             Route::post('/apply', [\App\Http\Controllers\Site\ApplyController::class, 'submit'])->name('apply.submit');
         });
+        Route::get('/borrower/apply/{application}/success', [\App\Http\Controllers\Site\ApplyController::class, 'success'])->name('borrower.apply.success');
         Route::get('/apply/{application}/success', [\App\Http\Controllers\Site\ApplyController::class, 'success'])->name('apply.success');
 
         // Membership (always accessible, even when expired — needed for renewals)
