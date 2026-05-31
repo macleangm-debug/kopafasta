@@ -34,7 +34,9 @@
 
     <header class="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-6"
-             x-data="{ open: false, menu: null }" @keydown.escape.window="menu = null">
+             x-data="{ open: false, menu: null }"
+             @keydown.escape.window="menu = null; open = false"
+             @click.outside="menu = null">
             <a href="{{ route('site.home') }}" class="flex items-center gap-2 shrink-0">
                 <span class="size-9 rounded-lg bg-amber-500 grid place-items-center font-bold text-gray-900 text-lg">K</span>
                 <span class="font-bold text-lg tracking-tight">kopafasta<span class="text-amber-600">.</span></span>
@@ -43,15 +45,16 @@
 
             <nav class="hidden md:flex items-center gap-1 text-sm font-medium text-gray-700">
                 {{-- Borrow mega-menu --}}
-                <div class="relative" @mouseleave="menu === 'borrow' && (menu = null)">
-                    <button type="button" @click="menu = menu === 'borrow' ? null : 'borrow'" @mouseenter="menu = 'borrow'"
+                <div class="relative" @mouseenter="menu = 'borrow'" @mouseleave="menu = null">
+                    <button type="button" @click.stop="menu = 'borrow'"
                             class="px-3 py-2 rounded-lg hover:bg-gray-50 hover:text-amber-600 inline-flex items-center gap-1"
                             :class="menu === 'borrow' ? 'text-amber-700 bg-amber-50' : ''">
                         Borrow
                         <svg class="w-3.5 h-3.5 transition" :class="menu === 'borrow' ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                     </button>
                     <div x-cloak x-show="menu === 'borrow'" x-transition.opacity
-                         class="absolute left-0 top-full mt-2 w-[640px] rounded-2xl border border-gray-200 bg-white shadow-2xl p-6 grid grid-cols-2 gap-5">
+                         class="absolute left-0 top-full pt-2 w-[640px]">
+                        <div class="rounded-2xl border border-gray-200 bg-white shadow-2xl p-6 grid grid-cols-2 gap-5">
                         <a href="{{ route('site.product', 'IL') }}" class="group p-4 rounded-xl hover:bg-amber-50 transition">
                             <div class="flex items-center gap-3"><span class="size-9 grid place-items-center rounded-lg bg-amber-100 text-amber-700">👤</span><span class="font-semibold text-gray-900 group-hover:text-amber-700">Individual loan</span></div>
                             <p class="mt-1.5 text-xs text-gray-600">Personal loans from TZS 50K to 10M. Repay in 1–24 months.</p>
@@ -72,19 +75,21 @@
                             <a href="{{ route('site.products') }}" class="font-semibold text-amber-700 hover:underline">All ten loan products →</a>
                             <a href="{{ route('site.apply.show') }}" class="rounded-full bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-1.5">Apply now</a>
                         </div>
+                        </div>
                     </div>
                 </div>
 
                 {{-- Invest mega-menu --}}
-                <div class="relative" @mouseleave="menu === 'invest' && (menu = null)">
-                    <button type="button" @click="menu = menu === 'invest' ? null : 'invest'" @mouseenter="menu = 'invest'"
+                <div class="relative" @mouseenter="menu = 'invest'" @mouseleave="menu = null">
+                    <button type="button" @click.stop="menu = 'invest'"
                             class="px-3 py-2 rounded-lg hover:bg-gray-50 hover:text-emerald-700 inline-flex items-center gap-1"
                             :class="menu === 'invest' ? 'text-emerald-700 bg-emerald-50' : ''">
                         Invest
                         <svg class="w-3.5 h-3.5 transition" :class="menu === 'invest' ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                     </button>
                     <div x-cloak x-show="menu === 'invest'" x-transition.opacity
-                         class="absolute left-0 top-full mt-2 w-[640px] rounded-2xl border border-gray-200 bg-white shadow-2xl p-6 grid grid-cols-2 gap-5">
+                         class="absolute left-0 top-full pt-2 w-[640px]">
+                        <div class="rounded-2xl border border-gray-200 bg-white shadow-2xl p-6 grid grid-cols-2 gap-5">
                         <a href="{{ route('site.invest') }}" class="group p-4 rounded-xl hover:bg-emerald-50 transition">
                             <div class="flex items-center gap-3"><span class="size-9 grid place-items-center rounded-lg bg-emerald-100 text-emerald-700">📈</span><span class="font-semibold text-gray-900 group-hover:text-emerald-700">Individual investor</span></div>
                             <p class="mt-1.5 text-xs text-gray-600">Start from TZS 50,000. Earn 12–24% per year from vetted loan pools.</p>
@@ -105,19 +110,21 @@
                             <a href="{{ route('site.invest') }}" class="font-semibold text-emerald-700 hover:underline">Learn more about investing →</a>
                             <a href="{{ route('site.register.investor') }}" class="rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-1.5">Open investor account</a>
                         </div>
+                        </div>
                     </div>
                 </div>
 
                 {{-- Partners --}}
-                <div class="relative" @mouseleave="menu === 'partners' && (menu = null)">
-                    <button type="button" @click="menu = menu === 'partners' ? null : 'partners'" @mouseenter="menu = 'partners'"
+                <div class="relative" @mouseenter="menu = 'partners'" @mouseleave="menu = null">
+                    <button type="button" @click.stop="menu = 'partners'"
                             class="px-3 py-2 rounded-lg hover:bg-gray-50 hover:text-gray-900 inline-flex items-center gap-1"
                             :class="menu === 'partners' ? 'text-gray-900 bg-gray-100' : ''">
                         Partners
                         <svg class="w-3.5 h-3.5 transition" :class="menu === 'partners' ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                     </button>
                     <div x-cloak x-show="menu === 'partners'" x-transition.opacity
-                         class="absolute left-0 top-full mt-2 w-[480px] rounded-2xl border border-gray-200 bg-white shadow-2xl p-6 grid gap-3">
+                         class="absolute left-0 top-full pt-2 w-[480px]">
+                        <div class="rounded-2xl border border-gray-200 bg-white shadow-2xl p-6 grid gap-3">
                         <a href="{{ route('site.register.vendor') }}" class="group p-4 rounded-xl hover:bg-gray-50 transition">
                             <div class="flex items-center gap-3"><span class="size-9 grid place-items-center rounded-lg bg-gray-900 text-amber-400">🛠️</span><span class="font-semibold text-gray-900">GPS installers, valuers &amp; insurers</span></div>
                             <p class="mt-1.5 text-xs text-gray-600">Get jobs across the country with fast settlement.</p>
@@ -130,23 +137,26 @@
                             <div class="flex items-center gap-3"><span class="size-9 grid place-items-center rounded-lg bg-gray-900 text-amber-400">🤝</span><span class="font-semibold text-gray-900">Channel &amp; agent banking</span></div>
                             <p class="mt-1.5 text-xs text-gray-600">Distribute Kopafasta loans through your branch network.</p>
                         </a>
+                        </div>
                     </div>
                 </div>
 
                 {{-- Company --}}
-                <div class="relative" @mouseleave="menu === 'company' && (menu = null)">
-                    <button type="button" @click="menu = menu === 'company' ? null : 'company'" @mouseenter="menu = 'company'"
+                <div class="relative" @mouseenter="menu = 'company'" @mouseleave="menu = null">
+                    <button type="button" @click.stop="menu = 'company'"
                             class="px-3 py-2 rounded-lg hover:bg-gray-50 hover:text-gray-900 inline-flex items-center gap-1"
                             :class="menu === 'company' ? 'text-gray-900 bg-gray-100' : ''">
                         Company
                         <svg class="w-3.5 h-3.5 transition" :class="menu === 'company' ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                     </button>
                     <div x-cloak x-show="menu === 'company'" x-transition.opacity
-                         class="absolute left-0 top-full mt-2 w-56 rounded-2xl border border-gray-200 bg-white shadow-2xl p-3">
-                        <a href="{{ route('site.about') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">About Kopafasta</a>
-                        <a href="{{ route('site.how-it-works') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">How it works</a>
-                        <a href="{{ route('site.faq') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">FAQ &amp; help center</a>
-                        <a href="mailto:hello@kopafasta.com" class="block px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Contact us</a>
+                         class="absolute left-0 top-full pt-2 w-56">
+                        <div class="rounded-2xl border border-gray-200 bg-white shadow-2xl p-3">
+                            <a href="{{ route('site.about') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">About Kopafasta</a>
+                            <a href="{{ route('site.how-it-works') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">How it works</a>
+                            <a href="{{ route('site.faq') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">FAQ &amp; help center</a>
+                            <a href="mailto:hello@kopafasta.com" class="block px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Contact us</a>
+                        </div>
                     </div>
                 </div>
             </nav>
@@ -168,45 +178,46 @@
                 @endauth
             </div>
 
-            {{-- mobile toggle --}}
-            <button @click="open = !open" class="md:hidden p-2 rounded-md hover:bg-gray-100" aria-label="Menu">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-            </button>
+            {{-- mobile menu --}}
+            <div class="md:hidden relative" @click.outside="open = false">
+                <button @click.stop="open = !open" class="p-2 rounded-md hover:bg-gray-100" aria-label="Menu" :aria-expanded="open">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </button>
 
-            {{-- mobile drawer --}}
-            <div x-cloak x-show="open" @click.away="open=false"
-                 class="md:hidden absolute top-16 inset-x-0 bg-white border-b border-gray-200 shadow-xl max-h-[80vh] overflow-y-auto">
-                <div class="px-4 py-4 flex flex-col gap-1 text-sm" x-data="{ tab: null }">
-                    <p class="text-[11px] uppercase tracking-widest text-amber-600 font-bold px-2 mt-1">Borrow</p>
-                    <a href="{{ route('site.products') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">All loan products</a>
-                    <a href="{{ route('site.product', 'IL') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">Individual loan</a>
-                    <a href="{{ route('site.product', 'GL') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">Group loan</a>
-                    <a href="{{ route('site.product', 'AB') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">Asset-backed</a>
-                    <a href="{{ route('site.product', 'EM') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">Emergency loan</a>
+                <div x-cloak x-show="open"
+                     class="absolute right-0 top-full mt-1 w-[min(100vw-2rem,20rem)] rounded-2xl border border-gray-200 bg-white shadow-xl max-h-[80vh] overflow-y-auto z-50">
+                    <div class="px-4 py-4 flex flex-col gap-1 text-sm" x-data="{ tab: null }">
+                        <p class="text-[11px] uppercase tracking-widest text-amber-600 font-bold px-2 mt-1">Borrow</p>
+                        <a href="{{ route('site.products') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">All loan products</a>
+                        <a href="{{ route('site.product', 'IL') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">Individual loan</a>
+                        <a href="{{ route('site.product', 'GL') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">Group loan</a>
+                        <a href="{{ route('site.product', 'AB') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">Asset-backed</a>
+                        <a href="{{ route('site.product', 'EM') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">Emergency loan</a>
 
-                    <p class="text-[11px] uppercase tracking-widest text-emerald-700 font-bold px-2 mt-4">Invest</p>
-                    <a href="{{ route('site.invest') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">Individual investor</a>
-                    <a href="{{ route('site.capital-partners') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">Capital partner</a>
+                        <p class="text-[11px] uppercase tracking-widest text-emerald-700 font-bold px-2 mt-4">Invest</p>
+                        <a href="{{ route('site.invest') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">Individual investor</a>
+                        <a href="{{ route('site.capital-partners') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">Capital partner</a>
 
-                    <p class="text-[11px] uppercase tracking-widest text-gray-600 font-bold px-2 mt-4">Partners</p>
-                    <a href="{{ route('site.register.vendor') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">Become a vendor</a>
+                        <p class="text-[11px] uppercase tracking-widest text-gray-600 font-bold px-2 mt-4">Partners</p>
+                        <a href="{{ route('site.register.vendor') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">Become a vendor</a>
 
-                    <p class="text-[11px] uppercase tracking-widest text-gray-600 font-bold px-2 mt-4">Company</p>
-                    <a href="{{ route('site.about') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">About</a>
-                    <a href="{{ route('site.how-it-works') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">How it works</a>
-                    <a href="{{ route('site.faq') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">FAQ</a>
+                        <p class="text-[11px] uppercase tracking-widest text-gray-600 font-bold px-2 mt-4">Company</p>
+                        <a href="{{ route('site.about') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">About</a>
+                        <a href="{{ route('site.how-it-works') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">How it works</a>
+                        <a href="{{ route('site.faq') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">FAQ</a>
 
-                    <div class="border-t border-gray-200 pt-3 mt-4 flex flex-col gap-2">
-                        @auth
-                            <a href="{{ Auth::user()->role === 'vendor' ? route('site.vendor.dashboard') : (Auth::user()->role === 'investor' ? route('site.investor.dashboard') : route('site.borrower.dashboard')) }}" class="py-1.5">My account</a>
-                            <form method="POST" action="{{ route('site.logout') }}">@csrf
-                                <button class="py-1.5 text-left text-gray-500 w-full">Log out</button>
-                            </form>
-                        @else
-                            <a href="{{ route('site.login') }}" class="py-1.5">Log in</a>
-                            <a href="{{ route('site.register') }}"
-                               class="inline-flex justify-center rounded-full bg-amber-500 text-gray-900 font-semibold px-4 py-2 mt-1">Get started</a>
-                        @endauth
+                        <div class="border-t border-gray-200 pt-3 mt-4 flex flex-col gap-2">
+                            @auth
+                                <a href="{{ Auth::user()->role === 'vendor' ? route('site.vendor.dashboard') : (Auth::user()->role === 'investor' ? route('site.investor.dashboard') : route('site.borrower.dashboard')) }}" class="py-1.5">My account</a>
+                                <form method="POST" action="{{ route('site.logout') }}">@csrf
+                                    <button class="py-1.5 text-left text-gray-500 w-full">Log out</button>
+                                </form>
+                            @else
+                                <a href="{{ route('site.login') }}" class="py-1.5">Log in</a>
+                                <a href="{{ route('site.register') }}"
+                                   class="inline-flex justify-center rounded-full bg-amber-500 text-gray-900 font-semibold px-4 py-2 mt-1">Get started</a>
+                            @endauth
+                        </div>
                     </div>
                 </div>
             </div>
