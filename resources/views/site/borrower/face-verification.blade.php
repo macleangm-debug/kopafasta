@@ -57,7 +57,14 @@
             </div>
 
         @else
-            <x-site.face-verification-wizard :customer="$customer" :angles="$angles" :wizard="$wizard" :photos="$photos" />
+            <x-site.face-verification-wizard
+                :customer="$customer"
+                :angles="$angles"
+                :wizard="$wizard"
+                :photos="$photos"
+                :steps="$steps"
+                :upload-urls="$uploadUrls"
+            />
         @endif
     </div>
 

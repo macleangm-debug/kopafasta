@@ -3,134 +3,104 @@
     'angles',
     'wizard',
     'photos',
+    'steps',
+    'uploadUrls',
 ])
 
-@php
-    $order = $wizard['order'];
-    $stepIndex = $wizard['current_index'];
-    $stepNumber = $stepIndex + 1;
-    $totalSteps = $wizard['total'];
-    $angleKey = $wizard['current_angle'];
-    $meta = $angles[$angleKey] ?? [];
-    $uploadUrl = route('site.borrower.face-verification.store', ['angle' => $angleKey]);
-    $requireFace = $meta['require_face'] ?? true;
-    $allowGallery = $meta['allow_gallery'] ?? false;
-@endphp
-
 <div
-    class="max-w-lg mx-auto"
+    class="max-w-md mx-auto"
     x-data="faceVerificationWizard({
-        uploadUrl: @js($uploadUrl),
-        requireFace: @js($requireFace),
-        allowGallery: @js($allowGallery),
-        stepNumber: @js($stepNumber),
+        steps: @js($steps),
+        uploadUrls: @js($uploadUrls),
+        startIndex: @js($wizard['current_index']),
     })"
     x-init="init()"
 >
-    {{-- Step header --}}
-    <div class="text-center mb-6">
-        <p class="text-xs uppercase tracking-widest text-amber-600 font-semibold">Face verification</p>
-        <p class="text-sm text-gray-500 mt-1">Step {{ $stepNumber }} of {{ $totalSteps }}</p>
-        <h2 class="text-xl font-bold text-gray-900 mt-2">{{ $meta['label'] ?? 'Capture photo' }}</h2>
-        <p class="text-sm text-gray-600 mt-2">{{ $meta['instruction'] ?? '' }}</p>
-        @if (! empty($meta['hint']))
-            <p class="text-xs text-gray-400 mt-1">{{ $meta['hint'] }}</p>
-        @endif
-    </div>
-
-    {{-- Step dots --}}
-    <div class="flex justify-center gap-2 mb-6">
-        @foreach ($order as $i => $key)
-            @php $done = isset($photos[$key]); @endphp
-            <div @class([
-                'h-2 rounded-full transition-all',
-                'w-8 bg-amber-500' => $i === $stepIndex && ! $done,
-                'w-2 bg-emerald-500' => $done,
-                'w-2 bg-gray-200' => ! $done && $i !== $stepIndex,
-            ])></div>
-        @endforeach
-    </div>
-
-    <div class="bg-white rounded-2xl ring-1 ring-gray-200 overflow-hidden">
-        {{-- Camera not started --}}
-        <div x-show="phase === 'intro'" class="p-8 text-center">
-            <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                <svg class="w-10 h-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
+    {{-- Intro --}}
+    <div x-show="phase === 'intro'" class="text-center">
+        <div class="bg-white rounded-3xl ring-1 ring-gray-200 p-8 mb-4">
+            <div class="w-24 h-24 mx-auto mb-5 rounded-full bg-gray-900 flex items-center justify-center">
+                <svg class="w-12 h-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
                 </svg>
             </div>
-
-            <p x-show="!detectorReady" class="text-sm text-gray-500 mb-4">Preparing camera…</p>
-
-            <button type="button" @click="openCamera()" :disabled="loading || !detectorReady"
-                    class="w-full bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white font-semibold px-6 py-3.5 rounded-full text-sm">
-                <span x-show="!loading">Open camera</span>
-                <span x-show="loading" x-cloak>Starting camera…</span>
+            <h2 class="text-xl font-bold text-gray-900 mb-2">Face ID verification</h2>
+            <p class="text-sm text-gray-500 mb-6">We will guide you through four poses — front, left, right, and NIDA — and save each photo automatically.</p>
+            <ul class="text-left text-sm text-gray-600 space-y-2 mb-6">
+                <template x-for="(step, i) in steps" :key="step.key">
+                    <li class="flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
+                              :class="step.done ? 'bg-emerald-100 text-emerald-700' : (i === stepIndex ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-500')"
+                              x-text="i + 1"></span>
+                        <span x-text="step.instruction" :class="step.done ? 'line-through text-gray-400' : ''"></span>
+                    </li>
+                </template>
+            </ul>
+            <p x-show="!ready" class="text-sm text-gray-400 mb-4">Loading face scanner…</p>
+            <button type="button" @click="startScan()" :disabled="!ready || loading"
+                    class="w-full bg-gray-900 hover:bg-gray-800 disabled:opacity-50 text-white font-semibold px-6 py-4 rounded-2xl text-sm">
+                <span x-show="!loading">Start verification</span>
+                <span x-show="loading" x-cloak>Opening camera…</span>
             </button>
-            @if ($allowGallery)
-                <button type="button" @click="$refs.galleryInput.click()"
-                        class="mt-3 w-full bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-700 font-semibold px-6 py-3 rounded-full text-sm">
-                    Upload from gallery
-                </button>
-                <input type="file" x-ref="galleryInput" accept="image/*" class="hidden" @change="onGallerySelected($event)">
-            @endif
-            <p x-show="detectorNotice" x-cloak class="mt-3 text-xs text-amber-700" x-text="detectorNotice"></p>
+            <p x-show="notice" x-cloak class="mt-3 text-xs text-amber-700" x-text="notice"></p>
+        </div>
+    </div>
+
+    {{-- iOS-style scanner --}}
+    <div x-show="phase === 'scanning' || phase === 'saving'" x-cloak class="relative rounded-3xl overflow-hidden bg-black aspect-[3/4] max-h-[72vh] shadow-2xl ring-1 ring-gray-800">
+        <video x-ref="video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover mirror"></video>
+
+        {{-- Progress ring (iOS Face ID style) --}}
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none" style="margin-top: -8%;">
+            <svg class="w-56 h-56 sm:w-64 sm:h-64" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="3"/>
+                <circle cx="60" cy="60" r="52" fill="none" stroke="#34d399" stroke-width="3" stroke-linecap="round"
+                        transform="rotate(-90 60 60)"
+                        :stroke-dasharray="326.7"
+                        :stroke-dashoffset="326.7 - (326.7 * holdProgress / 100)"/>
+            </svg>
+            <div class="absolute w-44 h-56 sm:w-48 sm:h-60 rounded-[50%] border-2 transition-colors duration-300"
+                 :class="poseOk ? 'border-emerald-400 shadow-[0_0_24px_rgba(52,211,153,0.45)]' : 'border-white/40'"></div>
         </div>
 
-        {{-- Live camera --}}
-        <div x-show="phase === 'camera'" x-cloak class="relative bg-black">
-            <video x-ref="video" autoplay playsinline muted class="w-full max-h-80 object-cover mirror"></video>
-            <canvas x-ref="overlay" class="absolute inset-0 w-full h-full pointer-events-none mirror"></canvas>
+        {{-- Step badge --}}
+        <div class="absolute top-4 left-4 right-4 flex justify-between items-center">
+            <span class="text-xs font-semibold text-white/90 bg-black/40 px-3 py-1 rounded-full"
+                  x-text="'Step ' + (stepIndex + 1) + ' of ' + steps.length"></span>
+            <button type="button" @click="cancelScan()" class="text-xs font-semibold text-white/80 bg-black/40 px-3 py-1 rounded-full">Cancel</button>
+        </div>
 
-            {{-- Oval face guide --}}
-            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div class="w-44 h-56 rounded-[50%] border-2 border-dashed"
-                     :class="faceDetected ? 'border-emerald-400' : 'border-white/50'"></div>
-            </div>
+        {{-- Status --}}
+        <div class="absolute bottom-0 inset-x-0 px-6 pb-8 pt-16 bg-gradient-to-t from-black via-black/80 to-transparent text-center">
+            <p class="text-lg font-semibold text-white" x-text="statusTitle"></p>
+            <p class="text-sm text-white/70 mt-1" x-text="statusSubtitle"></p>
+        </div>
 
-            <div class="absolute top-3 left-3 right-3 flex justify-center px-2">
-                <span class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full max-w-full text-center"
-                      :class="statusBadgeClass" x-text="statusMessage"></span>
-            </div>
-
-            <div class="p-4 bg-gray-900 space-y-3">
-                <p class="text-xs text-center text-gray-300" x-text="statusHint"></p>
-                <div class="flex flex-wrap gap-2 justify-center">
-                    <button type="button" @click="capture()"
-                            :disabled="!canCapture"
-                            class="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-gray-900 font-semibold px-6 py-2.5 rounded-full text-sm">
-                        Capture
-                    </button>
-                    <button type="button" @click="stopCamera(); phase='intro'"
-                            class="bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
-                        Cancel
-                    </button>
+        {{-- Saving flash --}}
+        <div x-show="phase === 'saving'" class="absolute inset-0 bg-black/60 flex items-center justify-center">
+            <div class="text-center text-white">
+                <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-emerald-500 flex items-center justify-center">
+                    <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
                 </div>
-            </div>
-        </div>
-
-        {{-- Preview --}}
-        <div x-show="phase === 'preview'" x-cloak class="p-5 space-y-4">
-            <div class="rounded-xl overflow-hidden ring-1 ring-gray-200">
-                <img :src="previewUrl" alt="Preview" class="w-full max-h-72 object-cover">
-            </div>
-            <div class="flex gap-3">
-                <button type="button" @click="retake()"
-                        class="flex-1 bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-700 font-semibold py-2.5 rounded-full text-sm">
-                    Retake
-                </button>
-                <button type="button" @click="submitPhoto()" :disabled="submitting"
-                        class="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-gray-900 font-semibold py-2.5 rounded-full text-sm">
-                    <span x-show="!submitting">{{ $stepNumber < $totalSteps ? 'Next' : 'Finish' }}</span>
-                    <span x-show="submitting" x-cloak>Saving…</span>
-                </button>
+                <p class="font-semibold">Photo saved</p>
             </div>
         </div>
     </div>
 
-    <p class="text-xs text-gray-400 text-center mt-4">
-        Your photos are stored securely and reviewed by our underwriting team.
+    {{-- All done (inline, before reload) --}}
+    <div x-show="phase === 'done'" x-cloak class="text-center bg-white rounded-3xl ring-1 ring-gray-200 p-10">
+        <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-100 flex items-center justify-center">
+            <svg class="w-8 h-8 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
+        </div>
+        <h2 class="text-xl font-bold text-gray-900">Verification complete</h2>
+        <p class="text-sm text-gray-600 mt-2">All four photos captured and saved. Our team will review them shortly.</p>
+        <a href="{{ route('site.borrower.dashboard') }}" class="inline-flex mt-6 bg-gray-900 text-white font-semibold px-6 py-3 rounded-2xl text-sm">
+            Back to dashboard
+        </a>
+    </div>
+
+    <p class="text-xs text-gray-400 text-center mt-4" x-show="phase !== 'done'">
+        Photos are encrypted in transit and reviewed by underwriting.
     </p>
 </div>
 
@@ -145,96 +115,91 @@
             document.addEventListener('alpine:init', () => {
                 Alpine.data('faceVerificationWizard', (config) => ({
                     phase: 'intro',
+                    ready: false,
                     loading: false,
-                    submitting: false,
+                    notice: null,
+                    steps: config.steps,
+                    uploadUrls: config.uploadUrls,
+                    stepIndex: config.startIndex,
                     stream: null,
-                    previewUrl: null,
-                    capturedFile: null,
-                    faceDetected: false,
-                    detectorReady: false,
-                    detectorActive: false,
-                    detectorNotice: null,
-                    detector: null,
+                    landmarker: null,
+                    landmarkerActive: false,
                     detectLoopId: null,
-                    cameraStartedAt: null,
-                    statusTick: 0,
-                    statusTimer: null,
-                    uploadUrl: config.uploadUrl,
-                    requireFace: config.requireFace,
-                    allowGallery: config.allowGallery,
-                    stepNumber: config.stepNumber,
+                    holdProgress: 0,
+                    poseOk: false,
+                    faceVisible: false,
+                    headOffset: 0,
+                    lastTick: null,
+                    isUploading: false,
 
-                    get canCapture() {
-                        void this.statusTick;
-                        if (!this.requireFace) return true;
-                        if (this.faceDetected) return true;
-                        if (!this.detectorActive) return true;
-                        if (this.cameraStartedAt && (Date.now() - this.cameraStartedAt) > 4000) return true;
-                        return false;
+                    get currentStep() {
+                        return this.steps[this.stepIndex] || null;
                     },
 
-                    get statusMessage() {
-                        void this.statusTick;
-                        if (this.phase !== 'camera') return '';
-                        if (!this.$refs.video?.videoWidth) return 'Starting camera…';
-                        if (!this.requireFace) return 'Hold your NIDA next to your face';
-                        if (this.faceDetected) return '✓ Face detected — ready to capture';
-                        if (!this.detectorActive) return 'Camera ready — tap Capture when your face is visible';
-                        if (this.cameraStartedAt && (Date.now() - this.cameraStartedAt) > 4000) {
-                            return 'Camera ready — tap Capture when your face is in the oval';
+                    get statusTitle() {
+                        if (this.phase === 'saving') return 'Saving…';
+                        const step = this.currentStep;
+                        if (!step) return '';
+                        if (this.holdProgress > 0 && this.poseOk) return 'Hold still…';
+                        return step.instruction;
+                    },
+
+                    get statusSubtitle() {
+                        if (this.phase === 'saving') return 'Uploading photo securely';
+                        const step = this.currentStep;
+                        if (!step) return '';
+                        if (!this.faceVisible) return 'Move your face into the oval';
+                        if (step.key === 'holding_nida') {
+                            return this.poseOk ? 'Keep NIDA and face visible' : 'Hold your NIDA card beside your face';
                         }
-                        return 'Position your face inside the oval';
-                    },
-
-                    get statusHint() {
-                        void this.statusTick;
-                        if (!this.requireFace) return 'Make sure both your face and NIDA ID are clearly visible.';
-                        if (this.faceDetected) return 'Hold still, then tap Capture.';
-                        if (!this.detectorActive) return 'Face auto-detection is off on this device — capture manually when ready.';
-                        if (this.canCapture && !this.faceDetected) return 'Auto-detection did not confirm a face — you can still capture if your face is visible.';
-                        return 'Move closer, face the camera, and ensure good lighting.';
-                    },
-
-                    get statusBadgeClass() {
-                        if (this.faceDetected) return 'bg-emerald-500 text-white';
-                        if (this.canCapture) return 'bg-amber-500 text-gray-900';
-                        return 'bg-gray-900/80 text-white';
+                        if (this.poseOk) return 'Perfect — keep this pose';
+                        if (step.pose === 'left') return 'Slowly turn your head to the left';
+                        if (step.pose === 'right') return 'Slowly turn your head to the right';
+                        return 'Look straight at the camera';
                     },
 
                     async init() {
                         try {
-                            const { FaceDetector, FilesetResolver } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm');
+                            const { FaceLandmarker, FilesetResolver } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm');
                             const WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm';
-                            const MODEL = 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite';
+                            const MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
                             const vision = await FilesetResolver.forVisionTasks(WASM);
                             try {
-                                this.detector = await FaceDetector.createFromOptions(vision, {
+                                this.landmarker = await FaceLandmarker.createFromOptions(vision, {
                                     baseOptions: { modelAssetPath: MODEL, delegate: 'GPU' },
                                     runningMode: 'VIDEO',
-                                    minDetectionConfidence: 0.5,
+                                    numFaces: 1,
                                 });
-                            } catch (gpuError) {
-                                this.detector = await FaceDetector.createFromOptions(vision, {
+                            } catch (e) {
+                                this.landmarker = await FaceLandmarker.createFromOptions(vision, {
                                     baseOptions: { modelAssetPath: MODEL, delegate: 'CPU' },
                                     runningMode: 'VIDEO',
-                                    minDetectionConfidence: 0.5,
+                                    numFaces: 1,
                                 });
                             }
-                            this.detectorActive = true;
+                            this.landmarkerActive = true;
                         } catch (e) {
-                            this.detectorActive = false;
-                            this.detectorNotice = 'Face auto-detection unavailable — you can still capture manually.';
+                            this.landmarkerActive = false;
+                            this.notice = 'Advanced pose detection unavailable — photos will save automatically when your face is visible.';
                         } finally {
-                            this.detectorReady = true;
+                            this.ready = true;
+                            while (this.stepIndex < this.steps.length && this.steps[this.stepIndex]?.done) {
+                                this.stepIndex++;
+                            }
                         }
                     },
 
-                    async openCamera() {
+                    async startScan() {
                         if (!navigator.mediaDevices?.getUserMedia) {
-                            this.detectorNotice = 'Camera not supported on this device.';
+                            this.notice = 'Camera not supported on this device.';
+                            return;
+                        }
+                        if (this.stepIndex >= this.steps.length) {
+                            this.phase = 'done';
                             return;
                         }
                         this.loading = true;
+                        this.notice = null;
                         try {
                             this.stream = await navigator.mediaDevices.getUserMedia({
                                 video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -243,131 +208,183 @@
                             const video = this.$refs.video;
                             video.srcObject = this.stream;
                             await video.play();
-                            this.cameraStartedAt = Date.now();
-                            this.faceDetected = false;
-                            this.phase = 'camera';
-                            this.startDetectionLoop();
-                            this.startStatusTimer();
+                            this.holdProgress = 0;
+                            this.poseOk = false;
+                            this.phase = 'scanning';
+                            this.lastTick = performance.now();
+                            this.startLoop();
                         } catch (e) {
-                            this.detectorNotice = 'Camera permission denied. Please allow camera access in your browser settings.';
-                            this.phase = 'intro';
+                            this.notice = 'Allow camera access in your browser settings, then try again.';
                         } finally {
                             this.loading = false;
                         }
                     },
 
-                    startDetectionLoop() {
-                        this.stopDetectionLoop();
+                    cancelScan() {
+                        this.stopLoop();
+                        this.stopCamera();
+                        this.phase = 'intro';
+                        this.holdProgress = 0;
+                    },
+
+                    startLoop() {
+                        this.stopLoop();
                         const video = this.$refs.video;
-                        const overlay = this.$refs.overlay;
-                        const ctx = overlay.getContext('2d');
 
-                        const tick = () => {
-                            if (this.phase !== 'camera') return;
+                        const tick = (now) => {
+                            if (this.phase !== 'scanning' || this.isUploading) {
+                                this.detectLoopId = requestAnimationFrame(tick);
+                                return;
+                            }
                             this.detectLoopId = requestAnimationFrame(tick);
-                            if (!video.videoWidth || !video.videoHeight) return;
 
-                            overlay.width = video.videoWidth;
-                            overlay.height = video.videoHeight;
-                            ctx.clearRect(0, 0, overlay.width, overlay.height);
+                            if (!video.videoWidth) return;
 
-                            if (!this.detectorActive || !this.detector) return;
+                            const step = this.currentStep;
+                            if (!step) return;
 
-                            try {
-                                const result = this.detector.detectForVideo(video, performance.now());
-                                this.faceDetected = result.detections.length > 0;
-                                result.detections.forEach((det) => {
-                                    const box = det.boundingBox;
-                                    if (!box) return;
-                                    ctx.strokeStyle = '#10b981';
-                                    ctx.lineWidth = 3;
-                                    ctx.strokeRect(box.originX, box.originY, box.width, box.height);
-                                });
-                            } catch (e) { /* keep looping */ }
+                            this.faceVisible = false;
+                            this.poseOk = false;
+
+                            if (this.landmarkerActive && this.landmarker) {
+                                try {
+                                    const result = this.landmarker.detectForVideo(video, now);
+                                    if (result.faceLandmarks?.length) {
+                                        this.faceVisible = true;
+                                        this.headOffset = this.offsetFromLandmarks(result.faceLandmarks[0]);
+                                        this.poseOk = this.matchesPose(step, this.headOffset);
+                                    }
+                                } catch (e) { /* continue */ }
+                            } else {
+                                this.faceVisible = true;
+                                this.poseOk = true;
+                            }
+
+                            const dt = Math.min(now - (this.lastTick || now), 100);
+                            this.lastTick = now;
+
+                            if (this.poseOk) {
+                                this.holdProgress = Math.min(100, this.holdProgress + (dt / 14));
+                            } else {
+                                this.holdProgress = Math.max(0, this.holdProgress - (dt / 8));
+                            }
+
+                            if (this.holdProgress >= 100 && !this.isUploading) {
+                                this.autoCapture();
+                            }
                         };
 
                         this.detectLoopId = requestAnimationFrame(tick);
                     },
 
-                    stopDetectionLoop() {
+                    offsetFromLandmarks(lm) {
+                        const nose = lm[1];
+                        const left = lm[234];
+                        const right = lm[454];
+                        if (!nose || !left || !right) return 0;
+                        const mid = (left.x + right.x) / 2;
+                        const span = Math.abs(right.x - left.x) || 0.001;
+                        return (nose.x - mid) / span;
+                    },
+
+                    matchesPose(step, offset) {
+                        if (!this.faceVisible) return false;
+                        if (step.key === 'holding_nida') return true;
+                        if (step.pose === 'front') return Math.abs(offset) < 0.07;
+                        if (step.pose === 'left') return offset > 0.11;
+                        if (step.pose === 'right') return offset < -0.11;
+                        return true;
+                    },
+
+                    stopLoop() {
                         if (this.detectLoopId) {
                             cancelAnimationFrame(this.detectLoopId);
                             this.detectLoopId = null;
                         }
                     },
 
-                    startStatusTimer() {
-                        this.stopStatusTimer();
-                        this.statusTimer = setInterval(() => { this.statusTick++; }, 400);
-                    },
-
-                    stopStatusTimer() {
-                        if (this.statusTimer) {
-                            clearInterval(this.statusTimer);
-                            this.statusTimer = null;
-                        }
-                    },
-
                     stopCamera() {
-                        this.stopDetectionLoop();
-                        this.stopStatusTimer();
+                        this.stopLoop();
                         this.stream?.getTracks().forEach(t => t.stop());
                         this.stream = null;
-                        this.faceDetected = false;
-                        this.cameraStartedAt = null;
                     },
 
-                    capture() {
-                        const video = this.$refs.video;
-                        if (!video.videoWidth) return;
-                        const canvas = document.createElement('canvas');
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
-                        const c = canvas.getContext('2d');
-                        c.translate(canvas.width, 0);
-                        c.scale(-1, 1);
-                        c.drawImage(video, 0, 0);
-                        canvas.toBlob((blob) => {
-                            if (!blob) return;
-                            this.capturedFile = new File([blob], 'face-step-' + this.stepNumber + '.jpg', { type: 'image/jpeg' });
-                            this.previewUrl = URL.createObjectURL(blob);
-                            this.stopCamera();
-                            this.phase = 'preview';
-                        }, 'image/jpeg', 0.92);
+                    captureBlob() {
+                        return new Promise((resolve) => {
+                            const video = this.$refs.video;
+                            const canvas = document.createElement('canvas');
+                            canvas.width = video.videoWidth;
+                            canvas.height = video.videoHeight;
+                            const c = canvas.getContext('2d');
+                            c.translate(canvas.width, 0);
+                            c.scale(-1, 1);
+                            c.drawImage(video, 0, 0);
+                            canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.92);
+                        });
                     },
 
-                    onGallerySelected(event) {
-                        const file = event.target.files?.[0];
-                        if (!file) return;
-                        this.capturedFile = file;
-                        this.previewUrl = URL.createObjectURL(file);
-                        this.phase = 'preview';
-                    },
+                    async autoCapture() {
+                        if (this.isUploading) return;
+                        this.isUploading = true;
+                        this.phase = 'saving';
 
-                    retake() {
-                        if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
-                        this.previewUrl = null;
-                        this.capturedFile = null;
-                        this.phase = 'intro';
-                    },
+                        const step = this.currentStep;
+                        const blob = await this.captureBlob();
+                        if (!blob || !step) {
+                            this.isUploading = false;
+                            this.phase = 'scanning';
+                            this.holdProgress = 0;
+                            return;
+                        }
 
-                    async submitPhoto() {
-                        if (!this.capturedFile || this.submitting) return;
-                        this.submitting = true;
                         const fd = new FormData();
-                        fd.append('photo', this.capturedFile);
+                        fd.append('photo', new File([blob], step.key + '.jpg', { type: 'image/jpeg' }));
                         fd.append('_token', document.querySelector('meta[name=csrf-token]').content);
+
                         try {
-                            const res = await fetch(this.uploadUrl, {
+                            const res = await fetch(this.uploadUrls[step.key], {
                                 method: 'POST',
                                 body: fd,
-                                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' },
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'Accept': 'application/json',
+                                },
                                 credentials: 'same-origin',
                             });
-                            window.location.href = res.redirected ? res.url : window.location.href;
+                            const data = await res.json();
+                            if (!res.ok || !data.ok) {
+                                throw new Error(data.message || 'Upload failed');
+                            }
+
+                            step.done = true;
+                            this.holdProgress = 0;
+                            this.poseOk = false;
+
+                            await new Promise(r => setTimeout(r, 700));
+
+                            if (data.complete) {
+                                this.stopCamera();
+                                this.phase = 'done';
+                                return;
+                            }
+
+                            this.stepIndex++;
+                            while (this.stepIndex < this.steps.length && this.steps[this.stepIndex]?.done) {
+                                this.stepIndex++;
+                            }
+
+                            if (this.stepIndex >= this.steps.length) {
+                                this.stopCamera();
+                                this.phase = 'done';
+                            } else {
+                                this.phase = 'scanning';
+                            }
                         } catch (e) {
-                            this.submitting = false;
-                            alert('Upload failed. Please try again.');
+                            this.notice = e.message || 'Upload failed. Please try again.';
+                            this.phase = 'intro';
+                            this.stopCamera();
+                        } finally {
+                            this.isUploading = false;
                         }
                     },
                 }));

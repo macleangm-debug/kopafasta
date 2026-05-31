@@ -26,6 +26,7 @@ use App\Services\GuarantorInvitationService;
 use App\Services\KycFreshnessService;
 use App\Services\NidaVerificationService;
 use App\Services\PinService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -674,21 +675,49 @@ class BorrowerController extends Controller
         $angles = $faces->angles();
         $wizard = $faces->wizardState($customer);
 
+        $uploadUrls = collect($wizard['order'])->mapWithKeys(fn (string $key) => [
+            $key => route('site.borrower.face-verification.store', ['angle' => $key]),
+        ])->all();
+
+        $steps = collect($wizard['order'])->map(function (string $key) use ($angles, $photos) {
+            $meta = $angles[$key] ?? [];
+
+            return [
+                'key'         => $key,
+                'label'       => $meta['label'] ?? $key,
+                'instruction' => $meta['instruction'] ?? '',
+                'pose'        => match ($key) {
+                    'left'  => 'left',
+                    'right' => 'right',
+                    default => 'front',
+                },
+                'done'        => isset($photos[$key]) && ($photos[$key]->status ?? '') !== 'rejected',
+            ];
+        })->values()->all();
+
         return view('site.borrower.face-verification', compact(
-            'customer', 'photos', 'progress', 'status', 'angles', 'wizard'
+            'customer', 'photos', 'progress', 'status', 'angles', 'wizard', 'uploadUrls', 'steps'
         ));
     }
 
-    public function uploadFaceVerification(Request $request, string $angle, FaceVerificationService $faces): RedirectResponse
+    public function uploadFaceVerification(Request $request, string $angle, FaceVerificationService $faces): RedirectResponse|JsonResponse
     {
         $customer = $this->customer();
 
         if ($faces->isVerified($customer)) {
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => 'Your face verification is already approved.'], 422);
+            }
+
             return redirect()->route('site.borrower.face-verification')
                 ->with('status', 'Your face verification is already approved.');
         }
 
         if ($customer->face_verification_status === 'pending') {
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => 'Your photos are under review.'], 422);
+            }
+
             return redirect()->route('site.borrower.face-verification')
                 ->with('error', 'Your photos are under review. You cannot upload new ones until review is complete.');
         }
@@ -700,13 +729,31 @@ class BorrowerController extends Controller
         try {
             $faces->upload($customer, $angle, $request->file('photo'));
         } catch (\InvalidArgumentException $e) {
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
+            }
+
             return back()->with('error', $e->getMessage());
         }
 
         $customer->refresh();
-        $message = $faces->progress($customer)['complete']
+        $progress = $faces->progress($customer);
+        $wizard = $faces->wizardState($customer);
+        $message = $progress['complete']
             ? 'All face photos uploaded. Our team will review them shortly.'
-            : 'Photo saved. Capture the remaining angles to complete face verification.';
+            : 'Photo saved.';
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok'       => true,
+                'angle'    => $angle,
+                'progress' => $progress,
+                'wizard'   => $wizard,
+                'status'   => $customer->face_verification_status,
+                'message'  => $message,
+                'complete' => $progress['complete'],
+            ]);
+        }
 
         return redirect()->route('site.borrower.face-verification')->with('status', $message);
     }
