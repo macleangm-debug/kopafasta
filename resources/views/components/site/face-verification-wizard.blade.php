@@ -8,7 +8,7 @@
 ])
 
 <div
-    class="max-w-md mx-auto"
+    class="max-w-lg mx-auto"
     x-data="faceVerificationWizard({
         steps: @js($steps),
         uploadUrls: @js($uploadUrls),
@@ -47,24 +47,39 @@
     </div>
 
     {{-- iOS-style scanner --}}
-    <div x-show="phase === 'scanning' || phase === 'saving'" x-cloak class="relative rounded-3xl overflow-hidden bg-black aspect-[3/4] max-h-[72vh] shadow-2xl ring-1 ring-gray-800">
+    <div x-show="phase === 'scanning' || phase === 'saving'" x-cloak class="relative rounded-3xl overflow-hidden bg-black w-full min-h-[70vh] max-h-[80vh] shadow-2xl ring-1 ring-gray-800">
         <video x-ref="video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover mirror"></video>
+        <canvas x-ref="overlay" class="absolute inset-0 w-full h-full pointer-events-none mirror"></canvas>
 
-        {{-- Progress ring (iOS Face ID style) --}}
-        <div class="absolute inset-0 flex items-center justify-center pointer-events-none" style="margin-top: -8%;">
-            <svg class="w-56 h-56 sm:w-64 sm:h-64" viewBox="0 0 120 120">
-                <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="3"/>
-                <circle cx="60" cy="60" r="52" fill="none" stroke="#34d399" stroke-width="3" stroke-linecap="round"
+        {{-- Progress ring + large oval --}}
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <svg class="w-[92%] max-w-[380px] aspect-square" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2.5"/>
+                <circle cx="60" cy="60" r="54" fill="none" stroke="#34d399" stroke-width="3.5" stroke-linecap="round"
                         transform="rotate(-90 60 60)"
-                        :stroke-dasharray="326.7"
-                        :stroke-dashoffset="326.7 - (326.7 * holdProgress / 100)"/>
+                        :stroke-dasharray="339.3"
+                        :stroke-dashoffset="339.3 - (339.3 * holdProgress / 100)"/>
             </svg>
-            <div class="absolute w-44 h-56 sm:w-48 sm:h-60 rounded-[50%] border-2 transition-colors duration-300"
-                 :class="poseOk ? 'border-emerald-400 shadow-[0_0_24px_rgba(52,211,153,0.45)]' : 'border-white/40'"></div>
+            <div class="absolute w-[78%] max-w-[300px] aspect-[4/5] rounded-[50%] border-[3px] transition-all duration-300"
+                 :class="poseOk
+                    ? 'border-emerald-400 shadow-[0_0_32px_rgba(52,211,153,0.55)] bg-emerald-400/5'
+                    : (faceVisible ? 'border-amber-300 shadow-[0_0_20px_rgba(251,191,36,0.35)]' : 'border-white/50')"></div>
+        </div>
+
+        {{-- Detection status --}}
+        <div class="absolute top-16 left-0 right-0 flex justify-center px-4">
+            <span class="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-full backdrop-blur-sm"
+                  :class="faceVisible
+                    ? (poseOk ? 'bg-emerald-500/90 text-white' : 'bg-amber-500/90 text-gray-900')
+                    : 'bg-black/50 text-white/90'">
+                <span class="w-2.5 h-2.5 rounded-full animate-pulse"
+                      :class="faceVisible ? (poseOk ? 'bg-white' : 'bg-gray-900') : 'bg-red-400'"></span>
+                <span x-text="detectionLabel"></span>
+            </span>
         </div>
 
         {{-- Step badge --}}
-        <div class="absolute top-4 left-4 right-4 flex justify-between items-center">
+        <div class="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
             <span class="text-xs font-semibold text-white/90 bg-black/40 px-3 py-1 rounded-full"
                   x-text="'Step ' + (stepIndex + 1) + ' of ' + steps.length"></span>
             <button type="button" @click="cancelScan()" class="text-xs font-semibold text-white/80 bg-black/40 px-3 py-1 rounded-full">Cancel</button>
@@ -122,6 +137,8 @@
                     uploadUrls: config.uploadUrls,
                     stepIndex: config.startIndex,
                     stream: null,
+                    faceDetector: null,
+                    detectorActive: false,
                     landmarker: null,
                     landmarkerActive: false,
                     detectLoopId: null,
@@ -131,6 +148,16 @@
                     headOffset: 0,
                     lastTick: null,
                     isUploading: false,
+                    scanStartedAt: null,
+
+                    get detectionLabel() {
+                        if (this.phase === 'saving') return 'Saving photo…';
+                        if (!this.detectorActive && !this.landmarkerActive) return 'Camera only — hold your face in the oval';
+                        if (!this.faceVisible) return 'No face detected — move closer';
+                        if (this.poseOk) return '✓ Perfect — hold still';
+                        if (this.holdProgress > 0) return 'Almost there — keep holding';
+                        return 'Face detected — adjust your head';
+                    },
 
                     get currentStep() {
                         return this.steps[this.stepIndex] || null;
@@ -159,28 +186,37 @@
                     },
 
                     async init() {
+                        const WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm';
+                        const BLAZE = 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite';
+                        const LANDMARK = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
+
                         try {
-                            const { FaceLandmarker, FilesetResolver } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm');
-                            const WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm';
-                            const MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
+                            const { FaceDetector, FaceLandmarker, FilesetResolver } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm');
                             const vision = await FilesetResolver.forVisionTasks(WASM);
+
+                            try {
+                                this.faceDetector = await FaceDetector.createFromOptions(vision, {
+                                    baseOptions: { modelAssetPath: BLAZE, delegate: 'CPU' },
+                                    runningMode: 'VIDEO',
+                                    minDetectionConfidence: 0.35,
+                                });
+                                this.detectorActive = true;
+                            } catch (e) { /* face detector failed */ }
+
                             try {
                                 this.landmarker = await FaceLandmarker.createFromOptions(vision, {
-                                    baseOptions: { modelAssetPath: MODEL, delegate: 'GPU' },
+                                    baseOptions: { modelAssetPath: LANDMARK, delegate: 'CPU' },
                                     runningMode: 'VIDEO',
                                     numFaces: 1,
                                 });
-                            } catch (e) {
-                                this.landmarker = await FaceLandmarker.createFromOptions(vision, {
-                                    baseOptions: { modelAssetPath: MODEL, delegate: 'CPU' },
-                                    runningMode: 'VIDEO',
-                                    numFaces: 1,
-                                });
+                                this.landmarkerActive = true;
+                            } catch (e) { /* landmarker optional */ }
+
+                            if (!this.detectorActive && !this.landmarkerActive) {
+                                this.notice = 'Auto-detection unavailable — photos will save when you hold still in the oval.';
                             }
-                            this.landmarkerActive = true;
                         } catch (e) {
-                            this.landmarkerActive = false;
-                            this.notice = 'Advanced pose detection unavailable — photos will save automatically when your face is visible.';
+                            this.notice = 'Auto-detection unavailable — photos will save when you hold still in the oval.';
                         } finally {
                             this.ready = true;
                             while (this.stepIndex < this.steps.length && this.steps[this.stepIndex]?.done) {
@@ -212,6 +248,7 @@
                             this.poseOk = false;
                             this.phase = 'scanning';
                             this.lastTick = performance.now();
+                            this.scanStartedAt = performance.now();
                             this.startLoop();
                         } catch (e) {
                             this.notice = 'Allow camera access in your browser settings, then try again.';
@@ -230,6 +267,7 @@
                     startLoop() {
                         this.stopLoop();
                         const video = this.$refs.video;
+                        const overlay = this.$refs.overlay;
 
                         const tick = (now) => {
                             if (this.phase !== 'scanning' || this.isUploading) {
@@ -245,6 +283,19 @@
 
                             this.faceVisible = false;
                             this.poseOk = false;
+                            this.clearOverlay(overlay);
+
+                            let bbox = null;
+
+                            if (this.detectorActive && this.faceDetector) {
+                                try {
+                                    const det = this.faceDetector.detectForVideo(video, now);
+                                    if (det.detections?.length) {
+                                        this.faceVisible = true;
+                                        bbox = det.detections[0].boundingBox;
+                                    }
+                                } catch (e) { /* continue */ }
+                            }
 
                             if (this.landmarkerActive && this.landmarker) {
                                 try {
@@ -252,21 +303,35 @@
                                     if (result.faceLandmarks?.length) {
                                         this.faceVisible = true;
                                         this.headOffset = this.offsetFromLandmarks(result.faceLandmarks[0]);
-                                        this.poseOk = this.matchesPose(step, this.headOffset);
                                     }
                                 } catch (e) { /* continue */ }
-                            } else {
+                            }
+
+                            if (!this.detectorActive && !this.landmarkerActive) {
                                 this.faceVisible = true;
-                                this.poseOk = true;
+                            }
+
+                            if (this.faceVisible) {
+                                this.poseOk = this.matchesPose(step, this.headOffset, bbox, video);
                             }
 
                             const dt = Math.min(now - (this.lastTick || now), 100);
                             this.lastTick = now;
 
                             if (this.poseOk) {
-                                this.holdProgress = Math.min(100, this.holdProgress + (dt / 14));
+                                this.holdProgress = Math.min(100, this.holdProgress + (dt / 12));
+                            } else if (this.faceVisible && step.key === 'holding_nida') {
+                                this.holdProgress = Math.min(100, this.holdProgress + (dt / 16));
+                            } else if (this.faceVisible && !this.detectorActive && !this.landmarkerActive) {
+                                this.holdProgress = Math.min(100, this.holdProgress + (dt / 18));
+                            } else if (this.faceVisible && this.scanStartedAt && (now - this.scanStartedAt) > 5000) {
+                                this.holdProgress = Math.min(100, this.holdProgress + (dt / 20));
                             } else {
-                                this.holdProgress = Math.max(0, this.holdProgress - (dt / 8));
+                                this.holdProgress = Math.max(0, this.holdProgress - (dt / 6));
+                            }
+
+                            if (bbox && overlay) {
+                                this.drawBox(overlay, video, bbox, this.poseOk);
                             }
 
                             if (this.holdProgress >= 100 && !this.isUploading) {
@@ -275,6 +340,36 @@
                         };
 
                         this.detectLoopId = requestAnimationFrame(tick);
+                    },
+
+                    clearOverlay(overlay) {
+                        if (!overlay) return;
+                        const ctx = overlay.getContext('2d');
+                        ctx.clearRect(0, 0, overlay.width, overlay.height);
+                    },
+
+                    drawBox(overlay, video, box, ok) {
+                        if (!overlay || !box) return;
+                        overlay.width = video.videoWidth;
+                        overlay.height = video.videoHeight;
+                        const ctx = overlay.getContext('2d');
+                        ctx.strokeStyle = ok ? '#34d399' : '#fbbf24';
+                        ctx.lineWidth = Math.max(3, video.videoWidth / 180);
+                        ctx.strokeRect(box.originX, box.originY, box.width, box.height);
+                        ctx.fillStyle = ok ? 'rgba(52,211,153,0.15)' : 'rgba(251,191,36,0.12)';
+                        ctx.fillRect(box.originX, box.originY, box.width, box.height);
+                    },
+
+                    poseFromBBox(box, video, step) {
+                        if (!box || !video.videoWidth) return step.key === 'holding_nida';
+                        const cx = (box.originX + box.width / 2) / video.videoWidth;
+                        const size = box.width / video.videoWidth;
+                        if (size < 0.12) return false;
+                        if (step.key === 'holding_nida') return true;
+                        if (step.pose === 'front') return cx > 0.32 && cx < 0.68;
+                        if (step.pose === 'left') return cx > 0.52;
+                        if (step.pose === 'right') return cx < 0.48;
+                        return true;
                     },
 
                     offsetFromLandmarks(lm) {
@@ -287,13 +382,20 @@
                         return (nose.x - mid) / span;
                     },
 
-                    matchesPose(step, offset) {
+                    matchesPose(step, offset, bbox, video) {
                         if (!this.faceVisible) return false;
                         if (step.key === 'holding_nida') return true;
-                        if (step.pose === 'front') return Math.abs(offset) < 0.07;
-                        if (step.pose === 'left') return offset > 0.11;
-                        if (step.pose === 'right') return offset < -0.11;
-                        return true;
+
+                        const landmarkOk = step.pose === 'front' ? Math.abs(offset) < 0.12
+                            : step.pose === 'left' ? offset > 0.06
+                            : step.pose === 'right' ? offset < -0.06
+                            : true;
+
+                        const bboxOk = bbox ? this.poseFromBBox(bbox, video, step) : false;
+
+                        if (this.landmarkerActive && Math.abs(offset) > 0.001) return landmarkOk;
+                        if (bbox) return bboxOk;
+                        return step.pose === 'front';
                     },
 
                     stopLoop() {
