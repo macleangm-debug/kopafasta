@@ -22,6 +22,7 @@ use App\Rules\MinimumAge;
 use App\Rules\ValidNidaNumber;
 use App\Services\ApplicationDocumentRequestService;
 use App\Services\ApplicationRequirementsService;
+use App\Services\CrbService;
 use App\Services\FaceVerificationService;
 use App\Services\GuarantorInvitationService;
 use App\Services\KycFreshnessService;
@@ -556,7 +557,9 @@ class BorrowerController extends Controller
             ? TrustedDevice::where('user_id', auth()->id())->where('expires_at', '>', now())->latest('last_used_at')->get()
             : collect();
 
-        return view($view, compact('customer', 'kyc', 'trustedDevices'));
+        return view($view, compact('customer', 'kyc', 'trustedDevices'))
+            ->with('crbUsesStub', app(CrbService::class)->usesStub())
+            ->with('crbSamples', config('crb_samples.scenarios', []));
     }
 
     public function updateProfile(Request $request, string $section = 'personal'): RedirectResponse

@@ -37,6 +37,21 @@
                 <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $nidaBadge[1] }}">{{ $nidaBadge[0] }}</span>
             </div>
 
+            @if (! $locked && ($crbUsesStub ?? false) && ! empty($crbSamples))
+                <div class="mb-4 rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-sm text-sky-900">
+                    <p class="font-semibold">Sandbox test NIDA samples</p>
+                    <p class="text-xs text-sky-800 mt-1">Stub mode is on — use these numbers to test CRB flows without live bureau credentials.</p>
+                    <ul class="mt-3 space-y-2 text-xs">
+                        @foreach ($crbSamples as $key => $sample)
+                            <li class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <span class="font-mono font-semibold">{{ $sample['nida'] }}</span>
+                                <span class="text-sky-700">— {{ $sample['label'] ?? $key }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
             @if (! $locked)
                 <form method="POST" action="{{ route('site.borrower.profile.nida.verify') }}" class="space-y-4">
                     @csrf

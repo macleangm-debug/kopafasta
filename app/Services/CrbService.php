@@ -43,7 +43,7 @@ class CrbService
         string $identifierNumber,
     ): CrbIdentityResult {
         if ($this->usesStub()) {
-            return app(StubCrbClient::class)->verifyConsumerIdentity($identifierNumber);
+            return app(StubCrbClient::class)->fetchByEntityKey($searchRequestId, $entityKey, $identifierNumber);
         }
 
         if ($this->client instanceof DnbLiveCrbClient) {
