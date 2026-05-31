@@ -25,7 +25,8 @@
                 </svg>
             </div>
             <h2 class="text-xl font-bold text-gray-900 mb-2">Face ID verification</h2>
-            <p class="text-sm text-gray-500 mb-4">Sit close to your webcam, allow camera access when prompted, and follow the on-screen head movements. Works in Chrome, Safari, and Edge.</p>
+            <p class="text-sm text-gray-500 mb-4" x-show="!isDesktop">Sit close to your camera and follow the on-screen head movements.</p>
+            <p class="text-sm text-gray-500 mb-4" x-show="isDesktop" x-cloak>Sit close to your webcam, allow camera access, and follow each step. On a computer, photos save automatically after 2 seconds — or tap <strong>Capture now</strong> anytime.</p>
             <ul class="text-left text-sm text-gray-600 space-y-2 mb-6">
                 <template x-for="(step, i) in steps" :key="step.key">
                     <li class="flex items-center gap-2">
@@ -36,7 +37,7 @@
                     </li>
                 </template>
             </ul>
-            <p x-show="!ready" class="text-sm text-gray-400 mb-4">Loading face scanner…</p>
+            <p x-show="!ready && !isDesktop" class="text-sm text-gray-400 mb-4">Loading face scanner…</p>
             <button type="button" @click="startScan()" :disabled="!ready || loading"
                     class="w-full bg-gray-900 hover:bg-gray-800 disabled:opacity-50 text-white font-semibold px-6 py-4 rounded-2xl text-sm">
                 <span x-show="!loading">Start verification</span>
@@ -158,13 +159,14 @@
                     scanStartedAt: null,
                     stepStartedAt: null,
                     simpleMode: false,
+                    isDesktop: !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent),
                     uiTick: 0,
                     uiTimer: null,
 
                     get detectionLabel() {
                         void this.uiTick;
                         if (this.phase === 'saving') return 'Saving photo…';
-                        if (this.simpleMode) return 'Hold still — photo saves automatically';
+                        if (this.isDesktop || this.simpleMode) return 'Computer mode — hold still, photo saves automatically';
                         if (!this.detectorActive && !this.landmarkerActive) return 'Browser mode — hold your face in the oval';
                         if (!this.faceVisible) return 'No face detected — sit closer to the camera';
                         if (this.poseOk) return '✓ Perfect — hold still';
@@ -188,7 +190,7 @@
                         if (this.phase === 'saving') return 'Uploading photo securely';
                         const step = this.currentStep;
                         if (!step) return '';
-                        if (this.simpleMode) return 'Follow the instruction above, then hold still for 2 seconds. Or tap Capture now.';
+                        if (this.isDesktop || this.simpleMode) return 'Follow the instruction above, then hold still for 2 seconds. Or tap Capture now.';
                         if (!this.faceVisible) return 'Fill the oval with your face — sit closer to the webcam';
                         if (step.key === 'holding_nida') {
                             return this.poseOk ? 'Keep NIDA and face visible' : 'Hold your NIDA card beside your face';
@@ -212,6 +214,15 @@
                     },
 
                     async init() {
+                        if (this.isDesktop) {
+                            this.simpleMode = true;
+                            this.ready = true;
+                            while (this.stepIndex < this.steps.length && this.steps[this.stepIndex]?.done) {
+                                this.stepIndex++;
+                            }
+                            return;
+                        }
+
                         const WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm';
                         const BLAZE = 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite';
                         const LANDMARK = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
@@ -288,6 +299,11 @@
                             this.lastTick = performance.now();
                             this.scanStartedAt = performance.now();
                             this.stepStartedAt = performance.now();
+                            if (this.isDesktop) {
+                                this.simpleMode = true;
+                                this.faceVisible = true;
+                                this.poseOk = true;
+                            }
                             this.startLoop();
                             this.startUiTimer();
                         } catch (e) {
@@ -303,7 +319,7 @@
                         this.stopCamera();
                         this.phase = 'intro';
                         this.holdProgress = 0;
-                        this.simpleMode = false;
+                        this.simpleMode = this.isDesktop;
                     },
 
                     startLoop() {
