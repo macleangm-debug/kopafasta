@@ -60,7 +60,10 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
                 </svg>
             </div>
-            <button type="button" @click="openCamera()" :disabled="loading"
+
+            <p x-show="!detectorReady" class="text-sm text-gray-500 mb-4">Preparing camera…</p>
+
+            <button type="button" @click="openCamera()" :disabled="loading || !detectorReady"
                     class="w-full bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white font-semibold px-6 py-3.5 rounded-full text-sm">
                 <span x-show="!loading">Open camera</span>
                 <span x-show="loading" x-cloak>Starting camera…</span>
@@ -72,34 +75,38 @@
                 </button>
                 <input type="file" x-ref="galleryInput" accept="image/*" class="hidden" @change="onGallerySelected($event)">
             @endif
-            <p x-show="detectorError" x-cloak class="mt-3 text-xs text-amber-700" x-text="detectorError"></p>
+            <p x-show="detectorNotice" x-cloak class="mt-3 text-xs text-amber-700" x-text="detectorNotice"></p>
         </div>
 
         {{-- Live camera --}}
         <div x-show="phase === 'camera'" x-cloak class="relative bg-black">
             <video x-ref="video" autoplay playsinline muted class="w-full max-h-80 object-cover mirror"></video>
             <canvas x-ref="overlay" class="absolute inset-0 w-full h-full pointer-events-none mirror"></canvas>
-            <div class="absolute top-3 left-3 right-3 flex justify-center">
-                <span x-show="faceDetected" x-cloak
-                      class="inline-flex items-center gap-1.5 bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
-                    Face detected
-                </span>
-                <span x-show="requireFace && !faceDetected && detectorReady" x-cloak
-                      class="inline-flex items-center gap-1.5 bg-gray-900/70 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
-                    Position your face in the frame
-                </span>
+
+            {{-- Oval face guide --}}
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div class="w-44 h-56 rounded-[50%] border-2 border-dashed"
+                     :class="faceDetected ? 'border-emerald-400' : 'border-white/50'"></div>
             </div>
-            <div class="p-4 bg-gray-900 flex flex-wrap gap-2 justify-center">
-                <button type="button" @click="capture()"
-                        :disabled="requireFace && !faceDetected"
-                        class="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-gray-900 font-semibold px-6 py-2.5 rounded-full text-sm">
-                    Capture
-                </button>
-                <button type="button" @click="stopCamera(); phase='intro'"
-                        class="bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
-                    Cancel
-                </button>
+
+            <div class="absolute top-3 left-3 right-3 flex justify-center px-2">
+                <span class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full max-w-full text-center"
+                      :class="statusBadgeClass" x-text="statusMessage"></span>
+            </div>
+
+            <div class="p-4 bg-gray-900 space-y-3">
+                <p class="text-xs text-center text-gray-300" x-text="statusHint"></p>
+                <div class="flex flex-wrap gap-2 justify-center">
+                    <button type="button" @click="capture()"
+                            :disabled="!canCapture"
+                            class="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-gray-900 font-semibold px-6 py-2.5 rounded-full text-sm">
+                        Capture
+                    </button>
+                    <button type="button" @click="stopCamera(); phase='intro'"
+                            class="bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
+                        Cancel
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -134,12 +141,7 @@
         </style>
     @endpush
     @push('scripts')
-        <script type="module">
-            import { FaceDetector, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm';
-
-            const WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm';
-            const MODEL = 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite';
-
+        <script>
             document.addEventListener('alpine:init', () => {
                 Alpine.data('faceVerificationWizard', (config) => ({
                     phase: 'intro',
@@ -150,31 +152,86 @@
                     capturedFile: null,
                     faceDetected: false,
                     detectorReady: false,
-                    detectorError: null,
+                    detectorActive: false,
+                    detectorNotice: null,
                     detector: null,
                     detectLoopId: null,
+                    cameraStartedAt: null,
+                    statusTick: 0,
+                    statusTimer: null,
                     uploadUrl: config.uploadUrl,
                     requireFace: config.requireFace,
                     allowGallery: config.allowGallery,
+                    stepNumber: config.stepNumber,
+
+                    get canCapture() {
+                        void this.statusTick;
+                        if (!this.requireFace) return true;
+                        if (this.faceDetected) return true;
+                        if (!this.detectorActive) return true;
+                        if (this.cameraStartedAt && (Date.now() - this.cameraStartedAt) > 4000) return true;
+                        return false;
+                    },
+
+                    get statusMessage() {
+                        void this.statusTick;
+                        if (this.phase !== 'camera') return '';
+                        if (!this.$refs.video?.videoWidth) return 'Starting camera…';
+                        if (!this.requireFace) return 'Hold your NIDA next to your face';
+                        if (this.faceDetected) return '✓ Face detected — ready to capture';
+                        if (!this.detectorActive) return 'Camera ready — tap Capture when your face is visible';
+                        if (this.cameraStartedAt && (Date.now() - this.cameraStartedAt) > 4000) {
+                            return 'Camera ready — tap Capture when your face is in the oval';
+                        }
+                        return 'Position your face inside the oval';
+                    },
+
+                    get statusHint() {
+                        void this.statusTick;
+                        if (!this.requireFace) return 'Make sure both your face and NIDA ID are clearly visible.';
+                        if (this.faceDetected) return 'Hold still, then tap Capture.';
+                        if (!this.detectorActive) return 'Face auto-detection is off on this device — capture manually when ready.';
+                        if (this.canCapture && !this.faceDetected) return 'Auto-detection did not confirm a face — you can still capture if your face is visible.';
+                        return 'Move closer, face the camera, and ensure good lighting.';
+                    },
+
+                    get statusBadgeClass() {
+                        if (this.faceDetected) return 'bg-emerald-500 text-white';
+                        if (this.canCapture) return 'bg-amber-500 text-gray-900';
+                        return 'bg-gray-900/80 text-white';
+                    },
 
                     async init() {
                         try {
+                            const { FaceDetector, FilesetResolver } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm');
+                            const WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm';
+                            const MODEL = 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite';
                             const vision = await FilesetResolver.forVisionTasks(WASM);
-                            this.detector = await FaceDetector.createFromOptions(vision, {
-                                baseOptions: { modelAssetPath: MODEL, delegate: 'GPU' },
-                                runningMode: 'VIDEO',
-                                minDetectionConfidence: 0.6,
-                            });
-                            this.detectorReady = true;
+                            try {
+                                this.detector = await FaceDetector.createFromOptions(vision, {
+                                    baseOptions: { modelAssetPath: MODEL, delegate: 'GPU' },
+                                    runningMode: 'VIDEO',
+                                    minDetectionConfidence: 0.5,
+                                });
+                            } catch (gpuError) {
+                                this.detector = await FaceDetector.createFromOptions(vision, {
+                                    baseOptions: { modelAssetPath: MODEL, delegate: 'CPU' },
+                                    runningMode: 'VIDEO',
+                                    minDetectionConfidence: 0.5,
+                                });
+                            }
+                            this.detectorActive = true;
                         } catch (e) {
-                            this.detectorError = 'Live face detection unavailable — you can still capture manually.';
+                            this.detectorActive = false;
+                            this.detectorNotice = 'Face auto-detection unavailable — you can still capture manually.';
+                        } finally {
                             this.detectorReady = true;
                         }
                     },
 
                     async openCamera() {
                         if (!navigator.mediaDevices?.getUserMedia) {
-                            this.detectorError = 'Camera not supported on this device.';
+                            this.detectorNotice = 'Camera not supported on this device.';
                             return;
                         }
                         this.loading = true;
@@ -183,51 +240,50 @@
                                 video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
                                 audio: false,
                             });
-                            this.$refs.video.srcObject = this.stream;
-                            await this.$refs.video.play();
+                            const video = this.$refs.video;
+                            video.srcObject = this.stream;
+                            await video.play();
+                            this.cameraStartedAt = Date.now();
+                            this.faceDetected = false;
                             this.phase = 'camera';
                             this.startDetectionLoop();
+                            this.startStatusTimer();
                         } catch (e) {
-                            this.detectorError = 'Camera permission denied. Please allow camera access and try again.';
+                            this.detectorNotice = 'Camera permission denied. Please allow camera access in your browser settings.';
+                            this.phase = 'intro';
                         } finally {
                             this.loading = false;
                         }
                     },
 
                     startDetectionLoop() {
+                        this.stopDetectionLoop();
                         const video = this.$refs.video;
                         const overlay = this.$refs.overlay;
                         const ctx = overlay.getContext('2d');
 
                         const tick = () => {
-                            if (this.phase !== 'camera' || !video.videoWidth) {
-                                return;
-                            }
+                            if (this.phase !== 'camera') return;
+                            this.detectLoopId = requestAnimationFrame(tick);
+                            if (!video.videoWidth || !video.videoHeight) return;
 
                             overlay.width = video.videoWidth;
                             overlay.height = video.videoHeight;
                             ctx.clearRect(0, 0, overlay.width, overlay.height);
 
-                            if (this.detector) {
-                                try {
-                                    const result = this.detector.detectForVideo(video, performance.now());
-                                    this.faceDetected = result.detections.length > 0;
+                            if (!this.detectorActive || !this.detector) return;
 
-                                    result.detections.forEach((det) => {
-                                        const box = det.boundingBox;
-                                        if (!box) return;
-                                        ctx.strokeStyle = this.faceDetected ? '#10b981' : '#f59e0b';
-                                        ctx.lineWidth = 3;
-                                        ctx.strokeRect(box.originX, box.originY, box.width, box.height);
-                                    });
-                                } catch (e) {
-                                    // ignore frame errors
-                                }
-                            } else {
-                                this.faceDetected = true;
-                            }
-
-                            this.detectLoopId = requestAnimationFrame(tick);
+                            try {
+                                const result = this.detector.detectForVideo(video, performance.now());
+                                this.faceDetected = result.detections.length > 0;
+                                result.detections.forEach((det) => {
+                                    const box = det.boundingBox;
+                                    if (!box) return;
+                                    ctx.strokeStyle = '#10b981';
+                                    ctx.lineWidth = 3;
+                                    ctx.strokeRect(box.originX, box.originY, box.width, box.height);
+                                });
+                            } catch (e) { /* keep looping */ }
                         };
 
                         this.detectLoopId = requestAnimationFrame(tick);
@@ -240,22 +296,40 @@
                         }
                     },
 
+                    startStatusTimer() {
+                        this.stopStatusTimer();
+                        this.statusTimer = setInterval(() => { this.statusTick++; }, 400);
+                    },
+
+                    stopStatusTimer() {
+                        if (this.statusTimer) {
+                            clearInterval(this.statusTimer);
+                            this.statusTimer = null;
+                        }
+                    },
+
                     stopCamera() {
                         this.stopDetectionLoop();
+                        this.stopStatusTimer();
                         this.stream?.getTracks().forEach(t => t.stop());
                         this.stream = null;
                         this.faceDetected = false;
+                        this.cameraStartedAt = null;
                     },
 
                     capture() {
                         const video = this.$refs.video;
+                        if (!video.videoWidth) return;
                         const canvas = document.createElement('canvas');
                         canvas.width = video.videoWidth;
                         canvas.height = video.videoHeight;
-                        canvas.getContext('2d').drawImage(video, 0, 0);
+                        const c = canvas.getContext('2d');
+                        c.translate(canvas.width, 0);
+                        c.scale(-1, 1);
+                        c.drawImage(video, 0, 0);
                         canvas.toBlob((blob) => {
                             if (!blob) return;
-                            this.capturedFile = new File([blob], `face-step-${config.stepNumber}.jpg`, { type: 'image/jpeg' });
+                            this.capturedFile = new File([blob], 'face-step-' + this.stepNumber + '.jpg', { type: 'image/jpeg' });
                             this.previewUrl = URL.createObjectURL(blob);
                             this.stopCamera();
                             this.phase = 'preview';
@@ -280,11 +354,9 @@
                     async submitPhoto() {
                         if (!this.capturedFile || this.submitting) return;
                         this.submitting = true;
-
                         const fd = new FormData();
                         fd.append('photo', this.capturedFile);
                         fd.append('_token', document.querySelector('meta[name=csrf-token]').content);
-
                         try {
                             const res = await fetch(this.uploadUrl, {
                                 method: 'POST',
