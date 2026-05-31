@@ -52,4 +52,14 @@ class LoanApplication extends Model
     {
         return $this->hasOne(Loan::class);
     }
+
+    public function signatures(): HasMany
+    {
+        return $this->hasMany(ApplicationSignature::class);
+    }
+
+    public function customerGuarantors(): HasMany
+    {
+        return $this->hasMany(CustomerGuarantor::class);
+    }
 }

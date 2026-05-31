@@ -36,4 +36,32 @@ class MemberNumberFormatter
     {
         return $memberNo ? strtoupper(trim($memberNo)) : '';
     }
+
+    /**
+     * Normalize user input to stored member_no format for database lookup.
+     */
+    public static function lookupKey(?string $input): ?string
+    {
+        if (! $input) {
+            return null;
+        }
+
+        $upper = strtoupper(trim($input));
+
+        if (str_starts_with($upper, 'KPF-TZ-')) {
+            return $upper;
+        }
+
+        $clean = preg_replace('/[^A-Z0-9]/', '', $upper) ?? '';
+
+        if (str_starts_with($clean, 'KPFTZ')) {
+            $suffix = substr($clean, 5);
+
+            return $suffix !== '' ? self::PREFIX.$suffix : null;
+        }
+
+        return $clean !== '' ? self::PREFIX.$clean : null;
+    }
+
+    private const PREFIX = 'KPF-TZ-';
 }

@@ -48,6 +48,7 @@
                                     $isRejected => 'bg-red-100 text-red-700',
                                     in_array($app->status, ['approved','disbursement','disbursed']) => 'bg-emerald-100 text-emerald-700',
                                     $app->status === 'submitted' => 'bg-amber-100 text-amber-700',
+                                    $app->status === 'awaiting_guarantor' => 'bg-sky-100 text-sky-700',
                                     default => 'bg-sky-100 text-sky-700',
                                 };
                             @endphp

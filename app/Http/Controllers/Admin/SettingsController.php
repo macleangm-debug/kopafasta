@@ -94,11 +94,17 @@ class SettingsController extends Controller
             'max_age'  => ['required', 'integer', 'min:18', 'max:120'],
             'auto_approve_low_risk' => ['nullable', 'boolean'],
             'crb_check_required'    => ['nullable', 'boolean'],
+            'crb_sandbox'           => ['nullable', 'boolean'],
+            'crb_endpoint'          => ['nullable', 'url', 'max:255'],
+            'crb_email'             => ['nullable', 'string', 'max:150'],
+            'freshness_days'        => ['nullable', 'integer', 'min:30', 'max:365'],
         ]);
 
-        foreach (['require_nida','require_tin','require_selfie','require_address_proof','require_income_proof','auto_approve_low_risk','crb_check_required'] as $k) {
+        foreach (['require_nida','require_tin','require_selfie','require_address_proof','require_income_proof','auto_approve_low_risk','crb_check_required','crb_sandbox'] as $k) {
             $data[$k] = (bool) ($data[$k] ?? false);
         }
+
+        $data['freshness_days'] = (int) ($data['freshness_days'] ?? 90);
 
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["kyc.$k" => $v])->all());
         return back()->with('status', 'KYC settings saved.');

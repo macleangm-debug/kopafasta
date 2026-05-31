@@ -1,0 +1,133 @@
+//RUN THE COMMERCIAL MULTIHIT REQUEST
+
+<?xml version="1.0" encoding="utf-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tem="http://tempuri.org/" xmlns:sil="http://schemas.datacontract.org/2004/07/SilverBladeWeb.Services">
+    <soapenv:Header/>
+    <soapenv:Body>
+        <tem:GetLiveCIR>
+            <!--Optional:-->
+            <tem:ReqLiveReport>
+                <!--Optional:-->
+                <sil:EmailID>xxxxxxxx</sil:EmailID>
+                <!--Optional:-->
+                <sil:Password>xxxxxxxx</sil:Password>
+                <!--Optional:-->
+                <sil:RequestXML>
+                    <![CDATA[<REQUEST REQUEST_ID="2"><REQUEST_PARAMETERS><REPORT_PARAMETERS REPORT_ID="14618" SUBJECT_TYPE="2" RESPONSE_TYPE="1" /><PURPOSE_OF_INQUIRY CODE="1" /><APPLICATION CURRENCY="" AMOUNT="" TYPEOFCREDITFACILITY="" REFERENCENUMBER="" />
+    </REQUEST_PARAMETERS><SEARCH_PARAMETERS><NAME>RWAMAFUMI BUILDING MATERIAL COMPANY LIMITED</NAME>
+                <!-- <IDENTIFIER_TYPE>Voter registration number</IDENTIFIER_TYPE> -->
+                <IDENTIFIER_NUMBER>INST-999871629</IDENTIFIER_NUMBER>
+                <MOBILE>
+                </MOBILE>
+                <SURROGATES>
+                    <NATIONALITY>TZ</NATIONALITY>
+                    <!-- <DATEOFBIRTH>15-Jun-1972</DATEOFBIRTH> -->
+                    <DATEOFREGISTRATION>15-Jun-1972</DATEOFREGISTRATION>
+                </SURROGATES>
+                <ACCOUNTNUMBER>
+                </ACCOUNTNUMBER>
+      <CUSTOMERID>
+      </CUSTOMERID>
+            </SEARCH_PARAMETERS></REQUEST>]]>
+        </sil:RequestXML>
+    </tem:ReqLiveReport>
+</tem:GetLiveCIR>
+</soapenv:Body>
+</soapenv:Envelope>
+
+
+
+//RUN THIS REQUEST USING ENTITY KEY AND SEARCH REQUEST ID FROM STEP 1 RESPONSE TO GET A SINGLE COMMERCIAL
+<?xml version="1.0" encoding="utf-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tem="http://tempuri.org/" xmlns:sil="http://schemas.datacontract.org/2004/07/SilverBladeWeb.Services">
+    <soapenv:Header/>
+    <soapenv:Body>
+        <tem:GetLiveCIR>
+            <!--Optional:-->
+            <tem:ReqLiveReport>
+                <!--Optional:-->
+                <sil:EmailID>xxxxxxxx</sil:EmailID>
+                <!--Optional:-->
+                <sil:Password>xxxxxxxx</sil:Password>
+                <!--Optional:-->
+                <sil:RequestXML>
+                    <![CDATA[<REQUEST REQUEST_ID="1">
+                    <REQUEST_PARAMETERS>
+                    <REPORT_PARAMETERS SEARCH_REQUEST_ID="3679958" REPORT_ID="14618" SUBJECT_TYPE="2" RESPONSE_TYPE="1" />
+                   </REQUEST_PARAMETERS>
+                   <SEARCH_PARAMETERS>
+                   <ENTITYKEY>878257</ENTITYKEY>
+                   </SEARCH_PARAMETERS>
+                </REQUEST>]]>
+        </sil:RequestXML>
+    </tem:ReqLiveReport>
+</tem:GetLiveCIR>
+</soapenv:Body>
+</soapenv:Envelope>
+
+
+
+//PEST-GUARD-LIMITED-
+<?xml version="1.0" encoding="utf-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tem="http://tempuri.org/" xmlns:sil="http://schemas.datacontract.org/2004/07/SilverBladeWeb.Services">
+    <soapenv:Header/>
+    <soapenv:Body>
+        <tem:GetLiveCIR>
+            <!--Optional:-->
+            <tem:ReqLiveReport>
+                <!--Optional:-->
+                <sil:EmailID>xxxxxxx</sil:EmailID>
+                <!--Optional:-->
+                <sil:Password>xxxxxxx</sil:Password>
+                <!--Optional:-->
+                <sil:RequestXML>
+                    <![CDATA[<REQUEST REQUEST_ID="1">
+                    <REQUEST_PARAMETERS>
+                    <REPORT_PARAMETERS SEARCH_REQUEST_ID="3764473" REPORT_ID="14918" SUBJECT_TYPE="2" RESPONSE_TYPE="1" />
+                   </REQUEST_PARAMETERS>
+                   <SEARCH_PARAMETERS>
+                   <ENTITYKEY>924861</ENTITYKEY>
+                   </SEARCH_PARAMETERS>
+                </REQUEST>]]>
+        </sil:RequestXML>
+    </tem:ReqLiveReport>
+</tem:GetLiveCIR>
+</soapenv:Body>
+</soapenv:Envelope>
+
+
+
+
+//SIngle Hit
+<?xml version="1.0" encoding="utf-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tem="http://tempuri.org/" xmlns:sil="http://schemas.datacontract.org/2004/07/SilverBladeWeb.Services">
+    <soapenv:Header/>
+    <soapenv:Body>
+        <tem:GetLiveCIR>
+            <!--Optional:-->
+            <tem:ReqLiveReport>
+                <!--Optional:-->
+                <sil:EmailID>xxxxxxx</sil:EmailID>
+                <!--Optional:-->
+                <sil:Password>xxxxxxx</sil:Password>
+                <!--Optional:-->
+                <sil:RequestXML>
+                    <![CDATA[<REQUEST REQUEST_ID="2">
+<REQUEST_PARAMETERS>
+<REPORT_PARAMETERS REPORT_ID=" 14918" SUBJECT_TYPE="2" RESPONSE_TYPE="1" />
+<PURPOSE_OF_INQUIRY CODE="1" />
+</REQUEST_PARAMETERS>
+<SEARCH_PARAMETERS>
+<NAME>PAN ATLANTIC GEO-FREIGHT LIMITED</NAME>
+<IDENTIFIER_NUMBER>1</IDENTIFIER_NUMBER>
+<SURROGATES>
+<DATEOFREGISTRATION>31-Jan-1987</DATEOFREGISTRATION>
+</SURROGATES>
+</SEARCH_PARAMETERS>
+</REQUEST>]]>
+        </sil:RequestXML>
+    </tem:ReqLiveReport>
+</tem:GetLiveCIR>
+</soapenv:Body>
+</soapenv:Envelope>
+

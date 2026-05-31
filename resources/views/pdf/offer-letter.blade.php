@@ -71,6 +71,13 @@
 
 <div class="signbox">
     <strong>Acceptance</strong>
+    @if (!empty($snapshot['borrower_signature']))
+        <div style="margin-top:8px">
+            <div class="muted">Application signature — {{ $snapshot['borrower_signature']->signer_name }}</div>
+            <div style="margin-top:6px"><img src="{{ $snapshot['borrower_signature']->signature_data }}" alt="Borrower signature" style="max-height:60px"></div>
+            <div class="muted" style="margin-top:6px">Signed at: <strong>{{ $snapshot['borrower_signature']->signed_at->format('d M Y H:i') }}</strong></div>
+        </div>
+    @endif
     @if ($agreement->isSigned())
         <div style="margin-top:8px">
             <span class="pill" style="background:#d1fae5;color:#065f46">Signed</span>

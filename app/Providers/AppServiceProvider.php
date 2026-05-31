@@ -36,7 +36,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(
+            \App\Contracts\CrbClientInterface::class,
+            \App\Services\Crb\DnbLiveCrbClient::class,
+        );
     }
 
     /**

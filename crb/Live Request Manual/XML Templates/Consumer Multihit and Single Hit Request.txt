@@ -1,0 +1,68 @@
+//RUN THIS TO GET MULTIHIT REPORT ON THE SUBJECT
+
+<?xml version="1.0" encoding="utf-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tem="http://tempuri.org/" xmlns:sil="http://schemas.datacontract.org/2004/07/SilverBladeWeb.Services">
+    <soapenv:Header/>
+    <soapenv:Body>
+        <tem:GetLiveCIR>
+            <!--Optional:-->
+            <tem:ReqLiveReport>
+                <!--Optional:-->
+                <sil:EmailID>xxxxxxxx</sil:EmailID>
+                <!--Optional:-->
+                <sil:Password>xxxxxxxx</sil:Password>
+                <!--Optional:-->
+                <sil:RequestXML>
+                    <![CDATA[<REQUEST REQUEST_ID="1">
+                    <REQUEST_PARAMETERS>
+                    <REPORT_PARAMETERS REPORT_ID="14616" SUBJECT_TYPE="1" RESPONSE_TYPE="1" /><PURPOSE_OF_INQUIRY CODE="1" />
+                    <APPLICATION CURRENCY="" AMOUNT="" TYPEOFCREDITFACILITY="" REFERENCENUMBER="" />
+                    </REQUEST_PARAMETERS>
+                   <SEARCH_PARAMETERS>
+                   <NAME>PAUL SIRIL MINJA</NAME>
+                   <MOBILE></MOBILE>
+                   <SURROGATES><NATIONALITY>TZ</NATIONALITY>
+                   <DATEOFBIRTH>15-Jun-1972</DATEOFBIRTH>
+                   </SURROGATES>
+                   <ACCOUNTNUMBER>
+                   </ACCOUNTNUMBER>
+                   <CUSTOMERID>
+                   </CUSTOMERID>
+                   </SEARCH_PARAMETERS>
+                 </REQUEST>]]>    
+    </sil:RequestXML>
+</tem:ReqLiveReport>
+</tem:GetLiveCIR>
+</soapenv:Body>
+</soapenv:Envelope>
+
+//USE SEARCH_REQUEST_ID AND THE ENTITY_KEY FROM THE STEP ONE RESPONSE TO GET THE SINGLE HIT REPORT USING REQUEST BELOW
+
+<?xml version="1.0" encoding="utf-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tem="http://tempuri.org/" xmlns:sil="http://schemas.datacontract.org/2004/07/SilverBladeWeb.Services">
+    <soapenv:Header/>
+    <soapenv:Body>
+        <tem:GetLiveCIR>
+            <!--Optional:-->
+            <tem:ReqLiveReport>
+                <!--Optional:-->
+                <sil:EmailID>xxxxxxxx</sil:EmailID>
+                <!--Optional:-->
+                <sil:Password>xxxxxxxx</sil:Password>
+                <!--Optional:-->
+                <sil:RequestXML>
+                    <![CDATA[<REQUEST REQUEST_ID="1">
+                    <REQUEST_PARAMETERS>
+                    <REPORT_PARAMETERS SEARCH_REQUEST_ID="2965695" REPORT_ID="14616" SUBJECT_TYPE="1" RESPONSE_TYPE="1" />
+                   </REQUEST_PARAMETERS>
+                   <SEARCH_PARAMETERS>
+                   <ENTITYKEY>3747153</ENTITYKEY>
+                   </SEARCH_PARAMETERS>
+                </REQUEST>]]>
+        </sil:RequestXML>
+    </tem:ReqLiveReport>
+</tem:GetLiveCIR>
+</soapenv:Body>
+</soapenv:Envelope>
+
+

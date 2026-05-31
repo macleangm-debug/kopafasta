@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\DisbursementMethodController;
 use App\Http\Controllers\Admin\DocumentTemplateController;
 use App\Http\Controllers\Admin\ExpenseController;
+use App\Http\Controllers\Admin\FaceVerificationController;
 use App\Http\Controllers\Admin\FinanceReportsController;
 use App\Http\Controllers\Admin\FundingPoolController;
 use App\Http\Controllers\Admin\GuarantorController;
@@ -84,6 +85,10 @@ Route::name('site.')->group(function () {
     Route::middleware('auth:web')->group(function () {
         Route::post('/logout', [\App\Http\Controllers\Site\AuthController::class, 'logout'])->name('logout');
 
+        Route::get('/guarantor/{token}', [\App\Http\Controllers\Site\PublicGuarantorController::class, 'show'])->name('guarantor.show');
+        Route::post('/guarantor/{token}/accept', [\App\Http\Controllers\Site\PublicGuarantorController::class, 'accept'])->name('guarantor.accept');
+        Route::post('/guarantor/{token}/reject', [\App\Http\Controllers\Site\PublicGuarantorController::class, 'reject'])->name('guarantor.reject');
+
         Route::get('/borrower/setup-pin', [\App\Http\Controllers\Site\AuthController::class, 'showSetupPin'])->name('borrower.setup-pin');
         Route::post('/borrower/setup-pin', [\App\Http\Controllers\Site\AuthController::class, 'storeSetupPin'])->name('borrower.setup-pin.post');
 
@@ -117,11 +122,19 @@ Route::name('site.')->group(function () {
             Route::post('/borrower/documents',                     [\App\Http\Controllers\Site\BorrowerController::class, 'uploadDocument'])->name('borrower.documents.store');
             Route::get('/borrower/kyc',                            [\App\Http\Controllers\Site\BorrowerController::class, 'kyc'])          ->name('borrower.kyc');
             Route::post('/borrower/kyc',                           [\App\Http\Controllers\Site\BorrowerController::class, 'uploadKyc'])    ->name('borrower.kyc.store');
+            Route::get('/borrower/face-verification',              [\App\Http\Controllers\Site\BorrowerController::class, 'faceVerification'])->name('borrower.face-verification');
+            Route::post('/borrower/face-verification/{angle}',     [\App\Http\Controllers\Site\BorrowerController::class, 'uploadFaceVerification'])->name('borrower.face-verification.store')->where('angle', 'front|left|right|holding_nida');
             Route::get('/borrower/guarantors',                     [\App\Http\Controllers\Site\BorrowerController::class, 'guarantors'])   ->name('borrower.guarantors');
             Route::post('/borrower/guarantors',                    [\App\Http\Controllers\Site\BorrowerController::class, 'addGuarantor']) ->name('borrower.guarantors.store');
+            Route::get('/borrower/guarantor-requests',             [\App\Http\Controllers\Site\BorrowerController::class, 'guarantorRequests'])->name('borrower.guarantor-requests');
+            Route::post('/borrower/guarantor-requests/{customerGuarantor}', [\App\Http\Controllers\Site\BorrowerController::class, 'respondGuarantorRequest'])->name('borrower.guarantor-requests.respond');
+            Route::get('/borrower/kyc-reconfirm',                  [\App\Http\Controllers\Site\BorrowerController::class, 'kycReconfirm'])->name('borrower.kyc-reconfirm');
+            Route::put('/borrower/kyc-reconfirm',                  [\App\Http\Controllers\Site\BorrowerController::class, 'updateKycReconfirm'])->name('borrower.kyc-reconfirm.update');
             Route::get('/borrower/notifications',                  [\App\Http\Controllers\Site\BorrowerController::class, 'notifications'])->name('borrower.notifications');
             Route::get('/borrower/profile/{section?}',             [\App\Http\Controllers\Site\BorrowerController::class, 'profile'])->name('borrower.profile')->where('section', 'personal|activity|residence|kyc|security');
             Route::put('/borrower/profile/{section}',              [\App\Http\Controllers\Site\BorrowerController::class, 'updateProfile'])->name('borrower.profile.update')->where('section', 'personal|activity|residence');
+            Route::post('/borrower/profile/nida/verify',           [\App\Http\Controllers\Site\BorrowerController::class, 'verifyNida'])->name('borrower.profile.nida.verify');
+            Route::post('/borrower/profile/nida/confirm',          [\App\Http\Controllers\Site\BorrowerController::class, 'confirmNidaCandidate'])->name('borrower.profile.nida.confirm');
             Route::put('/borrower/profile/security/pin',           [\App\Http\Controllers\Site\BorrowerController::class, 'updatePin'])->name('borrower.profile.pin.update');
             Route::delete('/borrower/profile/security/devices/{trustedDevice}', [\App\Http\Controllers\Site\BorrowerController::class, 'revokeTrustedDevice'])->name('borrower.profile.devices.revoke');
             Route::get('/borrower/support',                        [\App\Http\Controllers\Site\BorrowerController::class, 'support'])      ->name('borrower.support');
@@ -223,6 +236,10 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         // Customers
         $registerResource('customers',     'customer',      CustomerController::class);
         $registerResource('customer-kycs', 'customer_kyc',  CustomerKycController::class);
+        Route::get('face-verifications', [FaceVerificationController::class, 'index'])->name('face-verifications.index');
+        Route::get('face-verifications/{customer}', [FaceVerificationController::class, 'show'])->name('face-verifications.show');
+        Route::post('face-verifications/{customer}/approve', [FaceVerificationController::class, 'approve'])->name('face-verifications.approve');
+        Route::post('face-verifications/{customer}/reject', [FaceVerificationController::class, 'reject'])->name('face-verifications.reject');
         $registerResource('guarantors',    'guarantor',     GuarantorController::class);
 
         // Loans

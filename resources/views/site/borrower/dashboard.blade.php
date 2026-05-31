@@ -1,5 +1,41 @@
 <x-site.borrower-layout title="Dashboard — Kopafasta" active="dashboard">
 
+    @if (session('status'))
+        <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">
+            {{ session('status') }}
+        </div>
+    @endif
+
+    @if (($customer->face_verification_status ?? 'incomplete') !== 'verified')
+        <div class="mb-6 rounded-2xl bg-amber-50 ring-1 ring-amber-200 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <p class="font-semibold text-amber-900">Face verification required</p>
+                <p class="text-sm text-amber-800 mt-1">
+                    @if (($customer->face_verification_status ?? '') === 'pending')
+                        Your face photos are under review. Loan applications unlock after approval.
+                    @elseif (($customer->face_verification_status ?? '') === 'rejected')
+                        Your face verification was rejected. Please capture all four photos again.
+                    @else
+                        Capture front, left, right, and NIDA-holding selfies before applying for a loan.
+                    @endif
+                </p>
+            </div>
+            <a href="{{ route('site.borrower.face-verification') }}" class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm whitespace-nowrap">
+                {{ ($customer->face_verification_status ?? '') === 'pending' ? 'View status' : 'Complete now →' }}
+            </a>
+        </div>
+    @elseif (app(\App\Services\KycFreshnessService::class)->isStale($customer))
+        <div class="mb-6 rounded-2xl bg-sky-50 ring-1 ring-sky-200 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <p class="font-semibold text-sky-900">KYC reconfirmation required</p>
+                <p class="text-sm text-sky-800 mt-1">Please confirm your residence and activity details are still accurate.</p>
+            </div>
+            <a href="{{ route('site.borrower.kyc-reconfirm') }}" class="inline-flex bg-sky-600 hover:bg-sky-700 text-white font-semibold px-5 py-2.5 rounded-full text-sm whitespace-nowrap">
+                Reconfirm now →
+            </a>
+        </div>
+    @endif
+
     {{-- Greeting --}}
     <div class="flex items-start justify-between gap-3 mb-6 flex-wrap">
         <div>

@@ -4,7 +4,7 @@
         <div class="mb-6">
             <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">Loan application</p>
             <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">Let's get you funded</h1>
-            <p class="mt-1 text-sm text-gray-500">Six quick steps. Final terms after review.</p>
+            <p class="mt-1 text-sm text-gray-500">Seven quick steps. Review, sign, then submit.</p>
         </div>
 
         @if ($errors->any())
@@ -15,7 +15,7 @@
         @endif
 
         <form method="POST" action="{{ route('site.borrower.apply.submit') }}" novalidate
-              x-data="applyWizard({{ json_encode($products->map(fn($p)=>['id'=>$p->id,'code'=>$p->code,'name'=>$p->name,'rate'=>(float)$p->interest_rate,'min'=>(float)$p->min_amount,'max'=>(float)$p->max_amount,'tmin'=>(int)$p->tenure_min_months,'tmax'=>(int)$p->tenure_max_months,'desc'=>$p->description])) }}, {{ $preselect ? (int)$preselect : 'null' }}, {{ (int) ($applicationFee ?? 0) }}, @js(config('tanzania_locations')), @js(config('activity_profiles.fields')), @js(config('loan_purposes')), @js(config('income_ranges')))"
+              x-data="applyWizard({{ json_encode($products->map(fn($p)=>['id'=>$p->id,'code'=>$p->code,'name'=>$p->name,'rate'=>(float)$p->interest_rate,'min'=>(float)$p->min_amount,'max'=>(float)$p->max_amount,'tmin'=>(int)$p->tenure_min_months,'tmax'=>(int)$p->tenure_max_months,'desc'=>$p->description,'requires_guarantor'=>(bool)$p->requires_guarantor])) }}, {{ $preselect ? (int)$preselect : 'null' }}, {{ (int) ($applicationFee ?? 0) }}, @js(config('tanzania_locations')), @js(config('activity_profiles.fields')), @js(config('loan_purposes')), @js(config('income_ranges')), @js(trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''))))"
               x-init="init()"
               @submit="onSubmit($event)"
               x-cloak>
@@ -172,20 +172,61 @@
                     </div>
                 </div>
 
-                {{-- STEP 6: Review --}}
+                {{-- STEP 6: Guarantor --}}
                 <div x-show="step === 5" class="p-6 sm:p-8">
-                    <h2 class="text-xl font-semibold mb-1">Review and submit</h2>
-                    <p class="text-sm text-gray-600 mb-4">Confirm all sections before submitting.</p>
+                    <h2 class="text-xl font-semibold mb-1">Guarantor</h2>
+                    <template x-if="current && current.requires_guarantor">
+                        <div>
+                            <p class="text-sm text-gray-600 mb-4">This product requires a guarantor before the application can proceed.</p>
+                            <div class="space-y-4">
+                                <div class="flex flex-wrap gap-3">
+                                    <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="guarantor_mode" value="internal" x-model="form.guarantor_mode" class="text-amber-500"> Internal member (membership ID)</label>
+                                    <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="guarantor_mode" value="external" x-model="form.guarantor_mode" class="text-amber-500"> External invite</label>
+                                </div>
+                                <div x-show="form.guarantor_mode === 'internal'">
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Guarantor membership number</label>
+                                    <input name="internal_member_no" placeholder="KPF-TZ-XXXX" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm font-mono">
+                                </div>
+                                <div x-show="form.guarantor_mode === 'external'" class="grid sm:grid-cols-2 gap-4">
+                                    <div class="sm:col-span-2"><label class="block text-xs font-medium text-gray-600 mb-1">Full name</label><input name="external_name" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
+                                    <div><label class="block text-xs font-medium text-gray-600 mb-1">Phone</label><input name="external_phone" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
+                                    <div><label class="block text-xs font-medium text-gray-600 mb-1">Email (optional)</label><input name="external_email" type="email" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
+                                    <div class="sm:col-span-2"><label class="block text-xs font-medium text-gray-600 mb-1">Send invite via</label>
+                                        <select name="external_channel" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                            <option value="sms">SMS</option>
+                                            <option value="whatsapp">WhatsApp</option>
+                                            <option value="email">Email</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                    <template x-if="current && !current.requires_guarantor">
+                        <p class="text-sm text-gray-600">No guarantor is required for the selected product. Continue to review.</p>
+                    </template>
+                    <input type="hidden" name="guarantor_mode" value="none" x-show="current && !current.requires_guarantor">
+                </div>
+
+                {{-- STEP 7: Review & sign --}}
+                <div x-show="step === 6" class="p-6 sm:p-8">
+                    <h2 class="text-xl font-semibold mb-1">Review and sign</h2>
+                    <p class="text-sm text-gray-600 mb-4">Confirm all sections, then sign to submit.</p>
                     <div class="rounded-xl border border-gray-200 divide-y divide-gray-200 mb-5 text-sm">
-                        <div class="px-4 py-3 grid grid-cols-3 gap-3"><span class="text-gray-500">Product</span><span class="col-span-2 font-medium" x-text="current ? current.name : '—'"></span></div>
-                        <div class="px-4 py-3 grid grid-cols-3 gap-3"><span class="text-gray-500">Amount</span><span class="col-span-2 font-medium" x-text="formatTzs(form.requested_amount)"></span></div>
-                        <div class="px-4 py-3 grid grid-cols-3 gap-3"><span class="text-gray-500">Tenure</span><span class="col-span-2 font-medium"><span x-text="form.requested_tenure_months"></span> months</span></div>
+                        <div class="px-4 py-3 grid grid-cols-3 gap-3"><span class="text-gray-500">Product</span><span class="col-span-2 font-medium" x-text="current ? current.name : '—'"></span><button type="button" @click="goto(0)" class="text-xs text-amber-700 justify-self-end col-span-3 sm:col-span-1 sm:col-start-3">Edit</button></div>
+                        <div class="px-4 py-3 grid grid-cols-3 gap-3"><span class="text-gray-500">Amount / Tenure</span><span class="col-span-2 font-medium"><span x-text="formatTzs(form.requested_amount)"></span> · <span x-text="form.requested_tenure_months"></span> mo</span></div>
                         <div class="px-4 py-3 grid grid-cols-3 gap-3"><span class="text-gray-500">Purpose</span><span class="col-span-2 font-medium" x-text="purposeLabels[form.purpose] || form.purpose || '—'"></span></div>
+                        <div class="px-4 py-3 grid grid-cols-3 gap-3"><span class="text-gray-500">Personal</span><span class="col-span-2 font-medium" x-text="review.personal || '—'"></span><button type="button" @click="goto(1)" class="text-xs text-amber-700">Edit</button></div>
+                        <div class="px-4 py-3 grid grid-cols-3 gap-3"><span class="text-gray-500">Residence</span><span class="col-span-2 font-medium" x-text="review.residence || '—'"></span><button type="button" @click="goto(2)" class="text-xs text-amber-700">Edit</button></div>
+                        <div class="px-4 py-3 grid grid-cols-3 gap-3"><span class="text-gray-500">Next of kin</span><span class="col-span-2 font-medium" x-text="review.nok || '—'"></span><button type="button" @click="goto(3)" class="text-xs text-amber-700">Edit</button></div>
+                        <div class="px-4 py-3 grid grid-cols-3 gap-3"><span class="text-gray-500">Activity</span><span class="col-span-2 font-medium" x-text="review.activity || '—'"></span><button type="button" @click="goto(4)" class="text-xs text-amber-700">Edit</button></div>
+                        <div class="px-4 py-3 grid grid-cols-3 gap-3" x-show="current && current.requires_guarantor"><span class="text-gray-500">Guarantor</span><span class="col-span-2 font-medium" x-text="review.guarantor || '—'"></span><button type="button" @click="goto(5)" class="text-xs text-amber-700">Edit</button></div>
                     </div>
-                    <label class="flex items-start gap-3 text-sm text-gray-700">
+                    <label class="flex items-start gap-3 text-sm text-gray-700 mb-5">
                         <input type="checkbox" name="consent" value="1" required class="mt-1 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
                         <span>I confirm all information is correct and authorise Kopafasta to verify my identity and credit history.</span>
                     </label>
+                    <x-site.signature-pad :default-name="trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''))" />
                 </div>
 
                 <div class="px-6 sm:px-8 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl flex items-center justify-between">
@@ -200,6 +241,7 @@
         </form>
     </div>
 
+    @stack('scripts')
     <script>
         function tzAddress(locations, initialRegion, initialDistrict) {
             return {
@@ -217,24 +259,43 @@
                 refreshFields() { this.activeFields = this.fieldMap[this.activityType] || []; },
             };
         }
-        function applyWizard(products, preselect, applicationFee, locations, activityFieldMap, purposeLabels, incomeRanges) {
+        function applyWizard(products, preselect, applicationFee, locations, activityFieldMap, purposeLabels, incomeRanges, defaultSignerName) {
             return {
                 products, applicationFee, locations, activityFieldMap, purposeLabels, incomeRanges,
                 step: 0,
-                labels: ['Product', 'Personal', 'Residence', 'Next of kin', 'Activity', 'Review'],
-                form: { loan_product_id: preselect ?? (products[0]?.id ?? null), requested_amount: 0, requested_tenure_months: 0, purpose: '' },
+                labels: ['Product', 'Personal', 'Residence', 'Next of kin', 'Activity', 'Guarantor', 'Review & sign'],
+                form: { loan_product_id: preselect ?? (products[0]?.id ?? null), requested_amount: 0, requested_tenure_months: 0, purpose: '', guarantor_mode: 'internal' },
                 current: null,
+                review: { personal: '', residence: '', nok: '', activity: '', guarantor: '' },
                 init() { this.onProduct(); },
                 onProduct() {
                     this.current = this.products.find(p => p.id == this.form.loan_product_id) || this.products[0];
                     if (!this.current) return;
                     if (!this.form.requested_amount || this.form.requested_amount < this.current.min) this.form.requested_amount = this.current.min;
                     if (!this.form.requested_tenure_months || this.form.requested_tenure_months < this.current.tmin) this.form.requested_tenure_months = this.current.tmin;
+                    if (!this.current.requires_guarantor) this.form.guarantor_mode = 'none';
+                },
+                refreshReview(formEl) {
+                    const fd = new FormData(formEl);
+                    const g = (n) => fd.get(n) || '';
+                    this.review.personal = [g('first_name'), g('last_name'), g('national_id')].filter(Boolean).join(' · ');
+                    this.review.residence = [g('street'), g('ward'), g('district'), g('region')].filter(Boolean).join(', ');
+                    this.review.nok = [g('nok_name'), g('nok_relationship'), g('nok_phone')].filter(Boolean).join(' · ');
+                    this.review.activity = [g('activity_type'), g('income_range')].filter(Boolean).join(' · ');
+                    if (this.form.guarantor_mode === 'internal') this.review.guarantor = g('internal_member_no');
+                    if (this.form.guarantor_mode === 'external') this.review.guarantor = [g('external_name'), g('external_channel')].filter(Boolean).join(' via ');
                 },
                 next() {
+                    const formEl = this.$root.querySelector('form');
                     if (this.step === 0) {
                         if (!this.form.loan_product_id) { alert('Select a loan product.'); return; }
                         if (!this.form.purpose) { alert('Select a loan purpose.'); return; }
+                    }
+                    if (this.step === 5 && this.current?.requires_guarantor) {
+                        if (!this.form.guarantor_mode || this.form.guarantor_mode === 'none') { alert('Select a guarantor option.'); return; }
+                    }
+                    if (this.step === this.labels.length - 2) {
+                        this.refreshReview(formEl);
                     }
                     if (this.step < this.labels.length - 1) { this.step++; window.scrollTo({top: 0, behavior: 'smooth'}); }
                 },
@@ -242,7 +303,9 @@
                 goto(i) { if (i <= this.step) this.step = i; },
                 onSubmit(e) {
                     const consent = e.target.elements['consent'];
-                    if (consent && !consent.checked) { e.preventDefault(); alert('Please accept the confirmation.'); }
+                    const sig = e.target.elements['signature_data'];
+                    if (consent && !consent.checked) { e.preventDefault(); alert('Please accept the confirmation.'); return; }
+                    if (sig && !sig.value) { e.preventDefault(); alert('Please draw your signature.'); return; }
                 },
                 formatTzs(v) { return 'TZS ' + new Intl.NumberFormat('en-US').format(Math.round(v || 0)); },
             };

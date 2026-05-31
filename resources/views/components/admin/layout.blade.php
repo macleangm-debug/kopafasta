@@ -41,6 +41,7 @@
                     ['All Customers', 'admin.customers.index'],
                     ['Membership Payments', 'admin.membership-payments.index'],
                     ['KYC',           'admin.customer-kycs.index'],
+                    ['Face verification', 'admin.face-verifications.index'],
                     ['Guarantors',    'admin.guarantors.index'],
                 ]],
                 ['Loans', 'M3 10h18M3 14h18M5 6h14M5 18h14', [

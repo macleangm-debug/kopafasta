@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\CustomerDocument;
 use App\Models\CustomerGuarantor;
+use App\Models\CustomerGuarantor;
 use App\Models\CustomerKyc;
 use App\Models\DocumentType;
 use App\Models\Guarantor;
@@ -18,6 +19,11 @@ use App\Models\LoanProduct;
 use App\Models\TrustedDevice;
 use App\Rules\FourDigitPin;
 use App\Rules\MinimumAge;
+use App\Rules\ValidNidaNumber;
+use App\Services\FaceVerificationService;
+use App\Services\GuarantorInvitationService;
+use App\Services\KycFreshnessService;
+use App\Services\NidaVerificationService;
 use App\Services\PinService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -490,16 +496,30 @@ class BorrowerController extends Controller
         $section = in_array($section, ['personal', 'activity', 'residence'], true) ? $section : 'personal';
 
         if ($section === 'personal') {
-            $data = $request->validate([
-                'first_name'    => ['required', 'string', 'max:60'],
-                'last_name'     => ['required', 'string', 'max:60'],
-                'phone'         => ['nullable', 'string', 'max:20'],
-                'email'         => ['nullable', 'email', 'max:120'],
-                'date_of_birth' => ['required', 'date', new MinimumAge],
-                'gender'        => ['nullable', 'string', 'in:male,female,other'],
-                'national_id'   => ['nullable', 'string', 'max:30'],
-            ]);
-            $customer->fill($data)->save();
+            $locked = (bool) $customer->identity_locked;
+
+            $rules = [
+                'phone' => ['nullable', 'string', 'max:20'],
+                'email' => ['nullable', 'email', 'max:120'],
+            ];
+
+            if (! $locked) {
+                $rules = array_merge($rules, [
+                    'first_name'    => ['required', 'string', 'max:60'],
+                    'last_name'     => ['required', 'string', 'max:60'],
+                    'date_of_birth' => ['required', 'date', new MinimumAge],
+                    'gender'        => ['nullable', 'string', 'in:male,female,other'],
+                    'national_id'   => ['nullable', 'string', 'max:30'],
+                ]);
+            }
+
+            $data = $request->validate($rules);
+
+            if ($locked) {
+                $customer->fill(collect($data)->only(['phone', 'email'])->all())->save();
+            } else {
+                $customer->fill($data)->save();
+            }
         }
 
         if ($section === 'activity') {
@@ -533,6 +553,189 @@ class BorrowerController extends Controller
         return redirect()
             ->route('site.borrower.profile', ['section' => $section])
             ->with('status', 'Profile updated.');
+    }
+
+    public function verifyNida(Request $request, NidaVerificationService $nida): RedirectResponse
+    {
+        $customer = $this->customer();
+
+        $data = $request->validate([
+            'national_id' => ['required', 'string', 'max:30', new ValidNidaNumber],
+        ]);
+
+        $result = $nida->verify($customer, $data['national_id']);
+
+        if ($result->success) {
+            return redirect()
+                ->route('site.borrower.profile', ['section' => 'personal'])
+                ->with('status', 'NIDA verified successfully. Your name and date of birth were confirmed via the credit bureau.');
+        }
+
+        if ($result->isMultihit()) {
+            return redirect()
+                ->route('site.borrower.profile', ['section' => 'personal'])
+                ->with('error', $result->message)
+                ->with('crb_candidates', $result->candidates);
+        }
+
+        return redirect()
+            ->route('site.borrower.profile', ['section' => 'personal'])
+            ->with('error', $result->message ?? 'NIDA verification failed. Please check your number and try again.');
+    }
+
+    public function confirmNidaCandidate(Request $request, NidaVerificationService $nida): RedirectResponse
+    {
+        $customer = $this->customer();
+
+        $data = $request->validate([
+            'national_id'       => ['required', 'string', 'max:30', new ValidNidaNumber],
+            'search_request_id' => ['required', 'string', 'max:40'],
+            'entity_key'        => ['required', 'string', 'max:40'],
+        ]);
+
+        $result = $nida->confirmCandidate(
+            $customer,
+            $data['national_id'],
+            $data['search_request_id'],
+            $data['entity_key'],
+        );
+
+        if ($result->success) {
+            return redirect()
+                ->route('site.borrower.profile', ['section' => 'personal'])
+                ->with('status', 'Identity confirmed and profile updated from CRB records.');
+        }
+
+        return redirect()
+            ->route('site.borrower.profile', ['section' => 'personal'])
+            ->with('error', $result->message ?? 'Could not confirm the selected CRB match.');
+    }
+
+    public function faceVerification(FaceVerificationService $faces): View
+    {
+        $customer = $this->customer();
+        $photos = $faces->latestByAngle($customer);
+        $progress = $faces->progress($customer);
+        $status = $faces->statusLabel($customer);
+        $angles = $faces->angles();
+
+        return view('site.borrower.face-verification', compact(
+            'customer', 'photos', 'progress', 'status', 'angles'
+        ));
+    }
+
+    public function uploadFaceVerification(Request $request, string $angle, FaceVerificationService $faces): RedirectResponse
+    {
+        $customer = $this->customer();
+
+        if ($faces->isVerified($customer)) {
+            return redirect()->route('site.borrower.face-verification')
+                ->with('status', 'Your face verification is already approved.');
+        }
+
+        if ($customer->face_verification_status === 'pending') {
+            return redirect()->route('site.borrower.face-verification')
+                ->with('error', 'Your photos are under review. You cannot upload new ones until review is complete.');
+        }
+
+        $request->validate([
+            'photo' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        ]);
+
+        try {
+            $faces->upload($customer, $angle, $request->file('photo'));
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        $customer->refresh();
+        $message = $faces->progress($customer)['complete']
+            ? 'All face photos uploaded. Our team will review them shortly.'
+            : 'Photo saved. Capture the remaining angles to complete face verification.';
+
+        return redirect()->route('site.borrower.face-verification')->with('status', $message);
+    }
+
+    public function kycReconfirm(KycFreshnessService $freshness): View|RedirectResponse
+    {
+        $customer = $this->customer();
+
+        if (! $freshness->isStale($customer)) {
+            return redirect()->route('site.borrower.dashboard')
+                ->with('status', 'Your KYC information is up to date.');
+        }
+
+        return view('site.borrower.kyc-reconfirm', compact('customer'));
+    }
+
+    public function updateKycReconfirm(Request $request, KycFreshnessService $freshness): RedirectResponse
+    {
+        $customer = $this->customer();
+
+        $data = $request->validate([
+            'region'           => ['required', 'string', 'max:100'],
+            'district'         => ['required', 'string', 'max:100'],
+            'ward'             => ['nullable', 'string', 'max:100'],
+            'street'           => ['required', 'string', 'max:255'],
+            'activity_type'    => ['required', 'string', 'max:40'],
+            'activity_details' => ['nullable', 'array'],
+            'income_range'     => ['required', 'string', 'in:'.implode(',', array_keys(config('income_ranges')))],
+        ]);
+
+        $customer->fill([
+            ...collect($data)->only(['region', 'district', 'ward', 'street'])->all(),
+            'address'         => trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', ')),
+            'activity_type'   => $data['activity_type'],
+            'activity_details'=> $data['activity_details'] ?? [],
+            'employment_type' => $data['activity_type'],
+            'income_range'    => $data['income_range'],
+            'monthly_income'  => config('income_ranges.'.$data['income_range'].'.midpoint'),
+        ])->save();
+
+        $freshness->markReconfirmed($customer);
+
+        return redirect()->route('site.borrower.dashboard')
+            ->with('status', 'Thank you. Your profile has been reconfirmed.');
+    }
+
+    public function guarantorRequests(): View
+    {
+        $customer = $this->customer();
+        $requests = \App\Models\GuarantorInvitation::with(['borrower', 'application.product', 'customerGuarantor'])
+            ->where('guarantor_customer_id', $customer->id)
+            ->where('status', 'pending')
+            ->latest()
+            ->get();
+
+        return view('site.borrower.guarantor-requests', compact('customer', 'requests'));
+    }
+
+    public function respondGuarantorRequest(Request $request, CustomerGuarantor $customerGuarantor, GuarantorInvitationService $guarantors): RedirectResponse
+    {
+        $customer = $this->customer();
+
+        $invitation = \App\Models\GuarantorInvitation::query()
+            ->where('customer_guarantor_id', $customerGuarantor->id)
+            ->where('guarantor_customer_id', $customer->id)
+            ->first();
+
+        abort_unless($invitation, 403);
+        abort_unless($customerGuarantor->status === 'pending', 422);
+
+        $data = $request->validate([
+            'action' => ['required', 'in:approve,reject'],
+            'notes'  => ['nullable', 'string', 'max:500'],
+        ]);
+
+        if ($data['action'] === 'approve') {
+            $guarantors->approve($customerGuarantor);
+            $msg = 'Guarantor request approved.';
+        } else {
+            $guarantors->reject($customerGuarantor, $data['notes'] ?? null);
+            $msg = 'Guarantor request declined.';
+        }
+
+        return back()->with('status', $msg);
     }
 
     public function updatePin(Request $request, PinService $pins): RedirectResponse

@@ -25,7 +25,7 @@ class LoanAgreementService
             return $existing;
         }
 
-        $application->loadMissing(['customer', 'product']);
+        $application->loadMissing(['customer', 'product', 'signatures']);
 
         $snapshot = $this->snapshotFromApplication($application);
 
@@ -139,6 +139,7 @@ class LoanAgreementService
             'customer_phone'     => $a->customer->phone ?? null,
             'purpose'            => $a->purpose ?? null,
             'generated_at'       => now()->toIso8601String(),
+            'borrower_signature' => $a->signatures->firstWhere('signer_type', 'borrower'),
         ];
     }
 }

@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Controller;
+use App\Models\ApplicationSignature;
 use App\Models\ChargesFee;
 use App\Models\Customer;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
 use App\Rules\MinimumAge;
+use App\Services\FaceVerificationService;
+use App\Services\GuarantorInvitationService;
+use App\Services\KycFreshnessService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,10 +20,26 @@ use Illuminate\View\View;
 
 class ApplyController extends Controller
 {
-    public function show(Request $request): View
-    {
-        $products = LoanProduct::where('is_active', true)->orderBy('name')->get();
+    public function show(
+        Request $request,
+        FaceVerificationService $faces,
+        KycFreshnessService $freshness,
+    ): View|RedirectResponse {
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+
+        if ($customer && ! $faces->canApply($customer)) {
+            return redirect()
+                ->route('site.borrower.face-verification')
+                ->with('error', 'Complete face verification before starting a loan application.');
+        }
+
+        if ($customer && ! $freshness->canApply($customer)) {
+            return redirect()
+                ->route('site.borrower.kyc-reconfirm')
+                ->with('error', 'Please reconfirm your residence and activity information before applying.');
+        }
+
+        $products = LoanProduct::where('is_active', true)->orderBy('name')->get();
         $preselect = $request->query('product');
 
         if ($preselect) {
@@ -41,8 +61,26 @@ class ApplyController extends Controller
             ->with('activityTypes', config('activity_profiles.types'));
     }
 
-    public function submit(Request $request): RedirectResponse
-    {
+    public function submit(
+        Request $request,
+        FaceVerificationService $faces,
+        KycFreshnessService $freshness,
+        GuarantorInvitationService $guarantors,
+    ): RedirectResponse {
+        $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+
+        if ($customer && ! $faces->canApply($customer)) {
+            return redirect()
+                ->route('site.borrower.face-verification')
+                ->with('error', 'Face verification must be approved before you can submit an application.');
+        }
+
+        if ($customer && ! $freshness->canApply($customer)) {
+            return redirect()
+                ->route('site.borrower.kyc-reconfirm')
+                ->with('error', 'Please reconfirm your KYC details before submitting.');
+        }
+
         $data = $request->validate([
             'loan_product_id'         => ['required', 'exists:loan_products,id'],
             'requested_amount'        => ['required', 'numeric', 'min:1000'],
@@ -65,6 +103,14 @@ class ApplyController extends Controller
             'activity_type'           => ['required', 'string', 'max:40'],
             'activity_details'        => ['nullable', 'array'],
             'income_range'            => ['required', 'string', 'in:'.implode(',', array_keys(config('income_ranges')))],
+            'guarantor_mode'          => ['nullable', 'in:none,internal,external'],
+            'internal_member_no'      => ['nullable', 'string', 'max:40'],
+            'external_name'           => ['nullable', 'string', 'max:120'],
+            'external_phone'          => ['nullable', 'string', 'max:20'],
+            'external_email'          => ['nullable', 'email', 'max:120'],
+            'external_channel'        => ['nullable', 'in:sms,whatsapp,email'],
+            'signer_name'             => ['required', 'string', 'max:120'],
+            'signature_data'          => ['required', 'string', 'starts_with:data:image/png;base64,'],
             'consent'                 => ['accepted'],
         ]);
 
@@ -83,22 +129,40 @@ class ApplyController extends Controller
             return back()->withInput()->withErrors(['requested_tenure_months' => 'Tenure must be between '.$loanProduct->tenure_min_months.' and '.$loanProduct->tenure_max_months.' months.']);
         }
 
+        if ($loanProduct->requires_guarantor) {
+            $mode = $data['guarantor_mode'] ?? 'none';
+            if ($mode === 'none') {
+                return back()->withInput()->withErrors(['guarantor_mode' => 'This product requires a guarantor.']);
+            }
+            if ($mode === 'internal' && empty($data['internal_member_no'])) {
+                return back()->withInput()->withErrors(['internal_member_no' => 'Enter the guarantor membership number.']);
+            }
+            if ($mode === 'external' && (empty($data['external_name']) || empty($data['external_phone']) || empty($data['external_channel']))) {
+                return back()->withInput()->withErrors(['external_name' => 'Provide external guarantor name, phone and invite channel.']);
+            }
+        }
+
         $user = Auth::user();
         $customer = Customer::firstOrNew(['user_id' => $user->id]);
         $addressLine = trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', '));
         $purposeLabel = config('loan_purposes.'.$data['purpose']) ?? $data['purpose'];
 
+        if (! $customer->identity_locked) {
+            $customer->fill([
+                'first_name'    => $data['first_name'],
+                'last_name'     => $data['last_name'],
+                'date_of_birth' => $data['date_of_birth'],
+                'gender'        => $data['gender'] ?? null,
+                'national_id'   => $data['national_id'],
+            ]);
+        }
+
         $customer->fill([
             'customer_number' => $customer->customer_number ?: 'C-'.strtoupper(Str::random(6)),
             'type'            => 'individual',
             'status'          => $customer->status ?: 'active',
-            'first_name'      => $data['first_name'],
-            'last_name'       => $data['last_name'],
             'email'           => $customer->email ?: $user->email,
             'phone'           => $customer->phone ?: $user->phone,
-            'date_of_birth'   => $data['date_of_birth'],
-            'gender'          => $data['gender'] ?? null,
-            'national_id'     => $data['national_id'],
             'region'          => $data['region'],
             'district'        => $data['district'],
             'ward'            => $data['ward'] ?? null,
@@ -117,14 +181,17 @@ class ApplyController extends Controller
             'onboarded_at'    => $customer->onboarded_at ?: now(),
         ])->save();
 
+        $status = 'submitted';
+        $submittedAt = now();
+
         $app = LoanApplication::create([
             'customer_id'                => $customer->id,
             'loan_product_id'            => $data['loan_product_id'],
             'application_number'         => 'APP-'.strtoupper(Str::random(8)),
             'requested_amount'           => $data['requested_amount'],
             'requested_tenure_months'    => $data['requested_tenure_months'],
-            'status'                     => 'submitted',
-            'current_stage'              => 'submitted',
+            'status'                     => $status,
+            'current_stage'              => $status,
             'purpose'                    => $purposeLabel,
             'registration_fee_amount'    => 0,
             'registration_fee_status'    => 'waived',
@@ -133,10 +200,51 @@ class ApplyController extends Controller
             'registration_fee_paid_at'   => null,
             'application_fee_amount'     => (int) (optional(ChargesFee::where('code', 'APP_FEE')->where('is_active', true)->first())->amount ?? 0),
             'application_fee_status'     => 'unpaid',
-            'submitted_at'               => now(),
+            'submitted_at'               => $submittedAt,
         ]);
 
-        return redirect()->route('site.borrower.apply.success', $app)->with('status', 'Application received.');
+        ApplicationSignature::create([
+            'loan_application_id' => $app->id,
+            'signer_type'         => 'borrower',
+            'signer_name'         => $data['signer_name'],
+            'signature_data'      => $data['signature_data'],
+            'signed_at'           => now(),
+        ]);
+
+        if ($loanProduct->requires_guarantor) {
+            try {
+                if (($data['guarantor_mode'] ?? '') === 'internal') {
+                    $guarantors->attachInternal($customer, $app, $data['internal_member_no']);
+                } elseif (($data['guarantor_mode'] ?? '') === 'external') {
+                    $guarantors->attachExternal(
+                        $customer,
+                        $app,
+                        $data['external_name'],
+                        $data['external_phone'],
+                        $data['external_email'] ?? null,
+                        $data['external_channel'],
+                    );
+                }
+            } catch (\InvalidArgumentException $e) {
+                $app->delete();
+
+                return back()->withInput()->withErrors(['internal_member_no' => $e->getMessage()]);
+            }
+
+            if (! $guarantors->hasApprovedGuarantor($app)) {
+                $app->update([
+                    'status'        => 'awaiting_guarantor',
+                    'current_stage' => 'awaiting_guarantor',
+                    'submitted_at'  => null,
+                ]);
+            }
+        }
+
+        $message = $app->status === 'awaiting_guarantor'
+            ? 'Application saved. Waiting for guarantor approval before submission.'
+            : 'Application received.';
+
+        return redirect()->route('site.borrower.apply.success', $app)->with('status', $message);
     }
 
     public function success(LoanApplication $application): View
