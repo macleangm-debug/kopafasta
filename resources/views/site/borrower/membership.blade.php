@@ -17,34 +17,32 @@
 
         <div class="mt-8 grid gap-4 sm:grid-cols-2">
             <section class="bg-white rounded-xl ring-1 ring-gray-200 p-5">
-                <h2 class="font-semibold text-gray-900">Who are you?</h2>
-                <p class="text-xs text-gray-500 mt-1">Personal details</p>
+                <h2 class="font-semibold text-gray-900">Personal information</h2>
                 <dl class="mt-3 text-sm space-y-1">
                     <div class="flex justify-between gap-2"><dt class="text-gray-500">Name</dt><dd class="font-medium">{{ $customer->first_name }} {{ $customer->last_name }}</dd></div>
                     <div class="flex justify-between gap-2"><dt class="text-gray-500">Phone</dt><dd class="font-medium">{{ $customer->phone ?? '—' }}</dd></div>
                     <div class="flex justify-between gap-2"><dt class="text-gray-500">NIDA</dt><dd class="font-medium">{{ $customer->national_id ?? '—' }}</dd></div>
                 </dl>
-                <a href="{{ route('site.borrower.profile') }}" class="mt-3 inline-block text-xs text-amber-600 font-semibold hover:underline">Edit profile →</a>
+                <a href="{{ route('site.borrower.profile', ['section' => 'personal']) }}" class="mt-3 inline-block text-xs text-amber-600 font-semibold hover:underline">Edit →</a>
             </section>
             <section class="bg-white rounded-xl ring-1 ring-gray-200 p-5">
-                <h2 class="font-semibold text-gray-900">What do you do?</h2>
-                <p class="text-xs text-gray-500 mt-1">Employment & business</p>
+                <h2 class="font-semibold text-gray-900">Activity information</h2>
                 <dl class="mt-3 text-sm space-y-1">
-                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Type</dt><dd class="font-medium capitalize">{{ str_replace('_', ' ', $customer->employment_type ?? '—') }}</dd></div>
-                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Business</dt><dd class="font-medium">{{ $customer->business_name ?? '—' }}</dd></div>
-                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Income</dt><dd class="font-medium">{{ $customer->monthly_income ? 'TZS '.number_format($customer->monthly_income) : '—' }}</dd></div>
+                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Activity</dt><dd class="font-medium capitalize">{{ str_replace('_', ' ', $customer->activity_type ?? $customer->employment_type ?? '—') }}</dd></div>
+                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Income</dt><dd class="font-medium">{{ $customer->income_range ? (config('income_ranges.'.$customer->income_range.'.label') ?? '—') : ($customer->monthly_income ? 'TZS '.number_format($customer->monthly_income) : '—') }}</dd></div>
                 </dl>
+                <a href="{{ route('site.borrower.profile', ['section' => 'activity']) }}" class="mt-3 inline-block text-xs text-amber-600 font-semibold hover:underline">Edit →</a>
             </section>
             <section class="bg-white rounded-xl ring-1 ring-gray-200 p-5">
-                <h2 class="font-semibold text-gray-900">Where do you live?</h2>
-                <p class="text-xs text-gray-500 mt-1">Residence information</p>
-                <p class="mt-3 text-sm text-gray-700">{{ $customer->address ?? 'Add your address in profile.' }}</p>
+                <h2 class="font-semibold text-gray-900">Residence information</h2>
+                <p class="mt-3 text-sm text-gray-700">{{ $customer->street ?? $customer->address ?? 'Add your address in profile.' }}</p>
+                @if ($customer->region)<p class="text-xs text-gray-500 mt-1">{{ $customer->ward ? $customer->ward.', ' : '' }}{{ $customer->district }}, {{ $customer->region }}</p>@endif
+                <a href="{{ route('site.borrower.profile', ['section' => 'residence']) }}" class="mt-3 inline-block text-xs text-amber-600 font-semibold hover:underline">Edit →</a>
             </section>
             <section class="bg-white rounded-xl ring-1 ring-gray-200 p-5">
                 <h2 class="font-semibold text-gray-900">KYC information</h2>
-                <p class="text-xs text-gray-500 mt-1">Verification documents</p>
-                <p class="mt-3 text-sm text-gray-700">Upload KYC during your loan application process.</p>
-                <a href="{{ route('site.borrower.applications') }}" class="mt-3 inline-block text-xs text-amber-600 font-semibold hover:underline">View applications →</a>
+                <p class="mt-3 text-sm text-gray-700">Verification status and documents.</p>
+                <a href="{{ route('site.borrower.profile', ['section' => 'kyc']) }}" class="mt-3 inline-block text-xs text-amber-600 font-semibold hover:underline">View KYC →</a>
             </section>
         </div>
     @else

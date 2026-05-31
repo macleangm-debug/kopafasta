@@ -115,8 +115,8 @@ Route::name('site.')->group(function () {
         Route::get('/borrower/guarantors',                     [\App\Http\Controllers\Site\BorrowerController::class, 'guarantors'])   ->name('borrower.guarantors');
         Route::post('/borrower/guarantors',                    [\App\Http\Controllers\Site\BorrowerController::class, 'addGuarantor']) ->name('borrower.guarantors.store');
         Route::get('/borrower/notifications',                  [\App\Http\Controllers\Site\BorrowerController::class, 'notifications'])->name('borrower.notifications');
-        Route::get('/borrower/profile',                        [\App\Http\Controllers\Site\BorrowerController::class, 'profile'])      ->name('borrower.profile');
-        Route::put('/borrower/profile',                        [\App\Http\Controllers\Site\BorrowerController::class, 'updateProfile'])->name('borrower.profile.update');
+        Route::get('/borrower/profile/{section?}',             [\App\Http\Controllers\Site\BorrowerController::class, 'profile'])->name('borrower.profile')->where('section', 'personal|activity|residence|kyc');
+        Route::put('/borrower/profile/{section}',              [\App\Http\Controllers\Site\BorrowerController::class, 'updateProfile'])->name('borrower.profile.update')->where('section', 'personal|activity|residence');
         Route::get('/borrower/support',                        [\App\Http\Controllers\Site\BorrowerController::class, 'support'])      ->name('borrower.support');
 
         // ---- Vendor portal ----

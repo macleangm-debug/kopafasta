@@ -7,6 +7,7 @@ use App\Models\ChargesFee;
 use App\Models\Customer;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
+use App\Rules\MinimumAge;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -34,7 +35,10 @@ class ApplyController extends Controller
 
         $applicationFee = (int) (optional(ChargesFee::where('code', 'APP_FEE')->where('is_active', true)->first())->amount ?? 0);
 
-        return view('site.apply.wizard', compact('products', 'customer', 'preselect', 'applicationFee'));
+        return view('site.apply.wizard', compact('products', 'customer', 'preselect', 'applicationFee'))
+            ->with('loanPurposes', config('loan_purposes'))
+            ->with('incomeRanges', config('income_ranges'))
+            ->with('activityTypes', config('activity_profiles.types'));
     }
 
     public function submit(Request $request): RedirectResponse
@@ -43,15 +47,24 @@ class ApplyController extends Controller
             'loan_product_id'         => ['required', 'exists:loan_products,id'],
             'requested_amount'        => ['required', 'numeric', 'min:1000'],
             'requested_tenure_months' => ['required', 'integer', 'min:1', 'max:60'],
-            'purpose'                 => ['required', 'string', 'max:500'],
+            'purpose'                 => ['required', 'string', 'max:100'],
             'first_name'              => ['required', 'string', 'max:60'],
             'last_name'               => ['required', 'string', 'max:60'],
-            'date_of_birth'           => ['nullable', 'date'],
+            'date_of_birth'           => ['required', 'date', new MinimumAge],
+            'gender'                  => ['nullable', 'string', 'in:male,female,other'],
             'national_id'             => ['required', 'string', 'max:30'],
-            'address'                 => ['required', 'string', 'max:255'],
-            'employment_type'         => ['required', 'string', 'max:30'],
-            'business_name'           => ['nullable', 'string', 'max:120'],
-            'monthly_income'          => ['required', 'numeric', 'min:0'],
+            'region'                  => ['required', 'string', 'max:100'],
+            'district'                => ['required', 'string', 'max:100'],
+            'ward'                    => ['nullable', 'string', 'max:100'],
+            'street'                  => ['required', 'string', 'max:255'],
+            'nok_name'                => ['required', 'string', 'max:120'],
+            'nok_relationship'        => ['required', 'string', 'max:40'],
+            'nok_phone'               => ['required', 'string', 'max:20'],
+            'nok_region'              => ['required', 'string', 'max:100'],
+            'nok_district'            => ['required', 'string', 'max:100'],
+            'activity_type'           => ['required', 'string', 'max:40'],
+            'activity_details'        => ['nullable', 'array'],
+            'income_range'            => ['required', 'string', 'in:'.implode(',', array_keys(config('income_ranges')))],
             'consent'                 => ['accepted'],
         ]);
 
@@ -72,6 +85,9 @@ class ApplyController extends Controller
 
         $user = Auth::user();
         $customer = Customer::firstOrNew(['user_id' => $user->id]);
+        $addressLine = trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', '));
+        $purposeLabel = config('loan_purposes.'.$data['purpose']) ?? $data['purpose'];
+
         $customer->fill([
             'customer_number' => $customer->customer_number ?: 'C-'.strtoupper(Str::random(6)),
             'type'            => 'individual',
@@ -80,12 +96,24 @@ class ApplyController extends Controller
             'last_name'       => $data['last_name'],
             'email'           => $customer->email ?: $user->email,
             'phone'           => $customer->phone ?: $user->phone,
-            'date_of_birth'   => $data['date_of_birth'] ?? null,
+            'date_of_birth'   => $data['date_of_birth'],
+            'gender'          => $data['gender'] ?? null,
             'national_id'     => $data['national_id'],
-            'address'         => $data['address'],
-            'employment_type' => $data['employment_type'],
-            'business_name'   => $data['business_name'] ?? null,
-            'monthly_income'  => $data['monthly_income'],
+            'region'          => $data['region'],
+            'district'        => $data['district'],
+            'ward'            => $data['ward'] ?? null,
+            'street'          => $data['street'],
+            'address'         => $addressLine,
+            'nok_name'        => $data['nok_name'],
+            'nok_relationship'=> $data['nok_relationship'],
+            'nok_phone'       => $data['nok_phone'],
+            'nok_region'      => $data['nok_region'],
+            'nok_district'    => $data['nok_district'],
+            'activity_type'   => $data['activity_type'],
+            'activity_details'=> $data['activity_details'] ?? [],
+            'employment_type' => $data['activity_type'],
+            'income_range'    => $data['income_range'],
+            'monthly_income'  => config('income_ranges.'.$data['income_range'].'.midpoint'),
             'onboarded_at'    => $customer->onboarded_at ?: now(),
         ])->save();
 
@@ -97,7 +125,7 @@ class ApplyController extends Controller
             'requested_tenure_months'    => $data['requested_tenure_months'],
             'status'                     => 'submitted',
             'current_stage'              => 'submitted',
-            'purpose'                    => $data['purpose'],
+            'purpose'                    => $purposeLabel,
             'registration_fee_amount'    => 0,
             'registration_fee_status'    => 'waived',
             'registration_fee_channel'   => null,

@@ -5,13 +5,69 @@
             <h1 class="text-2xl font-bold">My applications</h1>
             <p class="text-sm text-gray-500">Track every loan request and its status.</p>
         </div>
-        <a href="{{ route('site.borrower.apply') }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">+ New application</a>
+        <div class="flex items-center gap-2">
+            <div class="inline-flex rounded-lg ring-1 ring-gray-200 bg-white p-0.5 text-xs">
+                <a href="{{ route('site.borrower.applications', ['view' => 'cards']) }}"
+                   class="px-3 py-1.5 rounded-md font-semibold {{ ($viewMode ?? 'cards') === 'cards' ? 'bg-amber-500 text-gray-900' : 'text-gray-600 hover:bg-gray-50' }}">
+                    Cards
+                </a>
+                <a href="{{ route('site.borrower.applications', ['view' => 'table']) }}"
+                   class="px-3 py-1.5 rounded-md font-semibold {{ ($viewMode ?? 'cards') === 'table' ? 'bg-amber-500 text-gray-900' : 'text-gray-600 hover:bg-gray-50' }}">
+                    Table
+                </a>
+            </div>
+            <a href="{{ route('site.borrower.apply') }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">+ New application</a>
+        </div>
     </div>
 
     @if ($applications->isEmpty())
         <div class="bg-white rounded-2xl border border-gray-200 p-12 text-center">
             <p class="text-gray-500">You haven't applied yet.</p>
             <a href="{{ route('site.borrower.apply') }}" class="mt-4 inline-block bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">Start your first application</a>
+        </div>
+    @elseif (($viewMode ?? 'cards') === 'table')
+        <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
+                        <tr>
+                            <th class="px-4 py-3">Reference</th>
+                            <th class="px-4 py-3">Product</th>
+                            <th class="px-4 py-3">Amount</th>
+                            <th class="px-4 py-3">Tenure</th>
+                            <th class="px-4 py-3">Status</th>
+                            <th class="px-4 py-3">Submitted</th>
+                            <th class="px-4 py-3 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach ($applications as $app)
+                            @php
+                                $isRejected = $app->status === 'rejected';
+                                $badge = match (true) {
+                                    $isRejected => 'bg-red-100 text-red-700',
+                                    in_array($app->status, ['approved','disbursement','disbursed']) => 'bg-emerald-100 text-emerald-700',
+                                    $app->status === 'submitted' => 'bg-amber-100 text-amber-700',
+                                    default => 'bg-sky-100 text-sky-700',
+                                };
+                            @endphp
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-3 font-mono text-xs">{{ $app->application_number }}</td>
+                                <td class="px-4 py-3">{{ $app->product->name ?? '—' }}</td>
+                                <td class="px-4 py-3 font-medium">TZS {{ number_format($app->requested_amount) }}</td>
+                                <td class="px-4 py-3">{{ $app->requested_tenure_months }} mo</td>
+                                <td class="px-4 py-3">
+                                    <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $badge }}">{{ ucfirst(str_replace('_',' ', $app->status)) }}</span>
+                                </td>
+                                <td class="px-4 py-3 text-xs text-gray-500">{{ optional($app->submitted_at)->format('d M Y') ?? '—' }}</td>
+                                <td class="px-4 py-3 text-right">
+                                    <a href="{{ route('site.borrower.application', $app->id) }}" class="text-amber-600 font-semibold hover:underline text-xs">Open</a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
     @else
         <div class="grid sm:grid-cols-2 gap-4">

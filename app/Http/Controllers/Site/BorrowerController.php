@@ -15,6 +15,7 @@ use App\Models\NotificationLog;
 use App\Models\Repayment;
 use App\Models\RepaymentSchedule;
 use App\Models\LoanProduct;
+use App\Rules\MinimumAge;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -48,6 +49,9 @@ class BorrowerController extends Controller
     protected function eligibility(Customer $c): array
     {
         $income = (float) ($c->monthly_income ?? 0);
+        if ($income <= 0 && $c->income_range) {
+            $income = (float) (config('income_ranges.'.$c->income_range.'.midpoint') ?? 0);
+        }
         $cap    = (int) min(max($income * 4, 0), 5_000_000);
         // Bonus if there's at least one fully repaid loan.
         $hasGoodHistory = Loan::where('customer_id', $c->id)->where('status', 'closed')->exists();
@@ -117,12 +121,23 @@ class BorrowerController extends Controller
     /* ---------------------------------------------------------------------
      | 2. Applications
      |---------------------------------------------------------------------*/
-    public function applications(): View
+    public function applications(Request $request): View
     {
         $customer = $this->customer();
         $applications = LoanApplication::with('product')
             ->where('customer_id', $customer->id)->latest()->get();
-        return view('site.borrower.applications', compact('customer', 'applications'));
+
+        $user = Auth::user();
+        $viewMode = $request->query('view');
+        if (in_array($viewMode, ['cards', 'table'], true)) {
+            $prefs = $user->preferences ?? [];
+            $prefs['applications_view'] = $viewMode;
+            $user->update(['preferences' => $prefs]);
+        } else {
+            $viewMode = $user->preferences['applications_view'] ?? 'cards';
+        }
+
+        return view('site.borrower.applications', compact('customer', 'applications', 'viewMode'));
     }
 
     /**
@@ -439,33 +454,76 @@ class BorrowerController extends Controller
     /* ---------------------------------------------------------------------
      | 9. Profile & KYC
      |---------------------------------------------------------------------*/
-    public function profile(): View
+    public function profile(Request $request, string $section = 'personal'): View|RedirectResponse
     {
         $customer = $this->customer();
-        $kyc = $customer->kyc ?? null;
-        return view('site.borrower.profile', compact('customer','kyc'));
+        $kyc = $customer->kyc ?? CustomerKyc::firstOrCreate(
+            ['customer_id' => $customer->id],
+            ['status' => 'pending', 'payload' => []]
+        );
+
+        $section = in_array($section, ['personal', 'activity', 'residence', 'kyc'], true)
+            ? $section
+            : 'personal';
+
+        $view = match ($section) {
+            'activity'  => 'site.borrower.profile.activity',
+            'residence' => 'site.borrower.profile.residence',
+            'kyc'       => 'site.borrower.profile.kyc',
+            default     => 'site.borrower.profile.personal',
+        };
+
+        return view($view, compact('customer', 'kyc'));
     }
 
-    public function updateProfile(Request $request): RedirectResponse
+    public function updateProfile(Request $request, string $section = 'personal'): RedirectResponse
     {
         $customer = $this->customer();
+        $section = in_array($section, ['personal', 'activity', 'residence'], true) ? $section : 'personal';
 
-        $data = $request->validate([
-            'first_name'      => ['required','string','max:60'],
-            'last_name'       => ['required','string','max:60'],
-            'phone'           => ['nullable','string','max:20'],
-            'email'           => ['nullable','email','max:120'],
-            'date_of_birth'   => ['nullable','date'],
-            'national_id'     => ['nullable','string','max:30'],
-            'address'         => ['nullable','string','max:255'],
-            'employment_type' => ['nullable','string','max:30'],
-            'business_name'   => ['nullable','string','max:120'],
-            'monthly_income'  => ['nullable','numeric','min:0'],
-        ]);
+        if ($section === 'personal') {
+            $data = $request->validate([
+                'first_name'    => ['required', 'string', 'max:60'],
+                'last_name'     => ['required', 'string', 'max:60'],
+                'phone'         => ['nullable', 'string', 'max:20'],
+                'email'         => ['nullable', 'email', 'max:120'],
+                'date_of_birth' => ['required', 'date', new MinimumAge],
+                'gender'        => ['nullable', 'string', 'in:male,female,other'],
+                'national_id'   => ['nullable', 'string', 'max:30'],
+            ]);
+            $customer->fill($data)->save();
+        }
 
-        $customer->fill($data)->save();
+        if ($section === 'activity') {
+            $data = $request->validate([
+                'activity_type'    => ['required', 'string', 'max:40'],
+                'activity_details' => ['nullable', 'array'],
+                'income_range'     => ['required', 'string', 'in:'.implode(',', array_keys(config('income_ranges')))],
+            ]);
+            $customer->fill([
+                'activity_type'    => $data['activity_type'],
+                'activity_details' => $data['activity_details'] ?? [],
+                'employment_type'  => $data['activity_type'],
+                'income_range'     => $data['income_range'],
+                'monthly_income'   => config('income_ranges.'.$data['income_range'].'.midpoint'),
+            ])->save();
+        }
 
-        return redirect()->route('site.borrower.profile')
+        if ($section === 'residence') {
+            $data = $request->validate([
+                'region'   => ['required', 'string', 'max:100'],
+                'district' => ['required', 'string', 'max:100'],
+                'ward'     => ['nullable', 'string', 'max:100'],
+                'street'   => ['required', 'string', 'max:255'],
+            ]);
+            $customer->fill([
+                ...$data,
+                'address' => trim(collect([$data['street'], $data['ward'], $data['district'], $data['region']])->filter()->implode(', ')),
+            ])->save();
+        }
+
+        return redirect()
+            ->route('site.borrower.profile', ['section' => $section])
             ->with('status', 'Profile updated.');
     }
 

@@ -1,10 +1,11 @@
 @props(['customer'])
 @php
     /** @var \App\Models\Customer $customer */
+    use App\Support\MemberNumberFormatter;
+
     $color = $customer->membershipStatusColor();
     $label = $customer->membershipStatusLabel();
 
-    // Tailwind class maps (kept literal so JIT picks them up).
     $bgGradient = match ($color) {
         'green'  => 'from-emerald-500 via-emerald-600 to-emerald-700',
         'orange' => 'from-amber-500 via-amber-600 to-amber-700',
@@ -27,33 +28,65 @@
     $issued  = optional($customer->membership_issued_at)->format('d M Y') ?? '—';
     $expires = optional($customer->membership_expires_at)->format('d M Y') ?? '—';
     $name    = strtoupper(trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')));
-    $memberNo = $customer->member_no ?? '—';
+    $memberNoRaw = MemberNumberFormatter::raw($customer->member_no);
+    $memberNoDisplay = MemberNumberFormatter::display($customer->member_no);
     $days    = max(0, (int) $customer->membershipDaysRemaining());
     $duration = (int) (\App\Services\MembershipService::config()['duration_days'] ?? 365);
     $pct     = $duration > 0 ? max(0, min(100, ($days / $duration) * 100)) : 0;
-    $circ    = 2 * M_PI * 44; // r=44
-    $dash    = $circ - ($pct / 100) * $circ;
 @endphp
 
 <div {{ $attributes->merge(['class' => 'grid grid-cols-1 md:grid-cols-2 gap-4']) }}>
 
     {{-- Member card --}}
-    <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br {{ $bgGradient }} text-white shadow-lg p-6">
+    <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br {{ $bgGradient }} text-white shadow-lg p-6"
+         x-data="{ copied: false, copyNo: @js($memberNoRaw) }">
         <div class="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/10"></div>
         <div class="absolute -left-10 -bottom-16 h-40 w-40 rounded-full bg-white/10"></div>
 
         <div class="flex items-start justify-between relative">
-            <div>
+            <div class="min-w-0 flex-1">
                 <p class="text-[10px] uppercase tracking-widest text-white/70">KopaFasta Member</p>
-                <h3 class="mt-1 text-xl font-bold tracking-wide">{{ $name ?: '—' }}</h3>
-                <p class="mt-1 text-sm font-mono text-white/90">{{ $memberNo }}</p>
+                <h3 class="mt-1 text-xl font-bold tracking-wide truncate">{{ $name ?: '—' }}</h3>
             </div>
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold {{ $badgeClass }}">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold {{ $badgeClass }} shrink-0 ml-2">
                 {{ $label }}
             </span>
         </div>
 
-        <dl class="mt-6 grid grid-cols-2 gap-3 relative text-sm">
+        <div class="relative mt-6 rounded-xl bg-black/15 px-4 py-4 ring-1 ring-white/20">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-white/60 mb-2">Membership number</p>
+                    <p class="font-mono text-lg sm:text-xl md:text-2xl font-bold tracking-[0.12em] leading-tight break-all">
+                        {{ $memberNoDisplay }}
+                    </p>
+                </div>
+                @if ($memberNoRaw)
+                    <button type="button"
+                            @click="navigator.clipboard.writeText(copyNo).then(() => { copied = true; setTimeout(() => copied = false, 2500); })"
+                            class="shrink-0 inline-flex items-center justify-center size-10 rounded-lg bg-white/15 hover:bg-white/25 ring-1 ring-white/25 transition"
+                            :title="copied ? 'Copied!' : 'Copy membership number'">
+                        <template x-if="!copied">
+                            <svg class="size-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                        </template>
+                        <template x-if="copied">
+                            <svg class="size-5 text-emerald-200" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                            </svg>
+                        </template>
+                    </button>
+                @endif
+            </div>
+            <p x-show="copied" x-cloak x-transition
+               class="mt-3 text-xs font-semibold text-emerald-100 bg-emerald-900/30 rounded-lg px-3 py-2 inline-flex items-center gap-1.5">
+                <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                Membership Number Copied
+            </p>
+        </div>
+
+        <dl class="mt-5 grid grid-cols-2 gap-3 relative text-sm">
             <div>
                 <dt class="text-[10px] uppercase tracking-wider text-white/70">Issued</dt>
                 <dd class="font-semibold">{{ $issued }}</dd>

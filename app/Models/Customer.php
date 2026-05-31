@@ -20,6 +20,7 @@ class Customer extends Model
             'onboarded_at' => 'date',
             'date_of_birth' => 'date',
             'monthly_income' => 'decimal:2',
+            'activity_details' => 'array',
             'membership_issued_at' => 'date',
             'membership_expires_at' => 'date',
             'last_renewal_at' => 'date',
