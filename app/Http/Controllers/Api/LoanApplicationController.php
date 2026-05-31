@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ApplicationStageHistory;
 use App\Models\Customer;
 use App\Models\LoanApplication;
-use App\Services\AffordabilityService;
+use App\Services\LoanApplicationWorkflowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -92,7 +92,7 @@ class LoanApplicationController extends Controller
         return response()->json(status: 204);
     }
 
-    public function transition(Request $request, LoanApplication $loanApplication)
+    public function transition(Request $request, LoanApplication $loanApplication, LoanApplicationWorkflowService $workflow)
     {
         $this->authorize('transition', $loanApplication);
 
@@ -101,58 +101,21 @@ class LoanApplicationController extends Controller
             'remarks' => ['nullable', 'string'],
         ]);
 
-        $from = $loanApplication->current_stage;
-        $to = $data['to_stage'];
-
-        // Affordability check when moving INTO credit_appraisal or beyond.
-        $appraisal = $loanApplication->credit_appraisal_payload ?? [];
-        if (in_array($to, ['credit_appraisal', 'pre_approval', 'approval', 'disbursement'], true)) {
-            $service = app(AffordabilityService::class);
-            $result  = $service->evaluate($loanApplication->loadMissing(['customer', 'product']));
-            $appraisal['affordability'] = $result;
-
-            $override = filter_var($request->input('override_affordability'), FILTER_VALIDATE_BOOL);
-            if ($result['verdict'] === 'fail' && ! $override) {
-                return response()->json([
-                    'message' => 'Affordability check failed: '.$result['reason'],
-                    'affordability' => $result,
-                ], 422);
-            }
+        try {
+            $application = $workflow->transitionToStage(
+                $loanApplication,
+                $request->user(),
+                $data['to_stage'],
+                $data['remarks'] ?? null,
+                filter_var($request->input('override_affordability'), FILTER_VALIDATE_BOOL),
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
         }
 
-        if (in_array($to, ['pre_approval', 'approval', 'disbursement'], true)) {
-            $actor = $request->user();
-
-            if ($actor && $actor->role !== 'admin') {
-                $limit = (float) ($actor->approval_limit ?? 0);
-                $amount = (float) ($loanApplication->recommended_amount ?? $loanApplication->requested_amount);
-
-                if ($amount > $limit) {
-                    return response()->json([
-                        'message' => 'Approval limit exceeded',
-                        'required_amount' => $amount,
-                        'approval_limit' => $limit,
-                    ], 422);
-                }
-            }
-        }
-
-        $loanApplication->update([
-            'current_stage' => $to,
-            'status' => in_array($to, ['rejected', 'disbursement'], true) ? ($to === 'disbursement' ? 'approved' : 'rejected') : 'in_progress',
-            'pre_approved_at' => $to === 'pre_approval' ? now() : $loanApplication->pre_approved_at,
-            'approved_at' => $to === 'approval' ? now() : $loanApplication->approved_at,
-            'credit_appraisal_payload' => $appraisal,
-        ]);
-
-        ApplicationStageHistory::create([
-            'loan_application_id' => $loanApplication->id,
-            'from_stage' => $from,
-            'to_stage' => $to,
-            'changed_by' => optional($request->user())->id,
-            'remarks' => $data['remarks'] ?? null,
-        ]);
-
-        return response()->json($loanApplication->fresh('stageHistory'));
+        return response()->json($application->load('stageHistory'));
     }
 }

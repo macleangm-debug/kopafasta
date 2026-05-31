@@ -28,6 +28,8 @@
         'Created'           => $record->created_at?->format('Y-m-d H:i'),
     ]">
 
+@include('admin.loan-applications._workflow')
+
 <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
     <div class="flex items-center justify-between mb-3">
         <h3 class="text-sm font-semibold text-gray-700">Offer letter</h3>
@@ -104,6 +106,7 @@
         ->get();
 @endphp
 
+@perm('applications.request_documents')
 <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
     <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div>
@@ -213,5 +216,6 @@
         </ul>
     @endif
 </div>
+@endperm
 
 </x-admin.show-page>

@@ -24,8 +24,10 @@ use App\Policies\RepaymentPolicy;
 use App\Policies\RestructureRequestPolicy;
 use App\Policies\VendorPolicy;
 use App\Policies\VendorTaskPolicy;
+use App\Services\PermissionService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -63,5 +65,19 @@ class AppServiceProvider extends ServiceProvider
 
         CustomerKyc::observe(CustomerKycObserver::class);
         Gate::policy(VendorTask::class, VendorTaskPolicy::class);
+
+        foreach (array_keys(config('permissions.permissions', [])) as $permission) {
+            Gate::define($permission, fn (User $user) => app(PermissionService::class)->has($user, $permission));
+        }
+
+        Blade::if('perm', fn (string $permission) => auth()->check() && auth()->user()->hasPermission($permission));
+        Blade::if('permany', function (...$permissions) {
+            if (! auth()->check()) {
+                return false;
+            }
+            $user = auth()->user();
+
+            return app(PermissionService::class)->hasAny($user, $permissions);
+        });
     }
 }

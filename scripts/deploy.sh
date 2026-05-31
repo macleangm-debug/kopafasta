@@ -100,6 +100,7 @@ fi
 "$PHP_BIN" artisan migrate --force
 "$PHP_BIN" artisan db:seed --class=PublicLoanProductsSeeder --force || true
 "$PHP_BIN" artisan db:seed --class=NotificationTemplateSeeder --force || true
+"$PHP_BIN" artisan db:seed --class=RoleSeeder --force || true
 "$PHP_BIN" artisan storage:link || true
 "$PHP_BIN" artisan optimize:clear
 "$PHP_BIN" artisan config:cache

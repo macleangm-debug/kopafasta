@@ -27,7 +27,7 @@
             $sections = [
                 ['Dashboard', 'M3 12l9-9 9 9M5 10v10h14V10', [
                     ['Dashboard', 'admin.dashboard'],
-                ]],
+                ], null],
                 ['Applications', 'M9 12h6m-6 4h6M5 7h14M5 4h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z', [
                     ['All Applications',      'admin.loan-applications.index'],
                     ['New Applications',      'admin.loan-applications.new'],
@@ -36,13 +36,13 @@
                     ['Pre-Approvals',         'admin.loan-applications.pre-approvals'],
                     ['Final Approvals',       'admin.loan-applications.final-approvals'],
                     ['Rejected Applications', 'admin.loan-applications.rejected'],
-                ]],
+                ], ['applications.view']],
                 ['Customers', 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-5a4 4 0 11-8 0 4 4 0 018 0z', [
                     ['All Customers', 'admin.customers.index'],
                     ['Membership Payments', 'admin.membership-payments.index'],
                     ['Identity & KYC', 'admin.customer-kycs.index'],
                     ['Face verification', 'admin.face-verifications.index'],
-                ]],
+                ], ['customers.view', 'kyc.review', 'membership.approve_payments']],
                 ['Loans', 'M3 10h18M3 14h18M5 6h14M5 18h14', [
                     ['All Loans',     'admin.loans.index'],
                     ['Active Loans',  'admin.loans.active'],
@@ -51,10 +51,10 @@
                     ['Arrears',       'admin.loans.arrears'],
                     ['Restructuring', 'admin.loans.restructuring'],
                     ['Closed Loans',  'admin.loans.closed'],
-                ]],
+                ], ['loans.view']],
                 ['Loan Products', 'M20 7L12 3 4 7m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', [
                     ['Loan Product Configuration', 'admin.settings.loan-products'],
-                ]],
+                ], ['settings.manage'                ], null],
                 ['Partners', 'M3 7h18M3 12h18M3 17h18', [
                     ['All Partners',         'admin.vendors.index'],
                     ['Vendor Applications', 'admin.vendors.applications'],
@@ -62,12 +62,12 @@
                     ['Insurance Providers', 'admin.vendors.insurance-providers'],
                     ['Valuers',             'admin.vendors.valuers'],
                     ['Vendor Tasks',        'admin.vendors.tasks'],
-                ]],
+                ], null],
                 ['Capital', 'M19 7H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2zM3 11h18', [
                     ['Capital Partners',     'admin.lenders.index'],
                     ['Funding Pools',      'admin.funding-pools.index'],
                     ['Lender Investments', 'admin.lender-investments.index'],
-                ]],
+                ], null],
                 ['Finance', 'M12 8c-1.66 0-3 .9-3 2s1.34 2 3 2 3 .9 3 2-1.34 2-3 2m0-8v8m0 0v2m-9-5a9 9 0 1018 0 9 9 0 00-18 0z', [
                     ['Chart of Accounts',     'admin.chart-of-accounts.index'],
                     ['Bank Accounts',         'admin.bank-accounts.index'],
@@ -80,7 +80,7 @@
                     ['Settlements',           'admin.settlements.index'],
                     ['Reconciliations',       'admin.reconciliations.index'],
                     ['Journal Entries',       'admin.journal-entries.index'],
-                ]],
+                ], null],
                 ['Reports', 'M3 3v18h18M7 17V9m4 8V5m4 12v-7m4 7V11', [
                     ['Financial Overview','admin.reports.financial-overview'],
                     ['Portfolio',         'admin.reports.portfolio'],
@@ -95,7 +95,7 @@
                     ['Balance Sheet',     'admin.reports.balance-sheet'],
                     ['Cash Flow',         'admin.reports.cash-flow'],
                     ['Vendor Performance','admin.reports.vendor-performance'],
-                ]],
+                ], null],
                 ['Compliance', 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z', [
                     ['BOT Reports',         'admin.compliance.bot-reports'],
                     ['AML Reports',         'admin.compliance.aml-reports'],
@@ -107,11 +107,11 @@
                     ['Risk Scoring',        'admin.risk-scoring-rules.index'],
                     ['Audit Logs',          'admin.audit-logs.index'],
                     ['Regulatory Exports',  'admin.compliance.exports'],
-                ]],
+                ], ['audit.view']],
                 ['Support', 'M21 11.5a8.38 8.38 0 01-9 8.5 8.5 8.5 0 01-7.6-4.6L3 21l1.9-5.8A8.38 8.38 0 013 11.5 8.5 8.5 0 0111.5 3 8.38 8.38 0 0121 11.5z', [
                     ['Tickets',    'admin.support-tickets.index'],
                     ['Complaints', 'admin.complaints.index'],
-                ]],
+                ], null],
                 ['Settings', 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z', [
                     ['Company Profile',         'admin.settings.company'],
                     ['SMS / Email Gateways',    'admin.settings.gateways'],
@@ -126,14 +126,25 @@
                     ['Approval Limits',         'admin.approval-limits.index'],
                     ['Notification Templates',  'admin.notification-templates.index'],
                     ['Document Templates',      'admin.document-templates.index'],
-                ]],
+                ], ['settings.manage']],
             ];
 
             $currentRoute = request()->route()?->getName();
+            $permissionService = app(\App\Services\PermissionService::class);
+            $canSeeSection = function (?array $perms) use ($permissionService) {
+                if ($perms === null || count($perms) === 0) {
+                    return true;
+                }
+
+                return auth()->check() && $permissionService->hasAny(auth()->user(), $perms);
+            };
 
             // Resolve the tab items belonging to the section that owns the current route.
             $activeSectionTabs = [];
-            foreach ($sections as [$__l, $__ic, $__items]) {
+            foreach ($sections as [$__l, $__ic, $__items, $__perms]) {
+                if (! $canSeeSection($__perms)) {
+                    continue;
+                }
                 if (in_array($currentRoute, array_column($__items, 1), true)) {
                     $activeSectionTabs = $__items;
                     break;
@@ -142,7 +153,10 @@
         @endphp
 
         <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1 text-sm">
-            @foreach ($sections as [$label, $icon, $items])
+            @foreach ($sections as [$label, $icon, $items, $sectionPerms])
+                @if (! $canSeeSection($sectionPerms))
+                    @continue
+                @endif
                 @php
                     $childRoutes    = array_column($items, 1);
                     $isActiveBranch = in_array($currentRoute, $childRoutes, true);

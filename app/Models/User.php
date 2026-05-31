@@ -7,6 +7,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -47,6 +48,16 @@ class User extends Authenticatable
         return in_array($this->role, ['admin', 'super_admin', 'manager', 'officer'], true)
             && (bool) ($this->is_active ?? true)
             && ! ($this->locked_until && $this->locked_until->isFuture());
+    }
+
+    public function hasPermission(string $permission): bool
+    {
+        return app(\App\Services\PermissionService::class)->has($this, $permission);
+    }
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     public function customer()

@@ -242,6 +242,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('loan-applications.agreement.generate');
         Route::post('loan-applications/{loan_application}/document-requests', [LoanApplicationDocumentRequestController::class, 'store'])
             ->name('loan-applications.document-requests.store');
+        Route::post('loan-applications/{loan_application}/workflow', [LoanApplicationController::class, 'runWorkflow'])
+            ->name('loan-applications.workflow');
         Route::post('loan-application-document-requests/{documentRequest}/satisfy', [LoanApplicationDocumentRequestController::class, 'satisfy'])
             ->name('loan-application-document-requests.satisfy');
         Route::post('loan-application-document-requests/{documentRequest}/reject', [LoanApplicationDocumentRequestController::class, 'reject'])
