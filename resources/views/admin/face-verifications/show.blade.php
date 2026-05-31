@@ -20,6 +20,18 @@
         </dl>
     </div>
 
+    <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5 mb-6">
+        <h3 class="text-sm font-semibold text-gray-900 mb-3">NIDA reference photo</h3>
+        @if ($nidaPhotoPath ?? null)
+            <a href="{{ asset('storage/'.$nidaPhotoPath) }}" target="_blank">
+                <img src="{{ asset('storage/'.$nidaPhotoPath) }}" alt="NIDA photo" class="max-h-72 rounded-lg object-cover ring-1 ring-gray-200">
+            </a>
+            <p class="text-xs text-gray-500 mt-2">Compare live captures above with this NIDA database photo.</p>
+        @else
+            <p class="text-sm text-gray-500">NIDA photo not available from CRB response. Compare live photos with the NIDA holding capture and verified identity details.</p>
+        @endif
+    </div>
+
     <div class="grid md:grid-cols-2 gap-6 mb-8">
         @foreach ($angles as $key => $meta)
             @php $photo = $photos[$key] ?? null; @endphp

@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
 use App\Rules\MinimumAge;
+use App\Services\ApplicationRequirementsService;
 use App\Services\FaceVerificationService;
 use App\Services\GuarantorInvitationService;
 use App\Services\KycFreshnessService;
@@ -24,8 +25,22 @@ class ApplyController extends Controller
         Request $request,
         FaceVerificationService $faces,
         KycFreshnessService $freshness,
+        ApplicationRequirementsService $requirements,
     ): View|RedirectResponse {
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+
+        if ($customer) {
+            $checklist = $requirements->checklist($customer);
+            if (! $checklist['can_apply']) {
+                $pending = collect($checklist['items'])->first(fn (array $i) => ! $i['complete']);
+
+                return redirect()
+                    ->route('site.borrower.dashboard')
+                    ->with('error', $pending
+                        ? 'Complete "'.$pending['label'].'" before starting a loan application.'
+                        : 'Complete all requirements before applying for a loan.');
+            }
+        }
 
         if ($customer && ! $faces->canApply($customer)) {
             return redirect()
@@ -66,8 +81,18 @@ class ApplyController extends Controller
         FaceVerificationService $faces,
         KycFreshnessService $freshness,
         GuarantorInvitationService $guarantors,
+        ApplicationRequirementsService $requirements,
     ): RedirectResponse {
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+
+        if ($customer) {
+            $checklist = $requirements->checklist($customer);
+            if (! $checklist['can_apply']) {
+                return redirect()
+                    ->route('site.borrower.dashboard')
+                    ->with('error', 'You must complete all loan application requirements before submitting.');
+            }
+        }
 
         if ($customer && ! $faces->canApply($customer)) {
             return redirect()

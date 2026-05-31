@@ -317,9 +317,10 @@ class AuthController extends Controller
     public function registerBorrower(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'country'    => ['required', 'string', 'in:TZ,KE,UG'],
-            'first_name' => ['required', 'string', 'max:60'],
-            'last_name'  => ['required', 'string', 'max:60'],
+            'country'     => ['required', 'string', 'in:TZ,KE,UG'],
+            'first_name'  => ['required', 'string', 'max:60'],
+            'middle_name' => ['nullable', 'string', 'max:60'],
+            'last_name'   => ['required', 'string', 'max:60'],
             'email'      => ['nullable', 'email', 'max:255', 'unique:users,email'],
             'phone'      => ['required', 'string', 'max:20', 'unique:users,phone'],
             'password'   => ['required', 'string', 'min:8', 'confirmed'],
@@ -332,8 +333,10 @@ class AuthController extends Controller
         }
 
         $user = DB::transaction(function () use ($data, $email) {
+            $fullName = trim(collect([$data['first_name'], $data['middle_name'] ?? null, $data['last_name']])->filter()->implode(' '));
+
             $user = User::create([
-                'name'      => $data['first_name'].' '.$data['last_name'],
+                'name'      => $fullName,
                 'email'     => $email,
                 'phone'     => $data['phone'],
                 'password'  => Hash::make($data['password']),
@@ -347,6 +350,7 @@ class AuthController extends Controller
                 'type'            => 'individual',
                 'status'          => 'active',
                 'first_name'      => $data['first_name'],
+                'middle_name'     => $data['middle_name'] ?? null,
                 'last_name'       => $data['last_name'],
                 'email'           => $data['email'] ?? null,
                 'phone'           => $data['phone'],

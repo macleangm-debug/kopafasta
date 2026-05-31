@@ -133,6 +133,7 @@ Route::name('site.')->group(function () {
             Route::get('/borrower/kyc-reconfirm',                  [\App\Http\Controllers\Site\BorrowerController::class, 'kycReconfirm'])->name('borrower.kyc-reconfirm');
             Route::put('/borrower/kyc-reconfirm',                  [\App\Http\Controllers\Site\BorrowerController::class, 'updateKycReconfirm'])->name('borrower.kyc-reconfirm.update');
             Route::get('/borrower/notifications',                  [\App\Http\Controllers\Site\BorrowerController::class, 'notifications'])->name('borrower.notifications');
+            Route::post('/borrower/notifications/read',            [\App\Http\Controllers\Site\BorrowerController::class, 'markNotificationsRead'])->name('borrower.notifications.read');
             Route::get('/borrower/profile/{section?}',             [\App\Http\Controllers\Site\BorrowerController::class, 'profile'])->name('borrower.profile')->where('section', 'personal|activity|residence|kyc|security');
             Route::put('/borrower/profile/{section}',              [\App\Http\Controllers\Site\BorrowerController::class, 'updateProfile'])->name('borrower.profile.update')->where('section', 'personal|activity|residence');
             Route::post('/borrower/profile/nida/verify',           [\App\Http\Controllers\Site\BorrowerController::class, 'verifyNida'])->name('borrower.profile.nida.verify');

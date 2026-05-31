@@ -21,11 +21,14 @@ use App\Rules\FourDigitPin;
 use App\Rules\MinimumAge;
 use App\Rules\ValidNidaNumber;
 use App\Services\ApplicationDocumentRequestService;
+use App\Services\ApplicationRequirementsService;
 use App\Services\FaceVerificationService;
 use App\Services\GuarantorInvitationService;
 use App\Services\KycFreshnessService;
+use App\Services\LoanQualificationService;
 use App\Services\NidaVerificationService;
 use App\Services\PinService;
+use App\Services\ProfileCompletionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -59,25 +62,17 @@ class BorrowerController extends Controller
 
     protected function eligibility(Customer $c): array
     {
-        $income = (float) ($c->monthly_income ?? 0);
-        if ($income <= 0 && $c->income_range) {
-            $income = (float) (config('income_ranges.'.$c->income_range.'.midpoint') ?? 0);
-        }
-        $cap    = (int) min(max($income * 4, 0), 5_000_000);
-        // Bonus if there's at least one fully repaid loan.
-        $hasGoodHistory = Loan::where('customer_id', $c->id)->where('status', 'closed')->exists();
-        if ($hasGoodHistory) $cap = (int) min($cap * 1.5, 7_500_000);
-        return [
-            'amount'   => $cap,
-            'has_data' => $income > 0,
-        ];
+        return app(LoanQualificationService::class)->calculate($c);
     }
 
     /* ---------------------------------------------------------------------
      | 1. Dashboard
      |---------------------------------------------------------------------*/
-    public function dashboard(): View
-    {
+    public function dashboard(
+        LoanQualificationService $qualification,
+        ApplicationRequirementsService $requirements,
+        ProfileCompletionService $profileCompletion,
+    ): View {
         $customer = $this->customer();
 
         $activeLoan = Loan::where('customer_id', $customer->id)
@@ -98,9 +93,16 @@ class BorrowerController extends Controller
         $notifications = NotificationLog::where('customer_id', $customer->id)
             ->latest()->limit(4)->get();
 
-        $eligibility = $this->eligibility($customer);
+        $eligibility = $qualification->calculate($customer);
+        $applyRequirements = $requirements->checklist($customer);
+        $onboarding = $requirements->onboardingSteps($customer);
+        $profileStatus = $profileCompletion->calculate($customer);
 
-        // KYC snapshot for the dashboard reminder, scoped to customer type
+        // Active loan products — public catalogue order
+        $productOrder = ['IL', 'GL', 'AL', 'FC', 'KB', 'BP', 'EL', 'EM', 'WL', 'AB'];
+        $products = LoanProduct::where('is_active', true)->get()
+            ->sortBy(fn (LoanProduct $p) => ($i = array_search($p->code, $productOrder, true)) === false ? 99 : $i)
+            ->values();
         $kyc = CustomerKyc::where('customer_id', $customer->id)->first();
         $applicable    = ['any', $customer->type ?? 'individual'];
         $kycTypes      = DocumentType::where('is_active', true)
@@ -118,16 +120,13 @@ class BorrowerController extends Controller
         $kycProgress   = $kycRequired > 0 ? (int) round(($kycUploaded / $kycRequired) * 100) : 0;
         $kycMissing    = $kycTypes->reject(fn ($t) => $kycUploadedTypeIds->contains($t->id))->values();
 
-        // Active loan products available for application
-        $products = LoanProduct::where('is_active', true)->orderBy('name')->get();
-
         $openDocumentRequests = app(ApplicationDocumentRequestService::class)->openRequestsForCustomer($customer);
 
         return view('site.borrower.dashboard', compact(
             'customer','activeLoan','nextDue','applicationsCount',
             'latestApplication','notifications','eligibility',
             'kyc','kycRequired','kycUploaded','kycProgress','kycMissing',
-            'products','openDocumentRequests'
+            'products','openDocumentRequests','applyRequirements','onboarding','profileStatus'
         ));
     }
 
@@ -512,7 +511,22 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         $items = NotificationLog::where('customer_id', $customer->id)
             ->latest()->paginate(20);
+
+        NotificationLog::where('customer_id', $customer->id)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
         return view('site.borrower.notifications', compact('customer','items'));
+    }
+
+    public function markNotificationsRead(): RedirectResponse
+    {
+        $customer = $this->customer();
+        NotificationLog::where('customer_id', $customer->id)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
+        return back();
     }
 
     /* ---------------------------------------------------------------------
@@ -561,6 +575,7 @@ class BorrowerController extends Controller
             if (! $locked) {
                 $rules = array_merge($rules, [
                     'first_name'    => ['required', 'string', 'max:60'],
+                    'middle_name'   => ['nullable', 'string', 'max:60'],
                     'last_name'     => ['required', 'string', 'max:60'],
                     'date_of_birth' => ['required', 'date', new MinimumAge],
                     'gender'        => ['nullable', 'string', 'in:male,female,other'],

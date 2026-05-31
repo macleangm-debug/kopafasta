@@ -94,6 +94,11 @@
                            @readonly($locked) class="{{ $locked ? $readonly : $editable }}">
                 </div>
                 <div>
+                    <label class="block text-xs text-gray-600 mb-1">Middle name</label>
+                    <input name="middle_name" value="{{ old('middle_name', $customer->middle_name) }}" @readonly($locked)
+                           class="{{ $locked ? $readonly : $editable }}">
+                </div>
+                <div>
                     <label class="block text-xs text-gray-600 mb-1">Last name</label>
                     <input name="last_name" value="{{ old('last_name', $customer->last_name) }}" @required(! $locked)
                            @readonly($locked) class="{{ $locked ? $readonly : $editable }}">

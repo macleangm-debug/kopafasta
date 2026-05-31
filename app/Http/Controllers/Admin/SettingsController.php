@@ -134,9 +134,23 @@ class SettingsController extends Controller
             'allow_restructure' => ['nullable', 'boolean'],
             'max_restructures'  => ['required', 'integer', 'min:0', 'max:10'],
             'restructure_cooldown_days' => ['required', 'integer', 'min:0'],
+            'qualification_income_multiplier'       => ['nullable', 'numeric', 'min:0', 'max:20'],
+            'qualification_max_cap'                 => ['nullable', 'integer', 'min:0'],
+            'qualification_good_history_multiplier'   => ['nullable', 'numeric', 'min:1', 'max:5'],
+            'qualification_good_history_cap'        => ['nullable', 'integer', 'min:0'],
+            'qualification_membership_inactive_factor'=> ['nullable', 'numeric', 'min:0', 'max:1'],
+            'qualification_kyc_incomplete_factor'   => ['nullable', 'numeric', 'min:0', 'max:1'],
+            'qualification_min_profile_percent'     => ['nullable', 'integer', 'min:0', 'max:100'],
         ]);
 
         $data['allow_restructure'] = (bool) ($data['allow_restructure'] ?? false);
+        $data['qualification_income_multiplier'] = (float) ($data['qualification_income_multiplier'] ?? 4);
+        $data['qualification_max_cap'] = (int) ($data['qualification_max_cap'] ?? 5_000_000);
+        $data['qualification_good_history_multiplier'] = (float) ($data['qualification_good_history_multiplier'] ?? 1.5);
+        $data['qualification_good_history_cap'] = (int) ($data['qualification_good_history_cap'] ?? 7_500_000);
+        $data['qualification_membership_inactive_factor'] = (float) ($data['qualification_membership_inactive_factor'] ?? 0);
+        $data['qualification_kyc_incomplete_factor'] = (float) ($data['qualification_kyc_incomplete_factor'] ?? 0.5);
+        $data['qualification_min_profile_percent'] = (int) ($data['qualification_min_profile_percent'] ?? 60);
 
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["loan.$k" => $v])->all());
         return back()->with('status', 'Loan rules saved.');

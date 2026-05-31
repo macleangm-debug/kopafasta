@@ -46,6 +46,19 @@
             </div>
         </div>
 
+        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+            <h3 class="text-sm font-semibold text-gray-700 mb-4">Loan qualification (borrower dashboard limit)</h3>
+            <p class="text-xs text-gray-500 mb-4">Controls how the dashboard displays “Your current loan limit is TZS X”.</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <x-admin.input name="qualification_income_multiplier" label="Income multiplier" type="number" step="0.1" :value="$values['qualification_income_multiplier'] ?? '4'" />
+                <x-admin.input name="qualification_max_cap" label="Maximum cap (TZS)" type="number" :value="$values['qualification_max_cap'] ?? '5000000'" />
+                <x-admin.input name="qualification_min_profile_percent" label="Min profile % to apply" type="number" :value="$values['qualification_min_profile_percent'] ?? '60'" />
+                <x-admin.input name="qualification_good_history_multiplier" label="Repaid-loan bonus multiplier" type="number" step="0.1" :value="$values['qualification_good_history_multiplier'] ?? '1.5'" />
+                <x-admin.input name="qualification_good_history_cap" label="Bonus cap (TZS)" type="number" :value="$values['qualification_good_history_cap'] ?? '7500000'" />
+                <x-admin.input name="qualification_kyc_incomplete_factor" label="Incomplete profile factor (0–1)" type="number" step="0.05" :value="$values['qualification_kyc_incomplete_factor'] ?? '0.5'" />
+            </div>
+        </div>
+
         <div class="flex justify-end">
             <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">Save loan rules</button>
         </div>

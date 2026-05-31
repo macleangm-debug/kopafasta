@@ -32,8 +32,9 @@ class FaceVerificationController extends Controller
     {
         $photos = $faces->latestByAngle($customer);
         $progress = $faces->progress($customer);
+        $nidaPhotoPath = $customer->kyc?->payload['nida_verification']['photo_path'] ?? null;
 
-        return view('admin.face-verifications.show', compact('customer', 'photos', 'progress'));
+        return view('admin.face-verifications.show', compact('customer', 'photos', 'progress', 'nidaPhotoPath'));
     }
 
     public function approve(Customer $customer, FaceVerificationService $faces): RedirectResponse

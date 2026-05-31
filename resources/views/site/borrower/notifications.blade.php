@@ -10,8 +10,8 @@
     @else
         <div class="bg-white rounded-2xl border border-gray-200">
             <ul class="divide-y divide-gray-100">
-                @foreach ($items as $n)
-                    <li class="px-5 py-4 flex gap-4">
+                    @foreach ($items as $n)
+                        <li class="px-5 py-4 flex gap-4 {{ $n->read_at ? '' : 'bg-amber-50/40' }}">
                         <div class="size-9 rounded-full bg-amber-100 text-amber-700 grid place-items-center shrink-0">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9z"/></svg>
                         </div>

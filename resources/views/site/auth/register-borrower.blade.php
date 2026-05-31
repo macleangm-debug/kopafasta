@@ -38,6 +38,7 @@
         {{-- Wizard --}}
         <div class="lg:col-span-2 flex items-start lg:items-center justify-center px-4 py-10 sm:px-10" x-data="borrowerWizard({
             first_name:  @js(old('first_name', '')),
+            middle_name: @js(old('middle_name', '')),
             last_name:   @js(old('last_name', '')),
             email:       @js(old('email', '')),
             country:     @js(old('country', 'TZ')),
@@ -165,10 +166,14 @@
                             <p class="mt-1 text-sm text-gray-600">We'll use these details to build your borrower profile.</p>
 
                             <div class="mt-6 space-y-4">
-                                <div class="grid grid-cols-2 gap-3">
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1.5">First name <span class="text-red-500">*</span></label>
                                         <input name="first_name" x-model="form.first_name" required class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Middle name</label>
+                                        <input name="middle_name" x-model="form.middle_name" class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition">
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Last name <span class="text-red-500">*</span></label>
@@ -265,6 +270,7 @@
                     dial_code: initial.dial_code || '+255',
                     local_phone: initial.local_phone || '',
                     first_name: initial.first_name || '',
+                    middle_name: initial.middle_name || '',
                     last_name: initial.last_name || '',
                     email: initial.email || '',
                     password: '',

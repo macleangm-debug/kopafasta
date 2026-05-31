@@ -6,35 +6,41 @@
         </div>
     @endif
 
-    @if (($customer->face_verification_status ?? 'incomplete') !== 'verified')
-        <div class="mb-6 rounded-2xl bg-amber-50 ring-1 ring-amber-200 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <p class="font-semibold text-amber-900">Face verification required</p>
-                <p class="text-sm text-amber-800 mt-1">
-                    @if (($customer->face_verification_status ?? '') === 'pending')
-                        Your face photos are under review. Loan applications unlock after approval.
-                    @elseif (($customer->face_verification_status ?? '') === 'rejected')
-                        Your face verification was rejected. Please capture all four photos again.
-                    @else
-                        Capture front, left, right, and NIDA-holding selfies before applying for a loan.
-                    @endif
-                </p>
-            </div>
-            <a href="{{ route('site.borrower.face-verification') }}" class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm whitespace-nowrap">
-                {{ ($customer->face_verification_status ?? '') === 'pending' ? 'View status' : 'Complete now →' }}
-            </a>
+    @if (session('error'))
+        <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">
+            {{ session('error') }}
         </div>
-    @elseif (app(\App\Services\KycFreshnessService::class)->isStale($customer))
-        <div class="mb-6 rounded-2xl bg-sky-50 ring-1 ring-sky-200 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <p class="font-semibold text-sky-900">KYC reconfirmation required</p>
-                <p class="text-sm text-sky-800 mt-1">Please confirm your residence and activity details are still accurate.</p>
-            </div>
-            <a href="{{ route('site.borrower.kyc-reconfirm') }}" class="inline-flex bg-sky-600 hover:bg-sky-700 text-white font-semibold px-5 py-2.5 rounded-full text-sm whitespace-nowrap">
-                Reconfirm now →
-            </a>
+    @endif
+
+    @if ($onboarding['show'] ?? false)
+        <div class="mb-6 rounded-2xl bg-indigo-50 ring-1 ring-indigo-200 p-5">
+            <p class="font-semibold text-indigo-900">{{ $onboarding['title'] }}</p>
+            <ol class="mt-4 space-y-3">
+                @foreach ($onboarding['steps'] as $step)
+                    <li class="flex items-center gap-3">
+                        <span class="w-7 h-7 rounded-full grid place-items-center text-xs font-bold {{ $step['complete'] ? 'bg-emerald-500 text-white' : 'bg-white text-indigo-700 ring-1 ring-indigo-200' }}">
+                            @if ($step['complete'])
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 10l3 3 7-7"/></svg>
+                            @else
+                                {{ $step['number'] }}
+                            @endif
+                        </span>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium {{ $step['complete'] ? 'text-emerald-800 line-through' : 'text-indigo-900' }}">{{ $step['label'] }}</p>
+                        </div>
+                        @if (! $step['complete'])
+                            <a href="{{ $step['url'] }}" class="text-xs font-semibold text-indigo-700 hover:underline whitespace-nowrap">Start →</a>
+                        @endif
+                    </li>
+                @endforeach
+            </ol>
+            <p class="text-xs text-indigo-700 mt-4">Loan applications remain locked until both steps are complete and face verification is approved.</p>
         </div>
-    @elseif (($openDocumentRequests ?? collect())->isNotEmpty())
+    @endif
+
+    <x-site.application-requirements :items="$applyRequirements" />
+
+    @if (($openDocumentRequests ?? collect())->isNotEmpty())
         <div class="mb-6 rounded-2xl bg-violet-50 ring-1 ring-violet-200 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
                 <p class="font-semibold text-violet-900">Documents requested by underwriting</p>
@@ -59,57 +65,88 @@
             <h1 class="text-2xl sm:text-3xl font-bold">Habari, {{ $customer->first_name ?? Auth::user()->name }} 👋</h1>
             <p class="text-sm text-gray-500 mt-1">Customer #{{ $customer->customer_number ?? '—' }}</p>
         </div>
-        <a href="{{ route('site.borrower.apply') }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full inline-flex items-center gap-2 text-sm">
+        <a href="{{ ($applyRequirements['can_apply'] ?? false) ? route('site.borrower.apply') : route('site.borrower.dashboard') }}"
+           @class([
+               'font-semibold px-5 py-2.5 rounded-full inline-flex items-center gap-2 text-sm',
+               ($applyRequirements['can_apply'] ?? false)
+                   ? 'bg-amber-500 hover:bg-amber-400 text-gray-900'
+                   : 'bg-gray-200 text-gray-500 cursor-not-allowed pointer-events-none',
+           ])>
             + New application
         </a>
     </div>
 
-    {{-- Eligibility hero --}}
-    @if ($eligibility['amount'] > 0)
-        <div class="mb-6 rounded-2xl bg-gradient-to-r from-gray-900 to-gray-800 text-white p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-amber-300 font-semibold">You qualify for up to</p>
+    {{-- Loan limit hero --}}
+    <div class="mb-6 rounded-2xl bg-gradient-to-r from-gray-900 to-gray-800 text-white p-6 sm:p-8">
+        <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+            <div class="min-w-0">
+                <p class="text-[10px] uppercase tracking-widest text-amber-300 font-semibold">Your current loan limit is</p>
                 <p class="mt-1 text-3xl sm:text-4xl font-extrabold">TZS {{ number_format($eligibility['amount']) }}</p>
-                <p class="mt-2 text-xs text-gray-300 max-w-md">Based on your income {{ $eligibility['has_data'] ? '' : '(estimate — complete your profile for a better offer)' }}. Final approval after credit check.</p>
+                <p class="mt-2 text-sm text-gray-300 max-w-xl">{{ $eligibility['summary'] ?? 'Calculated based on your profile, KYC verification, income category, and repayment history.' }}</p>
+                @if (! empty($eligibility['factors']))
+                    <ul class="mt-4 flex flex-wrap gap-2">
+                        @foreach ($eligibility['factors'] as $factor)
+                            <li class="text-[11px] bg-white/10 rounded-full px-3 py-1">
+                                <span class="text-white/70">{{ $factor['label'] }}:</span>
+                                <span class="text-white font-medium">{{ $factor['detail'] }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+                @if (! ($eligibility['has_data'] ?? true))
+                    <p class="mt-3 text-xs text-amber-200">Add your income range in Profile → Activity for a more accurate limit.</p>
+                @endif
             </div>
-            <a href="{{ route('site.borrower.apply') }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-3 rounded-full text-sm whitespace-nowrap inline-flex items-center gap-2">Apply now →</a>
+            <div class="shrink-0 flex flex-col gap-3">
+                <div class="rounded-xl bg-white/10 px-4 py-3 text-sm">
+                    <p class="text-white/70 text-xs uppercase tracking-wide">Profile completion</p>
+                    <p class="text-2xl font-bold mt-1">{{ $profileStatus['percent'] ?? 0 }}%</p>
+                </div>
+                @if ($applyRequirements['can_apply'] ?? false)
+                    <a href="{{ route('site.borrower.apply') }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-3 rounded-full text-sm text-center whitespace-nowrap">Apply now →</a>
+                @endif
+            </div>
         </div>
-    @endif
+    </div>
 
-    {{-- Available loan products --}}
+    {{-- Available loan products (horizontal swipe) --}}
     <div class="mb-8">
-        <h2 class="text-lg font-semibold mb-4">Available loan products</h2>
+        <div class="flex items-end justify-between gap-3 mb-4">
+            <div>
+                <h2 class="text-lg font-semibold">Available loan products</h2>
+                <p class="text-sm text-gray-500">Swipe to browse all {{ $products->count() }} active products</p>
+            </div>
+        </div>
         @if(isset($products) && $products->isNotEmpty())
-            <div class="space-y-4" x-data="{ open: null }">
-                @foreach($products as $p)
-                    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                        <button type="button" @click="open = open === {{ $p->id }} ? null : {{ $p->id }}"
-                                class="w-full text-left p-5 sm:p-6 flex items-start justify-between gap-4 hover:bg-gray-50 transition">
-                            <div class="min-w-0 flex-1">
-                                <div class="flex flex-wrap items-center gap-2 mb-2">
+            <div class="relative -mx-4 lg:mx-0">
+                <div class="flex gap-4 overflow-x-auto snap-x snap-mandatory px-4 lg:px-0 pb-2 scrollbar-thin"
+                     x-data="{ open: null }">
+                    @foreach($products as $p)
+                        <div class="snap-start shrink-0 w-[min(85vw,320px)] bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+                            <button type="button" @click="open = open === {{ $p->id }} ? null : {{ $p->id }}"
+                                    class="text-left p-5 flex-1 hover:bg-gray-50 transition">
+                                <div class="flex items-center gap-2 mb-2">
                                     <span class="text-[10px] font-mono font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded">{{ $p->code }}</span>
-                                    <span class="text-xs text-gray-500">{{ number_format((float)$p->interest_rate * 100, 1) }}% monthly · {{ $p->tenure_min_months }}–{{ $p->tenure_max_months }} mo</span>
+                                    <span class="text-xs text-gray-500">{{ number_format((float)$p->interest_rate * 100, 1) }}%/mo</span>
                                 </div>
-                                <h3 class="text-lg font-bold text-gray-900">{{ $p->name }}</h3>
-                                <p class="text-sm text-gray-600 mt-1 line-clamp-2">{{ $p->description ?: 'Configured loan product from admin settings.' }}</p>
-                                <p class="text-sm font-semibold text-gray-900 mt-2">TZS {{ number_format($p->min_amount) }} – {{ number_format($p->max_amount) }}</p>
+                                <h3 class="text-lg font-bold text-gray-900 leading-tight">{{ $p->name }}</h3>
+                                <p class="text-sm text-gray-600 mt-2 line-clamp-3">{{ $p->description ?: 'Configured loan product.' }}</p>
+                                <p class="text-sm font-semibold text-gray-900 mt-3">TZS {{ number_format($p->min_amount) }} – {{ number_format($p->max_amount) }}</p>
+                                <p class="text-xs text-gray-500 mt-1">{{ $p->tenure_min_months }}–{{ $p->tenure_max_months }} months</p>
+                            </button>
+                            <div x-show="open === {{ $p->id }}" x-transition x-cloak class="border-t border-gray-100 px-5 pb-5">
+                                <dl class="grid gap-2 text-sm pt-4">
+                                    <div><dt class="text-gray-500">Rate</dt><dd class="font-medium">{{ number_format((float)$p->interest_rate * 100, 2) }}% per month</dd></div>
+                                    <div><dt class="text-gray-500">Tenure</dt><dd class="font-medium">{{ $p->tenure_min_months }}–{{ $p->tenure_max_months }} months</dd></div>
+                                </dl>
+                                <a href="{{ route('site.borrower.apply', ['product' => $p->id]) }}"
+                                   class="mt-4 inline-flex w-full justify-center bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                                    Apply for {{ $p->name }} →
+                                </a>
                             </div>
-                            <svg class="w-5 h-5 text-gray-400 shrink-0 transition-transform" :class="open === {{ $p->id }} && 'rotate-180'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
-                        </button>
-                        <div x-show="open === {{ $p->id }}" x-transition x-cloak class="border-t border-gray-100 px-5 sm:px-6 pb-5">
-                            <dl class="grid sm:grid-cols-2 gap-3 text-sm pt-4">
-                                <div><dt class="text-gray-500">Eligibility</dt><dd class="font-medium">{{ Str::limit($p->description ?: 'Active membership and completed application required', 80) }}</dd></div>
-                                <div><dt class="text-gray-500">Repayment period</dt><dd class="font-medium">{{ $p->tenure_min_months }}–{{ $p->tenure_max_months }} months</dd></div>
-                                <div><dt class="text-gray-500">Rate range</dt><dd class="font-medium">{{ number_format((float)$p->interest_rate * 100, 2) }}% per month</dd></div>
-                                <div><dt class="text-gray-500">Loan limits</dt><dd class="font-medium">TZS {{ number_format($p->min_amount) }} – {{ number_format($p->max_amount) }}</dd></div>
-                            </dl>
-                            <a href="{{ route('site.borrower.apply', ['product' => $p->id]) }}"
-                               class="mt-4 inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                                Apply for {{ $p->name }} →
-                            </a>
                         </div>
-                    </div>
-                @endforeach
+                    @endforeach
+                </div>
             </div>
         @else
             <div class="text-sm text-gray-500">No loan products available at the moment.</div>

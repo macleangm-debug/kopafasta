@@ -7,9 +7,15 @@ $nav = [
     ['key' => 'loans',         'label' => 'Loans',         'route' => 'site.borrower.loans',         'icon' => 'wallet'],
     ['key' => 'applications',  'label' => 'Applications',  'route' => 'site.borrower.applications',  'icon' => 'doc'],
     ['key' => 'payments',      'label' => 'Payments',      'route' => 'site.borrower.payments',      'icon' => 'pay'],
+    ['key' => 'notifications', 'label' => 'Notifications', 'route' => 'site.borrower.notifications', 'icon' => 'bell'],
     ['key' => 'support',       'label' => 'Support',       'route' => 'site.borrower.support',       'icon' => 'help'],
     ['key' => 'profile',       'label' => 'Profile',       'route' => 'site.borrower.profile',       'icon' => 'user'],
 ];
+
+$borrowerCustomer = auth()->user()?->customer;
+$unreadNotifications = $borrowerCustomer
+    ? \App\Models\NotificationLog::where('customer_id', $borrowerCustomer->id)->whereNull('read_at')->count()
+    : 0;
 
 $icon = function (string $name) {
     return match ($name) {
@@ -80,6 +86,12 @@ $icon = function (string $name) {
 
         {{-- Topbar (desktop) --}}
         <header class="hidden lg:flex sticky top-0 z-20 bg-white border-b border-gray-200 items-center justify-end gap-4 px-8 h-16">
+            <a href="{{ route('site.borrower.notifications') }}" class="relative p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900" title="Notifications">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $icon('bell') !!}</svg>
+                @if ($unreadNotifications > 0)
+                    <span class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $unreadNotifications > 9 ? '9+' : $unreadNotifications }}</span>
+                @endif
+            </a>
             <div class="text-right leading-tight">
                 <p class="text-sm font-semibold text-gray-900">{{ Auth::user()->name }}</p>
                 <p class="text-xs text-gray-500">{{ Auth::user()->email }}</p>
@@ -101,6 +113,12 @@ $icon = function (string $name) {
                 <span class="font-bold">Kopafasta</span>
             </a>
             <div class="flex items-center gap-1">
+                <a href="{{ route('site.borrower.notifications') }}" class="relative p-2 text-gray-600 hover:text-gray-900" title="Notifications">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $icon('bell') !!}</svg>
+                    @if ($unreadNotifications > 0)
+                        <span class="absolute top-1 right-1 min-w-[1rem] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $unreadNotifications > 9 ? '9+' : $unreadNotifications }}</span>
+                    @endif
+                </a>
                 <form method="POST" action="{{ route('site.logout') }}">
                     @csrf
                     <button class="p-2 text-gray-600 hover:text-red-600" title="Sign out">
