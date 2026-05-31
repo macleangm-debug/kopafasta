@@ -26,9 +26,9 @@
             <a href="{{ asset('storage/'.$nidaPhotoPath) }}" target="_blank">
                 <img src="{{ asset('storage/'.$nidaPhotoPath) }}" alt="NIDA photo" class="max-h-72 rounded-lg object-cover ring-1 ring-gray-200">
             </a>
-            <p class="text-xs text-gray-500 mt-2">Compare live captures above with this NIDA database photo.</p>
+            <p class="text-xs text-gray-500 mt-2">Compare live captures with this NIDA database photo.</p>
         @else
-            <p class="text-sm text-gray-500">NIDA photo not available from CRB response. Compare live photos with the NIDA holding capture and verified identity details.</p>
+            <p class="text-sm text-gray-500">NIDA photo not available yet. Compare live photos with the NIDA holding capture and verified identity details.</p>
         @endif
     </div>
 
@@ -56,20 +56,34 @@
     </div>
 
     @if ($customer->face_verification_status === 'pending')
-        <div class="flex flex-wrap gap-3">
+        <div class="flex flex-wrap gap-3" x-data="{ rejectOpen: false }">
             <form method="POST" action="{{ route('admin.face-verifications.approve', $customer) }}">
                 @csrf
                 <button class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm px-5 py-2.5 rounded-lg">Approve face verification</button>
             </form>
 
-            <form method="POST" action="{{ route('admin.face-verifications.reject', $customer) }}" class="flex flex-wrap items-end gap-3">
-                @csrf
-                <div>
-                    <label class="block text-xs text-gray-600 mb-1">Rejection notes (shown to borrower)</label>
-                    <input name="notes" required maxlength="500" class="rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm w-80" placeholder="e.g. NIDA not visible in holding photo">
+            <button type="button" @click="rejectOpen = true" class="bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-5 py-2.5 rounded-lg">
+                Reject face verification
+            </button>
+
+            <div x-show="rejectOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-black/40" @click="rejectOpen = false"></div>
+                <div class="relative bg-white rounded-xl shadow-xl ring-1 ring-gray-200 w-full max-w-md p-6">
+                    <h3 class="text-lg font-semibold text-gray-900">Reject face verification</h3>
+                    <p class="text-sm text-gray-600 mt-1">The borrower will receive your reason by SMS.</p>
+                    <form method="POST" action="{{ route('admin.face-verifications.reject', $customer) }}" class="mt-4 space-y-4">
+                        @csrf
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">Rejection reason</label>
+                            <textarea name="notes" required maxlength="500" rows="4" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm" placeholder="e.g. NIDA not visible in holding photo"></textarea>
+                        </div>
+                        <div class="flex justify-end gap-2">
+                            <button type="button" @click="rejectOpen = false" class="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-900">Cancel</button>
+                            <button class="bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-5 py-2.5 rounded-lg">Confirm rejection</button>
+                        </div>
+                    </form>
                 </div>
-                <button class="bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-5 py-2.5 rounded-lg">Reject</button>
-            </form>
+            </div>
         </div>
     @endif
 </x-admin.layout>

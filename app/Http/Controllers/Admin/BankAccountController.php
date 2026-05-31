@@ -34,7 +34,17 @@ class BankAccountController extends ResourceController
     {
         return [
             'glAccounts' => ChartOfAccount::where('type', 'asset')->orderBy('code')->pluck('name', 'id'),
-            'purposes'   => ['operating'=>'Operating','disbursement'=>'Disbursement','collection'=>'Collection','reserve'=>'Reserve','escrow'=>'Escrow'],
+            'purposes'   => [
+                'operating'           => 'Operating',
+                'disbursement'        => 'Disbursement',
+                'collection'          => 'Collection',
+                'reserve'             => 'Reserve',
+                'escrow'              => 'Escrow',
+                'registration_fee'    => 'Registration fee',
+                'application_fee'     => 'Application fee',
+                'post_approval_fee'   => 'Post-approval fee',
+                'penalty'             => 'Penalty',
+            ],
         ];
     }
 

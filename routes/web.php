@@ -133,10 +133,15 @@ Route::name('site.')->group(function () {
             Route::get('/borrower/kyc-reconfirm',                  [\App\Http\Controllers\Site\BorrowerController::class, 'kycReconfirm'])->name('borrower.kyc-reconfirm');
             Route::put('/borrower/kyc-reconfirm',                  [\App\Http\Controllers\Site\BorrowerController::class, 'updateKycReconfirm'])->name('borrower.kyc-reconfirm.update');
             Route::get('/borrower/notifications',                  [\App\Http\Controllers\Site\BorrowerController::class, 'notifications'])->name('borrower.notifications');
+            Route::get('/borrower/notifications/preview',          [\App\Http\Controllers\Site\BorrowerController::class, 'notificationPreview'])->name('borrower.notifications.preview');
             Route::post('/borrower/notifications/read',            [\App\Http\Controllers\Site\BorrowerController::class, 'markNotificationsRead'])->name('borrower.notifications.read');
+            Route::post('/borrower/notifications/{notification}/read', [\App\Http\Controllers\Site\BorrowerController::class, 'markNotificationRead'])->name('borrower.notifications.item.read');
+            Route::delete('/borrower/notifications/{notification}', [\App\Http\Controllers\Site\BorrowerController::class, 'clearNotification'])->name('borrower.notifications.item.clear');
+            Route::post('/borrower/notifications/clear-all',       [\App\Http\Controllers\Site\BorrowerController::class, 'clearAllNotifications'])->name('borrower.notifications.clear-all');
             Route::get('/borrower/profile/{section?}',             [\App\Http\Controllers\Site\BorrowerController::class, 'profile'])->name('borrower.profile')->where('section', 'personal|activity|residence|kyc|security');
             Route::put('/borrower/profile/{section}',              [\App\Http\Controllers\Site\BorrowerController::class, 'updateProfile'])->name('borrower.profile.update')->where('section', 'personal|activity|residence');
             Route::post('/borrower/profile/nida/verify',           [\App\Http\Controllers\Site\BorrowerController::class, 'verifyNida'])->name('borrower.profile.nida.verify');
+            Route::post('/borrower/profile/nida/accept-names',    [\App\Http\Controllers\Site\BorrowerController::class, 'acceptNidaNames'])->name('borrower.profile.nida.accept-names');
             Route::post('/borrower/profile/nida/confirm',          [\App\Http\Controllers\Site\BorrowerController::class, 'confirmNidaCandidate'])->name('borrower.profile.nida.confirm');
             Route::put('/borrower/profile/security/pin',           [\App\Http\Controllers\Site\BorrowerController::class, 'updatePin'])->name('borrower.profile.pin.update');
             Route::delete('/borrower/profile/security/devices/{trustedDevice}', [\App\Http\Controllers\Site\BorrowerController::class, 'revokeTrustedDevice'])->name('borrower.profile.devices.revoke');
@@ -359,6 +364,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/kyc',              [SettingsController::class, 'saveKyc'])       ->name('settings.kyc.save');
         Route::get('settings/loan-rules',       [SettingsController::class, 'loanRules'])     ->name('settings.loan-rules');
         Route::put('settings/loan-rules',       [SettingsController::class, 'saveLoanRules']) ->name('settings.loan-rules.save');
+        Route::get('settings/loan-products',    [SettingsController::class, 'loanProducts']) ->name('settings.loan-products');
         Route::get('settings/membership',       [SettingsController::class, 'membership'])    ->name('settings.membership');
         Route::put('settings/membership',       [SettingsController::class, 'saveMembership'])->name('settings.membership.save');
         Route::get('settings/aml',              [SettingsController::class, 'amlSettings'])   ->name('settings.aml');

@@ -17,8 +17,8 @@ class LoanProductRequirementSeeder extends Seeder
         $baseline = [
             ['name' => 'National ID (front)',  'description' => 'Clear photo of the front side of your ID.'],
             ['name' => 'National ID (back)',   'description' => 'Clear photo of the back side of your ID.'],
-            ['name' => 'Selfie with ID',       'description' => 'Selfie holding your National ID next to your face.'],
             ['name' => 'Passport photo',       'description' => 'Recent passport-size photo, plain background.'],
+            ['name' => 'Income verification',  'description' => 'Bank statement OR mobile money statement (6 months).'],
         ];
 
         // Code-prefix or substring -> extra requirements
@@ -54,7 +54,11 @@ class LoanProductRequirementSeeder extends Seeder
             ],
             'AB'  => [
                 ['name' => 'Collateral ownership doc',  'description' => 'Logbook / title deed of the asset offered as collateral.'],
-                ['name' => 'Asset photos',              'description' => 'Photos of the asset offered as collateral.'],
+                ['name' => 'Vehicle photos (multiple)', 'description' => 'Clear photos of the vehicle from front, rear, sides and interior.'],
+                ['name' => 'Applicant with vehicle',    'description' => 'Photo of you standing beside the vehicle.'],
+                ['name' => 'Proof of ownership',        'description' => 'Registration card or ownership transfer document.'],
+                ['name' => 'Comprehensive insurance',   'description' => 'Valid comprehensive insurance cover certificate.'],
+                ['name' => 'Valuation report',          'description' => 'Recent valuation report from an approved valuer.'],
             ],
             'AL'  => [
                 ['name' => 'Collateral ownership doc',  'description' => 'Logbook / title deed of the asset offered as collateral.'],
@@ -71,6 +75,9 @@ class LoanProductRequirementSeeder extends Seeder
             'GL'  => [
                 ['name' => 'Group constitution',        'description' => 'Group bylaws / constitution document.'],
                 ['name' => 'Group member roster',       'description' => 'List of all group members with IDs.'],
+            ],
+            'FC'  => [
+                ['name' => 'Workshop / craft proof',    'description' => 'Photo of workshop, tools or recent work.'],
             ],
             'IL'  => [
                 ['name' => 'Source of income proof',    'description' => 'Any document showing how you earn money.'],

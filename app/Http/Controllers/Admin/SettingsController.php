@@ -37,7 +37,14 @@ class SettingsController extends Controller
             'currency'    => ['required', 'string', 'size:3'],
             'timezone'    => ['required', 'string', 'max:50'],
             'fiscal_year_start' => ['nullable', 'string', 'max:5'],   // MM-DD
+            'signatory_name'    => ['nullable', 'string', 'max:120'],
+            'signatory_title'   => ['nullable', 'string', 'max:120'],
+            'signature_path'    => ['nullable', 'string', 'max:255'],
         ]);
+
+        if ($request->hasFile('signature_image')) {
+            $data['signature_path'] = $request->file('signature_image')->store('company', 'public');
+        }
 
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["company.$k" => $v])->all());
         return back()->with('status', 'Company profile saved.');
@@ -116,6 +123,11 @@ class SettingsController extends Controller
         return view('admin.settings.loan-rules', [
             'values' => Setting::group('loan'),
         ]);
+    }
+
+    public function loanProducts()
+    {
+        return redirect()->route('admin.loan-products.index');
     }
 
     public function saveLoanRules(Request $request)

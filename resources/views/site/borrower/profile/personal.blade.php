@@ -6,21 +6,17 @@
 
         @include('site.borrower.profile._tabs', ['active' => 'personal'])
 
-        @if (session('status'))
-            <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
-        @endif
-        @if (session('error'))
-            <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ session('error') }}</div>
-        @endif
-
         @php
             $locked = (bool) $customer->identity_locked;
             $nidaStatus = $customer->nida_verification_status ?? 'unverified';
+            $nidaResult = session('nida_result');
+            $nameMismatch = app(\App\Services\NidaVerificationService::class)->nameMismatch($customer);
             $nidaBadge = match ($nidaStatus) {
-                'verified'  => ['Verified via CRB', 'bg-emerald-100 text-emerald-800'],
-                'multihit'  => ['Select match', 'bg-sky-100 text-sky-800'],
-                'failed'    => ['Verification failed', 'bg-red-100 text-red-800'],
-                default     => ['Not verified', 'bg-amber-100 text-amber-800'],
+                'verified'       => ['Identity verified', 'bg-emerald-100 text-emerald-800'],
+                'name_mismatch'  => ['Name mismatch', 'bg-amber-100 text-amber-800'],
+                'multihit'       => ['Select match', 'bg-sky-100 text-sky-800'],
+                'failed'         => ['Verification failed', 'bg-red-100 text-red-800'],
+                default          => ['Not verified', 'bg-amber-100 text-amber-800'],
             };
             $crbCandidates = session('crb_candidates') ?? ($kyc->payload['crb_candidates'] ?? []);
             $searchRequestId = $kyc->payload['crb_search_request_id'] ?? null;
@@ -28,19 +24,75 @@
             $editable = 'w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2 text-sm';
         @endphp
 
-        <div class="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
+        {{-- NIDA verification card --}}
+        <div class="bg-white rounded-2xl border border-gray-200 p-6 mb-6" x-data="{ submitting: false }">
             <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
                 <div>
-                    <h2 class="font-semibold">NIDA verification</h2>
-                    <p class="text-sm text-gray-600 mt-1">We verify your NIDA number through the Tanzania Credit Bureau (D&amp;B Live Request).</p>
+                    <h2 class="font-semibold">Identity verification</h2>
+                    <p class="text-sm text-gray-600 mt-1">Verify your NIDA number to confirm your legal identity.</p>
                 </div>
                 <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $nidaBadge[1] }}">{{ $nidaBadge[0] }}</span>
             </div>
 
+            @if ($nidaResult)
+                @php $resultStatus = $nidaResult['status'] ?? 'failed'; @endphp
+                <div class="mb-4 rounded-xl px-4 py-4 text-sm ring-1
+                    {{ $resultStatus === 'verified' ? 'bg-emerald-50 ring-emerald-200 text-emerald-900' : '' }}
+                    {{ $resultStatus === 'name_mismatch' ? 'bg-amber-50 ring-amber-200 text-amber-900' : '' }}
+                    {{ in_array($resultStatus, ['failed', 'multihit'], true) ? 'bg-red-50 ring-red-200 text-red-900' : '' }}
+                    {{ $resultStatus === 'in_progress' ? 'bg-sky-50 ring-sky-200 text-sky-900' : '' }}">
+                    @if ($resultStatus === 'verified')
+                        <p class="font-semibold">Verification successful</p>
+                        <p class="mt-1">Your identity has been confirmed. Name, date of birth and gender are now locked.</p>
+                    @elseif ($resultStatus === 'name_mismatch')
+                        <p class="font-semibold">Name mismatch detected</p>
+                        <p class="mt-1">Your registration name does not match NIDA records. Review the differences below.</p>
+                    @elseif ($resultStatus === 'multihit')
+                        <p class="font-semibold">Multiple records found</p>
+                        <p class="mt-1">{{ $nidaResult['message'] ?? 'Select the record that matches you.' }}</p>
+                    @else
+                        <p class="font-semibold">Verification could not be completed</p>
+                        <p class="mt-1">{{ $nidaResult['message'] ?? 'Check your NIDA number and try again.' }}</p>
+                    @endif
+                </div>
+            @endif
+
+            @if ($nameMismatch)
+                <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 p-4">
+                    <p class="text-sm font-semibold text-amber-900">Registration name vs NIDA name</p>
+                    <div class="mt-3 overflow-x-auto">
+                        <table class="w-full text-xs">
+                            <thead>
+                                <tr class="text-left text-amber-800">
+                                    <th class="pb-2 pr-4">Field</th>
+                                    <th class="pb-2 pr-4">Your registration</th>
+                                    <th class="pb-2">NIDA record</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($nameMismatch['mismatches'] ?? [] as $row)
+                                    <tr class="border-t border-amber-200/60">
+                                        <td class="py-2 pr-4 font-medium">{{ $row['label'] }}</td>
+                                        <td class="py-2 pr-4 text-red-700 font-semibold">{{ $row['registered'] }}</td>
+                                        <td class="py-2 text-emerald-800 font-semibold">{{ $row['verified'] }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    <form method="POST" action="{{ route('site.borrower.profile.nida.accept-names') }}" class="mt-4">
+                        @csrf
+                        <button class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
+                            Use verified NIDA names
+                        </button>
+                    </form>
+                </div>
+            @endif
+
             @if (! $locked && ($crbUsesStub ?? false) && ! empty($crbSamples))
                 <div class="mb-4 rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-sm text-sky-900">
                     <p class="font-semibold">Sandbox test NIDA samples</p>
-                    <p class="text-xs text-sky-800 mt-1">Stub mode is on — use these numbers to test CRB flows without live bureau credentials.</p>
+                    <p class="text-xs text-sky-800 mt-1">Stub mode is on — use these numbers to test without live bureau credentials.</p>
                     <ul class="mt-3 space-y-2 text-xs">
                         @foreach ($crbSamples as $key => $sample)
                             <li class="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -52,8 +104,9 @@
                 </div>
             @endif
 
-            @if (! $locked)
-                <form method="POST" action="{{ route('site.borrower.profile.nida.verify') }}" class="space-y-4">
+            @if (! $locked && $nidaStatus !== 'name_mismatch')
+                <form method="POST" action="{{ route('site.borrower.profile.nida.verify') }}" class="space-y-4"
+                      @submit="submitting = true">
                     @csrf
                     <div>
                         <label class="block text-xs text-gray-600 mb-1">NIDA number</label>
@@ -62,21 +115,26 @@
                                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm font-mono">
                         @error('national_id')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                     </div>
-                    <button class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
-                        Verify with CRB
+                    <button type="submit" :disabled="submitting"
+                            class="inline-flex items-center gap-2 bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
+                        <svg x-show="submitting" x-cloak class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                        <span x-text="submitting ? 'Verifying identity…' : 'Verify identity'"></span>
                     </button>
                 </form>
-            @else
+            @elseif ($locked)
                 <div class="rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900">
                     <p class="font-medium">Identity verified</p>
                     <p class="mt-1 font-mono">{{ $customer->national_id }}</p>
-                    <p class="text-xs text-emerald-800 mt-2">Name, date of birth and gender are locked after CRB verification.</p>
+                    <p class="text-xs text-emerald-800 mt-2">Name, date of birth and gender are locked after verification.</p>
                 </div>
             @endif
 
             @if ($nidaStatus === 'multihit' && count($crbCandidates) > 0 && $searchRequestId)
                 <div class="mt-6 border-t border-gray-100 pt-5">
-                    <h3 class="text-sm font-semibold mb-3">Multiple CRB matches — select your record</h3>
+                    <h3 class="text-sm font-semibold mb-3">Multiple matches — select your record</h3>
                     <div class="space-y-3">
                         @foreach ($crbCandidates as $candidate)
                             <form method="POST" action="{{ route('site.borrower.profile.nida.confirm') }}" class="rounded-xl ring-1 ring-gray-200 p-4 flex flex-wrap items-center justify-between gap-3">

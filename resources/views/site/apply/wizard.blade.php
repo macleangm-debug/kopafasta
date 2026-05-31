@@ -79,6 +79,32 @@
                             @endforeach
                         </select>
                     </div>
+
+                    @php $productQuestions = config('loan_product_questions', []); @endphp
+                    @foreach ($productQuestions as $code => $block)
+                        <div class="mt-6 rounded-xl border border-gray-200 p-5" x-show="current && current.code === @js($code)" x-cloak>
+                            <h3 class="text-sm font-semibold text-gray-900 mb-4">{{ $block['title'] ?? 'Additional details' }}</h3>
+                            <div class="grid sm:grid-cols-2 gap-4">
+                                @foreach ($block['fields'] as $field)
+                                    <div class="{{ ($field['type'] ?? 'text') === 'textarea' ? 'sm:col-span-2' : '' }}">
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ $field['label'] }}</label>
+                                        @if (($field['type'] ?? 'text') === 'select')
+                                            <select name="product_question[{{ $field['key'] }}]" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                                <option value="">Select</option>
+                                                @foreach ($field['options'] ?? [] as $value => $label)
+                                                    <option value="{{ $value }}">{{ $label }}</option>
+                                                @endforeach
+                                            </select>
+                                        @elseif (($field['type'] ?? 'text') === 'textarea')
+                                            <textarea name="product_question[{{ $field['key'] }}]" rows="3" placeholder="{{ $field['placeholder'] ?? '' }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></textarea>
+                                        @else
+                                            <input type="text" name="product_question[{{ $field['key'] }}]" placeholder="{{ $field['placeholder'] ?? '' }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endforeach
                 </div>
 
                 {{-- STEP 2: Personal --}}

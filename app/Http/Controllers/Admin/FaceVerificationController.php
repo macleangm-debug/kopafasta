@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Services\FaceVerificationService;
+use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -37,13 +38,22 @@ class FaceVerificationController extends Controller
         return view('admin.face-verifications.show', compact('customer', 'photos', 'progress', 'nidaPhotoPath'));
     }
 
-    public function approve(Customer $customer, FaceVerificationService $faces): RedirectResponse
+    public function approve(Customer $customer, FaceVerificationService $faces, NotificationService $notify): RedirectResponse
     {
         if ($customer->face_verification_status !== 'pending') {
             return back()->with('error', 'This customer is not awaiting face verification review.');
         }
 
         $faces->approve($customer, auth()->user());
+
+        if ($customer->phone) {
+            $notify->sendSms(
+                $customer->phone,
+                'Your face verification has been approved. You can now continue with loan applications on Kopafasta.',
+                $customer,
+                'face_verification_approved',
+            );
+        }
 
         $name = trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
 
@@ -52,7 +62,7 @@ class FaceVerificationController extends Controller
             ->with('status', "Face verification approved for {$name}.");
     }
 
-    public function reject(Request $request, Customer $customer, FaceVerificationService $faces): RedirectResponse
+    public function reject(Request $request, Customer $customer, FaceVerificationService $faces, NotificationService $notify): RedirectResponse
     {
         $data = $request->validate([
             'notes' => ['required', 'string', 'max:500'],
@@ -63,6 +73,15 @@ class FaceVerificationController extends Controller
         }
 
         $faces->reject($customer, auth()->user(), $data['notes']);
+
+        if ($customer->phone) {
+            $notify->sendSms(
+                $customer->phone,
+                'Your face verification was not approved. Reason: '.$data['notes'].'. Please recapture your photos in the borrower portal.',
+                $customer,
+                'face_verification_rejected',
+            );
+        }
 
         return redirect()
             ->route('admin.face-verifications.index')

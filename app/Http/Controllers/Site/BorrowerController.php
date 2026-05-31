@@ -275,7 +275,18 @@ class BorrowerController extends Controller
     {
         $customer = $this->customer();
         $loans = Loan::with('product')->where('customer_id', $customer->id)->latest()->get();
-        return view('site.borrower.loans', compact('customer', 'loans'));
+
+        $guaranteedLinks = CustomerGuarantor::query()
+            ->with(['application.product', 'application.customer', 'application.loan'])
+            ->where('status', 'approved')
+            ->whereIn('id', \App\Models\GuarantorInvitation::query()
+                ->where('guarantor_customer_id', $customer->id)
+                ->whereIn('status', ['accepted', 'approved'])
+                ->pluck('customer_guarantor_id'))
+            ->latest()
+            ->get();
+
+        return view('site.borrower.loans', compact('customer', 'loans', 'guaranteedLinks'));
     }
 
     /* ---------------------------------------------------------------------
@@ -513,11 +524,54 @@ class BorrowerController extends Controller
         $items = NotificationLog::where('customer_id', $customer->id)
             ->latest()->paginate(20);
 
-        NotificationLog::where('customer_id', $customer->id)
-            ->whereNull('read_at')
-            ->update(['read_at' => now()]);
-
         return view('site.borrower.notifications', compact('customer','items'));
+    }
+
+    public function notificationPreview(): \Illuminate\Http\JsonResponse
+    {
+        $customer = $this->customer();
+        $items = NotificationLog::where('customer_id', $customer->id)
+            ->latest()
+            ->limit(8)
+            ->get()
+            ->map(fn (NotificationLog $n) => [
+                'id'       => $n->id,
+                'message'  => $n->message ?: $n->template,
+                'category' => $n->category ?: 'general',
+                'read'     => (bool) $n->read_at,
+                'when'     => $n->created_at?->diffForHumans(),
+            ]);
+
+        return response()->json([
+            'unread' => NotificationLog::where('customer_id', $customer->id)->whereNull('read_at')->count(),
+            'items'  => $items,
+        ]);
+    }
+
+    public function markNotificationRead(NotificationLog $notification): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_unless($notification->customer_id === $customer->id, 404);
+        $notification->update(['read_at' => now()]);
+
+        return back();
+    }
+
+    public function clearNotification(NotificationLog $notification): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_unless($notification->customer_id === $customer->id, 404);
+        $notification->delete();
+
+        return back()->with('status', 'Notification removed.');
+    }
+
+    public function clearAllNotifications(): RedirectResponse
+    {
+        $customer = $this->customer();
+        NotificationLog::where('customer_id', $customer->id)->delete();
+
+        return back()->with('status', 'All notifications cleared.');
     }
 
     public function markNotificationsRead(): RedirectResponse
@@ -641,19 +695,40 @@ class BorrowerController extends Controller
         if ($result->success) {
             return redirect()
                 ->route('site.borrower.profile', ['section' => 'personal'])
-                ->with('status', 'NIDA verified successfully. Your name and date of birth were confirmed via the credit bureau.');
+                ->with('nida_result', ['status' => 'verified']);
+        }
+
+        if ($result->status === 'name_mismatch') {
+            return redirect()
+                ->route('site.borrower.profile', ['section' => 'personal'])
+                ->with('nida_result', ['status' => 'name_mismatch']);
         }
 
         if ($result->isMultihit()) {
             return redirect()
                 ->route('site.borrower.profile', ['section' => 'personal'])
-                ->with('error', $result->message)
+                ->with('nida_result', ['status' => 'multihit', 'message' => $result->message])
                 ->with('crb_candidates', $result->candidates);
         }
 
         return redirect()
             ->route('site.borrower.profile', ['section' => 'personal'])
-            ->with('error', $result->message ?? 'NIDA verification failed. Please check your number and try again.');
+            ->with('nida_result', ['status' => 'failed', 'message' => $result->message ?? 'NIDA verification failed. Please check your number and try again.']);
+    }
+
+    public function acceptNidaNames(NidaVerificationService $nida): RedirectResponse
+    {
+        $customer = $this->customer();
+
+        if (! $nida->acceptVerifiedNames($customer)) {
+            return redirect()
+                ->route('site.borrower.profile', ['section' => 'personal'])
+                ->with('nida_result', ['status' => 'failed', 'message' => 'Unable to apply verified names.']);
+        }
+
+        return redirect()
+            ->route('site.borrower.profile', ['section' => 'personal'])
+            ->with('nida_result', ['status' => 'verified']);
     }
 
     public function confirmNidaCandidate(Request $request, NidaVerificationService $nida): RedirectResponse
@@ -676,12 +751,18 @@ class BorrowerController extends Controller
         if ($result->success) {
             return redirect()
                 ->route('site.borrower.profile', ['section' => 'personal'])
-                ->with('status', 'Identity confirmed and profile updated from CRB records.');
+                ->with('nida_result', ['status' => 'verified']);
+        }
+
+        if ($result->status === 'name_mismatch') {
+            return redirect()
+                ->route('site.borrower.profile', ['section' => 'personal'])
+                ->with('nida_result', ['status' => 'name_mismatch']);
         }
 
         return redirect()
             ->route('site.borrower.profile', ['section' => 'personal'])
-            ->with('error', $result->message ?? 'Could not confirm the selected CRB match.');
+            ->with('nida_result', ['status' => 'failed', 'message' => $result->message ?? 'Could not confirm the selected match.']);
     }
 
     public function faceVerification(FaceVerificationService $faces): View

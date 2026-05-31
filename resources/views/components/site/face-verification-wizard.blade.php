@@ -110,7 +110,22 @@
         </div>
     </div>
 
-    {{-- All done (inline, before reload) --}}
+        {{-- Preview captured photo --}}
+        <div x-show="phase === 'preview'" x-cloak class="bg-white rounded-3xl ring-1 ring-gray-200 overflow-hidden">
+            <div class="p-4 border-b border-gray-100">
+                <p class="text-sm font-semibold">Review your photo</p>
+                <p class="text-xs text-gray-500 mt-0.5" x-text="currentStep?.instruction"></p>
+            </div>
+            <img :src="previewUrl" alt="Captured preview" class="w-full max-h-[420px] object-cover bg-black">
+            <div class="p-4 flex gap-3">
+                <button type="button" @click="retakePreview()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold px-4 py-3 rounded-2xl text-sm">Retake</button>
+                <button type="button" @click="confirmPreview()" :disabled="isUploading" class="flex-1 bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white font-semibold px-4 py-3 rounded-2xl text-sm">
+                    <span x-text="isUploading ? 'Saving…' : 'Use this photo'"></span>
+                </button>
+            </div>
+        </div>
+
+        {{-- All done (inline, before reload) --}}
     <div x-show="phase === 'done'" x-cloak class="text-center bg-white rounded-3xl ring-1 ring-gray-200 p-10">
         <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-100 flex items-center justify-center">
             <svg class="w-8 h-8 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
@@ -156,6 +171,8 @@
                     headOffset: 0,
                     lastTick: null,
                     isUploading: false,
+                    previewUrl: null,
+                    previewBlob: null,
                     scanStartedAt: null,
                     stepStartedAt: null,
                     simpleMode: false,
@@ -350,7 +367,7 @@
                                 const elapsed = now - (this.stepStartedAt || now);
                                 this.holdProgress = Math.min(100, (elapsed / 2200) * 100);
                                 if (this.holdProgress >= 100 && !this.isUploading) {
-                                    this.autoCapture();
+                                    this.captureForPreview();
                                 }
                                 return;
                             }
@@ -409,7 +426,7 @@
                             }
 
                             if (this.holdProgress >= 100 && !this.isUploading) {
-                                this.autoCapture();
+                                this.captureForPreview();
                             }
                         };
 
@@ -489,7 +506,33 @@
                     manualCapture() {
                         if (this.isUploading || this.phase !== 'scanning') return;
                         this.holdProgress = 100;
-                        this.autoCapture();
+                        this.captureForPreview();
+                    },
+
+                    async captureForPreview() {
+                        if (this.isUploading) return;
+                        const blob = await this.captureBlob();
+                        if (!blob) return;
+                        if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
+                        this.previewBlob = blob;
+                        this.previewUrl = URL.createObjectURL(blob);
+                        this.stopLoop();
+                        this.phase = 'preview';
+                    },
+
+                    retakePreview() {
+                        if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
+                        this.previewUrl = null;
+                        this.previewBlob = null;
+                        this.holdProgress = 0;
+                        this.phase = 'scanning';
+                        this.stepStartedAt = performance.now();
+                        this.startLoop();
+                    },
+
+                    async confirmPreview() {
+                        if (!this.previewBlob || this.isUploading) return;
+                        await this.uploadBlob(this.previewBlob);
                     },
 
                     captureBlob() {
@@ -507,12 +550,15 @@
                     },
 
                     async autoCapture() {
+                        await this.captureForPreview();
+                    },
+
+                    async uploadBlob(blob) {
                         if (this.isUploading) return;
                         this.isUploading = true;
                         this.phase = 'saving';
 
                         const step = this.currentStep;
-                        const blob = await this.captureBlob();
                         if (!blob || !step) {
                             this.isUploading = false;
                             this.phase = 'scanning';
@@ -539,6 +585,10 @@
                                 throw new Error(data.message || 'Upload failed');
                             }
 
+                            if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
+                            this.previewUrl = null;
+                            this.previewBlob = null;
+
                             step.done = true;
                             this.holdProgress = 0;
                             this.poseOk = false;
@@ -562,6 +612,7 @@
                                 this.phase = 'done';
                             } else {
                                 this.phase = 'scanning';
+                                this.startLoop();
                             }
                         } catch (e) {
                             this.notice = e.message || 'Upload failed. Please try again.';

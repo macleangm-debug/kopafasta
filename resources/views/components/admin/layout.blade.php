@@ -40,9 +40,8 @@
                 ['Customers', 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-5a4 4 0 11-8 0 4 4 0 018 0z', [
                     ['All Customers', 'admin.customers.index'],
                     ['Membership Payments', 'admin.membership-payments.index'],
-                    ['KYC',           'admin.customer-kycs.index'],
+                    ['Identity & KYC', 'admin.customer-kycs.index'],
                     ['Face verification', 'admin.face-verifications.index'],
-                    ['Guarantors',    'admin.guarantors.index'],
                 ]],
                 ['Loans', 'M3 10h18M3 14h18M5 6h14M5 18h14', [
                     ['All Loans',     'admin.loans.index'],
@@ -54,13 +53,10 @@
                     ['Closed Loans',  'admin.loans.closed'],
                 ]],
                 ['Loan Products', 'M20 7L12 3 4 7m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', [
-                    ['Products',           'admin.loan-products.index'],
-                    ['Interest & Fees',    'admin.loan-products.interest-fees'],
-                    ['Required Documents', 'admin.loan-products.documents'],
-                    ['Approval Rules',     'admin.loan-products.approval-rules'],
+                    ['Loan Product Configuration', 'admin.settings.loan-products'],
                 ]],
-                ['Vendors', 'M3 7h18M3 12h18M3 17h18', [
-                    ['All Vendors',         'admin.vendors.index'],
+                ['Partners', 'M3 7h18M3 12h18M3 17h18', [
+                    ['All Partners',         'admin.vendors.index'],
                     ['Vendor Applications', 'admin.vendors.applications'],
                     ['GPS Installers',      'admin.vendors.gps-installers'],
                     ['Insurance Providers', 'admin.vendors.insurance-providers'],
@@ -68,7 +64,7 @@
                     ['Vendor Tasks',        'admin.vendors.tasks'],
                 ]],
                 ['Capital', 'M19 7H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2zM3 11h18', [
-                    ['Lenders',            'admin.lenders.index'],
+                    ['Capital Partners',     'admin.lenders.index'],
                     ['Funding Pools',      'admin.funding-pools.index'],
                     ['Lender Investments', 'admin.lender-investments.index'],
                 ]],
@@ -188,6 +184,26 @@
                 @endisset
             </div>
             <div class="flex items-center gap-3">
+                @php $adminAlerts = app(\App\Services\AdminAlertService::class); $adminAlertItems = $adminAlerts->alerts(); @endphp
+                <div x-data="{ open: false }" class="relative">
+                    <button type="button" @click="open = !open" @click.outside="open = false" class="relative p-2 rounded-lg text-gray-600 hover:bg-gray-100">
+                        <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9z"/></svg>
+                        @if ($adminAlerts->unreadCount() > 0)
+                            <span class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $adminAlerts->unreadCount() > 9 ? '9+' : $adminAlerts->unreadCount() }}</span>
+                        @endif
+                    </button>
+                    <div x-show="open" x-cloak class="absolute right-0 mt-2 w-96 rounded-xl bg-white shadow-xl ring-1 ring-gray-200 overflow-hidden z-50">
+                        <div class="px-4 py-3 border-b border-gray-100"><p class="text-sm font-semibold">Admin alerts</p></div>
+                        @forelse ($adminAlertItems as $alert)
+                            <a href="{{ $alert['url'] }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-50">
+                                <p class="text-sm text-gray-800">{{ $alert['label'] }}</p>
+                                <p class="text-xs text-amber-700 font-semibold mt-0.5">{{ $alert['count'] }} pending</p>
+                            </a>
+                        @empty
+                            <p class="px-4 py-8 text-sm text-gray-500 text-center">No pending alerts.</p>
+                        @endforelse
+                    </div>
+                </div>
                 {{-- Profile dropdown --}}
                 <div x-data="{ open: false }" class="relative">
                     <button type="button"

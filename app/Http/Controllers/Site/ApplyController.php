@@ -137,6 +137,7 @@ class ApplyController extends Controller
             'signer_name'             => ['required', 'string', 'max:120'],
             'signature_data'          => ['required', 'string', 'starts_with:data:image/png;base64,'],
             'consent'                 => ['accepted'],
+            'product_question'        => ['nullable', 'array'],
         ]);
 
         $loanProduct = LoanProduct::where('id', $data['loan_product_id'])
@@ -218,6 +219,10 @@ class ApplyController extends Controller
             'status'                     => $status,
             'current_stage'              => $status,
             'purpose'                    => $purposeLabel,
+            'screening_payload'          => [
+                'product_code'      => $loanProduct->code,
+                'product_questions' => array_filter($data['product_question'] ?? []),
+            ],
             'registration_fee_amount'    => 0,
             'registration_fee_status'    => 'waived',
             'registration_fee_channel'   => null,

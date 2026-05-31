@@ -5,6 +5,7 @@
         'gateways'   => ['SMS / Email',     'admin.settings.gateways'],
         'kyc'        => ['KYC Rules',       'admin.settings.kyc'],
         'loan-rules' => ['Loan Rules',      'admin.settings.loan-rules'],
+        'loan-products' => ['Loan Products', 'admin.settings.loan-products'],
         'membership' => ['Membership',      'admin.settings.membership'],
         'aml'        => ['AML Thresholds',  'admin.settings.aml'],
     ];

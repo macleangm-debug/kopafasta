@@ -13,7 +13,7 @@ class PublicLoanProductsSeeder extends Seeder
             ['code' => 'IL', 'name' => 'Individual Loan',   'category' => 'individual',  'interest_rate' => 0.19,  'min_amount' => 100000,  'max_amount' => 50000000, 'tenure_min_months' => 1, 'tenure_max_months' => 36, 'description' => 'Fast personal capital for any verified individual. No collateral for small tiers.'],
             ['code' => 'GL', 'name' => 'Group Loan',        'category' => 'group',       'interest_rate' => 0.18,  'min_amount' => 50000,   'max_amount' => 10000000, 'tenure_min_months' => 1, 'tenure_max_months' => 12, 'description' => 'Borrow together with shared liability. Best for chamas and savings circles.'],
             ['code' => 'AL', 'name' => 'Asset Lending',     'category' => 'asset',       'interest_rate' => 0.155, 'min_amount' => 500000,  'max_amount' => 100000000,'tenure_min_months' => 3, 'tenure_max_months' => 60, 'description' => 'Own the asset over time. Pay monthly. Title transfers when fully paid.'],
-            ['code' => 'FC', 'name' => 'Funding Capital',   'category' => 'business',    'interest_rate' => 0.17,  'min_amount' => 50000,   'max_amount' => 5000000,  'tenure_min_months' => 1, 'tenure_max_months' => 12, 'description' => 'Working capital for artisans, fundis and skilled tradespeople.'],
+            ['code' => 'FC', 'name' => 'Artisans & Craftsmen Loan', 'category' => 'business', 'interest_rate' => 0.17,  'min_amount' => 50000,   'max_amount' => 5000000,  'tenure_min_months' => 1, 'tenure_max_months' => 12, 'description' => 'Funding capital for artisans, fundis and skilled tradespeople.'],
             ['code' => 'KB', 'name' => 'Kilimo Boost',      'category' => 'agriculture', 'interest_rate' => 0.155, 'min_amount' => 100000,  'max_amount' => 10000000, 'tenure_min_months' => 3, 'tenure_max_months' => 18, 'description' => 'Aligned to farming seasons. Grace periods supported.'],
             ['code' => 'BP', 'name' => 'Biashara Plus',     'category' => 'business',    'interest_rate' => 0.185, 'min_amount' => 500000,  'max_amount' => 50000000, 'tenure_min_months' => 3, 'tenure_max_months' => 36, 'description' => 'Scale-up capital for registered businesses with cashflow history.'],
             ['code' => 'EL', 'name' => 'Education Loan',    'category' => 'education',   'interest_rate' => 0.16,  'min_amount' => 50000,   'max_amount' => 15000000, 'tenure_min_months' => 1, 'tenure_max_months' => 24, 'description' => 'For tuition, books and education pathways. Term-aligned repayments.'],
@@ -27,7 +27,7 @@ class PublicLoanProductsSeeder extends Seeder
                 ['code' => $p['code']],
                 array_merge($p, [
                     'requires_collateral' => in_array($p['code'], ['AB', 'AL']),
-                    'requires_guarantor'  => in_array($p['code'], ['GL', 'BP']),
+                    'requires_guarantor'  => $p['code'] !== 'GL',
                     'is_active'           => true,
                 ])
             );

@@ -86,12 +86,30 @@ $icon = function (string $name) {
 
         {{-- Topbar (desktop) --}}
         <header class="hidden lg:flex sticky top-0 z-20 bg-white border-b border-gray-200 items-center justify-end gap-4 px-8 h-16">
-            <a href="{{ route('site.borrower.notifications') }}" class="relative p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900" title="Notifications">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $icon('bell') !!}</svg>
-                @if ($unreadNotifications > 0)
-                    <span class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $unreadNotifications > 9 ? '9+' : $unreadNotifications }}</span>
-                @endif
-            </a>
+            <div class="relative" x-data="notificationBell()" x-init="load()">
+                <button type="button" @click="open = !open" class="relative p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900" title="Notifications">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $icon('bell') !!}</svg>
+                    <span x-show="unread > 0" x-cloak class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center" x-text="unread > 9 ? '9+' : unread"></span>
+                </button>
+                <div x-show="open" @click.outside="open = false" x-cloak class="absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-2xl bg-white shadow-xl ring-1 ring-gray-200 overflow-hidden z-50">
+                    <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                        <p class="text-sm font-semibold">Notifications</p>
+                        <a href="{{ route('site.borrower.notifications') }}" class="text-xs font-semibold text-amber-700 hover:underline">View all</a>
+                    </div>
+                    <div class="max-h-80 overflow-y-auto">
+                        <template x-if="items.length === 0">
+                            <p class="px-4 py-8 text-sm text-gray-500 text-center">No notifications yet.</p>
+                        </template>
+                        <template x-for="item in items" :key="item.id">
+                            <div class="px-4 py-3 border-b border-gray-50 hover:bg-gray-50" :class="!item.read ? 'bg-amber-50/40' : ''">
+                                <p class="text-xs uppercase tracking-widest text-gray-400" x-text="item.category"></p>
+                                <p class="text-sm text-gray-800 mt-0.5" x-text="item.message"></p>
+                                <p class="text-[11px] text-gray-400 mt-1" x-text="item.when"></p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
             <div class="text-right leading-tight">
                 <p class="text-sm font-semibold text-gray-900">{{ Auth::user()->name }}</p>
                 <p class="text-xs text-gray-500">{{ Auth::user()->email }}</p>
@@ -181,6 +199,27 @@ $icon = function (string $name) {
 </div>
 
 @stack('scripts')
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('notificationBell', () => ({
+        open: false,
+        unread: {{ $unreadNotifications }},
+        items: [],
+        async load() {
+            try {
+                const res = await fetch(@js(route('site.borrower.notifications.preview')), {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                this.unread = data.unread ?? 0;
+                this.items = data.items ?? [];
+            } catch (e) {}
+        },
+    }));
+});
+</script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </body>
 </html>
