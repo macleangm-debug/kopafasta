@@ -126,7 +126,7 @@
                     ['Approval Limits',         'admin.approval-limits.index'],
                     ['Notification Templates',  'admin.notification-templates.index'],
                     ['Document Templates',      'admin.document-templates.index'],
-                ], ['settings.manage']],
+                ], ['settings.manage', 'users.view', 'users.manage']],
             ];
 
             $currentRoute = request()->route()?->getName();

@@ -38,6 +38,8 @@ return [
 
         // Settings
         'settings.manage'                => ['label' => 'Manage settings & roles', 'module' => 'settings'],
+        'users.view'                     => ['label' => 'View users', 'module' => 'settings'],
+        'users.manage'                   => ['label' => 'Manage users (edit, lock, deactivate)', 'module' => 'settings'],
         'audit.view'                     => ['label' => 'View audit logs', 'module' => 'settings'],
 
         // Support
@@ -55,7 +57,7 @@ return [
             'applications.pre_approve', 'applications.approve', 'applications.reject',
             'applications.disburse', 'applications.request_documents', 'applications.edit',
             'customers.view', 'customers.edit', 'kyc.review', 'membership.approve_payments',
-            'loans.view', 'loans.disburse',
+            'loans.view', 'loans.disburse', 'users.view',
         ],
         'credit_analyst' => [
             'applications.view', 'applications.review', 'applications.request_documents',

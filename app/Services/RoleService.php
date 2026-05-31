@@ -47,7 +47,7 @@ class RoleService
     /** @return list<string> */
     public function usersFilterRoles(): array
     {
-        return $this->rolesWhere('users_filter', true);
+        return array_keys($this->definitions());
     }
 
     /** @return list<string> */

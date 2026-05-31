@@ -5,9 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Models\Branch;
 use App\Models\User;
 use App\Services\RoleService;
+use App\Services\UserAccountService;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class UserController extends ResourceController
 {
@@ -16,8 +20,10 @@ class UserController extends ResourceController
     protected string $viewFolder = 'users';
     protected string $singular = 'user';
 
-    public function __construct(private RoleService $roles)
-    {
+    public function __construct(
+        private RoleService $roles,
+        private UserAccountService $accounts,
+    ) {
     }
 
     protected function rules(?Model $model = null): array
@@ -61,5 +67,103 @@ class UserController extends ResourceController
         $data['is_active'] = (bool) ($data['is_active'] ?? false);
 
         return $data;
+    }
+
+    public function create()
+    {
+        abort_unless(auth()->user()?->hasPermission('users.manage'), 403);
+
+        return parent::create();
+    }
+
+    public function store(Request $request)
+    {
+        abort_unless(auth()->user()?->hasPermission('users.manage'), 403);
+
+        return parent::store($request);
+    }
+
+    public function show($id): View
+    {
+        abort_unless(auth()->user()?->hasPermission('users.view'), 403);
+
+        $record = User::findOrFail($id);
+
+        return view("admin.{$this->viewFolder}.show", [
+            'record'   => $record,
+            'isLocked' => $this->accounts->isLocked($record),
+        ]);
+    }
+
+    public function edit($id)
+    {
+        abort_unless(auth()->user()?->hasPermission('users.manage'), 403);
+
+        return parent::edit($id);
+    }
+
+    public function update(Request $request, $id)
+    {
+        abort_unless(auth()->user()?->hasPermission('users.manage'), 403);
+
+        return parent::update($request, $id);
+    }
+
+    public function destroy($id)
+    {
+        abort_unless(auth()->user()?->hasPermission('users.manage'), 403);
+
+        return parent::destroy($id);
+    }
+
+    public function lock(Request $request, User $user): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('users.manage'), 403);
+
+        $data = $request->validate([
+            'minutes' => ['nullable', 'integer', 'min:1', 'max:43200'],
+            'reason'  => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $this->accounts->lock(
+            auth()->user(),
+            $user,
+            (int) ($data['minutes'] ?? 60),
+            $data['reason'] ?? null,
+            $request,
+        );
+
+        $user = $user->fresh();
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $user)
+            ->with('status', 'Account locked until '.$user->locked_until?->format('d M Y, H:i').'.');
+    }
+
+    public function unlock(Request $request, User $user): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('users.manage'), 403);
+
+        $this->accounts->unlock(auth()->user(), $user, $request);
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $user)
+            ->with('status', 'Account unlocked.');
+    }
+
+    public function toggleActive(Request $request, User $user): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('users.manage'), 403);
+
+        if ((int) $user->id === (int) auth()->id()) {
+            return back()->with('error', 'You cannot deactivate your own account.');
+        }
+
+        $active = ! (bool) $user->is_active;
+        $this->accounts->setActive(auth()->user(), $user, $active, $request);
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $user)
+            ->with('status', $active ? 'Account activated.' : 'Account deactivated.');
     }
 }

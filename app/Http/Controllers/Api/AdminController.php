@@ -76,42 +76,26 @@ class AdminController extends Controller
             'reason' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $minutes = $data['minutes'] ?? 60;
-        $user->forceFill(['locked_until' => now()->addMinutes($minutes)])->save();
+        $locked = app(\App\Services\UserAccountService::class)->lock(
+            $request->user(),
+            $user,
+            (int) ($data['minutes'] ?? 60),
+            $data['reason'] ?? null,
+            $request,
+        );
 
-        AuditLog::create([
-            'user_id' => $request->user()?->id,
-            'event' => 'admin.user_locked',
-            'auditable_type' => User::class,
-            'auditable_id' => $user->id,
-            'old_values' => null,
-            'new_values' => json_encode([
-                'locked_until' => $user->locked_until?->toIso8601String(),
-                'reason' => $data['reason'] ?? null,
-            ]),
-            'ip_address' => $request->ip(),
-            'user_agent' => substr((string) $request->userAgent(), 0, 1000),
-        ]);
-
-        return response()->json($user->fresh());
+        return response()->json($locked);
     }
 
     public function unlockUser(Request $request, User $user)
     {
-        $user->forceFill(['locked_until' => null])->save();
+        $unlocked = app(\App\Services\UserAccountService::class)->unlock(
+            $request->user(),
+            $user,
+            $request,
+        );
 
-        AuditLog::create([
-            'user_id' => $request->user()?->id,
-            'event' => 'admin.user_unlocked',
-            'auditable_type' => User::class,
-            'auditable_id' => $user->id,
-            'old_values' => null,
-            'new_values' => json_encode(['user_id' => $user->id]),
-            'ip_address' => $request->ip(),
-            'user_agent' => substr((string) $request->userAgent(), 0, 1000),
-        ]);
-
-        return response()->json($user->fresh());
+        return response()->json($unlocked);
     }
 
     public function securityAnomalies(Request $request)

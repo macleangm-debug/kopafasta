@@ -317,6 +317,9 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         // System
         $registerResource('branches', 'branch', BranchController::class);
         $registerResource('users',    'user',   UserController::class);
+        Route::post('users/{user}/lock', [UserController::class, 'lock'])->name('users.lock');
+        Route::post('users/{user}/unlock', [UserController::class, 'unlock'])->name('users.unlock');
+        Route::post('users/{user}/toggle-active', [UserController::class, 'toggleActive'])->name('users.toggle-active');
 
         // ========== FINANCE (extended) ==========
         $registerResource('chart-of-accounts',      'chart_of_account',      ChartOfAccountController::class);
