@@ -15,7 +15,10 @@ use App\Models\NotificationLog;
 use App\Models\Repayment;
 use App\Models\RepaymentSchedule;
 use App\Models\LoanProduct;
+use App\Models\TrustedDevice;
+use App\Rules\FourDigitPin;
 use App\Rules\MinimumAge;
+use App\Services\PinService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -462,7 +465,7 @@ class BorrowerController extends Controller
             ['status' => 'pending', 'payload' => []]
         );
 
-        $section = in_array($section, ['personal', 'activity', 'residence', 'kyc'], true)
+        $section = in_array($section, ['personal', 'activity', 'residence', 'kyc', 'security'], true)
             ? $section
             : 'personal';
 
@@ -470,10 +473,15 @@ class BorrowerController extends Controller
             'activity'  => 'site.borrower.profile.activity',
             'residence' => 'site.borrower.profile.residence',
             'kyc'       => 'site.borrower.profile.kyc',
+            'security'  => 'site.borrower.profile.security',
             default     => 'site.borrower.profile.personal',
         };
 
-        return view($view, compact('customer', 'kyc'));
+        $trustedDevices = $section === 'security'
+            ? TrustedDevice::where('user_id', auth()->id())->where('expires_at', '>', now())->latest('last_used_at')->get()
+            : collect();
+
+        return view($view, compact('customer', 'kyc', 'trustedDevices'));
     }
 
     public function updateProfile(Request $request, string $section = 'personal'): RedirectResponse
@@ -525,6 +533,40 @@ class BorrowerController extends Controller
         return redirect()
             ->route('site.borrower.profile', ['section' => $section])
             ->with('status', 'Profile updated.');
+    }
+
+    public function updatePin(Request $request, PinService $pins): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user && $user->role === 'borrower', 403);
+
+        $rules = [
+            'pin' => ['required', 'string', new FourDigitPin, 'confirmed'],
+        ];
+
+        if ($pins->hasPin($user)) {
+            $rules['current_pin'] = ['required', 'string', new FourDigitPin];
+        }
+
+        $data = $request->validate($rules);
+
+        if ($pins->hasPin($user) && ! $pins->verify($data['current_pin'], $user->pin_hash)) {
+            return back()->withErrors(['current_pin' => 'Current PIN is incorrect.']);
+        }
+
+        $pins->setPin($user, $data['pin']);
+
+        return redirect()->route('site.borrower.profile', ['section' => 'security'])
+            ->with('status', 'PIN updated successfully.');
+    }
+
+    public function revokeTrustedDevice(TrustedDevice $trustedDevice): RedirectResponse
+    {
+        abort_unless($trustedDevice->user_id === auth()->id(), 404);
+        $trustedDevice->delete();
+
+        return redirect()->route('site.borrower.profile', ['section' => 'security'])
+            ->with('status', 'Trusted device removed.');
     }
 
     /* ---------------------------------------------------------------------

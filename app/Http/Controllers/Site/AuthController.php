@@ -7,9 +7,15 @@ use App\Models\Customer;
 use App\Models\Lender;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Rules\FourDigitPin;
+use App\Services\NotificationService;
+use App\Services\PinService;
+use App\Services\TrustedDeviceService;
+use App\Services\WebLoginThrottle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -17,45 +23,280 @@ use Illuminate\View\View;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        private readonly PinService $pins,
+        private readonly WebLoginThrottle $throttle,
+        private readonly TrustedDeviceService $trustedDevices,
+    ) {}
+
     public function showLogin(): View
     {
-        return view('site.auth.login');
+        return view('site.auth.login', [
+            'defaultMethod' => 'pin',
+            'biometricEnabled' => (bool) config('auth_portal.biometric_enabled', false),
+        ]);
     }
 
     public function login(Request $request): RedirectResponse
     {
+        $method = $request->input('auth_method', 'pin');
+
+        return $method === 'password'
+            ? $this->loginWithPassword($request)
+            : $this->loginWithPin($request);
+    }
+
+    public function loginWithPin(Request $request): RedirectResponse
+    {
         $data = $request->validate([
-            'login'    => ['required', 'string'],
-            'password' => ['required', 'string'],
+            'phone'        => ['required', 'string', 'max:20'],
+            'pin'          => ['required', 'string', new FourDigitPin],
+            'remember'     => ['nullable', 'boolean'],
+            'trust_device' => ['nullable', 'boolean'],
+        ]);
+
+        $phone = trim($data['phone']);
+
+        if ($this->throttle->tooManyAttempts($phone, $request)) {
+            $seconds = $this->throttle->availableIn($phone, $request);
+
+            return back()
+                ->withErrors(['phone' => 'Too many failed attempts. Try again in '.ceil($seconds / 60).' minutes.'])
+                ->withInput(['phone' => $phone, 'auth_method' => 'pin']);
+        }
+
+        $user = $this->findUserByPhone($phone);
+
+        if (! $user) {
+            return $this->failedLogin($request, $phone, 'phone', 'Phone number or PIN is incorrect.');
+        }
+
+        if ($locked = $this->lockedResponse($user)) {
+            return $locked;
+        }
+
+        if (! $this->pins->hasPin($user)) {
+            return back()
+                ->withErrors(['phone' => 'No PIN set for this account. Sign in with email and password, then set your PIN in Profile → Security.'])
+                ->withInput(['phone' => $phone, 'auth_method' => 'pin']);
+        }
+
+        if (! $this->pins->verify($data['pin'], $user->pin_hash)) {
+            return $this->failedLogin($request, $phone, 'phone', 'Phone number or PIN is incorrect.', $user);
+        }
+
+        return $this->completeWebLogin($user, $request, $phone, (bool) ($data['trust_device'] ?? false));
+    }
+
+    public function loginWithPassword(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'login'        => ['required', 'string'],
+            'password'     => ['required', 'string'],
+            'remember'     => ['nullable', 'boolean'],
+            'trust_device' => ['nullable', 'boolean'],
         ]);
 
         $login = trim($data['login']);
+
+        if ($this->throttle->tooManyAttempts($login, $request)) {
+            $seconds = $this->throttle->availableIn($login, $request);
+
+            return back()
+                ->withErrors(['login' => 'Too many failed attempts. Try again in '.ceil($seconds / 60).' minutes.'])
+                ->withInput(['login' => $login, 'auth_method' => 'password']);
+        }
+
         $user = User::query()
             ->where('email', $login)
             ->orWhere('phone', $login)
             ->first();
 
         if (! $user || ! Hash::check($data['password'], $user->password)) {
-            return back()
-                ->withErrors(['login' => 'Those credentials do not match. Please try again.'])
-                ->onlyInput('login');
+            return $this->failedLogin($request, $login, 'login', 'Those credentials do not match. Please try again.', $user);
         }
 
-        Auth::login($user, $request->boolean('remember'));
+        if ($locked = $this->lockedResponse($user)) {
+            return $locked;
+        }
 
-        // Public site login is for borrowers, vendors and investors.
-        // Admin and staff roles must use the admin console login.
+        return $this->completeWebLogin($user, $request, $login, (bool) ($data['trust_device'] ?? false));
+    }
+
+    public function showSetupPin(): View|RedirectResponse
+    {
+        $user = Auth::user();
+        if ($user->role !== 'borrower') {
+            return redirect()->route('site.borrower.dashboard');
+        }
+
+        if ($this->pins->hasPin($user)) {
+            return redirect()->route('site.borrower.dashboard');
+        }
+
+        return view('site.auth.setup-pin');
+    }
+
+    public function storeSetupPin(Request $request): RedirectResponse
+    {
+        $user = Auth::user();
+        abort_unless($user && $user->role === 'borrower', 403);
+
+        $data = $request->validate([
+            'pin'              => ['required', 'string', new FourDigitPin, 'confirmed'],
+        ]);
+
+        $this->pins->setPin($user, $data['pin']);
+
+        return redirect()->route('site.membership.renew')
+            ->with('status', 'PIN created. Pay your registration fee to unlock loans and services.');
+    }
+
+    public function showForgotPin(Request $request): View
+    {
+        return view('site.auth.forgot-pin', [
+            'step' => (int) $request->query('step', 1),
+        ]);
+    }
+
+    public function sendPinResetOtp(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'phone' => ['required', 'string', 'max:20'],
+        ]);
+
+        $phone = trim($data['phone']);
+        $user = $this->findUserByPhone($phone);
+
+        if (! $user || ! $this->pins->hasPin($user)) {
+            return back()
+                ->withInput(['phone' => $phone])
+                ->with('status', 'If that phone number is registered, a verification code has been sent.');
+        }
+
+        $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        Cache::put('pin_reset:'.$user->id, Hash::make($otp), now()->addMinutes((int) config('auth_portal.pin_reset_otp_minutes', 10)));
+
+        $message = "Your Kopafasta PIN reset code is {$otp}. Valid for 10 minutes.";
+        if ($user->phone) {
+            app(NotificationService::class)->sendSms($user->phone, $message, $user->customer, 'pin_reset_otp');
+        }
+
+        $flash = 'If that phone number is registered, a verification code has been sent.';
+        if (! app()->environment('production')) {
+            $flash .= " (Dev code: {$otp})";
+        }
+
+        return redirect()
+            ->route('site.forgot-pin', ['step' => 2])
+            ->withInput(['phone' => $phone])
+            ->with('status', $flash);
+    }
+
+    public function resetPinWithOtp(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'phone' => ['required', 'string', 'max:20'],
+            'otp'   => ['required', 'string', 'size:6'],
+            'pin'   => ['required', 'string', new FourDigitPin, 'confirmed'],
+        ]);
+
+        $user = $this->findUserByPhone(trim($data['phone']));
+        if (! $user) {
+            return back()->withErrors(['otp' => 'Invalid or expired verification code.'])->withInput(['phone' => $data['phone'], 'step' => 2]);
+        }
+
+        $cached = Cache::get('pin_reset:'.$user->id);
+        if (! $cached || ! Hash::check($data['otp'], $cached)) {
+            return back()->withErrors(['otp' => 'Invalid or expired verification code.'])->withInput(['phone' => $data['phone'], 'step' => 2]);
+        }
+
+        Cache::forget('pin_reset:'.$user->id);
+        $this->pins->setPin($user, $data['pin']);
+        $user->forceFill(['locked_until' => null])->save();
+
+        return redirect()->route('site.login')
+            ->with('status', 'PIN reset successfully. Sign in with your phone and new PIN.');
+    }
+
+    private function completeWebLogin(User $user, Request $request, string $identifier, bool $trustDevice): RedirectResponse
+    {
         if (! in_array($user->role, ['borrower', 'vendor', 'investor'], true)) {
-            Auth::logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
             return redirect()->route('admin.login')
                 ->withErrors(['email' => 'Staff accounts must sign in from the admin console.']);
         }
 
+        if (! ($user->is_active ?? true)) {
+            return back()->withErrors(['login' => 'This account is inactive.']);
+        }
+
+        $this->throttle->clear($identifier, $request);
+        $this->throttle->log($request, 'auth.web_login_success', $identifier, ['role' => $user->role], $user->id);
+
+        Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
 
-        return $this->redirectAfterLogin($user);
+        $trusted = $this->trustedDevices->extractToken($request);
+        if ($trusted && ($device = $this->trustedDevices->find($user, $trusted))) {
+            $this->trustedDevices->touch($device);
+        }
+
+        $response = $this->redirectAfterLogin($user);
+
+        if ($trustDevice) {
+            $token = $this->trustedDevices->create($user, $request);
+            $response->withCookie($this->trustedDevices->makeCookie($token));
+        }
+
+        if ($user->role === 'borrower' && ! $this->pins->hasPin($user)) {
+            return redirect()->route('site.borrower.setup-pin');
+        }
+
+        return $response;
+    }
+
+    private function failedLogin(Request $request, string $identifier, string $field, string $message, ?User $user = null): RedirectResponse
+    {
+        $this->throttle->hit($identifier, $request);
+        $this->throttle->log($request, 'auth.web_failed_login', $identifier, [
+            'remaining_attempts' => $this->throttle->remainingAttempts($identifier, $request),
+        ], $user?->id);
+
+        if ($user) {
+            $this->throttle->lockUserIfNeeded($user, $request, $identifier);
+        }
+
+        return back()
+            ->withErrors([$field => $message])
+            ->withInput($request->only('login', 'phone', 'auth_method'));
+    }
+
+    private function lockedResponse(User $user): ?RedirectResponse
+    {
+        if (! $user->locked_until || ! $user->locked_until->isFuture()) {
+            return null;
+        }
+
+        $minutes = max(1, (int) now()->diffInMinutes($user->locked_until, false));
+
+        return back()->withErrors([
+            'login' => "Account locked after too many failed attempts. Try again in {$minutes} minutes.",
+            'phone' => "Account locked after too many failed attempts. Try again in {$minutes} minutes.",
+        ]);
+    }
+
+    private function findUserByPhone(string $phone): ?User
+    {
+        $digits = preg_replace('/\D/', '', $phone);
+        if ($digits === '') {
+            return null;
+        }
+
+        return User::query()
+            ->where('phone', $phone)
+            ->orWhere('phone', $digits)
+            ->orWhere('phone', 'like', '%'.substr($digits, -9))
+            ->first();
     }
 
     public function logout(Request $request): RedirectResponse
@@ -63,7 +304,9 @@ class AuthController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        return redirect()->route('site.home');
+
+        return redirect()->route('site.home')
+            ->withCookie(app(TrustedDeviceService::class)->forgetCookie());
     }
 
     public function showRegisterBorrower(): View
@@ -116,8 +359,8 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('site.membership.renew')
-            ->with('status', 'Welcome! Pay your registration fee to unlock loans and services.');
+        return redirect()->route('site.borrower.setup-pin')
+            ->with('status', 'Welcome! Create your 4-digit PIN to secure your account.');
     }
 
     public function storeWaitlistRequest(Request $request): RedirectResponse

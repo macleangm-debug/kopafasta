@@ -6,6 +6,7 @@
         'activity'  => ['Activity Information', 'site.borrower.profile', ['section' => 'activity']],
         'residence' => ['Residence Information', 'site.borrower.profile', ['section' => 'residence']],
         'kyc'       => ['KYC Information', 'site.borrower.profile', ['section' => 'kyc']],
+        'security'  => ['Security', 'site.borrower.profile', ['section' => 'security']],
     ];
 @endphp
 

@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'membership.active' => EnsureActiveMembership::class,
+            'borrower.pin' => \App\Http\Middleware\EnsureBorrowerPin::class,
             'role' => EnsureUserRole::class,
         ]);
 
