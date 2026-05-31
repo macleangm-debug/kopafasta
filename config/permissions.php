@@ -72,5 +72,9 @@ return [
         'auditor' => [
             'audit.view',
         ],
+        'borrower' => [],
+        'customer' => [],
+        'vendor' => [],
+        'investor' => [],
     ],
 ];

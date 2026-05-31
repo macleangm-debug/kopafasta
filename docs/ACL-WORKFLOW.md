@@ -58,7 +58,7 @@ Runtime checks go through:
 
 **Fallback:** if no row exists in `roles` for a user's role, defaults from `config/permissions.php` → `defaults` are used.
 
-Seed roles on deploy or manually:
+Seed roles on deploy or manually (all 12 roles from `config/roles.php`):
 
 ```bash
 php artisan db:seed --class=RoleSeeder
