@@ -10,12 +10,12 @@ use Illuminate\Support\Facades\DB;
 
 class AssetReservationService
 {
-    public function createReservation(Customer $customer, MarketplaceAsset $asset, string $viewingDate, string $viewingTime): AssetReservation
+    public function createReservation(Customer $customer, MarketplaceAsset $asset, ?string $viewingDate = null, ?string $viewingTime = null): AssetReservation
     {
         return AssetReservation::create([
             'customer_id'            => $customer->id,
             'marketplace_asset_id'   => $asset->id,
-            'status'                 => 'viewing_scheduled',
+            'status'                 => ($viewingDate && $viewingTime) ? 'viewing_scheduled' : 'application_started',
             'viewing_date'           => $viewingDate,
             'viewing_time'           => $viewingTime,
             'reservation_fee_amount' => config('asset_marketplace.reservation_fee', 50000),
@@ -23,6 +23,27 @@ class AssetReservationService
             'deposit_amount'         => $asset->customer_deposit ?: $asset->computeCustomerDeposit(),
             'deposit_status'         => 'pending',
         ]);
+    }
+
+    public function startApplication(Customer $customer, MarketplaceAsset $asset): AssetReservation
+    {
+        $existing = $this->activeForCustomer($customer, $asset);
+        if ($existing) {
+            return $existing;
+        }
+
+        return $this->createReservation($customer, $asset);
+    }
+
+    public function scheduleViewing(AssetReservation $reservation, string $viewingDate, string $viewingTime): AssetReservation
+    {
+        $reservation->update([
+            'viewing_date' => $viewingDate,
+            'viewing_time' => $viewingTime,
+            'status'       => 'viewing_scheduled',
+        ]);
+
+        return $reservation->refresh();
     }
 
     public function activeForCustomer(Customer $customer, MarketplaceAsset $asset): ?AssetReservation
@@ -173,13 +194,14 @@ class AssetReservationService
         $index = $reservation->stepIndex();
 
         return [
-            ['label' => 'Apply for asset & schedule viewing', 'done' => $index >= 1, 'current' => $index === 1],
-            ['label' => 'Complete viewing', 'done' => $index >= 2, 'current' => $index === 2],
-            ['label' => 'Confirm interest', 'done' => $index >= 3, 'current' => $index === 3],
-            ['label' => 'Pay application fee', 'done' => $index >= 4, 'current' => $index === 4],
-            ['label' => 'Pay deposit', 'done' => $index >= 5, 'current' => $index === 5],
-            ['label' => 'Loan approval & post-approval fees', 'done' => $index >= 6, 'current' => $index === 6],
-            ['label' => 'GPS, insurance & asset release', 'done' => $index >= 7, 'current' => $index === 7],
+            ['label' => 'Start asset lending application', 'done' => $index >= 1, 'current' => $index === 1],
+            ['label' => 'Arrange viewing (optional)', 'done' => $index >= 2, 'current' => $index === 2],
+            ['label' => 'Complete viewing', 'done' => $index >= 3, 'current' => $index === 3],
+            ['label' => 'Confirm interest', 'done' => $index >= 4, 'current' => $index === 4],
+            ['label' => 'Pay application fee', 'done' => $index >= 5, 'current' => $index === 5],
+            ['label' => 'Pay deposit', 'done' => $index >= 6, 'current' => $index === 6],
+            ['label' => 'Loan approval & post-approval fees', 'done' => $index >= 7, 'current' => $index === 7],
+            ['label' => 'GPS, insurance & asset release', 'done' => $index >= 8, 'current' => $index === 8],
         ];
     }
 }

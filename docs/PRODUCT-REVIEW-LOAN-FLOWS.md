@@ -279,4 +279,35 @@ Group: Lending, Compliance, Partners, Branding, Finance.
 
 ---
 
+## Round 2 — Borrower portal, asset lending & admin (May 2026)
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | Applications page shows all active products (sync with dashboard) | Done |
+| 2 | Asset marketplace → apply creates lending application (tenure only) | Done |
+| 3 | Remove viewing date from asset details; optional after app fee | Partial — viewing removed from details; post-fee scheduling in reserve flow still TODO |
+| 4 | Guarantor structured fields (name, phone +255, relationship, region/district) | Done |
+| 5 | WhatsApp share with approval link | Partial — post-submit WhatsApp CTA on success screen |
+| 6 | Artisan loan: craft dropdown + workshop region/district/street | Partial — craft dropdown; workshop uses text fields pending tzAddress in product questions |
+| 7 | Continue always advances; block submit only if KYC incomplete | Done |
+| 8 | Application fee before final submit | New |
+| 9 | Standardize sidebar / content margins | New |
+| 10 | Internal guarantor KPF-TZ- prefix auto | Done |
+| 11 | Public homepage asset marketplace | New |
+| 12 | Dynamic loan product count on homepage | Done |
+| 13 | Promotions scope (fees only, not interest/penalties) | New |
+| 14 | Default interest tier templates | New |
+| 15 | NIDA: no name override on mismatch | Done |
+| 16 | KYC progress navigation (NIDA → Face → Activity → Residence → Kin) | Done |
+| 17 | Residence verification camera (desktop/mobile) | New |
+| 18 | Next of kin structured fields + relationship dropdown | Partial — guarantor done; kin profile form TODO |
+| 19 | Verification documents page clarity | New |
+| 20 | Profile page member design (photo, read-only sections) | New |
+| 21 | Admin partners rename + fix 500 errors | New |
+| 22 | Asset pricing auto-calculation | New |
+| 23 | Capital partner allocation models | New |
+| 24 | CRB freshness + billing settings | New |
+
+---
+
 *Update status columns as items ship.*

@@ -131,6 +131,8 @@ class SmartLoanApplicationWizardService
 
         if (! $isAssetLending) {
             $steps[] = ['key' => 'quote', 'label' => __('borrower.apply.steps.quote'), 'skippable' => false, 'skipped' => false];
+        } else {
+            $steps[] = ['key' => 'asset_tenure', 'label' => __('borrower.apply.steps.asset_tenure'), 'skippable' => false, 'skipped' => false];
         }
 
         // Profile/KYC/income are completed in Profile — never duplicated in the apply wizard.

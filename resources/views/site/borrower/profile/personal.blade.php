@@ -7,6 +7,7 @@
         ])
 
         @include('site.borrower.profile._tabs', ['active' => 'personal'])
+        @include('site.borrower.profile._kyc_progress', ['customer' => $customer, 'active' => 'personal'])
 
         @include('site.borrower.profile._completion')
 
@@ -86,12 +87,7 @@
                             @endforeach
                         </ul>
                     @endif
-                    <form method="POST" action="{{ route('site.borrower.profile.nida.accept-names') }}" class="mt-4">
-                        @csrf
-                        <button class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
-                            {{ __('borrower.nida.use_verified_names') }}
-                        </button>
-                    </form>
+                    <p class="text-sm text-amber-900 mt-4">{{ __('borrower.nida.mismatch_no_override') }}</p>
                 </div>
             @endif
 

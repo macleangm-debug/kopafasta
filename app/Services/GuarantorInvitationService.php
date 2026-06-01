@@ -35,6 +35,48 @@ class GuarantorInvitationService
         return $base.'/guarantor/'.$invitation->token;
     }
 
+    public function invitationMessage(GuarantorInvitation $invitation): string
+    {
+        $url = $this->invitationUrl($invitation);
+
+        return "Hello,\n\nI have listed you as my guarantor for a KopaFasta loan application.\n\nPlease review and respond using the link below:\n\n{$url}\n\nThank you.";
+    }
+
+    public function whatsAppShareUrl(GuarantorInvitation $invitation, Customer $borrower): ?string
+    {
+        if ($invitation->channel !== 'whatsapp' || ! $invitation->contact) {
+            return null;
+        }
+
+        $phone = preg_replace('/\D/', '', (string) $invitation->contact);
+        if ($phone === '') {
+            return null;
+        }
+        if (str_starts_with($phone, '0')) {
+            $phone = '255'.substr($phone, 1);
+        } elseif (! str_starts_with($phone, '255')) {
+            $phone = '255'.$phone;
+        }
+
+        return 'https://wa.me/'.$phone.'?text='.urlencode($this->invitationMessage($invitation));
+    }
+
+    public function normalizePhone(?string $phone): string
+    {
+        $digits = preg_replace('/\D/', '', (string) $phone) ?? '';
+        if ($digits === '') {
+            return '';
+        }
+        if (str_starts_with($digits, '0')) {
+            return '+255'.substr($digits, 1);
+        }
+        if (str_starts_with($digits, '255')) {
+            return '+'.$digits;
+        }
+
+        return '+255'.$digits;
+    }
+
     public function attachInternal(
         Customer $borrower,
         LoanApplication $application,
@@ -97,19 +139,28 @@ class GuarantorInvitationService
     public function attachExternal(
         Customer $borrower,
         LoanApplication $application,
-        string $name,
+        string $firstName,
+        ?string $middleName,
+        string $lastName,
         string $phone,
         ?string $email,
+        string $relationship,
+        string $region,
+        string $district,
         string $channel,
     ): array {
-        return DB::transaction(function () use ($borrower, $application, $name, $phone, $email, $channel): array {
-            $parts = preg_split('/\s+/', trim($name), 2) ?: [$name, ''];
+        $phone = $this->normalizePhone($phone);
+        $displayName = trim(collect([$firstName, $middleName, $lastName])->filter()->implode(' '));
+        $address = trim(collect([$region, $district])->filter()->implode(', '));
+
+        return DB::transaction(function () use ($borrower, $application, $firstName, $middleName, $lastName, $phone, $email, $relationship, $region, $district, $channel, $displayName, $address): array {
             $guarantor = Guarantor::create([
-                'first_name'   => $parts[0],
-                'last_name'    => $parts[1] ?? '',
+                'first_name'   => trim($firstName.' '.($middleName ?: '')),
+                'last_name'    => $lastName,
                 'phone'        => $phone,
                 'email'        => $email,
-                'relationship' => 'external',
+                'relationship' => $relationship,
+                'address'      => $address,
             ]);
 
             $link = CustomerGuarantor::create([
@@ -128,13 +179,13 @@ class GuarantorInvitationService
                 'type'                  => 'external',
                 'channel'               => $channel,
                 'contact'               => $contact,
-                'invitee_name'          => $name,
+                'invitee_name'          => $displayName,
                 'token'                 => Str::random(48),
                 'status'                => 'pending',
                 'expires_at'            => now()->addDays(14),
             ]);
 
-            $this->notifyExternalInvitation($borrower, $invitation, $name);
+            $this->notifyExternalInvitation($borrower, $invitation, $displayName);
 
             return [$link, $invitation];
         });
@@ -145,7 +196,7 @@ class GuarantorInvitationService
         $borrowerName = trim($borrower->first_name.' '.$borrower->last_name);
         $productName = $invitation->application?->product?->name ?? 'loan';
         $url = $this->invitationUrl($invitation);
-        $message = "{$borrowerName} asked you to guarantee their {$productName}. Open {$url} to approve or decline.";
+        $message = $this->invitationMessage($invitation);
 
         if ($invitation->channel === 'email' && str_contains((string) $invitation->contact, '@')) {
             app(NotificationService::class)->sendEmail(

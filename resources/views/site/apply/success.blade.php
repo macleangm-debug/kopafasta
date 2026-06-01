@@ -3,9 +3,19 @@
         <div class="size-16 rounded-full bg-emerald-100 text-emerald-600 grid place-items-center mx-auto mb-5">
             <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
         </div>
-        <h1 class="text-3xl font-bold tracking-tight animate-[fadeIn_0.5s_ease-out]">Application submitted</h1>
+        <h1 class="text-3xl font-bold tracking-tight animate-[fadeIn_0.5s_ease-out]">{{ $application->status === 'awaiting_guarantor' ? __('borrower.apply.success.awaiting_guarantor_title') : __('borrower.apply.success.submitted_title') }}</h1>
         <p class="mt-2 text-gray-600">Reference <span class="font-mono font-bold text-gray-900">{{ $application->application_number }}</span></p>
-        <p class="text-sm text-emerald-700 font-semibold mt-1">Status: Submitted for underwriting</p>
+
+        @if ($guarantorShareUrl ?? null)
+            <div class="mt-6 bg-emerald-50 rounded-2xl border border-emerald-200 p-6 text-left">
+                <p class="text-sm font-semibold text-emerald-900 mb-2">{{ __('borrower.apply.guarantor_fields.share_whatsapp') }}</p>
+                <p class="text-xs text-emerald-800 mb-4">{{ __('borrower.apply.guarantor_fields.share_whatsapp_hint') }}</p>
+                <a href="{{ $guarantorShareUrl }}" target="_blank" rel="noopener"
+                   class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
+                    {{ __('borrower.apply.guarantor_fields.share_whatsapp') }}
+                </a>
+            </div>
+        @endif
 
         <div class="mt-8 bg-white rounded-2xl border border-gray-200 p-6 text-left">
             <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-4">Underwriting progress</p>

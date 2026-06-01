@@ -119,10 +119,7 @@ class BorrowerController extends Controller
             ->get();
 
         // Active loan products — public catalogue order
-        $productOrder = ['IL', 'GL', 'AL', 'FC', 'KB', 'BP', 'EL', 'EM', 'WL', 'AB'];
-        $products = LoanProduct::where('is_active', true)->get()
-            ->sortBy(fn (LoanProduct $p) => ($i = array_search($p->code, $productOrder, true)) === false ? 99 : $i)
-            ->values();
+        $products = borrower_catalogue_products();
 
         $openDocumentRequests = $documentRequests->openRequestsForCustomer($customer);
 
@@ -796,19 +793,12 @@ class BorrowerController extends Controller
 
     public function acceptNidaNames(NidaVerificationService $nida): RedirectResponse
     {
-        $customer = $this->customer();
-
-        if (! $nida->acceptVerifiedNames($customer)) {
-            return redirect()
-                ->route('site.borrower.profile', ['section' => 'personal'])
-                ->with('nida_result', ['status' => 'failed', 'message' => 'Unable to apply verified names.']);
-        }
-
-        $this->auditBorrower('nida.names_accepted', $customer);
-
         return redirect()
             ->route('site.borrower.profile', ['section' => 'personal'])
-            ->with('nida_result', ['status' => 'verified']);
+            ->with('nida_result', [
+                'status'  => 'failed',
+                'message' => __('borrower.nida.mismatch_no_override'),
+            ]);
     }
 
     public function confirmNidaCandidate(Request $request, NidaVerificationService $nida): RedirectResponse

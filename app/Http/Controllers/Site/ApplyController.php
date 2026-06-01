@@ -10,6 +10,7 @@ use App\Models\ChargesFee;
 use App\Models\Customer;
 use App\Models\CustomerDocument;
 use App\Models\DocumentType;
+use App\Models\GuarantorInvitation;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
 use App\Rules\MinimumAge;
@@ -47,9 +48,7 @@ class ApplyController extends Controller
         $eligibility = $requirements->checklist($customer);
         $profileSections = $wizard->profileSections($customer);
 
-        $products = LoanProduct::where('is_active', true)->orderBy('name')->get()
-            ->reject(fn (LoanProduct $p) => is_marketplace_loan_product($p->code))
-            ->values();
+        $products = borrower_catalogue_products();
         $preselect = $request->query('product');
         $preselectedProduct = null;
 
@@ -96,6 +95,7 @@ class ApplyController extends Controller
 
                 $assetApplication = [
                     'asset_title'        => $asset->title,
+                    'supplier'           => $asset->supplier_name,
                     'asset_value'        => $assetValue,
                     'deposit'            => $deposit,
                     'remaining_loan'     => $remainingLoan,
@@ -115,6 +115,8 @@ class ApplyController extends Controller
         $productQuestions = config('loan_product_questions', []);
         $readinessUrl = route('site.borrower.apply.product-readiness', ['product' => '__ID__']);
 
+        $applyRequirements = $requirements->checklist($customer);
+
         return view('site.apply.wizard', compact(
             'products',
             'customer',
@@ -129,6 +131,7 @@ class ApplyController extends Controller
             'reservation',
             'assetApplication',
             'selectedProduct',
+            'applyRequirements',
         ))->with('loanPurposes', loan_purpose_options())
             ->with('marketplaceOnlyCodes', marketplace_only_loan_codes())
             ->with('marketplaceUrl', route('site.borrower.marketplace'))
@@ -205,9 +208,15 @@ class ApplyController extends Controller
             'income_range'            => ['required', 'string', 'in:'.implode(',', array_keys(config('income_ranges')))],
             'guarantor_mode'          => ['nullable', 'in:none,internal,external'],
             'internal_member_no'      => ['nullable', 'string', 'max:40'],
+            'external_first_name'     => ['nullable', 'string', 'max:60'],
+            'external_middle_name'    => ['nullable', 'string', 'max:60'],
+            'external_last_name'      => ['nullable', 'string', 'max:60'],
             'external_name'           => ['nullable', 'string', 'max:120'],
             'external_phone'          => ['nullable', 'string', 'max:20'],
             'external_email'          => ['nullable', 'email', 'max:120'],
+            'external_relationship'   => ['nullable', 'string', 'max:40'],
+            'external_region'         => ['nullable', 'string', 'max:100'],
+            'external_district'       => ['nullable', 'string', 'max:100'],
             'external_channel'        => ['nullable', 'in:sms,whatsapp,email'],
             'signer_name'             => ['required', 'string', 'max:120'],
             'signature_data'          => ['required', 'string', 'starts_with:data:image/png;base64,'],
@@ -238,11 +247,33 @@ class ApplyController extends Controller
             if ($mode === 'none') {
                 return back()->withInput()->withErrors(['guarantor_mode' => 'This product requires a guarantor.']);
             }
-            if ($mode === 'internal' && empty($data['internal_member_no'])) {
-                return back()->withInput()->withErrors(['internal_member_no' => 'Enter the guarantor membership number.']);
+            if ($mode === 'internal') {
+                $memberKey = \App\Support\MemberNumberFormatter::lookupKey($data['internal_member_no'] ?? '');
+                if (! $memberKey) {
+                    return back()->withInput()->withErrors(['internal_member_no' => 'Enter a valid membership number.']);
+                }
+                $data['internal_member_no'] = $memberKey;
+                if (empty($data['internal_member_no'])) {
+                    return back()->withInput()->withErrors(['internal_member_no' => 'Enter the guarantor membership number.']);
+                }
             }
-            if ($mode === 'external' && (empty($data['external_name']) || empty($data['external_phone']) || empty($data['external_channel']))) {
-                return back()->withInput()->withErrors(['external_name' => 'Provide external guarantor name, phone and invite channel.']);
+            if ($mode === 'external') {
+                $first = trim($data['external_first_name'] ?? '');
+                $last = trim($data['external_last_name'] ?? '');
+                if ($first === '' || $last === '') {
+                    $legacy = trim($data['external_name'] ?? '');
+                    if ($legacy !== '') {
+                        $parts = preg_split('/\s+/', $legacy, 3) ?: [];
+                        $first = $parts[0] ?? '';
+                        $last = $parts[2] ?? ($parts[1] ?? '');
+                    }
+                }
+                if ($first === '' || $last === '' || empty($data['external_phone']) || empty($data['external_relationship']) || empty($data['external_region']) || empty($data['external_district'])) {
+                    return back()->withInput()->withErrors(['external_first_name' => 'Provide guarantor name, phone, relationship, region and district.']);
+                }
+                if (empty($data['external_channel'])) {
+                    return back()->withInput()->withErrors(['external_channel' => 'Select how to share the guarantor invitation.']);
+                }
             }
         }
 
@@ -367,9 +398,14 @@ class ApplyController extends Controller
                     $guarantors->attachExternal(
                         $customer,
                         $app,
-                        $data['external_name'],
+                        trim($data['external_first_name'] ?? ''),
+                        trim($data['external_middle_name'] ?? ''),
+                        trim($data['external_last_name'] ?? ''),
                         $data['external_phone'],
                         $data['external_email'] ?? null,
+                        $data['external_relationship'] ?? '',
+                        $data['external_region'] ?? '',
+                        $data['external_district'] ?? '',
                         $data['external_channel'],
                     );
                 }
@@ -408,6 +444,20 @@ class ApplyController extends Controller
         $underwritingStages = app(SmartLoanApplicationWizardService::class)
             ->underwritingStages($application->current_stage ?? 'submitted');
 
-        return view('site.apply.success', compact('application', 'underwritingStages'));
+        $guarantorInvitation = GuarantorInvitation::query()
+            ->where('loan_application_id', $application->id)
+            ->latest()
+            ->first();
+
+        $guarantorShareUrl = $guarantorInvitation
+            ? app(GuarantorInvitationService::class)->whatsAppShareUrl($guarantorInvitation, $application->customer)
+            : null;
+
+        return view('site.apply.success', compact(
+            'application',
+            'underwritingStages',
+            'guarantorInvitation',
+            'guarantorShareUrl',
+        ));
     }
 }

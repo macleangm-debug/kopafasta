@@ -118,6 +118,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/applications',                   [\App\Http\Controllers\Site\BorrowerController::class, 'applications']) ->name('borrower.applications');
             Route::get('/borrower/marketplace',                    [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'index'])->name('borrower.marketplace');
             Route::get('/borrower/marketplace/{assetId}',          [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'show'])->name('borrower.marketplace.show');
+            Route::post('/borrower/marketplace/{assetId}/apply', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'startApply'])->name('borrower.marketplace.apply');
             Route::post('/borrower/marketplace/{assetId}/reserve', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'reserve'])->name('borrower.marketplace.reserve.post');
             Route::post('/borrower/marketplace/{assetId}/reservation', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'advanceReservation'])->name('borrower.marketplace.reservation.advance');
             Route::get('/borrower/marketplace/{assetId}/reserve', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'reserveFlow'])->name('borrower.marketplace.reserve');

@@ -24,8 +24,23 @@ return [
     'FC' => [
         'title' => 'Artisan / workshop details',
         'fields' => [
-            ['key' => 'craft_type', 'label' => 'Craft / trade type', 'type' => 'text', 'required' => true, 'placeholder' => 'e.g. Fundi wa umeme, tailor, carpenter'],
-            ['key' => 'workshop_info', 'label' => 'Workshop information', 'type' => 'textarea', 'required' => true, 'placeholder' => 'Location, tools owned, typical customers'],
+            ['key' => 'craft_type', 'label' => 'Craft / trade type', 'type' => 'select', 'required' => true, 'options' => [
+                'tailor'        => 'Tailor',
+                'barber'        => 'Barber',
+                'hair_stylist'  => 'Hair stylist',
+                'painter'       => 'Painter',
+                'potter'        => 'Potter',
+                'sculptor'      => 'Sculptor',
+                'carpenter'     => 'Carpenter',
+                'welder'        => 'Welder',
+                'mason'         => 'Mason',
+                'mechanic'      => 'Mechanic',
+                'electrician'   => 'Electrician',
+                'other'         => 'Other',
+            ]],
+            ['key' => 'workshop_region', 'label' => 'Workshop region', 'type' => 'text', 'required' => true, 'address' => 'region'],
+            ['key' => 'workshop_district', 'label' => 'Workshop district', 'type' => 'text', 'required' => true, 'address' => 'district'],
+            ['key' => 'workshop_street', 'label' => 'Workshop street', 'type' => 'text', 'required' => true, 'placeholder' => 'Street or landmark'],
         ],
     ],
 ];

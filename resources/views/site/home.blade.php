@@ -95,7 +95,8 @@
     {{-- ===== PRODUCTS ===== --}}
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <p class="text-xs uppercase tracking-widest text-amber-600 mb-2">Products</p>
-        <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">Ten products. <span class="text-gray-500">One account.</span></h2>
+        @php $productCount = active_loan_product_count(); @endphp
+        <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">{{ $productCount }} loan {{ $productCount === 1 ? 'product' : 'products' }}. <span class="text-gray-500">One account.</span></h2>
         <p class="mt-3 text-gray-600 max-w-2xl">From TZS 50,000 starter loans to asset-backed capital. Every product shares the same secure account, the same honest pricing, the same mobile experience.</p>
 
         <div class="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">

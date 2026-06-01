@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class AssetReservation extends Model
 {
     public const STATUSES = [
+        'application_started',
         'viewing_scheduled',
         'viewing_completed',
         'interest_confirmed',
@@ -67,13 +68,14 @@ class AssetReservation extends Model
     public function stepIndex(): int
     {
         return match ($this->status) {
-            'viewing_scheduled' => 1,
-            'viewing_completed' => 2,
-            'interest_confirmed' => 3,
-            'reservation_fee_paid' => $this->viewing_completed_at ? 4 : 2,
-            'deposit_paid' => 5,
-            'application_submitted', 'approved', 'post_approval_fees_paid', 'gps_installation', 'insurance_active' => 6,
-            'released' => 7,
+            'application_started' => 1,
+            'viewing_scheduled' => 2,
+            'viewing_completed' => 3,
+            'interest_confirmed' => 4,
+            'reservation_fee_paid' => 5,
+            'deposit_paid' => 6,
+            'application_submitted', 'approved', 'post_approval_fees_paid', 'gps_installation', 'insurance_active' => 7,
+            'released' => 8,
             default => 0,
         };
     }

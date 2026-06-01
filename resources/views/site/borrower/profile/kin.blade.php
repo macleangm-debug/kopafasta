@@ -6,6 +6,7 @@
         ])
 
         @include('site.borrower.profile._tabs', ['active' => 'kin'])
+        @include('site.borrower.profile._kyc_progress', ['customer' => $customer, 'active' => 'kin'])
 
         @include('site.borrower.profile._completion')
 

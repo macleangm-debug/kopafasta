@@ -103,6 +103,25 @@ if (! function_exists('loan_purpose_options')) {
     }
 }
 
+if (! function_exists('borrower_catalogue_products')) {
+    /** @return \Illuminate\Support\Collection<int, \App\Models\LoanProduct> */
+    function borrower_catalogue_products(): \Illuminate\Support\Collection
+    {
+        $order = config('loan_products.display_order', ['IL', 'GL', 'AL', 'FC', 'KB', 'BP', 'EL', 'EM', 'WL', 'AB']);
+
+        return \App\Models\LoanProduct::where('is_active', true)->get()
+            ->sortBy(fn (\App\Models\LoanProduct $p) => ($i = array_search($p->code, $order, true)) === false ? 99 : $i)
+            ->values();
+    }
+}
+
+if (! function_exists('active_loan_product_count')) {
+    function active_loan_product_count(): int
+    {
+        return (int) \App\Models\LoanProduct::where('is_active', true)->count();
+    }
+}
+
 if (! function_exists('marketplace_only_loan_codes')) {
     /** @return list<string> */
     function marketplace_only_loan_codes(): array

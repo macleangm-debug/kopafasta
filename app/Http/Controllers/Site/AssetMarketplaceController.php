@@ -51,13 +51,26 @@ class AssetMarketplaceController extends Controller
             }
         }
 
-        $productCode = config('asset_marketplace.asset_loan_product_code', 'AL');
-        $applyUrl = route('site.borrower.apply', array_filter([
-            'product' => LoanProduct::where('code', $productCode)->value('id') ?? $productCode,
-            'reservation' => $reservation?->id,
-        ]));
+        $applyUrl = route('site.borrower.marketplace.apply', $asset['id']);
 
         return view('site.borrower.marketplace.show', compact('asset', 'reservation', 'applyUrl'));
+    }
+
+    public function startApply(string $assetId): RedirectResponse
+    {
+        $customer = auth()->user()?->customer;
+        abort_unless($customer, 403);
+
+        $model = $this->findModel($assetId);
+        abort_if(! $model, 404);
+
+        $reservation = app(AssetReservationService::class)->startApplication($customer, $model);
+        $productId = LoanProduct::where('code', config('asset_marketplace.asset_loan_product_code', 'AL'))->value('id');
+
+        return redirect()->route('site.borrower.apply', array_filter([
+            'product'     => $productId,
+            'reservation' => $reservation->id,
+        ]));
     }
 
     public function reserve(Request $request, string $assetId): RedirectResponse

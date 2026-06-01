@@ -30,6 +30,9 @@ return [
         'smart_application' => 'smart loan application',
         'requirements_incomplete' => 'Some membership requirements are incomplete.',
         'requirements_hint' => 'You can still review loan products below — your readiness score will show what\'s missing before you apply.',
+        'kyc_incomplete_title' => 'Complete your KYC profile before submitting.',
+        'kyc_incomplete_hint' => 'You can continue through the application steps now. Final submission is blocked until KYC is complete.',
+        'kyc_incomplete_submit' => 'Please complete your KYC profile before submitting this application.',
         'asset_reservation' => 'Asset loan application for :asset. Deposit target: TZS :amount.',
         'continue' => 'Continue',
         'back' => '← Back',
@@ -66,6 +69,17 @@ return [
             'product_questions' => 'Loan details',
             'review' => 'Review',
             'signature' => 'Sign',
+            'asset_tenure' => 'Tenure',
+        ],
+        'asset_tenure' => [
+            'title' => 'Choose repayment tenure',
+            'subtitle' => 'Asset value, deposit and supplier terms are fixed for this asset.',
+            'financed_amount' => 'Financed amount',
+            'max_hint' => 'Maximum',
+        ],
+        'success' => [
+            'submitted_title' => 'Application submitted',
+            'awaiting_guarantor_title' => 'Application saved — waiting for guarantor',
         ],
         'browse' => [
             'title' => 'Choose a loan product',
@@ -119,7 +133,12 @@ return [
         'guarantor_fields' => [
             'membership_no' => 'Membership number',
             'membership_hint' => 'We send an approval request to the member.',
+            'membership_hint_short' => 'Enter the member number only — KPF-TZ- is added automatically.',
+            'relationship' => 'Relationship',
             'share_via' => 'Share invite via',
+            'share_whatsapp' => 'Share via WhatsApp',
+            'share_whatsapp_hint' => 'Send a pre-filled message with the guarantor approval link.',
+            'whatsapp_after_submit' => 'After you submit, use Share via WhatsApp on the confirmation screen to send the approval link.',
             'status_waiting' => 'Status: Waiting for approval',
         ],
         'product_questions' => [
@@ -283,6 +302,8 @@ return [
         'empty_title' => 'No assets match your search.',
         'empty_desc' => 'Try different filters or submit an asset request above.',
         'apply_asset' => 'Apply for asset',
+        'continue_application' => 'Continue application',
+        'supplier' => 'Supplier',
         'asset_value' => 'Asset value',
         'deposit' => 'Deposit required',
         'weekly_installment' => 'Weekly installment',
@@ -304,6 +325,14 @@ return [
         'wallet_cannot_pay' => 'Wallet cannot pay',
         'wallet_limit' => 'Up to :percent% of each eligible fee can be paid from your wallet at checkout.',
         'friend_discount' => 'Friends who register with your link receive a :discount% discount on eligible fees. You earn :commission% commission when they pay.',
+    ],
+
+    'kyc_progress' => [
+        'title' => 'KYC progress',
+        'nida' => 'NIDA verification',
+        'face' => 'Face verification',
+        'next' => 'Next step',
+        'complete' => 'KYC profile complete',
     ],
 
     'profile' => [
@@ -332,6 +361,7 @@ return [
         'fields' => [
             'full_name' => 'Full name',
             'first_name' => 'First name',
+            'middle_name' => 'Middle name',
             'last_name' => 'Last name',
             'relationship' => 'Relationship',
             'phone' => 'Phone number',
@@ -349,6 +379,14 @@ return [
             'male' => 'Male',
             'female' => 'Female',
             'other' => 'Other',
+        ],
+        'kin_relationship_options' => [
+            'parent'   => 'Parent',
+            'spouse'   => 'Spouse',
+            'sibling'  => 'Sibling',
+            'child'    => 'Child',
+            'relative' => 'Relative',
+            'friend'   => 'Friend',
         ],
         'select' => 'Select',
         'select_region' => 'Select region',
@@ -387,7 +425,8 @@ return [
         'locked_title' => 'Identity verified',
         'locked_hint' => 'Name, date of birth and gender are locked after verification.',
         'mismatch_warning_1' => 'The name on your NIDA record does not match your registration. Please review the differences below or accept the NIDA names.',
-        'mismatch_hidden_bureau' => 'The name on your NIDA record does not match your registration. For your security, bureau identity details are hidden. Accept verified identity to continue, or contact support if you believe this is an error.',
+        'mismatch_hidden_bureau' => 'The name on your NIDA record does not match your registration. For your security, bureau identity details are hidden.',
+        'mismatch_no_override' => 'Your registration name must match NIDA. Update your registration details with KopaFasta support — you cannot override bureau names here.',
         'mismatch_warning_2' => 'Second mismatch detected. Using another person’s NIDA is fraud. Review your details carefully or accept the NIDA names.',
         'account_locked_until' => 'Too many mismatches. Your account and identity verification are locked until :time. Contact support if you need help.',
         'verification_locked_banner' => 'Identity verification is locked until :time.',
