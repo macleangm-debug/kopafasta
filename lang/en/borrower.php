@@ -131,9 +131,12 @@ return [
             'title' => 'Review your application',
             'subtitle' => 'Confirm everything before signing.',
             'product' => 'Product',
+            'asset' => 'Selected asset',
             'amount_tenure' => 'Amount / tenure',
             'purpose' => 'Purpose',
+            'profile_on_file' => 'Profile on file',
         ],
+        'edit_profile' => 'Update in Profile →',
         'details' => [
             'loading' => 'Loading product details…',
             'heading' => 'Loan product details',
@@ -202,6 +205,7 @@ return [
                 'kin' => [
                     'label' => 'Next of kin',
                     'on_file' => 'On file',
+                    'complete_profile' => 'Complete next of kin in Profile → KYC',
                     'during_application' => 'Add next of kin during application',
                 ],
                 'income' => [
@@ -279,6 +283,12 @@ return [
         'empty_title' => 'No assets match your search.',
         'empty_desc' => 'Try different filters or submit an asset request above.',
         'apply_asset' => 'Apply for asset',
+        'asset_value' => 'Asset value',
+        'deposit' => 'Deposit required',
+        'weekly_installment' => 'Weekly installment',
+        'max_tenure' => 'Max tenure',
+        'request_collapsed_title' => 'Can\'t find what you need?',
+        'request_expand' => 'Request asset',
     ],
 
     'referrals' => [
@@ -377,6 +387,7 @@ return [
         'locked_title' => 'Identity verified',
         'locked_hint' => 'Name, date of birth and gender are locked after verification.',
         'mismatch_warning_1' => 'The name on your NIDA record does not match your registration. Please review the differences below or accept the NIDA names.',
+        'mismatch_hidden_bureau' => 'The name on your NIDA record does not match your registration. For your security, bureau identity details are hidden. Accept verified identity to continue, or contact support if you believe this is an error.',
         'mismatch_warning_2' => 'Second mismatch detected. Using another person’s NIDA is fraud. Review your details carefully or accept the NIDA names.',
         'account_locked_until' => 'Too many mismatches. Your account and identity verification are locked until :time. Contact support if you need help.',
         'verification_locked_banner' => 'Identity verification is locked until :time.',
@@ -570,6 +581,9 @@ return [
         'document_requests_title' => 'Action required on your applications',
         'document_requests_body' => 'Underwriting has requested :count item(s) from you. Open your application to upload or respond.',
         'document_requests_cta' => 'View application →',
+        'referral_title' => 'Invite friends & earn',
+        'referral_wallet' => 'Available wallet',
+        'referral_share' => 'Share referral link',
     ],
 
     'membership' => [

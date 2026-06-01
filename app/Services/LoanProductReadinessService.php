@@ -134,9 +134,8 @@ class LoanProductReadinessService
                 'complete'   => $kinComplete,
                 'detail'     => $kinComplete
                     ? __('borrower.apply.readiness.requirements.kin.on_file')
-                    : __('borrower.apply.readiness.requirements.kin.during_application'),
-                'action_url' => null,
-                'application_step' => ! $kinComplete,
+                    : __('borrower.apply.readiness.requirements.kin.complete_profile'),
+                'action_url' => $kinComplete ? null : route('site.borrower.profile', ['section' => 'kin']),
             ],
             [
                 'key'        => 'income',

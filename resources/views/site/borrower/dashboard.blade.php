@@ -46,6 +46,26 @@
         </a>
     </div>
 
+    {{-- Referral CTA --}}
+    @if ($referralCode ?? null)
+        <section class="mb-8 bg-gradient-to-br from-indigo-700 via-indigo-800 to-slate-900 text-white rounded-2xl p-6 sm:p-8 shadow-lg">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                <div>
+                    <p class="text-xs uppercase tracking-widest text-indigo-200 font-semibold">{{ __('borrower.referrals.grow') }}</p>
+                    <h2 class="text-xl sm:text-2xl font-bold mt-1">{{ __('borrower.dashboard.referral_title') }}</h2>
+                    <p class="text-sm text-indigo-100 mt-2">{{ __('borrower.referrals.your_code') }}: <span class="font-mono font-bold text-white">{{ $referralCode }}</span></p>
+                    <p class="text-sm text-indigo-100 mt-1">{{ __('borrower.dashboard.referral_wallet') }}: <span class="font-bold text-white">TZS {{ number_format($referralWallet->balance ?? 0) }}</span></p>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3 shrink-0">
+                    <x-site.referral-share :link="$referralLink" :code="$referralCode" />
+                    <a href="{{ route('site.borrower.referrals') }}" class="inline-flex justify-center bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-full text-sm ring-1 ring-white/20">
+                        {{ __('borrower.nav.referrals') }} →
+                    </a>
+                </div>
+            </div>
+        </section>
+    @endif
+
     {{-- Active applications --}}
     <div class="mb-8 bg-white rounded-2xl border border-gray-200 overflow-hidden">
         <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
@@ -84,10 +104,25 @@
             <a href="{{ route('site.borrower.marketplace') }}" class="text-xs font-semibold text-amber-700 hover:underline">{{ __('borrower.dashboard.marketplace_link') }}</a>
         </div>
         @if(isset($products) && $products->isNotEmpty())
-            <div class="relative -mx-4 lg:mx-0">
+            <div class="relative -mx-4 lg:mx-0" x-data="{ open: null }">
                 <div class="flex gap-4 overflow-x-auto snap-x snap-mandatory px-4 lg:px-0 pb-2">
                     @foreach($products as $p)
-                        <x-site.loan-product-card :product="$p" />
+                        @if (is_marketplace_loan_product($p->code))
+                            <div class="snap-start shrink-0 w-[min(85vw,320px)] bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+                                <div class="bg-gradient-to-br from-sky-500 to-sky-700 text-white px-5 py-4">
+                                    <p class="text-lg font-bold">{{ $p->name }}</p>
+                                    <p class="text-xs opacity-90 mt-1">{{ __('borrower.marketplace.subtitle') }}</p>
+                                </div>
+                                <div class="p-5 flex-1 flex flex-col">
+                                    <p class="text-sm text-gray-600">{{ __('borrower.dashboard.marketplace_link') }}</p>
+                                    <a href="{{ route('site.borrower.marketplace') }}" class="mt-auto inline-flex justify-center bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                                        {{ __('borrower.nav.marketplace') }} →
+                                    </a>
+                                </div>
+                            </div>
+                        @else
+                            <x-site.loan-product-card :product="$p" />
+                        @endif
                     @endforeach
                 </div>
             </div>

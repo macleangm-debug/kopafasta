@@ -131,9 +131,12 @@ return [
             'title' => 'Kagua ombi lako',
             'subtitle' => 'Thibitisha kila kitu kabla ya kusaini.',
             'product' => 'Bidhaa',
+            'asset' => 'Mali iliyochaguliwa',
             'amount_tenure' => 'Kiasi / muda',
             'purpose' => 'Lengo',
+            'profile_on_file' => 'Wasifu uliokamilika',
         ],
+        'edit_profile' => 'Sasisha kwenye Wasifu →',
         'details' => [
             'loading' => 'Inapakia maelezo ya bidhaa…',
             'heading' => 'Maelezo ya bidhaa ya mkopo',
@@ -202,6 +205,7 @@ return [
                 'kin' => [
                     'label' => 'Ndugu wa karibu',
                     'on_file' => 'Ipo kwenye faili',
+                    'complete_profile' => 'Kamilisha ndugu wa karibu kwenye Wasifu → KYC',
                     'during_application' => 'Ongeza ndugu wa karibu wakati wa maombi',
                 ],
                 'income' => [
@@ -279,6 +283,12 @@ return [
         'empty_title' => 'Hakuna mali zinazolingana na utafutaji wako.',
         'empty_desc' => 'Jaribu vichujio tofauti au wasilisha ombi la mali hapo juu.',
         'apply_asset' => 'Omba mali',
+        'asset_value' => 'Thamani ya mali',
+        'deposit' => 'Amana inayohitajika',
+        'weekly_installment' => 'Malipo ya kila wiki',
+        'max_tenure' => 'Muda wa juu',
+        'request_collapsed_title' => 'Huwezi kupata unachohitaji?',
+        'request_expand' => 'Omba mali',
     ],
 
     'referrals' => [
@@ -377,6 +387,7 @@ return [
         'locked_title' => 'Utambulisho umethibitishwa',
         'locked_hint' => 'Jina, tarehe ya kuzaliwa na jinsia hazibadilishwi baada ya uthibitisho.',
         'mismatch_warning_1' => 'Jina kwenye rekodi yako ya NIDA halilingani na usajili wako. Kagua tofauti hapa chini au kubali majina ya NIDA.',
+        'mismatch_hidden_bureau' => 'Jina kwenye rekodi yako ya NIDA halilingani na usajili wako. Kwa usalama wako, taarifa za bureau hazionyeshwi. Kubali utambulisho uliothibitishwa ili kuendelea, au wasiliana na msaada ikiwa unaamini hili ni kosa.',
         'mismatch_warning_2' => 'Kutofautiana kwa mara ya pili kumegunduliwa. Kutumia NIDA ya mtu mwingine ni udanganyifu. Kagua maelezo yako au kubali majina ya NIDA.',
         'account_locked_until' => 'Mchanganyiko mwingi wa majina. Akaunti yako na uthibitisho wa utambulisho umefungwa hadi :time. Wasiliana na msaada ikiwa unahitaji.',
         'verification_locked_banner' => 'Uthibitisho wa utambulisho umefungwa hadi :time.',
@@ -570,6 +581,9 @@ return [
         'document_requests_title' => 'Hatua inahitajika kwenye maombi yako',
         'document_requests_body' => 'Ukaguzi umeomba vitu :count. Fungua ombi lako kupakia au kujibu.',
         'document_requests_cta' => 'Angalia ombi →',
+        'referral_title' => 'Alika marafiki na upate',
+        'referral_wallet' => 'Pochi inayopatikana',
+        'referral_share' => 'Shiriki kiungo cha rufaa',
     ],
 
     'membership' => [

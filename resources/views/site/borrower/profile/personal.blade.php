@@ -78,26 +78,14 @@
             @if ($nameMismatch && ! $nidaLocked)
                 <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 p-4">
                     <p class="text-sm font-semibold text-amber-900">{{ __('borrower.nida.mismatch_title') }}</p>
-                    <div class="mt-3 overflow-x-auto">
-                        <table class="w-full text-xs">
-                            <thead>
-                                <tr class="text-left text-amber-800">
-                                    <th class="pb-2 pr-4">{{ __('borrower.nida.mismatch_field') }}</th>
-                                    <th class="pb-2 pr-4">{{ __('borrower.nida.mismatch_registration') }}</th>
-                                    <th class="pb-2">{{ __('borrower.nida.mismatch_nida') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($nameMismatch['mismatches'] ?? [] as $row)
-                                    <tr class="border-t border-amber-200/60">
-                                        <td class="py-2 pr-4 font-medium">{{ $row['label'] }}</td>
-                                        <td class="py-2 pr-4 text-red-700 font-semibold">{{ $row['registered'] }}</td>
-                                        <td class="py-2 text-emerald-800 font-semibold">{{ $row['verified'] }}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
+                    <p class="text-sm text-amber-900 mt-2">{{ __('borrower.nida.mismatch_hidden_bureau') }}</p>
+                    @if (($nameMismatch['mismatches'] ?? []) !== [])
+                        <ul class="mt-3 space-y-1 text-xs text-amber-800">
+                            @foreach ($nameMismatch['mismatches'] as $row)
+                                <li>{{ $row['label'] }}: {{ $row['registered'] }}</li>
+                            @endforeach
+                        </ul>
+                    @endif
                     <form method="POST" action="{{ route('site.borrower.profile.nida.accept-names') }}" class="mt-4">
                         @csrf
                         <button class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">

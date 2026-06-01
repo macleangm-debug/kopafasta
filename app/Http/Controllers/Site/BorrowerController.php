@@ -126,11 +126,17 @@ class BorrowerController extends Controller
 
         $openDocumentRequests = $documentRequests->openRequestsForCustomer($customer);
 
+        $referralService = app(ReferralService::class);
+        $referralService->ensureCode($customer);
+        $referralCode = $customer->referral_code;
+        $referralLink = $referralService->referralLink($customer);
+        $referralWallet = $referralService->wallet($customer);
+
         return view('site.borrower.dashboard', compact(
             'customer','activeLoan','nextDue','applicationsCount',
             'notifications','eligibility',
             'products','applyRequirements','onboardingBanner','activeApplications','unreadNotificationCount',
-            'openDocumentRequests',
+            'openDocumentRequests','referralCode','referralLink','referralWallet',
         ));
     }
 
@@ -617,12 +623,16 @@ class BorrowerController extends Controller
         return back()->with('status', 'All notifications cleared.');
     }
 
-    public function markNotificationsRead(): RedirectResponse
+    public function markNotificationsRead(Request $request): RedirectResponse|\Illuminate\Http\JsonResponse
     {
         $customer = $this->customer();
         NotificationLog::where('customer_id', $customer->id)
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
+
+        if ($request->wantsJson()) {
+            return response()->json(['unread' => 0]);
+        }
 
         return back();
     }

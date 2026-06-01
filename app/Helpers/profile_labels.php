@@ -102,3 +102,18 @@ if (! function_exists('loan_purpose_options')) {
             ->all();
     }
 }
+
+if (! function_exists('marketplace_only_loan_codes')) {
+    /** @return list<string> */
+    function marketplace_only_loan_codes(): array
+    {
+        return config('asset_marketplace.marketplace_only_codes', ['AL', 'AST']);
+    }
+}
+
+if (! function_exists('is_marketplace_loan_product')) {
+    function is_marketplace_loan_product(?string $code): bool
+    {
+        return in_array(strtoupper((string) $code), marketplace_only_loan_codes(), true);
+    }
+}

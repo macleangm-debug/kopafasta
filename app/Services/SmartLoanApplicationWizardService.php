@@ -121,38 +121,19 @@ class SmartLoanApplicationWizardService
         $requiresGuarantor = (bool) ($product?->requires_guarantor ?? false);
         $productCode = $product?->code;
         $hasProductQuestions = $productCode && ! empty(config('loan_product_questions.'.$productCode));
-        $income = $this->incomeVerification($customer);
 
         $profileKeys = ['personal', 'residence', 'kin', 'activity'];
-        $profileComplete = collect($profileKeys)->every(fn (string $key) => (bool) ($sections[$key]['complete'] ?? false));
+        $isAssetLending = is_marketplace_loan_product($productCode);
 
         $steps = [
             ['key' => 'product', 'label' => __('borrower.apply.steps.product'), 'skippable' => false, 'skipped' => false],
-            ['key' => 'quote', 'label' => __('borrower.apply.steps.quote'), 'skippable' => false, 'skipped' => false],
         ];
 
-        if (! $profileComplete) {
-            foreach ($profileKeys as $key) {
-                if (! ($sections[$key]['complete'] ?? false)) {
-                    $steps[] = [
-                        'key'      => $key,
-                        'label'    => match ($key) {
-                            'personal'  => __('borrower.apply.steps.personal'),
-                            'residence' => __('borrower.apply.steps.residence'),
-                            'kin'       => __('borrower.apply.steps.kin'),
-                            'activity'  => __('borrower.apply.steps.activity'),
-                            default     => ucfirst($key),
-                        },
-                        'skippable' => false,
-                        'skipped'   => false,
-                    ];
-                }
-            }
+        if (! $isAssetLending) {
+            $steps[] = ['key' => 'quote', 'label' => __('borrower.apply.steps.quote'), 'skippable' => false, 'skipped' => false];
         }
 
-        if (! $income['can_skip']) {
-            $steps[] = ['key' => 'income', 'label' => __('borrower.apply.steps.income'), 'skippable' => false, 'skipped' => false];
-        }
+        // Profile/KYC/income are completed in Profile — never duplicated in the apply wizard.
 
         if ($requiresGuarantor) {
             $steps[] = ['key' => 'guarantor', 'label' => __('borrower.apply.steps.guarantor'), 'skippable' => false, 'skipped' => false];

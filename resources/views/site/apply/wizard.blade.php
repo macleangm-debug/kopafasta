@@ -13,11 +13,6 @@
             </div>
         @endif
 
-        @php
-            $sectionsByKey = collect($profileSections ?? [])->keyBy('key');
-            $profileComplete = collect(['personal', 'residence', 'kin', 'activity'])
-                ->every(fn ($k) => (bool) ($sectionsByKey[$k]['complete'] ?? false));
-        @endphp
 
         @if ($reservation ?? null)
             <div class="mb-6 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">
@@ -25,11 +20,26 @@
             </div>
         @endif
 
+        @php
+            $wizardProducts = $products;
+            if (($assetApplication ?? null) && ($selectedProduct ?? null)) {
+                $wizardProducts = collect($products)
+                    ->push($selectedProduct)
+                    ->unique('id')
+                    ->values();
+            }
+        @endphp
+
         <div x-data="applyWizard({
-                  products: {{ json_encode($products->map(fn($p)=>['id'=>$p->id,'code'=>$p->code,'name'=>$p->name,'rate'=>(float)$p->interest_rate,'min'=>(float)$p->min_amount,'max'=>(float)$p->max_amount,'tmin'=>(int)$p->tenure_min_months,'tmax'=>(int)$p->tenure_max_months,'desc'=>$p->description,'requires_guarantor'=>(bool)$p->requires_guarantor,'frequency'=>'weekly'])) }},
+                  products: {{ json_encode($wizardProducts->map(fn($p)=>['id'=>$p->id,'code'=>$p->code,'name'=>$p->name,'rate'=>(float)$p->interest_rate,'min'=>(float)$p->min_amount,'max'=>(float)$p->max_amount,'tmin'=>(int)$p->tenure_min_months,'tmax'=>(int)$p->tenure_max_months,'desc'=>$p->description,'requires_guarantor'=>(bool)$p->requires_guarantor,'frequency'=>'weekly'])) }},
                   preselect: {{ $preselect ? (int)$preselect : 'null' }},
                   applicationFee: {{ (int) ($applicationFee ?? 0) }},
                   initialPlan: @js($stepPlan),
+                  assetApplication: @js($assetApplication),
+                  reservationMode: {{ ($reservation ?? null) ? 'true' : 'false' }},
+                  marketplaceOnlyCodes: @js($marketplaceOnlyCodes ?? marketplace_only_loan_codes()),
+                  marketplaceUrl: @js($marketplaceUrl ?? route('site.borrower.marketplace')),
+                  profileUrl: @js(route('site.borrower.profile')),
                   profileSections: @js($profileSections),
                   incomeVerification: @js($incomeVerification),
                   productQuestions: @js($productQuestions),
@@ -114,34 +124,31 @@
                         <input type="hidden" name="asset_reservation_id" value="{{ $reservation->id }}">
                     @endif
 
-            {{-- Always submit profile data for sections already on file --}}
-            @if ($profileComplete || ($sectionsByKey['personal']['complete'] ?? false))
-                <input type="hidden" name="first_name" value="{{ old('first_name', $customer->first_name) }}">
-                <input type="hidden" name="last_name" value="{{ old('last_name', $customer->last_name) }}">
-                <input type="hidden" name="date_of_birth" value="{{ old('date_of_birth', $customer->date_of_birth?->format('Y-m-d')) }}">
-                <input type="hidden" name="gender" value="{{ old('gender', $customer->gender) }}">
-                <input type="hidden" name="national_id" value="{{ old('national_id', $customer->national_id) }}">
+            {{-- Profile/KYC data always comes from the customer record — never re-collected in the wizard --}}
+            <input type="hidden" name="first_name" value="{{ old('first_name', $customer->first_name) }}">
+            <input type="hidden" name="last_name" value="{{ old('last_name', $customer->last_name) }}">
+            <input type="hidden" name="date_of_birth" value="{{ old('date_of_birth', $customer->date_of_birth?->format('Y-m-d')) }}">
+            <input type="hidden" name="gender" value="{{ old('gender', $customer->gender) }}">
+            <input type="hidden" name="national_id" value="{{ old('national_id', $customer->national_id) }}">
+            <input type="hidden" name="region" value="{{ old('region', $customer->region) }}">
+            <input type="hidden" name="district" value="{{ old('district', $customer->district) }}">
+            <input type="hidden" name="ward" value="{{ old('ward', $customer->ward) }}">
+            <input type="hidden" name="street" value="{{ old('street', $customer->street ?? $customer->address) }}">
+            <input type="hidden" name="nok_name" value="{{ old('nok_name', $customer->nok_name) }}">
+            <input type="hidden" name="nok_relationship" value="{{ old('nok_relationship', $customer->nok_relationship) }}">
+            <input type="hidden" name="nok_phone" value="{{ old('nok_phone', $customer->nok_phone) }}">
+            <input type="hidden" name="nok_region" value="{{ old('nok_region', $customer->nok_region) }}">
+            <input type="hidden" name="nok_district" value="{{ old('nok_district', $customer->nok_district) }}">
+            <input type="hidden" name="activity_type" value="{{ old('activity_type', $customer->activity_type ?? $customer->employment_type) }}">
+            <input type="hidden" name="income_range" value="{{ old('income_range', $customer->income_range) }}">
+            @if ($assetApplication ?? null)
+                <input type="hidden" name="requested_amount" value="{{ old('requested_amount', $assetApplication['remaining_loan']) }}">
+                <input type="hidden" name="requested_tenure_months" value="{{ old('requested_tenure_months', $assetApplication['max_tenure_months']) }}">
+                <input type="hidden" name="purpose" value="asset_financing">
             @endif
-            @if ($profileComplete || ($sectionsByKey['residence']['complete'] ?? false))
-                <input type="hidden" name="region" value="{{ old('region', $customer->region) }}">
-                <input type="hidden" name="district" value="{{ old('district', $customer->district) }}">
-                <input type="hidden" name="ward" value="{{ old('ward', $customer->ward) }}">
-                <input type="hidden" name="street" value="{{ old('street', $customer->street ?? $customer->address) }}">
-            @endif
-            @if ($profileComplete || ($sectionsByKey['kin']['complete'] ?? false))
-                <input type="hidden" name="nok_name" value="{{ old('nok_name', $customer->nok_name) }}">
-                <input type="hidden" name="nok_relationship" value="{{ old('nok_relationship', $customer->nok_relationship) }}">
-                <input type="hidden" name="nok_phone" value="{{ old('nok_phone', $customer->nok_phone) }}">
-                <input type="hidden" name="nok_region" value="{{ old('nok_region', $customer->nok_region) }}">
-                <input type="hidden" name="nok_district" value="{{ old('nok_district', $customer->nok_district) }}">
-            @endif
-            @if ($profileComplete || ($sectionsByKey['activity']['complete'] ?? false))
-                <input type="hidden" name="activity_type" value="{{ old('activity_type', $customer->activity_type ?? $customer->employment_type) }}">
-                <input type="hidden" name="income_range" value="{{ old('income_range', $customer->income_range) }}">
-                @foreach ($customer->activity_details ?? [] as $detailKey => $detailValue)
-                    <input type="hidden" name="activity_details[{{ $detailKey }}]" value="{{ $detailValue }}">
-                @endforeach
-            @endif
+            @foreach ($customer->activity_details ?? [] as $detailKey => $detailValue)
+                <input type="hidden" name="activity_details[{{ $detailKey }}]" value="{{ $detailValue }}">
+            @endforeach
 
             <template x-if="current && !current.requires_guarantor">
                 <input type="hidden" name="guarantor_mode" value="none">
@@ -199,113 +206,6 @@
                                     @endforeach
                                 </select>
                             </div>
-                        </div>
-                    </template>
-                </div>
-
-                {{-- Profile verified --}}
-                <div x-show="currentStepKey === 'profile_verify'" class="p-6 sm:p-8">
-                    <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.profile_verify.title') }}</h2>
-                    <p class="text-sm text-gray-600 mb-5">{{ __('borrower.apply.profile_verify.subtitle') }}</p>
-                    <ul class="grid sm:grid-cols-2 gap-3">
-                        @foreach (['personal' => __('borrower.profile.personal'), 'activity' => __('borrower.profile.activity'), 'residence' => __('borrower.profile.residence'), 'kin' => __('borrower.profile.kin')] as $key => $label)
-                            <li class="rounded-xl ring-1 ring-emerald-200 bg-emerald-50 px-4 py-3">
-                                <p class="text-sm font-semibold text-emerald-900">✓ {{ __('borrower.apply.profile_verify.verified', ['section' => $label]) }}</p>
-                            </li>
-                        @endforeach
-                    </ul>
-                </div>
-
-                {{-- Personal --}}
-                @unless ($profileComplete || ($sectionsByKey['personal']['complete'] ?? false))
-                <div x-show="currentStepKey === 'personal'" class="p-6 sm:p-8">
-                    <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.personal.title') }}</h2>
-                    <p class="text-sm text-gray-600 mb-6">{{ __('borrower.apply.personal.subtitle') }}</p>
-                    <div class="grid sm:grid-cols-2 gap-4">
-                        <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.first_name') }}</label><input name="first_name" value="{{ old('first_name', $customer->first_name ?? '') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
-                        <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.last_name') }}</label><input name="last_name" value="{{ old('last_name', $customer->last_name ?? '') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
-                        <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.date_of_birth') }}</label><input type="date" name="date_of_birth" value="{{ old('date_of_birth', $customer->date_of_birth?->format('Y-m-d')) }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
-                        <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.gender') }}</label>
-                            <select name="gender" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                                <option value="">{{ __('borrower.profile.select') }}</option>
-                                @foreach (trans('borrower.profile.gender_options') as $v => $l)<option value="{{ $v }}" @selected(old('gender', $customer->gender ?? '') === $v)>{{ $l }}</option>@endforeach
-                            </select>
-                        </div>
-                        <div class="sm:col-span-2"><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.nida_number') }}</label><input name="national_id" value="{{ old('national_id', $customer->national_id ?? '') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm font-mono"></div>
-                    </div>
-                </div>
-                @endunless
-
-                {{-- Residence --}}
-                @unless ($profileComplete || ($sectionsByKey['residence']['complete'] ?? false))
-                <div x-show="currentStepKey === 'residence'" class="p-6 sm:p-8">
-                    <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.residence.title') }}</h2>
-                    <div class="grid sm:grid-cols-2 gap-4" x-data="tzAddress(@js(config('tanzania_locations')), @js(old('region', $customer->region ?? '')), @js(old('district', $customer->district ?? '')), @js(['selectRegion' => __('borrower.profile.select_region'), 'selectDistrict' => __('borrower.profile.select_district')]))" x-init="init()">
-                        <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.region') }}</label>
-                            <select name="region" x-model="region" @change="onRegionChange()" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"><option value="" x-text="labels.selectRegion || 'Select region'"></option><template x-for="(districts, name) in locations" :key="name"><option :value="name" x-text="name"></option></template></select>
-                        </div>
-                        <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.district') }}</label>
-                            <select name="district" x-model="district" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"><option value="" x-text="labels.selectDistrict || 'Select district'"></option><template x-for="d in districtOptions" :key="d"><option :value="d" x-text="d"></option></template></select>
-                        </div>
-                        <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.ward') }}</label><input name="ward" value="{{ old('ward', $customer->ward ?? '') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
-                        <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.street') }}</label><input name="street" value="{{ old('street', $customer->street ?? $customer->address ?? '') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
-                    </div>
-                </div>
-                @endunless
-
-                {{-- Next of kin --}}
-                @unless ($profileComplete || ($sectionsByKey['kin']['complete'] ?? false))
-                <div x-show="currentStepKey === 'kin'" class="p-6 sm:p-8">
-                    <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.kin.title') }}</h2>
-                    <div class="grid sm:grid-cols-2 gap-4">
-                        <div class="sm:col-span-2"><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.full_name') }}</label><input name="nok_name" value="{{ old('nok_name', $customer->nok_name ?? '') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
-                        <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.relationship') }}</label><input name="nok_relationship" value="{{ old('nok_relationship', $customer->nok_relationship ?? '') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
-                        <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.phone') }}</label><input name="nok_phone" value="{{ old('nok_phone', $customer->nok_phone ?? '') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
-                    </div>
-                    <div class="grid sm:grid-cols-2 gap-4 mt-4" x-data="tzAddress(@js(config('tanzania_locations')), @js(old('nok_region', $customer->nok_region ?? '')), @js(old('nok_district', $customer->nok_district ?? '')), @js(['selectRegion' => __('borrower.profile.select_region'), 'selectDistrict' => __('borrower.profile.select_district')]))" x-init="init()">
-                        <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.region') }}</label>
-                            <select name="nok_region" x-model="region" @change="onRegionChange()" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"><option value="" x-text="labels.selectRegion || 'Select region'"></option><template x-for="(districts, name) in locations" :key="name"><option :value="name" x-text="name"></option></template></select>
-                        </div>
-                        <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.district') }}</label>
-                            <select name="nok_district" x-model="district" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"><option value="" x-text="labels.selectDistrict || 'Select district'"></option><template x-for="d in districtOptions" :key="d"><option :value="d" x-text="d"></option></template></select>
-                        </div>
-                    </div>
-                </div>
-                @endunless
-
-                {{-- Activity --}}
-                @unless ($profileComplete || ($sectionsByKey['activity']['complete'] ?? false))
-                <div x-show="currentStepKey === 'activity'" class="p-6 sm:p-8">
-                    <h2 class="text-xl font-semibold mb-1">{{ __('borrower.profile.activity') }}</h2>
-                    <x-site.activity-fields
-                        :activity-type="old('activity_type', $customer->activity_type ?? $customer->employment_type)"
-                        :activity-details="old('activity_details', $customer->activity_details ?? [])"
-                        :income-range="old('income_range', $customer->income_range)"
-                    />
-                </div>
-                @endunless
-
-                {{-- Income --}}
-                <div x-show="currentStepKey === 'income'" class="p-6 sm:p-8">
-                    <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.income.title') }}</h2>
-                    <p class="text-sm text-gray-600 mb-5">{{ __('borrower.apply.income.subtitle') }}</p>
-                    <template x-if="incomeVerification.has_document">
-                        <div class="rounded-xl ring-1 ring-emerald-200 bg-emerald-50 px-4 py-3 mb-5">
-                            <p class="text-sm font-semibold text-emerald-900">✓ {{ __('borrower.apply.income.document_on_file') }}</p>
-                            <p class="text-xs text-emerald-700 mt-0.5" x-text="(incomeVerification.label || i18n.incomeDocument) + ' — ' + (incomeVerification.status || '{{ __('borrower.apply.income.pending_review') }}')"></p>
-                        </div>
-                    </template>
-                    <template x-if="! incomeVerification.has_document">
-                        <div class="space-y-4">
-                            <div class="flex flex-wrap gap-3">
-                                <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="income_document_type" value="bank" x-model="form.income_type" class="text-amber-500"> {{ __('borrower.apply.income.bank_statement') }}</label>
-                                <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="income_document_type" value="mobile_money" x-model="form.income_type" class="text-amber-500"> {{ __('borrower.apply.income.mobile_money') }}</label>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.income.upload_label') }}</label>
-                                <input type="file" name="income_document" accept="image/*,application/pdf" class="w-full text-sm">
-                            </div>
-                            <p class="text-xs text-gray-500">{{ __('borrower.apply.income.status_after_upload') }} <span class="font-semibold text-amber-700">{{ __('borrower.apply.income.pending_review') }}</span></p>
                         </div>
                     </template>
                 </div>
@@ -375,15 +275,27 @@
                     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.review_step.title') }}</h2>
                     <p class="text-sm text-gray-600 mb-4">{{ __('borrower.apply.review_step.subtitle') }}</p>
                     <div class="rounded-xl border border-gray-200 divide-y divide-gray-200 mb-5 text-sm">
-                        <div class="px-4 py-3 flex justify-between gap-3"><div><span class="text-gray-500 block">{{ __('borrower.apply.review_step.product') }}</span><span class="font-medium" x-text="current ? current.name : '—'"></span></div><button type="button" @click="backToBrowse()" class="text-xs text-amber-700 shrink-0">{{ __('borrower.apply.change') }}</button></div>
-                        <div class="px-4 py-3 flex justify-between gap-3"><div><span class="text-gray-500 block">{{ __('borrower.apply.review_step.amount_tenure') }}</span><span class="font-medium"><span x-text="formatTzs(form.requested_amount)"></span> · <span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.browse.months_short') }}</span></div><button type="button" @click="gotoKey('quote')" class="text-xs text-amber-700 shrink-0">{{ __('borrower.apply.edit') }}</button></div>
-                        <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.purpose') }}</span><span class="font-medium" x-text="purposeLabels[form.purpose] || form.purpose || '—'"></span></div>
-                        <div class="px-4 py-3 flex justify-between gap-3" x-show="review.personal"><div><span class="text-gray-500 block">{{ __('borrower.apply.review_personal') }}</span><span class="font-medium" x-text="review.personal"></span></div><button type="button" @click="gotoKey('personal')" class="text-xs text-amber-700 shrink-0" x-show="hasStep('personal')">{{ __('borrower.apply.edit') }}</button></div>
-                        <div class="px-4 py-3 flex justify-between gap-3" x-show="review.residence"><div><span class="text-gray-500 block">{{ __('borrower.apply.review_residence') }}</span><span class="font-medium" x-text="review.residence"></span></div><button type="button" @click="gotoKey('residence')" class="text-xs text-amber-700 shrink-0" x-show="hasStep('residence')">{{ __('borrower.apply.edit') }}</button></div>
-                        <div class="px-4 py-3 flex justify-between gap-3" x-show="review.nok"><div><span class="text-gray-500 block">{{ __('borrower.apply.review_kin') }}</span><span class="font-medium" x-text="review.nok"></span></div><button type="button" @click="gotoKey('kin')" class="text-xs text-amber-700 shrink-0" x-show="hasStep('kin')">{{ __('borrower.apply.edit') }}</button></div>
-                        <div class="px-4 py-3 flex justify-between gap-3" x-show="review.activity"><div><span class="text-gray-500 block">{{ __('borrower.apply.review_activity') }}</span><span class="font-medium" x-text="review.activity"></span></div><button type="button" @click="gotoKey('activity')" class="text-xs text-amber-700 shrink-0" x-show="hasStep('activity')">{{ __('borrower.apply.edit') }}</button></div>
+                        <div class="px-4 py-3 flex justify-between gap-3"><div><span class="text-gray-500 block">{{ __('borrower.apply.review_step.product') }}</span><span class="font-medium" x-text="current ? current.name : '—'"></span></div><button type="button" @click="backToBrowse()" class="text-xs text-amber-700 shrink-0" x-show="! reservationMode">{{ __('borrower.apply.change') }}</button></div>
+                        <template x-if="assetApplication">
+                            <div class="px-4 py-3">
+                                <span class="text-gray-500 block">{{ __('borrower.apply.review_step.asset') }}</span>
+                                <span class="font-medium" x-text="assetApplication.asset_title"></span>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    <span x-text="formatTzs(assetApplication.asset_value)"></span> ·
+                                    {{ __('borrower.marketplace.deposit') }} <span x-text="formatTzs(assetApplication.deposit)"></span> ·
+                                    <span x-text="assetApplication.max_tenure_months"></span> {{ __('borrower.apply.browse.months_short') }}
+                                </p>
+                            </div>
+                        </template>
+                        <div class="px-4 py-3 flex justify-between gap-3" x-show="hasStep('quote')"><div><span class="text-gray-500 block">{{ __('borrower.apply.review_step.amount_tenure') }}</span><span class="font-medium"><span x-text="formatTzs(form.requested_amount)"></span> · <span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.browse.months_short') }}</span></div><button type="button" @click="gotoKey('quote')" class="text-xs text-amber-700 shrink-0">{{ __('borrower.apply.edit') }}</button></div>
+                        <div class="px-4 py-3" x-show="hasStep('quote')"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.purpose') }}</span><span class="font-medium" x-text="purposeLabels[form.purpose] || form.purpose || '—'"></span></div>
+                        <div class="px-4 py-3">
+                            <span class="text-gray-500 block">{{ __('borrower.apply.review_step.profile_on_file') }}</span>
+                            <span class="font-medium" x-text="review.personal"></span>
+                            <p class="text-xs text-gray-500 mt-1" x-show="review.residence" x-text="review.residence"></p>
+                            <a :href="profileUrl" class="text-xs text-amber-700 font-medium mt-1 inline-block">{{ __('borrower.apply.edit_profile') }}</a>
+                        </div>
                         <div class="px-4 py-3 flex justify-between gap-3" x-show="hasStep('guarantor')"><div><span class="text-gray-500 block">{{ __('borrower.apply.guarantor') }}</span><span class="font-medium" x-text="review.guarantor || '—'"></span></div><button type="button" @click="gotoKey('guarantor')" class="text-xs text-amber-700 shrink-0">{{ __('borrower.apply.edit') }}</button></div>
-                        <div class="px-4 py-3" x-show="hasStep('income')"><span class="text-gray-500 block">{{ __('borrower.apply.income.review_income') }}</span><span class="font-medium" x-text="incomeVerification.has_document ? i18n.review.documentOnFile : i18n.review.uploadAtStep"></span></div>
                     </div>
                 </div>
 
@@ -437,6 +349,12 @@
                 profileSections: config.profileSections,
                 incomeVerification: config.incomeVerification,
                 readinessUrl: config.readinessUrl,
+                initialPlan: config.initialPlan || [],
+                assetApplication: config.assetApplication || null,
+                reservationMode: !! config.reservationMode,
+                marketplaceOnlyCodes: config.marketplaceOnlyCodes || [],
+                marketplaceUrl: config.marketplaceUrl || '',
+                profileUrl: config.profileUrl || '',
                 i18n: config.i18n,
                 phase: 'browse',
                 readiness: null,
@@ -460,13 +378,41 @@
                 },
 
                 init() {
+                    if (this.reservationMode && this.assetApplication) {
+                        this.beginReservationApplication();
+                        return;
+                    }
                     if (config.preselect) {
                         const p = this.products.find(x => x.id == config.preselect);
                         if (p) this.openProduct(p);
                     }
                 },
 
+                isMarketplaceProduct(product) {
+                    const code = (product?.code || '').toUpperCase();
+                    return this.marketplaceOnlyCodes.map(c => c.toUpperCase()).includes(code);
+                },
+
+                beginReservationApplication() {
+                    const p = this.products.find(x => x.id == config.preselect);
+                    if (! p) return;
+                    this.current = p;
+                    this.form.loan_product_id = p.id;
+                    this.form.requested_amount = this.assetApplication.remaining_loan;
+                    this.form.requested_tenure_months = this.assetApplication.max_tenure_months;
+                    this.form.purpose = this.assetApplication.purpose || 'asset_financing';
+                    if (! p.requires_guarantor) this.form.guarantor_mode = 'none';
+                    this.phase = 'application';
+                    this.steps = this.initialPlan.map(s => ({ key: s.key, label: s.label }));
+                    this.step = 0;
+                    this.loadReadiness(p.id);
+                },
+
                 openProduct(p) {
+                    if (this.isMarketplaceProduct(p)) {
+                        window.location.href = this.marketplaceUrl;
+                        return;
+                    }
                     this.current = p;
                     this.form.loan_product_id = p.id;
                     this.phase = 'details';
@@ -515,8 +461,9 @@
 
                 startApplication() {
                     if (! this.current) return;
-                    this.selectProduct(this.current, true);
+                    this.selectProduct(this.current, false);
                     this.phase = 'application';
+                    this.rebuildSteps();
                     this.step = 0;
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 },
@@ -524,34 +471,24 @@
                 rebuildSteps() {
                     if (this.readiness?.step_plan?.length) {
                         this.steps = this.readiness.step_plan.map(s => ({ key: s.key, label: s.label }));
-                        if (this.step >= this.steps.length) this.step = this.steps.length - 1;
-                        return;
+                    } else if (this.initialPlan?.length) {
+                        this.steps = this.initialPlan.map(s => ({ key: s.key, label: s.label }));
+                    } else {
+                        const stepLabels = this.i18n.steps;
+                        const steps = [];
+                        if (! this.isMarketplaceProduct(this.current)) {
+                            steps.push({ key: 'quote', label: stepLabels.quote });
+                        }
+                        if (this.current?.requires_guarantor) {
+                            steps.push({ key: 'guarantor', label: @js(__('borrower.apply.guarantor')) });
+                        }
+                        if (this.current?.code && this.productQuestions[this.current.code]) {
+                            steps.push({ key: 'product_questions', label: stepLabels.product_questions });
+                        }
+                        steps.push({ key: 'review', label: @js(__('borrower.apply.review')) });
+                        steps.push({ key: 'signature', label: @js(__('borrower.apply.sign')) });
+                        this.steps = steps;
                     }
-
-                    const profileKeys = ['personal', 'residence', 'kin', 'activity'];
-                    const sections = Object.fromEntries(this.profileSections.map(s => [s.key, s]));
-                    const profileComplete = profileKeys.every(k => sections[k]?.complete);
-                    const stepLabels = this.i18n.steps;
-                    const steps = [{ key: 'quote', label: stepLabels.quote }];
-                    if (! profileComplete) {
-                        profileKeys.forEach(k => {
-                            if (! sections[k]?.complete) {
-                                steps.push({ key: k, label: stepLabels[k] || k });
-                            }
-                        });
-                    }
-                    if (! this.incomeVerification.can_skip) {
-                        steps.push({ key: 'income', label: stepLabels.income });
-                    }
-                    if (this.current?.requires_guarantor) {
-                        steps.push({ key: 'guarantor', label: @js(__('borrower.apply.guarantor')) });
-                    }
-                    if (this.current?.code && this.productQuestions[this.current.code]) {
-                        steps.push({ key: 'product_questions', label: stepLabels.product_questions });
-                    }
-                    steps.push({ key: 'review', label: @js(__('borrower.apply.review')) });
-                    steps.push({ key: 'signature', label: @js(__('borrower.apply.sign')) });
-                    this.steps = steps;
                     if (this.step >= this.steps.length) this.step = this.steps.length - 1;
                 },
 
@@ -607,7 +544,7 @@
                 },
 
                 validateStep() {
-                    if (this.currentStepKey === 'quote' && ! this.form.purpose) {
+                    if (this.currentStepKey === 'quote' && this.hasStep('quote') && ! this.form.purpose) {
                         alert(this.i18n.alerts.selectPurpose);
                         return false;
                     }

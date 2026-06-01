@@ -13,6 +13,7 @@ use App\Models\DocumentType;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
 use App\Rules\MinimumAge;
+use App\Services\AffiliateService;
 use App\Services\ApplicationRequirementsService;
 use App\Services\AssetReservationService;
 use App\Services\FaceVerificationService;
@@ -46,29 +47,69 @@ class ApplyController extends Controller
         $eligibility = $requirements->checklist($customer);
         $profileSections = $wizard->profileSections($customer);
 
-        $products = LoanProduct::where('is_active', true)->orderBy('name')->get();
+        $products = LoanProduct::where('is_active', true)->orderBy('name')->get()
+            ->reject(fn (LoanProduct $p) => is_marketplace_loan_product($p->code))
+            ->values();
         $preselect = $request->query('product');
+        $preselectedProduct = null;
 
         if ($preselect) {
-            $selected = LoanProduct::where('is_active', true)
+            $preselectedProduct = LoanProduct::where('is_active', true)
                 ->where(function ($query) use ($preselect) {
                     $query->where('id', $preselect)
                           ->orWhere('code', $preselect);
                 })
                 ->first();
 
-            $preselect = $selected?->id;
+            $preselect = $preselectedProduct?->id;
         }
 
         $selectedProduct = $preselect ? $products->firstWhere('id', (int) $preselect) : null;
         $reservation = null;
+        $assetApplication = null;
         if ($request->filled('reservation') && $customer) {
             $reservation = AssetReservation::query()
                 ->where('customer_id', $customer->id)
                 ->with('asset')
                 ->find($request->query('reservation'));
         }
-        $stepPlan = $wizard->borrowerStepPlan($customer, $selectedProduct);
+        if ($preselectedProduct && is_marketplace_loan_product($preselectedProduct->code) && ! $reservation) {
+            return redirect()
+                ->route('site.borrower.marketplace')
+                ->with('status', __('borrower.marketplace.subtitle'));
+        }
+
+        if ($reservation?->asset) {
+            $assetLoanProduct = LoanProduct::where('is_active', true)
+                ->where('code', config('asset_marketplace.asset_loan_product_code', 'AL'))
+                ->first();
+
+            if ($assetLoanProduct) {
+                $selectedProduct = $assetLoanProduct;
+                $preselect = $assetLoanProduct->id;
+
+                $asset = $reservation->asset;
+                $deposit = (float) ($asset->customer_deposit ?: $asset->computeCustomerDeposit());
+                $assetValue = (float) ($asset->asset_value ?: max($deposit * 1.4, $deposit));
+                $remainingLoan = max(0, round($assetValue - $deposit, 2));
+                $tenure = max(1, (int) ($asset->max_tenure_months ?: $assetLoanProduct->tenure_max_months));
+
+                $assetApplication = [
+                    'asset_title'        => $asset->title,
+                    'asset_value'        => $assetValue,
+                    'deposit'            => $deposit,
+                    'remaining_loan'     => $remainingLoan,
+                    'weekly_installment' => (float) $asset->weekly_installment,
+                    'max_tenure_months'  => $tenure,
+                    'purpose'            => 'asset_financing',
+                ];
+            }
+        }
+
+        $stepPlan = collect($wizard->borrowerStepPlan($customer, $selectedProduct))
+            ->reject(fn (array $step) => $step['key'] === 'product')
+            ->values()
+            ->all();
         $incomeVerification = $wizard->incomeVerification($customer);
         $applicationFee = quoted_application_fee($customer);
         $productQuestions = config('loan_product_questions', []);
@@ -86,7 +127,11 @@ class ApplyController extends Controller
             'productQuestions',
             'readinessUrl',
             'reservation',
+            'assetApplication',
+            'selectedProduct',
         ))->with('loanPurposes', loan_purpose_options())
+            ->with('marketplaceOnlyCodes', marketplace_only_loan_codes())
+            ->with('marketplaceUrl', route('site.borrower.marketplace'))
             ->with('incomeRanges', config('income_ranges'))
             ->with('activityTypes', activity_type_options());
     }
@@ -131,11 +176,16 @@ class ApplyController extends Controller
                 ->with('error', 'Please reconfirm your KYC details before submitting.');
         }
 
+        $loanProduct = LoanProduct::where('id', $request->input('loan_product_id'))
+            ->where('is_active', true)
+            ->firstOrFail();
+        $isMarketplaceProduct = is_marketplace_loan_product($loanProduct->code);
+
         $data = $request->validate([
             'loan_product_id'         => ['required', 'exists:loan_products,id'],
             'requested_amount'        => ['required', 'numeric', 'min:1000'],
             'requested_tenure_months' => ['required', 'integer', 'min:1', 'max:60'],
-            'purpose'                 => ['required', 'string', 'max:100'],
+            'purpose'                 => [$isMarketplaceProduct ? 'nullable' : 'required', 'string', 'max:100'],
             'first_name'              => ['required', 'string', 'max:60'],
             'last_name'               => ['required', 'string', 'max:60'],
             'date_of_birth'           => ['required', 'date', new MinimumAge],
@@ -168,9 +218,9 @@ class ApplyController extends Controller
             'asset_reservation_id'    => ['nullable', 'integer', 'exists:asset_reservations,id'],
         ]);
 
-        $loanProduct = LoanProduct::where('id', $data['loan_product_id'])
-            ->where('is_active', true)
-            ->firstOrFail();
+        if ($isMarketplaceProduct && blank($data['purpose'] ?? null)) {
+            $data['purpose'] = 'asset_financing';
+        }
 
         $amount = (float) $data['requested_amount'];
         $tenure = (int) $data['requested_tenure_months'];

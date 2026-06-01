@@ -3,11 +3,16 @@
     <h1 class="text-2xl font-bold mb-1">{{ __('borrower.marketplace.title') }}</h1>
     <p class="text-sm text-gray-500 mb-6">{{ __('borrower.marketplace.subtitle') }}</p>
 
-    {{-- Find what you need --}}
-    <div class="mb-8 bg-gradient-to-br from-amber-50 to-white rounded-2xl border border-amber-100 p-6">
-        <h2 class="font-semibold text-lg">{{ __('borrower.marketplace.find_title') }}</h2>
-        <p class="text-sm text-gray-500 mt-1">{{ __('borrower.marketplace.find_subtitle') }}</p>
-        <form method="POST" action="{{ route('site.borrower.marketplace.request') }}" enctype="multipart/form-data" class="mt-4 grid sm:grid-cols-2 gap-4">
+    {{-- Find what you need (collapsed) --}}
+    <div class="mb-8 bg-gradient-to-br from-amber-50 to-white rounded-2xl border border-amber-100 overflow-hidden" x-data="{ requestOpen: false }">
+        <button type="button" @click="requestOpen = !requestOpen" class="w-full text-left p-6 flex items-center justify-between gap-4">
+            <div>
+                <h2 class="font-semibold text-lg">{{ __('borrower.marketplace.request_collapsed_title') }}</h2>
+                <p class="text-sm text-gray-500 mt-1">{{ __('borrower.marketplace.find_subtitle') }}</p>
+            </div>
+            <span class="shrink-0 text-sm font-semibold text-amber-700" x-text="requestOpen ? '−' : '+'"></span>
+        </button>
+        <form x-show="requestOpen" x-cloak method="POST" action="{{ route('site.borrower.marketplace.request') }}" enctype="multipart/form-data" class="px-6 pb-6 grid sm:grid-cols-2 gap-4 border-t border-amber-100 pt-4">
             @csrf
             <div class="sm:col-span-2">
                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.asset_name') }}</label>
@@ -23,7 +28,7 @@
             </div>
             <div class="sm:col-span-2">
                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.photo') }}</label>
-                <input type="file" name="photo" accept="image/*" class="w-full text-sm">
+                <input type="file" name="photo" accept="image/*" capture="environment" class="w-full text-sm">
             </div>
             <div class="sm:col-span-2">
                 <button class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.marketplace.submit_request') }}</button>
@@ -91,13 +96,12 @@
                     <div class="p-5 flex-1 flex flex-col">
                         <p class="text-xs uppercase tracking-widest text-gray-400">{{ $categories[$asset['category']] ?? $asset['category'] }}</p>
                         <h2 class="font-semibold text-gray-900 mt-1">{{ $asset['title'] }}</h2>
-                        <p class="text-xs text-gray-500 mt-2">{{ $asset['vendor'] ?? $asset['supplier'] ?? 'Supplier' }}</p>
                         <dl class="mt-4 space-y-1 text-sm">
-                            <div class="flex justify-between"><dt class="text-gray-500">Asset value</dt><dd class="font-semibold">TZS {{ number_format($asset['asset_value'] ?? 0) }}</dd></div>
-                            <div class="flex justify-between"><dt class="text-gray-500">Deposit</dt><dd class="font-semibold">TZS {{ number_format($asset['deposit']) }}</dd></div>
-                            <div class="flex justify-between"><dt class="text-gray-500">Weekly instalment</dt><dd class="font-semibold">TZS {{ number_format($asset['weekly_installment']) }}</dd></div>
+                            <div class="flex justify-between"><dt class="text-gray-500">{{ __('borrower.marketplace.asset_value') }}</dt><dd class="font-semibold">TZS {{ number_format($asset['asset_value'] ?? 0) }}</dd></div>
+                            <div class="flex justify-between"><dt class="text-gray-500">{{ __('borrower.marketplace.deposit') }}</dt><dd class="font-semibold">TZS {{ number_format($asset['deposit']) }}</dd></div>
+                            <div class="flex justify-between"><dt class="text-gray-500">{{ __('borrower.marketplace.weekly_installment') }}</dt><dd class="font-semibold">TZS {{ number_format($asset['weekly_installment']) }}</dd></div>
                             @if (! empty($asset['max_tenure_months']))
-                                <div class="flex justify-between"><dt class="text-gray-500">Max tenure</dt><dd class="font-semibold">{{ $asset['max_tenure_months'] }} months</dd></div>
+                                <div class="flex justify-between"><dt class="text-gray-500">{{ __('borrower.marketplace.max_tenure') }}</dt><dd class="font-semibold">{{ $asset['max_tenure_months'] }} {{ __('borrower.apply.quote.months') }}</dd></div>
                             @endif
                         </dl>
                         <div class="mt-5 flex flex-wrap gap-2">

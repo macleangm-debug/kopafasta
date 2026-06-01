@@ -93,7 +93,7 @@ $icon = function (string $name) {
                 </select>
             </form>
             <div class="relative" x-data="notificationBell()" x-init="load()">
-                <button type="button" @click="open = !open" class="relative p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900" title="Notifications">
+                <button type="button" @click="toggle()" class="relative p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900" title="Notifications">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $icon('bell') !!}</svg>
                     <span x-show="unread > 0" x-cloak class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center" x-text="unread > 9 ? '9+' : unread"></span>
                 </button>
@@ -243,6 +243,29 @@ document.addEventListener('alpine:init', () => {
                 const data = await res.json();
                 this.unread = data.unread ?? 0;
                 this.items = data.items ?? [];
+            } catch (e) {}
+        },
+        async toggle() {
+            const willOpen = !this.open;
+            this.open = willOpen;
+            if (!willOpen) return;
+            await this.load();
+            if (this.unread <= 0) return;
+            try {
+                const res = await fetch(@js(route('site.borrower.notifications.read')), {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
+                    },
+                    credentials: 'same-origin',
+                });
+                if (res.ok) {
+                    this.unread = 0;
+                    this.items = this.items.map(item => ({ ...item, read: true }));
+                }
             } catch (e) {}
         },
     }));
