@@ -10,6 +10,8 @@
 
 @php
     $current = old($name, $value);
+    $optionItems = $options instanceof \Illuminate\Support\Collection ? $options->all() : (array) $options;
+    $optionsAreList = array_is_list($optionItems);
 @endphp
 
 <div @error($name) data-has-error="true" @enderror>
@@ -28,9 +30,9 @@
             @if ($placeholder !== null)
                 <option value="">{{ $placeholder }}</option>
             @endif
-            @foreach ($options as $key => $label)
-                @php($optValue = is_int($key) ? $label : $key)
-                <option value="{{ $optValue }}" @selected((string) $current === (string) $optValue)>{{ $label }}</option>
+            @foreach ($optionItems as $key => $optionLabel)
+                @php($optValue = $optionsAreList ? $optionLabel : $key)
+                <option value="{{ $optValue }}" @selected((string) $current === (string) $optValue)>{{ $optionLabel }}</option>
             @endforeach
         </select>
         <svg class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">

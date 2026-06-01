@@ -2,37 +2,126 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\AuditsActions;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Loan;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
+use App\Services\AuditService;
 use App\Services\LoanDisbursementService;
+use App\Services\LoanOriginationService;
 use App\Services\RepaymentScheduleGenerator;
 use App\Services\LoanWriteOffService;
+use App\Services\SmartLoanApplicationWizardService;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\View\View;
 
 class LoanController extends Controller
 {
-    public function create()
+    use AuditsActions;
+
+    protected function auditResourceKey(): string
     {
-        return view('admin.loans.create', $this->formData());
+        return 'loans';
     }
 
-    public function store(Request $request)
+    public function create(): View
     {
+        $customers = Customer::orderBy('first_name')->limit(500)->get()
+            ->mapWithKeys(fn ($c) => [$c->id => trim($c->first_name.' '.$c->last_name).($c->customer_number ? ' ('.$c->customer_number.')' : '')]);
+
+        $products = LoanProduct::where('is_active', true)->orderBy('name')->get()->map(fn (LoanProduct $p) => [
+            'id'                 => $p->id,
+            'code'               => $p->code,
+            'name'               => $p->name,
+            'rate'               => (float) $p->interest_rate,
+            'min'                => (float) $p->min_amount,
+            'max'                => (float) $p->max_amount,
+            'tmin'               => (int) $p->tenure_min_months,
+            'tmax'               => (int) $p->tenure_max_months,
+            'desc'               => $p->description,
+            'requires_guarantor' => (bool) $p->requires_guarantor,
+        ])->values();
+
+        return view('admin.loans.create', [
+            'customers'     => $customers,
+            'products'      => $products,
+            'wizardDataUrl' => route('admin.loans.wizard-data', ['customer' => '__ID__']),
+        ]);
+    }
+
+    public function wizardCustomerData(Customer $customer, SmartLoanApplicationWizardService $wizard): JsonResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('loans.view'), 403);
+
+        $applications = LoanApplication::query()
+            ->with('product')
+            ->where('customer_id', $customer->id)
+            ->where('current_stage', 'disbursement')
+            ->whereDoesntHave('loan')
+            ->latest()
+            ->get()
+            ->map(fn (LoanApplication $a) => [
+                'id'                 => $a->id,
+                'application_number' => $a->application_number,
+                'product_id'         => $a->loan_product_id,
+                'product_name'       => $a->product?->name,
+                'product_code'       => $a->product?->code,
+                'amount'             => (float) ($a->recommended_amount ?: $a->requested_amount),
+                'tenure'             => (int) $a->requested_tenure_months,
+                'rate'               => (float) ($a->product?->interest_rate ?? 0),
+            ])
+            ->values();
+
+        return response()->json([
+            'eligibility'  => $wizard->eligibilityForCustomer($customer),
+            'profile'      => $wizard->profileSections($customer),
+            'applications' => $applications,
+        ]);
+    }
+
+    public function store(Request $request, LoanOriginationService $origination): RedirectResponse
+    {
+        if ($request->filled('loan_application_id')) {
+            $application = LoanApplication::query()->findOrFail($request->input('loan_application_id'));
+
+            abort_unless(
+                (int) $application->customer_id === (int) $request->input('customer_id'),
+                422,
+                'Application does not belong to the selected customer.'
+            );
+
+            try {
+                $loan = $origination->createFromApplication($application);
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                return back()->withErrors($e->errors())->withInput();
+            }
+
+            $this->auditAdminCreated($loan);
+
+            return redirect()
+                ->route('admin.loans.show', $loan)
+                ->with('status', 'Loan '.$loan->loan_number.' created from application. Disburse when ready.');
+        }
+
         $data = $this->validated($request);
 
         $data['loan_number']         = $data['loan_number'] ?? $this->generateLoanNumber();
         $data['approved_amount']     = $data['approved_amount'] ?? $data['principal_amount'];
         $data['outstanding_balance'] = $data['outstanding_balance'] ?? $data['principal_amount'];
+        $data['status']              = $data['status'] ?? 'pending';
 
         $loan = Loan::create($data);
+        $this->auditAdminCreated($loan);
 
         return redirect()
             ->route('admin.loans.show', $loan)
-            ->with('status', 'Loan created.');
+            ->with('status', 'Pending loan '.$loan->loan_number.' created. Disburse from the queue when ready.');
     }
 
     public function show(Loan $loan)
@@ -49,7 +138,10 @@ class LoanController extends Controller
 
     public function update(Request $request, Loan $loan)
     {
+        $before = app(AuditService::class)->snapshot($loan);
         $loan->update($this->validated($request));
+        $loan->refresh();
+        $this->auditAdminUpdated($loan, $before);
 
         return redirect()
             ->route('admin.loans.show', $loan)
@@ -58,6 +150,7 @@ class LoanController extends Controller
 
     public function destroy(Loan $loan)
     {
+        $this->auditAdminDeleted($loan);
         $loan->delete();
 
         return redirect()
@@ -74,7 +167,6 @@ class LoanController extends Controller
 
         $applied = $service->applyFees($loan->fresh());
 
-        // Build the amortisation schedule (idempotent)
         $installments = $scheduler->generate($loan->fresh());
 
         if ($loan->loan_application_id) {
@@ -84,6 +176,11 @@ class LoanController extends Controller
                 'disbursed_at' => now(),
             ]);
         }
+
+        $this->auditAdmin('admin.loans.disbursed', $loan->fresh(), [
+            'fees_applied' => count($applied),
+            'installments' => $installments,
+        ]);
 
         return redirect()
             ->route('admin.loans.show', $loan)
@@ -108,12 +205,18 @@ class LoanController extends Controller
             return back()->withErrors(['amount' => $e->getMessage()]);
         }
 
+        $this->auditAdmin('admin.loans.written_off', $loan->fresh(), [
+            'reason' => $data['reason'],
+            'amount' => $data['amount'] ?? null,
+            'journal' => $entry?->entry_number,
+        ]);
+
         return redirect()
             ->route('admin.loans.show', $loan)
             ->with('status', 'Loan written off.'.($entry ? ' Journal '.$entry->entry_number.' posted.' : ''));
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
         return [
             'customers'    => Customer::orderBy('first_name')->get(['id', 'first_name', 'last_name', 'customer_number']),

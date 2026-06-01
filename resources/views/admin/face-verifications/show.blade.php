@@ -15,7 +15,7 @@
         <dl class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
             <div><dt class="text-gray-500">Phone</dt><dd class="font-medium">{{ $customer->phone ?? '—' }}</dd></div>
             <div><dt class="text-gray-500">NIDA</dt><dd class="font-medium font-mono">{{ $customer->national_id ?? '—' }}</dd></div>
-            <div><dt class="text-gray-500">Status</dt><dd class="font-medium capitalize">{{ str_replace('_', ' ', $customer->face_verification_status) }}</dd></div>
+            <div><dt class="text-gray-500">Status</dt><dd class="font-medium">{{ display_label($customer->face_verification_status, 'face_verification_status') }}</dd></div>
             <div><dt class="text-gray-500">Photos</dt><dd class="font-medium">{{ $progress['uploaded'] }}/{{ $progress['required'] }}</dd></div>
         </dl>
     </div>
@@ -39,7 +39,7 @@
                 <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                     <p class="font-semibold text-sm">{{ $meta['label'] }}</p>
                     @if ($photo)
-                        <span class="text-xs rounded-full px-2 py-0.5 bg-gray-100 text-gray-600">{{ ucfirst(str_replace('_', ' ', $photo->status)) }}</span>
+                        <span class="text-xs rounded-full px-2 py-0.5 bg-gray-100 text-gray-600">{{ display_label($photo->status, 'document_status') }}</span>
                     @endif
                 </div>
                 <div class="p-4">

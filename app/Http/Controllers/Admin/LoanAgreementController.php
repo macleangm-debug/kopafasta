@@ -10,12 +10,12 @@ class LoanAgreementController extends Controller
 {
     public function __construct(private readonly LoanAgreementService $service) {}
 
-    public function generate(LoanApplication $application)
+    public function generate(LoanApplication $loan_application)
     {
-        $agreement = $this->service->generateOfferLetter($application, regenerate: true);
+        $agreement = $this->service->generateOfferLetter($loan_application, regenerate: true);
 
         return redirect()
-            ->route('admin.loan-applications.show', $application)
+            ->route('admin.loan-applications.show', $loan_application)
             ->with('status', "Offer letter generated ({$agreement->reference}).");
     }
 }

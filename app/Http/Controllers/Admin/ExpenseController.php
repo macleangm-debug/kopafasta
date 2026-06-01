@@ -6,6 +6,7 @@ use App\Models\Branch;
 use App\Models\ChartOfAccount;
 use App\Models\Expense;
 use App\Models\Vendor;
+use App\Services\AuditService;
 use App\Services\ExpensePostingService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -34,7 +35,7 @@ class ExpenseController extends ResourceController
         ];
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
         return [
             'branches' => Branch::orderBy('name')->pluck('name', 'id'),
@@ -60,24 +61,34 @@ class ExpenseController extends ResourceController
         if (($expense->status ?? null) === 'paid') {
             app(ExpensePostingService::class)->post($expense);
         }
+        $this->auditAdminCreated($expense);
+
         return redirect()->route('admin.expenses.show', $expense)->with('status', 'Expense recorded.');
     }
 
     public function update(Request $request, $id)
     {
         $expense = Expense::findOrFail($id);
+        $before = app(AuditService::class)->snapshot($expense);
         $was = $expense->status;
         $data = $this->transform($request->validate($this->rules($expense)), $expense);
         $expense->update($data);
         if ($expense->status === 'paid' && $was !== 'paid') {
             app(ExpensePostingService::class)->post($expense->fresh());
         }
+        $expense->refresh();
+        $this->auditAdminUpdated($expense, $before);
+
         return redirect()->route('admin.expenses.show', $expense)->with('status', 'Expense updated.');
     }
 
     public function post(Expense $expense)
     {
         $entry = app(ExpensePostingService::class)->post($expense);
+        $this->auditAdmin('admin.expenses.posted', $expense, [
+            'journal' => $entry?->entry_number,
+        ]);
+
         return back()->with('status', $entry ? 'Journal '.$entry->entry_number.' posted.' : 'Could not post (check finance defaults).');
     }
 }

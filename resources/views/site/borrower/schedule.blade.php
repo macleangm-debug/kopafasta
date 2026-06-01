@@ -1,4 +1,4 @@
-<x-site.borrower-layout title="Repayment schedule — Kopafasta" active="schedule">
+<x-site.borrower-layout :title="brand_title('Repayment schedule')" active="schedule">
 
     <div class="flex items-center justify-between flex-wrap gap-3 mb-6">
         <div>

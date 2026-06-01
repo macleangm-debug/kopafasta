@@ -32,7 +32,7 @@ class SuspiciousActivityController extends ResourceController
         ];
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
         return [
             'customers' => Customer::orderBy('first_name')->limit(500)->get()->mapWithKeys(fn($c)=>[$c->id=>trim(($c->first_name ?? '').' '.($c->last_name ?? ''))]),

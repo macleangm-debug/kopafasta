@@ -1,7 +1,7 @@
-<x-site.borrower-layout title="Offer letter — {{ $application->application_number }}" active="applications">
+<x-site.borrower-layout :title="brand_title('Offer letter — '.$application->application_number)" active="applications">
 
     <div class="max-w-3xl mx-auto">
-        <a href="{{ route('borrower.application', $application) }}" class="text-sm text-amber-700 hover:underline">&larr; Back to application</a>
+        <a href="{{ route('site.borrower.application', $application) }}" class="text-sm text-amber-700 hover:underline">&larr; Back to application</a>
 
         @if (session('status'))
             <div class="mt-3 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
@@ -13,7 +13,12 @@
             <div class="mt-3 rounded-lg bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">{{ session('error') }}</div>
         @endif
 
-        <div class="mt-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+        <div class="mt-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
+            <div class="bg-gradient-to-r from-gray-900 to-amber-900 text-white px-6 py-4 flex items-center justify-between gap-3">
+                <x-site.brand-mark size="sm" variant="light" />
+                <span class="text-xs uppercase tracking-widest text-white/80">Official loan contract</span>
+            </div>
+            <div class="p-6">
             <h1 class="text-xl font-bold text-gray-900">Loan offer letter</h1>
             <p class="text-sm text-gray-600 mt-1">Application <span class="font-mono">{{ $application->application_number }}</span></p>
 
@@ -43,7 +48,7 @@
                 </div>
 
                 <div class="mt-5 flex flex-wrap items-center gap-3">
-                    <a href="{{ route('borrower.agreement.download', $agreement) }}" target="_blank"
+                    <a href="{{ route('site.borrower.agreement.download', $agreement) }}" target="_blank"
                        class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 px-4 py-2 rounded-lg">
                         View / Download PDF
                     </a>
@@ -54,7 +59,7 @@
                         <h2 class="text-sm font-semibold text-gray-900">Accept &amp; sign</h2>
                         <p class="text-xs text-gray-600 mt-1">Confirm acceptance by entering the 6-digit code we send to your phone.</p>
 
-                        <form method="POST" action="{{ route('borrower.application.agreement.otp', $application) }}" class="mt-3">
+                        <form method="POST" action="{{ route('site.borrower.application.agreement.otp', $application) }}" class="mt-3">
                             @csrf
                             <button type="submit" class="inline-flex items-center gap-2 text-sm font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 px-4 py-2 rounded-lg">
                                 @if ($agreement->otp_sent_at) Resend code @else Send code @endif
@@ -64,7 +69,8 @@
                             @endif
                         </form>
 
-                        <form method="POST" action="{{ route('borrower.application.agreement.sign', $application) }}" class="mt-4 flex flex-wrap items-end gap-3">
+                        <form method="POST" action="{{ route('site.borrower.application.agreement.sign', $application) }}" class="mt-4 flex flex-wrap items-end gap-3"
+                              @submit.prevent="window.confirmForm($el, { title: 'Sign this offer letter?', message: 'You are accepting the loan terms. This action is legally binding.', confirmLabel: 'Confirm & sign', confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white' })">
                             @csrf
                             <div>
                                 <label class="block text-xs uppercase tracking-wider text-gray-500 mb-1">6-digit code</label>
@@ -84,6 +90,7 @@
                     </div>
                 @endif
             @endif
+            </div>
         </div>
     </div>
 

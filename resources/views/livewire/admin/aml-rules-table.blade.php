@@ -14,7 +14,7 @@
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3 font-mono text-xs">{{ $r->code }}</td>
                 <td class="px-5 py-3 font-medium"><a href="{{ route('admin.aml-rules.show', $r) }}" class="hover:text-indigo-600">{{ $r->name }}</a></td>
-                <td class="px-5 py-3 capitalize">{{ str_replace('_',' ', $r->rule_type) }}</td>
+                <td class="px-5 py-3">{{ display_label($r->rule_type, 'aml_rule_type') }}</td>
                 <td class="px-5 py-3 capitalize">{{ $r->action }}</td>
                 <td class="px-5 py-3"><span class="inline-flex items-center rounded px-2 py-0.5 text-xs {{ $sc }}">{{ ucfirst($r->severity) }}</span></td>
                 <td class="px-5 py-3"><span class="inline-flex items-center rounded px-2 py-0.5 text-xs {{ $r->is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600' }}">{{ $r->is_active ? 'Active' : 'Inactive' }}</span></td>

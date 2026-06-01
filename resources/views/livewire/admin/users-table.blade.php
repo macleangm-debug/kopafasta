@@ -1,5 +1,5 @@
 <div>
-<x-admin.table-shell :records="$rows" :statuses="$filterRoles" statusKey="role" statusLabel="All roles"
+<x-admin.table-shell :records="$rows" :statuses="$filterRoles" :statusLabels="$roleLabels" statusKey="role" statusLabel="All roles"
                      searchPlaceholder="Search name, email, phone…">
     <x-slot:headers>
         <x-admin.th :sort="$sort" :direction="$direction" col="name"       label="Name" />
@@ -19,7 +19,7 @@
                 <td class="px-5 py-3 font-medium">{{ $r->name }}</td>
                 <td class="px-5 py-3 text-gray-600">{{ $r->email }}</td>
                 <td class="px-5 py-3">{{ $r->phone ?? '—' }}</td>
-                <td class="px-5 py-3"><x-admin.badge :value="$r->role" :map="['admin' => 'bg-amber-100 text-amber-800', 'super_admin' => 'bg-red-100 text-red-800']" /></td>
+                <td class="px-5 py-3"><x-admin.badge :value="$r->role" group="role" :label="$roleLabels[$r->role] ?? null" :map="['admin' => 'bg-amber-100 text-amber-800', 'super_admin' => 'bg-red-100 text-red-800']" /></td>
                 <td class="px-5 py-3">
                     <div class="flex flex-col gap-1">
                         @if ($r->is_active)

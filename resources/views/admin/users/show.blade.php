@@ -8,7 +8,7 @@
         'Name'           => $record->name,
         'Email'          => $record->email,
         'Phone'          => $record->phone,
-        'Role'           => ucfirst(str_replace('_', ' ', $record->role ?? '')),
+        'Role'           => $record->roleLabel(),
         'Branch'         => optional(\App\Models\Branch::find($record->branch_id))->name,
         'Approval limit' => $record->approval_limit ? 'TZS '.number_format((float) $record->approval_limit) : null,
         'Account status' => $record->is_active ? 'Active' : 'Inactive',

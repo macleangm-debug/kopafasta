@@ -45,7 +45,10 @@ class UsersTable extends Component
             ->paginate($this->perPage);
 
         $filterRoles = $roles->usersFilterRoles();
+        $roleLabels = collect($filterRoles)
+            ->mapWithKeys(fn (string $code) => [$code => $roles->label($code)])
+            ->all();
 
-        return view('livewire.admin.users-table', compact('rows', 'filterRoles'));
+        return view('livewire.admin.users-table', compact('rows', 'filterRoles', 'roleLabels'));
     }
 }

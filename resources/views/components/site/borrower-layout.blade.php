@@ -1,15 +1,18 @@
-@props(['title' => 'My account — Kopafasta', 'active' => 'dashboard'])
+@props(['title' => null, 'active' => 'dashboard'])
 
 @php
+    $pageTitle = $title ?? brand_title('My account');
 $nav = [
-    ['key' => 'dashboard',     'label' => 'Dashboard',     'route' => 'site.borrower.dashboard',     'icon' => 'home'],
-    ['key' => 'membership',    'label' => 'Membership',    'route' => 'site.membership.show',        'icon' => 'shield'],
-    ['key' => 'loans',         'label' => 'Loans',         'route' => 'site.borrower.loans',         'icon' => 'wallet'],
-    ['key' => 'applications',  'label' => 'Applications',  'route' => 'site.borrower.applications',  'icon' => 'doc'],
-    ['key' => 'payments',      'label' => 'Payments',      'route' => 'site.borrower.payments',      'icon' => 'pay'],
-    ['key' => 'notifications', 'label' => 'Notifications', 'route' => 'site.borrower.notifications', 'icon' => 'bell'],
-    ['key' => 'support',       'label' => 'Support',       'route' => 'site.borrower.support',       'icon' => 'help'],
-    ['key' => 'profile',       'label' => 'Profile',       'route' => 'site.borrower.profile',       'icon' => 'user'],
+    ['key' => 'dashboard',     'label' => __('borrower.nav.dashboard'),     'route' => 'site.borrower.dashboard',     'icon' => 'home'],
+    ['key' => 'membership',    'label' => __('borrower.nav.membership'),    'route' => 'site.membership.show',        'icon' => 'shield'],
+    ['key' => 'referrals',     'label' => __('borrower.nav.referrals'),     'route' => 'site.borrower.referrals',     'icon' => 'users'],
+    ['key' => 'loans',         'label' => __('borrower.nav.loans'),         'route' => 'site.borrower.loans',         'icon' => 'wallet'],
+    ['key' => 'applications',  'label' => __('borrower.nav.applications'),  'route' => 'site.borrower.applications',  'icon' => 'doc'],
+    ['key' => 'marketplace',   'label' => __('borrower.nav.marketplace'),   'route' => 'site.borrower.marketplace', 'icon' => 'folder'],
+    ['key' => 'payments',      'label' => __('borrower.nav.payments'),      'route' => 'site.borrower.payments',      'icon' => 'pay'],
+    ['key' => 'notifications', 'label' => __('borrower.nav.notifications'), 'route' => 'site.borrower.notifications', 'icon' => 'bell'],
+    ['key' => 'support',       'label' => __('borrower.nav.support'),       'route' => 'site.borrower.support',       'icon' => 'help'],
+    ['key' => 'profile',       'label' => __('borrower.nav.profile'),       'route' => 'site.borrower.profile',       'icon' => 'user'],
 ];
 
 $borrowerCustomer = auth()->user()?->customer;
@@ -35,12 +38,12 @@ $icon = function (string $name) {
 };
 @endphp
 <!doctype html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title }}</title>
+    <title>{{ $pageTitle }}</title>
     @vite(['resources/css/app.css','resources/js/app.js'])
     @stack('styles')
     <style>[x-cloak]{display:none!important}</style>
@@ -52,10 +55,9 @@ $icon = function (string $name) {
     {{-- Sidebar (desktop) --}}
     <aside class="hidden lg:flex w-64 shrink-0 flex-col bg-gradient-to-b from-indigo-700 via-indigo-800 to-slate-900 text-white sticky top-0 h-screen shadow-xl">
         <a href="{{ route('site.home') }}" class="flex items-center gap-2 px-5 h-16 border-b border-white/15">
-            <span class="size-9 grid place-items-center rounded-lg bg-white text-indigo-700 font-extrabold shadow">K</span>
-            <div class="leading-tight">
-                <div class="font-extrabold tracking-tight">Kopafasta</div>
-                <div class="text-[11px] text-white/70">Borrower portal</div>
+            <x-site.brand-mark size="sm" variant="light" />
+            <div class="leading-tight ml-1">
+                <div class="text-[11px] text-white/70">{{ __('borrower.portal') }}</div>
             </div>
         </a>
         <nav class="flex-1 overflow-y-auto py-4">
@@ -72,13 +74,9 @@ $icon = function (string $name) {
                 </a>
             @endforeach
         </nav>
-        <form method="POST" action="{{ route('site.logout') }}" class="p-4 border-t border-white/15">
-            @csrf
-            <button class="w-full text-left text-sm text-white/85 hover:text-white inline-flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M16 17l5-5-5-5M21 12H9M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></svg>
-                Sign out
-            </button>
-        </form>
+        <div class="p-4 border-t border-white/15 text-[11px] text-white/60">
+            {{ __('borrower.signed_in_as', ['name' => Auth::user()->name]) }}
+        </div>
     </aside>
 
     {{-- Main column --}}
@@ -86,6 +84,14 @@ $icon = function (string $name) {
 
         {{-- Topbar (desktop) --}}
         <header class="hidden lg:flex sticky top-0 z-20 bg-white border-b border-gray-200 items-center justify-end gap-4 px-8 h-16">
+            <form method="POST" action="{{ route('site.locale.update') }}" class="flex items-center gap-2 text-sm">
+                @csrf
+                <label for="locale" class="text-gray-500">{{ __('borrower.language') }}</label>
+                <select id="locale" name="locale" onchange="this.form.submit()" class="rounded-lg border-gray-300 text-sm py-1.5">
+                    <option value="en" @selected(app()->getLocale() === 'en')>{{ __('borrower.english') }}</option>
+                    <option value="sw" @selected(app()->getLocale() === 'sw')>{{ __('borrower.swahili') }}</option>
+                </select>
+            </form>
             <div class="relative" x-data="notificationBell()" x-init="load()">
                 <button type="button" @click="open = !open" class="relative p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900" title="Notifications">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $icon('bell') !!}</svg>
@@ -110,25 +116,37 @@ $icon = function (string $name) {
                     </div>
                 </div>
             </div>
-            <div class="text-right leading-tight">
-                <p class="text-sm font-semibold text-gray-900">{{ Auth::user()->name }}</p>
-                <p class="text-xs text-gray-500">{{ Auth::user()->email }}</p>
-            </div>
-            <div class="size-9 rounded-full bg-amber-100 text-amber-700 grid place-items-center font-bold">{{ strtoupper(substr(Auth::user()->name, 0, 1)) }}</div>
-            <form method="POST" action="{{ route('site.logout') }}">
-                @csrf
-                <button class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-red-50 hover:text-red-700 hover:border-red-300">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 17l5-5-5-5M21 12H9M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></svg>
-                    Sign out
+            <div class="relative" x-data="{ profileOpen: false }">
+                <button type="button" @click="profileOpen = !profileOpen"
+                        class="flex items-center gap-3 rounded-xl hover:bg-gray-50 px-2 py-1.5 transition">
+                    <div class="text-right leading-tight hidden sm:block">
+                        <p class="text-sm font-semibold text-gray-900">{{ Auth::user()->name }}</p>
+                        <p class="text-xs text-gray-500">{{ Auth::user()->email }}</p>
+                    </div>
+                    <div class="size-9 rounded-full bg-amber-100 text-amber-700 grid place-items-center font-bold">
+                        {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
+                    </div>
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
                 </button>
-            </form>
+                <div x-show="profileOpen" @click.outside="profileOpen = false" x-cloak
+                     class="absolute right-0 mt-2 w-56 rounded-2xl bg-white shadow-xl ring-1 ring-gray-200 overflow-hidden z-50 py-1">
+                    <a href="{{ route('site.borrower.profile') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">My profile</a>
+                    <a href="{{ route('site.borrower.profile', ['section' => 'security']) }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">Security settings</a>
+                    <a href="{{ route('site.borrower.notifications') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">Notifications</a>
+                    <a href="{{ route('site.borrower.support') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">Help center</a>
+                    <div class="border-t border-gray-100 my-1"></div>
+                    <form method="POST" action="{{ route('site.logout') }}">
+                        @csrf
+                        <button type="submit" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">Sign out</button>
+                    </form>
+                </div>
+            </div>
         </header>
 
         {{-- Topbar (mobile) --}}
         <header class="lg:hidden sticky top-0 z-30 bg-white border-b border-gray-200 flex items-center justify-between px-4 h-14">
             <a href="{{ route('site.home') }}" class="flex items-center gap-2">
-                <span class="size-7 grid place-items-center rounded-md bg-amber-500 text-gray-900 font-extrabold text-sm">K</span>
-                <span class="font-bold">Kopafasta</span>
+                <x-site.brand-mark size="sm" />
             </a>
             <div class="flex items-center gap-1">
                 <a href="{{ route('site.borrower.notifications') }}" class="relative p-2 text-gray-600 hover:text-gray-900" title="Notifications">
@@ -189,18 +207,28 @@ $icon = function (string $name) {
         @endif
 
         <main class="flex-1 px-4 lg:px-8 py-6 lg:py-8">
-            {{ $slot }}
+            <div class="max-w-6xl w-full">
+                {{ $slot }}
+            </div>
         </main>
 
         <footer class="px-4 lg:px-8 py-6 text-center text-xs text-gray-400">
-            © {{ date('Y') }} Kopafasta · <a href="{{ route('site.faq') }}" class="hover:text-gray-600">Help</a>
+            © {{ date('Y') }} {{ brand('legal_name') }} · <a href="{{ route('site.faq') }}" class="hover:text-gray-600">Help</a>
         </footer>
     </div>
 </div>
 
+<x-site.confirm-modal name="default" />
+
 @stack('scripts')
 <script>
 document.addEventListener('alpine:init', () => {
+    window.confirmForm = (form, detail = {}) => {
+        window.dispatchEvent(new CustomEvent('open-confirm-default', {
+            detail: { form, ...detail },
+        }));
+    };
+
     Alpine.data('notificationBell', () => ({
         open: false,
         unread: {{ $unreadNotifications }},

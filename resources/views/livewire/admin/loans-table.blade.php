@@ -16,7 +16,7 @@
                     class="appearance-none text-sm bg-white border border-gray-300 rounded-lg shadow-sm pl-3.5 pr-9 py-2 font-medium text-gray-700 cursor-pointer hover:border-gray-400 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition disabled:bg-gray-100 disabled:cursor-not-allowed">
                 <option value="">All statuses</option>
                 @foreach ($statuses as $s)
-                    <option value="{{ $s }}">{{ ucfirst(str_replace('_', ' ', $s)) }}</option>
+                    <option value="{{ $s }}">{{ display_label($s, 'loan_status') }}</option>
                 @endforeach
             </select>
             <svg class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -76,7 +76,7 @@
                                 'bg-amber-100 text-amber-800'     => $loan->status === 'pending',
                                 'bg-gray-100 text-gray-700'       => $loan->status === 'closed',
                             ])>
-                                {{ str_replace('_', ' ', $loan->status ?? 'unknown') }}
+                                {{ display_label($loan->status, 'loan_status') }}
                             </span>
                         </td>
                         <td class="px-5 py-3 text-gray-500">{{ $loan->disbursement_date?->format('Y-m-d') ?? '—' }}</td>
@@ -113,7 +113,14 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="px-5 py-12 text-center text-gray-500">No loans found.</td></tr>
+                    <tr>
+                        <td colspan="7" class="px-5 py-12 text-center text-gray-500">
+                            <p>No loans found.</p>
+                            <p class="text-sm mt-2">Loans are created from approved applications — start at
+                                <a href="{{ route('admin.loan-applications.index') }}" class="text-amber-700 font-medium hover:text-amber-800">Applications</a>.
+                            </p>
+                        </td>
+                    </tr>
                 @endforelse
             </tbody>
         </table>

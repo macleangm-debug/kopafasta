@@ -12,6 +12,10 @@ class LoanProduct extends Model
     {
         return [
             'interest_rate' => 'decimal:4',
+            'bot_regulated_rate' => 'decimal:4',
+            'processing_fee_rate' => 'decimal:4',
+            'service_fee_rate' => 'decimal:4',
+            'administration_fee_rate' => 'decimal:4',
             'min_amount' => 'decimal:2',
             'max_amount' => 'decimal:2',
             'requires_collateral' => 'boolean',
@@ -20,6 +24,26 @@ class LoanProduct extends Model
             'is_active' => 'boolean',
             'status' => 'string',
         ];
+    }
+
+    public function offerLetterTemplate(): BelongsTo
+    {
+        return $this->belongsTo(DocumentTemplate::class, 'offer_letter_template_id');
+    }
+
+    public function loanContractTemplate(): BelongsTo
+    {
+        return $this->belongsTo(DocumentTemplate::class, 'loan_contract_template_id');
+    }
+
+    public function guarantorAgreementTemplate(): BelongsTo
+    {
+        return $this->belongsTo(DocumentTemplate::class, 'guarantor_agreement_template_id');
+    }
+
+    public function assetLendingAgreementTemplate(): BelongsTo
+    {
+        return $this->belongsTo(DocumentTemplate::class, 'asset_lending_agreement_template_id');
     }
 
     public function requirements(): HasMany
@@ -35,5 +59,15 @@ class LoanProduct extends Model
     public function applications(): HasMany
     {
         return $this->hasMany(LoanApplication::class);
+    }
+
+    public function postApprovalFees(): HasMany
+    {
+        return $this->hasMany(LoanProductPostApprovalFee::class);
+    }
+
+    public function rateTiers(): HasMany
+    {
+        return $this->hasMany(LoanProductRateTier::class);
     }
 }

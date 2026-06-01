@@ -6,7 +6,7 @@
         'Full name'    => $record->full_name,
         'Position'     => $record->position,
         'Organization' => $record->organization,
-        'Category'     => str_replace('_',' ', $record->category),
+        'Category'     => display_label($record->category, 'pep_category'),
         'Risk level'   => ucfirst($record->risk_level),
         'Listed on'    => optional($record->listed_on)->format('Y-m-d') ?? '—',
         'Linked customer' => $record->customer ? trim(($record->customer->first_name ?? '').' '.($record->customer->last_name ?? '')) : '—',

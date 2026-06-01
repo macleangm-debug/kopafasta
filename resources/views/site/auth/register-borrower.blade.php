@@ -75,6 +75,12 @@
 
                     <form method="POST" action="{{ route('site.register.borrower.post') }}">
                         @csrf
+                        @if (! empty($referralCode))
+                            <input type="hidden" name="referral_code" value="{{ $referralCode }}">
+                        @endif
+                        @if (! empty($affiliateCode))
+                            <input type="hidden" name="affiliate_code" value="{{ $affiliateCode }}">
+                        @endif
 
                         {{-- Step 1: Country --}}
                         <div x-show="step === 1" x-transition>

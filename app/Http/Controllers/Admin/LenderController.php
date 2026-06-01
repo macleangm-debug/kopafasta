@@ -27,7 +27,7 @@ class LenderController extends ResourceController
         ];
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
         return [
             'types'    => ['bank' => 'Bank', 'institutional' => 'Institutional', 'individual' => 'Individual', 'sacco' => 'SACCO', 'other' => 'Other'],

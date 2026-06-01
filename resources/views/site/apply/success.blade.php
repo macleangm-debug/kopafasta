@@ -1,17 +1,41 @@
-<x-site.borrower-layout title="Application received — Kopafasta" active="applications">
+<x-site.borrower-layout :title="brand_title('Application received')" active="applications">
     <div class="max-w-xl mx-auto text-center py-6">
         <div class="size-16 rounded-full bg-emerald-100 text-emerald-600 grid place-items-center mx-auto mb-5">
             <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
         </div>
-        <h1 class="text-3xl font-bold tracking-tight">Application received</h1>
-        <p class="mt-2 text-gray-600">Reference <span class="font-mono font-bold text-gray-900">{{ $application->application_number }}</span>. We'll notify you when review starts.</p>
+        <h1 class="text-3xl font-bold tracking-tight animate-[fadeIn_0.5s_ease-out]">Application submitted</h1>
+        <p class="mt-2 text-gray-600">Reference <span class="font-mono font-bold text-gray-900">{{ $application->application_number }}</span></p>
+        <p class="text-sm text-emerald-700 font-semibold mt-1">Status: Submitted for underwriting</p>
 
         <div class="mt-8 bg-white rounded-2xl border border-gray-200 p-6 text-left">
+            <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-4">Underwriting progress</p>
+            <ol class="space-y-3">
+                @foreach ($underwritingStages as $stage)
+                    @php
+                        $dotClass = match ($stage['status']) {
+                            'done'   => 'bg-emerald-500',
+                            'active' => 'bg-amber-500 ring-4 ring-amber-100',
+                            default  => 'bg-gray-200',
+                        };
+                        $textClass = match ($stage['status']) {
+                            'done'   => 'text-emerald-800',
+                            'active' => 'text-amber-900 font-semibold',
+                            default  => 'text-gray-500',
+                        };
+                    @endphp
+                    <li class="flex items-center gap-3">
+                        <span class="size-3 rounded-full shrink-0 {{ $dotClass }}"></span>
+                        <span class="text-sm {{ $textClass }}">{{ $stage['label'] }}</span>
+                    </li>
+                @endforeach
+            </ol>
+        </div>
+
+        <div class="mt-6 bg-white rounded-2xl border border-gray-200 p-6 text-left">
             <div class="grid grid-cols-2 gap-3 text-sm">
                 <div class="text-gray-500">Product</div><div class="font-medium">{{ $application->product->name }}</div>
                 <div class="text-gray-500">Amount</div><div class="font-medium">TZS {{ number_format($application->requested_amount, 0) }}</div>
                 <div class="text-gray-500">Tenure</div><div class="font-medium">{{ $application->requested_tenure_months }} months</div>
-                <div class="text-gray-500">Status</div><div class="font-medium capitalize">{{ str_replace('_',' ',$application->status) }}</div>
             </div>
         </div>
 

@@ -13,7 +13,7 @@
         'Customer'         => $customer ? trim($customer->first_name.' '.$customer->last_name) : null,
         'Assigned to'      => $agent?->name,
         'Priority'         => ucfirst($record->priority ?? ''),
-        'Status'           => ucfirst(str_replace('_', ' ', $record->status ?? '')),
+        'Status'           => display_label($record->status, 'ticket_status'),
         'Category'         => $record->category,
         'Resolved at'      => optional($record->resolved_at)->format('Y-m-d H:i'),
         'Description'      => ['value' => $record->description, 'wide' => true],

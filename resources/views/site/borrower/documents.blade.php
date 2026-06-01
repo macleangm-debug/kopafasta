@@ -1,4 +1,4 @@
-<x-site.borrower-layout title="Documents — Kopafasta" active="documents">
+<x-site.borrower-layout :title="brand_title('Documents')" active="documents">
 
     <h1 class="text-2xl font-bold mb-1">My documents</h1>
     <p class="text-sm text-gray-500 mb-6">Upload required documents. JPG, PNG or PDF (max 5 MB).</p>

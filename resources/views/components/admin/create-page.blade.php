@@ -4,10 +4,17 @@
     'subheading' => null,
     'action',           // form action URL (store)
     'cancelUrl',
+    'backLabel' => 'Back',
     'submitLabel' => 'Create',
 ])
 
-<x-admin.layout :title="$title" :heading="$heading" :subheading="$subheading">
+<x-admin.layout
+    :title="$title"
+    :heading="$heading"
+    :subheading="$subheading"
+    :backUrl="$cancelUrl"
+    :backLabel="$backLabel">
+
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
         <form method="POST" action="{{ $action }}" class="space-y-6">
             @csrf

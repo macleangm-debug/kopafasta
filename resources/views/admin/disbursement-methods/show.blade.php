@@ -4,7 +4,7 @@
     :editUrl="route('admin.disbursement-methods.edit', $record)"
     :fields="[
         'Code' => $record->code, 'Name' => $record->name,
-        'Channel' => str_replace('_',' ', $record->channel),
+        'Channel' => display_label($record->channel, 'channel'),
         'Fixed fee' => number_format($record->fixed_fee, 2),
         'Percentage fee' => number_format($record->percentage_fee * 100, 2).' %',
         'Priority' => $record->priority,

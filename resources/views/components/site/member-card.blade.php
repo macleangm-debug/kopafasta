@@ -45,7 +45,7 @@
 
         <div class="flex items-start justify-between relative">
             <div class="min-w-0 flex-1">
-                <p class="text-[10px] uppercase tracking-widest text-white/70">KopaFasta Member</p>
+                <p class="text-[10px] uppercase tracking-widest text-white/70">{{ brand_name() }} Member</p>
                 <h3 class="mt-1 text-xl font-bold tracking-wide truncate">{{ $name ?: '—' }}</h3>
             </div>
             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold {{ $badgeClass }} shrink-0 ml-2">

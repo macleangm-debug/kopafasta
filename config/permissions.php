@@ -60,7 +60,9 @@ return [
     'defaults' => [
         'officer' => [
             'applications.view', 'applications.edit', 'applications.request_documents',
+            'applications.acknowledge', 'applications.review', 'applications.pre_approve',
             'customers.view', 'kyc.review', 'membership.approve_payments',
+            'loans.view',
             'reports.view',
         ],
         'manager' => [
@@ -75,6 +77,7 @@ return [
         'credit_analyst' => [
             'applications.view', 'applications.review', 'applications.request_documents',
             'customers.view', 'kyc.review',
+            'loans.view',
             'reports.view',
         ],
         'collector' => [

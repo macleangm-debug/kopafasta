@@ -1,7 +1,8 @@
-@props(['value', 'map' => [], 'default' => 'bg-gray-100 text-gray-700'])
+@props(['value', 'label' => null, 'group' => null, 'map' => [], 'default' => 'bg-gray-100 text-gray-700'])
 @php
     $class = $map[$value] ?? $default;
+    $text = $label ?? display_label($value, $group);
 @endphp
 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {{ $class }}">
-    {{ str_replace('_', ' ', $value ?? 'unknown') }}
+    {{ $text !== '' ? $text : 'Unknown' }}
 </span>

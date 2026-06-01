@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Site;
 
+use App\Http\Controllers\Concerns\AuditsActions;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\LoanAgreement;
@@ -15,6 +16,8 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class LoanAgreementController extends Controller
 {
+    use AuditsActions;
+
     public function __construct(
         private readonly LoanAgreementService $service,
         private readonly NotificationService $notifier,
@@ -60,6 +63,11 @@ class LoanAgreementController extends Controller
         if (app()->environment('local', 'testing')) {
             $flash .= " (Dev code: {$code})";
         }
+
+        $this->auditBorrower('agreement.otp_requested', $application, [
+            'agreement_id' => $agreement->id,
+        ]);
+
         return back()->with('otp_sent', $flash);
     }
 
@@ -82,6 +90,10 @@ class LoanAgreementController extends Controller
         // Regenerate PDF so the "signed" stamp is baked into the file.
         if ($ok) {
             $this->service->generateOfferLetter($application, regenerate: true);
+            $this->auditBorrower('agreement.signed', $application, [
+                'agreement_id' => $agreement->id,
+                'reference'    => $agreement->reference,
+            ]);
         }
 
         return back()->with($ok ? 'status' : 'error', $message);

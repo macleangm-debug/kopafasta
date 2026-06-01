@@ -30,7 +30,7 @@ class ChargesFeeController extends ResourceController
         ];
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
         return [
             'types' => ['origination'=>'Origination','processing'=>'Processing','late_fee'=>'Late fee','penalty'=>'Penalty','insurance'=>'Insurance','gps'=>'GPS','valuation'=>'Valuation','restructure'=>'Restructure','early_settlement'=>'Early settlement','other'=>'Other'],

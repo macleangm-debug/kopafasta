@@ -1,4 +1,4 @@
-<x-site.borrower-layout title="Guarantors — Kopafasta" active="guarantors">
+<x-site.borrower-layout :title="brand_title('Guarantors')" active="guarantors">
 
     <h1 class="text-2xl font-bold mb-1">My guarantors</h1>
     <p class="text-sm text-gray-500 mb-6">A guarantor backs your loan. They sign on your behalf.</p>
@@ -6,7 +6,8 @@
     <div class="grid lg:grid-cols-3 gap-6">
 
         <form method="POST" action="{{ route('site.borrower.guarantors.store') }}"
-              class="lg:col-span-1 bg-white rounded-2xl border border-gray-200 p-6">
+              class="lg:col-span-1 bg-white rounded-2xl border border-gray-200 p-6"
+              @submit.prevent="window.confirmForm($el, { title: 'Send guarantor request?', message: 'We will notify this person to approve guaranteeing your loan.', confirmLabel: 'Send request', confirmClass: 'bg-amber-500 hover:bg-amber-400 text-gray-900' })">
             @csrf
             <h2 class="font-semibold mb-4">Add a guarantor</h2>
 

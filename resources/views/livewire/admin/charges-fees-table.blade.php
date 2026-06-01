@@ -14,8 +14,8 @@
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3 font-mono text-xs">{{ $r->code }}</td>
                 <td class="px-5 py-3 font-medium"><a href="{{ route('admin.charges-fees.show', $r) }}" class="hover:text-indigo-600">{{ $r->name }}</a></td>
-                <td class="px-5 py-3 capitalize">{{ str_replace('_',' ', $r->type) }}</td>
-                <td class="px-5 py-3 capitalize">{{ str_replace('_',' ', $r->basis) }}</td>
+                <td class="px-5 py-3">{{ display_label($r->type, 'charge_type') }}</td>
+                <td class="px-5 py-3">{{ display_label($r->basis, 'charge_basis') }}</td>
                 <td class="px-5 py-3 text-right font-mono text-xs">{{ number_format($r->amount, 4) }}</td>
                 <td class="px-5 py-3 capitalize">{{ $r->charge_when }}</td>
                 <td class="px-5 py-3"><span class="inline-flex items-center rounded px-2 py-0.5 text-xs {{ $r->is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600' }}">{{ $r->is_active ? 'Active' : 'Inactive' }}</span></td>

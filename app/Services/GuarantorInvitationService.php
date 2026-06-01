@@ -30,7 +30,7 @@ class GuarantorInvitationService
 
     public function invitationUrl(GuarantorInvitation $invitation): string
     {
-        $base = rtrim(Setting::group('company')['website'] ?? config('app.url'), '/');
+        $base = app(ReferralService::class)->appBaseUrl();
 
         return $base.'/guarantor/'.$invitation->token;
     }
@@ -81,6 +81,15 @@ class GuarantorInvitationService
                 'expires_at'            => now()->addDays(14),
             ]);
 
+            $borrowerName = trim($borrower->first_name.' '.$borrower->last_name);
+            $productName = $application->product?->name ?? 'loan';
+            app(NotificationService::class)->notifyInApp(
+                $member,
+                "{$borrowerName} asked you to guarantee their {$productName} application. Review and respond in Guarantor requests.",
+                'guarantor',
+                'guarantor_request',
+            );
+
             return [$link, $invitation];
         });
     }
@@ -125,8 +134,30 @@ class GuarantorInvitationService
                 'expires_at'            => now()->addDays(14),
             ]);
 
+            $this->notifyExternalInvitation($borrower, $invitation, $name);
+
             return [$link, $invitation];
         });
+    }
+
+    protected function notifyExternalInvitation(Customer $borrower, GuarantorInvitation $invitation, string $inviteeName): void
+    {
+        $borrowerName = trim($borrower->first_name.' '.$borrower->last_name);
+        $productName = $invitation->application?->product?->name ?? 'loan';
+        $url = $this->invitationUrl($invitation);
+        $message = "{$borrowerName} asked you to guarantee their {$productName}. Open {$url} to approve or decline.";
+
+        if ($invitation->channel === 'email' && str_contains((string) $invitation->contact, '@')) {
+            app(NotificationService::class)->sendEmail(
+                (string) $invitation->contact,
+                'Guarantor invitation from '.$borrowerName,
+                $message,
+                $borrower,
+                'guarantor_invite',
+            );
+        } elseif ($invitation->contact) {
+            app(NotificationService::class)->sendSms((string) $invitation->contact, $message, $borrower, 'guarantor_invite');
+        }
     }
 
     public function approve(CustomerGuarantor $link): void

@@ -4,7 +4,7 @@
     :editUrl="route('admin.aml-rules.edit', $record)"
     :fields="[
         'Code' => $record->code, 'Name' => $record->name,
-        'Rule type' => str_replace('_',' ', $record->rule_type),
+        'Rule type' => display_label($record->rule_type, 'aml_rule_type'),
         'Threshold amount' => $record->threshold_amount ? number_format($record->threshold_amount, 2) : '—',
         'Threshold count'  => $record->threshold_count ?? '—',
         'Window (days)'    => $record->window_days ?? '—',

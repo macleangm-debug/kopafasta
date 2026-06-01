@@ -1,5 +1,5 @@
-@php($r = $record ?? null)
 @php
+    $r = $record ?? null;
     $selected = is_array($r?->permissions) ? $r->permissions : [];
     if (old('permissions')) {
         $selected = old('permissions');

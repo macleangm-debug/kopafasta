@@ -32,7 +32,7 @@ class RepaymentController extends ResourceController
         ];
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
         return [
             'loans'    => Loan::orderByDesc('id')->limit(300)->pluck('loan_number', 'id'),
@@ -71,6 +71,7 @@ class RepaymentController extends ResourceController
         $repayment = Repayment::create($data);
 
         app(RepaymentPostingService::class)->post($repayment);
+        $this->auditAdminCreated($repayment);
 
         return redirect()
             ->route('admin.repayments.show', $repayment)

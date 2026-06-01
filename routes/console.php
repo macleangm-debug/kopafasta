@@ -14,3 +14,5 @@ Schedule::command('loans:mark-overdue')->dailyAt('00:30');
 Schedule::command('loans:accrue-late-fees')->dailyAt('01:00');
 Schedule::command('loans:send-reminders --overdue')->dailyAt('08:00');
 Schedule::command('membership:send-reminders')->dailyAt('09:00');
+Schedule::command('partners:queue-weekly-settlements')->weeklyOn(5, '08:00');
+Schedule::command('customers:send-birthday-wishes')->dailyAt('07:30');

@@ -1,24 +1,22 @@
 {{-- Borrower / vendor login. Phone+PIN default; email+password secondary. --}}
-<x-site.layout title="Log in — Kopafasta">
+<x-site.layout :title="brand_title('Log in')">
     <section class="min-h-screen grid lg:grid-cols-2 bg-gray-50">
         <aside class="hidden lg:flex relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-amber-900 text-white p-12 flex-col justify-between">
             <div class="absolute -top-32 -right-24 size-96 rounded-full bg-amber-500/20 blur-3xl"></div>
-            <a href="{{ route('site.home') }}" class="relative inline-flex items-center gap-2 font-bold text-lg">
-                <span class="size-9 grid place-items-center rounded-lg bg-amber-500 text-gray-900 font-extrabold">K</span>
-                Kopafasta
+            <a href="{{ route('site.home') }}" class="relative">
+                <x-site.brand-mark variant="light" />
             </a>
             <div class="relative">
                 <h2 class="text-4xl font-bold tracking-tight leading-tight">Sign in with your<br>phone & PIN.</h2>
-                <p class="mt-4 text-white/70 max-w-md">Fast, secure access designed for mobile. Email sign-in remains available as a backup.</p>
+                <p class="mt-4 text-white/70 max-w-md">{{ brand('tagline') }}. Fast, secure access designed for mobile.</p>
             </div>
-            <p class="relative text-xs text-white/50">© {{ date('Y') }} Kopafasta</p>
+            <p class="relative text-xs text-white/50">© {{ date('Y') }} {{ brand('legal_name') }}</p>
         </aside>
 
         <div class="flex items-center justify-center px-4 py-12 sm:px-12">
             <div class="w-full max-w-md" x-data="{ method: '{{ old('auth_method', 'pin') }}' }">
-                <a href="{{ route('site.home') }}" class="lg:hidden inline-flex items-center gap-2 font-bold text-gray-900 mb-8">
-                    <span class="size-9 grid place-items-center rounded-lg bg-amber-500 text-gray-900 font-extrabold">K</span>
-                    Kopafasta
+                <a href="{{ route('site.home') }}" class="lg:hidden mb-8 inline-block">
+                    <x-site.brand-mark />
                 </a>
 
                 <h1 class="text-3xl font-bold tracking-tight text-gray-900">Welcome back</h1>

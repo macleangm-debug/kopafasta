@@ -65,7 +65,7 @@
                     'bg-amber-100 text-amber-800'     => $loan->status === 'pending',
                     'bg-gray-100 text-gray-700'       => $loan->status === 'closed',
                 ])>
-                    {{ str_replace('_', ' ', $loan->status ?? 'unknown') }}
+                    {{ display_label($loan->status, 'loan_status') }}
                 </span>
             </div>
 
@@ -89,7 +89,15 @@
                 </div>
                 <div>
                     <dt class="text-xs text-gray-500">Linked application</dt>
-                    <dd class="text-gray-900">{{ $loan->application?->application_number ?? '—' }}</dd>
+                    <dd class="text-gray-900">
+                        @if ($loan->application)
+                            <a href="{{ route('admin.loan-applications.show', $loan->application) }}" class="font-mono text-amber-700 hover:text-amber-800">
+                                {{ $loan->application->application_number }}
+                            </a>
+                        @else
+                            —
+                        @endif
+                    </dd>
                 </div>
                 <div>
                     <dt class="text-xs text-gray-500">Principal amount</dt>

@@ -1,9 +1,15 @@
 <div>
-<x-admin.table-shell :records="$rows" :statuses="$statuses" searchPlaceholder="Search vendor name, number, phone…">
+<x-admin.table-shell :records="$rows" :statuses="$statuses" searchPlaceholder="{{ ($affiliateMode ?? false) ? 'Search affiliate name, code, phone…' : 'Search vendor name, number, phone…' }}">
     <x-slot:headers>
         <x-admin.th :sort="$sort" :direction="$direction" col="vendor_number" label="Vendor #" />
         <x-admin.th :sort="$sort" :direction="$direction" col="name"          label="Name" />
-        <x-admin.th :sort="$sort" :direction="$direction" col="category"      label="Category" />
+        @if ($affiliateMode ?? false)
+            <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Affiliate code</th>
+            <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Commission</th>
+            <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Tracking link</th>
+        @else
+            <x-admin.th :sort="$sort" :direction="$direction" col="category"      label="Category" />
+        @endif
         <x-admin.th :sort="$sort" :direction="$direction" col="phone"         label="Phone" />
         <x-admin.th :sort="$sort" :direction="$direction" col="status"        label="Status" />
         <th class="px-5 py-3"></th>
@@ -15,7 +21,19 @@
                 <td class="px-5 py-3 font-medium">
                     <a href="{{ route('admin.vendors.show', $r) }}" class="text-amber-700 hover:underline">{{ $r->name }}</a>
                 </td>
-                <td class="px-5 py-3 text-gray-600">{{ ucwords(str_replace('_', ' ', (string) $r->category)) }}</td>
+                @if ($affiliateMode ?? false)
+                    <td class="px-5 py-3 font-mono text-xs">{{ $r->affiliate_code ?: '—' }}</td>
+                    <td class="px-5 py-3 text-sm">{{ number_format((float) ($r->affiliate_commission_percent ?? config('affiliates.default_commission_percent', 0)), 1) }}%</td>
+                    <td class="px-5 py-3 text-xs text-gray-600 max-w-[14rem] truncate">
+                        @if ($r->affiliate_code)
+                            {{ app(\App\Services\AffiliateService::class)->affiliateLink($r) }}
+                        @else
+                            —
+                        @endif
+                    </td>
+                @else
+                    <td class="px-5 py-3 text-gray-600">{{ display_label((string) $r->category, 'vendor_category') }}</td>
+                @endif
                 <td class="px-5 py-3 text-gray-600">{{ $r->phone }}</td>
                 <td class="px-5 py-3">
                     <x-admin.badge :value="$r->status" :map="[
@@ -29,7 +47,7 @@
                 </td>
             </tr>
         @empty
-            <tr><td colspan="6" class="px-5 py-12 text-center text-gray-500">No vendors found.</td></tr>
+            <tr><td colspan="{{ ($affiliateMode ?? false) ? 8 : 6 }}" class="px-5 py-12 text-center text-gray-500">No vendors found.</td></tr>
         @endforelse
     </x-slot:rows>
 </x-admin.table-shell>

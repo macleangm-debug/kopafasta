@@ -1,5 +1,6 @@
 @php($r = $record ?? null)
 <x-admin.step title="GL account">
+    <p class="md:col-span-2 text-xs text-gray-500 mb-2">Used by automatic journal posting for disbursements, repayments, fees, and expenses. Link income/expense accounts on charges &amp; fees where applicable.</p>
     <x-admin.input  name="code" label="Code" :value="$r?->code" required placeholder="e.g. 1100" />
     <x-admin.input  name="name" label="Name" :value="$r?->name" required />
     <x-admin.select name="type" label="Type" :options="$types" :value="$r?->type" required placeholder="—" />

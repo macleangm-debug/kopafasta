@@ -18,7 +18,7 @@
             <table class="w-full text-sm">
                 <tbody class="divide-y divide-gray-100">
                     @forelse ($expenses as $cat => $total)
-                        <tr><td class="py-2 capitalize text-gray-600">{{ str_replace('_',' ', $cat) }}</td><td class="py-2 text-right font-mono">{{ number_format($total, 2) }}</td></tr>
+                        <tr><td class="py-2 text-gray-600">{{ display_label($cat, 'account_type') }}</td><td class="py-2 text-right font-mono">{{ number_format($total, 2) }}</td></tr>
                     @empty
                         <tr><td class="py-2 text-gray-400 text-center" colspan="2">No expenses recorded YTD</td></tr>
                     @endforelse

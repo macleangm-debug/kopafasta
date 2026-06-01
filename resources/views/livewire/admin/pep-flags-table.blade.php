@@ -15,7 +15,7 @@
                 <td class="px-5 py-3 font-medium"><a href="{{ route('admin.pep-flags.show', $r) }}" class="hover:text-indigo-600">{{ $r->full_name }}</a></td>
                 <td class="px-5 py-3">{{ $r->position }}</td>
                 <td class="px-5 py-3">{{ $r->organization }}</td>
-                <td class="px-5 py-3 capitalize">{{ str_replace('_',' ', $r->category) }}</td>
+                <td class="px-5 py-3">{{ display_label($r->category, 'pep_category') }}</td>
                 <td class="px-5 py-3"><span class="inline-flex items-center rounded px-2 py-0.5 text-xs {{ $rc }}">{{ ucfirst($r->risk_level) }}</span></td>
                 <td class="px-5 py-3"><span class="inline-flex items-center rounded px-2 py-0.5 text-xs {{ $r->is_active ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-600' }}">{{ $r->is_active ? 'Flagged' : 'Cleared' }}</span></td>
             </tr>

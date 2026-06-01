@@ -11,11 +11,12 @@ use Illuminate\Support\Facades\DB;
  * Generates a repayment schedule for a loan.
  *
  * Methods supported:
- *  - 'reducing' (default): equal monthly payment (EMI) with reducing-balance interest
- *  - 'flat'              : equal principal + (principal * monthly rate) interest each period
+ *  - 'reducing' (default): equal instalment with reducing-balance interest
+ *  - 'flat'              : equal principal + (principal * period rate) interest each period
  *
- * Idempotent: if a schedule already exists for the loan it is left untouched
- * unless $force = true, in which case existing rows are deleted and rebuilt.
+ * Cadence:
+ *  - 'weekly'  (default): tenure_months × 4 weekly instalments
+ *  - 'monthly': one instalment per month
  *
  * Interest rate on the loan is stored as a MONTHLY decimal rate, e.g. 0.015 = 1.5% per month.
  */
@@ -32,21 +33,21 @@ class RepaymentScheduleGenerator
                 RepaymentSchedule::where('loan_id', $loan->id)->delete();
             }
 
-            // Principal that the borrower will repay = approved/principal amount (NOT net disbursed).
+            $loan->loadMissing('product');
+
             $principal = (float) ($loan->approved_amount ?? $loan->principal_amount ?? 0);
-            $tenure    = (int)   ($loan->tenure_months ?? 0);
-            $rate      = (float) ($loan->interest_rate ?? 0); // monthly decimal
-            $start     = $loan->disbursement_date
+            $tenureMonths = (int) ($loan->tenure_months ?? 0);
+            $monthlyRate = (float) ($loan->interest_rate ?? 0);
+            $cadence = $loan->product->repayment_cadence ?? 'weekly';
+            $start = $loan->disbursement_date
                 ? Carbon::parse($loan->disbursement_date)
                 : Carbon::now();
 
-            if ($principal <= 0 || $tenure <= 0) {
+            if ($principal <= 0 || $tenureMonths <= 0) {
                 return 0;
             }
 
-            $rows = $method === 'flat'
-                ? $this->flat($principal, $rate, $tenure, $start)
-                : $this->reducing($principal, $rate, $tenure, $start);
+            $rows = $this->buildSchedule($principal, $monthlyRate, $tenureMonths, $cadence, $start, $method);
 
             foreach ($rows as $row) {
                 RepaymentSchedule::create([
@@ -61,13 +62,12 @@ class RepaymentScheduleGenerator
                 ]);
             }
 
-            // Maintain summary fields on the loan
             $first = $rows[0] ?? null;
-            $last  = $rows[array_key_last($rows)] ?? null;
+            $last = $rows[array_key_last($rows)] ?? null;
             $loan->update([
-                'next_due_date'        => $first ? $first['due_date'] : $loan->next_due_date,
-                'maturity_date'        => $last  ? $last['due_date']  : $loan->maturity_date,
-                'outstanding_balance'  => $principal,
+                'next_due_date'       => $first ? $first['due_date'] : $loan->next_due_date,
+                'maturity_date'       => $last ? $last['due_date'] : $loan->maturity_date,
+                'outstanding_balance' => $principal,
             ]);
 
             return count($rows);
@@ -75,71 +75,124 @@ class RepaymentScheduleGenerator
     }
 
     /**
-     * Reducing balance EMI:
-     *   EMI = P * r * (1+r)^n / ((1+r)^n − 1)
-     * If r = 0, fall back to straight-line principal.
+     * Build a preview schedule for offer letters and contracts.
+     *
+     * @return list<array{installment_no: int, due_date: string, principal_due: float, interest_due: float, total_due: float, label: string}>
      */
-    private function reducing(float $principal, float $rate, int $tenure, Carbon $start): array
+    public function preview(
+        float $principal,
+        float $monthlyRate,
+        int $tenureMonths,
+        string $cadence = 'weekly',
+        ?Carbon $start = null,
+        string $method = 'reducing',
+    ): array {
+        $start ??= Carbon::now();
+
+        return $this->buildSchedule($principal, $monthlyRate, $tenureMonths, $cadence, $start, $method);
+    }
+
+    /**
+     * @return list<array{installment_no: int, due_date: string, principal_due: float, interest_due: float, total_due: float, label: string}>
+     */
+    private function buildSchedule(
+        float $principal,
+        float $monthlyRate,
+        int $tenureMonths,
+        string $cadence,
+        Carbon $start,
+        string $method,
+    ): array {
+        $periods = $this->periodCount($tenureMonths, $cadence);
+        $periodRate = $cadence === 'weekly' ? ($monthlyRate / 4) : $monthlyRate;
+
+        $rows = $method === 'flat'
+            ? $this->flat($principal, $periodRate, $periods, $start, $cadence)
+            : $this->reducing($principal, $periodRate, $periods, $start, $cadence);
+
+        return array_map(function (array $row) use ($cadence) {
+            $row['label'] = $cadence === 'weekly'
+                ? 'Week '.$row['installment_no']
+                : 'Month '.$row['installment_no'];
+
+            return $row;
+        }, $rows);
+    }
+
+    public function periodCount(int $tenureMonths, string $cadence): int
+    {
+        return $cadence === 'monthly' ? $tenureMonths : max(1, $tenureMonths * 4);
+    }
+
+    public function installmentLabel(string $cadence): string
+    {
+        return $cadence === 'monthly' ? 'Monthly instalment' : 'Weekly instalment';
+    }
+
+    private function reducing(float $principal, float $rate, int $tenure, Carbon $start, string $cadence): array
     {
         $rows = [];
         if ($rate <= 0) {
-            return $this->flat($principal, 0.0, $tenure, $start);
+            return $this->flat($principal, 0.0, $tenure, $start, $cadence);
         }
 
         $pow = pow(1 + $rate, $tenure);
-        $emi = $principal * $rate * $pow / ($pow - 1);
-        $emi = round($emi, 2);
+        $instalment = $principal * $rate * $pow / ($pow - 1);
+        $instalment = round($instalment, 2);
 
         $balance = $principal;
         for ($i = 1; $i <= $tenure; $i++) {
-            $interest  = round($balance * $rate, 2);
-            $principalPart = round($emi - $interest, 2);
+            $interest = round($balance * $rate, 2);
+            $principalPart = round($instalment - $interest, 2);
 
-            // Last installment absorbs rounding so balance hits zero exactly.
             if ($i === $tenure) {
                 $principalPart = round($balance, 2);
-                $emi           = round($principalPart + $interest, 2);
+                $instalment = round($principalPart + $interest, 2);
             }
 
             $balance = round($balance - $principalPart, 2);
 
             $rows[] = [
                 'installment_no' => $i,
-                'due_date'       => $start->copy()->addMonthsNoOverflow($i)->toDateString(),
+                'due_date'       => $this->dueDate($start, $i, $cadence)->toDateString(),
                 'principal_due'  => $principalPart,
                 'interest_due'   => $interest,
-                'total_due'      => $emi,
+                'total_due'      => $instalment,
             ];
         }
 
         return $rows;
     }
 
-    /**
-     * Flat rate: equal principal each month, interest = principal * monthly rate each month.
-     */
-    private function flat(float $principal, float $rate, int $tenure, Carbon $start): array
+    private function flat(float $principal, float $rate, int $tenure, Carbon $start, string $cadence): array
     {
         $rows = [];
-        $monthlyPrincipal = round($principal / $tenure, 2);
-        $monthlyInterest  = round($principal * $rate, 2);
+        $periodPrincipal = round($principal / $tenure, 2);
+        $periodInterest = round($principal * $rate, 2);
 
         $accPrincipal = 0;
         for ($i = 1; $i <= $tenure; $i++) {
-            $p = $monthlyPrincipal;
+            $p = $periodPrincipal;
             if ($i === $tenure) {
-                $p = round($principal - $accPrincipal, 2); // absorb rounding
+                $p = round($principal - $accPrincipal, 2);
             }
             $accPrincipal += $p;
             $rows[] = [
                 'installment_no' => $i,
-                'due_date'       => $start->copy()->addMonthsNoOverflow($i)->toDateString(),
+                'due_date'       => $this->dueDate($start, $i, $cadence)->toDateString(),
                 'principal_due'  => $p,
-                'interest_due'   => $monthlyInterest,
-                'total_due'      => round($p + $monthlyInterest, 2),
+                'interest_due'   => $periodInterest,
+                'total_due'      => round($p + $periodInterest, 2),
             ];
         }
 
         return $rows;
+    }
+
+    private function dueDate(Carbon $start, int $installmentNo, string $cadence): Carbon
+    {
+        return $cadence === 'monthly'
+            ? $start->copy()->addMonthsNoOverflow($installmentNo)
+            : $start->copy()->addWeeks($installmentNo);
     }
 }

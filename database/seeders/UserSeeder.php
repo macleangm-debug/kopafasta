@@ -15,7 +15,7 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         $hqBranch = Branch::query()->where('code', 'HQ001')->first();
-        $darBranch = Branch::query()->where('code', 'BR002')->first();
+        $ilalaBranch = Branch::query()->where('code', 'BR-ILA')->first();
 
         $users = [
             [
@@ -32,7 +32,7 @@ class UserSeeder extends Seeder
                 'email' => 'manager@kopafasta.local',
                 'phone' => '+255700100002',
                 'role' => 'manager',
-                'branch_id' => $darBranch?->id,
+                'branch_id' => $ilalaBranch?->id,
                 'approval_limit' => 50000000,
                 'is_active' => true,
             ],
@@ -41,7 +41,7 @@ class UserSeeder extends Seeder
                 'email' => 'officer@kopafasta.local',
                 'phone' => '+255700100003',
                 'role' => 'officer',
-                'branch_id' => $darBranch?->id,
+                'branch_id' => $ilalaBranch?->id,
                 'approval_limit' => 10000000,
                 'is_active' => true,
             ],
@@ -50,7 +50,7 @@ class UserSeeder extends Seeder
                 'email' => 'collector@kopafasta.local',
                 'phone' => '+255700100004',
                 'role' => 'collector',
-                'branch_id' => $darBranch?->id,
+                'branch_id' => $ilalaBranch?->id,
                 'approval_limit' => null,
                 'is_active' => true,
             ],
@@ -59,7 +59,7 @@ class UserSeeder extends Seeder
                 'email' => 'customer@kopafasta.local',
                 'phone' => '+255700100005',
                 'role' => 'customer',
-                'branch_id' => $darBranch?->id,
+                'branch_id' => $ilalaBranch?->id,
                 'approval_limit' => null,
                 'is_active' => true,
             ],

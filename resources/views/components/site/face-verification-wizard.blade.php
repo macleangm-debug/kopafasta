@@ -8,7 +8,7 @@
 ])
 
 <div
-    class="max-w-lg mx-auto"
+    class="w-full"
     x-data="faceVerificationWizard({
         steps: @js($steps),
         uploadUrls: @js($uploadUrls),
@@ -25,8 +25,7 @@
                 </svg>
             </div>
             <h2 class="text-xl font-bold text-gray-900 mb-2">Face ID verification</h2>
-            <p class="text-sm text-gray-500 mb-4" x-show="!isDesktop">Sit close to your camera and follow the on-screen head movements.</p>
-            <p class="text-sm text-gray-500 mb-4" x-show="isDesktop" x-cloak>Sit close to your webcam, allow camera access, and follow each step. On a computer, photos save automatically after 2 seconds — or tap <strong>Capture now</strong> anytime.</p>
+            <p class="text-sm text-gray-500 mb-4">You control each photo — nothing is captured until you tap <strong>Capture</strong>.</p>
             <ul class="text-left text-sm text-gray-600 space-y-2 mb-6">
                 <template x-for="(step, i) in steps" :key="step.key">
                     <li class="flex items-center gap-2">
@@ -47,10 +46,22 @@
         </div>
     </div>
 
-    {{-- iOS-style scanner --}}
+    {{-- iOS-style scanner — keep mounted so camera ref exists before stream attaches --}}
     <div x-show="phase === 'scanning' || phase === 'saving'" x-cloak class="relative rounded-3xl overflow-hidden bg-black w-full min-h-[70vh] max-h-[80vh] shadow-2xl ring-1 ring-gray-800">
         <video x-ref="video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover mirror"></video>
         <canvas x-ref="overlay" class="absolute inset-0 w-full h-full pointer-events-none mirror"></canvas>
+
+        {{-- Step illustration --}}
+        <div class="absolute top-20 left-0 right-0 flex justify-center z-10 pointer-events-none">
+            <div class="rounded-2xl bg-black/45 px-4 py-3 text-white text-center max-w-xs">
+                <p class="text-[11px] uppercase tracking-widest text-white/70" x-text="'Step ' + (stepIndex + 1) + ' of ' + steps.length"></p>
+                <div class="mt-2 text-3xl" x-show="currentStep?.pose === 'left'">← 👤</div>
+                <div class="mt-2 text-3xl" x-show="currentStep?.pose === 'right'">👤 →</div>
+                <div class="mt-2 text-3xl" x-show="currentStep?.key === 'holding_nida'">🪪 👤</div>
+                <div class="mt-2 text-3xl" x-show="!currentStep?.pose && currentStep?.key !== 'holding_nida'">👤</div>
+                <p class="text-xs mt-2 text-white/80" x-text="currentStep?.instruction"></p>
+            </div>
+        </div>
 
         {{-- Progress ring + large oval --}}
         <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -94,8 +105,8 @@
             <p class="text-lg font-semibold text-white" x-text="statusTitle"></p>
             <p class="text-sm text-white/70 mt-1" x-text="statusSubtitle"></p>
             <button type="button" @click="manualCapture()" :disabled="isUploading || phase === 'saving'"
-                    class="mt-4 inline-flex bg-white/15 hover:bg-white/25 backdrop-blur text-white font-semibold px-5 py-2 rounded-full text-sm border border-white/30">
-                Capture now
+                    class="mt-4 inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-3 rounded-2xl text-sm border-0">
+                Capture
             </button>
         </div>
 
@@ -122,6 +133,26 @@
                 <button type="button" @click="confirmPreview()" :disabled="isUploading" class="flex-1 bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white font-semibold px-4 py-3 rounded-2xl text-sm">
                     <span x-text="isUploading ? 'Saving…' : 'Use this photo'"></span>
                 </button>
+            </div>
+        </div>
+
+        {{-- Final review --}}
+        <div x-show="phase === 'review'" x-cloak class="bg-white rounded-3xl ring-1 ring-gray-200 overflow-hidden">
+            <div class="p-5 border-b border-gray-100">
+                <h2 class="text-lg font-bold text-gray-900">Review your photos</h2>
+                <p class="text-sm text-gray-500 mt-1">Confirm all four images before submitting for review.</p>
+            </div>
+            <div class="grid grid-cols-2 gap-3 p-5">
+                <template x-for="(step, i) in steps" :key="step.key">
+                    <div class="rounded-xl overflow-hidden ring-1 ring-gray-200">
+                        <img :src="step.previewUrl" :alt="step.label" class="w-full aspect-[4/5] object-cover bg-gray-100">
+                        <div class="p-2 text-xs font-semibold text-gray-700" x-text="step.label"></div>
+                    </div>
+                </template>
+            </div>
+            <div class="p-5 border-t border-gray-100 flex flex-wrap gap-3">
+                <button type="button" @click="phase = 'intro'" class="flex-1 min-w-[120px] bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold px-4 py-3 rounded-2xl text-sm">Retake</button>
+                <button type="button" @click="phase = 'done'" class="flex-1 min-w-[120px] bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-3 rounded-2xl text-sm">Confirm & submit</button>
             </div>
         </div>
 
@@ -183,7 +214,7 @@
                     get detectionLabel() {
                         void this.uiTick;
                         if (this.phase === 'saving') return 'Saving photo…';
-                        if (this.isDesktop || this.simpleMode) return 'Computer mode — hold still, photo saves automatically';
+                        if (this.isDesktop || this.simpleMode) return 'Tap Capture when you are ready';
                         if (!this.detectorActive && !this.landmarkerActive) return 'Browser mode — hold your face in the oval';
                         if (!this.faceVisible) return 'No face detected — sit closer to the camera';
                         if (this.poseOk) return '✓ Perfect — hold still';
@@ -207,7 +238,7 @@
                         if (this.phase === 'saving') return 'Uploading photo securely';
                         const step = this.currentStep;
                         if (!step) return '';
-                        if (this.isDesktop || this.simpleMode) return 'Follow the instruction above, then hold still for 2 seconds. Or tap Capture now.';
+                        if (this.isDesktop || this.simpleMode) return 'Follow the step instruction, then tap Capture when ready.';
                         if (!this.faceVisible) return 'Fill the oval with your face — sit closer to the webcam';
                         if (step.key === 'holding_nida') {
                             return this.poseOk ? 'Keep NIDA and face visible' : 'Hold your NIDA card beside your face';
@@ -231,15 +262,40 @@
                     },
 
                     async init() {
-                        if (this.isDesktop) {
-                            this.simpleMode = true;
+                        while (this.stepIndex < this.steps.length && this.steps[this.stepIndex]?.done) {
+                            this.stepIndex++;
+                        }
+
+                        if (this.stepIndex >= this.steps.length) {
+                            this.phase = this.steps.every(s => s.done) ? 'review' : 'done';
                             this.ready = true;
-                            while (this.stepIndex < this.steps.length && this.steps[this.stepIndex]?.done) {
-                                this.stepIndex++;
-                            }
                             return;
                         }
 
+                        this.simpleMode = this.isDesktop;
+                        this.ready = true;
+                        this.notice = null;
+
+                        let autoStart = this.isDesktop;
+                        try {
+                            if (navigator.permissions?.query) {
+                                const perm = await navigator.permissions.query({ name: 'camera' });
+                                autoStart = perm.state === 'granted';
+                            }
+                        } catch (e) {
+                            autoStart = this.isDesktop;
+                        }
+
+                        if (autoStart) {
+                            await this.$nextTick();
+                            await this.startScan();
+                            if (this.phase === 'scanning' && ! this.isDesktop) {
+                                this.loadMediaPipeAsync();
+                            }
+                        }
+                    },
+
+                    async loadMediaPipeAsync() {
                         const WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm';
                         const BLAZE = 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite';
                         const LANDMARK = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
@@ -255,7 +311,7 @@
                                     minDetectionConfidence: 0.35,
                                 });
                                 this.detectorActive = true;
-                            } catch (e) { /* face detector failed */ }
+                            } catch (e) { /* optional */ }
 
                             try {
                                 this.landmarker = await FaceLandmarker.createFromOptions(vision, {
@@ -264,29 +320,20 @@
                                     numFaces: 1,
                                 });
                                 this.landmarkerActive = true;
-                            } catch (e) { /* landmarker optional */ }
+                            } catch (e) { /* optional */ }
 
-                            if (!this.detectorActive && !this.landmarkerActive) {
-                                this.simpleMode = true;
-                                this.notice = 'Using browser mode — hold still in the oval and photos save automatically.';
+                            if (this.detectorActive || this.landmarkerActive) {
+                                this.simpleMode = false;
                             }
                         } catch (e) {
                             this.simpleMode = true;
-                            this.notice = 'Using browser mode — hold still in the oval and photos save automatically.';
-                        } finally {
-                            if (!this.detectorActive && !this.landmarkerActive) {
-                                this.simpleMode = true;
-                            }
-                            this.ready = true;
-                            while (this.stepIndex < this.steps.length && this.steps[this.stepIndex]?.done) {
-                                this.stepIndex++;
-                            }
                         }
                     },
 
                     async startScan() {
                         if (!navigator.mediaDevices?.getUserMedia) {
-                            this.notice = 'Camera not supported on this device.';
+                            this.notice = 'Camera not supported on this device or browser.';
+                            this.phase = 'intro';
                             return;
                         }
                         if (this.stepIndex >= this.steps.length) {
@@ -295,36 +342,43 @@
                         }
                         this.loading = true;
                         this.notice = null;
+                        this.phase = 'scanning';
                         try {
+                            await this.$nextTick();
                             const constraints = {
                                 video: {
                                     width: { ideal: 1280 },
                                     height: { ideal: 720 },
+                                    facingMode: { ideal: 'user' },
                                 },
                                 audio: false,
                             };
-                            if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                                constraints.video.facingMode = 'user';
+                            if (! this.isDesktop) {
+                                constraints.video.facingMode = { ideal: 'user' };
                             }
                             this.stream = await navigator.mediaDevices.getUserMedia(constraints);
                             const video = this.$refs.video;
+                            if (! video) {
+                                throw new Error('Camera preview unavailable');
+                            }
                             video.srcObject = this.stream;
                             await video.play();
                             this.holdProgress = 0;
                             this.poseOk = false;
-                            this.phase = 'scanning';
                             this.lastTick = performance.now();
                             this.scanStartedAt = performance.now();
                             this.stepStartedAt = performance.now();
-                            if (this.isDesktop) {
-                                this.simpleMode = true;
-                                this.faceVisible = true;
-                                this.poseOk = true;
-                            }
                             this.startLoop();
                             this.startUiTimer();
+                            if (! this.isDesktop) {
+                                this.loadMediaPipeAsync();
+                            }
                         } catch (e) {
-                            this.notice = 'Allow camera access in your browser settings, then try again.';
+                            this.stopCamera();
+                            this.phase = 'intro';
+                            this.notice = e?.name === 'NotAllowedError'
+                                ? 'Camera access was denied. Allow camera permission in your browser settings, then tap Start verification.'
+                                : (e?.message || 'Could not open the camera. Use HTTPS and allow camera access, then try again.');
                         } finally {
                             this.loading = false;
                         }
@@ -362,13 +416,9 @@
 
                             if (this.simpleMode) {
                                 this.faceVisible = true;
-                                this.poseOk = true;
+                                this.poseOk = false;
+                                this.holdProgress = 0;
                                 this.clearOverlay(overlay);
-                                const elapsed = now - (this.stepStartedAt || now);
-                                this.holdProgress = Math.min(100, (elapsed / 2200) * 100);
-                                if (this.holdProgress >= 100 && !this.isUploading) {
-                                    this.captureForPreview();
-                                }
                                 return;
                             }
 
@@ -423,10 +473,6 @@
 
                             if (bbox && overlay) {
                                 this.drawBox(overlay, video, bbox, this.poseOk);
-                            }
-
-                            if (this.holdProgress >= 100 && !this.isUploading) {
-                                this.captureForPreview();
                             }
                         };
 
@@ -585,20 +631,23 @@
                                 throw new Error(data.message || 'Upload failed');
                             }
 
-                            if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
-                            this.previewUrl = null;
-                            this.previewBlob = null;
-
                             step.done = true;
+                            if (this.previewUrl) {
+                                step.previewUrl = this.previewUrl;
+                            }
                             this.holdProgress = 0;
                             this.poseOk = false;
                             this.stepStartedAt = performance.now();
 
                             await new Promise(r => setTimeout(r, 700));
 
+                            if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
+                            this.previewUrl = null;
+                            this.previewBlob = null;
+
                             if (data.complete) {
                                 this.stopCamera();
-                                this.phase = 'done';
+                                this.phase = 'review';
                                 return;
                             }
 

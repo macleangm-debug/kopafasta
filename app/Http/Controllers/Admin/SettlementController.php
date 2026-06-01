@@ -28,7 +28,7 @@ class SettlementController extends ResourceController
         ];
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
         return [
             'statuses' => ['pending' => 'Pending', 'processing' => 'Processing', 'settled' => 'Settled', 'failed' => 'Failed'],

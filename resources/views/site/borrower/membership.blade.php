@@ -1,4 +1,4 @@
-<x-site.borrower-layout title="Membership — Kopafasta" active="membership">
+<x-site.borrower-layout :title="brand_title('Membership')" active="membership">
     @if (session('status'))
         <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
     @endif
@@ -29,7 +29,7 @@
                 <h2 class="font-semibold text-gray-900">Activity information</h2>
                 <dl class="mt-3 text-sm space-y-1">
                     <div class="flex justify-between gap-2"><dt class="text-gray-500">Activity</dt><dd class="font-medium capitalize">{{ str_replace('_', ' ', $customer->activity_type ?? $customer->employment_type ?? '—') }}</dd></div>
-                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Income</dt><dd class="font-medium">{{ $customer->income_range ? (config('income_ranges.'.$customer->income_range.'.label') ?? '—') : ($customer->monthly_income ? 'TZS '.number_format($customer->monthly_income) : '—') }}</dd></div>
+                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Income</dt><dd class="font-medium">{{ $customer->income_range ? (income_range_label($customer->income_range) ?? '—') : ($customer->monthly_income ? 'TZS '.number_format($customer->monthly_income) : '—') }}</dd></div>
                 </dl>
                 <a href="{{ route('site.borrower.profile', ['section' => 'activity']) }}" class="mt-3 inline-block text-xs text-amber-600 font-semibold hover:underline">Edit →</a>
             </section>
@@ -45,6 +45,16 @@
                 <a href="{{ route('site.borrower.profile', ['section' => 'kyc']) }}" class="mt-3 inline-block text-xs text-amber-600 font-semibold hover:underline">View KYC →</a>
             </section>
         </div>
+
+        @if ($customer && $referralCode)
+            <section class="mt-8 bg-gradient-to-br from-indigo-50 to-amber-50 rounded-xl ring-1 ring-indigo-100 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h2 class="font-semibold text-gray-900">Referral program</h2>
+                    <p class="text-sm text-gray-600 mt-1">Your code <span class="font-mono font-semibold">{{ $referralCode }}</span> · Wallet TZS {{ number_format($referralWallet->balance ?? 0) }}</p>
+                </div>
+                <a href="{{ route('site.borrower.referrals') }}" class="shrink-0 inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">Open referral hub →</a>
+            </section>
+        @endif
     @else
         <div class="rounded-lg bg-gray-50 ring-1 ring-gray-200 p-6 text-sm text-gray-700">
             No customer profile linked to this account yet.

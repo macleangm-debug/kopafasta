@@ -1,43 +1,46 @@
-<x-site.borrower-layout title="Applications — Kopafasta" active="applications">
+<x-site.borrower-layout :title="brand_title(__('borrower.applications_list.title'))" active="applications">
 
     <div class="flex items-center justify-between flex-wrap gap-3 mb-6">
         <div>
-            <h1 class="text-2xl font-bold">My applications</h1>
-            <p class="text-sm text-gray-500">Track every loan request and its status.</p>
+            <h1 class="text-2xl font-bold">{{ __('borrower.applications_list.title') }}</h1>
+            <p class="text-sm text-gray-500">{{ __('borrower.applications_list.subtitle') }}</p>
         </div>
         <div class="flex items-center gap-2">
             <div class="inline-flex rounded-lg ring-1 ring-gray-200 bg-white p-0.5 text-xs">
                 <a href="{{ route('site.borrower.applications', ['view' => 'cards']) }}"
                    class="px-3 py-1.5 rounded-md font-semibold {{ ($viewMode ?? 'cards') === 'cards' ? 'bg-amber-500 text-gray-900' : 'text-gray-600 hover:bg-gray-50' }}">
-                    Cards
+                    {{ __('borrower.applications_list.cards') }}
                 </a>
                 <a href="{{ route('site.borrower.applications', ['view' => 'table']) }}"
                    class="px-3 py-1.5 rounded-md font-semibold {{ ($viewMode ?? 'cards') === 'table' ? 'bg-amber-500 text-gray-900' : 'text-gray-600 hover:bg-gray-50' }}">
-                    Table
+                    {{ __('borrower.applications_list.table') }}
                 </a>
             </div>
-            <a href="{{ route('site.borrower.apply') }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">+ New application</a>
+            <a href="{{ route('site.borrower.apply') }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">+ {{ __('borrower.new_application') }}</a>
         </div>
     </div>
 
     @if ($applications->isEmpty())
-        <div class="bg-white rounded-2xl border border-gray-200 p-12 text-center">
-            <p class="text-gray-500">You haven't applied yet.</p>
-            <a href="{{ route('site.borrower.apply') }}" class="mt-4 inline-block bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">Start your first application</a>
-        </div>
+        <x-site.empty-state
+            icon="📋"
+            :title="__('borrower.applications_list.empty_title')"
+            :description="__('borrower.applications_list.empty_desc')"
+            :action-label="__('borrower.applications_list.empty_action')"
+            :action-url="route('site.borrower.apply')"
+        />
     @elseif (($viewMode ?? 'cards') === 'table')
         <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                         <tr>
-                            <th class="px-4 py-3">Reference</th>
-                            <th class="px-4 py-3">Product</th>
-                            <th class="px-4 py-3">Amount</th>
-                            <th class="px-4 py-3">Tenure</th>
-                            <th class="px-4 py-3">Status</th>
-                            <th class="px-4 py-3">Submitted</th>
-                            <th class="px-4 py-3 text-right">Actions</th>
+                            <th class="px-4 py-3">{{ __('borrower.applications_list.reference') }}</th>
+                            <th class="px-4 py-3">{{ __('borrower.applications_list.product') }}</th>
+                            <th class="px-4 py-3">{{ __('borrower.applications_list.amount') }}</th>
+                            <th class="px-4 py-3">{{ __('borrower.applications_list.tenure') }}</th>
+                            <th class="px-4 py-3">{{ __('borrower.applications_list.status') }}</th>
+                            <th class="px-4 py-3">{{ __('borrower.applications_list.submitted') }}</th>
+                            <th class="px-4 py-3 text-right">{{ __('borrower.applications_list.actions') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
@@ -56,13 +59,13 @@
                                 <td class="px-4 py-3 font-mono text-xs">{{ $app->application_number }}</td>
                                 <td class="px-4 py-3">{{ $app->product->name ?? '—' }}</td>
                                 <td class="px-4 py-3 font-medium">TZS {{ number_format($app->requested_amount) }}</td>
-                                <td class="px-4 py-3">{{ $app->requested_tenure_months }} mo</td>
+                                <td class="px-4 py-3">{{ __('borrower.applications_list.tenure_short', ['count' => $app->requested_tenure_months]) }}</td>
                                 <td class="px-4 py-3">
                                     <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $badge }}">{{ ucfirst(str_replace('_',' ', $app->status)) }}</span>
                                 </td>
                                 <td class="px-4 py-3 text-xs text-gray-500">{{ optional($app->submitted_at)->format('d M Y') ?? '—' }}</td>
                                 <td class="px-4 py-3 text-right">
-                                    <a href="{{ route('site.borrower.application', $app->id) }}" class="text-amber-600 font-semibold hover:underline text-xs">Open</a>
+                                    <a href="{{ route('site.borrower.application', $app->id) }}" class="text-amber-600 font-semibold hover:underline text-xs">{{ __('borrower.applications_list.open') }}</a>
                                 </td>
                             </tr>
                         @endforeach
@@ -84,6 +87,7 @@
                         $app->status === 'submitted' => 'bg-amber-100 text-amber-700',
                         default => 'bg-sky-100 text-sky-700',
                     };
+                    $stageLabel = ucfirst(str_replace('_',' ', $app->current_stage ?? $app->status));
                 @endphp
                 <div class="bg-white rounded-2xl border border-gray-200 p-5">
                     <div class="flex items-start justify-between gap-3 mb-3">
@@ -95,12 +99,12 @@
                     </div>
                     <div class="grid grid-cols-2 gap-3 text-sm mb-4">
                         <div>
-                            <p class="text-[10px] uppercase tracking-widest text-gray-400">Requested</p>
+                            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.requested') }}</p>
                             <p class="font-semibold">TZS {{ number_format($app->requested_amount) }}</p>
                         </div>
                         <div>
-                            <p class="text-[10px] uppercase tracking-widest text-gray-400">Tenure</p>
-                            <p class="font-semibold">{{ $app->requested_tenure_months }} months</p>
+                            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.tenure') }}</p>
+                            <p class="font-semibold">{{ __('borrower.applications_list.tenure_months', ['count' => $app->requested_tenure_months]) }}</p>
                         </div>
                     </div>
                     @if (! $isRejected)
@@ -108,15 +112,15 @@
                             <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                                 <div class="h-full bg-amber-500" style="width: {{ $pct }}%"></div>
                             </div>
-                            <p class="text-[10px] text-gray-500 mt-1">Stage: {{ ucfirst(str_replace('_',' ', $app->current_stage ?? $app->status)) }}</p>
+                            <p class="text-[10px] text-gray-500 mt-1">{{ __('borrower.applications_list.stage', ['stage' => $stageLabel]) }}</p>
                         </div>
                     @else
-                        <p class="text-xs text-red-600 mb-3">{{ $app->rejection_reason ?? 'Application was declined.' }}</p>
+                        <p class="text-xs text-red-600 mb-3">{{ $app->rejection_reason ?? __('borrower.applications_list.rejected_default') }}</p>
                     @endif
                     <div class="flex items-center gap-2 text-xs">
-                        <a href="{{ route('site.borrower.application', $app->id) }}" class="text-amber-600 font-medium hover:underline">Open & upload documents →</a>
+                        <a href="{{ route('site.borrower.application', $app->id) }}" class="text-amber-600 font-medium hover:underline">{{ __('borrower.applications_list.open_upload') }}</a>
                         <span class="text-gray-300">·</span>
-                        <a href="{{ route('site.apply.success', $app->id) }}" class="text-gray-500 hover:text-gray-700">Receipt</a>
+                        <a href="{{ route('site.apply.success', $app->id) }}" class="text-gray-500 hover:text-gray-700">{{ __('borrower.applications_list.receipt') }}</a>
                     </div>
                 </div>
             @endforeach

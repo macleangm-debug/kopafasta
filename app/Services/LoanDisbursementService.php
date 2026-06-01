@@ -59,11 +59,41 @@ class LoanDisbursementService
             }
 
             // 2) Application fee carried over from LoanApplication (snapshot)
-            if ($loan->loan_application_id && !in_array('APP_FEE', $existingCodes, true)) {
+            if ($loan->loan_application_id && ! in_array('APP_FEE', $existingCodes, true)) {
                 $app = LoanApplication::find($loan->loan_application_id);
                 $appFee = (float) ($app->application_fee_amount ?? 0);
                 if ($app && $appFee > 0 && ($app->application_fee_status ?? 'unpaid') !== 'paid') {
                     $cfg = ChargesFee::where('code', 'APP_FEE')->first();
+                    $customer = $app->customer;
+                    $chargedAmount = $appFee;
+                    $discountAmount = 0.0;
+
+                    if ($customer) {
+                        $referrals = app(ReferralService::class);
+                        $quote = $referrals->quoteFee($customer, $appFee, false, 'application_fee');
+                        $chargedAmount = $quote['after_discount'];
+                        $discountAmount = $quote['discount'];
+
+                        if ($quote['has_referrer']) {
+                            $referrals->settleFee(
+                                $customer,
+                                $appFee,
+                                false,
+                                'application_fee',
+                                LoanApplication::class,
+                                (int) $app->id,
+                            );
+                        } else {
+                            app(AffiliateService::class)->accrueCommission(
+                                $customer,
+                                $appFee,
+                                'application_fee',
+                                LoanApplication::class,
+                                (int) $app->id,
+                            );
+                        }
+                    }
+
                     $applied[] = LoanFee::create([
                         'loan_id'                 => $loan->id,
                         'charges_fee_id'          => optional($cfg)->id,
@@ -72,7 +102,7 @@ class LoanDisbursementService
                         'type'                    => optional($cfg)->type ?? 'processing',
                         'basis'                   => 'fixed',
                         'rate_or_amount'          => $appFee,
-                        'computed_amount'         => $appFee,
+                        'computed_amount'         => $chargedAmount,
                         'deducted_from_principal' => true,
                         'status'                  => 'charged',
                         'charge_when'             => 'disbursement',
@@ -80,7 +110,8 @@ class LoanDisbursementService
                         'charged_at'              => now(),
                     ]);
                     $app->update([
-                        'application_fee_status'  => 'charged',
+                        'application_fee_status'   => 'charged',
+                        'referral_discount_amount' => $discountAmount > 0 ? $discountAmount : null,
                     ]);
                 }
             }

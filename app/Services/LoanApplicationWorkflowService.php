@@ -138,6 +138,15 @@ class LoanApplicationWorkflowService
             'credit_appraisal_payload'  => $appraisal,
         ]);
 
+        if ($to === 'disbursement') {
+            app(LoanOriginationService::class)->createFromApplication($application->fresh(['customer', 'product', 'loan']));
+        }
+
+        if ($to === 'approval') {
+            app(PostApprovalFeeService::class)->generateForApplication($application->fresh(['product']));
+            app(AssetReservationService::class)->syncFromApplication($application->fresh());
+        }
+
         ApplicationStageHistory::create([
             'loan_application_id' => $application->id,
             'from_stage'          => $from,
@@ -222,6 +231,15 @@ class LoanApplicationWorkflowService
             'rejection_reason'         => $toStage === 'rejected' ? ($remarks ?: $application->rejection_reason) : $application->rejection_reason,
             'credit_appraisal_payload' => $appraisal,
         ]);
+
+        if ($toStage === 'disbursement') {
+            app(LoanOriginationService::class)->createFromApplication($application->fresh(['customer', 'product', 'loan']));
+        }
+
+        if ($toStage === 'approval') {
+            app(PostApprovalFeeService::class)->generateForApplication($application->fresh(['product']));
+            app(AssetReservationService::class)->syncFromApplication($application->fresh());
+        }
 
         ApplicationStageHistory::create([
             'loan_application_id' => $application->id,

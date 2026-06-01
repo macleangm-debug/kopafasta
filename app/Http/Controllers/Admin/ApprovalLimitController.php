@@ -26,7 +26,7 @@ class ApprovalLimitController extends ResourceController
         ];
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
         return [
             'roles'   => Role::orderBy('name')->pluck('name', 'code'),

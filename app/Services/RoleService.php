@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Role;
 use App\Models\User;
 
 class RoleService
@@ -23,7 +24,19 @@ class RoleService
 
     public function label(?string $role): string
     {
-        return (string) ($this->definition($role)['label'] ?? ucfirst(str_replace('_', ' ', (string) $role)));
+        if ($role === null || $role === '') {
+            return '';
+        }
+
+        static $labels = [];
+
+        if (! array_key_exists($role, $labels)) {
+            $fromDb = Role::query()->where('code', $role)->value('name');
+            $labels[$role] = $fromDb
+                ?: (string) ($this->definition($role)['label'] ?? ucfirst(str_replace('_', ' ', $role)));
+        }
+
+        return $labels[$role];
     }
 
     /** @return list<string> */

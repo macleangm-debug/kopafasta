@@ -11,7 +11,7 @@
         'Status'         => ucfirst($record->status ?? ''),
         'Amount'         => $record->amount !== null ? (($record->currency ?? 'TZS').' '.number_format((float) $record->amount)) : null,
         'Expense date'   => optional($record->expense_date)->format('Y-m-d'),
-        'Payment method' => ucfirst(str_replace('_', ' ', $record->payment_method ?? '')),
+        'Payment method' => display_label($record->payment_method, 'payment_method'),
         'Reference'      => $record->reference,
         'Description'    => ['value' => $record->description, 'wide' => true],
         'Created'        => $record->created_at?->format('Y-m-d H:i'),

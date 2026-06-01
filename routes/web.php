@@ -43,7 +43,8 @@ use App\Http\Controllers\Admin\SettlementController;
 use App\Http\Controllers\Admin\SupportTicketController;
 use App\Http\Controllers\Admin\SuspiciousActivityController;
 use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\Admin\VendorController;
+use App\Http\Controllers\Admin\PartnerSettlementController;
+use App\Http\Controllers\Admin\VendorPaymentController;
 use App\Http\Controllers\Admin\WriteOffRuleController;
 use Illuminate\Support\Facades\Route;
 
@@ -52,7 +53,9 @@ use Illuminate\Support\Facades\Route;
 | Public site (kopafasta.com style)
 |--------------------------------------------------------------------------
 */
-Route::name('site.')->group(function () {
+Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(function () {
+    Route::post('/locale', [\App\Http\Controllers\Site\LocaleController::class, 'update'])->name('locale.update');
+
     Route::get('/',                 [\App\Http\Controllers\Site\PageController::class, 'home'])->name('home');
     Route::get('/loans',            [\App\Http\Controllers\Site\PageController::class, 'products'])->name('products');
     Route::get('/loans/product/{code}', [\App\Http\Controllers\Site\PageController::class, 'product'])->name('product');
@@ -70,9 +73,15 @@ Route::name('site.')->group(function () {
         Route::post('/forgot-pin/send-otp', [\App\Http\Controllers\Site\AuthController::class, 'sendPinResetOtp'])->name('forgot-pin.send');
         Route::post('/forgot-pin/reset', [\App\Http\Controllers\Site\AuthController::class, 'resetPinWithOtp'])->name('forgot-pin.reset');
 
+        Route::get('/aff/{code}', \App\Http\Controllers\Site\AffiliateRedirectController::class)->name('affiliate.redirect');
+
         Route::get('/register',          fn () => view('site.auth.register-choose'))->name('register');
         Route::get('/register/borrower', [\App\Http\Controllers\Site\AuthController::class, 'showRegisterBorrower'])->name('register.borrower');
         Route::post('/register/borrower',[\App\Http\Controllers\Site\AuthController::class, 'registerBorrower'])->name('register.borrower.post');
+
+        Route::get('/guarantor/{token}', [\App\Http\Controllers\Site\PublicGuarantorController::class, 'show'])->name('guarantor.show');
+        Route::post('/guarantor/{token}/accept', [\App\Http\Controllers\Site\PublicGuarantorController::class, 'accept'])->name('guarantor.accept');
+        Route::post('/guarantor/{token}/reject', [\App\Http\Controllers\Site\PublicGuarantorController::class, 'reject'])->name('guarantor.reject');
         Route::post('/waitlist',          [\App\Http\Controllers\Site\AuthController::class, 'storeWaitlistRequest'])->name('waitlist.store');
         Route::get('/register/vendor',   [\App\Http\Controllers\Site\AuthController::class, 'showRegisterVendor'])->name('register.vendor');
         Route::post('/register/vendor',  [\App\Http\Controllers\Site\AuthController::class, 'registerVendor'])->name('register.vendor.post');
@@ -86,16 +95,13 @@ Route::name('site.')->group(function () {
     Route::middleware('auth:web')->group(function () {
         Route::post('/logout', [\App\Http\Controllers\Site\AuthController::class, 'logout'])->name('logout');
 
-        Route::get('/guarantor/{token}', [\App\Http\Controllers\Site\PublicGuarantorController::class, 'show'])->name('guarantor.show');
-        Route::post('/guarantor/{token}/accept', [\App\Http\Controllers\Site\PublicGuarantorController::class, 'accept'])->name('guarantor.accept');
-        Route::post('/guarantor/{token}/reject', [\App\Http\Controllers\Site\PublicGuarantorController::class, 'reject'])->name('guarantor.reject');
-
         Route::get('/borrower/setup-pin', [\App\Http\Controllers\Site\AuthController::class, 'showSetupPin'])->name('borrower.setup-pin');
         Route::post('/borrower/setup-pin', [\App\Http\Controllers\Site\AuthController::class, 'storeSetupPin'])->name('borrower.setup-pin.post');
 
         Route::middleware('borrower.pin')->group(function () {
             Route::middleware('membership.active')->group(function () {
                 Route::get('/borrower/apply',  [\App\Http\Controllers\Site\ApplyController::class, 'show'])->name('borrower.apply');
+                Route::get('/borrower/apply/product/{product}/readiness', [\App\Http\Controllers\Site\ApplyController::class, 'productReadiness'])->name('borrower.apply.product-readiness');
                 Route::post('/borrower/apply', [\App\Http\Controllers\Site\ApplyController::class, 'submit'])->name('borrower.apply.submit');
                 Route::get('/apply', fn () => redirect()->route('site.borrower.apply'))->name('apply.show');
                 Route::post('/apply', [\App\Http\Controllers\Site\ApplyController::class, 'submit'])->name('apply.submit');
@@ -103,12 +109,18 @@ Route::name('site.')->group(function () {
             Route::get('/borrower/apply/{application}/success', [\App\Http\Controllers\Site\ApplyController::class, 'success'])->name('borrower.apply.success');
             Route::get('/apply/{application}/success', [\App\Http\Controllers\Site\ApplyController::class, 'success'])->name('apply.success');
 
+            Route::get('/borrower/referrals',         [\App\Http\Controllers\Site\ReferralsController::class, 'show'])       ->name('borrower.referrals');
             Route::get('/borrower/membership',         [\App\Http\Controllers\Site\MembershipController::class, 'show'])      ->name('membership.show');
             Route::get('/borrower/membership/renew',   [\App\Http\Controllers\Site\MembershipController::class, 'renewForm']) ->name('membership.renew');
             Route::post('/borrower/membership/renew',  [\App\Http\Controllers\Site\MembershipController::class, 'renew'])     ->name('membership.renew.post');
 
             Route::get('/borrower',                                [\App\Http\Controllers\Site\BorrowerController::class, 'dashboard'])    ->name('borrower.dashboard');
             Route::get('/borrower/applications',                   [\App\Http\Controllers\Site\BorrowerController::class, 'applications']) ->name('borrower.applications');
+            Route::get('/borrower/marketplace',                    [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'index'])->name('borrower.marketplace');
+            Route::get('/borrower/marketplace/{assetId}',          [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'show'])->name('borrower.marketplace.show');
+            Route::post('/borrower/marketplace/{assetId}/reserve', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'reserve'])->name('borrower.marketplace.reserve.post');
+            Route::post('/borrower/marketplace/{assetId}/reservation', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'advanceReservation'])->name('borrower.marketplace.reservation.advance');
+            Route::get('/borrower/marketplace/{assetId}/reserve', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'reserveFlow'])->name('borrower.marketplace.reserve');
             Route::get('/borrower/applications/{application}',     [\App\Http\Controllers\Site\BorrowerController::class, 'application'])  ->name('borrower.application');
             Route::post('/borrower/applications/{application}/documents', [\App\Http\Controllers\Site\BorrowerController::class, 'uploadApplicationDocument'])->name('borrower.application.documents.store');
             Route::post('/borrower/applications/{application}/document-requests/{documentRequest}', [\App\Http\Controllers\Site\BorrowerController::class, 'uploadDocumentRequest'])->name('borrower.application.document-requests.store');
@@ -128,8 +140,13 @@ Route::name('site.')->group(function () {
             Route::post('/borrower/face-verification/{angle}',     [\App\Http\Controllers\Site\BorrowerController::class, 'uploadFaceVerification'])->name('borrower.face-verification.store')->where('angle', 'front|left|right|holding_nida');
             Route::get('/borrower/guarantors',                     [\App\Http\Controllers\Site\BorrowerController::class, 'guarantors'])   ->name('borrower.guarantors');
             Route::post('/borrower/guarantors',                    [\App\Http\Controllers\Site\BorrowerController::class, 'addGuarantor']) ->name('borrower.guarantors.store');
-            Route::get('/borrower/guarantor-requests',             [\App\Http\Controllers\Site\BorrowerController::class, 'guarantorRequests'])->name('borrower.guarantor-requests');
+            Route::get('/borrower/guarantor-requests', fn () => redirect()->to(route('site.borrower.loans').'#guarantor-requests'))->name('borrower.guarantor-requests');
             Route::post('/borrower/guarantor-requests/{customerGuarantor}', [\App\Http\Controllers\Site\BorrowerController::class, 'respondGuarantorRequest'])->name('borrower.guarantor-requests.respond');
+            Route::get('/borrower/guarantor/onboarding', [\App\Http\Controllers\Site\GuarantorOnboardingController::class, 'show'])->name('guarantor.onboarding');
+            Route::post('/borrower/guarantor/onboarding', [\App\Http\Controllers\Site\GuarantorOnboardingController::class, 'complete'])->name('guarantor.onboarding.complete');
+            Route::get('/borrower/applications/{application}/post-approval-fees', [\App\Http\Controllers\Site\BorrowerController::class, 'postApprovalFees'])->name('borrower.application.post-approval-fees');
+            Route::post('/borrower/applications/{application}/post-approval-fees', [\App\Http\Controllers\Site\BorrowerController::class, 'payPostApprovalFees'])->name('borrower.application.post-approval-fees.pay');
+            Route::post('/borrower/marketplace/request', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'storeRequest'])->name('borrower.marketplace.request');
             Route::get('/borrower/kyc-reconfirm',                  [\App\Http\Controllers\Site\BorrowerController::class, 'kycReconfirm'])->name('borrower.kyc-reconfirm');
             Route::put('/borrower/kyc-reconfirm',                  [\App\Http\Controllers\Site\BorrowerController::class, 'updateKycReconfirm'])->name('borrower.kyc-reconfirm.update');
             Route::get('/borrower/notifications',                  [\App\Http\Controllers\Site\BorrowerController::class, 'notifications'])->name('borrower.notifications');
@@ -138,8 +155,8 @@ Route::name('site.')->group(function () {
             Route::post('/borrower/notifications/{notification}/read', [\App\Http\Controllers\Site\BorrowerController::class, 'markNotificationRead'])->name('borrower.notifications.item.read');
             Route::delete('/borrower/notifications/{notification}', [\App\Http\Controllers\Site\BorrowerController::class, 'clearNotification'])->name('borrower.notifications.item.clear');
             Route::post('/borrower/notifications/clear-all',       [\App\Http\Controllers\Site\BorrowerController::class, 'clearAllNotifications'])->name('borrower.notifications.clear-all');
-            Route::get('/borrower/profile/{section?}',             [\App\Http\Controllers\Site\BorrowerController::class, 'profile'])->name('borrower.profile')->where('section', 'personal|activity|residence|kyc|security');
-            Route::put('/borrower/profile/{section}',              [\App\Http\Controllers\Site\BorrowerController::class, 'updateProfile'])->name('borrower.profile.update')->where('section', 'personal|activity|residence');
+            Route::get('/borrower/profile/{section?}',             [\App\Http\Controllers\Site\BorrowerController::class, 'profile'])->name('borrower.profile')->where('section', 'personal|activity|residence|kin|kyc|security');
+            Route::put('/borrower/profile/{section}',              [\App\Http\Controllers\Site\BorrowerController::class, 'updateProfile'])->name('borrower.profile.update')->where('section', 'personal|activity|residence|kin');
             Route::post('/borrower/profile/nida/verify',           [\App\Http\Controllers\Site\BorrowerController::class, 'verifyNida'])->name('borrower.profile.nida.verify');
             Route::post('/borrower/profile/nida/accept-names',    [\App\Http\Controllers\Site\BorrowerController::class, 'acceptNidaNames'])->name('borrower.profile.nida.accept-names');
             Route::post('/borrower/profile/nida/confirm',          [\App\Http\Controllers\Site\BorrowerController::class, 'confirmNidaCandidate'])->name('borrower.profile.nida.confirm');
@@ -167,6 +184,18 @@ Route::name('site.')->group(function () {
         Route::get('/vendor/profile',                           [\App\Http\Controllers\Site\VendorController::class, 'profile'])       ->name('vendor.profile');
         Route::put('/vendor/profile',                           [\App\Http\Controllers\Site\VendorController::class, 'updateProfile']) ->name('vendor.profile.update');
         Route::get('/vendor/support',                           [\App\Http\Controllers\Site\VendorController::class, 'support'])       ->name('vendor.support');
+
+        Route::prefix('supplier')->name('supplier.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Site\SupplierController::class, 'dashboard'])->name('dashboard');
+            Route::get('/assets', [\App\Http\Controllers\Site\SupplierController::class, 'assets'])->name('assets');
+            Route::get('/assets/create', [\App\Http\Controllers\Site\SupplierController::class, 'createAsset'])->name('assets.create');
+            Route::post('/assets', [\App\Http\Controllers\Site\SupplierController::class, 'storeAsset'])->name('assets.store');
+            Route::get('/assets/{asset}/edit', [\App\Http\Controllers\Site\SupplierController::class, 'editAsset'])->name('assets.edit');
+            Route::put('/assets/{asset}', [\App\Http\Controllers\Site\SupplierController::class, 'updateAsset'])->name('assets.update');
+            Route::get('/requests', [\App\Http\Controllers\Site\SupplierController::class, 'requests'])->name('requests');
+            Route::get('/reservations', [\App\Http\Controllers\Site\SupplierController::class, 'reservations'])->name('reservations');
+            Route::get('/settlements', [\App\Http\Controllers\Site\SupplierController::class, 'settlements'])->name('settlements');
+        });
 
         // Legacy redirect
         Route::get('/vendor-portal', fn () => redirect()->route('site.vendor.dashboard'));
@@ -237,6 +266,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::view('loan-applications/pre-approvals',    'admin.loan-applications.pre-approvals')    ->name('loan-applications.pre-approvals');
         Route::view('loan-applications/final-approvals',  'admin.loan-applications.final-approvals')  ->name('loan-applications.final-approvals');
         Route::view('loan-applications/rejected',         'admin.loan-applications.rejected')         ->name('loan-applications.rejected');
+        Route::get('loan-applications/wizard-data/{customer}', [LoanApplicationController::class, 'wizardCustomerData'])
+            ->name('loan-applications.wizard-data');
         $registerResource('loan-applications', 'loan_application', LoanApplicationController::class);
         Route::post('loan-applications/{loan_application}/agreement', [\App\Http\Controllers\Admin\LoanAgreementController::class, 'generate'])
             ->name('loan-applications.agreement.generate');
@@ -244,12 +275,25 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('loan-applications.document-requests.store');
         Route::post('loan-applications/{loan_application}/workflow', [LoanApplicationController::class, 'runWorkflow'])
             ->name('loan-applications.workflow');
+        Route::post('loan-applications/{loan_application}/create-loan', [LoanApplicationController::class, 'createLoan'])
+            ->name('loan-applications.create-loan');
         Route::post('loan-application-document-requests/{documentRequest}/satisfy', [LoanApplicationDocumentRequestController::class, 'satisfy'])
             ->name('loan-application-document-requests.satisfy');
         Route::post('loan-application-document-requests/{documentRequest}/reject', [LoanApplicationDocumentRequestController::class, 'reject'])
             ->name('loan-application-document-requests.reject');
 
         // Customers
+        Route::put('customers/{customer}/section/{section}', [CustomerController::class, 'updateSection'])
+            ->name('customers.section.update')
+            ->where('section', 'personal|residence|activity|kin|account');
+        Route::post('customers/{customer}/documents', [CustomerController::class, 'uploadDocument'])
+            ->name('customers.documents.store');
+        Route::post('customers/{customer}/documents/{document}/verify', [CustomerController::class, 'verifyDocument'])
+            ->name('customers.documents.verify');
+        Route::post('customers/{customer}/documents/{document}/reject', [CustomerController::class, 'rejectDocument'])
+            ->name('customers.documents.reject');
+        Route::post('customers/{customer}/nida-unlock', [CustomerController::class, 'unlockNidaIdentity'])
+            ->name('customers.nida.unlock');
         $registerResource('customers',     'customer',      CustomerController::class);
         $registerResource('customer-kycs', 'customer_kyc',  CustomerKycController::class);
         Route::get('face-verifications', [FaceVerificationController::class, 'index'])->name('face-verifications.index');
@@ -264,6 +308,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::view('loans/arrears',       'admin.loans.arrears')      ->name('loans.arrears');
         Route::view('loans/restructuring', 'admin.loans.restructuring')->name('loans.restructuring');
         Route::view('loans/closed',        'admin.loans.closed')       ->name('loans.closed');
+        Route::get('loans/wizard-data/{customer}', [LoanController::class, 'wizardCustomerData'])->name('loans.wizard-data');
         $registerResource('loans',      'loan',      LoanController::class);
         Route::post('loans/{loan}/disburse', [LoanController::class, 'disburse'])->name('loans.disburse');
         Route::get('loans/{loan}/write-off',  [LoanController::class, 'writeOffForm'])->name('loans.write-off-form');
@@ -276,13 +321,20 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::view('loan-products/approval-rules', 'admin.loan-products.approval-rules')->name('loan-products.approval-rules');
         $registerResource('loan-products', 'loan_product', LoanProductController::class);
 
+        Route::get('partners', [\App\Http\Controllers\Admin\PartnersController::class, 'index'])->name('partners.index');
         // Vendors
         Route::view('vendors/applications',        'admin.vendors.applications')        ->name('vendors.applications');
         Route::view('vendors/gps-installers',      'admin.vendors.gps-installers')      ->name('vendors.gps-installers');
         Route::view('vendors/insurance-providers', 'admin.vendors.insurance-providers') ->name('vendors.insurance-providers');
         Route::view('vendors/valuers',             'admin.vendors.valuers')             ->name('vendors.valuers');
+        Route::view('vendors/suppliers',           'admin.vendors.suppliers')           ->name('vendors.suppliers');
+        Route::view('vendors/affiliates',         'admin.vendors.affiliates')         ->name('vendors.affiliates');
         Route::view('vendors/tasks',               'admin.vendors.tasks')               ->name('vendors.tasks');
+        Route::get('asset-requests', [\App\Http\Controllers\Admin\AssetRequestController::class, 'index'])->name('asset-requests.index');
+        Route::put('asset-requests/{assetRequest}', [\App\Http\Controllers\Admin\AssetRequestController::class, 'update'])->name('asset-requests.update');
+        $registerResource('marketplace-assets', 'marketplace_asset', \App\Http\Controllers\Admin\MarketplaceAssetController::class);
         $registerResource('vendors', 'vendor', VendorController::class);
+        $registerResource('promotions', 'promotion', \App\Http\Controllers\Admin\PromotionController::class);
 
         // Capital
         $registerResource('lenders',            'lender',             LenderController::class);
@@ -294,6 +346,13 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             $registerResource('expenses',        'expense',        ExpenseController::class);
             Route::post('expenses/{expense}/post', [ExpenseController::class, 'post'])->name('expenses.post');
             $registerResource('settlements',     'settlement',     SettlementController::class);
+            Route::get('vendor-payments', [VendorPaymentController::class, 'index'])->name('vendor-payments.index');
+            Route::post('vendor-payments/{vendorPayment}/approve', [VendorPaymentController::class, 'approve'])->name('vendor-payments.approve');
+            Route::post('vendor-payments/{vendorPayment}/cancel', [VendorPaymentController::class, 'cancel'])->name('vendor-payments.cancel');
+            Route::get('partner-settlements', [PartnerSettlementController::class, 'index'])->name('partner-settlements.index');
+            Route::get('partner-settlements/{partnerSettlement}', [PartnerSettlementController::class, 'show'])->name('partner-settlements.show');
+            Route::post('partner-settlements/{partnerSettlement}/approve', [PartnerSettlementController::class, 'approve'])->name('partner-settlements.approve');
+            Route::post('partner-settlements/{partnerSettlement}/mark-paid', [PartnerSettlementController::class, 'markPaid'])->name('partner-settlements.mark-paid');
             $registerResource('reconciliations', 'reconciliation', ReconciliationController::class);
             Route::get('journal-entries',                [JournalEntryController::class, 'index'])->name('journal-entries.index');
             Route::get('journal-entries/{journal_entry}', [JournalEntryController::class, 'show'])->name('journal-entries.show');
@@ -378,11 +437,15 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/gateways',         [SettingsController::class, 'saveGateways'])  ->name('settings.gateways.save');
         Route::get('settings/kyc',              [SettingsController::class, 'kyc'])           ->name('settings.kyc');
         Route::put('settings/kyc',              [SettingsController::class, 'saveKyc'])       ->name('settings.kyc.save');
+        Route::get('settings/identity-verification', [SettingsController::class, 'identityVerification'])->name('settings.identity');
+        Route::put('settings/identity-verification', [SettingsController::class, 'saveIdentityVerification'])->name('settings.identity.save');
         Route::get('settings/loan-rules',       [SettingsController::class, 'loanRules'])     ->name('settings.loan-rules');
         Route::put('settings/loan-rules',       [SettingsController::class, 'saveLoanRules']) ->name('settings.loan-rules.save');
         Route::get('settings/loan-products',    [SettingsController::class, 'loanProducts']) ->name('settings.loan-products');
         Route::get('settings/membership',       [SettingsController::class, 'membership'])    ->name('settings.membership');
         Route::put('settings/membership',       [SettingsController::class, 'saveMembership'])->name('settings.membership.save');
+        Route::get('settings/referrals',        [SettingsController::class, 'referrals'])     ->name('settings.referrals');
+        Route::put('settings/referrals',        [SettingsController::class, 'saveReferrals']) ->name('settings.referrals.save');
         Route::get('settings/aml',              [SettingsController::class, 'amlSettings'])   ->name('settings.aml');
         Route::put('settings/aml',              [SettingsController::class, 'saveAmlSettings'])->name('settings.aml.save');
         Route::get('settings/finance',          [SettingsController::class, 'finance'])       ->name('settings.finance');

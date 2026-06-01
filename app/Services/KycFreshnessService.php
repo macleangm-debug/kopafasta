@@ -66,4 +66,36 @@ class KycFreshnessService
 
         return (int) CarbonImmutable::today()->diffInDays($expires, false);
     }
+
+    /**
+     * Profile section keys that must be refreshed when KYC is stale.
+     * NIDA and face verification are intentionally excluded.
+     *
+     * @return list<string>
+     */
+    public function refreshSectionKeys(): array
+    {
+        $configured = Setting::group('kyc')['freshness_sections'] ?? null;
+
+        if (is_array($configured) && $configured !== []) {
+            return array_values($configured);
+        }
+
+        return ['activity', 'residence', 'documents'];
+    }
+
+    /** @return list<string> */
+    public function sectionsDueForRefresh(Customer $customer): array
+    {
+        if (! $this->isStale($customer)) {
+            return [];
+        }
+
+        return $this->refreshSectionKeys();
+    }
+
+    public function sectionRequiresRefresh(Customer $customer, string $sectionKey): bool
+    {
+        return in_array($sectionKey, $this->sectionsDueForRefresh($customer), true);
+    }
 }

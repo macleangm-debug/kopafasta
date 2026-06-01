@@ -1,4 +1,4 @@
-<x-site.borrower-layout title="Support — Kopafasta" active="support">
+<x-site.borrower-layout :title="brand_title('Support')" active="support">
 
     <h1 class="text-2xl font-bold mb-1">Support center</h1>
     <p class="text-sm text-gray-500 mb-6">FAQ, AI assistant, and human support.</p>

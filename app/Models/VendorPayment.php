@@ -12,7 +12,8 @@ class VendorPayment extends Model
     protected function casts(): array
     {
         return [
-            'paid_at' => 'datetime',
+            'paid_at'     => 'datetime',
+            'approved_at' => 'datetime',
         ];
     }
 
@@ -24,5 +25,15 @@ class VendorPayment extends Model
     public function task(): BelongsTo
     {
         return $this->belongsTo(VendorTask::class, 'vendor_task_id');
+    }
+
+    public function partnerSettlement(): BelongsTo
+    {
+        return $this->belongsTo(PartnerSettlement::class);
+    }
+
+    public function approvedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 }

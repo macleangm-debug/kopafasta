@@ -9,7 +9,7 @@
         'Reference'  => $record->reference,
         'Loan'       => $loan?->loan_number,
         'Status'     => ucfirst($record->status ?? ''),
-        'Channel'    => ucfirst(str_replace('_', ' ', $record->channel ?? '')),
+        'Channel'    => display_label($record->channel, 'channel'),
         'Amount'     => $record->amount !== null ? 'TZS '.number_format((float) $record->amount) : null,
         'Principal'  => $record->principal_component !== null ? number_format((float) $record->principal_component) : null,
         'Interest'   => $record->interest_component  !== null ? number_format((float) $record->interest_component)  : null,

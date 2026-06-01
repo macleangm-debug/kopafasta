@@ -6,7 +6,10 @@ use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
+use App\Services\LoanApplicationReviewService;
 use App\Services\LoanApplicationWorkflowService;
+use App\Services\LoanOriginationService;
+use App\Services\SmartLoanApplicationWizardService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,13 +40,39 @@ class LoanApplicationController extends ResourceController
         ];
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
+        $customers = Customer::orderBy('first_name')->limit(500)->get()
+            ->mapWithKeys(fn ($c) => [$c->id => trim($c->first_name.' '.$c->last_name)]);
+
+        $products = LoanProduct::orderBy('name')->pluck('name', 'id');
+        $branches = Branch::orderBy('name')->pluck('name', 'id');
+
+        if ($record instanceof LoanApplication) {
+            if ($record->customer_id && ! $customers->has($record->customer_id)) {
+                $customer = Customer::find($record->customer_id);
+                if ($customer) {
+                    $customers->put($customer->id, trim($customer->first_name.' '.$customer->last_name));
+                }
+            }
+            if ($record->loan_product_id && ! $products->has($record->loan_product_id)) {
+                $product = LoanProduct::find($record->loan_product_id);
+                if ($product) {
+                    $products->put($product->id, $product->name);
+                }
+            }
+            if ($record->branch_id && ! $branches->has($record->branch_id)) {
+                $branch = Branch::find($record->branch_id);
+                if ($branch) {
+                    $branches->put($branch->id, $branch->name);
+                }
+            }
+        }
+
         return [
-            'customers' => Customer::orderBy('first_name')->limit(500)->get()
-                ->mapWithKeys(fn($c) => [$c->id => trim($c->first_name.' '.$c->last_name)]),
-            'products'  => LoanProduct::orderBy('name')->pluck('name', 'id'),
-            'branches'  => Branch::orderBy('name')->pluck('name', 'id'),
+            'customers' => $customers,
+            'products'  => $products,
+            'branches'  => $branches,
             'statuses'  => [
                 'draft' => 'Draft', 'submitted' => 'Submitted', 'under_review' => 'Under review',
                 'pre_approved' => 'Pre-approved', 'approved' => 'Approved', 'rejected' => 'Rejected',
@@ -52,21 +81,89 @@ class LoanApplicationController extends ResourceController
         ];
     }
 
+    public function edit($id)
+    {
+        $record = LoanApplication::findOrFail($id);
+
+        return view("admin.{$this->viewFolder}.edit", ['record' => $record] + $this->formData($record));
+    }
+
+    public function create()
+    {
+        $wizard = app(SmartLoanApplicationWizardService::class);
+        $formData = $this->formData();
+
+        $products = LoanProduct::where('is_active', true)->orderBy('name')->get()->map(fn (LoanProduct $p) => [
+            'id'                 => $p->id,
+            'code'               => $p->code,
+            'name'               => $p->name,
+            'rate'               => (float) $p->interest_rate,
+            'min'                => (float) $p->min_amount,
+            'max'                => (float) $p->max_amount,
+            'tmin'               => (int) $p->tenure_min_months,
+            'tmax'               => (int) $p->tenure_max_months,
+            'desc'               => $p->description,
+            'requires_guarantor' => (bool) $p->requires_guarantor,
+        ])->values();
+
+        return view("admin.{$this->viewFolder}.create", [
+            ...$formData,
+            'products'      => $products,
+            'wizardSteps'   => $wizard->adminStepLabels(),
+            'loanPurposes'  => config('loan_purposes', []),
+            'wizardDataUrl' => route('admin.loan-applications.wizard-data', ['customer' => '__ID__']),
+        ]);
+    }
+
+    public function wizardCustomerData(Customer $customer): \Illuminate\Http\JsonResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.view'), 403);
+
+        $wizard = app(SmartLoanApplicationWizardService::class);
+
+        return response()->json([
+            'eligibility' => $wizard->eligibilityForCustomer($customer),
+            'profile'     => $wizard->profileSections($customer),
+        ]);
+    }
+
     protected function transform(array $data, ?Model $existing = null): array
     {
         if (empty($data['application_number'])) {
             $data['application_number'] = 'APP-'.now()->format('ymd').'-'.Str::upper(Str::random(5));
         }
+
+        if (empty($data['current_stage']) && ! empty($data['status'])) {
+            $data['current_stage'] = $data['status'] === 'submitted' ? 'submitted' : ($data['current_stage'] ?? 'submitted');
+        }
+
         return $data;
+    }
+
+    public function store(Request $request)
+    {
+        $data = $this->transform($request->validate($this->rules()));
+        $record = $this->model::create($data);
+
+        if (($data['status'] ?? '') === 'submitted') {
+            $record->update(['submitted_at' => now(), 'current_stage' => $record->current_stage ?: 'submitted']);
+        }
+
+        $this->auditAdminCreated($record);
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $record)
+            ->with('status', ucfirst($this->singular).' created.');
     }
 
     public function show($id): View
     {
         $record = LoanApplication::query()
-            ->with(['customer', 'product', 'stageHistory.changedByUser'])
+            ->with(['customer', 'product', 'loan', 'stageHistory.changedByUser'])
             ->findOrFail($id);
 
         $workflow = app(LoanApplicationWorkflowService::class);
+        $review = app(LoanApplicationReviewService::class)->dossier($record);
         $availableActions = $workflow->availableActions($record, auth()->user());
         $stageHistory = $record->stageHistory()->latest()->get();
         $auditLogs = \App\Models\AuditLog::query()
@@ -77,7 +174,26 @@ class LoanApplicationController extends ResourceController
             ->with('user')
             ->get();
 
-        return view("admin.{$this->viewFolder}.show", compact('record', 'availableActions', 'stageHistory', 'auditLogs', 'workflow'));
+        $offer = \App\Models\LoanAgreement::where('loan_application_id', $record->id)
+            ->where('document_type', 'offer_letter')
+            ->latest('id')
+            ->first();
+
+        $documentRequests = \App\Models\LoanApplicationDocumentRequest::with(['uploads', 'requester'])
+            ->where('loan_application_id', $record->id)
+            ->latest()
+            ->get();
+
+        return view("admin.{$this->viewFolder}.show", compact(
+            'record',
+            'review',
+            'availableActions',
+            'stageHistory',
+            'auditLogs',
+            'workflow',
+            'offer',
+            'documentRequests',
+        ));
     }
 
     public function runWorkflow(Request $request, LoanApplication $loan_application, LoanApplicationWorkflowService $workflow): RedirectResponse
@@ -109,5 +225,20 @@ class LoanApplicationController extends ResourceController
         return redirect()
             ->route("{$this->routePrefix}.show", $loan_application)
             ->with('status', $label.' completed successfully.');
+    }
+
+    public function createLoan(LoanApplication $loan_application, LoanOriginationService $origination): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.disburse') || auth()->user()?->hasPermission('loans.disburse'), 403);
+
+        try {
+            $loan = $origination->createFromApplication($loan_application);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors());
+        }
+
+        return redirect()
+            ->route('admin.loans.show', $loan)
+            ->with('status', 'Loan '.$loan->loan_number.' created from application. Review and disburse when ready.');
     }
 }

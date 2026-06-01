@@ -9,9 +9,9 @@
             ...
         </x-admin.step>
 --}}
-@props(['title'])
+@props(['title', 'id' => null])
 
-<div data-step data-step-label="{{ $title }}"
+<div @if($id) id="{{ $id }}" @endif data-step data-step-label="{{ $title }}"
      class="grid grid-cols-1 md:grid-cols-2 gap-5">
     {{ $slot }}
 </div>

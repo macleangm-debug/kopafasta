@@ -2,11 +2,14 @@
 
 namespace App\Services;
 
+use App\Models\AssetReservation;
+use App\Models\DocumentTemplate;
 use App\Models\Loan;
 use App\Models\LoanAgreement;
 use App\Models\LoanApplication;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -25,7 +28,7 @@ class LoanAgreementService
             return $existing;
         }
 
-        $application->loadMissing(['customer', 'product', 'signatures']);
+        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors']);
 
         $snapshot = $this->snapshotFromApplication($application);
 
@@ -44,11 +47,65 @@ class LoanAgreementService
         ]);
 
         // Render PDF
-        $pdf = Pdf::loadView('pdf.offer-letter', [
+        $viewData = [
             'application' => $application,
             'snapshot'    => $snapshot,
             'agreement'   => $agreement,
-        ])->setPaper('a4');
+        ];
+        $pdf = $this->renderAgreementPdf(
+            $application->product?->offerLetterTemplate,
+            'pdf.offer-letter',
+            $viewData,
+        );
+
+        $path = "agreements/{$agreement->reference}.pdf";
+        Storage::disk('public')->put($path, $pdf->output());
+        $agreement->file_path = $path;
+        $agreement->save();
+
+        return $agreement;
+    }
+
+    /**
+     * Generate a loan contract PDF after offer acceptance.
+     */
+    public function generateLoanContract(LoanApplication $application, bool $regenerate = false): LoanAgreement
+    {
+        $existing = LoanAgreement::where('loan_application_id', $application->id)
+            ->where('document_type', 'loan_contract')
+            ->first();
+
+        if ($existing && ! $regenerate && $existing->isSigned()) {
+            return $existing;
+        }
+
+        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors']);
+        $snapshot = $this->snapshotFromApplication($application);
+
+        $agreement = $existing ?: new LoanAgreement([
+            'loan_application_id' => $application->id,
+            'customer_id'         => $application->customer_id,
+            'document_type'       => 'loan_contract',
+            'reference'           => 'LC-'.strtoupper(Str::random(8)),
+        ]);
+
+        $agreement->fill([
+            'snapshot'             => $snapshot,
+            'status'               => 'sent',
+            'sent_at'              => now(),
+            'generated_by_user_id' => Auth::id(),
+        ]);
+
+        $viewData = [
+            'application' => $application,
+            'snapshot'    => $snapshot,
+            'agreement'   => $agreement,
+        ];
+        $template = ($application->product?->code ?? '') === config('asset_marketplace.asset_loan_product_code', 'AL')
+            ? ($application->product?->assetLendingAgreementTemplate ?? $application->product?->loanContractTemplate)
+            : $application->product?->loanContractTemplate;
+
+        $pdf = $this->renderAgreementPdf($template, 'pdf.loan-contract', $viewData);
 
         $path = "agreements/{$agreement->reference}.pdf";
         Storage::disk('public')->put($path, $pdf->output());
@@ -103,43 +160,77 @@ class LoanAgreementService
             'signed_ip'         => $ip,
             'signed_user_agent' => $ua ? substr($ua, 0, 255) : null,
             'signature_method'  => 'otp',
-            'otp_code'          => null, // invalidate
+            'otp_code'          => null,
         ]);
+
+        $application = $agreement->loanApplication;
+        if ($application && $agreement->document_type === 'offer_letter') {
+            $this->generateLoanContract($application, regenerate: true);
+        }
 
         return [true, 'Signed successfully.'];
     }
 
     private function snapshotFromApplication(LoanApplication $a): array
     {
-        $amount  = (float) ($a->approved_amount ?? $a->requested_amount ?? 0);
-        $rate    = (float) ($a->product->interest_rate ?? 0);
-        $tenure  = (int)   ($a->approved_tenure_months ?? $a->requested_tenure_months ?? $a->product->default_tenure_months ?? 0);
+        $amount = (float) ($a->approved_amount ?? $a->requested_amount ?? 0);
+        $product = $a->product;
+        $rateBreakdown = app(DisplayedRateService::class)->breakdown($product, $amount);
+        $monthlyRate = $rateBreakdown['displayed_monthly_rate'];
+        $tenure = (int) ($a->approved_tenure_months ?? $a->requested_tenure_months ?? $product->default_tenure_months ?? 0);
+        $cadence = $a->product->repayment_cadence ?? 'weekly';
 
-        // Reducing-balance EMI estimate (informational; final schedule built at disbursement)
-        $emi = 0.0;
-        if ($amount > 0 && $tenure > 0) {
-            if ($rate > 0) {
-                $pow = pow(1 + $rate, $tenure);
-                $emi = round($amount * $rate * $pow / ($pow - 1), 2);
-            } else {
-                $emi = round($amount / $tenure, 2);
-            }
-        }
+        $schedule = app(RepaymentScheduleGenerator::class)->preview($amount, $monthlyRate, $tenure, $cadence);
+        $instalment = $schedule[0]['total_due'] ?? 0.0;
+        $totalInterest = round(collect($schedule)->sum('interest_due'), 2);
+        $totalFees = (float) ($a->processing_fee ?? 0);
+        $isAssetLoan = ($a->product->code ?? '') === config('asset_marketplace.asset_loan_product_code', 'AL');
+        $reservation = AssetReservation::query()
+            ->with('asset')
+            ->where('loan_application_id', $a->id)
+            ->first();
 
         return [
-            'application_number' => $a->application_number,
-            'product_name'       => $a->product->name ?? null,
-            'product_code'       => $a->product->code ?? null,
-            'principal'          => $amount,
-            'interest_rate'      => $rate,
-            'tenure_months'      => $tenure,
-            'estimated_emi'      => $emi,
-            'customer_name'      => trim(($a->customer->first_name ?? '').' '.($a->customer->last_name ?? '')),
-            'customer_id'        => $a->customer->national_id ?? null,
-            'customer_phone'     => $a->customer->phone ?? null,
-            'purpose'            => $a->purpose ?? null,
-            'generated_at'       => now()->toIso8601String(),
-            'borrower_signature' => $a->signatures->firstWhere('signer_type', 'borrower'),
+            'application_number'   => $a->application_number,
+            'product_name'         => $a->product->name ?? null,
+            'product_code'         => $a->product->code ?? null,
+            'principal'            => $amount,
+            'interest_rate'        => $monthlyRate,
+            'bot_regulated_rate'   => $rateBreakdown['bot_regulated_rate'],
+            'internal_fee_rate'    => $rateBreakdown['internal_fee_rate'],
+            'displayed_monthly_rate' => $monthlyRate,
+            'rate_breakdown'       => $rateBreakdown,
+            'tenure_months'        => $tenure,
+            'repayment_cadence'    => $cadence,
+            'installment_count'    => count($schedule),
+            'estimated_emi'        => $instalment,
+            'installment_label'    => app(RepaymentScheduleGenerator::class)->installmentLabel($cadence),
+            'total_interest'       => $totalInterest,
+            'total_fees'           => $totalFees,
+            'repayment_schedule'   => $schedule,
+            'customer_name'        => trim(($a->customer->first_name ?? '').' '.($a->customer->last_name ?? '')),
+            'customer_id'          => $a->customer->national_id ?? null,
+            'customer_phone'       => $a->customer->phone ?? null,
+            'purpose'              => $a->purpose ?? null,
+            'generated_at'         => now()->toIso8601String(),
+            'borrower_signature'   => $a->signatures->firstWhere('signer_type', 'borrower'),
+            'guarantor_signature'  => $a->signatures->firstWhere('signer_type', 'guarantor'),
+            'company_signatory'    => brand('legal_name'),
+            'is_asset_loan'        => $isAssetLoan,
+            'asset_title'          => $reservation?->asset?->title,
+            'asset_ownership_note' => $isAssetLoan ? config('asset_marketplace.ownership_note') : null,
         ];
+    }
+
+    /** @param array<string, mixed> $data */
+    private function renderAgreementPdf(?DocumentTemplate $template, string $fallbackView, array $data): \Barryvdh\DomPDF\PDF
+    {
+        if ($template && filled($template->content)) {
+            $html = Blade::render($template->content, $data);
+
+            return Pdf::loadHTML($html)->setPaper('a4');
+        }
+
+        return Pdf::loadView($fallbackView, $data)->setPaper('a4');
     }
 }

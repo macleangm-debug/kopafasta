@@ -5,6 +5,8 @@ namespace App\Services;
 use App\DataTransferObjects\CrbIdentityResult;
 use App\Models\Customer;
 use App\Models\CustomerKyc;
+use App\Models\Setting;
+use App\Models\User;
 use App\Support\NidaNumber;
 use Illuminate\Support\Facades\DB;
 
@@ -13,6 +15,7 @@ class NidaVerificationService
     public function __construct(
         private readonly CrbService $crb,
         private readonly IdentityNameService $names,
+        private readonly AuditService $audit,
     ) {}
 
     public function isVerified(Customer $customer): bool
@@ -20,8 +23,81 @@ class NidaVerificationService
         return $customer->nida_verification_status === 'verified' && $customer->identity_locked;
     }
 
+    /** @return array{max_mismatch_attempts: int, lock_hours: int} */
+    public function settings(): array
+    {
+        $group = Setting::group('identity_verification');
+
+        return [
+            'max_mismatch_attempts' => (int) ($group['max_mismatch_attempts'] ?? config('identity_verification.max_mismatch_attempts', 3)),
+            'lock_hours'            => (int) ($group['lock_hours'] ?? config('identity_verification.lock_hours', 24)),
+        ];
+    }
+
+    public function isLocked(Customer $customer): bool
+    {
+        return $customer->nida_locked_until && now()->lt($customer->nida_locked_until);
+    }
+
+    public function lockMessage(Customer $customer): ?string
+    {
+        if (! $this->isLocked($customer)) {
+            return null;
+        }
+
+        return __('borrower.nida.account_locked_until', [
+            'time' => $customer->nida_locked_until->format('d M Y H:i'),
+        ]);
+    }
+
+    public function assertCanVerify(Customer $customer): ?string
+    {
+        return $this->lockMessage($customer);
+    }
+
+    public function mismatchWarningLevel(Customer $customer): int
+    {
+        return min($this->settings()['max_mismatch_attempts'], (int) $customer->nida_mismatch_attempts);
+    }
+
+    public function mismatchMessage(Customer $customer, int $level): string
+    {
+        if ($this->isLocked($customer)) {
+            return $this->lockMessage($customer) ?? __('borrower.nida.result.locked_default');
+        }
+
+        return match ($level) {
+            1       => __('borrower.nida.mismatch_warning_1'),
+            2       => __('borrower.nida.mismatch_warning_2'),
+            default => __('borrower.nida.result.mismatch_default'),
+        };
+    }
+
+    public function unlockIdentityVerification(Customer $customer, ?User $admin = null): void
+    {
+        $customer->update([
+            'nida_mismatch_attempts' => 0,
+            'nida_locked_until'      => null,
+        ]);
+
+        $user = $this->linkedUser($customer);
+        if ($user?->locked_until?->isFuture()) {
+            $user->forceFill(['locked_until' => null])->save();
+        }
+
+        if ($admin) {
+            $this->audit->logAdminAction($admin, 'nida.identity_unlocked', $customer, [
+                'customer_id' => $customer->id,
+            ]);
+        }
+    }
+
     public function verify(Customer $customer, string $nidaNumber): CrbIdentityResult
     {
+        if ($message = $this->assertCanVerify($customer)) {
+            return CrbIdentityResult::failed($message, 'locked');
+        }
+
         $formatted = NidaNumber::format($nidaNumber);
 
         if (! $formatted) {
@@ -58,6 +134,10 @@ class NidaVerificationService
 
     public function acceptVerifiedNames(Customer $customer): bool
     {
+        if ($this->isLocked($customer)) {
+            return false;
+        }
+
         $kyc = $customer->kyc;
         $verified = $kyc?->payload['nida_verified_names'] ?? null;
 
@@ -103,6 +183,8 @@ class NidaVerificationService
                     'national_id'              => $formatted,
                     'nida_verification_status' => 'name_mismatch',
                 ]);
+
+                $this->recordMismatchAttempt($customer);
 
                 $kyc = $customer->kyc ?? CustomerKyc::firstOrCreate(
                     ['customer_id' => $customer->id],
@@ -161,7 +243,14 @@ class NidaVerificationService
             'nida_verified_at'         => now(),
             'nida_verified_source'     => $this->crb->usesStub() ? 'stub' : 'crb',
             'identity_locked'          => true,
+            'nida_mismatch_attempts'   => 0,
+            'nida_locked_until'        => null,
         ])->save();
+
+        $user = $this->linkedUser($customer);
+        if ($user?->locked_until?->isFuture()) {
+            $user->forceFill(['locked_until' => null])->save();
+        }
 
         $kyc = $customer->kyc ?? CustomerKyc::firstOrCreate(
             ['customer_id' => $customer->id],
@@ -192,6 +281,10 @@ class NidaVerificationService
         string $searchRequestId,
         string $entityKey,
     ): CrbIdentityResult {
+        if ($message = $this->assertCanVerify($customer)) {
+            return CrbIdentityResult::failed($message, 'locked');
+        }
+
         $formatted = NidaNumber::format($nidaNumber);
 
         if (! $formatted) {
@@ -240,5 +333,50 @@ class NidaVerificationService
         }
 
         $kyc->update(['payload' => $payload]);
+    }
+
+    private function recordMismatchAttempt(Customer $customer): void
+    {
+        $settings = $this->settings();
+        $attempts = (int) $customer->nida_mismatch_attempts + 1;
+        $updates = ['nida_mismatch_attempts' => $attempts];
+
+        if ($attempts >= $settings['max_mismatch_attempts']) {
+            $until = now()->addHours($settings['lock_hours']);
+            $updates['nida_locked_until'] = $until;
+            $customer->update($updates);
+            $this->syncUserLock($customer->fresh(), $until);
+
+            $this->audit->logBorrower(auth()->user(), 'nida.account_locked', $customer, [
+                'attempts'     => $attempts,
+                'locked_until' => $until->toIso8601String(),
+            ]);
+
+            return;
+        }
+
+        $customer->update($updates);
+
+        $this->audit->logBorrower(auth()->user(), 'nida.mismatch_attempt', $customer, [
+            'attempts' => $attempts,
+            'level'    => $attempts,
+        ]);
+    }
+
+    private function syncUserLock(Customer $customer, \DateTimeInterface $until): void
+    {
+        $user = $this->linkedUser($customer);
+        if ($user) {
+            $user->forceFill(['locked_until' => $until])->save();
+        }
+    }
+
+    private function linkedUser(Customer $customer): ?User
+    {
+        if ($customer->relationLoaded('user')) {
+            return $customer->user;
+        }
+
+        return User::query()->where('id', $customer->user_id)->first();
     }
 }

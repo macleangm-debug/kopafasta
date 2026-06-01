@@ -4,8 +4,8 @@
     :editUrl="route('admin.charges-fees.edit', $record)"
     :fields="[
         'Code' => $record->code, 'Name' => $record->name,
-        'Type'  => str_replace('_',' ', $record->type),
-        'Basis' => str_replace('_',' ', $record->basis),
+        'Type'  => display_label($record->type, 'charge_type'),
+        'Basis' => display_label($record->basis, 'charge_basis'),
         'Amount / rate' => number_format($record->amount, 4),
         'Min amount' => $record->min_amount ? number_format($record->min_amount, 2) : '—',
         'Max amount' => $record->max_amount ? number_format($record->max_amount, 2) : '—',

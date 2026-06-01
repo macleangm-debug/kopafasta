@@ -10,6 +10,7 @@ use App\Models\Vendor;
 use App\Rules\FourDigitPin;
 use App\Services\NotificationService;
 use App\Services\PinService;
+use App\Services\ReferralService;
 use App\Services\TrustedDeviceService;
 use App\Services\WebLoginThrottle;
 use Illuminate\Http\RedirectResponse;
@@ -252,6 +253,12 @@ class AuthController extends Controller
             return redirect()->route('site.borrower.setup-pin');
         }
 
+        if ($user->role === 'borrower' && $user->customer) {
+            if ($guarantorRedirect = app(\App\Services\GuarantorOnboardingService::class)->redirectIfPending($request, $user->customer)) {
+                return $guarantorRedirect;
+            }
+        }
+
         return $response;
     }
 
@@ -277,11 +284,19 @@ class AuthController extends Controller
             return null;
         }
 
-        $minutes = max(1, (int) now()->diffInMinutes($user->locked_until, false));
+        $customer = $user->customer;
+        $nida = app(\App\Services\NidaVerificationService::class);
+
+        if ($customer && $nida->isLocked($customer)) {
+            $message = $nida->lockMessage($customer) ?? __('borrower.nida.result.locked_default');
+        } else {
+            $minutes = max(1, (int) now()->diffInMinutes($user->locked_until, false));
+            $message = "Account locked after too many failed attempts. Try again in {$minutes} minutes.";
+        }
 
         return back()->withErrors([
-            'login' => "Account locked after too many failed attempts. Try again in {$minutes} minutes.",
-            'phone' => "Account locked after too many failed attempts. Try again in {$minutes} minutes.",
+            'login' => $message,
+            'phone' => $message,
         ]);
     }
 
@@ -309,12 +324,19 @@ class AuthController extends Controller
             ->withCookie(app(TrustedDeviceService::class)->forgetCookie());
     }
 
-    public function showRegisterBorrower(): View
+    public function showRegisterBorrower(Request $request): View
     {
-        return view('site.auth.register-borrower');
+        if ($code = $request->query('aff')) {
+            session(['affiliate_code' => strtoupper(trim($code))]);
+        }
+
+        return view('site.auth.register-borrower', [
+            'referralCode'  => $request->query('ref'),
+            'affiliateCode' => $request->query('aff') ?? session('affiliate_code'),
+        ]);
     }
 
-    public function registerBorrower(Request $request): RedirectResponse
+    public function registerBorrower(Request $request, ReferralService $referrals): RedirectResponse
     {
         $data = $request->validate([
             'country'     => ['required', 'string', 'in:TZ,KE,UG'],
@@ -324,6 +346,8 @@ class AuthController extends Controller
             'email'      => ['nullable', 'email', 'max:255', 'unique:users,email'],
             'phone'      => ['required', 'string', 'max:20', 'unique:users,phone'],
             'password'   => ['required', 'string', 'min:8', 'confirmed'],
+            'referral_code' => ['nullable', 'string', 'max:32'],
+            'affiliate_code' => ['nullable', 'string', 'max:32'],
         ]);
 
         $email = $data['email'] ?? null;
@@ -332,7 +356,7 @@ class AuthController extends Controller
             $email = $digits.'@phone.kopafasta.local';
         }
 
-        $user = DB::transaction(function () use ($data, $email) {
+        $user = DB::transaction(function () use ($data, $email, $referrals) {
             $fullName = trim(collect([$data['first_name'], $data['middle_name'] ?? null, $data['last_name']])->filter()->implode(' '));
 
             $user = User::create([
@@ -344,11 +368,12 @@ class AuthController extends Controller
                 'is_active' => true,
             ]);
 
-            Customer::create([
+            $customer = Customer::create([
                 'user_id'         => $user->id,
                 'customer_number' => 'C-'.strtoupper(Str::random(6)),
                 'type'            => 'individual',
                 'status'          => 'active',
+                'branch_id'       => app(\App\Services\BranchService::class)->headOfficeId(),
                 'first_name'      => $data['first_name'],
                 'middle_name'     => $data['middle_name'] ?? null,
                 'last_name'       => $data['last_name'],
@@ -356,6 +381,22 @@ class AuthController extends Controller
                 'phone'           => $data['phone'],
                 'onboarded_at'    => now(),
             ]);
+
+            app(\App\Services\BranchService::class)->assignDefault($customer);
+
+            $referrals->attachReferrer($customer, $data['referral_code'] ?? null);
+            $referrals->ensureCode($customer);
+            app(\App\Services\AffiliateService::class)->attachAffiliate(
+                $customer,
+                $data['affiliate_code'] ?? session('affiliate_code')
+            );
+
+            if ($token = request()->session()->get('guarantor_invite_token')) {
+                $invitation = \App\Models\GuarantorInvitation::query()->where('token', $token)->first();
+                if ($invitation) {
+                    app(\App\Services\GuarantorOnboardingService::class)->linkInvitee($invitation, $customer);
+                }
+            }
 
             return $user;
         });

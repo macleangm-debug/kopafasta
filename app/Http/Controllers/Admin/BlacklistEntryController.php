@@ -26,7 +26,7 @@ class BlacklistEntryController extends ResourceController
         ];
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
         return [
             'types'   => ['nida'=>'NIDA','phone'=>'Phone','email'=>'Email','tin'=>'TIN','passport'=>'Passport','name'=>'Name'],

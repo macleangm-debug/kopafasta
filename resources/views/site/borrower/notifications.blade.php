@@ -1,4 +1,4 @@
-<x-site.borrower-layout title="Notifications — Kopafasta" active="notifications">
+<x-site.borrower-layout :title="brand_title('Notifications')" active="notifications">
 
     <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
@@ -11,7 +11,8 @@
                     @csrf
                     <button class="text-xs font-semibold px-4 py-2 rounded-full ring-1 ring-gray-200 bg-white hover:bg-gray-50">Mark all read</button>
                 </form>
-                <form method="POST" action="{{ route('site.borrower.notifications.clear-all') }}" onsubmit="return confirm('Clear all notifications?')">
+                <form method="POST" action="{{ route('site.borrower.notifications.clear-all') }}"
+                      @submit.prevent="window.confirmForm($el, { title: 'Clear all notifications?', message: 'This cannot be undone.', confirmLabel: 'Clear all', confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">
                     @csrf
                     <button class="text-xs font-semibold px-4 py-2 rounded-full ring-1 ring-red-200 text-red-700 bg-red-50 hover:bg-red-100">Clear all</button>
                 </form>
@@ -52,7 +53,8 @@
                                 <button class="text-xs font-semibold text-amber-700 hover:underline">Mark read</button>
                             </form>
                         @endunless
-                        <form method="POST" action="{{ route('site.borrower.notifications.item.clear', $n) }}">
+                        <form method="POST" action="{{ route('site.borrower.notifications.item.clear', $n) }}"
+                              @submit.prevent="window.confirmForm($el, { title: 'Clear this notification?', message: 'It will be removed from your list.', confirmLabel: 'Clear', confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">
                             @csrf @method('DELETE')
                             <button class="text-xs font-semibold text-gray-500 hover:text-red-600">Clear</button>
                         </form>

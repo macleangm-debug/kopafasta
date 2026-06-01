@@ -33,6 +33,7 @@ class SettingsController extends Controller
             'email'       => ['nullable', 'email', 'max:150'],
             'phone'       => ['nullable', 'string', 'max:30'],
             'website'     => ['nullable', 'string', 'max:200'],
+            'app_base_url' => ['nullable', 'url', 'max:255'],
             'address'     => ['nullable', 'string', 'max:500'],
             'currency'    => ['required', 'string', 'size:3'],
             'timezone'    => ['required', 'string', 'max:50'],
@@ -115,6 +116,25 @@ class SettingsController extends Controller
 
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["kyc.$k" => $v])->all());
         return back()->with('status', 'KYC settings saved.');
+    }
+
+    public function identityVerification()
+    {
+        return view('admin.settings.identity', [
+            'values' => Setting::group('identity_verification'),
+        ]);
+    }
+
+    public function saveIdentityVerification(Request $request)
+    {
+        $data = $request->validate([
+            'max_mismatch_attempts' => ['required', 'integer', 'min:1', 'max:10'],
+            'lock_hours'            => ['required', 'integer', 'min:1', 'max:168'],
+        ]);
+
+        Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["identity_verification.$k" => $v])->all());
+
+        return back()->with('status', 'Identity verification settings saved.');
     }
 
     // ---------------- Loan rules ----------------
@@ -241,5 +261,26 @@ class SettingsController extends Controller
 
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["membership.$k" => $v])->all());
         return back()->with('status', 'Membership settings saved.');
+    }
+
+    public function referrals()
+    {
+        return view('admin.settings.referrals', [
+            'values' => Setting::group('referrals'),
+        ]);
+    }
+
+    public function saveReferrals(Request $request)
+    {
+        $data = $request->validate([
+            'code_prefix'            => ['required', 'string', 'max:10'],
+            'discount_percent'       => ['required', 'numeric', 'min:0', 'max:100'],
+            'commission_percent'     => ['required', 'numeric', 'min:0', 'max:100'],
+            'wallet_max_fee_percent' => ['required', 'numeric', 'min:0', 'max:100'],
+        ]);
+
+        Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["referrals.$k" => $v])->all());
+
+        return back()->with('status', 'Referral settings saved.');
     }
 }

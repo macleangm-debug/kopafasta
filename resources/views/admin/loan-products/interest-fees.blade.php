@@ -11,6 +11,7 @@
                     <th class="px-5 py-2.5 text-right">Min amount</th>
                     <th class="px-5 py-2.5 text-right">Max amount</th>
                     <th class="px-5 py-2.5 text-right">Tenure</th>
+                    <th class="px-5 py-2.5 text-left">Cadence</th>
                     <th class="px-5 py-2.5 text-left">Status</th>
                 </tr>
             </thead>
@@ -25,6 +26,7 @@
                         <td class="px-5 py-3 text-right">TZS {{ number_format((float) $p->min_amount) }}</td>
                         <td class="px-5 py-3 text-right">TZS {{ number_format((float) $p->max_amount) }}</td>
                         <td class="px-5 py-3 text-right">{{ $p->tenure_min_months }}–{{ $p->tenure_max_months }} mo</td>
+                        <td class="px-5 py-3 capitalize">{{ $p->repayment_cadence ?? 'weekly' }}</td>
                         <td class="px-5 py-3">
                             <x-admin.badge :value="$p->is_active ? 'active' : 'inactive'" :map="[
                                 'active'   => 'bg-emerald-100 text-emerald-800',
@@ -33,7 +35,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="px-5 py-12 text-center text-gray-500">No loan products yet.</td></tr>
+                    <tr><td colspan="8" class="px-5 py-12 text-center text-gray-500">No loan products yet.</td></tr>
                 @endforelse
             </tbody>
         </table>

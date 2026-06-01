@@ -2,17 +2,24 @@
 
 namespace App\Http\Controllers\Site;
 
+use App\Http\Controllers\Concerns\AuditsActions;
 use App\Http\Controllers\Controller;
 use App\Models\ApplicationSignature;
+use App\Models\AssetReservation;
 use App\Models\ChargesFee;
 use App\Models\Customer;
+use App\Models\CustomerDocument;
+use App\Models\DocumentType;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
 use App\Rules\MinimumAge;
 use App\Services\ApplicationRequirementsService;
+use App\Services\AssetReservationService;
 use App\Services\FaceVerificationService;
 use App\Services\GuarantorInvitationService;
 use App\Services\KycFreshnessService;
+use App\Services\LoanProductReadinessService;
+use App\Services\SmartLoanApplicationWizardService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,38 +28,23 @@ use Illuminate\View\View;
 
 class ApplyController extends Controller
 {
+    use AuditsActions;
+
     public function show(
         Request $request,
         FaceVerificationService $faces,
         KycFreshnessService $freshness,
         ApplicationRequirementsService $requirements,
+        SmartLoanApplicationWizardService $wizard,
     ): View|RedirectResponse {
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
 
-        if ($customer) {
-            $checklist = $requirements->checklist($customer);
-            if (! $checklist['can_apply']) {
-                $pending = collect($checklist['items'])->first(fn (array $i) => ! $i['complete']);
-
-                return redirect()
-                    ->route('site.borrower.dashboard')
-                    ->with('error', $pending
-                        ? 'Complete "'.$pending['label'].'" before starting a loan application.'
-                        : 'Complete all requirements before applying for a loan.');
-            }
+        if (! $customer) {
+            return redirect()->route('site.borrower.dashboard')->with('error', 'Complete your profile before applying.');
         }
 
-        if ($customer && ! $faces->canApply($customer)) {
-            return redirect()
-                ->route('site.borrower.face-verification')
-                ->with('error', 'Complete face verification before starting a loan application.');
-        }
-
-        if ($customer && ! $freshness->canApply($customer)) {
-            return redirect()
-                ->route('site.borrower.kyc-reconfirm')
-                ->with('error', 'Please reconfirm your residence and activity information before applying.');
-        }
+        $eligibility = $requirements->checklist($customer);
+        $profileSections = $wizard->profileSections($customer);
 
         $products = LoanProduct::where('is_active', true)->orderBy('name')->get();
         $preselect = $request->query('product');
@@ -68,12 +60,45 @@ class ApplyController extends Controller
             $preselect = $selected?->id;
         }
 
-        $applicationFee = (int) (optional(ChargesFee::where('code', 'APP_FEE')->where('is_active', true)->first())->amount ?? 0);
+        $selectedProduct = $preselect ? $products->firstWhere('id', (int) $preselect) : null;
+        $reservation = null;
+        if ($request->filled('reservation') && $customer) {
+            $reservation = AssetReservation::query()
+                ->where('customer_id', $customer->id)
+                ->with('asset')
+                ->find($request->query('reservation'));
+        }
+        $stepPlan = $wizard->borrowerStepPlan($customer, $selectedProduct);
+        $incomeVerification = $wizard->incomeVerification($customer);
+        $applicationFee = quoted_application_fee($customer);
+        $productQuestions = config('loan_product_questions', []);
+        $readinessUrl = route('site.borrower.apply.product-readiness', ['product' => '__ID__']);
 
-        return view('site.apply.wizard', compact('products', 'customer', 'preselect', 'applicationFee'))
-            ->with('loanPurposes', config('loan_purposes'))
+        return view('site.apply.wizard', compact(
+            'products',
+            'customer',
+            'preselect',
+            'applicationFee',
+            'eligibility',
+            'profileSections',
+            'stepPlan',
+            'incomeVerification',
+            'productQuestions',
+            'readinessUrl',
+            'reservation',
+        ))->with('loanPurposes', loan_purpose_options())
             ->with('incomeRanges', config('income_ranges'))
-            ->with('activityTypes', config('activity_profiles.types'));
+            ->with('activityTypes', activity_type_options());
+    }
+
+    public function productReadiness(LoanProduct $product, LoanProductReadinessService $readiness): \Illuminate\Http\JsonResponse
+    {
+        $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($customer, 403);
+
+        $product = LoanProduct::where('id', $product->id)->where('is_active', true)->firstOrFail();
+
+        return response()->json($readiness->assess($customer, $product));
     }
 
     public function submit(
@@ -138,6 +163,9 @@ class ApplyController extends Controller
             'signature_data'          => ['required', 'string', 'starts_with:data:image/png;base64,'],
             'consent'                 => ['accepted'],
             'product_question'        => ['nullable', 'array'],
+            'income_document'         => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'income_document_type'    => ['nullable', 'in:bank,mobile_money'],
+            'asset_reservation_id'    => ['nullable', 'integer', 'exists:asset_reservations,id'],
         ]);
 
         $loanProduct = LoanProduct::where('id', $data['loan_product_id'])
@@ -171,7 +199,7 @@ class ApplyController extends Controller
         $user = Auth::user();
         $customer = Customer::firstOrNew(['user_id' => $user->id]);
         $addressLine = trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', '));
-        $purposeLabel = config('loan_purposes.'.$data['purpose']) ?? $data['purpose'];
+        $purposeLabel = loan_purpose_label($data['purpose']) ?? $data['purpose'];
 
         if (! $customer->identity_locked) {
             $customer->fill([
@@ -200,7 +228,9 @@ class ApplyController extends Controller
             'nok_region'      => $data['nok_region'],
             'nok_district'    => $data['nok_district'],
             'activity_type'   => $data['activity_type'],
-            'activity_details'=> $data['activity_details'] ?? [],
+            'activity_details'=> filled($data['activity_details'] ?? null)
+                ? $data['activity_details']
+                : ($customer->activity_details ?? []),
             'employment_type' => $data['activity_type'],
             'income_range'    => $data['income_range'],
             'monthly_income'  => config('income_ranges.'.$data['income_range'].'.midpoint'),
@@ -210,10 +240,12 @@ class ApplyController extends Controller
         $status = 'submitted';
         $submittedAt = now();
 
+        $appFee = quoted_application_fee($customer);
+
         $app = LoanApplication::create([
             'customer_id'                => $customer->id,
             'loan_product_id'            => $data['loan_product_id'],
-            'application_number'         => 'APP-'.strtoupper(Str::random(8)),
+            'application_number'         => 'LN-'.now()->format('Y').'-'.str_pad((string) (LoanApplication::max('id') + 1), 6, '0', STR_PAD_LEFT),
             'requested_amount'           => $data['requested_amount'],
             'requested_tenure_months'    => $data['requested_tenure_months'],
             'status'                     => $status,
@@ -228,10 +260,21 @@ class ApplyController extends Controller
             'registration_fee_channel'   => null,
             'registration_fee_reference' => null,
             'registration_fee_paid_at'   => null,
-            'application_fee_amount'     => (int) (optional(ChargesFee::where('code', 'APP_FEE')->where('is_active', true)->first())->amount ?? 0),
+            'application_fee_amount'     => $appFee,
             'application_fee_status'     => 'unpaid',
             'submitted_at'               => $submittedAt,
         ]);
+
+        if ($request->filled('asset_reservation_id')) {
+            $reservation = AssetReservation::query()
+                ->where('customer_id', $customer->id)
+                ->find($request->input('asset_reservation_id'));
+            if ($reservation) {
+                app(AssetReservationService::class)->linkApplication($reservation, $app);
+            }
+        }
+
+        app(AffiliateService::class)->trackApplication($app);
 
         ApplicationSignature::create([
             'loan_application_id' => $app->id,
@@ -240,6 +283,31 @@ class ApplyController extends Controller
             'signature_data'      => $data['signature_data'],
             'signed_at'           => now(),
         ]);
+
+        if ($request->hasFile('income_document')) {
+            $incomeType = DocumentType::firstOrCreate(
+                ['code' => 'income_statement'],
+                [
+                    'name'       => 'Income statement (6 months)',
+                    'category'   => 'kyc',
+                    'applies_to' => 'individual',
+                    'is_active'  => true,
+                ]
+            );
+
+            $path = $request->file('income_document')->store(
+                "borrower/{$customer->id}/documents",
+                'public'
+            );
+
+            CustomerDocument::create([
+                'customer_id'         => $customer->id,
+                'loan_application_id'   => $app->id,
+                'document_type_id'      => $incomeType->id,
+                'file_path'             => $path,
+                'status'                => 'pending',
+            ]);
+        }
 
         if ($loanProduct->requires_guarantor) {
             try {
@@ -274,6 +342,12 @@ class ApplyController extends Controller
             ? 'Application saved. Waiting for guarantor approval before submission.'
             : 'Application received.';
 
+        $this->auditBorrower('application.submitted', $app, [
+            'product_id' => $loanProduct->id,
+            'amount'     => $app->requested_amount,
+            'status'     => $app->status,
+        ]);
+
         return redirect()->route('site.borrower.apply.success', $app)->with('status', $message);
     }
 
@@ -281,7 +355,9 @@ class ApplyController extends Controller
     {
         abort_unless($application->customer && $application->customer->user_id === Auth::id(), 403);
         $application->load('product');
+        $underwritingStages = app(SmartLoanApplicationWizardService::class)
+            ->underwritingStages($application->current_stage ?? 'submitted');
 
-        return view('site.apply.success', compact('application'));
+        return view('site.apply.success', compact('application', 'underwritingStages'));
     }
 }

@@ -11,8 +11,8 @@
     <x-slot:rows>
         @forelse ($rows as $r)
             <tr class="hover:bg-gray-50">
-                <td class="px-5 py-3 font-mono text-xs">{{ $r->role_code }}</td>
-                <td class="px-5 py-3"><a href="{{ route('admin.approval-limits.show', $r) }}" class="hover:text-indigo-600">{{ str_replace('_',' ', $r->action) }}</a></td>
+                <td class="px-5 py-3 font-medium">{{ display_label($r->role_code, 'role') }}</td>
+                <td class="px-5 py-3"><a href="{{ route('admin.approval-limits.show', $r) }}" class="hover:text-indigo-600">{{ display_label($r->action, 'approval_action') }}</a></td>
                 <td class="px-5 py-3 text-right font-mono text-xs">{{ number_format($r->min_amount, 0) }}</td>
                 <td class="px-5 py-3 text-right font-mono text-xs">{{ number_format($r->max_amount, 0) }} {{ $r->currency }}</td>
                 <td class="px-5 py-3">{{ $r->requires_dual_control ? 'Yes' : 'No' }}</td>

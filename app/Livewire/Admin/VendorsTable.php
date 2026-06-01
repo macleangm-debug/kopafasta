@@ -20,13 +20,15 @@ class VendorsTable extends Component
 
     public bool $lockStatus = false;
     public bool $lockCategory = false;
+    public bool $affiliateMode = false;
 
-    public function mount(?string $status = null, ?string $category = null, bool $lockStatus = false, bool $lockCategory = false): void
+    public function mount(?string $status = null, ?string $category = null, bool $lockStatus = false, bool $lockCategory = false, bool $affiliateMode = false): void
     {
         if ($status !== null && $status !== '')     { $this->status = $status; }
         if ($category !== null && $category !== '') { $this->category = $category; }
         $this->lockStatus = $lockStatus;
         $this->lockCategory = $lockCategory;
+        $this->affiliateMode = $affiliateMode;
     }
 
     public function updatingSearch(): void   { $this->resetPage(); }
@@ -49,7 +51,8 @@ class VendorsTable extends Component
                 $q->where(function ($qq) use ($term) {
                     $qq->where('name', 'like', $term)
                        ->orWhere('vendor_number', 'like', $term)
-                       ->orWhere('phone', 'like', $term);
+                       ->orWhere('phone', 'like', $term)
+                       ->orWhere('affiliate_code', 'like', $term);
                 });
             })
             ->when($this->status !== '',   fn ($q) => $q->where('status', $this->status))
@@ -61,9 +64,10 @@ class VendorsTable extends Component
         $categories = ['gps_installer', 'insurance', 'valuer', 'towing', 'yard', 'auctioneer'];
 
         return view('livewire.admin.vendors-table', [
-            'rows'       => $rows,
-            'statuses'   => $statuses,
-            'categories' => $categories,
+            'rows'           => $rows,
+            'statuses'       => $statuses,
+            'categories'     => $categories,
+            'affiliateMode'  => $this->affiliateMode,
         ]);
     }
 }

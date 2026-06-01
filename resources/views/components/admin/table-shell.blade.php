@@ -17,6 +17,8 @@
     'searchPlaceholder' => 'Search…',
     'statusLabel' => 'All statuses',
     'statusKey' => 'status',
+    'statusLabels' => [],
+    'statusGroup' => null,
     'headers' => null,
     'rows' => null,
 ])
@@ -48,7 +50,7 @@
                                transition">
                     <option value="">{{ $statusLabel }}</option>
                     @foreach ($statuses as $s)
-                        <option value="{{ $s }}">{{ ucfirst(str_replace('_', ' ', $s)) }}</option>
+                        <option value="{{ $s }}">{{ $statusLabels[$s] ?? display_label($s, $statusGroup) }}</option>
                     @endforeach
                 </select>
                 <svg class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-gray-400"

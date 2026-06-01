@@ -28,7 +28,7 @@ class ReconciliationController extends ResourceController
         ];
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
         return [
             'settlements' => Settlement::orderByDesc('id')->limit(200)->pluck('reference', 'id'),

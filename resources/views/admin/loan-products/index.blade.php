@@ -28,7 +28,7 @@
                     <tr class="hover:bg-gray-50">
                         <td class="px-5 py-3 font-mono text-xs">{{ $p->code }}</td>
                         <td class="px-5 py-3 font-medium text-gray-900">{{ $p->name }}</td>
-                        <td class="px-5 py-3 capitalize">{{ str_replace('_', ' ', (string) $p->category) }}</td>
+                        <td class="px-5 py-3">{{ display_label((string) $p->category, 'product_category') }}</td>
                         <td class="px-5 py-3 text-right">{{ number_format((float) $p->interest_rate * 100, 2) }} %</td>
                         <td class="px-5 py-3 text-right">{{ $p->tenure_min_months }}–{{ $p->tenure_max_months }}</td>
                         <td class="px-5 py-3 text-right">{{ number_format((float) $p->min_amount) }} – {{ number_format((float) $p->max_amount) }}</td>
@@ -38,9 +38,10 @@
                                 'inactive' => 'bg-gray-100 text-gray-700',
                             ]" />
                         </td>
-                        <td class="px-5 py-3 text-right">
+                        <td class="px-5 py-3 text-right whitespace-nowrap">
                             <a href="{{ route('admin.loan-products.show', $p) }}" class="text-xs font-medium text-amber-600 hover:text-amber-700">View</a>
                             <a href="{{ route('admin.loan-products.edit', $p) }}" class="ml-3 text-xs font-medium text-gray-600 hover:text-gray-900">Edit</a>
+                            <a href="{{ route('admin.loan-products.edit', $p) }}#documents" class="ml-3 text-xs font-medium text-gray-500 hover:text-gray-800">Docs</a>
                         </td>
                     </tr>
                 @empty

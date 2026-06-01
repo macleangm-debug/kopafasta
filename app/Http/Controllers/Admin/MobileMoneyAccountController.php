@@ -31,7 +31,7 @@ class MobileMoneyAccountController extends ResourceController
         ];
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
         return [
             'providers'  => ['m_pesa'=>'M-Pesa','tigo_pesa'=>'Tigo Pesa','airtel_money'=>'Airtel Money','halopesa'=>'HaloPesa','other'=>'Other'],

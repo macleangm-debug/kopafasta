@@ -153,13 +153,15 @@ class VendorController extends Controller
 
         // auto-issue invoice if fee set and no payment yet
         if ($task->fee_amount > 0 && ! $task->payment()->exists()) {
-            VendorPayment::create([
-                'vendor_id'      => $vendor->id,
-                'vendor_task_id' => $task->id,
-                'invoice_number' => 'INV-'.strtoupper(Str::random(8)),
-                'amount'         => $task->fee_amount,
-                'status'         => 'pending',
-            ]);
+            app(\App\Services\PartnerSettlementService::class)->accrue(
+                $vendor,
+                (int) $task->fee_amount,
+                'vendor_task',
+                $task->id,
+                'Task completion fee #'.$task->id,
+                $task->id,
+            );
+            $task->update(['payment_status' => 'pending']);
         }
 
         return redirect()->route('site.vendor.task', $task)

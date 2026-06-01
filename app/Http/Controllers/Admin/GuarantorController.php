@@ -26,7 +26,7 @@ class GuarantorController extends ResourceController
         ];
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
         return [
             'relationships' => [

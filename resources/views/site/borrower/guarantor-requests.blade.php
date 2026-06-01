@@ -1,4 +1,4 @@
-<x-site.borrower-layout title="Guarantor requests — Kopafasta" active="guarantors">
+<x-site.borrower-layout :title="brand_title('Guarantor requests')" active="guarantors">
 
     <div class="max-w-3xl">
         <h1 class="text-2xl font-bold mb-1">Guarantor requests</h1>
@@ -19,12 +19,15 @@
                         @endif
                     </p>
                     @if ($link)
-                        <form method="POST" action="{{ route('site.borrower.guarantor-requests.respond', $link) }}" class="mt-4 flex flex-wrap gap-3 items-end">
+                        <a href="{{ route('site.borrower.guarantor-requests') }}" class="inline-flex mt-3 text-sm font-semibold text-amber-700">View request →</a>
+                        <form method="POST" action="{{ route('site.borrower.guarantor-requests.respond', $link) }}" class="mt-4 flex flex-wrap gap-3 items-end"
+                              @submit.prevent="window.confirmForm($el, { title: 'Approve guarantor request?', message: 'You agree to guarantee this loan if the borrower defaults.', confirmLabel: 'Approve', confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white' })">
                             @csrf
                             <input type="hidden" name="action" value="approve">
-                            <button class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-full text-sm">Approve</button>
+                            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-full text-sm">Approve</button>
                         </form>
-                        <form method="POST" action="{{ route('site.borrower.guarantor-requests.respond', $link) }}" class="mt-2 flex flex-wrap gap-3 items-end">
+                        <form method="POST" action="{{ route('site.borrower.guarantor-requests.respond', $link) }}" class="mt-2 flex flex-wrap gap-3 items-end"
+                              @submit.prevent="window.confirmForm($el, { title: 'Decline guarantor request?', message: 'The borrower will be notified that you declined.', confirmLabel: 'Decline', confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">
                             @csrf
                             <input type="hidden" name="action" value="reject">
                             <input name="notes" placeholder="Optional reason" class="rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm flex-1 min-w-[200px]">
@@ -33,9 +36,11 @@
                     @endif
                 </div>
             @empty
-                <div class="bg-white rounded-2xl border border-gray-200 p-10 text-center text-sm text-gray-500">
-                    No pending guarantor requests.
-                </div>
+                <x-site.empty-state
+                    icon="🤝"
+                    title="No pending guarantor requests."
+                    description="When another member asks you to guarantee their loan, you'll see it here and in your notifications."
+                />
             @endforelse
         </div>
     </div>

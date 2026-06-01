@@ -7,7 +7,7 @@
     }
 @endphp
 
-<div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+<div id="review-workflow" class="scroll-mt-24 mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
     <div class="flex flex-wrap items-start justify-between gap-3 mb-5">
         <div>
             <h3 class="text-sm font-semibold text-gray-900">Application workflow</h3>
@@ -24,21 +24,34 @@
     </div>
 
     @if ($currentStage !== 'rejected')
-        <ol class="flex flex-wrap gap-1 mb-6">
+        <ol class="flex flex-wrap gap-2 mb-6">
             @foreach ($stages as $index => $stage)
                 @php
                     $done = $currentIndex !== false && $index < $currentIndex;
                     $active = $stage === $currentStage;
                 @endphp
-                <li class="flex items-center gap-1">
+                <li class="flex items-center gap-1.5">
                     <span @class([
-                        'text-[10px] font-semibold rounded-full px-2.5 py-1 whitespace-nowrap',
-                        'bg-emerald-100 text-emerald-800' => $done,
-                        'bg-amber-100 text-amber-900 ring-2 ring-amber-300' => $active,
-                        'bg-gray-100 text-gray-500' => ! $done && ! $active,
-                    ])>{{ $workflow->stageLabel($stage) }}</span>
+                        'inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-3 py-1.5 whitespace-nowrap border',
+                        'bg-emerald-50 text-emerald-800 border-emerald-200' => $done,
+                        'bg-amber-50 text-amber-900 border-amber-300 ring-2 ring-amber-200' => $active,
+                        'bg-gray-50 text-gray-600 border-gray-200' => ! $done && ! $active,
+                    ])>
+                        @if ($done)
+                            <svg class="size-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                            </svg>
+                        @else
+                            <span @class([
+                                'size-4 shrink-0 rounded-full grid place-items-center text-[10px] font-bold',
+                                'bg-amber-600 text-white' => $active,
+                                'bg-gray-200 text-gray-600' => ! $active,
+                            ])>{{ $index + 1 }}</span>
+                        @endif
+                        {{ $workflow->stageLabel($stage) }}
+                    </span>
                     @if (! $loop->last)
-                        <span class="text-gray-300 hidden sm:inline">→</span>
+                        <span class="text-gray-300 hidden sm:inline" aria-hidden="true">→</span>
                     @endif
                 </li>
             @endforeach
@@ -51,34 +64,43 @@
             <div class="flex flex-wrap gap-3">
                 @foreach ($availableActions as $action)
                     @if ($action['key'] === 'reject')
-                        <div x-data="{ open: false }">
-                            <button type="button" @click="open = true"
-                                    class="inline-flex items-center gap-2 text-sm font-semibold text-red-800 bg-red-100 hover:bg-red-200 px-4 py-2.5 rounded-lg">
-                                {{ $action['label'] }}
-                            </button>
-                            <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-                                <div class="absolute inset-0 bg-black/40" @click="open = false"></div>
-                                <div class="relative bg-white rounded-xl shadow-xl ring-1 ring-gray-200 w-full max-w-md p-6">
-                                    <h4 class="font-semibold text-gray-900">Reject application</h4>
-                                    <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="mt-4 space-y-3">
-                                        @csrf
-                                        <input type="hidden" name="action" value="reject">
-                                        <textarea name="remarks" required rows="3" maxlength="1000" placeholder="Reason for rejection (shown to borrower)"
-                                                  class="w-full rounded-lg border-gray-300 text-sm"></textarea>
-                                        <div class="flex justify-end gap-2">
-                                            <button type="button" @click="open = false" class="px-4 py-2 text-sm text-gray-600">Cancel</button>
-                                            <button class="bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-4 py-2 rounded-lg">Confirm reject</button>
-                                        </div>
-                                    </form>
+                        <button type="button"
+                                data-open-dialog="reject-application-{{ $record->id }}"
+                                class="inline-flex items-center gap-2 text-sm font-semibold text-red-800 bg-red-100 hover:bg-red-200 px-4 py-2.5 rounded-lg ring-1 ring-red-200 transition">
+                            {{ $action['label'] }}
+                        </button>
+                        <dialog id="reject-application-{{ $record->id }}"
+                                class="rounded-xl shadow-xl ring-1 ring-gray-200 w-full max-w-md p-0 backdrop:bg-black/40 open:flex open:flex-col">
+                            <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="p-6 space-y-4">
+                                @csrf
+                                <input type="hidden" name="action" value="reject">
+                                <h4 class="font-semibold text-gray-900">Reject application</h4>
+                                <p class="text-sm text-gray-600">Provide a reason — it may be shown to the borrower.</p>
+                                <textarea name="remarks" required rows="3" maxlength="1000" placeholder="Reason for rejection"
+                                          class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500"></textarea>
+                                <div class="flex justify-end gap-2 pt-1">
+                                    <button type="button"
+                                            data-close-dialog="reject-application-{{ $record->id }}"
+                                            class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">
+                                        Cancel
+                                    </button>
+                                    <button type="submit"
+                                            class="bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-4 py-2 rounded-lg">
+                                        Confirm reject
+                                    </button>
                                 </div>
-                            </div>
-                        </div>
+                            </form>
+                        </dialog>
                     @else
                         <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}">
                             @csrf
                             <input type="hidden" name="action" value="{{ $action['key'] }}">
-                            <button class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 px-4 py-2.5 rounded-lg">
+                            <button type="submit"
+                                    class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-5 py-2.5 rounded-lg shadow-sm ring-1 ring-amber-700/20 transition">
                                 {{ $action['label'] }}
+                                <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                                </svg>
                             </button>
                         </form>
                     @endif
@@ -90,7 +112,7 @@
     @endif
 </div>
 
-<div class="mt-6 grid lg:grid-cols-2 gap-6">
+<div id="review-history" class="scroll-mt-24 mt-6 grid lg:grid-cols-2 gap-6">
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
         <h3 class="text-sm font-semibold text-gray-900 mb-4">Stage history</h3>
         @if ($stageHistory->isEmpty())

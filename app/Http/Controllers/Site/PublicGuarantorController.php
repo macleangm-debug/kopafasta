@@ -2,16 +2,19 @@
 
 namespace App\Http\Controllers\Site;
 
+use App\Http\Controllers\Concerns\AuditsActions;
 use App\Http\Controllers\Controller;
-use App\Models\CustomerGuarantor;
 use App\Models\GuarantorInvitation;
 use App\Services\GuarantorInvitationService;
+use App\Services\GuarantorOnboardingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class PublicGuarantorController extends Controller
 {
+    use AuditsActions;
+
     public function show(string $token): View|RedirectResponse
     {
         $invitation = GuarantorInvitation::query()
@@ -32,7 +35,7 @@ class PublicGuarantorController extends Controller
         return view('site.guarantor.show', compact('invitation'));
     }
 
-    public function accept(string $token, GuarantorInvitationService $service): RedirectResponse
+    public function accept(Request $request, string $token, GuarantorInvitationService $service, GuarantorOnboardingService $onboarding): RedirectResponse
     {
         $invitation = GuarantorInvitation::query()->where('token', $token)->firstOrFail();
 
@@ -45,12 +48,38 @@ class PublicGuarantorController extends Controller
             if ($link) {
                 $service->approve($link);
             }
+        } elseif ($invitation->type === 'external') {
+            $onboarding->rememberInvitation($request, $invitation);
+            $invitation->update([
+                'status'       => 'accepted',
+                'responded_at' => now(),
+            ]);
+
+            if (auth()->check() && auth()->user()->customer) {
+                $onboarding->linkInvitee($invitation, auth()->user()->customer);
+
+                if ($onboarding->canFinalize(auth()->user()->customer, $invitation)) {
+                    return redirect()->route('site.guarantor.onboarding')
+                        ->with('status', 'Complete the final step to become a guarantor.');
+                }
+
+                return redirect()->route('site.borrower.dashboard')
+                    ->with('status', 'Invitation accepted. Complete registration, membership, and profile verification to finalize your guarantor role.');
+            }
+
+            return redirect()
+                ->route('site.register.borrower')
+                ->with('status', 'Invitation accepted. Create your KopaFasta account to complete guarantor onboarding.');
         } else {
             $invitation->update([
                 'status'       => 'accepted',
                 'responded_at' => now(),
             ]);
         }
+
+        $this->auditBorrower('guarantor_invitation.accepted', $invitation, [
+            'application_id' => $invitation->loan_application_id,
+        ]);
 
         return redirect()
             ->route('site.guarantor.show', $token)
@@ -76,6 +105,12 @@ class PublicGuarantorController extends Controller
                 'response_notes' => $notes,
             ]);
         }
+
+        app(GuarantorOnboardingService::class)->forgetInvitation($request);
+
+        $this->auditBorrower('guarantor_invitation.rejected', $invitation, [
+            'application_id' => $invitation->loan_application_id,
+        ]);
 
         return redirect()
             ->route('site.guarantor.show', $token)

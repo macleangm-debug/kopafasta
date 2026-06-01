@@ -1,4 +1,4 @@
-<x-admin.layout title="Audit Logs" heading="Audit Logs" subheading="All admin actions and data changes">
+<x-admin.layout title="Audit Logs" heading="Audit Logs" subheading="Security events, admin changes, and borrower portal actions">
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
         <table class="w-full text-sm">
             <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">

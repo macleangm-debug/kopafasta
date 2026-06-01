@@ -1,5 +1,5 @@
 <div>
-<x-admin.table-shell :records="$rows" :statuses="$statuses" searchPlaceholder="Search application #, customer…">
+<x-admin.table-shell :records="$rows" :statuses="$statuses" statusGroup="application_status" searchPlaceholder="Search application #, customer…">
     <x-slot:headers>
         <x-admin.th :sort="$sort" :direction="$direction" col="application_number" label="App #" />
         <x-admin.th :sort="$sort" :direction="$direction" col="customer_id"        label="Customer" />
@@ -18,7 +18,7 @@
                 </td>
                 <td class="px-5 py-3">TZS {{ number_format((float) ($r->requested_amount ?? 0)) }}</td>
                 <td class="px-5 py-3">
-                    <x-admin.badge :value="$r->status" :map="[
+                    <x-admin.badge :value="$r->status" group="application_status" :map="[
                         'approved'     => 'bg-emerald-100 text-emerald-800',
                         'pre_approved'   => 'bg-sky-100 text-sky-800',
                         'rejected'       => 'bg-red-100 text-red-800',
@@ -27,7 +27,7 @@
                         'under_review'   => 'bg-blue-100 text-blue-800',
                         'awaiting_guarantor' => 'bg-purple-100 text-purple-800',
                     ]" />
-                    <div class="text-[10px] text-gray-400 mt-0.5">{{ ucfirst(str_replace('_', ' ', $r->current_stage ?? '')) }}</div>
+                    <div class="text-[10px] text-gray-400 mt-0.5">{{ display_label($r->current_stage, 'application_stage') }}</div>
                 </td>
                 <td class="px-5 py-3 text-gray-500">{{ $r->created_at?->format('Y-m-d') }}</td>
                 <td class="px-5 py-3 text-right">

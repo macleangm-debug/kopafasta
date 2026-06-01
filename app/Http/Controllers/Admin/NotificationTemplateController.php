@@ -24,7 +24,7 @@ class NotificationTemplateController extends ResourceController
         ];
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
         return [
             'channels' => ['sms'=>'SMS','email'=>'Email','push'=>'Push','in_app'=>'In-app','whatsapp'=>'WhatsApp'],

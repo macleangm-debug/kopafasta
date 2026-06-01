@@ -14,7 +14,25 @@ class Vendor extends Model
     {
         return [
             'metadata' => 'array',
+            'roles'    => 'array',
         ];
+    }
+
+    /** @return list<string> */
+    public function partnerRoles(): array
+    {
+        $roles = $this->roles ?? [];
+
+        if ($roles === [] && filled($this->category)) {
+            return [$this->category];
+        }
+
+        return array_values($roles);
+    }
+
+    public function hasPartnerRole(string $role): bool
+    {
+        return in_array($role, $this->partnerRoles(), true);
     }
 
     public function user(): BelongsTo
@@ -35,5 +53,25 @@ class Vendor extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(VendorPayment::class);
+    }
+
+    public function marketplaceAssets(): HasMany
+    {
+        return $this->hasMany(MarketplaceAsset::class);
+    }
+
+    public function affiliateEvents(): HasMany
+    {
+        return $this->hasMany(AffiliateEvent::class);
+    }
+
+    public function isSupplier(): bool
+    {
+        return $this->category === 'supplier';
+    }
+
+    public function isAffiliate(): bool
+    {
+        return $this->category === 'affiliate';
     }
 }

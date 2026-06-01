@@ -14,6 +14,7 @@
             <x-admin.input name="email"           label="Contact email"     type="email" :value="$values['email'] ?? ''" />
             <x-admin.input name="phone"           label="Contact phone"     :value="$values['phone'] ?? ''" />
             <x-admin.input name="website"         label="Website"           :value="$values['website'] ?? ''" />
+            <x-admin.input name="app_base_url"    label="App base URL"      :value="$values['app_base_url'] ?? ''" placeholder="https://app.kopafasta.com" />
             <x-admin.input name="address"         label="Address"           :value="$values['address'] ?? ''" />
             <x-admin.input name="currency"        label="Default currency (ISO 3)" :value="$values['currency'] ?? 'TZS'" required />
             <x-admin.input name="timezone"        label="Timezone"          :value="$values['timezone'] ?? 'Africa/Dar_es_Salaam'" required />

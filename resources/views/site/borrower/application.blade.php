@@ -1,4 +1,4 @@
-<x-site.borrower-layout title="Application {{ $application->application_number }} — Kopafasta" active="applications">
+<x-site.borrower-layout :title="brand_title('Application '.$application->application_number)" active="applications">
 
     @php
         $statusBadge = match (true) {
@@ -11,12 +11,12 @@
     @endphp
 
     <div class="mb-4">
-        <a href="{{ route('site.borrower.applications') }}" class="text-xs text-gray-500 hover:text-gray-700">← Back to applications</a>
+        <a href="{{ route('site.borrower.applications') }}" class="text-xs text-gray-500 hover:text-gray-700">{{ __('borrower.application.back') }}</a>
     </div>
 
     <div class="flex items-start justify-between gap-3 mb-6 flex-wrap">
         <div>
-            <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">Application</p>
+            <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">{{ __('borrower.application.label') }}</p>
             <h1 class="text-2xl sm:text-3xl font-bold font-mono">{{ $application->application_number }}</h1>
             <p class="text-sm text-gray-500 mt-1">{{ $application->product->name ?? '—' }}</p>
         </div>
@@ -33,15 +33,15 @@
     {{-- Application summary --}}
     <div class="grid sm:grid-cols-3 gap-3 mb-6">
         <div class="bg-white rounded-2xl border border-gray-200 p-4">
-            <p class="text-[10px] uppercase tracking-widest text-gray-400">Requested amount</p>
+            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.application.requested_amount') }}</p>
             <p class="text-lg font-bold">TZS {{ number_format($application->requested_amount) }}</p>
         </div>
         <div class="bg-white rounded-2xl border border-gray-200 p-4">
-            <p class="text-[10px] uppercase tracking-widest text-gray-400">Tenure</p>
-            <p class="text-lg font-bold">{{ $application->requested_tenure_months }} months</p>
+            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.application.tenure') }}</p>
+            <p class="text-lg font-bold">{{ __('borrower.application.tenure_months', ['count' => $application->requested_tenure_months]) }}</p>
         </div>
         <div class="bg-white rounded-2xl border border-gray-200 p-4">
-            <p class="text-[10px] uppercase tracking-widest text-gray-400">Submitted</p>
+            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.application.submitted') }}</p>
             <p class="text-lg font-bold">{{ optional($application->submitted_at)->format('d M Y') ?? '—' }}</p>
         </div>
     </div>
@@ -55,26 +55,50 @@
             <div>
                 <p class="text-sm font-semibold text-amber-900">
                     @if ($offer->isSigned())
-                        Offer letter signed ✓
+                        {{ __('borrower.application.offer_signed') }}
                     @else
-                        Offer letter ready for your acceptance
+                        {{ __('borrower.application.offer_ready') }}
                     @endif
                 </p>
                 <p class="text-xs text-amber-800 mt-0.5">Reference: <span class="font-mono">{{ $offer->reference }}</span></p>
             </div>
-            <a href="{{ route('borrower.application.agreement', $application) }}"
+            <a href="{{ route('site.borrower.application.agreement', $application) }}"
                class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-4 py-2 rounded-lg">
-                {{ $offer->isSigned() ? 'View signed agreement' : 'Review & sign' }} →
+                {{ $offer->isSigned() ? __('borrower.application.view_agreement') : __('borrower.application.review_sign') }} →
             </a>
         </div>
     @endif
+
+    @php
+        $pendingUploads = $requirements->where('is_required', true)->filter(fn ($r) => ! ($uploads[$r->id] ?? collect())->contains(fn ($u) => in_array($u->status, ['verified', 'approved', 'pending_review'], true)))->count();
+        $underReview = $requirements->where('is_required', true)->filter(fn ($r) => ($uploads[$r->id] ?? collect())->contains(fn ($u) => in_array($u->status, ['pending_review', 'uploaded'], true)))->count();
+        $openUnderwriting = $documentRequests->filter(fn ($r) => $r->needsBorrowerAction())->count();
+    @endphp
+
+    <div class="grid sm:grid-cols-3 gap-3 mb-6">
+        <div class="bg-white rounded-2xl border border-gray-200 p-4">
+            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.application.pending_uploads') }}</p>
+            <p class="text-2xl font-bold mt-1">{{ $pendingUploads }}</p>
+            <p class="text-xs text-gray-500 mt-1">{{ __('borrower.application.pending_uploads_hint') }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-200 p-4">
+            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.application.under_review') }}</p>
+            <p class="text-2xl font-bold mt-1">{{ $underReview }}</p>
+            <p class="text-xs text-gray-500 mt-1">{{ __('borrower.application.under_review_hint') }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-200 p-4">
+            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.application.underwriting_requests') }}</p>
+            <p class="text-2xl font-bold mt-1">{{ $openUnderwriting }}</p>
+            <p class="text-xs text-gray-500 mt-1">{{ __('borrower.application.underwriting_requests_hint') }}</p>
+        </div>
+    </div>
 
     {{-- Ad-hoc document requests from underwriting --}}
     @if ($documentRequests->isNotEmpty())
         <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-6">
             <div class="px-5 py-4 border-b border-gray-200">
-                <h2 class="font-semibold">Requested documents</h2>
-                <p class="text-xs text-gray-500 mt-0.5">Underwriting has asked for the following. Upload using camera, gallery, or PDF.</p>
+                <h2 class="font-semibold">{{ __('borrower.application.requested_documents') }}</h2>
+                <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.application.requested_documents_hint') }}</p>
             </div>
             <ul class="divide-y divide-gray-100">
                 @foreach ($documentRequests as $docReq)
@@ -112,7 +136,7 @@
                                 @foreach ($docReq->uploads as $upload)
                                     <a href="{{ asset('storage/'.$upload->file_path) }}" target="_blank"
                                        class="text-xs font-semibold text-amber-700 hover:underline">
-                                        View uploaded file
+                                        {{ __('borrower.application.view_upload') }}
                                     </a>
                                 @endforeach
                             </div>
@@ -125,9 +149,9 @@
                                 :multiple="true"
                             />
                         @elseif ($docReq->status === 'uploaded')
-                            <p class="text-sm text-amber-700">Submitted — awaiting underwriting review.</p>
+                            <p class="text-sm text-amber-700">{{ __('borrower.application.submitted_awaiting') }}</p>
                         @elseif ($docReq->status === 'satisfied')
-                            <p class="text-sm text-emerald-700">This request has been satisfied.</p>
+                            <p class="text-sm text-emerald-700">{{ __('borrower.application.satisfied') }}</p>
                         @endif
                     </li>
                 @endforeach
@@ -139,11 +163,11 @@
     <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
         <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-3 flex-wrap">
             <div>
-                <h2 class="font-semibold">Required documents</h2>
-                <p class="text-xs text-gray-500">Upload every required document below so we can process your application.</p>
+                <h2 class="font-semibold">{{ __('borrower.application.required_documents') }}</h2>
+                <p class="text-xs text-gray-500">{{ __('borrower.application.required_documents_hint') }}</p>
             </div>
             <div class="text-right">
-                <p class="text-xs text-gray-500">{{ $satisfiedCount }} of {{ $requiredCount }} required complete</p>
+                <p class="text-xs text-gray-500">{{ __('borrower.application.required_progress', ['satisfied' => $satisfiedCount, 'total' => $requiredCount]) }}</p>
                 <div class="mt-1 h-1.5 w-40 bg-gray-100 rounded-full overflow-hidden">
                     <div class="h-full bg-amber-500" style="width: {{ $progress }}%"></div>
                 </div>
@@ -152,7 +176,7 @@
 
         @if ($requirements->isEmpty())
             <div class="p-8 text-center text-sm text-gray-500">
-                This product has no document requirements configured. You're all set.
+                {{ __('borrower.application.no_requirements') }}
             </div>
         @else
             <ul class="divide-y divide-gray-100">

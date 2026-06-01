@@ -58,6 +58,11 @@ class User extends Authenticatable
         return app(\App\Services\RoleService::class)->isStaff($this->role);
     }
 
+    public function roleLabel(): string
+    {
+        return display_label($this->role, 'role');
+    }
+
     public function hasPermission(string $permission): bool
     {
         return app(\App\Services\PermissionService::class)->has($this, $permission);

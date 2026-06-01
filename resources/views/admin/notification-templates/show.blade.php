@@ -5,7 +5,7 @@
     :fields="[
         'Code'    => $record->code,
         'Name'    => $record->name,
-        'Channel' => str_replace('_',' ', $record->channel),
+        'Channel' => display_label($record->channel, 'channel'),
         'Subject' => $record->subject ?? '—',
         'Status'  => $record->is_active ? 'Active' : 'Inactive',
         'Body'    => ['value' => $record->body, 'wide' => true],

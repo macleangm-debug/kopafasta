@@ -43,7 +43,7 @@ class UserController extends ResourceController
         ];
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
         $roleOptions = [];
 

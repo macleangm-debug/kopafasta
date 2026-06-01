@@ -4,9 +4,11 @@
         'company'    => ['Company Profile', 'admin.settings.company'],
         'gateways'   => ['SMS / Email',     'admin.settings.gateways'],
         'kyc'        => ['KYC Rules',       'admin.settings.kyc'],
+        'identity'   => ['Identity Verification', 'admin.settings.identity'],
         'loan-rules' => ['Loan Rules',      'admin.settings.loan-rules'],
         'loan-products' => ['Loan Products', 'admin.settings.loan-products'],
         'membership' => ['Membership',      'admin.settings.membership'],
+        'referrals'  => ['Referrals',       'admin.settings.referrals'],
         'aml'        => ['AML Thresholds',  'admin.settings.aml'],
     ];
 @endphp

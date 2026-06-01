@@ -2,8 +2,13 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Models\DocumentTemplate;
 use App\Models\LoanProduct;
+use App\Models\LoanProductRequirement;
+use App\Services\AuditService;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 
 class LoanProductController extends ResourceController
 {
@@ -11,6 +16,25 @@ class LoanProductController extends ResourceController
     protected string $routePrefix = 'admin.loan-products';
     protected string $viewFolder = 'loan-products';
     protected string $singular = 'loan product';
+
+    protected function formData(?Model $record = null): array
+    {
+        return [
+            'requirements' => $record
+                ? $record->requirements()->orderBy('id')->get()
+                : collect(),
+            'postApprovalFees' => $record
+                ? $record->postApprovalFees()->orderBy('sort_order')->get()
+                : collect(),
+            'rateTiers' => $record
+                ? $record->rateTiers()->orderBy('sort_order')->get()
+                : collect(),
+            'documentTemplates' => DocumentTemplate::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name', 'code']),
+        ];
+    }
 
     protected function rules(?Model $model = null): array
     {
@@ -20,13 +44,37 @@ class LoanProductController extends ResourceController
             'category'            => ['nullable', 'string', 'max:50'],
             'description'         => ['nullable', 'string', 'max:1000'],
             'interest_rate'       => ['required', 'numeric', 'min:0', 'max:1'],
+            'bot_regulated_rate'    => ['nullable', 'numeric', 'min:0', 'max:0.035'],
+            'processing_fee_rate' => ['nullable', 'numeric', 'min:0', 'max:1'],
+            'service_fee_rate'    => ['nullable', 'numeric', 'min:0', 'max:1'],
+            'administration_fee_rate' => ['nullable', 'numeric', 'min:0', 'max:1'],
+            'offer_letter_template_id' => ['nullable', 'integer', 'exists:document_templates,id'],
+            'loan_contract_template_id' => ['nullable', 'integer', 'exists:document_templates,id'],
+            'guarantor_agreement_template_id' => ['nullable', 'integer', 'exists:document_templates,id'],
+            'asset_lending_agreement_template_id' => ['nullable', 'integer', 'exists:document_templates,id'],
             'tenure_min_months'   => ['required', 'integer', 'min:1', 'max:120'],
             'tenure_max_months'   => ['required', 'integer', 'min:1', 'max:120'],
+            'repayment_cadence'   => ['required', 'in:weekly,monthly'],
             'min_amount'          => ['required', 'numeric', 'min:0'],
             'max_amount'          => ['required', 'numeric', 'min:0'],
             'requires_collateral' => ['nullable', 'boolean'],
             'requires_guarantor'  => ['nullable', 'boolean'],
             'status'              => ['required', 'in:active,inactive,coming_soon'],
+            'requirements'        => ['nullable', 'array'],
+            'requirements.*.id'   => ['nullable', 'integer'],
+            'requirements.*.name' => ['nullable', 'string', 'max:150'],
+            'requirements.*.description' => ['nullable', 'string', 'max:500'],
+            'requirements.*.is_required' => ['nullable', 'boolean'],
+            'post_approval_fees' => ['nullable', 'array'],
+            'post_approval_fees.*.code' => ['nullable', 'string', 'max:40'],
+            'post_approval_fees.*.name' => ['nullable', 'string', 'max:150'],
+            'post_approval_fees.*.fee_type' => ['nullable', 'in:fixed,percent'],
+            'post_approval_fees.*.amount' => ['nullable', 'numeric', 'min:0'],
+            'post_approval_fees.*.is_active' => ['nullable', 'boolean'],
+            'rate_tiers' => ['nullable', 'array'],
+            'rate_tiers.*.min_amount' => ['nullable', 'numeric', 'min:0'],
+            'rate_tiers.*.max_amount' => ['nullable', 'numeric', 'min:0'],
+            'rate_tiers.*.monthly_rate' => ['nullable', 'numeric', 'min:0', 'max:1'],
         ];
     }
 
@@ -36,6 +84,160 @@ class LoanProductController extends ResourceController
         $data['requires_guarantor']  = (bool) ($data['requires_guarantor'] ?? false);
         $data['status']              = $data['status'] ?? 'inactive';
         $data['is_active']           = $data['status'] === 'active';
+        $data['repayment_cadence']   = $data['repayment_cadence'] ?? 'weekly';
+
+        foreach ([
+            'bot_regulated_rate',
+            'offer_letter_template_id',
+            'loan_contract_template_id',
+            'guarantor_agreement_template_id',
+            'asset_lending_agreement_template_id',
+        ] as $nullable) {
+            if (blank($data[$nullable] ?? null)) {
+                $data[$nullable] = null;
+            }
+        }
+
+        foreach (['processing_fee_rate', 'service_fee_rate', 'administration_fee_rate'] as $feeField) {
+            $data[$feeField] = (float) ($data[$feeField] ?? 0);
+        }
+
         return $data;
+    }
+
+    public function show($id)
+    {
+        $record = LoanProduct::with(['requirements', 'offerLetterTemplate', 'loanContractTemplate'])->findOrFail($id);
+
+        return view("admin.{$this->viewFolder}.show", ['record' => $record]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate($this->rules());
+        $requirements = $validated['requirements'] ?? [];
+        $postApprovalFees = $validated['post_approval_fees'] ?? [];
+        $rateTiers = $validated['rate_tiers'] ?? [];
+        unset($validated['requirements'], $validated['post_approval_fees'], $validated['rate_tiers']);
+
+        $record = LoanProduct::create($this->transform($validated));
+        $this->syncRequirements($record, $requirements);
+        $this->syncPostApprovalFees($record, $postApprovalFees);
+        $this->syncRateTiers($record, $rateTiers);
+        $this->auditAdminCreated($record);
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $record)
+            ->with('status', ucfirst($this->singular).' created.');
+    }
+
+    public function update(Request $request, $id): RedirectResponse
+    {
+        $record = LoanProduct::findOrFail($id);
+        $before = app(AuditService::class)->snapshot($record);
+        $validated = $request->validate($this->rules($record));
+        $requirements = $validated['requirements'] ?? [];
+        $postApprovalFees = $validated['post_approval_fees'] ?? [];
+        $rateTiers = $validated['rate_tiers'] ?? [];
+        unset($validated['requirements'], $validated['post_approval_fees'], $validated['rate_tiers']);
+
+        $record->update($this->transform($validated, $record));
+        $this->syncRequirements($record, $requirements);
+        $this->syncPostApprovalFees($record, $postApprovalFees);
+        $this->syncRateTiers($record, $rateTiers);
+        $record->refresh();
+        $this->auditAdminUpdated($record, $before);
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $record)
+            ->with('status', ucfirst($this->singular).' updated.');
+    }
+
+    /** @param list<array<string, mixed>> $rows */
+    protected function syncRequirements(LoanProduct $product, array $rows): void
+    {
+        $keptIds = [];
+
+        foreach ($rows as $row) {
+            $name = trim((string) ($row['name'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+
+            $payload = [
+                'type'        => 'document',
+                'name'        => $name,
+                'description' => trim((string) ($row['description'] ?? '')) ?: null,
+                'is_required' => (bool) ($row['is_required'] ?? false),
+            ];
+
+            $existingId = $row['id'] ?? null;
+            if ($existingId) {
+                $requirement = LoanProductRequirement::query()
+                    ->where('loan_product_id', $product->id)
+                    ->whereKey($existingId)
+                    ->first();
+
+                if ($requirement) {
+                    $requirement->update($payload);
+                    $keptIds[] = $requirement->id;
+
+                    continue;
+                }
+            }
+
+            $created = $product->requirements()->create($payload);
+            $keptIds[] = $created->id;
+        }
+
+        $query = $product->requirements();
+        if ($keptIds !== []) {
+            $query->whereNotIn('id', $keptIds);
+        }
+        $query->delete();
+    }
+
+    /** @param list<array<string, mixed>> $rows */
+    protected function syncPostApprovalFees(LoanProduct $product, array $rows): void
+    {
+        $product->postApprovalFees()->delete();
+
+        $order = 0;
+        foreach ($rows as $row) {
+            $name = trim((string) ($row['name'] ?? ''));
+            $code = trim((string) ($row['code'] ?? ''));
+            if ($name === '' || $code === '') {
+                continue;
+            }
+
+            $product->postApprovalFees()->create([
+                'code'       => $code,
+                'name'       => $name,
+                'fee_type'   => ($row['fee_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed',
+                'amount'     => (float) ($row['amount'] ?? 0),
+                'sort_order' => $order++,
+                'is_active'  => (bool) ($row['is_active'] ?? true),
+            ]);
+        }
+    }
+
+    /** @param list<array<string, mixed>> $rows */
+    protected function syncRateTiers(LoanProduct $product, array $rows): void
+    {
+        $product->rateTiers()->delete();
+
+        $order = 0;
+        foreach ($rows as $row) {
+            if (! isset($row['min_amount'], $row['max_amount'], $row['monthly_rate'])) {
+                continue;
+            }
+
+            $product->rateTiers()->create([
+                'min_amount'   => (float) $row['min_amount'],
+                'max_amount'   => (float) $row['max_amount'],
+                'monthly_rate' => (float) $row['monthly_rate'],
+                'sort_order'   => $order++,
+            ]);
+        }
     }
 }

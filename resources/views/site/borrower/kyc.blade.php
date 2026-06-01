@@ -1,4 +1,4 @@
-<x-site.borrower-layout title="KYC verification — Kopafasta" active="kyc">
+<x-site.borrower-layout :title="brand_title('KYC verification')" active="kyc">
 
     @php
         $statusColor = match ($kyc->status) {

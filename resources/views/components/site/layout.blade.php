@@ -1,7 +1,11 @@
 @props([
-    'title' => 'Kopafasta — Capital that moves at your pace',
-    'description' => 'Transparent microfinance for Tanzania. Ten products. One account. Disbursed in hours.',
+    'title' => null,
+    'description' => null,
 ])
+@php
+    $title = $title ?? brand_title(brand('tagline'));
+    $description = $description ?? brand('tagline').'. Transparent microfinance for Tanzania.';
+@endphp
 <!DOCTYPE html>
 <html lang="en" class="h-full scroll-smooth">
 <head>
@@ -26,8 +30,8 @@
                 <span class="hidden lg:inline-flex items-center gap-1.5">TZS 14.2B disbursed</span>
             </div>
             <div class="flex items-center gap-5">
-                <a href="tel:+255700000000" class="hover:text-amber-300">+255 700 000 000</a>
-                <a href="mailto:hello@kopafasta.com" class="hover:text-amber-300">hello@kopafasta.com</a>
+                <a href="tel:{{ preg_replace('/\s+/', '', brand('support_phone')) }}" class="hover:text-amber-300">{{ brand('support_phone') }}</a>
+                <a href="mailto:{{ brand('support_email') }}" class="hover:text-amber-300">{{ brand('support_email') }}</a>
             </div>
         </div>
     </div>
@@ -38,8 +42,7 @@
              @keydown.escape.window="menu = null; open = false"
              @click.outside="menu = null">
             <a href="{{ route('site.home') }}" class="flex items-center gap-2 shrink-0">
-                <span class="size-9 rounded-lg bg-amber-500 grid place-items-center font-bold text-gray-900 text-lg">K</span>
-                <span class="font-bold text-lg tracking-tight">kopafasta<span class="text-amber-600">.</span></span>
+                <x-site.brand-mark size="md" />
                 <span class="hidden md:inline text-[10px] uppercase tracking-widest text-gray-500 ml-1">Microfinance</span>
             </a>
 
@@ -114,32 +117,11 @@
                     </div>
                 </div>
 
-                {{-- Partners --}}
-                <div class="relative" @mouseenter="menu = 'partners'" @mouseleave="menu = null">
-                    <button type="button" @click.stop="menu = 'partners'"
-                            class="px-3 py-2 rounded-lg hover:bg-gray-50 hover:text-gray-900 inline-flex items-center gap-1"
-                            :class="menu === 'partners' ? 'text-gray-900 bg-gray-100' : ''">
-                        Partners
-                        <svg class="w-3.5 h-3.5 transition" :class="menu === 'partners' ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
-                    </button>
-                    <div x-cloak x-show="menu === 'partners'" x-transition.opacity
-                         class="absolute left-0 top-full pt-2 w-[480px]">
-                        <div class="rounded-2xl border border-gray-200 bg-white shadow-2xl p-6 grid gap-3">
-                        <a href="{{ route('site.register.vendor') }}" class="group p-4 rounded-xl hover:bg-gray-50 transition">
-                            <div class="flex items-center gap-3"><span class="size-9 grid place-items-center rounded-lg bg-gray-900 text-amber-400">🛠️</span><span class="font-semibold text-gray-900">GPS installers, valuers &amp; insurers</span></div>
-                            <p class="mt-1.5 text-xs text-gray-600">Get jobs across the country with fast settlement.</p>
-                        </a>
-                        <a href="{{ route('site.register.vendor') }}" class="group p-4 rounded-xl hover:bg-gray-50 transition">
-                            <div class="flex items-center gap-3"><span class="size-9 grid place-items-center rounded-lg bg-gray-900 text-amber-400">🏭</span><span class="font-semibold text-gray-900">Yard &amp; collection partners</span></div>
-                            <p class="mt-1.5 text-xs text-gray-600">Help us recover and remarket repossessed assets.</p>
-                        </a>
-                        <a href="{{ route('site.register.vendor') }}" class="group p-4 rounded-xl hover:bg-gray-50 transition">
-                            <div class="flex items-center gap-3"><span class="size-9 grid place-items-center rounded-lg bg-gray-900 text-amber-400">🤝</span><span class="font-semibold text-gray-900">Channel &amp; agent banking</span></div>
-                            <p class="mt-1.5 text-xs text-gray-600">Distribute Kopafasta loans through your branch network.</p>
-                        </a>
-                        </div>
-                    </div>
-                </div>
+                {{-- Partners — login/register only on public site --}}
+                <a href="{{ route('site.register.vendor') }}"
+                   class="px-3 py-2 rounded-lg hover:bg-gray-50 hover:text-gray-900 text-sm font-medium">
+                    Partner login
+                </a>
 
                 {{-- Company --}}
                 <div class="relative" @mouseenter="menu = 'company'" @mouseleave="menu = null">
@@ -152,10 +134,10 @@
                     <div x-cloak x-show="menu === 'company'" x-transition.opacity
                          class="absolute left-0 top-full pt-2 w-56">
                         <div class="rounded-2xl border border-gray-200 bg-white shadow-2xl p-3">
-                            <a href="{{ route('site.about') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">About Kopafasta</a>
+                            <a href="{{ route('site.about') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">About {{ brand_name() }}</a>
                             <a href="{{ route('site.how-it-works') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">How it works</a>
                             <a href="{{ route('site.faq') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">FAQ &amp; help center</a>
-                            <a href="mailto:hello@kopafasta.com" class="block px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Contact us</a>
+                            <a href="mailto:{{ brand('support_email') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Contact us</a>
                         </div>
                     </div>
                 </div>
@@ -240,11 +222,10 @@
     <footer class="bg-gray-900 text-gray-300 mt-20">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 grid gap-10 md:grid-cols-2 lg:grid-cols-6">
             <div class="lg:col-span-2">
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="size-9 rounded-lg bg-amber-500 grid place-items-center font-bold text-gray-900">K</span>
-                    <span class="font-bold text-white text-lg">kopafasta<span class="text-amber-500">.</span></span>
+                <div class="mb-3">
+                    <x-site.brand-mark variant="light" size="md" :showSubtitle="true" />
                 </div>
-                <p class="text-sm text-gray-400 max-w-xs">Capital that moves at your pace. Tanzania's mobile-first microfinance — open to borrowers, investors and institutional partners.</p>
+                <p class="text-sm text-gray-400 max-w-xs">{{ brand('tagline') }}. Tanzania's mobile-first microfinance — open to borrowers, investors and institutional partners.</p>
                 <div class="mt-4 flex items-center gap-2 text-[11px] text-gray-500">
                     <span class="px-2 py-0.5 rounded bg-white/5 border border-white/10">BoT Tier 2</span>
                     <span class="px-2 py-0.5 rounded bg-white/5 border border-white/10">ISO 27001</span>
@@ -283,13 +264,13 @@
                     <li><a href="{{ route('site.about') }}" class="hover:text-amber-400">About</a></li>
                     <li><a href="{{ route('site.how-it-works') }}" class="hover:text-amber-400">How it works</a></li>
                     <li><a href="{{ route('site.faq') }}" class="hover:text-amber-400">FAQ</a></li>
-                    <li><a href="mailto:hello@kopafasta.com" class="hover:text-amber-400">Contact</a></li>
+                    <li><a href="mailto:{{ brand('support_email') }}" class="hover:text-amber-400">Contact</a></li>
                 </ul>
             </div>
         </div>
         <div class="border-t border-white/10 py-5 text-xs text-gray-500">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <span>&copy; {{ date('Y') }} Kopafasta Microfinance Ltd. Licensed by the Bank of Tanzania.</span>
+                <span>&copy; {{ date('Y') }} {{ brand('legal_name') }}. Licensed by the Bank of Tanzania.</span>
                 <span class="flex items-center gap-4">
                     <a href="{{ route('site.faq') }}" class="hover:text-amber-400">Terms</a>
                     <a href="{{ route('site.faq') }}" class="hover:text-amber-400">Privacy</a>
@@ -300,6 +281,16 @@
     </footer>
 
     {{-- Alpine for nav + wizard --}}
+    <x-site.confirm-modal name="default" />
+    <script>
+        document.addEventListener('alpine:init', () => {
+            window.confirmForm = (form, detail = {}) => {
+                window.dispatchEvent(new CustomEvent('open-confirm-default', {
+                    detail: { form, ...detail },
+                }));
+            };
+        });
+    </script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </body>
 </html>

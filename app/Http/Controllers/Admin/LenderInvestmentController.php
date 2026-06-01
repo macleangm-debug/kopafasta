@@ -32,7 +32,7 @@ class LenderInvestmentController extends ResourceController
         ];
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
         return [
             'lenders' => Lender::orderBy('name')->pluck('name', 'id'),

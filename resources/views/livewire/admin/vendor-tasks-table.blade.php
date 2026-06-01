@@ -10,7 +10,7 @@
     <x-slot:rows>
         @forelse ($rows as $r)
             <tr class="hover:bg-gray-50">
-                <td class="px-5 py-3 font-medium">{{ ucwords(str_replace('_', ' ', (string) $r->task_type)) }}</td>
+                <td class="px-5 py-3 font-medium">{{ display_label((string) $r->task_type, 'vendor_task_type') }}</td>
                 <td class="px-5 py-3 text-gray-600">{{ $r->vendor?->name ?? '—' }}</td>
                 <td class="px-5 py-3">
                     <x-admin.badge :value="$r->status" :map="[

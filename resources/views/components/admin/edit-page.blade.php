@@ -5,11 +5,18 @@
     'action',           // update URL (PUT)
     'destroyAction',    // destroy URL (DELETE)
     'cancelUrl',
+    'backUrl' => null,
+    'backLabel' => 'Back',
     'submitLabel' => 'Save changes',
     'deleteConfirm' => 'Delete this record? This cannot be undone.',
 ])
 
-<x-admin.layout :title="$title" :heading="$heading" :subheading="$subheading">
+<x-admin.layout
+    :title="$title"
+    :heading="$heading"
+    :subheading="$subheading"
+    :backUrl="$backUrl ?? $cancelUrl"
+    :backLabel="$backLabel">
 
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
         <form method="POST" action="{{ $action }}" class="space-y-6">

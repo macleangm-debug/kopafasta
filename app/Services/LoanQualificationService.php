@@ -30,7 +30,7 @@ class LoanQualificationService
         $income = (float) ($customer->monthly_income ?? 0);
         if ($income <= 0 && $customer->income_range) {
             $income = (float) (config('income_ranges.'.$customer->income_range.'.midpoint') ?? 0);
-            $factors[] = ['label' => 'Income range', 'detail' => config('income_ranges.'.$customer->income_range.'.label') ?? $customer->income_range];
+            $factors[] = ['label' => 'Income range', 'detail' => income_range_label($customer->income_range) ?? $customer->income_range];
         } elseif ($income > 0) {
             $factors[] = ['label' => 'Declared income', 'detail' => 'TZS '.number_format($income).'/month'];
         }
@@ -44,7 +44,7 @@ class LoanQualificationService
         }
 
         if ($customer->activity_type) {
-            $factors[] = ['label' => 'Activity type', 'detail' => config('activity_profiles.types.'.$customer->activity_type) ?? $customer->activity_type];
+            $factors[] = ['label' => 'Activity type', 'detail' => activity_type_label($customer->activity_type) ?? $customer->activity_type];
         }
 
         $kycPayload = $customer->kyc?->payload ?? [];

@@ -38,7 +38,7 @@
                 @forelse ($recent as $customer)
                     <div class="px-5 py-3">
                         <p class="text-sm font-medium">{{ trim($customer->first_name.' '.$customer->last_name) }}</p>
-                        <p class="text-xs text-gray-500 capitalize">{{ str_replace('_', ' ', $customer->face_verification_status) }}</p>
+                        <p class="text-xs text-gray-500">{{ display_label($customer->face_verification_status, 'face_verification_status') }}</p>
                     </div>
                 @empty
                     <p class="px-5 py-6 text-sm text-gray-500">No recent reviews.</p>

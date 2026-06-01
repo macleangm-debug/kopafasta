@@ -1,5 +1,7 @@
 {{-- Loan application form. Expects $record, $customers, $products, $branches, $statuses --}}
-@php($r = $record ?? null)
+@php
+    $r = $record ?? null;
+@endphp
 
 <x-admin.step title="Applicant">
     <x-admin.select name="customer_id"              label="Customer"          :options="$customers" :value="$r?->customer_id" required placeholder="— Select customer —" />

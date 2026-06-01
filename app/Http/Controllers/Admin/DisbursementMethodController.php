@@ -25,7 +25,7 @@ class DisbursementMethodController extends ResourceController
         ];
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
         return [
             'channels' => ['bank_transfer'=>'Bank transfer','mobile_money'=>'Mobile money','cash'=>'Cash','cheque'=>'Cheque','wallet'=>'Wallet'],

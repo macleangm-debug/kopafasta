@@ -1,0 +1,231 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\ChargesFee;
+use App\Models\Customer;
+use App\Models\CustomerDocument;
+use App\Models\LoanProduct;
+use Illuminate\Support\Facades\Lang;
+
+class LoanProductReadinessService
+{
+    public function __construct(
+        private readonly SmartLoanApplicationWizardService $wizard,
+    ) {}
+
+    /** @return array<string, mixed> */
+    public function assess(Customer $customer, LoanProduct $product): array
+    {
+        $product->loadMissing('requirements');
+
+        $profileSections = collect($this->wizard->profileSections($customer))->keyBy('key');
+        $income = $this->wizard->incomeVerification($customer);
+        $nida = app(NidaVerificationService::class);
+        $face = app(FaceVerificationService::class);
+
+        $requirements = $this->requirementChecks($customer, $product, $profileSections, $income, $nida, $face);
+        $completed = collect($requirements)->where('complete', true)->count();
+        $total = max(1, count($requirements));
+        $percent = (int) round(($completed / $total) * 100);
+
+        $missing = collect($requirements)->where('complete', false)->values()->all();
+        $firstMissingUrl = collect($missing)
+            ->first(fn (array $item) => ! empty($item['action_url']) && empty($item['application_step']))['action_url'] ?? null;
+
+        $applicationFee = quoted_application_fee($customer);
+        $origFee = ChargesFee::where('code', 'ORIG_FEE')->where('is_active', true)->first();
+        $rateBreakdown = app(DisplayedRateService::class)->breakdown($product);
+
+        $readinessEmoji = match (true) {
+            $percent >= 90 => '🟢',
+            $percent >= 60 => '🟡',
+            default         => '🔴',
+        };
+
+        return [
+            'product' => [
+                'id'                 => $product->id,
+                'code'               => $product->code,
+                'name'               => $product->name,
+                'description'        => $product->description,
+                'min_amount'         => (float) $product->min_amount,
+                'max_amount'         => (float) $product->max_amount,
+                'tenure_min_months'  => (int) $product->tenure_min_months,
+                'tenure_max_months'  => (int) $product->tenure_max_months,
+                'interest_rate'      => (float) $product->interest_rate,
+                'displayed_monthly_rate' => $rateBreakdown['displayed_monthly_rate'],
+                'rate_breakdown'     => $rateBreakdown,
+                'requires_guarantor' => (bool) $product->requires_guarantor,
+                'repayment_frequency'=> $product->repayment_frequency ?? 'weekly',
+            ],
+            'readiness_percent'  => $percent,
+            'readiness_level'    => $percent >= 90 ? 'green' : ($percent >= 60 ? 'amber' : 'red'),
+            'readiness_label'    => $readinessEmoji.' '.__('borrower.apply.readiness.score', ['percent' => $percent]),
+            'requirements'       => $requirements,
+            'missing'            => $missing,
+            'missing_titles'     => collect($missing)->pluck('label')->values()->all(),
+            'missing_action_url' => $firstMissingUrl,
+            'documents'          => $this->documentChecklist($customer, $product),
+            'fees'               => [
+                'application'          => $applicationFee,
+                'application_label'    => __('borrower.apply.readiness.fees.application'),
+                'post_approval'        => $origFee ? (float) $origFee->amount : 0,
+                'post_approval_label'  => $origFee?->name ?? __('borrower.apply.readiness.fees.post_approval'),
+                'post_approval_detail' => $origFee?->description ?? __('borrower.apply.readiness.fees.post_approval_detail'),
+            ],
+            'product_specific'   => $this->localizedProductSpecific($product->code),
+            'processing_time'    => $this->localizedProcessingTime($product->code),
+            'step_plan'          => collect($this->wizard->borrowerStepPlan($customer, $product))
+                ->reject(fn (array $step) => $step['key'] === 'product')
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function requirementChecks(
+        Customer $customer,
+        LoanProduct $product,
+        \Illuminate\Support\Collection $profileSections,
+        array $income,
+        NidaVerificationService $nida,
+        FaceVerificationService $face,
+    ): array {
+        $isGroup = strtoupper($product->code) === 'GL' || ($product->category ?? '') === 'group';
+        $membershipActive = $customer->isMembershipActive() || $customer->isMembershipInGrace();
+        $kinComplete = (bool) ($profileSections['kin']['complete'] ?? false);
+        $incomeComplete = (bool) ($income['can_skip'] ?? false);
+
+        $checks = [
+            [
+                'key'        => 'membership',
+                'label'      => __('borrower.apply.readiness.requirements.membership.label'),
+                'complete'   => $membershipActive,
+                'detail'     => $membershipActive
+                    ? __('borrower.apply.readiness.requirements.membership.valid')
+                    : __('borrower.apply.readiness.requirements.membership.renew'),
+                'action_url' => $membershipActive ? null : route('site.membership.renew'),
+            ],
+            [
+                'key'        => 'nida',
+                'label'      => __('borrower.apply.readiness.requirements.nida.label'),
+                'complete'   => $nida->isVerified($customer),
+                'detail'     => $nida->isVerified($customer)
+                    ? __('borrower.apply.readiness.requirements.nida.confirmed')
+                    : __('borrower.apply.readiness.requirements.nida.pending'),
+                'action_url' => $nida->isVerified($customer) ? null : route('site.borrower.profile', ['section' => 'personal']),
+            ],
+            [
+                'key'        => 'face',
+                'label'      => __('borrower.apply.readiness.requirements.face.label'),
+                'complete'   => $face->canApply($customer),
+                'detail'     => match ($customer->face_verification_status) {
+                    'verified' => __('borrower.apply.readiness.requirements.face.verified'),
+                    'pending'  => __('borrower.apply.readiness.requirements.face.pending'),
+                    'rejected' => __('borrower.apply.readiness.requirements.face.rejected'),
+                    default    => __('borrower.apply.readiness.requirements.face.incomplete'),
+                },
+                'action_url' => $face->canApply($customer) ? null : route('site.borrower.face-verification'),
+            ],
+            [
+                'key'        => 'kin',
+                'label'      => __('borrower.apply.readiness.requirements.kin.label'),
+                'complete'   => $kinComplete,
+                'detail'     => $kinComplete
+                    ? __('borrower.apply.readiness.requirements.kin.on_file')
+                    : __('borrower.apply.readiness.requirements.kin.during_application'),
+                'action_url' => null,
+                'application_step' => ! $kinComplete,
+            ],
+            [
+                'key'        => 'income',
+                'label'      => __('borrower.apply.readiness.requirements.income.label'),
+                'complete'   => $incomeComplete,
+                'detail'     => $incomeComplete
+                    ? __('borrower.apply.readiness.on_file', [
+                        'item' => $income['label'] ?? __('borrower.apply.income.income_document'),
+                    ])
+                    : __('borrower.apply.readiness.requirements.income.upload'),
+                'action_url' => $incomeComplete ? null : route('site.borrower.documents'),
+            ],
+        ];
+
+        if ($product->requires_guarantor && ! $isGroup) {
+            $checks[] = [
+                'key'        => 'guarantor',
+                'label'      => __('borrower.apply.readiness.requirements.guarantor.label'),
+                'complete'   => false,
+                'detail'     => __('borrower.apply.readiness.requirements.guarantor.during_application'),
+                'action_url' => null,
+                'application_step' => true,
+            ];
+        }
+
+        if ($isGroup) {
+            $checks[] = [
+                'key'        => 'group',
+                'label'      => __('borrower.apply.readiness.requirements.group.label'),
+                'complete'   => false,
+                'detail'     => __('borrower.apply.readiness.requirements.group.during_application'),
+                'action_url' => null,
+                'application_step' => true,
+            ];
+        }
+
+        return $checks;
+    }
+
+    /** @return list<array{label: string, detail: string}> */
+    private function localizedProductSpecific(string $code): array
+    {
+        $key = 'borrower.apply.readiness.specific.'.$code;
+
+        if (Lang::has($key)) {
+            return Lang::get($key);
+        }
+
+        return config('loan_product_apply.specific.'.$code, []);
+    }
+
+    private function localizedProcessingTime(string $code): string
+    {
+        $key = 'borrower.apply.readiness.processing_time.'.$code;
+
+        if (Lang::has($key)) {
+            return __($key);
+        }
+
+        return __('borrower.apply.readiness.processing_time.default');
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function documentChecklist(Customer $customer, LoanProduct $product): array
+    {
+        $uploads = CustomerDocument::with('documentType')
+            ->where('customer_id', $customer->id)
+            ->latest()
+            ->get();
+
+        return $product->requirements
+            ->where('is_required', true)
+            ->map(function ($req) use ($uploads) {
+                $matched = $uploads->first(function (CustomerDocument $doc) use ($req) {
+                    $name = strtolower($doc->documentType?->name ?? '');
+
+                    return str_contains(strtolower($req->name), 'income')
+                        ? str_contains($name, 'income') || str_contains($name, 'bank') || str_contains($name, 'statement')
+                        : str_contains(strtolower($req->name), strtok($name, ' ') ?: $name);
+                });
+
+                return [
+                    'name'     => $req->name,
+                    'detail'   => $req->description,
+                    'complete' => (bool) $matched,
+                    'status'   => $matched?->status,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+}

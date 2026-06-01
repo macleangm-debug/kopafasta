@@ -1,3 +1,11 @@
+@props([
+    'title' => null,
+    'heading' => null,
+    'subheading' => null,
+    'backUrl' => null,
+    'backLabel' => 'Back',
+])
+
 <!DOCTYPE html>
 <html lang="en" class="h-full">
 <head>
@@ -7,7 +15,13 @@
     <title>{{ $title ?? 'Console' }} · Kopafasta</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
-    <style>[x-cloak]{display:none!important}</style>
+    <style>
+        [x-cloak]{display:none!important}
+        .admin-menu details > summary{list-style:none;cursor:pointer}
+        .admin-menu details > summary::-webkit-details-marker{display:none}
+        dialog{margin:auto;border:0;padding:0;max-width:calc(100vw - 2rem)}
+        dialog::backdrop{background:rgba(0,0,0,.4)}
+    </style>
 </head>
 <body class="h-full bg-gray-50 text-gray-900 antialiased">
 
@@ -32,20 +46,22 @@
             ['Face verification', 'admin.face-verifications.index'],
         ], ['customers.view', 'kyc.review', 'membership.approve_payments']],
         ['Loans', 'M3 10h18M3 14h18M5 6h14M5 18h14', [
-            ['All Loans',     'admin.loans.index'],
-            ['Active Loans',  'admin.loans.active'],
-            ['Disbursement',  'admin.loans.disbursement'],
-            ['Repayments',    'admin.repayments.index'],
-            ['Arrears',       'admin.loans.arrears'],
-            ['Restructuring', 'admin.loans.restructuring'],
-            ['Closed Loans',  'admin.loans.closed'],
+            ['All loans',           'admin.loans.index'],
+            ['Disbursement queue',  'admin.loans.disbursement'],
+            ['Active loans',        'admin.loans.active'],
+            ['Repayments',          'admin.repayments.index'],
+            ['Arrears',             'admin.loans.arrears'],
+            ['Restructuring',       'admin.loans.restructuring'],
+            ['Closed loans',        'admin.loans.closed'],
         ], ['loans.view']],
-        ['Loan Products', 'M20 7L12 3 4 7m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', [
-            ['Loan Product Configuration', 'admin.settings.loan-products'],
-        ], ['settings.manage']],
         ['Partners', 'M3 7h18M3 12h18M3 17h18', [
+            ['Partners hub',         'admin.partners.index'],
             ['All Partners',         'admin.vendors.index'],
             ['Vendor Applications', 'admin.vendors.applications'],
+            ['Suppliers',           'admin.vendors.suppliers'],
+            ['Affiliates',          'admin.vendors.affiliates'],
+            ['Asset Marketplace',   'admin.marketplace-assets.index'],
+            ['Asset Requests',      'admin.asset-requests.index'],
             ['GPS Installers',      'admin.vendors.gps-installers'],
             ['Insurance Providers', 'admin.vendors.insurance-providers'],
             ['Valuers',             'admin.vendors.valuers'],
@@ -66,6 +82,8 @@
             ['Write-off Rules',       'admin.write-off-rules.index',       'finance.methods'],
             ['Expenses',              'admin.expenses.index',              'finance.operations'],
             ['Settlements',           'admin.settlements.index',           'finance.operations'],
+            ['Partner payments',      'admin.vendor-payments.index',       'finance.operations'],
+            ['Partner settlements',   'admin.partner-settlements.index',   'finance.operations'],
             ['Reconciliations',       'admin.reconciliations.index',       'finance.operations'],
             ['Journal Entries',       'admin.journal-entries.index',       'finance.operations'],
         ], ['finance.accounts', 'finance.methods', 'finance.operations']],
@@ -102,6 +120,7 @@
         ], null],
         ['Settings', 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z', [
             ['Company Profile',         'admin.settings.company'],
+            ['Loan Products',           'admin.settings.loan-products'],
             ['SMS / Email Gateways',    'admin.settings.gateways'],
             ['KYC Requirements',        'admin.settings.kyc'],
             ['Loan Rules',              'admin.settings.loan-rules'],
@@ -114,6 +133,7 @@
             ['Approval Limits',         'admin.approval-limits.index'],
             ['Notification Templates',  'admin.notification-templates.index'],
             ['Document Templates',      'admin.document-templates.index'],
+            ['Campaigns',               'admin.promotions.index'],
         ], ['settings.manage', 'users.view', 'users.manage']],
     ];
 
@@ -185,15 +205,15 @@
                 </div>
             </a>
 
-            <div class="flex items-center gap-2 sm:gap-3">
-                <div x-data="{ open: false }" class="relative">
-                    <button type="button" @click="open = !open" @click.outside="open = false" class="relative p-2 rounded-lg text-gray-600 hover:bg-gray-100">
+            <div class="admin-menu flex items-center gap-2 sm:gap-3">
+                <details class="relative">
+                    <summary class="relative p-2 rounded-lg text-gray-600 hover:bg-gray-100">
                         <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9z"/></svg>
                         @if ($adminAlerts->unreadCount() > 0)
                             <span class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $adminAlerts->unreadCount() > 9 ? '9+' : $adminAlerts->unreadCount() }}</span>
                         @endif
-                    </button>
-                    <div x-show="open" x-cloak class="absolute right-0 mt-2 w-96 rounded-xl bg-white shadow-xl ring-1 ring-gray-200 overflow-hidden z-50">
+                    </summary>
+                    <div class="absolute right-0 top-full mt-2 w-96 rounded-xl bg-white shadow-xl ring-1 ring-gray-200 overflow-hidden z-50">
                         <div class="px-4 py-3 border-b border-gray-100"><p class="text-sm font-semibold">Admin alerts</p></div>
                         @forelse ($adminAlertItems as $alert)
                             <a href="{{ $alert['url'] }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-50">
@@ -204,13 +224,10 @@
                             <p class="px-4 py-8 text-sm text-gray-500 text-center">No pending alerts.</p>
                         @endforelse
                     </div>
-                </div>
+                </details>
 
-                <div x-data="{ open: false }" class="relative">
-                    <button type="button"
-                            @click="open = !open"
-                            @click.outside="open = false"
-                            class="flex items-center gap-2 rounded-full pl-2 pr-1.5 py-1 border border-transparent hover:border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition">
+                <details class="relative">
+                    <summary class="flex items-center gap-2 rounded-full pl-2 pr-1.5 py-1 border border-transparent hover:border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition">
                         <span class="text-sm font-medium text-gray-700 hidden md:block max-w-[8rem] truncate">
                             {{ auth()->user()?->name }}
                         </span>
@@ -220,19 +237,14 @@
                         <svg class="size-4 text-gray-400 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
                         </svg>
-                    </button>
-
-                    <div x-show="open" x-cloak
-                         x-transition:enter="transition ease-out duration-150"
-                         x-transition:enter-start="opacity-0 -translate-y-1 scale-95"
-                         x-transition:enter-end="opacity-100 translate-y-0 scale-100"
-                         class="absolute right-0 mt-2 w-64 origin-top-right z-50 bg-white rounded-xl shadow-xl ring-1 ring-black/5 overflow-hidden">
+                    </summary>
+                    <div class="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-xl ring-1 ring-black/5 overflow-hidden z-50">
                         <div class="px-4 py-3 border-b border-gray-100">
                             <div class="text-sm font-semibold text-gray-900 truncate">{{ auth()->user()?->name }}</div>
                             <div class="text-xs text-gray-500 truncate">{{ auth()->user()?->email }}</div>
                             <div class="mt-1.5">
-                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider bg-amber-100 text-amber-800">
-                                    {{ str_replace('_', ' ', auth()->user()?->role ?? 'user') }}
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide bg-amber-100 text-amber-800">
+                                    {{ auth()->user()?->roleLabel() }}
                                 </span>
                             </div>
                         </div>
@@ -248,13 +260,13 @@
                             </form>
                         </div>
                     </div>
-                </div>
+                </details>
             </div>
         </div>
 
         {{-- Horizontal main navigation --}}
-        <nav class="bg-gray-900 border-t border-white/5" aria-label="Main navigation">
-            <div class="flex items-stretch gap-0.5 px-2 lg:px-4 overflow-x-auto scrollbar-thin">
+        <nav class="admin-menu bg-gray-900 border-t border-white/5" aria-label="Main navigation">
+            <div class="flex flex-wrap items-stretch gap-0.5 px-2 lg:px-4">
                 @foreach ($visibleSections as $section)
                     @if (count($section['items']) === 1)
                         <a href="{{ route($section['targetRoute']) }}"
@@ -265,11 +277,8 @@
                             {{ $section['label'] }}
                         </a>
                     @else
-                        <div x-data="{ open: false }" class="relative shrink-0">
-                            <button type="button"
-                                    @click="open = !open"
-                                    @click.outside="open = false"
-                                    class="inline-flex items-center gap-1 px-3 py-2.5 text-sm font-medium whitespace-nowrap rounded-t-lg transition
+                        <details class="relative shrink-0">
+                            <summary class="inline-flex items-center gap-1 px-3 py-2.5 text-sm font-medium whitespace-nowrap rounded-t-lg transition
                                            {{ $section['isActive']
                                                 ? 'bg-gray-50 text-gray-900'
                                                 : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
@@ -277,12 +286,8 @@
                                 <svg class="size-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
                                 </svg>
-                            </button>
-                            <div x-show="open" x-cloak
-                                 x-transition:enter="transition ease-out duration-100"
-                                 x-transition:enter-start="opacity-0 translate-y-1"
-                                 x-transition:enter-end="opacity-100 translate-y-0"
-                                 class="absolute left-0 top-full z-50 mt-0 min-w-[13rem] max-h-80 overflow-y-auto rounded-b-lg rounded-tr-lg bg-white shadow-xl ring-1 ring-gray-200 py-1">
+                            </summary>
+                            <div class="absolute left-0 top-full z-50 min-w-[13rem] max-h-80 overflow-y-auto rounded-b-lg rounded-tr-lg bg-white shadow-xl ring-1 ring-gray-200 py-1">
                                 @foreach ($section['items'] as $item)
                                     @php $itemActive = $currentRoute === $item[1]; @endphp
                                     <a href="{{ route($item[1]) }}"
@@ -294,7 +299,7 @@
                                     </a>
                                 @endforeach
                             </div>
-                        </div>
+                        </details>
                     @endif
                 @endforeach
             </div>
@@ -304,6 +309,15 @@
     {{-- Page content --}}
     <main class="flex-1 p-4 lg:p-6">
         <div class="mb-5">
+            @if ($backUrl)
+                <a href="{{ $backUrl }}"
+                   class="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-800 mb-3">
+                    <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                    {{ $backLabel }}
+                </a>
+            @endif
             <h1 class="text-xl font-semibold text-gray-900">{{ $heading ?? ($title ?? 'Dashboard') }}</h1>
             @isset($subheading)
                 <p class="text-sm text-gray-500 mt-0.5">{{ $subheading }}</p>
@@ -331,5 +345,41 @@
 </div>
 
 @livewireScripts
+<script>
+document.addEventListener('click', function (event) {
+    var openBtn = event.target.closest('[data-open-dialog]');
+    if (openBtn) {
+        var dialog = document.getElementById(openBtn.getAttribute('data-open-dialog'));
+        if (dialog && typeof dialog.showModal === 'function') {
+            dialog.showModal();
+        }
+        return;
+    }
+    var closeBtn = event.target.closest('[data-close-dialog]');
+    if (closeBtn) {
+        var closeDialog = document.getElementById(closeBtn.getAttribute('data-close-dialog'));
+        if (closeDialog && typeof closeDialog.close === 'function') {
+            closeDialog.close();
+        }
+        return;
+    }
+    document.querySelectorAll('.admin-menu details[open]').forEach(function (details) {
+        if (! details.contains(event.target)) {
+            details.removeAttribute('open');
+        }
+    });
+});
+document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') {
+        document.querySelectorAll('.admin-menu details[open]').forEach(function (details) {
+            details.removeAttribute('open');
+        });
+        document.querySelectorAll('dialog[open]').forEach(function (dialog) {
+            dialog.close();
+        });
+    }
+});
+</script>
+@stack('scripts')
 </body>
 </html>

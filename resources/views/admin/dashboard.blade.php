@@ -55,7 +55,7 @@
                                         'bg-amber-100 text-amber-800'     => in_array($app->status, ['pending','submitted','under_review']),
                                         'bg-gray-100 text-gray-800'       => ! in_array($app->status, ['approved','rejected','pending','submitted','under_review']),
                                     ])">
-                                    {{ str_replace('_', ' ', $app->status ?? 'unknown') }}
+                                    {{ display_label($app->status, 'application_status') }}
                                 </span>
                             </td>
                             <td class="px-5 py-3 text-gray-500">{{ $app->created_at?->diffForHumans() }}</td>

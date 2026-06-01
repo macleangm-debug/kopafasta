@@ -1,22 +1,29 @@
-<x-site.borrower-layout title="Profile — Kopafasta" active="profile">
+<x-site.borrower-layout :title="brand_title('Profile')" active="profile">
 
-    <div class="max-w-3xl">
-        <h1 class="text-2xl font-bold mb-1">Profile</h1>
-        <p class="text-sm text-gray-500 mb-6">Keep your personal, activity, residence and KYC details up to date.</p>
+    <div>
+        @include('site.borrower.profile._heading', [
+            'title' => __('borrower.profile.title'),
+            'subtitle' => __('borrower.profile.subtitle'),
+        ])
 
         @include('site.borrower.profile._tabs', ['active' => 'personal'])
 
+        @include('site.borrower.profile._completion')
+
         @php
             $locked = (bool) $customer->identity_locked;
+            $nidaService = app(\App\Services\NidaVerificationService::class);
+            $nidaLocked = $nidaService->isLocked($customer);
+            $nidaLockMessage = $nidaService->lockMessage($customer);
             $nidaStatus = $customer->nida_verification_status ?? 'unverified';
             $nidaResult = session('nida_result');
             $nameMismatch = app(\App\Services\NidaVerificationService::class)->nameMismatch($customer);
             $nidaBadge = match ($nidaStatus) {
-                'verified'       => ['Identity verified', 'bg-emerald-100 text-emerald-800'],
-                'name_mismatch'  => ['Name mismatch', 'bg-amber-100 text-amber-800'],
-                'multihit'       => ['Select match', 'bg-sky-100 text-sky-800'],
-                'failed'         => ['Verification failed', 'bg-red-100 text-red-800'],
-                default          => ['Not verified', 'bg-amber-100 text-amber-800'],
+                'verified'       => [__('borrower.nida.status.verified'), 'bg-emerald-100 text-emerald-800'],
+                'name_mismatch'  => [__('borrower.nida.status.name_mismatch'), 'bg-amber-100 text-amber-800'],
+                'multihit'       => [__('borrower.nida.status.multihit'), 'bg-sky-100 text-sky-800'],
+                'failed'         => [__('borrower.nida.status.failed'), 'bg-red-100 text-red-800'],
+                default          => [__('borrower.nida.status.unverified'), 'bg-amber-100 text-amber-800'],
             };
             $crbCandidates = session('crb_candidates') ?? ($kyc->payload['crb_candidates'] ?? []);
             $searchRequestId = $kyc->payload['crb_search_request_id'] ?? null;
@@ -28,11 +35,18 @@
         <div class="bg-white rounded-2xl border border-gray-200 p-6 mb-6" x-data="{ submitting: false }">
             <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
                 <div>
-                    <h2 class="font-semibold">Identity verification</h2>
-                    <p class="text-sm text-gray-600 mt-1">Verify your NIDA number to confirm your legal identity.</p>
+                    <h2 class="font-semibold">{{ __('borrower.nida.title') }}</h2>
+                    <p class="text-sm text-gray-600 mt-1">{{ __('borrower.nida.subtitle') }}</p>
                 </div>
                 <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $nidaBadge[1] }}">{{ $nidaBadge[0] }}</span>
             </div>
+
+            @if ($nidaLocked)
+                <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-4 text-sm text-red-900">
+                    <p class="font-semibold">{{ __('borrower.nida.result.locked_title') }}</p>
+                    <p class="mt-1">{{ $nidaLockMessage ?? __('borrower.nida.result.locked_default') }}</p>
+                </div>
+            @endif
 
             @if ($nidaResult)
                 @php $resultStatus = $nidaResult['status'] ?? 'failed'; @endphp
@@ -40,33 +54,37 @@
                     {{ $resultStatus === 'verified' ? 'bg-emerald-50 ring-emerald-200 text-emerald-900' : '' }}
                     {{ $resultStatus === 'name_mismatch' ? 'bg-amber-50 ring-amber-200 text-amber-900' : '' }}
                     {{ in_array($resultStatus, ['failed', 'multihit'], true) ? 'bg-red-50 ring-red-200 text-red-900' : '' }}
-                    {{ $resultStatus === 'in_progress' ? 'bg-sky-50 ring-sky-200 text-sky-900' : '' }}">
+                    {{ $resultStatus === 'in_progress' ? 'bg-sky-50 ring-sky-200 text-sky-900' : '' }}
+                    {{ $resultStatus === 'locked' ? 'bg-red-50 ring-red-200 text-red-900' : '' }}">
                     @if ($resultStatus === 'verified')
-                        <p class="font-semibold">Verification successful</p>
-                        <p class="mt-1">Your identity has been confirmed. Name, date of birth and gender are now locked.</p>
+                        <p class="font-semibold">{{ __('borrower.nida.result.verified_title') }}</p>
+                        <p class="mt-1">{{ __('borrower.nida.result.verified_body') }}</p>
                     @elseif ($resultStatus === 'name_mismatch')
-                        <p class="font-semibold">Name mismatch detected</p>
-                        <p class="mt-1">Your registration name does not match NIDA records. Review the differences below.</p>
+                        <p class="font-semibold">{{ ($nidaResult['level'] ?? 1) >= 2 ? __('borrower.nida.result.mismatch_important') : __('borrower.nida.result.mismatch_detected') }}</p>
+                        <p class="mt-1">{{ $nidaResult['message'] ?? __('borrower.nida.result.mismatch_default') }}</p>
+                    @elseif ($resultStatus === 'locked')
+                        <p class="font-semibold">{{ __('borrower.nida.result.locked_title') }}</p>
+                        <p class="mt-1">{{ $nidaResult['message'] ?? __('borrower.nida.result.locked_default') }}</p>
                     @elseif ($resultStatus === 'multihit')
-                        <p class="font-semibold">Multiple records found</p>
-                        <p class="mt-1">{{ $nidaResult['message'] ?? 'Select the record that matches you.' }}</p>
+                        <p class="font-semibold">{{ __('borrower.nida.result.multihit_title') }}</p>
+                        <p class="mt-1">{{ $nidaResult['message'] ?? __('borrower.nida.result.multihit_default') }}</p>
                     @else
-                        <p class="font-semibold">Verification could not be completed</p>
-                        <p class="mt-1">{{ $nidaResult['message'] ?? 'Check your NIDA number and try again.' }}</p>
+                        <p class="font-semibold">{{ __('borrower.nida.result.failed_title') }}</p>
+                        <p class="mt-1">{{ $nidaResult['message'] ?? __('borrower.nida.result.failed_default') }}</p>
                     @endif
                 </div>
             @endif
 
-            @if ($nameMismatch)
+            @if ($nameMismatch && ! $nidaLocked)
                 <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 p-4">
-                    <p class="text-sm font-semibold text-amber-900">Registration name vs NIDA name</p>
+                    <p class="text-sm font-semibold text-amber-900">{{ __('borrower.nida.mismatch_title') }}</p>
                     <div class="mt-3 overflow-x-auto">
                         <table class="w-full text-xs">
                             <thead>
                                 <tr class="text-left text-amber-800">
-                                    <th class="pb-2 pr-4">Field</th>
-                                    <th class="pb-2 pr-4">Your registration</th>
-                                    <th class="pb-2">NIDA record</th>
+                                    <th class="pb-2 pr-4">{{ __('borrower.nida.mismatch_field') }}</th>
+                                    <th class="pb-2 pr-4">{{ __('borrower.nida.mismatch_registration') }}</th>
+                                    <th class="pb-2">{{ __('borrower.nida.mismatch_nida') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -83,7 +101,7 @@
                     <form method="POST" action="{{ route('site.borrower.profile.nida.accept-names') }}" class="mt-4">
                         @csrf
                         <button class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
-                            Use verified NIDA names
+                            {{ __('borrower.nida.use_verified_names') }}
                         </button>
                     </form>
                 </div>
@@ -91,8 +109,8 @@
 
             @if (! $locked && ($crbUsesStub ?? false) && ! empty($crbSamples))
                 <div class="mb-4 rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-sm text-sky-900">
-                    <p class="font-semibold">Sandbox test NIDA samples</p>
-                    <p class="text-xs text-sky-800 mt-1">Stub mode is on — use these numbers to test without live bureau credentials.</p>
+                    <p class="font-semibold">{{ __('borrower.nida.sandbox_title') }}</p>
+                    <p class="text-xs text-sky-800 mt-1">{{ __('borrower.nida.sandbox_hint') }}</p>
                     <ul class="mt-3 space-y-2 text-xs">
                         @foreach ($crbSamples as $key => $sample)
                             <li class="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -104,12 +122,12 @@
                 </div>
             @endif
 
-            @if (! $locked && $nidaStatus !== 'name_mismatch')
+            @if (! $locked && ! $nidaLocked && $nidaStatus !== 'name_mismatch')
                 <form method="POST" action="{{ route('site.borrower.profile.nida.verify') }}" class="space-y-4"
                       @submit="submitting = true">
                     @csrf
                     <div>
-                        <label class="block text-xs text-gray-600 mb-1">NIDA number</label>
+                        <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.nida.number') }}</label>
                         <input name="national_id" value="{{ old('national_id', $customer->national_id) }}" required
                                placeholder="XXXXXXXX-XXXXX-XXXXX-XX"
                                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm font-mono">
@@ -121,20 +139,20 @@
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
                         </svg>
-                        <span x-text="submitting ? 'Verifying identity…' : 'Verify identity'"></span>
+                        <span x-text="submitting ? @js(__('borrower.nida.verifying')) : @js(__('borrower.nida.verify_button'))"></span>
                     </button>
                 </form>
             @elseif ($locked)
                 <div class="rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900">
-                    <p class="font-medium">Identity verified</p>
+                    <p class="font-medium">{{ __('borrower.nida.locked_title') }}</p>
                     <p class="mt-1 font-mono">{{ $customer->national_id }}</p>
-                    <p class="text-xs text-emerald-800 mt-2">Name, date of birth and gender are locked after verification.</p>
+                    <p class="text-xs text-emerald-800 mt-2">{{ __('borrower.nida.locked_hint') }}</p>
                 </div>
             @endif
 
             @if ($nidaStatus === 'multihit' && count($crbCandidates) > 0 && $searchRequestId)
                 <div class="mt-6 border-t border-gray-100 pt-5">
-                    <h3 class="text-sm font-semibold mb-3">Multiple matches — select your record</h3>
+                    <h3 class="text-sm font-semibold mb-3">{{ __('borrower.nida.multihit_title') }}</h3>
                     <div class="space-y-3">
                         @foreach ($crbCandidates as $candidate)
                             <form method="POST" action="{{ route('site.borrower.profile.nida.confirm') }}" class="rounded-xl ring-1 ring-gray-200 p-4 flex flex-wrap items-center justify-between gap-3">
@@ -145,10 +163,10 @@
                                 <div class="text-sm">
                                     <p class="font-medium">{{ $candidate['name'] ?? 'Unknown' }}</p>
                                     <p class="text-xs text-gray-500 mt-0.5">
-                                        DOB: {{ $candidate['dob'] ?? '—' }} · Score: {{ $candidate['score'] ?? '—' }}%
+                                        {{ __('borrower.nida.dob_score', ['dob' => $candidate['dob'] ?? '—', 'score' => $candidate['score'] ?? '—']) }}
                                     </p>
                                 </div>
-                                <button class="text-sm font-semibold bg-amber-500 hover:bg-amber-400 text-gray-900 px-4 py-2 rounded-full">This is me</button>
+                                <button class="text-sm font-semibold bg-amber-500 hover:bg-amber-400 text-gray-900 px-4 py-2 rounded-full">{{ __('borrower.nida.this_is_me') }}</button>
                             </form>
                         @endforeach
                     </div>
@@ -156,79 +174,54 @@
             @endif
         </div>
 
-        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}" class="bg-white rounded-2xl border border-gray-200 p-6">
+        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}" class="bg-white rounded-2xl border border-gray-200 p-6"
+              @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.save_confirm_title')), message: @js(__('borrower.profile.save_confirm_message')), confirmLabel: @js(__('borrower.profile.save')), confirmClass: 'bg-amber-500 hover:bg-amber-400 text-gray-900' })">
             @csrf @method('PUT')
 
-            <h2 class="font-semibold mb-4">Personal information</h2>
+            <h2 class="font-semibold mb-1">{{ __('borrower.profile.personal_info') }}</h2>
+            <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.personal_info_hint') }}</p>
+            <dl class="grid sm:grid-cols-2 gap-x-4 gap-y-3 text-sm mb-6 pb-6 border-b border-gray-100">
+                <div><dt class="text-xs text-gray-500">{{ __('borrower.profile.fields.full_name') }}</dt><dd class="font-medium mt-0.5">{{ trim($customer->first_name.' '.($customer->middle_name ?? '').' '.$customer->last_name) ?: '—' }}</dd></div>
+                <div><dt class="text-xs text-gray-500">{{ __('borrower.profile.fields.date_of_birth') }}</dt><dd class="font-medium mt-0.5">{{ optional($customer->date_of_birth)->format('d M Y') ?? '—' }}</dd></div>
+                <div><dt class="text-xs text-gray-500">{{ __('borrower.profile.fields.gender') }}</dt><dd class="font-medium mt-0.5">{{ ucfirst($customer->gender ?? '—') }}</dd></div>
+                <div><dt class="text-xs text-gray-500">{{ __('borrower.profile.fields.national_id') }}</dt><dd class="font-medium mt-0.5 font-mono">{{ $customer->national_id ?? '—' }}</dd></div>
+            </dl>
+
+            <h3 class="font-semibold mb-4">{{ __('borrower.profile.contact_details') }}</h3>
             <div class="grid sm:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-xs text-gray-600 mb-1">First name</label>
-                    <input name="first_name" value="{{ old('first_name', $customer->first_name) }}" @required(! $locked)
-                           @readonly($locked) class="{{ $locked ? $readonly : $editable }}">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-600 mb-1">Middle name</label>
-                    <input name="middle_name" value="{{ old('middle_name', $customer->middle_name) }}" @readonly($locked)
-                           class="{{ $locked ? $readonly : $editable }}">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-600 mb-1">Last name</label>
-                    <input name="last_name" value="{{ old('last_name', $customer->last_name) }}" @required(! $locked)
-                           @readonly($locked) class="{{ $locked ? $readonly : $editable }}">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-600 mb-1">Phone</label>
+                    <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.phone') }}</label>
                     <input name="phone" value="{{ old('phone', $customer->phone) }}" class="{{ $editable }}">
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-600 mb-1">Email</label>
+                    <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.email') }}</label>
                     <input type="email" name="email" value="{{ old('email', $customer->email) }}" class="{{ $editable }}">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-600 mb-1">Date of birth</label>
-                    <input type="date" name="date_of_birth" value="{{ old('date_of_birth', optional($customer->date_of_birth)->format('Y-m-d')) }}"
-                           @required(! $locked) @readonly($locked) class="{{ $locked ? $readonly : $editable }}">
-                    @unless($locked)
-                        <p class="text-[11px] text-gray-500 mt-1">Must be 18 years or older (BOT compliance).</p>
-                    @endunless
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-600 mb-1">Gender</label>
-                    @if ($locked)
-                        <input value="{{ ucfirst($customer->gender ?? '') }}" readonly class="{{ $readonly }}">
-                    @else
-                        <select name="gender" class="{{ $editable }}">
-                            <option value="">Select</option>
-                            @foreach (['male' => 'Male', 'female' => 'Female', 'other' => 'Other'] as $v => $l)
-                                <option value="{{ $v }}" @selected(old('gender', $customer->gender) === $v)>{{ $l }}</option>
-                            @endforeach
-                        </select>
-                    @endif
                 </div>
                 <div class="sm:col-span-2 rounded-lg bg-gray-50 ring-1 ring-gray-200 px-4 py-3 text-sm">
                     @php
-                        $faceStatus = match ($customer->face_verification_status ?? 'incomplete') {
-                            'verified' => ['Verified', 'bg-emerald-100 text-emerald-800'],
-                            'pending'  => ['Pending review', 'bg-sky-100 text-sky-800'],
-                            'rejected' => ['Rejected — re-upload', 'bg-red-100 text-red-800'],
-                            default    => ['Required', 'bg-amber-100 text-amber-800'],
+                        $faceKey = $customer->face_verification_status ?? 'incomplete';
+                        $faceStatus = match ($faceKey) {
+                            'verified' => [__('borrower.nida.face_status.verified'), 'bg-emerald-100 text-emerald-800'],
+                            'pending'  => [__('borrower.nida.face_status.pending'), 'bg-sky-100 text-sky-800'],
+                            'rejected' => [__('borrower.nida.face_status.rejected'), 'bg-red-100 text-red-800'],
+                            default    => [__('borrower.nida.face_status.incomplete'), 'bg-amber-100 text-amber-800'],
                         };
                     @endphp
                     <div class="flex items-center justify-between gap-3 flex-wrap">
                         <div>
-                            <p class="font-medium text-gray-900">Face verification</p>
-                            <p class="text-xs text-gray-500 mt-0.5">Required before loan applications.</p>
+                            <p class="font-medium text-gray-900">{{ __('borrower.nida.face_title') }}</p>
+                            <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.nida.face_required') }}</p>
                         </div>
                         <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $faceStatus[1] }}">{{ $faceStatus[0] }}</span>
                     </div>
                     <a href="{{ route('site.borrower.face-verification') }}" class="inline-flex mt-3 text-sm font-semibold text-amber-700 hover:text-amber-800">
-                        {{ ($customer->face_verification_status ?? 'incomplete') === 'verified' ? 'View face verification' : 'Complete face verification →' }}
+                        {{ ($customer->face_verification_status ?? 'incomplete') === 'verified' ? __('borrower.nida.face_view') : __('borrower.nida.face_complete') }}
                     </a>
                 </div>
             </div>
 
             <button class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                Save contact details
+                {{ __('borrower.profile.save_contact') }}
             </button>
         </form>
     </div>

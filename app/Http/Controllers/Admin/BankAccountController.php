@@ -30,7 +30,7 @@ class BankAccountController extends ResourceController
         ];
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
         return [
             'glAccounts' => ChartOfAccount::where('type', 'asset')->orderBy('code')->pluck('name', 'id'),

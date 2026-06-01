@@ -13,6 +13,7 @@ class KycDocumentTypeSeeder extends Seeder
             ['code' => 'national_id_front', 'name' => 'National ID — front'],
             ['code' => 'national_id_back',  'name' => 'National ID — back'],
             ['code' => 'selfie',            'name' => 'Selfie with ID'],
+            ['code' => 'residence_letter',  'name' => 'Residence verification letter (LGA)'],
             ['code' => 'signature',         'name' => 'Signature sample'],
         ];
 

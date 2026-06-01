@@ -1,4 +1,4 @@
-<x-site.borrower-layout title="Set up PIN — Kopafasta" active="profile">
+<x-site.borrower-layout :title="brand_title('Set up PIN')" active="profile">
     <div class="max-w-md mx-auto">
         <h1 class="text-2xl font-bold mb-1">Create your PIN</h1>
         <p class="text-sm text-gray-500 mb-6">Use a 4-digit PIN to sign in quickly with your phone number.</p>

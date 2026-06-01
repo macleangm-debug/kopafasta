@@ -53,18 +53,34 @@ class ApplicationRequirementsService
             ];
         }
 
+        $faceStatus = $customer->face_verification_status ?? 'incomplete';
+        $faceSubmitted = in_array($faceStatus, ['pending', 'verified'], true);
+
         $items[] = [
-            'key'        => 'face',
-            'label'      => 'Face verification approved',
-            'complete'   => $face->canApply($customer),
-            'pending'    => ($customer->face_verification_status ?? '') === 'pending',
-            'detail'     => match ($customer->face_verification_status) {
-                'verified' => 'Approved by underwriting',
-                'pending'  => 'Photos submitted — awaiting review',
+            'key'        => 'face_submitted',
+            'label'      => 'Face verification submitted',
+            'complete'   => $faceSubmitted,
+            'pending'    => false,
+            'detail'     => match ($faceStatus) {
+                'verified', 'pending' => 'Photos captured and uploaded',
                 'rejected' => 'Rejected — please recapture photos',
                 default    => 'Complete the 4-step face capture',
             },
-            'action_url' => route('site.borrower.face-verification'),
+            'action_url' => $faceSubmitted ? null : route('site.borrower.face-verification'),
+        ];
+
+        $items[] = [
+            'key'        => 'face_approval',
+            'label'      => 'Face verification approval',
+            'complete'   => $face->canApply($customer),
+            'pending'    => $faceStatus === 'pending',
+            'detail'     => match ($faceStatus) {
+                'verified' => 'Approved by underwriting',
+                'pending'  => 'Awaiting loan officer review',
+                'rejected' => 'Rejected — please recapture photos',
+                default    => 'Submit face photos first',
+            },
+            'action_url' => $faceStatus === 'rejected' ? route('site.borrower.face-verification') : null,
         ];
 
         $profileResult = $profile->calculate($customer);
@@ -80,11 +96,22 @@ class ApplicationRequirementsService
         if (! $freshness->canApply($customer)) {
             $items[] = [
                 'key'        => 'kyc_freshness',
-                'label'      => 'KYC reconfirmation',
+                'label'      => 'Profile review due',
                 'complete'   => false,
                 'pending'    => true,
                 'detail'     => 'Confirm activity and residence details are current',
                 'action_url' => route('site.borrower.kyc-reconfirm'),
+            ];
+        }
+
+        if ($this->requiresIncomeProof($customer)) {
+            $items[] = [
+                'key'        => 'income_proof',
+                'label'      => 'Proof of income',
+                'complete'   => false,
+                'pending'    => true,
+                'detail'     => 'Upload a 6-month bank or mobile money statement on your activity profile',
+                'action_url' => route('site.borrower.profile', ['section' => 'activity']),
             ];
         }
 
@@ -101,28 +128,132 @@ class ApplicationRequirementsService
         ];
     }
 
+    private function requiresIncomeProof(Customer $customer): bool
+    {
+        if (! (bool) (Setting::group('kyc')['require_income_proof'] ?? false)) {
+            return false;
+        }
+
+        $types = ['bank_statement', 'mobile_money_statement', 'mpesa_statement'];
+        $uploaded = \App\Models\CustomerDocument::query()
+            ->where('customer_id', $customer->id)
+            ->whereHas('documentType', fn ($q) => $q->whereIn('code', $types))
+            ->exists();
+
+        return ! $uploaded;
+    }
+
+    /** @deprecated Use onboardingBanner() — single source of truth for onboarding progress. */
     public function onboardingSteps(Customer $customer): array
     {
-        $nida = app(NidaVerificationService::class);
-        $face = app(FaceVerificationService::class);
+        $banner = $this->onboardingBanner($customer);
 
         return [
-            'show'  => $customer->hasMembership() && (! $nida->isVerified($customer) || ! $face->isVerified($customer)),
-            'title' => 'Complete your identity verification',
-            'steps' => [
-                [
-                    'number'   => 1,
-                    'label'    => 'Enter NIDA number',
-                    'complete' => $nida->isVerified($customer),
-                    'url'      => route('site.borrower.profile', ['section' => 'personal']),
-                ],
-                [
-                    'number'   => 2,
-                    'label'    => 'Complete face verification',
-                    'complete' => in_array($customer->face_verification_status, ['pending', 'verified'], true),
-                    'url'      => route('site.borrower.face-verification'),
-                ],
+            'show'  => $banner['show'],
+            'title' => $banner['title'],
+            'steps' => collect($banner['items'])->map(fn (array $item, int $i) => [
+                'number'   => $i + 1,
+                'label'    => $item['label'],
+                'complete' => $item['status'] === 'complete',
+                'url'      => $item['action_url'],
+            ])->values()->all(),
+        ];
+    }
+
+    /**
+     * Persistent onboarding hero banner — visible until all core requirements are complete.
+     *
+     * @return array{show: bool, title: string, percent: int, cta_url: string|null, items: list<array{key: string, label: string, status: string, action_url: string|null}>}
+     */
+    public function onboardingBanner(Customer $customer): array
+    {
+        $nida = app(NidaVerificationService::class);
+        $profile = app(ProfileCompletionService::class);
+        $freshness = app(KycFreshnessService::class);
+        $faceStatus = $customer->face_verification_status ?? 'incomplete';
+
+        $registrationComplete = $customer->hasMembership();
+        $nidaComplete = $nida->isVerified($customer);
+        $faceComplete = $faceStatus === 'verified';
+        $facePending = in_array($faceStatus, ['pending'], true);
+        $activityComplete = $profile->isActivityComplete($customer);
+        $residenceComplete = $profile->isResidenceComplete($customer);
+        $kinComplete = filled($customer->nok_name) && filled($customer->nok_phone) && filled($customer->nok_relationship)
+            && filled($customer->nok_region) && filled($customer->nok_district);
+        $documentsComplete = $profile->isDocumentsComplete($customer);
+        $staleKeys = $freshness->sectionsDueForRefresh($customer);
+
+        $items = [
+            [
+                'key'        => 'registration_fee',
+                'label'      => 'Registration fee paid',
+                'status'     => $registrationComplete ? 'complete' : 'missing',
+                'action_url' => $registrationComplete ? null : route('site.membership.renew'),
             ],
+            [
+                'key'        => 'nida',
+                'label'      => 'NIDA verified',
+                'status'     => $nidaComplete ? 'complete' : 'missing',
+                'action_url' => $nidaComplete ? null : route('site.borrower.profile', ['section' => 'personal']),
+            ],
+            [
+                'key'        => 'face',
+                'label'      => 'Face verification',
+                'status'     => $faceComplete ? 'complete' : ($facePending ? 'pending' : 'missing'),
+                'action_url' => $faceComplete ? null : route('site.borrower.face-verification'),
+            ],
+            [
+                'key'        => 'activity',
+                'label'      => 'Activity information',
+                'status'     => ($activityComplete && ! in_array('activity', $staleKeys, true)) ? 'complete' : 'missing',
+                'action_url' => route('site.borrower.profile', ['section' => 'activity']),
+            ],
+            [
+                'key'        => 'residence',
+                'label'      => 'Residence information',
+                'status'     => ($residenceComplete && ! in_array('residence', $staleKeys, true)) ? 'complete' : 'missing',
+                'action_url' => route('site.borrower.profile', ['section' => 'residence']),
+            ],
+            [
+                'key'        => 'kin',
+                'label'      => 'Next of kin',
+                'status'     => $kinComplete ? 'complete' : 'missing',
+                'action_url' => $kinComplete ? null : route('site.borrower.profile', ['section' => 'kin']),
+            ],
+        ];
+
+        if (! $documentsComplete || in_array('documents', $staleKeys, true)) {
+            $items[] = [
+                'key'        => 'documents',
+                'label'      => in_array('documents', $staleKeys, true)
+                    ? 'Proof of income & residence letter (refresh required)'
+                    : 'Proof of income & residence letter',
+                'status'     => 'missing',
+                'action_url' => route('site.borrower.profile', ['section' => 'kyc']),
+            ];
+        }
+
+        if ($freshness->isStale($customer)) {
+            $items[] = [
+                'key'        => 'kyc_freshness',
+                'label'      => 'Confirm activity & residence details',
+                'status'     => 'missing',
+                'action_url' => route('site.borrower.kyc-reconfirm'),
+            ];
+        }
+
+        $actionable = collect($items)->filter(fn (array $item) => $item['status'] !== 'complete')->values();
+        $allComplete = $actionable->isEmpty();
+        $completed = collect($items)->where('status', 'complete')->count();
+        $total = count($items);
+        $firstIncomplete = $actionable->first();
+
+        return [
+            'show'     => ! $allComplete,
+            'title'    => $freshness->isStale($customer) ? 'Profile review due' : 'Complete your profile',
+            'percent'  => $total > 0 ? (int) round(($completed / $total) * 100) : 100,
+            'cta_url'  => $firstIncomplete['action_url'] ?? route('site.borrower.profile'),
+            'items'    => $actionable->all(),
         ];
     }
 }

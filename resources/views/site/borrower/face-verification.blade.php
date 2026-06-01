@@ -1,6 +1,6 @@
-<x-site.borrower-layout title="Face verification — Kopafasta" active="kyc">
+<x-site.borrower-layout :title="brand_title('Face verification')" active="kyc">
 
-    <div class="max-w-2xl mx-auto">
+    <div>
         <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">Identity verification</p>
         <h1 class="text-2xl sm:text-3xl font-bold mb-1">Face verification</h1>
         <p class="text-sm text-gray-500 mb-6">
@@ -31,7 +31,7 @@
                         Apply for a loan →
                     </a>
                     <a href="{{ route('site.borrower.profile', ['section' => 'kyc']) }}" class="inline-flex bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-700 font-semibold px-6 py-2.5 rounded-full text-sm">
-                        Back to KYC
+                        Back to verification documents
                     </a>
                 </div>
             </div>

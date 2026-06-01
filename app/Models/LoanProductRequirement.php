@@ -7,6 +7,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class LoanProductRequirement extends Model
 {
+    protected $fillable = [
+        'loan_product_id',
+        'type',
+        'name',
+        'description',
+        'is_required',
+    ];
+
     protected function casts(): array
     {
         return ['is_required' => 'boolean'];

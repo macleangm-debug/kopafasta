@@ -74,7 +74,7 @@
                                 {{ number_format((float) $payment->fee_amount, 0) }} TZS
                             </td>
                             <td class="px-5 py-3 font-mono text-xs">{{ $payment->payment_reference }}</td>
-                            <td class="px-5 py-3 capitalize">{{ str_replace('_', ' ', $payment->channel ?? 'bank') }}</td>
+                            <td class="px-5 py-3">{{ display_label($payment->channel ?? 'bank', 'channel') }}</td>
                             <td class="px-5 py-3">
                                 <div class="flex flex-col items-end gap-2">
                                     <form method="POST"

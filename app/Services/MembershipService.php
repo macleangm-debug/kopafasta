@@ -45,8 +45,9 @@ class MembershipService
         ?int $actorUserId = null,
         ?float $feeAmount = null,
         ?string $channel = null,
+        ?array $paymentBreakdown = null,
     ): Customer {
-        return DB::transaction(function () use ($customer, $startDate, $paymentReference, $actorUserId, $feeAmount, $channel) {
+        return DB::transaction(function () use ($customer, $startDate, $paymentReference, $actorUserId, $feeAmount, $channel, $paymentBreakdown) {
             $cfg = self::config();
             $start = $startDate ?? CarbonImmutable::today();
             $expires = $start->addDays($cfg['duration_days']);
@@ -61,15 +62,18 @@ class MembershipService
             $customer->save();
 
             MembershipHistory::create([
-                'customer_id'         => $customer->id,
-                'event'               => 'issued',
-                'issued_at'           => $start->toDateString(),
-                'expires_at'          => $expires->toDateString(),
-                'renewal_count_after' => $customer->renewal_count,
-                'fee_amount'          => $feeAmount,
-                'payment_reference'   => $paymentReference,
-                'channel'             => $channel ?? ($paymentReference ? 'system' : null),
-                'actor_user_id'       => $actorUserId,
+                'customer_id'               => $customer->id,
+                'event'                     => 'issued',
+                'issued_at'                 => $start->toDateString(),
+                'expires_at'                => $expires->toDateString(),
+                'renewal_count_after'       => $customer->renewal_count,
+                'fee_amount'                => $paymentBreakdown['after_discount'] ?? $feeAmount ?? $cfg['registration_fee'],
+                'referral_discount_amount'  => $paymentBreakdown['discount'] ?? null,
+                'wallet_amount_used'        => $paymentBreakdown['wallet_applied'] ?? null,
+                'cash_amount_paid'          => $paymentBreakdown['cash_due'] ?? null,
+                'payment_reference'         => $paymentReference,
+                'channel'                   => $channel ?? ($paymentReference ? 'system' : null),
+                'actor_user_id'             => $actorUserId,
             ]);
 $this->notify($customer, 'membership_issued');
 
@@ -219,19 +223,28 @@ $this->notify($customer, 'membership_issued');
     /**
      * Record a bank transfer submitted for manual verification.
      */
-    public function recordPendingPayment(Customer $customer, string $paymentReference, string $channel = 'bank', ?int $actorUserId = null): void
-    {
+    public function recordPendingPayment(
+        Customer $customer,
+        string $paymentReference,
+        string $channel = 'bank',
+        ?int $actorUserId = null,
+        ?array $paymentBreakdown = null,
+    ): void {
         $cfg = self::config();
         $isFirstTime = ! $customer->hasMembership();
+        $baseFee = $isFirstTime ? $cfg['registration_fee'] : $cfg['renewal_fee'];
 
         MembershipHistory::create([
-            'customer_id'       => $customer->id,
-            'event'             => 'payment_pending',
-            'fee_amount'        => $isFirstTime ? $cfg['registration_fee'] : $cfg['renewal_fee'],
-            'payment_reference' => $paymentReference,
-            'channel'           => $channel,
-            'actor_user_id'     => $actorUserId,
-            'notes'             => $isFirstTime ? 'Registration fee awaiting verification' : 'Renewal fee awaiting verification',
+            'customer_id'              => $customer->id,
+            'event'                    => 'payment_pending',
+            'fee_amount'               => $paymentBreakdown['after_discount'] ?? $baseFee,
+            'referral_discount_amount' => $paymentBreakdown['discount'] ?? null,
+            'wallet_amount_used'       => $paymentBreakdown['wallet_applied'] ?? null,
+            'cash_amount_paid'         => $paymentBreakdown['cash_due'] ?? null,
+            'payment_reference'        => $paymentReference,
+            'channel'                  => $channel,
+            'actor_user_id'            => $actorUserId,
+            'notes'                    => $isFirstTime ? 'Registration fee awaiting verification' : 'Renewal fee awaiting verification',
         ]);
     }
 
@@ -250,6 +263,33 @@ $this->notify($customer, 'membership_issued');
             $channel = $pending->channel ?? 'bank';
             $fee = $pending->fee_amount !== null ? (float) $pending->fee_amount : null;
             $isRegistration = $pending->isRegistrationPayment() || ! $customer->hasMembership();
+            $paymentBreakdown = [
+                'discount'       => (float) ($pending->referral_discount_amount ?? 0),
+                'wallet_applied' => (float) ($pending->wallet_amount_used ?? 0),
+                'cash_due'       => (float) ($pending->cash_amount_paid ?? $fee ?? 0),
+                'after_discount' => (float) ($fee ?? 0),
+            ];
+
+            if ($isRegistration && app(ReferralService::class)->referrer($customer)) {
+                $base = (float) ($pending->fee_amount ?? 0) + (float) ($pending->referral_discount_amount ?? 0);
+                app(ReferralService::class)->settleFee(
+                    $customer,
+                    $base,
+                    (float) ($pending->wallet_amount_used ?? 0) > 0,
+                    'registration_fee',
+                    MembershipHistory::class,
+                    (int) $pending->id,
+                );
+            } elseif ($isRegistration) {
+                $base = (float) ($pending->fee_amount ?? 0) + (float) ($pending->referral_discount_amount ?? 0);
+                app(AffiliateService::class)->accrueCommission(
+                    $customer,
+                    $base > 0 ? $base : (float) MembershipService::config()['registration_fee'],
+                    'registration_fee',
+                    MembershipHistory::class,
+                    (int) $pending->id,
+                );
+            }
 
             $notes = $pending->notes;
             if ($adminNotes) {
@@ -263,7 +303,7 @@ $this->notify($customer, 'membership_issued');
             ]);
 
             if ($isRegistration) {
-                return $this->issue($customer, null, $ref, $actorUserId, $fee, $channel);
+                return $this->issue($customer, null, $ref, $actorUserId, $fee, $channel, $paymentBreakdown);
             }
 
             return $this->renew($customer, $ref, $channel, $actorUserId);

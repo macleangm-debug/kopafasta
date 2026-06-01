@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\AuditsActions;
 use App\Http\Controllers\Controller;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationDocumentRequest;
@@ -11,6 +12,8 @@ use Illuminate\Http\Request;
 
 class LoanApplicationDocumentRequestController extends Controller
 {
+    use AuditsActions;
+
     public function store(
         Request $request,
         LoanApplication $loanApplication,
@@ -23,7 +26,7 @@ class LoanApplicationDocumentRequestController extends Controller
             'due_at'       => ['nullable', 'date', 'after_or_equal:today'],
         ]);
 
-        $service->create(
+        $docRequest = $service->create(
             $loanApplication,
             $request->user(),
             $data['label'],
@@ -31,6 +34,12 @@ class LoanApplicationDocumentRequestController extends Controller
             isset($data['due_at']) ? new \DateTimeImmutable($data['due_at']) : null,
             $data['type'],
         );
+
+        $this->auditAdmin('admin.loan_applications.document_request_created', $loanApplication, [
+            'request_id' => $docRequest->id,
+            'label'      => $data['label'],
+            'type'       => $data['type'],
+        ]);
 
         return redirect()
             ->route('admin.loan-applications.show', $loanApplication)
@@ -52,6 +61,11 @@ class LoanApplicationDocumentRequestController extends Controller
 
         $service->markSatisfied($documentRequest, $request->user(), $data['notes'] ?? null);
 
+        $this->auditAdmin('admin.loan_applications.document_request_satisfied', $documentRequest->application, [
+            'request_id' => $documentRequest->id,
+            'notes'      => $data['notes'] ?? null,
+        ]);
+
         return redirect()
             ->route('admin.loan-applications.show', $documentRequest->loan_application_id)
             ->with('status', 'Request marked as satisfied.');
@@ -71,6 +85,11 @@ class LoanApplicationDocumentRequestController extends Controller
         }
 
         $service->reject($documentRequest, $request->user(), $data['notes']);
+
+        $this->auditAdmin('admin.loan_applications.document_request_rejected', $documentRequest->application, [
+            'request_id' => $documentRequest->id,
+            'notes'      => $data['notes'],
+        ]);
 
         return redirect()
             ->route('admin.loan-applications.show', $documentRequest->loan_application_id)

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Loan Contract — {{ $agreement->reference }}</title>
+<style>
+    @page { margin: 24mm 16mm; }
+    body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #1f2937; line-height: 1.55; }
+    h1 { font-size: 18px; margin: 0 0 4px; color: #b45309; }
+    h2 { font-size: 13px; margin: 18px 0 6px; color: #374151; text-transform: uppercase; letter-spacing: 1px; }
+    .muted { color: #6b7280; font-size: 10px; }
+    .header { border-bottom: 2px solid #b45309; padding-bottom: 10px; margin-bottom: 14px; }
+    table.kv { width: 100%; border-collapse: collapse; }
+    table.kv td { padding: 4px 6px; vertical-align: top; }
+    table.kv td.label { color: #6b7280; width: 38%; font-size: 10px; text-transform: uppercase; }
+    table.kv td.value { color: #111827; font-weight: 600; }
+    table.schedule { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 10px; }
+    table.schedule th, table.schedule td { border: 1px solid #e5e7eb; padding: 4px 6px; }
+    .terms li { margin-bottom: 5px; }
+    .signbox { margin-top: 24px; padding: 14px; border: 1px dashed #b45309; background: #fffbeb; }
+    .sign-col { width: 32%; display: inline-block; vertical-align: top; }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h1>{{ brand('legal_name') }} — Loan Contract</h1>
+    <div class="muted">Reference: {{ $agreement->reference }} · Application: {{ $snapshot['application_number'] }}</div>
+</div>
+
+<p>This loan contract is entered into between <strong>{{ brand('legal_name') }}</strong> and <strong>{{ $snapshot['customer_name'] }}</strong>.</p>
+
+<h2>Facility summary</h2>
+<table class="kv">
+    <tr><td class="label">Principal</td><td class="value">TZS {{ number_format($snapshot['principal']) }}</td></tr>
+    <tr><td class="label">Tenure</td><td class="value">{{ $snapshot['tenure_months'] }} months</td></tr>
+    <tr><td class="label">{{ $snapshot['installment_label'] ?? 'Instalment' }}</td><td class="value">TZS {{ number_format($snapshot['estimated_emi']) }}</td></tr>
+    <tr><td class="label">Repayment cadence</td><td class="value">{{ ucfirst($snapshot['repayment_cadence'] ?? 'weekly') }}</td></tr>
+</table>
+
+<h2>Repayment schedule</h2>
+<table class="schedule">
+    <thead><tr><th>Period</th><th>Due</th><th>Total</th></tr></thead>
+    <tbody>
+        @foreach (($snapshot['repayment_schedule'] ?? []) as $row)
+            <tr>
+                <td>{{ $row['label'] ?? $row['installment_no'] }}</td>
+                <td>{{ \Illuminate\Support\Carbon::parse($row['due_date'])->format('d M Y') }}</td>
+                <td>TZS {{ number_format($row['total_due']) }}</td>
+            </tr>
+        @endforeach
+    </tbody>
+</table>
+
+<h2>Terms</h2>
+@if (!empty($snapshot['is_asset_loan']))
+<h2>Asset ownership</h2>
+<p><strong>Financed asset:</strong> {{ $snapshot['asset_title'] ?: 'As described in the loan application' }}</p>
+<p>{{ $snapshot['asset_ownership_note'] }}</p>
+@endif
+<ol class="terms">
+    <li>The borrower agrees to repay the facility according to the schedule above.</li>
+    <li>Default, collection, recovery, guarantor liability, repossession, auction, and debt collection rights apply as stated in the offer letter.</li>
+    <li>Electronic signatures captured during application and offer acceptance form part of this contract.</li>
+</ol>
+
+<div class="signbox">
+    <div class="sign-col"><strong>Borrower</strong>
+        @if (!empty($snapshot['borrower_signature']))
+            <div style="margin-top:6px"><img src="{{ $snapshot['borrower_signature']->signature_data }}" style="max-height:50px"></div>
+        @endif
+    </div>
+    <div class="sign-col"><strong>Guarantor</strong>
+        @if (!empty($snapshot['guarantor_signature']))
+            <div style="margin-top:6px"><img src="{{ $snapshot['guarantor_signature']->signature_data }}" style="max-height:50px"></div>
+        @endif
+    </div>
+    <div class="sign-col"><strong>{{ brand('legal_name') }}</strong>
+        @if ($agreement->isSigned())
+            <div class="muted" style="margin-top:8px">Executed {{ $agreement->signed_at->format('d M Y H:i') }}</div>
+        @endif
+    </div>
+</div>
+
+</body>
+</html>

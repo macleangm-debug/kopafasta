@@ -11,7 +11,7 @@
     :editUrl="route('admin.customer-kycs.edit', $record)"
     :fields="[
         'Customer'    => $customer ? trim($customer->first_name.' '.$customer->last_name) : null,
-        'Status'      => ucfirst(str_replace('_', ' ', $record->status ?? '')),
+        'Status'      => display_label($record->status, 'kyc_status'),
         'Verified by' => $reviewer?->name,
         'Verified at' => optional($record->verified_at)->format('Y-m-d H:i'),
         'Payload'     => ['value' => $payloadStr, 'wide' => true],

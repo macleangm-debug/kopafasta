@@ -26,7 +26,7 @@ class DepartmentController extends ResourceController
         ];
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
         return [
             'branches' => Branch::orderBy('name')->pluck('name', 'id'),

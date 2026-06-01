@@ -31,7 +31,7 @@ class SupportTicketController extends ResourceController
         ];
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
         return [
             'customers' => Customer::orderBy('first_name')->limit(500)->get()

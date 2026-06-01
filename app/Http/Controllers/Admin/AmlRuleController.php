@@ -28,7 +28,7 @@ class AmlRuleController extends ResourceController
         ];
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
         return [
             'rule_types' => ['large_txn'=>'Large transaction','velocity'=>'Velocity','structuring'=>'Structuring','repeated_early_settle'=>'Repeated early settlement','multi_account'=>'Multiple accounts','geo'=>'Geographic','pattern'=>'Pattern'],

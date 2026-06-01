@@ -37,7 +37,7 @@
 <x-admin.step title="Schedule & status">
     <x-admin.select name="status"
                     label="Status"
-                    :options="collect($statuses)->mapWithKeys(fn ($s) => [$s => ucfirst(str_replace('_', ' ', $s))])->all()"
+                    :options="display_options($statuses, 'loan_status')"
                     :value="$l?->status ?? 'pending'"
                     required />
     <x-admin.input name="disbursement_date" label="Disbursement date" :value="optional($l?->disbursement_date)->format('Y-m-d')" type="date" />

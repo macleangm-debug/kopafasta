@@ -28,6 +28,7 @@ class Customer extends Model
             'identity_locked' => 'boolean',
             'face_verified_at' => 'datetime',
             'kyc_reconfirmed_at' => 'datetime',
+            'nida_locked_until' => 'datetime',
             'reminders_sent' => 'array',
         ];
     }
@@ -35,6 +36,11 @@ class Customer extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function kyc(): HasOne
@@ -60,6 +66,16 @@ class Customer extends Model
     public function loans(): HasMany
     {
         return $this->hasMany(Loan::class);
+    }
+
+    public function affiliateVendor(): BelongsTo
+    {
+        return $this->belongsTo(Vendor::class, 'affiliate_vendor_id');
+    }
+
+    public function assetReservations(): HasMany
+    {
+        return $this->hasMany(AssetReservation::class);
     }
 
     public function getFullNameAttribute(): string

@@ -1,4 +1,4 @@
-<x-admin.layout title="Final Approvals" heading="Final Approvals" subheading="Approved applications awaiting disbursement">
+<x-admin.layout title="Final Approvals" heading="Final approvals" subheading="Applications awaiting final sign-off — then move to disbursement to create the loan">
     @if (session('status'))
         <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">
             {{ session('status') }}

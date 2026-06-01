@@ -24,7 +24,7 @@ class RiskScoringRuleController extends ResourceController
         ];
     }
 
-    protected function formData(): array
+    protected function formData(?Model $record = null): array
     {
         return [
             'operators'  => ['='=>'Equals','!='=>'Not equals','<'=>'Less than','>'=>'Greater than','<='=>'Less or equal','>='=>'Greater or equal','between'=>'Between','in'=>'In list'],
