@@ -6,14 +6,31 @@
         <h1 class="text-3xl font-bold tracking-tight animate-[fadeIn_0.5s_ease-out]">{{ $application->status === 'awaiting_guarantor' ? __('borrower.apply.success.awaiting_guarantor_title') : __('borrower.apply.success.submitted_title') }}</h1>
         <p class="mt-2 text-gray-600">Reference <span class="font-mono font-bold text-gray-900">{{ $application->application_number }}</span></p>
 
-        @if ($guarantorShareUrl ?? null)
-            <div class="mt-6 bg-emerald-50 rounded-2xl border border-emerald-200 p-6 text-left">
-                <p class="text-sm font-semibold text-emerald-900 mb-2">{{ __('borrower.apply.guarantor_fields.share_whatsapp') }}</p>
-                <p class="text-xs text-emerald-800 mb-4">{{ __('borrower.apply.guarantor_fields.share_whatsapp_hint') }}</p>
-                <a href="{{ $guarantorShareUrl }}" target="_blank" rel="noopener"
-                   class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
-                    {{ __('borrower.apply.guarantor_fields.share_whatsapp') }}
-                </a>
+        @if ($guarantorInvitation ?? null)
+            <div class="mt-6 bg-emerald-50 rounded-2xl border border-emerald-200 p-6 text-left" x-data="{ copied: false }">
+                <p class="text-sm font-semibold text-emerald-900 mb-2">{{ __('borrower.apply.guarantor_fields.share_via') }}</p>
+                <p class="text-xs text-emerald-800 mb-4">{{ __('borrower.apply.guarantor_fields.share_after_submit') }}</p>
+                <div class="flex flex-wrap gap-2">
+                    @if ($guarantorShareUrl ?? null)
+                        <a href="{{ $guarantorShareUrl }}" target="_blank" rel="noopener"
+                           class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-full text-sm">
+                            {{ __('borrower.apply.guarantor_fields.share_whatsapp') }}
+                        </a>
+                    @endif
+                    @if ($guarantorSmsUrl ?? null)
+                        <a href="{{ $guarantorSmsUrl }}"
+                           class="inline-flex items-center gap-2 bg-white ring-1 ring-emerald-300 text-emerald-900 font-semibold px-4 py-2 rounded-full text-sm">
+                            {{ __('borrower.apply.guarantor_fields.share_sms') }}
+                        </a>
+                    @endif
+                    @if ($guarantorInvitationUrl ?? null)
+                        <button type="button"
+                                @click="navigator.clipboard.writeText(@js($guarantorInvitationUrl)); copied = true; setTimeout(() => copied = false, 2000)"
+                                class="inline-flex items-center gap-2 bg-white ring-1 ring-emerald-300 text-emerald-900 font-semibold px-4 py-2 rounded-full text-sm">
+                            <span x-text="copied ? @js(__('borrower.apply.guarantor_fields.link_copied')) : @js(__('borrower.apply.guarantor_fields.share_copy'))"></span>
+                        </button>
+                    @endif
+                </div>
             </div>
         @endif
 

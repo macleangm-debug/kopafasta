@@ -42,6 +42,10 @@
                     <p class="text-lg font-bold">TZS {{ number_format($asset['deposit']) }}</p>
                 </div>
                 <div class="rounded-xl bg-gray-50 p-4">
+                    <p class="text-[10px] uppercase text-gray-400">{{ __('borrower.marketplace.loan_amount') }}</p>
+                    <p class="text-lg font-bold">TZS {{ number_format($asset['remaining_loan'] ?? 0) }}</p>
+                </div>
+                <div class="rounded-xl bg-gray-50 p-4">
                     <p class="text-[10px] uppercase text-gray-400">{{ __('borrower.marketplace.weekly_installment') }}</p>
                     <p class="text-lg font-bold">TZS {{ number_format($asset['weekly_installment']) }}</p>
                 </div>

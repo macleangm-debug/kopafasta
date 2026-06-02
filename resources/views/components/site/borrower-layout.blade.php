@@ -87,7 +87,9 @@ $icon = function (string $name) {
             <form method="POST" action="{{ route('site.locale.update') }}" class="flex items-center gap-2 text-sm">
                 @csrf
                 <label for="locale" class="text-gray-500">{{ __('borrower.language') }}</label>
-                <select id="locale" name="locale" onchange="this.form.submit()" class="rounded-lg border-gray-300 text-sm py-1.5">
+                <select id="locale" name="locale"
+                        onchange="if (window.applyWizardSaveDraft) { window.applyWizardSaveDraft().finally(() => this.form.submit()); } else { this.form.submit(); }"
+                        class="rounded-lg border-gray-300 text-sm py-1.5">
                     <option value="en" @selected(app()->getLocale() === 'en')>{{ __('borrower.english') }}</option>
                     <option value="sw" @selected(app()->getLocale() === 'sw')>{{ __('borrower.swahili') }}</option>
                 </select>

@@ -125,7 +125,20 @@ class ApplicationRequirementsService
             'items'                => $items,
             'completion_percent'   => $total > 0 ? (int) round(($completed / $total) * 100) : 0,
             'profile_percent'      => $profileResult['percent'],
+            'first_action_url'     => $this->firstIncompleteActionUrl($items),
         ];
+    }
+
+    /** @param list<array{complete: bool, action_url: string|null}> $items */
+    public function firstIncompleteActionUrl(array $items): ?string
+    {
+        foreach ($items as $item) {
+            if (! ($item['complete'] ?? false) && ! empty($item['action_url'])) {
+                return $item['action_url'];
+            }
+        }
+
+        return null;
     }
 
     private function requiresIncomeProof(Customer $customer): bool

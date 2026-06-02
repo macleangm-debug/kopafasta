@@ -136,3 +136,22 @@ if (! function_exists('is_marketplace_loan_product')) {
         return in_array(strtoupper((string) $code), marketplace_only_loan_codes(), true);
     }
 }
+
+if (! function_exists('effective_marketplace_asset_max_tenure')) {
+    /** Max loan tenure months for a marketplace asset (asset cap × platform loan cap). */
+    function effective_marketplace_asset_max_tenure(\App\Models\MarketplaceAsset $asset): int
+    {
+        $assetTenure = (int) $asset->max_tenure_months;
+        $loanCap = (int) (\App\Models\Setting::group('loan')['max_tenure_months'] ?? 6);
+
+        if ($assetTenure <= 0) {
+            return max(1, $loanCap);
+        }
+
+        if ($loanCap <= 0) {
+            return $assetTenure;
+        }
+
+        return min($assetTenure, $loanCap);
+    }
+}

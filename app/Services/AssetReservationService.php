@@ -12,13 +12,15 @@ class AssetReservationService
 {
     public function createReservation(Customer $customer, MarketplaceAsset $asset, ?string $viewingDate = null, ?string $viewingTime = null): AssetReservation
     {
+        $applicationFee = app(AssetMarketplaceFeeService::class)->applicationFeeAmount($customer);
+
         return AssetReservation::create([
             'customer_id'            => $customer->id,
             'marketplace_asset_id'   => $asset->id,
             'status'                 => ($viewingDate && $viewingTime) ? 'viewing_scheduled' : 'application_started',
             'viewing_date'           => $viewingDate,
             'viewing_time'           => $viewingTime,
-            'reservation_fee_amount' => config('asset_marketplace.reservation_fee', 50000),
+            'reservation_fee_amount' => $applicationFee,
             'reservation_fee_status' => 'pending',
             'deposit_amount'         => $asset->customer_deposit ?: $asset->computeCustomerDeposit(),
             'deposit_status'         => 'pending',
@@ -174,6 +176,7 @@ class AssetReservationService
     public function advance(AssetReservation $reservation, string $action): AssetReservation
     {
         match ($action) {
+            'skip_viewing' => $this->markViewingCompleted($reservation),
             'complete_viewing' => $this->markViewingCompleted($reservation),
             'confirm_interest' => $this->markInterestConfirmed($reservation),
             'pay_reservation_fee' => $this->markReservationFeePaid($reservation),
@@ -193,15 +196,21 @@ class AssetReservationService
     {
         $index = $reservation->stepIndex();
 
-        return [
-            ['label' => 'Start asset lending application', 'done' => $index >= 1, 'current' => $index === 1],
-            ['label' => 'Arrange viewing (optional)', 'done' => $index >= 2, 'current' => $index === 2],
-            ['label' => 'Complete viewing', 'done' => $index >= 3, 'current' => $index === 3],
-            ['label' => 'Confirm interest', 'done' => $index >= 4, 'current' => $index === 4],
-            ['label' => 'Pay application fee', 'done' => $index >= 5, 'current' => $index === 5],
-            ['label' => 'Pay deposit', 'done' => $index >= 6, 'current' => $index === 6],
-            ['label' => 'Loan approval & post-approval fees', 'done' => $index >= 7, 'current' => $index === 7],
-            ['label' => 'GPS, insurance & asset release', 'done' => $index >= 8, 'current' => $index === 8],
+        $labels = [
+            __('borrower.marketplace.steps.start'),
+            __('borrower.marketplace.steps.viewing'),
+            __('borrower.marketplace.steps.viewing_done'),
+            __('borrower.marketplace.steps.interest'),
+            __('borrower.marketplace.steps.application_fee'),
+            __('borrower.marketplace.steps.deposit'),
+            __('borrower.marketplace.steps.loan_approval'),
+            __('borrower.marketplace.steps.release'),
         ];
+
+        return collect($labels)->map(fn (string $label, int $i) => [
+            'label'   => $label,
+            'done'    => $index >= $i + 1,
+            'current' => $index === $i + 1,
+        ])->values()->all();
     }
 }

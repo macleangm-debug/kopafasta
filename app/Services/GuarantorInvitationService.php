@@ -61,6 +61,21 @@ class GuarantorInvitationService
         return 'https://wa.me/'.$phone.'?text='.urlencode($this->invitationMessage($invitation));
     }
 
+    public function smsShareUrl(GuarantorInvitation $invitation): ?string
+    {
+        $phone = preg_replace('/\D/', '', (string) $invitation->contact);
+        if ($phone === '') {
+            return null;
+        }
+        if (str_starts_with($phone, '0')) {
+            $phone = '255'.substr($phone, 1);
+        } elseif (! str_starts_with($phone, '255')) {
+            $phone = '255'.$phone;
+        }
+
+        return 'sms:+'.$phone.'?body='.urlencode($this->invitationMessage($invitation));
+    }
+
     public function normalizePhone(?string $phone): string
     {
         $digits = preg_replace('/\D/', '', (string) $phone) ?? '';

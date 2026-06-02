@@ -14,6 +14,19 @@
 
     <x-site.onboarding-hero-banner :banner="$onboardingBanner" />
 
+    @if ($applyDraftResume ?? null)
+        <div class="mb-6 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+                <p class="text-sm font-semibold text-amber-900">{{ __('borrower.dashboard.draft_resume_title') }}</p>
+                <p class="text-xs text-amber-800 mt-1">{{ __('borrower.dashboard.draft_resume_body', ['product' => $applyDraftResume['product_name']]) }}</p>
+            </div>
+            <a href="{{ $applyDraftResume['url'] }}"
+               class="inline-flex justify-center bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm shrink-0">
+                {{ __('borrower.dashboard.draft_resume_cta') }}
+            </a>
+        </div>
+    @endif
+
     @if (($openDocumentRequests ?? collect())->isNotEmpty())
         @php $firstDocRequest = $openDocumentRequests->first(); @endphp
         <div class="mb-6 rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

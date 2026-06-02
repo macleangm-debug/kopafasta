@@ -20,6 +20,7 @@ use App\Services\AssetReservationService;
 use App\Services\FaceVerificationService;
 use App\Services\GuarantorInvitationService;
 use App\Services\KycFreshnessService;
+use App\Services\LoanApplicationDraftService;
 use App\Services\LoanProductReadinessService;
 use App\Services\SmartLoanApplicationWizardService;
 use Illuminate\Http\RedirectResponse;
@@ -38,6 +39,7 @@ class ApplyController extends Controller
         KycFreshnessService $freshness,
         ApplicationRequirementsService $requirements,
         SmartLoanApplicationWizardService $wizard,
+        LoanApplicationDraftService $drafts,
     ): View|RedirectResponse {
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
 
@@ -78,6 +80,14 @@ class ApplyController extends Controller
                 ->with('status', __('borrower.marketplace.subtitle'));
         }
 
+        if ($reservation && $reservation->status !== 'deposit_paid') {
+            $assetKey = $reservation->asset?->slug ?: $reservation->marketplace_asset_id;
+
+            return redirect()
+                ->route('site.borrower.marketplace.reserve', $assetKey)
+                ->with('warning', __('borrower.marketplace.complete_reservation_first'));
+        }
+
         if ($reservation?->asset) {
             $assetLoanProduct = LoanProduct::where('is_active', true)
                 ->where('code', config('asset_marketplace.asset_loan_product_code', 'AL'))
@@ -91,7 +101,7 @@ class ApplyController extends Controller
                 $deposit = (float) ($asset->customer_deposit ?: $asset->computeCustomerDeposit());
                 $assetValue = (float) ($asset->asset_value ?: max($deposit * 1.4, $deposit));
                 $remainingLoan = max(0, round($assetValue - $deposit, 2));
-                $tenure = max(1, (int) ($asset->max_tenure_months ?: $assetLoanProduct->tenure_max_months));
+                $tenure = effective_marketplace_asset_max_tenure($asset);
 
                 $assetApplication = [
                     'asset_title'        => $asset->title,
@@ -116,6 +126,7 @@ class ApplyController extends Controller
         $readinessUrl = route('site.borrower.apply.product-readiness', ['product' => '__ID__']);
 
         $applyRequirements = $requirements->checklist($customer);
+        $savedDraft = $drafts->payloadForWizard($customer);
 
         return view('site.apply.wizard', compact(
             'products',
@@ -132,6 +143,7 @@ class ApplyController extends Controller
             'assetApplication',
             'selectedProduct',
             'applyRequirements',
+            'savedDraft',
         ))->with('loanPurposes', loan_purpose_options())
             ->with('marketplaceOnlyCodes', marketplace_only_loan_codes())
             ->with('marketplaceUrl', route('site.borrower.marketplace'))
@@ -149,12 +161,95 @@ class ApplyController extends Controller
         return response()->json($readiness->assess($customer, $product));
     }
 
+    public function lookupGuarantor(Request $request, GuarantorInvitationService $guarantors): \Illuminate\Http\JsonResponse
+    {
+        $borrower = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($borrower, 403);
+
+        $data = $request->validate([
+            'membership_no' => ['required', 'string', 'max:32'],
+            'phone'           => ['required', 'string', 'max:20'],
+        ]);
+
+        $member = $guarantors->findMemberByNumber($data['membership_no']);
+        if (! $member) {
+            return response()->json([
+                'ok'      => false,
+                'message' => __('borrower.apply.alerts.guarantor_lookup_failed'),
+            ], 422);
+        }
+
+        if ($member->id === $borrower->id) {
+            return response()->json([
+                'ok'      => false,
+                'message' => __('borrower.apply.alerts.guarantor_self'),
+            ], 422);
+        }
+
+        $inputPhone = $guarantors->normalizePhone($data['phone']);
+        $memberPhone = $guarantors->normalizePhone($member->phone);
+        if ($inputPhone === '' || $memberPhone === '' || $inputPhone !== $memberPhone) {
+            return response()->json([
+                'ok'      => false,
+                'message' => __('borrower.apply.alerts.guarantor_phone_mismatch'),
+            ], 422);
+        }
+
+        $name = trim(($member->first_name ?? '').' '.($member->last_name ?? ''));
+        $statusKey = $member->isMembershipActive()
+            ? 'active'
+            : ($member->isMembershipInGrace() ? 'grace' : 'inactive');
+
+        return response()->json([
+            'ok'    => true,
+            'name'  => $name,
+            'label' => trim($name.' · '.__('borrower.apply.guarantor_fields.membership_'.$statusKey)),
+        ]);
+    }
+
+    public function loadDraft(LoanApplicationDraftService $drafts): \Illuminate\Http\JsonResponse
+    {
+        $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($customer, 403);
+
+        return response()->json([
+            'draft' => $drafts->payloadForWizard($customer),
+        ]);
+    }
+
+    public function saveDraft(Request $request, LoanApplicationDraftService $drafts): \Illuminate\Http\JsonResponse
+    {
+        $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($customer, 403);
+
+        $data = $request->validate([
+            'phase'                => ['required', 'string', 'in:browse,details,application'],
+            'step'                 => ['nullable', 'integer', 'min:0'],
+            'loan_product_id'      => ['nullable', 'integer', 'exists:loan_products,id'],
+            'asset_reservation_id' => ['nullable', 'integer'],
+            'form'                 => ['nullable', 'array'],
+            'inputs'               => ['nullable', 'array'],
+            'guarantor_lookup'     => ['nullable', 'array'],
+        ]);
+
+        if ($data['phase'] === 'browse' || empty($data['loan_product_id'])) {
+            $drafts->clear($customer);
+
+            return response()->json(['ok' => true, 'cleared' => true]);
+        }
+
+        $drafts->save($customer, $data);
+
+        return response()->json(['ok' => true, 'saved_at' => now()->toIso8601String()]);
+    }
+
     public function submit(
         Request $request,
         FaceVerificationService $faces,
         KycFreshnessService $freshness,
         GuarantorInvitationService $guarantors,
         ApplicationRequirementsService $requirements,
+        LoanApplicationDraftService $drafts,
     ): RedirectResponse {
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
 
@@ -255,6 +350,12 @@ class ApplyController extends Controller
                 $data['internal_member_no'] = $memberKey;
                 if (empty($data['internal_member_no'])) {
                     return back()->withInput()->withErrors(['internal_member_no' => 'Enter the guarantor membership number.']);
+                }
+                $member = $guarantors->findMemberByNumber($data['internal_member_no']);
+                $inputPhone = $guarantors->normalizePhone($data['internal_guarantor_phone'] ?? '');
+                $memberPhone = $guarantors->normalizePhone($member?->phone);
+                if (! $member || $inputPhone === '' || $memberPhone === '' || $inputPhone !== $memberPhone) {
+                    return back()->withInput()->withErrors(['internal_guarantor_phone' => __('borrower.apply.alerts.guarantor_lookup_failed')]);
                 }
             }
             if ($mode === 'external') {
@@ -434,6 +535,10 @@ class ApplyController extends Controller
             'status'     => $app->status,
         ]);
 
+        if ($customer) {
+            $drafts->clear($customer);
+        }
+
         return redirect()->route('site.borrower.apply.success', $app)->with('status', $message);
     }
 
@@ -449,8 +554,15 @@ class ApplyController extends Controller
             ->latest()
             ->first();
 
+        $guarantorService = app(GuarantorInvitationService::class);
         $guarantorShareUrl = $guarantorInvitation
-            ? app(GuarantorInvitationService::class)->whatsAppShareUrl($guarantorInvitation, $application->customer)
+            ? $guarantorService->whatsAppShareUrl($guarantorInvitation, $application->customer)
+            : null;
+        $guarantorInvitationUrl = $guarantorInvitation
+            ? $guarantorService->invitationUrl($guarantorInvitation)
+            : null;
+        $guarantorSmsUrl = $guarantorInvitation
+            ? $guarantorService->smsShareUrl($guarantorInvitation)
             : null;
 
         return view('site.apply.success', compact(
@@ -458,6 +570,8 @@ class ApplyController extends Controller
             'underwritingStages',
             'guarantorInvitation',
             'guarantorShareUrl',
+            'guarantorInvitationUrl',
+            'guarantorSmsUrl',
         ));
     }
 }

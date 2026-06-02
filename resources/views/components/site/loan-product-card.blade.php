@@ -32,11 +32,11 @@
             class="text-left p-5 flex-1 hover:bg-gray-50 transition">
         <p class="text-sm text-gray-600 line-clamp-3">{{ $product->description ?: 'Collateral-driven lending product.' }}</p>
         <p class="text-sm font-semibold text-gray-900 mt-3">{{ format_money($product->min_amount) }} – {{ format_money($product->max_amount, false) }}</p>
-        <p class="text-xs text-gray-500 mt-1">{{ number_format($displayedRate * 100, 1) }}%/mo displayed · {{ $product->tenure_min_months }}–{{ $product->tenure_max_months }} months</p>
+        <p class="text-xs text-gray-500 mt-1">{{ __('borrower.apply.details.monthly_rate') }} {{ number_format($displayedRate * 100, 1) }}% · {{ $product->tenure_min_months }}–{{ $product->tenure_max_months }} {{ __('borrower.apply.details.months') }}</p>
     </button>
     <div x-show="open === {{ $product->id }}" x-transition x-cloak class="border-t border-gray-100 px-5 pb-5">
         <dl class="grid gap-2 text-sm pt-4">
-            <div><dt class="text-gray-500">Displayed rate</dt><dd class="font-medium">{{ number_format($displayedRate * 100, 2) }}% per month</dd></div>
+            <div><dt class="text-gray-500">{{ __('borrower.apply.details.monthly_rate') }}</dt><dd class="font-medium">{{ number_format($displayedRate * 100, 2) }}% {{ __('borrower.apply.browse.per_month') }}</dd></div>
             <div><dt class="text-gray-500">Tenure</dt><dd class="font-medium">{{ $product->tenure_min_months }}–{{ $product->tenure_max_months }} months</dd></div>
         </dl>
         <a href="{{ route('site.borrower.apply', ['product' => $product->id]) }}"

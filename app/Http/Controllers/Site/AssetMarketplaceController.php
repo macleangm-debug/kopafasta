@@ -8,8 +8,8 @@ use App\Models\AssetRequest;
 use App\Models\AssetReservation;
 use App\Models\LoanProduct;
 use App\Models\MarketplaceAsset;
-use App\Models\Setting;
 use App\Services\ApplicationRequirementsService;
+use App\Services\AssetMarketplaceFeeService;
 use App\Services\AssetReservationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -64,13 +64,11 @@ class AssetMarketplaceController extends Controller
         $model = $this->findModel($assetId);
         abort_if(! $model, 404);
 
-        $reservation = app(AssetReservationService::class)->startApplication($customer, $model);
-        $productId = LoanProduct::where('code', config('asset_marketplace.asset_loan_product_code', 'AL'))->value('id');
+        app(AssetReservationService::class)->startApplication($customer, $model);
 
-        return redirect()->route('site.borrower.apply', array_filter([
-            'product'     => $productId,
-            'reservation' => $reservation->id,
-        ]));
+        return redirect()
+            ->route('site.borrower.marketplace.reserve', $assetId)
+            ->with('status', __('borrower.marketplace.started'));
     }
 
     public function reserve(Request $request, string $assetId): RedirectResponse
@@ -114,8 +112,9 @@ class AssetMarketplaceController extends Controller
 
         $steps = $reservations->steps($reservation);
         $applyRequirements = $requirements->checklist($customer);
+        $feeBreakdown = app(AssetMarketplaceFeeService::class)->breakdown($customer, $model);
 
-        return view('site.borrower.marketplace.reserve', compact('asset', 'reservation', 'steps', 'applyRequirements'));
+        return view('site.borrower.marketplace.reserve', compact('asset', 'reservation', 'steps', 'applyRequirements', 'feeBreakdown'));
     }
 
     public function advanceReservation(Request $request, string $assetId, AssetReservationService $reservations): RedirectResponse
@@ -129,10 +128,29 @@ class AssetMarketplaceController extends Controller
         $reservation = $reservations->activeForCustomer($customer, $model);
         abort_unless($reservation, 404);
 
-        $action = $request->validate(['action' => ['required', 'in:pay_reservation_fee,complete_viewing,confirm_interest,pay_deposit']])['action'];
+        $action = $request->validate([
+            'action' => ['required', 'in:skip_viewing,complete_viewing,confirm_interest,pay_reservation_fee,pay_deposit'],
+        ])['action'];
+
+        if (in_array($action, ['pay_reservation_fee', 'pay_deposit'], true)) {
+            $checklist = app(ApplicationRequirementsService::class)->checklist($customer);
+            if (! $checklist['can_apply']) {
+                return back()->with('error', __('borrower.marketplace.requirements_before_payment'));
+            }
+        }
+
         $reservations->advance($reservation, $action);
 
-        return back()->with('status', 'Progress updated.');
+        $message = match ($action) {
+            'skip_viewing'          => __('borrower.marketplace.viewing_skipped'),
+            'complete_viewing'      => __('borrower.marketplace.viewing_completed'),
+            'confirm_interest'      => __('borrower.marketplace.interest_confirmed'),
+            'pay_reservation_fee'   => __('borrower.marketplace.application_fee_recorded'),
+            'pay_deposit'           => __('borrower.marketplace.deposit_recorded'),
+            default                 => __('borrower.marketplace.progress_updated'),
+        };
+
+        return back()->with('status', $message);
     }
 
     public function storeRequest(Request $request): RedirectResponse
@@ -236,24 +254,9 @@ class AssetMarketplaceController extends Controller
             'remaining_loan'       => $remainingLoan,
             'supplier_deposit'     => (float) $asset->supplier_deposit,
             'weekly_installment'   => (float) $asset->weekly_installment,
-            'max_tenure_months'    => $this->effectiveMaxTenure($asset),
+            'max_tenure_months'    => effective_marketplace_asset_max_tenure($asset),
             'photos'               => $asset->photos ?? [],
         ];
     }
 
-    private function effectiveMaxTenure(MarketplaceAsset $asset): int
-    {
-        $assetTenure = (int) $asset->max_tenure_months;
-        $loanCap = (int) (Setting::group('loan')['max_tenure_months'] ?? 6);
-
-        if ($assetTenure <= 0) {
-            return max(1, $loanCap);
-        }
-
-        if ($loanCap <= 0) {
-            return $assetTenure;
-        }
-
-        return min($assetTenure, $loanCap);
-    }
 }

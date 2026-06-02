@@ -99,6 +99,7 @@
                         <dl class="mt-4 space-y-1 text-sm">
                             <div class="flex justify-between"><dt class="text-gray-500">{{ __('borrower.marketplace.asset_value') }}</dt><dd class="font-semibold">TZS {{ number_format($asset['asset_value'] ?? 0) }}</dd></div>
                             <div class="flex justify-between"><dt class="text-gray-500">{{ __('borrower.marketplace.deposit') }}</dt><dd class="font-semibold">TZS {{ number_format($asset['deposit']) }}</dd></div>
+                            <div class="flex justify-between"><dt class="text-gray-500">{{ __('borrower.marketplace.loan_amount') }}</dt><dd class="font-semibold">TZS {{ number_format($asset['remaining_loan'] ?? 0) }}</dd></div>
                             <div class="flex justify-between"><dt class="text-gray-500">{{ __('borrower.marketplace.weekly_installment') }}</dt><dd class="font-semibold">TZS {{ number_format($asset['weekly_installment']) }}</dd></div>
                             @if (! empty($asset['max_tenure_months']))
                                 <div class="flex justify-between"><dt class="text-gray-500">{{ __('borrower.marketplace.max_tenure') }}</dt><dd class="font-semibold">{{ $asset['max_tenure_months'] }} {{ __('borrower.apply.quote.months') }}</dd></div>

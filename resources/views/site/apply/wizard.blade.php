@@ -8,8 +8,24 @@
         </div>
 
         @if (! ($applyRequirements['can_apply'] ?? false))
-            <div class="mb-6 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">
-                <strong>{{ __('borrower.apply.kyc_incomplete_title') }}</strong> {{ __('borrower.apply.kyc_incomplete_hint') }}
+            <div class="mb-6 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 text-sm text-amber-900">
+                <p class="font-semibold">{{ __('borrower.apply.kyc_incomplete_title') }}</p>
+                <p class="mt-1 text-amber-800">{{ __('borrower.apply.kyc_incomplete_hint') }}</p>
+                <ul class="mt-3 space-y-1 text-amber-800">
+                    @foreach (($applyRequirements['items'] ?? []) as $item)
+                        @if (! ($item['complete'] ?? false))
+                            <li class="flex items-start gap-2">
+                                <span>•</span>
+                                <span>
+                                    {{ $item['label'] }}
+                                    @if (! empty($item['action_url']))
+                                        — <a href="{{ $item['action_url'] }}" class="font-semibold underline">{{ __('borrower.apply.details.complete_missing') }}</a>
+                                    @endif
+                                </span>
+                            </li>
+                        @endif
+                    @endforeach
+                </ul>
             </div>
         @endif
 
@@ -28,10 +44,28 @@
                     ->unique('id')
                     ->values();
             }
+            $displayedRateService = app(\App\Services\DisplayedRateService::class);
+            $wizardProductPayload = fn ($p) => [
+                'id' => $p->id,
+                'code' => $p->code,
+                'name' => $p->name,
+                'rate' => (float) $displayedRateService->displayedMonthlyRate($p),
+                'min' => (float) $p->min_amount,
+                'max' => (float) $p->max_amount,
+                'tmin' => (int) $p->tenure_min_months,
+                'tmax' => (int) $p->tenure_max_months,
+                'desc' => $p->description,
+                'requires_guarantor' => (bool) $p->requires_guarantor,
+                'frequency' => 'weekly',
+            ];
         @endphp
 
         <div x-data="applyWizard({
-                  products: {{ json_encode($wizardProducts->map(fn($p)=>['id'=>$p->id,'code'=>$p->code,'name'=>$p->name,'rate'=>(float)$p->interest_rate,'min'=>(float)$p->min_amount,'max'=>(float)$p->max_amount,'tmin'=>(int)$p->tenure_min_months,'tmax'=>(int)$p->tenure_max_months,'desc'=>$p->description,'requires_guarantor'=>(bool)$p->requires_guarantor,'frequency'=>'weekly'])) }},
+                  products: @js($wizardProducts->map($wizardProductPayload)->values()->all()),
+                  guarantorLookupUrl: @js(route('site.borrower.apply.guarantor-lookup')),
+                  draftSaveUrl: @js(route('site.borrower.apply.draft.save')),
+                  savedDraft: @js($savedDraft ?? null),
+                  reservationId: {{ ($reservation ?? null) ? (int) $reservation->id : 'null' }},
                   preselect: {{ $preselect ? (int)$preselect : 'null' }},
                   applicationFee: {{ (int) ($applicationFee ?? 0) }},
                   initialPlan: @js($stepPlan),
@@ -67,6 +101,11 @@
                           'loadProduct' => __('borrower.apply.alerts.load_product'),
                           'selectPurpose' => __('borrower.apply.alerts.select_purpose'),
                           'selectGuarantor' => __('borrower.apply.alerts.select_guarantor'),
+                          'guarantor_membership' => __('borrower.apply.alerts.guarantor_membership'),
+                          'guarantor_phone' => __('borrower.apply.alerts.guarantor_phone'),
+                          'guarantor_lookup_failed' => __('borrower.apply.alerts.guarantor_lookup_failed'),
+                          'guarantor_external_incomplete' => __('borrower.apply.alerts.guarantor_external_incomplete'),
+                          'selectShareChannel' => __('borrower.apply.alerts.select_share_channel'),
                           'acceptTerms' => __('borrower.apply.alerts.accept_terms'),
                           'drawSignature' => __('borrower.apply.alerts.draw_signature'),
                           'submitTitle' => __('borrower.apply.alerts.submit_title'),
@@ -79,7 +118,12 @@
                   ]),
               })"
              x-init="init()"
+             @beforeunload.window="persistDraft(true)"
              x-cloak>
+
+            <div x-show="draftSavedAt" x-cloak class="mb-4 rounded-lg bg-gray-50 ring-1 ring-gray-200 px-3 py-2 text-xs text-gray-600">
+                {{ __('borrower.apply.draft.autosaved') }}
+            </div>
 
             {{-- Phase 1: Browse products --}}
             <div x-show="phase === 'browse'" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8">
@@ -95,7 +139,7 @@
                                 <a href="{{ route('site.borrower.marketplace') }}" class="mt-3 text-xs font-semibold text-amber-700">{{ __('borrower.nav.marketplace') }} →</a>
                             </div>
                         @else
-                            <button type="button" @click="openProduct(@js(['id'=>$p->id,'code'=>$p->code,'name'=>$p->name,'rate'=>(float)$p->interest_rate,'min'=>(float)$p->min_amount,'max'=>(float)$p->max_amount,'tmin'=>(int)$p->tenure_min_months,'tmax'=>(int)$p->tenure_max_months,'desc'=>$p->description,'requires_guarantor'=>(bool)$p->requires_guarantor,'frequency'=>'weekly']))"
+                            <button type="button" @click="openProduct(@js($wizardProductPayload($p)))"
                                     class="snap-start shrink-0 w-64 text-left rounded-xl border-2 border-gray-200 hover:border-amber-300 p-4 transition">
                                 <span class="text-[10px] font-mono font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">{{ $p->code }}</span>
                                 <div class="mt-2 font-semibold text-sm">{{ $p->name }}</div>
@@ -255,13 +299,24 @@
                             <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="guarantor_mode" value="internal" x-model="form.guarantor_mode" class="text-amber-500"> {{ __('borrower.apply.internal_guarantor') }}</label>
                             <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="guarantor_mode" value="external" x-model="form.guarantor_mode" class="text-amber-500"> {{ __('borrower.apply.external_guarantor') }}</label>
                         </div>
-                        <div x-show="form.guarantor_mode === 'internal'">
-                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.guarantor_fields.membership_no') }}</label>
-                            <div class="flex rounded-lg ring-1 ring-gray-200 overflow-hidden">
-                                <span class="inline-flex items-center px-3 bg-gray-100 text-sm font-mono text-gray-600 border-r border-gray-200">KPF-TZ-</span>
-                                <input name="internal_member_no" placeholder="ABC12345" class="flex-1 border-0 px-3 py-2.5 text-sm font-mono focus:ring-0">
+                        <div x-show="form.guarantor_mode === 'internal'" class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.guarantor_fields.membership_no') }}</label>
+                                <div class="flex rounded-lg ring-1 ring-gray-200 overflow-hidden">
+                                    <span class="inline-flex items-center px-3 bg-gray-100 text-sm font-mono text-gray-600 border-r border-gray-200">KPF-TZ-</span>
+                                    <input name="internal_member_no" placeholder="ABC12345" class="flex-1 border-0 px-3 py-2.5 text-sm font-mono focus:ring-0">
+                                </div>
                             </div>
-                            <p class="text-xs text-gray-500 mt-1">{{ __('borrower.apply.guarantor_fields.membership_hint_short') }}</p>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.phone') }}</label>
+                                <div class="flex rounded-lg ring-1 ring-gray-200 overflow-hidden">
+                                    <span class="inline-flex items-center px-3 bg-gray-100 text-sm text-gray-600 border-r border-gray-200">+255</span>
+                                    <input name="internal_guarantor_phone" inputmode="numeric" placeholder="712345678" class="flex-1 border-0 px-3 py-2.5 text-sm focus:ring-0">
+                                </div>
+                            </div>
+                            <p x-show="guarantorLookup.ok" class="text-sm text-emerald-800 font-medium" x-text="guarantorLookup.label"></p>
+                            <p x-show="guarantorLookup.error" class="text-sm text-red-700" x-text="guarantorLookup.error"></p>
+                            <p class="text-xs text-gray-500">{{ __('borrower.apply.guarantor_fields.membership_hint_short') }}</p>
                         </div>
                         <div x-show="form.guarantor_mode === 'external'" class="grid sm:grid-cols-2 gap-4">
                             <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.first_name') }}</label><input name="external_first_name" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
@@ -270,7 +325,7 @@
                             <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.guarantor_fields.relationship') }}</label>
                                 <select name="external_relationship" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                                     <option value="">{{ __('borrower.profile.select') }}</option>
-                                    @foreach (trans('borrower.profile.kin_relationship_options') as $value => $label)
+                                    @foreach (trans('borrower.profile.guarantor_relationship_options') as $value => $label)
                                         <option value="{{ $value }}">{{ $label }}</option>
                                     @endforeach
                                 </select>
@@ -290,9 +345,16 @@
                                     <select name="external_district" x-model="district" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"><option value="" x-text="labels.selectDistrict"></option><template x-for="d in districtOptions" :key="d"><option :value="d" x-text="d"></option></template></select>
                                 </div>
                             </div>
-                            <input type="hidden" name="external_channel" value="whatsapp">
+                            <div class="sm:col-span-2">
+                                <p class="block text-xs font-medium text-gray-600 mb-2">{{ __('borrower.apply.guarantor_fields.share_via') }}</p>
+                                <div class="flex flex-wrap gap-4">
+                                    <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="external_channel" value="whatsapp" class="text-amber-500" checked> {{ __('borrower.apply.guarantor_fields.channel_whatsapp') }}</label>
+                                    <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="external_channel" value="sms" class="text-amber-500"> {{ __('borrower.apply.guarantor_fields.channel_sms') }}</label>
+                                    <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="external_channel" value="email" class="text-amber-500"> {{ __('borrower.apply.guarantor_fields.channel_email') }}</label>
+                                </div>
+                            </div>
                             <div class="sm:col-span-2 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900">
-                                {{ __('borrower.apply.guarantor_fields.whatsapp_after_submit') }}
+                                {{ __('borrower.apply.guarantor_fields.share_after_submit') }}
                             </div>
                         </div>
                         <p class="text-xs text-amber-700 font-medium">{{ __('borrower.apply.guarantor_fields.status_waiting') }}</p>
@@ -333,9 +395,28 @@
                 <div x-show="currentStepKey === 'review'" class="p-6 sm:p-8">
                     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.review_step.title') }}</h2>
                     <p class="text-sm text-gray-600 mb-4">{{ __('borrower.apply.review_step.subtitle') }}</p>
-                    <div x-show="! canApply" class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">
-                        {{ __('borrower.apply.kyc_incomplete_submit') }}
-                    </div>
+                    @if (! ($applyRequirements['can_apply'] ?? false))
+                        <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 text-sm text-amber-900">
+                            <p class="font-semibold">{{ __('borrower.apply.kyc_incomplete_submit') }}</p>
+                            <ul class="mt-2 space-y-1 text-amber-800">
+                                @foreach (($applyRequirements['items'] ?? []) as $item)
+                                    @if (! ($item['complete'] ?? false))
+                                        <li>
+                                            {{ $item['label'] }}
+                                            @if (! empty($item['action_url']))
+                                                — <a href="{{ $item['action_url'] }}" class="font-semibold underline">{{ __('borrower.apply.details.complete_missing') }}</a>
+                                            @endif
+                                        </li>
+                                    @endif
+                                @endforeach
+                            </ul>
+                            @if ($applyRequirements['first_action_url'] ?? null)
+                                <a href="{{ $applyRequirements['first_action_url'] }}" class="inline-flex mt-3 bg-white hover:bg-gray-50 text-gray-900 font-semibold px-4 py-2 rounded-full text-xs ring-1 ring-amber-300">
+                                    {{ __('borrower.apply.details.complete_missing') }}
+                                </a>
+                            @endif
+                        </div>
+                    @endif
                     <div class="rounded-xl border border-gray-200 divide-y divide-gray-200 mb-5 text-sm">
                         <div class="px-4 py-3 flex justify-between gap-3"><div><span class="text-gray-500 block">{{ __('borrower.apply.review_step.product') }}</span><span class="font-medium" x-text="current ? current.name : '—'"></span></div><button type="button" @click="backToBrowse()" class="text-xs text-amber-700 shrink-0" x-show="! reservationMode">{{ __('borrower.apply.change') }}</button></div>
                         <template x-if="assetApplication">
@@ -412,6 +493,12 @@
                 profileSections: config.profileSections,
                 incomeVerification: config.incomeVerification,
                 readinessUrl: config.readinessUrl,
+                guarantorLookupUrl: config.guarantorLookupUrl || '',
+                draftSaveUrl: config.draftSaveUrl || '',
+                reservationId: config.reservationId || null,
+                draftSavedAt: null,
+                draftSaveTimer: null,
+                guarantorLookup: { ok: false, label: '', error: '', memberKey: '', phone: '' },
                 initialPlan: config.initialPlan || [],
                 assetApplication: config.assetApplication || null,
                 reservationMode: !! config.reservationMode,
@@ -442,14 +529,120 @@
                 },
 
                 init() {
+                    window.applyWizardSaveDraft = () => this.persistDraft(true);
+                    this.$watch('phase', () => this.scheduleDraftSave());
+                    this.$watch('step', () => this.scheduleDraftSave());
                     if (this.reservationMode && this.assetApplication) {
                         this.beginReservationApplication();
+                        return;
+                    }
+                    if (config.savedDraft && this.restoreDraft(config.savedDraft)) {
                         return;
                     }
                     if (config.preselect) {
                         const p = this.products.find(x => x.id == config.preselect);
                         if (p) this.openProduct(p);
                     }
+                },
+
+                scheduleDraftSave() {
+                    clearTimeout(this.draftSaveTimer);
+                    this.draftSaveTimer = setTimeout(() => this.persistDraft(), 900);
+                },
+
+                buildDraftPayload() {
+                    const inputs = {};
+                    if (this.phase === 'application') {
+                        const fd = new FormData(this.formRoot());
+                        for (const [key, value] of fd.entries()) {
+                            if (value instanceof File) continue;
+                            inputs[key] = value;
+                        }
+                    }
+                    return {
+                        phase: this.phase,
+                        step: this.step,
+                        loan_product_id: this.form.loan_product_id,
+                        asset_reservation_id: this.reservationId,
+                        form: this.form,
+                        inputs,
+                        guarantor_lookup: this.guarantorLookup.ok ? this.guarantorLookup : null,
+                    };
+                },
+
+                persistDraft(sync = false) {
+                    if (! this.draftSaveUrl || this.phase === 'browse') {
+                        if (this.phase === 'browse' && this.draftSaveUrl) {
+                            const clear = () => fetch(this.draftSaveUrl, {
+                                method: 'PUT',
+                                headers: this.draftHeaders(),
+                                credentials: 'same-origin',
+                                body: JSON.stringify({ phase: 'browse' }),
+                            });
+                            return sync ? clear() : clear().catch(() => {});
+                        }
+                        return Promise.resolve();
+                    }
+                    const request = () => fetch(this.draftSaveUrl, {
+                        method: 'PUT',
+                        headers: this.draftHeaders(),
+                        credentials: 'same-origin',
+                        body: JSON.stringify(this.buildDraftPayload()),
+                    }).then(res => res.ok ? res.json() : Promise.reject(res))
+                      .then(() => { this.draftSavedAt = new Date().toLocaleTimeString(); });
+
+                    return sync ? request().catch(() => {}) : request().catch(() => {});
+                },
+
+                draftHeaders() {
+                    return {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
+                    };
+                },
+
+                restoreFormInputs(inputs) {
+                    const root = this.formRoot();
+                    Object.entries(inputs || {}).forEach(([name, value]) => {
+                        const el = root.querySelector(`[name="${name}"]`);
+                        if (! el || el.type === 'file') return;
+                        if (el.type === 'radio') {
+                            const radio = root.querySelector(`[name="${name}"][value="${value}"]`);
+                            if (radio) radio.checked = true;
+                        } else {
+                            el.value = value;
+                        }
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                    });
+                },
+
+                restoreDraft(draft) {
+                    const product = this.products.find(p => p.id == draft.loan_product_id);
+                    if (! product) return false;
+                    this.current = product;
+                    Object.assign(this.form, draft.form || {});
+                    if (draft.inputs) this.restoreFormInputs(draft.inputs);
+                    if (draft.guarantor_lookup) this.guarantorLookup = draft.guarantor_lookup;
+                    this.phase = draft.phase;
+                    if (draft.phase === 'details') {
+                        this.loadReadiness(product.id);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        return true;
+                    }
+                    if (draft.phase === 'application') {
+                        this.phase = 'application';
+                        const resumeStep = draft.step || 0;
+                        this.loadReadiness(product.id).then(() => {
+                            this.rebuildSteps();
+                            this.step = Math.min(resumeStep, Math.max(0, this.steps.length - 1));
+                            this.updateQuote();
+                        });
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        return true;
+                    }
+                    return false;
                 },
 
                 isMarketplaceProduct(product) {
@@ -496,6 +689,11 @@
                 },
 
                 completeMissingRequirements() {
+                    const url = this.readiness?.missing_action_url;
+                    if (url) {
+                        window.location.href = url;
+                        return;
+                    }
                     this.startApplication();
                 },
 
@@ -503,7 +701,7 @@
                     this.readinessLoading = true;
                     this.readiness = null;
                     const url = this.readinessUrl.replace('__ID__', encodeURIComponent(productId));
-                    fetch(url, {
+                    return fetch(url, {
                         headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                         credentials: 'same-origin',
                     })
@@ -513,6 +711,7 @@
                             if (this.phase === 'application' && this.current) {
                                 this.rebuildSteps();
                             }
+                            return data;
                         })
                         .catch(() => { this.readiness = null; alert(this.i18n.alerts.loadProduct); })
                         .finally(() => { this.readinessLoading = false; });
@@ -604,7 +803,11 @@
                     if (this.form.guarantor_mode === 'external') this.review.guarantor = [g('external_name'), g('external_channel')].filter(Boolean).join(' via ');
                 },
 
-                validateStep() {
+                formRoot() {
+                    return this.$root.querySelector('form') || this.$root;
+                },
+
+                async validateStep() {
                     if (this.currentStepKey === 'quote' && this.hasStep('quote') && ! this.form.purpose) {
                         alert(this.i18n.alerts.selectPurpose);
                         return false;
@@ -614,12 +817,76 @@
                             alert(this.i18n.alerts.selectGuarantor);
                             return false;
                         }
+                        if (this.form.guarantor_mode === 'internal') {
+                            return await this.verifyInternalGuarantor();
+                        }
+                        if (this.form.guarantor_mode === 'external') {
+                            const fd = new FormData(this.formRoot());
+                            const required = ['external_first_name', 'external_last_name', 'external_relationship', 'external_phone', 'external_region', 'external_district'];
+                            if (required.some(n => ! (fd.get(n) || '').toString().trim())) {
+                                alert(this.i18n.alerts.guarantor_external_incomplete);
+                                return false;
+                            }
+                            const channel = (fd.get('external_channel') || '').toString();
+                            if (! channel) {
+                                alert(this.i18n.alerts.selectShareChannel);
+                                return false;
+                            }
+                            if (channel === 'email' && ! (fd.get('external_email') || '').toString().trim()) {
+                                alert(this.i18n.alerts.guarantor_external_incomplete);
+                                return false;
+                            }
+                        }
                     }
                     return true;
                 },
 
-                next() {
-                    if (! this.validateStep()) return;
+                async verifyInternalGuarantor() {
+                    const fd = new FormData(this.formRoot());
+                    const member = (fd.get('internal_member_no') || '').toString().trim();
+                    const phone = (fd.get('internal_guarantor_phone') || '').toString().trim();
+                    if (! member) {
+                        alert(this.i18n.alerts.guarantor_membership);
+                        return false;
+                    }
+                    if (! phone) {
+                        alert(this.i18n.alerts.guarantor_phone);
+                        return false;
+                    }
+                    if (this.guarantorLookup.ok && this.guarantorLookup.memberKey === member && this.guarantorLookup.phone === phone) {
+                        return true;
+                    }
+                    this.guarantorLookup = { ok: false, label: '', error: '', memberKey: member, phone };
+                    try {
+                        const res = await fetch(this.guarantorLookupUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
+                            },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({ membership_no: member, phone }),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (! res.ok || ! data.ok) {
+                            this.guarantorLookup.error = data.message || this.i18n.alerts.guarantor_lookup_failed;
+                            alert(this.guarantorLookup.error);
+                            return false;
+                        }
+                        this.guarantorLookup = { ok: true, label: data.label || data.name, error: '', memberKey: member, phone };
+                        return true;
+                    } catch {
+                        this.guarantorLookup.error = this.i18n.alerts.guarantor_lookup_failed;
+                        alert(this.guarantorLookup.error);
+                        return false;
+                    }
+                },
+
+                async next() {
+                    if (! await this.validateStep()) return;
+                    await this.persistDraft(true);
                     const nextKey = this.steps[this.step + 1]?.key;
                     if (nextKey === 'review') {
                         this.refreshReview(this.$root);
@@ -644,7 +911,12 @@
                 onSubmit(e) {
                     if (! this.canApply) {
                         e.preventDefault();
-                        alert(@js(__('borrower.apply.kyc_incomplete_submit')));
+                        const url = @js($applyRequirements['first_action_url'] ?? null);
+                        if (url && confirm(@js(__('borrower.apply.kyc_incomplete_submit')))) {
+                            window.location.href = url;
+                        } else {
+                            alert(@js(__('borrower.apply.kyc_incomplete_submit')));
+                        }
                         return;
                     }
                     const consent = e.target.elements['consent'];

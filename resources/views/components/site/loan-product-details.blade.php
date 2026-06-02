@@ -23,7 +23,13 @@
                     <dl class="space-y-2 text-sm">
                         <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ __('borrower.apply.details.loan_amount') }}</dt><dd class="font-semibold text-right" x-text="formatTzs(readiness.product.min_amount) + ' – ' + formatTzs(readiness.product.max_amount)"></dd></div>
                         <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ __('borrower.apply.details.tenure') }}</dt><dd class="font-semibold" x-text="readiness.product.tenure_min_months + ' – ' + readiness.product.tenure_max_months + ' {{ __('borrower.apply.details.months') }}'"></dd></div>
-                        <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ __('borrower.apply.details.monthly_rate') }}</dt><dd class="font-semibold" x-text="(readiness.product.interest_rate * 100).toFixed(1) + '%'"></dd></div>
+                        <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ __('borrower.apply.details.monthly_rate') }}</dt><dd class="font-semibold" x-text="((readiness.product.displayed_monthly_rate ?? readiness.product.interest_rate) * 100).toFixed(1) + '%'"></dd></div>
+                        <template x-if="readiness.product.rate_breakdown">
+                            <div class="text-xs text-gray-500 space-y-0.5 pt-1 border-t border-gray-100">
+                                <p x-text="'BOT: ' + (readiness.product.rate_breakdown.bot_regulated_rate * 100).toFixed(1) + '%'"></p>
+                                <p x-text="'Fees: ' + (readiness.product.rate_breakdown.internal_fee_rate * 100).toFixed(1) + '%'"></p>
+                            </div>
+                        </template>
                         <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ __('borrower.apply.details.repayment') }}</dt><dd class="font-semibold capitalize" x-text="readiness.product.repayment_frequency || 'weekly'"></dd></div>
                         <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ __('borrower.apply.details.processing_time') }}</dt><dd class="font-semibold" x-text="readiness.processing_time"></dd></div>
                     </dl>
