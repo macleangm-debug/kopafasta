@@ -23,7 +23,7 @@ class ChargesFeeController extends ResourceController
             'amount' => ['required', 'numeric', 'min:0'],
             'min_amount' => ['nullable', 'numeric', 'min:0'],
             'max_amount' => ['nullable', 'numeric', 'min:0'],
-            'charge_when' => ['required', 'in:disbursement,application,repayment,late,event'],
+            'charge_when' => ['required', 'in:application,post_approval,disbursement,repayment,late,event'],
             'gl_account_id' => ['nullable', 'exists:chart_of_accounts,id'],
             'is_active' => ['nullable', 'boolean'],
             'description' => ['nullable', 'string', 'max:1000'],
@@ -35,7 +35,14 @@ class ChargesFeeController extends ResourceController
         return [
             'types' => ['origination'=>'Origination','processing'=>'Processing','late_fee'=>'Late fee','penalty'=>'Penalty','insurance'=>'Insurance','gps'=>'GPS','valuation'=>'Valuation','restructure'=>'Restructure','early_settlement'=>'Early settlement','other'=>'Other'],
             'bases' => ['fixed'=>'Fixed amount','percentage'=>'Percentage','per_day'=>'Per day','per_installment'=>'Per installment'],
-            'whens' => ['disbursement'=>'At disbursement','application'=>'At application','repayment'=>'At repayment','late'=>'When late','event'=>'On event'],
+            'whens' => [
+                'application'    => 'At application',
+                'post_approval'  => 'After approval (before disbursement)',
+                'disbursement'   => 'At disbursement',
+                'repayment'      => 'At repayment',
+                'late'           => 'When late / in arrears',
+                'event'          => 'On event',
+            ],
             'glAccounts' => ChartOfAccount::where('type', 'income')->orderBy('code')->pluck('name', 'id'),
         ];
     }

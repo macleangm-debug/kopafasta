@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\ChargesFee;
 use App\Models\Customer;
 use App\Models\CustomerDocument;
 use App\Models\LoanProduct;
@@ -34,7 +33,7 @@ class LoanProductReadinessService
             ->first(fn (array $item) => ! empty($item['action_url']) && empty($item['application_step']))['action_url'] ?? null;
 
         $applicationFee = quoted_application_fee($customer, $product);
-        $origFee = ChargesFee::where('code', 'ORIG_FEE')->where('is_active', true)->first();
+        $postApprovalSummary = $this->postApprovalFeeSummary($product);
         $displayedRate = app(DisplayedRateService::class);
 
         $readinessEmoji = match (true) {
@@ -70,9 +69,10 @@ class LoanProductReadinessService
             'fees'               => [
                 'application'          => $applicationFee,
                 'application_label'    => __('borrower.apply.readiness.fees.application'),
-                'post_approval'        => $origFee ? (float) $origFee->amount : 0,
-                'post_approval_label'  => $origFee?->name ?? __('borrower.apply.readiness.fees.post_approval'),
-                'post_approval_detail' => $origFee?->description ?? __('borrower.apply.readiness.fees.post_approval_detail'),
+                'post_approval'        => $postApprovalSummary['total'],
+                'post_approval_label'  => __('borrower.apply.readiness.fees.post_approval'),
+                'post_approval_detail' => $postApprovalSummary['detail'],
+                'post_approval_lines' => $postApprovalSummary['lines'],
             ],
             'product_specific'   => $this->localizedProductSpecific($product->code),
             'processing_time'    => $this->localizedProcessingTime($product->code),
@@ -80,6 +80,46 @@ class LoanProductReadinessService
                 ->reject(fn (array $step) => $step['key'] === 'product')
                 ->values()
                 ->all(),
+        ];
+    }
+
+    /** @return array{total: float, detail: string, lines: list<array{name: string, amount: float}>} */
+    private function postApprovalFeeSummary(LoanProduct $product): array
+    {
+        $product->loadMissing('postApprovalFees');
+        $fees = $product->postApprovalFees()->where('is_active', true)->orderBy('sort_order')->get();
+        $principal = (float) $product->min_amount;
+        $postApproval = app(PostApprovalFeeService::class);
+
+        $lines = [];
+        $total = 0.0;
+        foreach ($fees as $fee) {
+            $amount = $postApproval->calculateAmount($fee, $principal);
+            $total += $amount;
+            $lines[] = ['name' => $fee->name, 'amount' => $amount];
+        }
+
+        if ($lines === []) {
+            $catalog = app(FeeCatalogService::class)->postApprovalFees();
+            foreach ($catalog as $fee) {
+                $lines[] = [
+                    'name'   => $fee->name,
+                    'amount' => $fee->basis === 'percentage'
+                        ? round($principal * ((float) $fee->amount / 100), 2)
+                        : (float) $fee->amount,
+                ];
+            }
+            $total = collect($lines)->sum('amount');
+        }
+
+        $detail = $lines === []
+            ? __('borrower.apply.readiness.fees.post_approval_detail')
+            : collect($lines)->map(fn (array $l) => $l['name'].' (from TZS '.number_format($principal).')')->join(' · ');
+
+        return [
+            'total'  => round($total, 2),
+            'detail' => $detail,
+            'lines'  => $lines,
         ];
     }
 

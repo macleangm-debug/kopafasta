@@ -3,8 +3,10 @@
     <x-admin.input  name="code"  label="Code" :value="$r?->code" required />
     <x-admin.input  name="name"  label="Name" :value="$r?->name" required />
     <x-admin.select name="type"  label="Type"  :options="$types" :value="$r?->type" required placeholder="—" />
-    <x-admin.select name="basis" label="Basis" :options="$bases" :value="$r?->basis" required placeholder="—" />
-    <x-admin.input  name="amount" label="Amount / rate" type="number" step="0.0001" :value="$r?->amount ?? '0'" required />
+    <x-admin.select name="basis" label="Basis" :options="$bases" :value="$r?->basis" required placeholder="—"
+                    help="Fixed = TZS amount. Percentage = % of approved principal (or overdue balance for late fees)." />
+    <x-admin.input  name="amount" label="Amount / rate" type="number" step="0.0001" :value="$r?->amount ?? '0'" required
+                    help="For percentage, enter 2 for 2%. For fixed, enter TZS amount." />
     <x-admin.input  name="min_amount" label="Min amount" type="number" step="0.01" :value="$r?->min_amount" />
     <x-admin.input  name="max_amount" label="Max amount" type="number" step="0.01" :value="$r?->max_amount" />
     <x-admin.select name="charge_when" label="When"   :options="$whens" :value="$r?->charge_when ?? 'disbursement'" required />

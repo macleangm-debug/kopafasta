@@ -29,7 +29,7 @@ class AssetMarketplaceFeeService
     {
         return ChargesFee::query()
             ->where('is_active', true)
-            ->whereIn('charge_when', ['disbursement', 'approval'])
+            ->where('charge_when', 'post_approval')
             ->orderBy('code')
             ->get()
             ->map(fn (ChargesFee $fee) => [

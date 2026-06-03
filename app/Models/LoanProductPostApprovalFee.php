@@ -9,7 +9,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class LoanProductPostApprovalFee extends Model
 {
     protected $fillable = [
-        'loan_product_id', 'code', 'name', 'fee_type', 'amount', 'sort_order', 'is_active',
+        'loan_product_id',
+        'charges_fee_id',
+        'code',
+        'name',
+        'fee_type',
+        'amount',
+        'sort_order',
+        'is_active',
     ];
 
     protected function casts(): array
@@ -23,5 +30,10 @@ class LoanProductPostApprovalFee extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(LoanProduct::class, 'loan_product_id');
+    }
+
+    public function catalogFee(): BelongsTo
+    {
+        return $this->belongsTo(ChargesFee::class, 'charges_fee_id');
     }
 }

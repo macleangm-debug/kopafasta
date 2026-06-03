@@ -49,6 +49,28 @@
         </div>
     @endif
 
+    @if ($record->postApprovalFees->isNotEmpty())
+        <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+            <h2 class="text-sm font-semibold text-gray-900 mb-3">Post-approval fees</h2>
+            <p class="text-xs text-gray-500 mb-3">Pulled from <a href="{{ route('admin.charges-fees.index') }}" class="text-amber-700 font-semibold">fee management</a> and attached to this product.</p>
+            <ul class="divide-y divide-gray-100 text-sm">
+                @foreach ($record->postApprovalFees as $fee)
+                    <li class="py-2 flex justify-between gap-3">
+                        <span>{{ $fee->name }} <span class="text-xs text-gray-500">({{ $fee->code }})</span></span>
+                        <span class="font-semibold text-gray-800">
+                            @if ($fee->fee_type === 'percent')
+                                {{ number_format((float) $fee->amount, 2) }}%
+                            @else
+                                TZS {{ number_format((float) $fee->amount, 0) }}
+                            @endif
+                            · {{ $fee->is_active ? 'Active' : 'Off' }}
+                        </span>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div>

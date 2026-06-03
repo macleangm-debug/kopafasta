@@ -102,6 +102,8 @@ fi
 "$PHP_BIN" artisan db:seed --class=PublicLoanProductsSeeder --force || true
 "$PHP_BIN" artisan db:seed --class=LoanProductRateTierSeeder --force || true
 "$PHP_BIN" artisan db:seed --class=LoanProductPenaltyDefaultsSeeder --force || true
+"$PHP_BIN" artisan db:seed --class=ChargesFeeSeeder --force || true
+"$PHP_BIN" artisan db:seed --class=LoanProductPostApprovalFeeCatalogSeeder --force || true
 "$PHP_BIN" artisan db:seed --class=NotificationTemplateSeeder --force || true
 "$PHP_BIN" artisan db:seed --class=KycDocumentTypeSeeder --force || true
 "$PHP_BIN" artisan db:seed --class=MarketplaceAssetSeeder --force || true

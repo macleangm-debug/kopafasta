@@ -8,6 +8,7 @@ use App\Models\LoanProductRequirement;
 use App\Services\AuditService;
 use App\Services\DisplayedRateService;
 use App\Models\LoanProductRateTier;
+use App\Services\FeeCatalogService;
 use App\Services\LoanRateTierTemplateService;
 use App\Support\MoneyFormat;
 use App\Support\RatePercent;
@@ -43,6 +44,7 @@ class LoanProductController extends ResourceController
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name', 'code']),
+            'postApprovalFeeCatalog' => app(FeeCatalogService::class)->postApprovalFees(),
         ];
     }
 
@@ -76,9 +78,10 @@ class LoanProductController extends ResourceController
             'requirements.*.description' => ['nullable', 'string', 'max:500'],
             'requirements.*.is_required' => ['nullable', 'boolean'],
             'post_approval_fees' => ['nullable', 'array'],
+            'post_approval_fees.*.charges_fee_id' => ['nullable', 'integer', 'exists:charges_fees,id'],
             'post_approval_fees.*.code' => ['nullable', 'string', 'max:40'],
             'post_approval_fees.*.name' => ['nullable', 'string', 'max:150'],
-            'post_approval_fees.*.fee_type' => ['nullable', 'in:fixed,percent'],
+            'post_approval_fees.*.fee_type' => ['nullable', 'in:fixed,percent,gps'],
             'post_approval_fees.*.amount' => ['nullable', 'numeric', 'min:0'],
             'post_approval_fees.*.is_active' => ['nullable', 'boolean'],
             'rate_tiers' => ['nullable', 'array'],
@@ -124,7 +127,13 @@ class LoanProductController extends ResourceController
 
     public function show($id)
     {
-        $record = LoanProduct::with(['requirements', 'rateTiers', 'offerLetterTemplate', 'loanContractTemplate'])->findOrFail($id);
+        $record = LoanProduct::with([
+            'requirements',
+            'rateTiers',
+            'postApprovalFees',
+            'offerLetterTemplate',
+            'loanContractTemplate',
+        ])->findOrFail($id);
 
         return view("admin.{$this->viewFolder}.show", ['record' => $record]);
     }
@@ -197,15 +206,36 @@ class LoanProductController extends ResourceController
         }
 
         $fees = $request->input('post_approval_fees', []);
-        if (is_array($fees)) {
-            foreach ($fees as $index => $fee) {
-                if (! is_array($fee) || ($fee['fee_type'] ?? 'fixed') !== 'fixed') {
+        if (! is_array($fees)) {
+            $fees = [];
+        }
+
+        $catalogIds = $request->input('post_approval_catalog', []);
+        if (is_array($catalogIds)) {
+            foreach ($catalogIds as $feeId) {
+                $feeId = (int) $feeId;
+                if ($feeId <= 0) {
                     continue;
                 }
+                $exists = collect($fees)->contains(
+                    fn ($row) => is_array($row) && (int) ($row['charges_fee_id'] ?? 0) === $feeId,
+                );
+                if (! $exists) {
+                    $fees[] = ['charges_fee_id' => $feeId, 'is_active' => true];
+                }
+            }
+        }
+
+        foreach ($fees as $index => $fee) {
+            if (! is_array($fee) || ! empty($fee['charges_fee_id'])) {
+                continue;
+            }
+            if (($fee['fee_type'] ?? 'fixed') === 'fixed') {
                 $fees[$index]['amount'] = MoneyFormat::toNumber($fee['amount'] ?? 0);
             }
-            $request->merge(['post_approval_fees' => $fees]);
         }
+
+        $request->merge(['post_approval_fees' => $fees]);
     }
 
     protected function syncInterestRateFromTiers(LoanProduct $product): void
@@ -266,27 +296,48 @@ class LoanProductController extends ResourceController
     /** @param list<array<string, mixed>> $rows */
     protected function syncPostApprovalFees(LoanProduct $product, array $rows): void
     {
+        $catalog = app(FeeCatalogService::class);
         $product->postApprovalFees()->delete();
 
         $order = 0;
         foreach ($rows as $row) {
+            $feeId = (int) ($row['charges_fee_id'] ?? 0);
+            $catalogFee = $feeId > 0 ? $catalog->findPostApprovalFee($feeId) : null;
+
+            if ($catalogFee) {
+                $snapshot = $catalog->snapshotForProduct($catalogFee);
+                $product->postApprovalFees()->create([
+                    'charges_fee_id' => $snapshot['charges_fee_id'],
+                    'code'           => $snapshot['code'],
+                    'name'           => $snapshot['name'],
+                    'fee_type'       => $snapshot['fee_type'],
+                    'amount'         => $snapshot['amount'],
+                    'sort_order'     => $order++,
+                    'is_active'      => (bool) ($row['is_active'] ?? true),
+                ]);
+
+                continue;
+            }
+
             $name = trim((string) ($row['name'] ?? ''));
             $code = trim((string) ($row['code'] ?? ''));
             if ($name === '' || $code === '') {
                 continue;
             }
 
-            $amount = ($row['fee_type'] ?? 'fixed') === 'percent'
+            $feeType = (string) ($row['fee_type'] ?? 'fixed');
+            $amount = $feeType === 'percent'
                 ? RatePercent::toDecimal($row['amount'] ?? 0)
                 : MoneyFormat::toNumber($row['amount'] ?? 0);
 
             $product->postApprovalFees()->create([
-                'code'       => $code,
-                'name'       => $name,
-                'fee_type'   => ($row['fee_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed',
-                'amount'     => $amount,
-                'sort_order' => $order++,
-                'is_active'  => (bool) ($row['is_active'] ?? true),
+                'charges_fee_id' => null,
+                'code'           => $code,
+                'name'           => $name,
+                'fee_type'       => in_array($feeType, ['percent', 'gps'], true) ? $feeType : 'fixed',
+                'amount'         => $amount,
+                'sort_order'     => $order++,
+                'is_active'      => (bool) ($row['is_active'] ?? true),
             ]);
         }
     }

@@ -4,6 +4,7 @@
     <x-admin.input  name="name" label="Name" :value="$r?->name" required />
     <x-admin.select name="is_active" label="Status" :options="['1'=>'Active','0'=>'Inactive']" :value="(string)($r?->is_active ?? '1')" required />
     <div class="md:col-span-2">
-        <x-admin.textarea name="content" label="Content (Blade / HTML, supports variables)" :value="$r?->content" rows="14" required />
+        <x-admin.textarea name="content" label="Content (Blade / HTML)" :value="$r?->content" rows="14" required
+                          help="Use {{ '{{ $variable }}' }} placeholders filled when generating PDFs (customer name, principal, monthly rate, repayment schedule, signatures, etc.). Test with a real application before going live." />
     </div>
 </x-admin.step>
