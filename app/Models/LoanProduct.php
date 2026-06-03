@@ -18,6 +18,7 @@ class LoanProduct extends Model
             'administration_fee_rate' => 'decimal:4',
             'min_amount' => 'decimal:2',
             'max_amount' => 'decimal:2',
+            'application_fee_amount' => 'integer',
             'requires_collateral' => 'boolean',
             'requires_guarantor' => 'boolean',
             'collateral_rules' => 'array',

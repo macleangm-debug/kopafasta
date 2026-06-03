@@ -21,7 +21,8 @@
                     <x-admin.input :name="'post_approval_fees['.$i.'][code]'" label="Code" :value="$row['code']" placeholder="DISB_FEE" />
                     <x-admin.input :name="'post_approval_fees['.$i.'][name]'" label="Name" :value="$row['name']" />
                     <x-admin.select :name="'post_approval_fees['.$i.'][fee_type]'" label="Type" :options="['fixed' => 'Fixed', 'percent' => '% of principal']" :value="$row['fee_type']" />
-                    <x-admin.input :name="'post_approval_fees['.$i.'][amount]'" label="Amount" type="number" step="0.01" :value="$row['amount']" />
+                    <x-admin.money-input :name="'post_approval_fees['.$i.'][amount]'" label="Amount" :value="$row['amount']"
+                                         :help="($row['fee_type'] ?? 'fixed') === 'percent' ? 'Enter percent without % sign' : 'TZS amount'" />
                     <x-admin.select :name="'post_approval_fees['.$i.'][is_active]'" label="Active" :options="['1' => 'Yes', '0' => 'No']" :value="($row['is_active'] ?? true) ? '1' : '0'" />
                 </div>
             @endforeach

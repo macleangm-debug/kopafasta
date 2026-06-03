@@ -19,10 +19,10 @@
     </div>
 </x-admin.step>
 
-@include('admin.loan-products._bot-rate-fields')
-
-@include('admin.loan-products._post-approval-fees-fields')
+@include('admin.loan-products._pricing-fields')
 @include('admin.loan-products._rate-tiers-fields')
+@include('admin.loan-products._post-approval-fees-fields')
+<x-admin.number-format-script />
 @include('admin.loan-products._document-templates-fields')
 
 <x-admin.step title="Requirements">

@@ -18,9 +18,7 @@ class DisplayedRateService
         return $tier ? (float) $tier->monthly_rate : null;
     }
 
-    /**
-     * Total monthly rate shown to borrowers (tier total, or BOT + fee components).
-     */
+    /** Total monthly rate shown to borrowers (tier band total, or legacy interest_rate). */
     public function displayedMonthlyRate(LoanProduct $product, ?float $principal = null): float
     {
         $amount = $principal ?? (float) $product->min_amount;
@@ -35,7 +33,7 @@ class DisplayedRateService
 
     public function productLevelMonthlyRate(LoanProduct $product): float
     {
-        return $this->feeStackBreakdown($product)['displayed_monthly_rate'];
+        return (float) ($product->interest_rate ?? 0);
     }
 
     /**
@@ -51,7 +49,7 @@ class DisplayedRateService
             return ['min' => $rates->min(), 'max' => $rates->max()];
         }
 
-        $rate = $this->productLevelMonthlyRate($product);
+        $rate = max(0, $this->productLevelMonthlyRate($product));
 
         return ['min' => $rate, 'max' => $rate];
     }

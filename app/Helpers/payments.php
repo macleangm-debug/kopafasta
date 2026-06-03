@@ -2,6 +2,7 @@
 
 use App\Models\ChargesFee;
 use App\Models\Customer;
+use App\Models\LoanProduct;
 use App\Services\AffiliateService;
 use App\Services\PromotionService;
 use App\Services\ReferralService;
@@ -26,9 +27,14 @@ if (! function_exists('payment_channels_for_amount')) {
 }
 
 if (! function_exists('quoted_application_fee')) {
-    function quoted_application_fee(?Customer $customer): int
+    function quoted_application_fee(?Customer $customer, ?LoanProduct $product = null): int
     {
-        $base = (float) (optional(ChargesFee::where('code', 'APP_FEE')->where('is_active', true)->first())->amount ?? 0);
+        $base = null;
+        if ($product && (int) ($product->application_fee_amount ?? 0) > 0) {
+            $base = (float) $product->application_fee_amount;
+        } else {
+            $base = (float) (optional(ChargesFee::where('code', 'APP_FEE')->where('is_active', true)->first())->amount ?? 0);
+        }
 
         if ($base <= 0) {
             return 0;

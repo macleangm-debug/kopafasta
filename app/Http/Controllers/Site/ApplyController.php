@@ -121,7 +121,7 @@ class ApplyController extends Controller
             ->values()
             ->all();
         $incomeVerification = $wizard->incomeVerification($customer);
-        $applicationFee = quoted_application_fee($customer);
+        $applicationFee = quoted_application_fee($customer, $selectedProduct);
         $productQuestions = config('loan_product_questions', []);
         $readinessUrl = route('site.borrower.apply.product-readiness', ['product' => '__ID__']);
 
@@ -422,7 +422,7 @@ class ApplyController extends Controller
         $status = 'submitted';
         $submittedAt = now();
 
-        $appFee = quoted_application_fee($customer);
+        $appFee = quoted_application_fee($customer, $loanProduct);
 
         $app = LoanApplication::create([
             'customer_id'                => $customer->id,

@@ -33,7 +33,7 @@ class LoanProductReadinessService
         $firstMissingUrl = collect($missing)
             ->first(fn (array $item) => ! empty($item['action_url']) && empty($item['application_step']))['action_url'] ?? null;
 
-        $applicationFee = quoted_application_fee($customer);
+        $applicationFee = quoted_application_fee($customer, $product);
         $origFee = ChargesFee::where('code', 'ORIG_FEE')->where('is_active', true)->first();
         $displayedRate = app(DisplayedRateService::class);
 

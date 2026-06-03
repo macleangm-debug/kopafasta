@@ -8,9 +8,10 @@
         'Code'                => $record->code,
         'Name'                => $record->name,
         'Category'            => display_label((string) $record->category, 'product_category'),
-        'Base interest rate'  => number_format((float) $record->interest_rate * 100, 2).' %',
-        'BOT regulated rate'  => number_format((float) (app(\App\Services\DisplayedRateService::class)->breakdown($record)['bot_regulated_rate']) * 100, 2).' %',
         'Monthly rate (borrower)' => app(\App\Services\DisplayedRateService::class)->formatBorrowerRateRange($record).' / month',
+        'Application fee'     => ($record->application_fee_amount ?? 0) > 0
+            ? 'TZS '.number_format((int) $record->application_fee_amount)
+            : 'Global default',
         'Tenure (months)'     => $record->tenure_min_months.' – '.$record->tenure_max_months,
         'Repayment cadence'   => ucfirst($record->repayment_cadence ?? 'weekly'),
         'Min amount'          => 'TZS '.number_format((float) $record->min_amount),
@@ -23,6 +24,31 @@
         'Description'         => ['value' => $record->description, 'wide' => true],
         'Created'             => $record->created_at?->format('Y-m-d H:i'),
     ]">
+
+    @if ($record->rateTiers->isNotEmpty())
+        <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+            <h2 class="text-sm font-semibold text-gray-900 mb-3">Tiered monthly rates</h2>
+            <p class="text-xs text-gray-500 mb-4">Total monthly rate to borrower (all components included).</p>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="text-xs uppercase text-gray-500 border-b border-gray-100">
+                        <tr>
+                            <th class="text-left py-2 pr-4">Amount band (TZS)</th>
+                            <th class="text-right py-2">Monthly rate</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                        @foreach ($record->rateTiers as $tier)
+                            <tr>
+                                <td class="py-2 pr-4">{{ number_format((float) $tier->min_amount) }} – {{ number_format((float) $tier->max_amount) }}</td>
+                                <td class="py-2 text-right font-semibold">{{ number_format((float) $tier->monthly_rate * 100, 1) }}%</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
 
     <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-4">

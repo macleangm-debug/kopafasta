@@ -3,22 +3,9 @@
 namespace App\Services;
 
 use App\Models\LoanProduct;
-use App\Models\LoanProductRateTier;
 
 class LoanRateTierTemplateService
 {
-    public function shouldSkip(LoanProduct $product): bool
-    {
-        $code = strtoupper((string) $product->code);
-        $category = (string) ($product->category ?? '');
-
-        if (in_array($code, config('loan_product_rate_tiers.exclude_codes', []), true)) {
-            return true;
-        }
-
-        return in_array($category, config('loan_product_rate_tiers.exclude_categories', []), true);
-    }
-
     /** @return list<array{min_amount: float, max_amount: float, monthly_rate: float, sort_order: int}> */
     public function tiersForProduct(LoanProduct $product): array
     {
@@ -52,13 +39,11 @@ class LoanRateTierTemplateService
         return $rows;
     }
 
-    public function applyDefaults(LoanProduct $product): void
+    public function applyDefaults(LoanProduct $product, bool $replaceExisting = false): void
     {
-        if ($this->shouldSkip($product)) {
-            return;
-        }
-
-        if ($product->rateTiers()->exists()) {
+        if ($replaceExisting) {
+            $product->rateTiers()->delete();
+        } elseif ($product->rateTiers()->exists()) {
             return;
         }
 
@@ -71,7 +56,7 @@ class LoanRateTierTemplateService
     public function previewRows(?string $code = null): array
     {
         $template = $code
-            ? (config("loan_product_rate_tiers.templates.".strtoupper($code)) ?? config('loan_product_rate_tiers.default_template'))
+            ? (config('loan_product_rate_tiers.templates.'.strtoupper($code)) ?? config('loan_product_rate_tiers.default_template'))
             : config('loan_product_rate_tiers.default_template', []);
 
         return collect($template)

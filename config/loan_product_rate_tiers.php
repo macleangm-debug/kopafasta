@@ -1,13 +1,10 @@
 <?php
 
 /**
- * Default tiered monthly rates (stored as decimals; shown to admins as percents).
- * Tiers define the total monthly rate shown to borrowers for each amount band.
+ * Default tiered monthly rates (stored as decimals; admins enter percents).
+ * Each tier monthly_rate is the TOTAL rate shown to borrowers (BOT + processing + risk + administration).
  */
 return [
-    'exclude_codes' => ['SAL-12', 'SAL', 'ASL'],
-    'exclude_categories' => ['salary_loan'],
-
     'default_template' => [
         ['min_amount' => 100_000, 'max_amount' => 500_000, 'monthly_rate' => 0.17],
         ['min_amount' => 500_001, 'max_amount' => 1_000_000, 'monthly_rate' => 0.15],
@@ -64,6 +61,19 @@ return [
             ['min_amount' => 50_000, 'max_amount' => 500_000, 'monthly_rate' => 0.17],
             ['min_amount' => 500_001, 'max_amount' => 2_000_000, 'monthly_rate' => 0.14],
             ['min_amount' => 2_000_001, 'max_amount' => null, 'monthly_rate' => 0.12],
+        ],
+        'SAL-12' => [
+            ['min_amount' => 200_000, 'max_amount' => 1_000_000, 'monthly_rate' => 0.14],
+            ['min_amount' => 1_000_001, 'max_amount' => 3_000_000, 'monthly_rate' => 0.12],
+            ['min_amount' => 3_000_001, 'max_amount' => null, 'monthly_rate' => 0.10],
+        ],
+        'BIZ-30' => [
+            ['min_amount' => 100_000, 'max_amount' => 500_000, 'monthly_rate' => 0.16],
+            ['min_amount' => 500_001, 'max_amount' => null, 'monthly_rate' => 0.13],
+        ],
+        'AGR-24' => [
+            ['min_amount' => 300_000, 'max_amount' => 2_000_000, 'monthly_rate' => 0.14],
+            ['min_amount' => 2_000_001, 'max_amount' => null, 'monthly_rate' => 0.11],
         ],
     ],
 ];

@@ -99,7 +99,7 @@ class SmartLoanApplicationWizardService
         $rate = app(DisplayedRateService::class)->displayedMonthlyRate($product, $amount);
         $emi = $this->estimateEmi($amount, $rate, $tenureMonths);
         $interestTotal = max(0, ($emi * $tenureMonths) - $amount);
-        $fees = (int) (optional(ChargesFee::where('code', 'APP_FEE')->where('is_active', true)->first())->amount ?? 0);
+        $fees = quoted_application_fee(null, $product);
 
         return [
             'monthly_installment'  => $emi,
