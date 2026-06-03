@@ -47,12 +47,7 @@
             </div>
         </dl>
     </button>
-    <div x-show="open === {{ $product->id }}" x-transition x-cloak class="border-t border-gray-100 px-5 pb-5">
-        <dl class="grid gap-2 text-sm pt-4">
-            <div><dt class="text-gray-500">{{ __('borrower.apply.details.monthly_rate') }}</dt><dd class="font-medium">{{ $rateLabel }} {{ __('borrower.apply.browse.per_month') }}</dd></div>
-            <div><dt class="text-gray-500">Maximum amount</dt><dd class="font-medium">{{ format_money($product->max_amount, false) }}</dd></div>
-            <div><dt class="text-gray-500">Maximum tenure</dt><dd class="font-medium">{{ $product->tenure_max_months }} {{ __('borrower.apply.details.months') }}</dd></div>
-        </dl>
+    <div x-show="open === {{ $product->id }}" x-transition x-cloak class="border-t border-gray-100 px-5 pb-5 pt-4">
         <a href="{{ route('site.borrower.apply', ['product' => $product->id]) }}"
            class="mt-4 inline-flex w-full justify-center bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
             Apply for {{ $product->name }} →
