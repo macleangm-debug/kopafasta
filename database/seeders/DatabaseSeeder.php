@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             LoanProductSeeder::class,
             PublicLoanProductsSeeder::class,
             LoanProductRateTierSeeder::class,
+            LoanProductPenaltyDefaultsSeeder::class,
             CustomerSeeder::class,
             DemoLoanSeeder::class,
             VendorSeeder::class,

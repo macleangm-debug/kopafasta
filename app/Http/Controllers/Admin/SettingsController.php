@@ -154,8 +154,9 @@ class SettingsController extends Controller
     {
         $data = $request->validate([
             'default_grace_days'   => ['required', 'integer', 'min:0', 'max:90'],
-            'default_penalty_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+            'default_penalty_rate' => ['required', 'numeric', 'min:0', 'max:5'],
             'penalty_basis'        => ['required', 'in:per_day,per_month,one_time'],
+            'penalty_cap_percent'  => ['required', 'numeric', 'min:0', 'max:30'],
             'max_tenure_months'    => ['required', 'integer', 'min:1', 'max:120'],
             'min_tenure_months'    => ['required', 'integer', 'min:1'],
             'max_loan_amount'      => ['required', 'numeric', 'min:0'],

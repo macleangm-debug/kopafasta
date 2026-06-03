@@ -14,6 +14,8 @@ class Loan extends Model
             'principal_amount' => 'decimal:2',
             'approved_amount' => 'decimal:2',
             'interest_rate' => 'decimal:4',
+            'default_grace_days' => 'integer',
+            'penalty_rate_percent' => 'decimal:2',
             'outstanding_balance' => 'decimal:2',
             'disbursement_date' => 'date',
             'maturity_date' => 'date',

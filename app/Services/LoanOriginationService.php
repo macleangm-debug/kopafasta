@@ -33,7 +33,9 @@ class LoanOriginationService
 
         $amount = (float) ($application->approved_amount ?: $application->recommended_amount ?: $application->requested_amount);
         $tenure = (int) ($application->requested_tenure_months ?: $application->product->tenure_min_months);
-        $monthlyRate = app(DisplayedRateService::class)->displayedMonthlyRate($application->product, $amount);
+        $product = $application->product;
+        $monthlyRate = app(DisplayedRateService::class)->displayedMonthlyRate($product, $amount);
+        $penaltyDefaults = LoanPenaltyPolicy::defaultsForProduct($product);
 
         return Loan::create([
             'loan_application_id' => $application->id,
@@ -44,6 +46,9 @@ class LoanOriginationService
             'approved_amount'       => $amount,
             'outstanding_balance'   => $amount,
             'interest_rate'         => $monthlyRate,
+            'default_grace_days'    => $penaltyDefaults['default_grace_days'],
+            'penalty_rate_percent'  => $penaltyDefaults['penalty_rate_percent'],
+            'penalty_basis'         => $penaltyDefaults['penalty_basis'],
             'tenure_months'         => max(1, $tenure),
             'status'                => 'pending',
         ]);

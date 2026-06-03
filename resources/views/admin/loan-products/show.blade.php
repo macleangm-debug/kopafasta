@@ -16,6 +16,8 @@
         'Repayment cadence'   => ucfirst($record->repayment_cadence ?? 'weekly'),
         'Min amount'          => 'TZS '.number_format((float) $record->min_amount),
         'Max amount'          => 'TZS '.number_format((float) $record->max_amount),
+        'Grace after default' => ($record->default_grace_days ?? 7).' days',
+        'Penalty'             => number_format((float) ($record->penalty_rate_percent ?? 1), 2).'% of amount owed '.str_replace('_', ' ', (string) ($record->penalty_basis ?? 'per_day')),
         'Requires collateral' => $record->requires_collateral ? 'Yes' : 'No',
         'Requires guarantor'  => $record->requires_guarantor ? 'Yes' : 'No',
         'Offer letter template' => $record->offerLetterTemplate?->name ?? 'System default',

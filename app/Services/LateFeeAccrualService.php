@@ -64,15 +64,37 @@ class LateFeeAccrualService
             ->first();
         if (!$firstOverdue) return $out;
 
-        $start = Carbon::parse($firstOverdue->due_date)->copy()->startOfDay()->addDay(); // grace = 0; first late day = due_date+1
+        $policy = LoanPenaltyPolicy::for($loan);
+        $graceDays = $policy->graceDaysAfterDefault();
+        $start = Carbon::parse($firstOverdue->due_date)->copy()->startOfDay()->addDays($graceDays + 1);
         $end   = $asOf->copy()->startOfDay();
 
-        if ($end->lt($start)) return $out;
+        if ($end->lt($start)) {
+            return $out;
+        }
 
-        // What's the per-day amount?
         $base = (float) ($firstOverdue->total_due - $firstOverdue->amount_paid);
-        $perDay = $this->perDayAmount($rule, $base);
-        if ($perDay <= 0) return $out;
+        $perDay = $policy->perDayPenaltyAmount($base);
+        if ($perDay <= 0) {
+            return $out;
+        }
+
+        $overdueBalance = (float) RepaymentSchedule::query()
+            ->where('loan_id', $loan->id)
+            ->where('status', '!=', 'paid')
+            ->whereDate('due_date', '<', $asOf->toDateString())
+            ->get()
+            ->sum(fn ($row) => max(0, (float) $row->total_due - (float) $row->amount_paid));
+
+        $maxPenalty = $policy->maxPenaltyAmount($overdueBalance);
+        $alreadyAccrued = (float) LoanFee::query()
+            ->where('loan_id', $loan->id)
+            ->where('code', 'LATE_FEE')
+            ->sum('computed_amount');
+        $remainingCap = max(0, $maxPenalty - $alreadyAccrued);
+        if ($remainingCap <= 0) {
+            return $out;
+        }
 
         // Find dates already accrued (LoanFee notes will store accrual date YYYY-MM-DD)
         $existing = LoanFee::where('loan_id', $loan->id)
@@ -83,10 +105,16 @@ class LateFeeAccrualService
             ->all();
 
         $created = [];
-        DB::transaction(function () use ($loan, $rule, $start, $end, $perDay, $existing, &$created, &$out) {
+        DB::transaction(function () use ($loan, $rule, $policy, $start, $end, $perDay, $existing, &$remainingCap, &$created, &$out) {
             for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
-                $tag = 'accrual:' . $d->toDateString();
-                if (in_array($tag, $existing, true)) continue;
+                if ($remainingCap <= 0) {
+                    break;
+                }
+                $tag = 'accrual:'.$d->toDateString();
+                if (in_array($tag, $existing, true)) {
+                    continue;
+                }
+                $dayAmount = min($perDay, $remainingCap);
                 $fee = LoanFee::create([
                     'loan_id'                 => $loan->id,
                     'charges_fee_id'          => $rule->id,
@@ -94,8 +122,8 @@ class LateFeeAccrualService
                     'name'                    => $rule->name ?? 'Late payment fee',
                     'type'                    => $rule->type ?? 'fixed',
                     'basis'                   => 'overdue_balance',
-                    'rate_or_amount'          => (float) ($rule->amount ?? $rule->value ?? $perDay),
-                    'computed_amount'         => $perDay,
+                    'rate_or_amount'          => $policy->penaltyRatePercent,
+                    'computed_amount'         => $dayAmount,
                     'deducted_from_principal' => false,
                     'status'                  => 'charged',
                     'charge_when'             => 'late',
@@ -105,7 +133,8 @@ class LateFeeAccrualService
                 ]);
                 $created[] = $fee;
                 $out['fees_created']++;
-                $out['amount'] += $perDay;
+                $out['amount'] += $dayAmount;
+                $remainingCap -= $dayAmount;
             }
 
             if ($out['amount'] > 0) {

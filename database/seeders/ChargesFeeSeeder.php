@@ -53,9 +53,9 @@ class ChargesFeeSeeder extends Seeder
                 'code'        => 'LATE_FEE',
                 'type'        => 'late_fee',
                 'basis'       => 'per_day',
-                'amount'      => 0.1000,
+                'amount'      => 1.0000,
                 'charge_when' => 'late',
-                'description' => '0.1% of overdue principal per day late.',
+                'description' => '1% of overdue balance per day after grace (BOT cumulative cap 30%).',
             ],
             [
                 'name'        => 'Early settlement fee',
