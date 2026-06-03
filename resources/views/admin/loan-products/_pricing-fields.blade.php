@@ -1,4 +1,6 @@
-@php($r = $record ?? null)
+@php
+    $r = $record ?? null;
+@endphp
 
 <x-admin.step title="Pricing & limits">
     <p class="md:col-span-2 text-xs text-gray-500">
@@ -27,13 +29,15 @@
                 $graceDefault = old('default_grace_days', $r?->default_grace_days ?? config('loan_product_defaults.default_grace_days', 7));
                 $penaltyDefault = old('penalty_rate_percent', $r?->penalty_rate_percent ?? config('loan_product_defaults.penalty_rate_percent', 1));
                 $basisDefault = old('penalty_basis', $r?->penalty_basis ?? config('loan_product_defaults.penalty_basis', 'per_day'));
+                $penaltyRateLabel = 'Penalty rate (% of amount owed)';
+                $penaltyRateHelp = 'Default: 1% per day on overdue balance (BOT max cumulative 30%).';
             @endphp
             <x-admin.input name="default_grace_days" label="Grace period after default (days)" type="number"
                            :value="$graceDefault" required
                            help="No penalty is charged until this many days after the instalment due date." />
-            <x-admin.input name="penalty_rate_percent" label="Penalty rate (% of amount owed)" type="number" step="0.01"
+            <x-admin.input name="penalty_rate_percent" :label="$penaltyRateLabel" type="number" step="0.01"
                            :value="$penaltyDefault" required
-                           help="Default: 1% per day on overdue balance (BOT max cumulative 30%)." />
+                           :help="$penaltyRateHelp" />
             <x-admin.select name="penalty_basis" label="Penalty basis"
                             :options="['per_day' => 'Per day', 'per_month' => 'Per month', 'one_time' => 'One time']"
                             :value="$basisDefault" required />
