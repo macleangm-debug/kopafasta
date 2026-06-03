@@ -41,10 +41,10 @@
                             'bg-gray-100 text-gray-700'       => in_array($agreement->status, ['draft','expired','cancelled']),
                         ])>{{ $agreement->status }}</span>
                     </div>
-                    <div><div class="text-xs uppercase text-gray-500">Principal</div><div class="text-gray-900 font-semibold">TZS {{ number_format($snap['principal'] ?? 0) }}</div></div>
+                    <div><div class="text-xs uppercase text-gray-500">Principal</div><div class="text-gray-900 font-semibold">{{ format_money($snap['principal'] ?? 0) }}</div></div>
                     <div><div class="text-xs uppercase text-gray-500">Tenure</div><div class="text-gray-900">{{ $snap['tenure_months'] ?? '—' }} months</div></div>
-                    <div><div class="text-xs uppercase text-gray-500">Interest rate</div><div class="text-gray-900">{{ number_format(($snap['interest_rate'] ?? 0) * 100, 2) }}% / month</div></div>
-                    <div><div class="text-xs uppercase text-gray-500">Estimated EMI</div><div class="text-gray-900">TZS {{ number_format($snap['estimated_emi'] ?? 0) }}</div></div>
+                    <div><div class="text-xs uppercase text-gray-500">Interest rate</div><div class="text-gray-900">{{ format_number(($snap['interest_rate'] ?? 0) * 100, 2) }}% / month</div></div>
+                    <div><div class="text-xs uppercase text-gray-500">Estimated EMI</div><div class="text-gray-900">{{ format_money($snap['estimated_emi'] ?? 0) }}</div></div>
                 </div>
 
                 <div class="mt-5 flex flex-wrap items-center gap-3">

@@ -50,10 +50,10 @@
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3 font-mono text-xs">{{ $row->installment_no }}</td>
                             <td class="px-4 py-3">{{ \Carbon\Carbon::parse($row->due_date)->format('d M Y') }}</td>
-                            <td class="px-4 py-3 text-right">{{ number_format($row->principal_due) }}</td>
-                            <td class="px-4 py-3 text-right">{{ number_format($row->interest_due) }}</td>
-                            <td class="px-4 py-3 text-right font-semibold">{{ number_format($row->total_due) }}</td>
-                            <td class="px-4 py-3 text-right text-gray-500">{{ number_format($row->amount_paid) }}</td>
+                            <td class="px-4 py-3 text-right">{{ format_number($row->principal_due) }}</td>
+                            <td class="px-4 py-3 text-right">{{ format_number($row->interest_due) }}</td>
+                            <td class="px-4 py-3 text-right font-semibold">{{ format_number($row->total_due) }}</td>
+                            <td class="px-4 py-3 text-right text-gray-500">{{ format_number($row->amount_paid) }}</td>
                             <td class="px-4 py-3 text-center"><span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $color }}">{{ ucfirst($st) }}</span></td>
                         </tr>
                     @endforeach

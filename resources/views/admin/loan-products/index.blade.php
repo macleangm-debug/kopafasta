@@ -34,7 +34,7 @@
                         <td class="px-5 py-3">{{ display_label((string) $p->category, 'product_category') }}</td>
                         <td class="px-5 py-3 text-right font-semibold">{{ $rateService->formatBorrowerRateRange($p) }}</td>
                         <td class="px-5 py-3 text-right">{{ $p->tenure_min_months }}–{{ $p->tenure_max_months }}</td>
-                        <td class="px-5 py-3 text-right">{{ number_format((float) $p->min_amount) }} – {{ number_format((float) $p->max_amount) }}</td>
+                        <td class="px-5 py-3 text-right">{{ format_number((float) $p->min_amount) }} – {{ format_number((float) $p->max_amount) }}</td>
                         <td class="px-5 py-3">
                             <x-admin.badge :value="$p->is_active ? 'active' : 'inactive'" :map="[
                                 'active'   => 'bg-emerald-100 text-emerald-800',

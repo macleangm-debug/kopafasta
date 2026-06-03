@@ -44,7 +44,21 @@
                     @endphp
                     <div @class(['sm:col-span-2' => $wide])>
                         <dt class="text-xs text-gray-500">{{ $label }}</dt>
-                        <dd class="text-gray-900 mt-0.5">{!! $value !== null && $value !== '' ? e($value) : '<span class="text-gray-400">—</span>' !!}</dd>
+                        <dd class="text-gray-900 mt-0.5 tabular-nums">
+                            @if ($value !== null && $value !== '')
+                                @if (is_array($row) && ($row['money'] ?? false))
+                                    {{ format_money($value, true, (int) ($row['decimals'] ?? 0)) }}
+                                @elseif (is_array($row) && ($row['numeric'] ?? false))
+                                    {{ format_number($value, (int) ($row['decimals'] ?? 0)) }}
+                                @elseif (is_numeric($value))
+                                    {{ format_number($value) }}
+                                @else
+                                    {!! e($value) !!}
+                                @endif
+                            @else
+                                <span class="text-gray-400">—</span>
+                            @endif
+                        </dd>
                     </div>
                 @endforeach
             </dl>

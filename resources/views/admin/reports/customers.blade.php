@@ -2,36 +2,36 @@
     <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <div class="text-xs text-gray-500 uppercase tracking-wide">Total customers</div>
-            <div class="mt-2 text-2xl font-bold font-mono">{{ number_format($total) }}</div>
+            <div class="mt-2 text-2xl font-bold font-mono">{{ format_number($total) }}</div>
         </div>
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <div class="text-xs text-gray-500 uppercase tracking-wide">Active borrowers</div>
-            <div class="mt-2 text-2xl font-bold text-emerald-600 font-mono">{{ number_format($active) }}</div>
+            <div class="mt-2 text-2xl font-bold text-emerald-600 font-mono">{{ format_number($active) }}</div>
         </div>
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <div class="text-xs text-gray-500 uppercase tracking-wide">Dormant</div>
-            <div class="mt-2 text-2xl font-bold text-gray-600 font-mono">{{ number_format($dormant) }}</div>
+            <div class="mt-2 text-2xl font-bold text-gray-600 font-mono">{{ format_number($dormant) }}</div>
         </div>
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <div class="text-xs text-gray-500 uppercase tracking-wide">New (this month / year)</div>
-            <div class="mt-2 text-2xl font-bold font-mono">{{ number_format($thisMonth) }} / {{ number_format($thisYear) }}</div>
+            <div class="mt-2 text-2xl font-bold font-mono">{{ format_number($thisMonth) }} / {{ format_number($thisYear) }}</div>
         </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <div class="text-xs text-gray-500 uppercase tracking-wide">PEP flagged</div>
-            <div class="mt-2 text-2xl font-bold text-amber-600 font-mono">{{ number_format($pep) }}</div>
+            <div class="mt-2 text-2xl font-bold text-amber-600 font-mono">{{ format_number($pep) }}</div>
         </div>
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <div class="text-xs text-gray-500 uppercase tracking-wide">Blacklisted</div>
-            <div class="mt-2 text-2xl font-bold text-rose-600 font-mono">{{ number_format($blacklisted) }}</div>
+            <div class="mt-2 text-2xl font-bold text-rose-600 font-mono">{{ format_number($blacklisted) }}</div>
         </div>
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <div class="text-xs text-gray-500 uppercase tracking-wide">Risk band distribution</div>
             <div class="mt-2 space-y-1 text-sm">
                 @foreach ($byRisk as $band => $count)
-                    <div class="flex justify-between"><span class="capitalize">{{ $band }}</span><span class="font-mono">{{ number_format($count) }}</span></div>
+                    <div class="flex justify-between"><span class="capitalize">{{ $band }}</span><span class="font-mono">{{ format_number($count) }}</span></div>
                 @endforeach
             </div>
         </div>
@@ -61,7 +61,7 @@
                                 </a>
                             </td>
                             <td class="px-6 py-3 capitalize">{{ $c->risk_band ?? '—' }}</td>
-                            <td class="px-6 py-3 text-right font-mono">{{ number_format((float) $c->exposure, 2) }}</td>
+                            <td class="px-6 py-3 text-right font-mono">{{ format_number((float) $c->exposure, 2) }}</td>
                         </tr>
                     @endforeach
                 </tbody>

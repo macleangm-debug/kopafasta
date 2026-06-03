@@ -17,13 +17,13 @@
         <div class="rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white p-6 shadow-lg mb-6">
             <p class="text-[10px] uppercase tracking-widest text-white/80">{{ $isFirstTime ? __('borrower.membership.registration_fee') : __('borrower.membership.renewal_fee') }}</p>
             @if ($isFirstTime && $feeQuote)
-                <p class="mt-1 text-sm text-white/80 line-through">{{ $config['currency'] }} {{ number_format($feeQuote['base']) }}</p>
-                <p class="mt-1 text-3xl font-extrabold">{{ $config['currency'] }} {{ number_format($feeQuote['after_discount']) }}</p>
+                <p class="mt-1 text-sm text-white/80 line-through">{{ $config['currency'] }} {{ format_number($feeQuote['base']) }}</p>
+                <p class="mt-1 text-3xl font-extrabold">{{ $config['currency'] }} {{ format_number($feeQuote['after_discount']) }}</p>
                 @if ($feeQuote['has_referrer'])
-                    <p class="mt-2 text-xs text-white/90">Referral discount applied ({{ rtrim(rtrim(number_format($referralSettings['discount_percent'], 2), '0'), '.') }}%)</p>
+                    <p class="mt-2 text-xs text-white/90">Referral discount applied ({{ rtrim(rtrim(format_number($referralSettings['discount_percent'], 2), '0'), '.') }}%)</p>
                 @endif
             @else
-                <p class="mt-1 text-3xl font-extrabold">{{ $config['currency'] }} {{ number_format($feeAmount) }}</p>
+                <p class="mt-1 text-3xl font-extrabold">{{ $config['currency'] }} {{ format_number($feeAmount) }}</p>
             @endif
             <p class="mt-3 text-xs text-white/90">Payment reference (auto-generated)</p>
             <p class="mt-1 font-mono text-sm bg-white/15 inline-block px-3 py-1 rounded-lg">{{ $paymentReference }}</p>
@@ -34,12 +34,12 @@
                 <label class="flex items-start gap-3 cursor-pointer">
                     <input type="checkbox" name="use_wallet" value="1" x-model="useWallet" form="membership-renew-form" class="mt-1 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
                     <span>
-                        Use referral wallet balance (<strong>{{ $config['currency'] }} {{ number_format($referralWallet->balance) }}</strong>).
-                        Up to {{ rtrim(rtrim(number_format($referralSettings['wallet_max_fee_percent'], 2), '0'), '.') }}% of this fee can be paid from your wallet.
+                        Use referral wallet balance (<strong>{{ $config['currency'] }} {{ format_number($referralWallet->balance) }}</strong>).
+                        Up to {{ rtrim(rtrim(format_number($referralSettings['wallet_max_fee_percent'], 2), '0'), '.') }}% of this fee can be paid from your wallet.
                     </span>
                 </label>
                 @if ($feeQuote['wallet_applied'] > 0)
-                    <p class="mt-3 text-xs">Wallet credit: <strong>{{ $config['currency'] }} {{ number_format($feeQuote['wallet_applied']) }}</strong> · Cash due: <strong>{{ $config['currency'] }} {{ number_format($feeQuote['cash_due']) }}</strong></p>
+                    <p class="mt-3 text-xs">Wallet credit: <strong>{{ $config['currency'] }} {{ format_number($feeQuote['wallet_applied']) }}</strong> · Cash due: <strong>{{ $config['currency'] }} {{ format_number($feeQuote['cash_due']) }}</strong></p>
                 @endif
             </div>
         @endif

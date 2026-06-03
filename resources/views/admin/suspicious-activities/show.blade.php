@@ -4,7 +4,7 @@
     :editUrl="route('admin.suspicious-activities.edit', $record)"
     :fields="[
         'Activity type' => $record->activity_type,
-        'Amount'        => $record->amount ? number_format($record->amount, 2) : '—',
+        'Amount'        => $record->amount ? format_number($record->amount, 2) : '—',
         'Severity'      => ucfirst($record->severity),
         'Status'        => ucfirst($record->status),
         'Detected'      => optional($record->detected_at)->format('Y-m-d H:i'),

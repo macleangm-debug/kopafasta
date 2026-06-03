@@ -45,7 +45,7 @@
                         </td>
                         <td class="px-4 py-2 font-mono text-xs">{{ optional($r->loan)->loan_number ?? '—' }}</td>
                         <td class="px-4 py-2">{{ $r->channel }}</td>
-                        <td class="px-4 py-2 text-right font-semibold">{{ number_format((float) $r->amount) }}</td>
+                        <td class="px-4 py-2 text-right font-semibold">{{ format_number((float) $r->amount) }}</td>
                     </tr>
                 @empty
                     <tr><td colspan="6" class="px-4 py-8 text-center text-gray-500">No transactions at or above threshold in this period.</td></tr>

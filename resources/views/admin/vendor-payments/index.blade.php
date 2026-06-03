@@ -24,7 +24,7 @@
                         <td class="px-4 py-3 font-medium">{{ $payment->invoice_number }}</td>
                         <td class="px-4 py-3">{{ $payment->vendor?->name ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-600">{{ $payment->description ?? str_replace('_', ' ', $payment->source_type ?? '—') }}</td>
-                        <td class="px-4 py-3">TZS {{ number_format($payment->amount) }}</td>
+                        <td class="px-4 py-3">{{ format_money($payment->amount) }}</td>
                         <td class="px-4 py-3">{{ ucfirst($payment->status) }}</td>
                         <td class="px-4 py-3 text-right space-x-2">
                             @if ($payment->status === 'pending')

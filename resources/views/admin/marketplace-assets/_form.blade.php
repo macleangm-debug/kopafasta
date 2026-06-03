@@ -16,7 +16,7 @@
     <x-admin.select name="is_active" label="Status" :options="['1' => 'Active', '0' => 'Inactive']" :value="($r?->is_active ?? true) ? '1' : '0'" />
     @if ($r)
         <div class="md:col-span-2 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            Customer deposit preview: <strong>TZS {{ number_format($r->customer_deposit ?: $r->computeCustomerDeposit()) }}</strong>
+            Customer deposit preview: <strong>{{ format_money($r->customer_deposit ?: $r->computeCustomerDeposit()) }}</strong>
         </div>
     @endif
 </x-admin.step>

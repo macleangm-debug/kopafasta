@@ -24,15 +24,15 @@
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
                 <div class="rounded-lg bg-slate-50 p-3">
                     <p class="text-[11px] uppercase text-slate-500 font-semibold">Expected yield</p>
-                    <p class="text-xl font-extrabold text-emerald-700">{{ rtrim(rtrim(number_format($pool->expected_yield, 2),'0'),'.') }}%</p>
+                    <p class="text-xl font-extrabold text-emerald-700">{{ rtrim(rtrim(format_number($pool->expected_yield, 2),'0'),'.') }}%</p>
                 </div>
                 <div class="rounded-lg bg-slate-50 p-3">
                     <p class="text-[11px] uppercase text-slate-500 font-semibold">Repayment rate</p>
-                    <p class="text-xl font-extrabold">{{ rtrim(rtrim(number_format($pool->repayment_rate, 1),'0'),'.') }}%</p>
+                    <p class="text-xl font-extrabold">{{ rtrim(rtrim(format_number($pool->repayment_rate, 1),'0'),'.') }}%</p>
                 </div>
                 <div class="rounded-lg bg-slate-50 p-3">
                     <p class="text-[11px] uppercase text-slate-500 font-semibold">Default rate</p>
-                    <p class="text-xl font-extrabold {{ $pool->default_rate > 5 ? 'text-red-600' : '' }}">{{ rtrim(rtrim(number_format($pool->default_rate, 1),'0'),'.') }}%</p>
+                    <p class="text-xl font-extrabold {{ $pool->default_rate > 5 ? 'text-red-600' : '' }}">{{ rtrim(rtrim(format_number($pool->default_rate, 1),'0'),'.') }}%</p>
                 </div>
                 <div class="rounded-lg bg-slate-50 p-3">
                     <p class="text-[11px] uppercase text-slate-500 font-semibold">Active borrowers</p>
@@ -71,7 +71,7 @@
                            class="w-full mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                 </div>
                 <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-800">
-                    Expected return at {{ rtrim(rtrim(number_format($pool->expected_yield, 2),'0'),'.') }}% — for every TZS 1,000,000 you commit, you can expect ≈ TZS {{ number_format(1000000 * ($pool->expected_yield / 100), 0) }} in returns.
+                    Expected return at {{ rtrim(rtrim(format_number($pool->expected_yield, 2),'0'),'.') }}% — for every TZS 1,000,000 you commit, you can expect ≈ {{ format_money(1000000 * ($pool->expected_yield / 100), 0) }} in returns.
                 </div>
                 <button class="w-full rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2.5 text-sm shadow-lg shadow-emerald-500/20">Invest now</button>
                 @if ($stats['available'] <= 0)

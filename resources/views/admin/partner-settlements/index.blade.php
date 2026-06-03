@@ -23,7 +23,7 @@
                         <td class="px-4 py-3 text-gray-500">
                             {{ optional($settlement->period_start)->format('d M Y') }} – {{ optional($settlement->period_end)->format('d M Y') }}
                         </td>
-                        <td class="px-4 py-3">TZS {{ number_format($settlement->total_amount) }}</td>
+                        <td class="px-4 py-3">{{ format_money($settlement->total_amount) }}</td>
                         <td class="px-4 py-3">{{ ucfirst($settlement->status) }}</td>
                         <td class="px-4 py-3 text-right">
                             <a href="{{ route('admin.partner-settlements.show', $settlement) }}" class="text-amber-700 hover:text-amber-900">View</a>

@@ -12,7 +12,7 @@
 <details class="rate-tier-row rounded-xl ring-1 ring-gray-200 bg-white overflow-hidden" {{ ($open ?? false) ? 'open' : '' }}>
     <summary class="cursor-pointer list-none px-4 py-3 flex flex-wrap items-center justify-between gap-2 bg-gray-50 hover:bg-gray-100">
         <span class="text-sm font-semibold text-gray-900">
-            <span data-tier-summary-band>TZS {{ number_format((float) ($row['min_amount'] ?? 0)) }} – {{ number_format((float) ($row['max_amount'] ?? 0)) }}</span>
+            <span data-tier-summary-band>{{ format_money((float) ($row['min_amount'] ?? 0)) }} – {{ format_number((float) ($row['max_amount'] ?? 0)) }}</span>
         </span>
         <span class="text-sm text-amber-800">
             Monthly rate: <strong data-tier-summary-total>{{ RatePercent::formatOne($total) }}</strong>

@@ -168,7 +168,7 @@ class LoanDisbursementService
                 'Loan disbursement ' . $loan->loan_number,
                 $loan,
                 $loan->disbursement_date?->toDateString() ?? now()->toDateString(),
-                'Auto-posted on disbursement. Net cash: TZS ' . number_format($net),
+                'Auto-posted on disbursement. Net cash: ' . format_money($net),
             );
         } catch (\Throwable $e) {
             // swallow — disbursement should not fail because GL is mis-configured

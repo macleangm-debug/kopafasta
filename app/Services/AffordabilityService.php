@@ -93,6 +93,6 @@ class AffordabilityService
 
     private function pct(float $v): string
     {
-        return number_format($v * 100, 1).'%';
+        return format_number($v * 100, 1).'%';
     }
 }

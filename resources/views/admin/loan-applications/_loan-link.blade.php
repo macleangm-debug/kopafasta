@@ -22,7 +22,7 @@
             </div>
             <div>
                 <dt class="text-xs text-gray-500">Principal</dt>
-                <dd class="font-semibold mt-0.5">TZS {{ number_format((float) $linkedLoan->principal_amount) }}</dd>
+                <dd class="font-semibold mt-0.5">{{ format_money((float) $linkedLoan->principal_amount) }}</dd>
             </div>
             <div>
                 <dt class="text-xs text-gray-500">Status</dt>

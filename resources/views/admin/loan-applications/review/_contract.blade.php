@@ -15,7 +15,7 @@
         <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm mb-5">
             <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-3">
                 <p class="text-[10px] uppercase text-gray-500">Loan amount</p>
-                <p class="font-semibold mt-1">TZS {{ number_format((float) ($record->recommended_amount ?? $record->requested_amount)) }}</p>
+                <p class="font-semibold mt-1">{{ format_money((float) ($record->recommended_amount ?? $record->requested_amount)) }}</p>
             </div>
             <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-3">
                 <p class="text-[10px] uppercase text-gray-500">Tenure</p>
@@ -23,7 +23,7 @@
             </div>
             <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-3">
                 <p class="text-[10px] uppercase text-gray-500">Product rate</p>
-                <p class="font-semibold mt-1">{{ number_format((float) ($review['product']?->interest_rate ?? 0) * 100, 2) }}% / month</p>
+                <p class="font-semibold mt-1">{{ format_number((float) ($review['product']?->interest_rate ?? 0) * 100, 2) }}% / month</p>
             </div>
             <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-3">
                 <p class="text-[10px] uppercase text-gray-500">Borrower signature</p>

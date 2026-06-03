@@ -122,7 +122,7 @@ class LoanApplicationWorkflowService
 
             if ($amount > $limit) {
                 throw ValidationException::withMessages([
-                    'approval_limit' => 'Amount exceeds your approval limit of TZS '.number_format($limit).'.',
+                    'approval_limit' => 'Amount exceeds your approval limit of '.format_money($limit).'.',
                 ]);
             }
         }
@@ -138,13 +138,14 @@ class LoanApplicationWorkflowService
             'credit_appraisal_payload'  => $appraisal,
         ]);
 
-        if ($to === 'disbursement') {
-            app(LoanOriginationService::class)->createFromApplication($application->fresh(['customer', 'product', 'loan']));
-        }
-
         if ($to === 'approval') {
             app(PostApprovalFeeService::class)->generateForApplication($application->fresh(['product']));
             app(AssetReservationService::class)->syncFromApplication($application->fresh());
+            app(LoanOriginationService::class)->createFromApplication($application->fresh(['customer', 'product', 'loan']));
+        }
+
+        if ($to === 'disbursement') {
+            app(LoanOriginationService::class)->createFromApplication($application->fresh(['customer', 'product', 'loan']));
         }
 
         ApplicationStageHistory::create([
@@ -232,13 +233,14 @@ class LoanApplicationWorkflowService
             'credit_appraisal_payload' => $appraisal,
         ]);
 
-        if ($toStage === 'disbursement') {
-            app(LoanOriginationService::class)->createFromApplication($application->fresh(['customer', 'product', 'loan']));
-        }
-
         if ($toStage === 'approval') {
             app(PostApprovalFeeService::class)->generateForApplication($application->fresh(['product']));
             app(AssetReservationService::class)->syncFromApplication($application->fresh());
+            app(LoanOriginationService::class)->createFromApplication($application->fresh(['customer', 'product', 'loan']));
+        }
+
+        if ($toStage === 'disbursement') {
+            app(LoanOriginationService::class)->createFromApplication($application->fresh(['customer', 'product', 'loan']));
         }
 
         ApplicationStageHistory::create([

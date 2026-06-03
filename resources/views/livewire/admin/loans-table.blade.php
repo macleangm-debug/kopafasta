@@ -66,8 +66,8 @@
                             {{ trim(($loan->customer?->first_name ?? '').' '.($loan->customer?->last_name ?? '')) ?: '—' }}
                             <div class="text-xs text-gray-500">{{ $loan->customer?->phone }}</div>
                         </td>
-                        <td class="px-5 py-3">TZS {{ format_number( $loan->principal_amount) }}</td>
-                        <td class="px-5 py-3 font-semibold">TZS {{ format_number( $loan->outstanding_balance) }}</td>
+                        <td class="px-5 py-3">{{ format_money( $loan->principal_amount) }}</td>
+                        <td class="px-5 py-3 font-semibold">{{ format_money( $loan->outstanding_balance) }}</td>
                         <td class="px-5 py-3">
                             <span @class([
                                 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',

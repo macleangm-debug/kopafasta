@@ -19,7 +19,10 @@ class CapitalPartnerAllocationService
 
     public const COMPANY_INTEREST_SHARE = 40.0;
 
-    /** Proportionally allocate approved principal across active capital partners. */
+    /**
+     * Proportionally allocate approved principal across active capital partners.
+     * Example: Partner A 50M + Partner B 100M → A funds 33.33%, B funds 66.67% of each loan.
+     */
     public function allocateForLoan(Loan $loan): void
     {
         $loan->loadMissing(['product', 'application']);
@@ -184,7 +187,7 @@ class CapitalPartnerAllocationService
 
     public function productUsesCapitalPartner(LoanProduct $product): bool
     {
-        return (bool) ($product->uses_capital_partner ?? true);
+        return loan_product_uses_capital_partner($product);
     }
 
     /**

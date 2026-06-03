@@ -54,9 +54,9 @@
         ])>{{ $aff['verdict'] ?? '—' }}</span>
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-        <div><div class="text-xs uppercase text-gray-500">Monthly income</div><div class="font-semibold">TZS {{ number_format($aff['net_income'] ?? 0) }}</div></div>
-        <div><div class="text-xs uppercase text-gray-500">Existing obligations</div><div class="font-semibold">TZS {{ number_format($aff['existing_obligations'] ?? 0) }}</div></div>
-        <div><div class="text-xs uppercase text-gray-500">New EMI</div><div class="font-semibold">TZS {{ number_format($aff['new_emi'] ?? 0) }}</div></div>
-        <div><div class="text-xs uppercase text-gray-500">DSR / Limit</div><div class="font-semibold">{{ number_format(($aff['dsr'] ?? 0) * 100, 1) }}% / {{ number_format(($aff['threshold'] ?? 0) * 100, 1) }}%</div></div>
+        <div><div class="text-xs uppercase text-gray-500">Monthly income</div><div class="font-semibold">{{ format_money($aff['net_income'] ?? 0) }}</div></div>
+        <div><div class="text-xs uppercase text-gray-500">Existing obligations</div><div class="font-semibold">{{ format_money($aff['existing_obligations'] ?? 0) }}</div></div>
+        <div><div class="text-xs uppercase text-gray-500">New EMI</div><div class="font-semibold">{{ format_money($aff['new_emi'] ?? 0) }}</div></div>
+        <div><div class="text-xs uppercase text-gray-500">DSR / Limit</div><div class="font-semibold">{{ format_number(($aff['dsr'] ?? 0) * 100, 1) }}% / {{ format_number(($aff['threshold'] ?? 0) * 100, 1) }}%</div></div>
     </div>
 </x-admin.review-section>

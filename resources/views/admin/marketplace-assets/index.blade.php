@@ -18,7 +18,7 @@
                         <td class="px-4 py-3 font-medium">{{ $asset->title }}</td>
                         <td class="px-4 py-3">{{ config('asset_marketplace.categories.'.$asset->category, $asset->category) }}</td>
                         <td class="px-4 py-3">{{ $asset->supplier_name }}</td>
-                        <td class="px-4 py-3">TZS {{ number_format($asset->customer_deposit ?: $asset->computeCustomerDeposit()) }}</td>
+                        <td class="px-4 py-3">{{ format_money($asset->customer_deposit ?: $asset->computeCustomerDeposit()) }}</td>
                         <td class="px-4 py-3">{{ $asset->is_active ? 'Active' : 'Inactive' }}</td>
                         <td class="px-4 py-3 text-right"><a class="text-amber-700 font-semibold" href="{{ route('admin.marketplace-assets.show', $asset) }}">View</a></td>
                     </tr>

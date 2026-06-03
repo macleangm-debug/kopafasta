@@ -44,7 +44,7 @@ class GuarantorInvitationService
 
     public function whatsAppShareUrl(GuarantorInvitation $invitation, Customer $borrower): ?string
     {
-        if ($invitation->channel !== 'whatsapp' || ! $invitation->contact) {
+        if (! $invitation->contact) {
             return null;
         }
 

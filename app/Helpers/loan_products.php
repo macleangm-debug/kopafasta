@@ -46,6 +46,23 @@ if (! function_exists('loan_product_features')) {
     }
 }
 
+if (! function_exists('loan_product_uses_capital_partner')) {
+    function loan_product_uses_capital_partner(LoanProduct $product): bool
+    {
+        if (is_marketplace_loan_product($product->code)) {
+            return false;
+        }
+
+        $category = strtolower((string) ($product->category ?? ''));
+
+        if (in_array($category, ['asset_finance', 'asset_lending'], true)) {
+            return false;
+        }
+
+        return (bool) ($product->uses_capital_partner ?? true);
+    }
+}
+
 if (! function_exists('loan_product_application_fee')) {
     function loan_product_application_fee(?Customer $customer, LoanProduct $product): int
     {

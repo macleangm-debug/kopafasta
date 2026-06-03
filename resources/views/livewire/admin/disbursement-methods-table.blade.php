@@ -14,8 +14,8 @@
                 <td class="px-5 py-3 font-mono text-xs">{{ $r->code }}</td>
                 <td class="px-5 py-3 font-medium"><a href="{{ route('admin.disbursement-methods.show', $r) }}" class="hover:text-indigo-600">{{ $r->name }}</a></td>
                 <td class="px-5 py-3">{{ display_label($r->channel, 'channel') }}</td>
-                <td class="px-5 py-3 text-right font-mono text-xs">{{ number_format($r->fixed_fee, 2) }}</td>
-                <td class="px-5 py-3 text-right font-mono text-xs">{{ number_format($r->percentage_fee * 100, 2) }}%</td>
+                <td class="px-5 py-3 text-right font-mono text-xs">{{ format_number($r->fixed_fee, 2) }}</td>
+                <td class="px-5 py-3 text-right font-mono text-xs">{{ format_number($r->percentage_fee * 100, 2) }}%</td>
                 <td class="px-5 py-3"><span class="inline-flex items-center rounded px-2 py-0.5 text-xs {{ $r->is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600' }}">{{ $r->is_active ? 'Active' : 'Inactive' }}</span></td>
             </tr>
         @empty

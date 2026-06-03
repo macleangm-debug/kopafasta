@@ -55,6 +55,15 @@ class AppServiceProvider extends ServiceProvider
         Paginator::useTailwind();
 
         View::share('fmt', fn (float|int|string|null $amount, int $decimals = 0): string => format_number($amount, $decimals));
+        View::share('fmtMoney', fn (float|int|string|null $amount, int $decimals = 0): string => format_money($amount, true, $decimals));
+
+        Blade::directive('num', function (string $expression) {
+            return "<?php echo e(format_number({$expression})); ?>";
+        });
+
+        Blade::directive('money', function (string $expression) {
+            return "<?php echo e(format_money({$expression})); ?>";
+        });
 
         Gate::policy(Loan::class, LoanPolicy::class);
         Gate::policy(Disbursement::class, DisbursementPolicy::class);

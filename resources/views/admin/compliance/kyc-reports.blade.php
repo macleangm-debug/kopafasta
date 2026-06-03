@@ -16,7 +16,7 @@
         @foreach ($cards as [$lbl, $val, $cls])
             <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5">
                 <div class="text-xs text-gray-500 uppercase tracking-wide">{{ $lbl }}</div>
-                <div class="mt-2 text-3xl font-bold {{ $cls }} inline-block rounded-md px-3">{{ number_format($val) }}</div>
+                <div class="mt-2 text-3xl font-bold {{ $cls }} inline-block rounded-md px-3">{{ format_number($val) }}</div>
             </div>
         @endforeach
     </div>

@@ -9,7 +9,7 @@
         'Branch'          => $record->branch,
         'SWIFT/BIC'       => $record->swift_code,
         'Currency'        => $record->currency,
-        'Opening balance' => number_format($record->opening_balance, 2),
+        'Opening balance' => format_number($record->opening_balance, 2),
         'Purpose'         => ucfirst($record->purpose),
         'GL account'      => $record->glAccount->name ?? '—',
         'Status'          => $record->is_active ? 'Active' : 'Inactive',

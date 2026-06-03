@@ -10,7 +10,7 @@
         'Phone'          => $record->phone,
         'Role'           => $record->roleLabel(),
         'Branch'         => optional(\App\Models\Branch::find($record->branch_id))->name,
-        'Approval limit' => $record->approval_limit ? 'TZS '.number_format((float) $record->approval_limit) : null,
+        'Approval limit' => $record->approval_limit ? 'TZS '.format_number((float) $record->approval_limit) : null,
         'Account status' => $record->is_active ? 'Active' : 'Inactive',
         'Locked until'   => $isLocked ? $record->locked_until?->format('d M Y, H:i') : null,
         'Created'        => $record->created_at?->format('Y-m-d H:i'),

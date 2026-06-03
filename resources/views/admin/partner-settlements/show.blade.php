@@ -18,7 +18,7 @@
                         <tr>
                             <td class="px-4 py-3 font-medium">{{ $payment->invoice_number }}</td>
                             <td class="px-4 py-3">{{ $payment->description ?? $payment->source_type ?? '—' }}</td>
-                            <td class="px-4 py-3">TZS {{ number_format($payment->amount) }}</td>
+                            <td class="px-4 py-3">{{ format_money($payment->amount) }}</td>
                             <td class="px-4 py-3">{{ ucfirst($payment->status) }}</td>
                         </tr>
                     @endforeach
@@ -30,7 +30,7 @@
             <div class="bg-white rounded-xl ring-1 ring-gray-200 p-5 text-sm">
                 <dl class="space-y-3">
                     <div><dt class="text-gray-500">Partner</dt><dd class="font-medium">{{ $partnerSettlement->vendor?->name }}</dd></div>
-                    <div><dt class="text-gray-500">Total</dt><dd class="font-medium">TZS {{ number_format($partnerSettlement->total_amount) }}</dd></div>
+                    <div><dt class="text-gray-500">Total</dt><dd class="font-medium">{{ format_money($partnerSettlement->total_amount) }}</dd></div>
                     <div><dt class="text-gray-500">Status</dt><dd class="font-medium">{{ ucfirst($partnerSettlement->status) }}</dd></div>
                     @if ($partnerSettlement->paid_at)
                         <div><dt class="text-gray-500">Paid at</dt><dd>{{ $partnerSettlement->paid_at->format('d M Y H:i') }}</dd></div>

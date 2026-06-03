@@ -308,6 +308,14 @@
                 <div x-show="currentStepKey === 'guarantor'" class="p-6 sm:p-8">
                     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.guarantor') }}</h2>
                     <p class="text-sm text-gray-600 mb-4">{{ __('borrower.apply.guarantor_required') }}</p>
+                    <div x-show="Object.keys(guarantorErrors).length" x-cloak class="mb-4 rounded-xl bg-rose-50 ring-1 ring-rose-200 px-4 py-3 text-sm text-rose-800">
+                        <p class="font-semibold mb-1">{{ __('borrower.apply.guarantor_fields.missing_fields_title') }}</p>
+                        <ul class="list-disc list-inside space-y-0.5">
+                            <template x-for="(msg, key) in guarantorErrors" :key="key">
+                                <li x-text="msg"></li>
+                            </template>
+                        </ul>
+                    </div>
                     <div class="space-y-4">
                         <div class="flex flex-wrap gap-3">
                             <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="guarantor_mode" value="internal" x-model="form.guarantor_mode" class="text-amber-500"> {{ __('borrower.apply.internal_guarantor') }}</label>
@@ -316,17 +324,19 @@
                         <div x-show="form.guarantor_mode === 'internal'" class="space-y-3">
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.guarantor_fields.membership_no') }}</label>
-                                <div class="flex rounded-lg ring-1 ring-gray-200 overflow-hidden">
+                                <div class="flex rounded-lg ring-1 overflow-hidden" :class="guarantorErrors.internal_member_no ? 'ring-rose-400' : 'ring-gray-200'">
                                     <span class="inline-flex items-center px-3 bg-gray-100 text-sm font-mono text-gray-600 border-r border-gray-200">KPF-TZ-</span>
-                                    <input name="internal_member_no" placeholder="ABC12345" class="flex-1 border-0 px-3 py-2.5 text-sm font-mono focus:ring-0">
+                                    <input name="internal_member_no" x-model="form.internal_member_no" @input="delete guarantorErrors.internal_member_no" placeholder="ABC12345" class="flex-1 border-0 px-3 py-2.5 text-sm font-mono focus:ring-0">
                                 </div>
+                                <p x-show="guarantorErrors.internal_member_no" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.internal_member_no"></p>
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.phone') }}</label>
-                                <div class="flex rounded-lg ring-1 ring-gray-200 overflow-hidden">
+                                <div class="flex rounded-lg ring-1 overflow-hidden" :class="guarantorErrors.internal_guarantor_phone ? 'ring-rose-400' : 'ring-gray-200'">
                                     <span class="inline-flex items-center px-3 bg-gray-100 text-sm text-gray-600 border-r border-gray-200">+255</span>
-                                    <input name="internal_guarantor_phone" inputmode="numeric" placeholder="712345678" class="flex-1 border-0 px-3 py-2.5 text-sm focus:ring-0">
+                                    <input name="internal_guarantor_phone" x-model="form.internal_guarantor_phone" @input="delete guarantorErrors.internal_guarantor_phone" inputmode="numeric" placeholder="712345678" class="flex-1 border-0 px-3 py-2.5 text-sm focus:ring-0">
                                 </div>
+                                <p x-show="guarantorErrors.internal_guarantor_phone" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.internal_guarantor_phone"></p>
                             </div>
                             <p x-show="guarantorLookup.ok" class="text-sm text-emerald-800 font-medium" x-text="guarantorLookup.label"></p>
                             <p x-show="guarantorLookup.error" class="text-sm text-red-700" x-text="guarantorLookup.error"></p>
@@ -334,45 +344,78 @@
                         </div>
                         <input type="hidden" name="external_invitation_id" :value="externalGuarantor?.invitation_id || ''">
                         <div x-show="form.guarantor_mode === 'external'" class="grid sm:grid-cols-2 gap-4">
-                            <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.first_name') }}</label><input name="external_first_name" x-model="form.external_first_name" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
-                            <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.middle_name') }}</label><input name="external_middle_name" x-model="form.external_middle_name" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
-                            <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.last_name') }}</label><input name="external_last_name" x-model="form.external_last_name" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
-                            <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.guarantor_fields.relationship') }}</label>
-                                <select name="external_relationship" x-model="form.external_relationship" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.first_name') }} <span class="text-rose-500">*</span></label>
+                                <input name="external_first_name" x-model="form.external_first_name" @input="delete guarantorErrors.external_first_name; scheduleExternalInvitePrep()"
+                                       :class="guarantorErrors.external_first_name ? 'ring-rose-400' : 'ring-gray-200'"
+                                       class="w-full rounded-lg border-gray-300 ring-1 px-3 py-2.5 text-sm">
+                                <p x-show="guarantorErrors.external_first_name" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.external_first_name"></p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.middle_name') }}</label>
+                                <input name="external_middle_name" x-model="form.external_middle_name" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.last_name') }} <span class="text-rose-500">*</span></label>
+                                <input name="external_last_name" x-model="form.external_last_name" @input="delete guarantorErrors.external_last_name; scheduleExternalInvitePrep()"
+                                       :class="guarantorErrors.external_last_name ? 'ring-rose-400' : 'ring-gray-200'"
+                                       class="w-full rounded-lg border-gray-300 ring-1 px-3 py-2.5 text-sm">
+                                <p x-show="guarantorErrors.external_last_name" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.external_last_name"></p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.guarantor_fields.relationship') }} <span class="text-rose-500">*</span></label>
+                                <select name="external_relationship" x-model="form.external_relationship" @change="delete guarantorErrors.external_relationship; scheduleExternalInvitePrep()"
+                                        :class="guarantorErrors.external_relationship ? 'ring-rose-400' : 'ring-gray-200'"
+                                        class="w-full rounded-lg border-gray-300 ring-1 px-3 py-2.5 text-sm">
                                     <option value="">{{ __('borrower.profile.select') }}</option>
                                     @foreach (trans('borrower.profile.guarantor_relationship_options') as $value => $label)
                                         <option value="{{ $value }}">{{ $label }}</option>
                                     @endforeach
                                 </select>
+                                <p x-show="guarantorErrors.external_relationship" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.external_relationship"></p>
                             </div>
-                            <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.phone') }}</label>
-                                <div class="flex rounded-lg ring-1 ring-gray-200 overflow-hidden">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.phone') }} <span class="text-rose-500">*</span></label>
+                                <div class="flex rounded-lg ring-1 overflow-hidden" :class="guarantorErrors.external_phone ? 'ring-rose-400' : 'ring-gray-200'">
                                     <span class="inline-flex items-center px-3 bg-gray-100 text-sm text-gray-600 border-r border-gray-200">+255</span>
-                                    <input name="external_phone" x-model="form.external_phone" inputmode="numeric" placeholder="712345678" class="flex-1 border-0 px-3 py-2.5 text-sm focus:ring-0">
+                                    <input name="external_phone" x-model="form.external_phone" @input="delete guarantorErrors.external_phone; scheduleExternalInvitePrep()" inputmode="numeric" placeholder="712345678" class="flex-1 border-0 px-3 py-2.5 text-sm focus:ring-0">
                                 </div>
+                                <p x-show="guarantorErrors.external_phone" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.external_phone"></p>
                             </div>
-                            <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.email') }} {{ __('borrower.profile.optional') }}</label><input name="external_email" x-model="form.external_email" type="email" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.email') }} {{ __('borrower.profile.optional') }}</label>
+                                <input name="external_email" x-model="form.external_email" type="email" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                            </div>
                             <div class="sm:col-span-2 grid sm:grid-cols-2 gap-4">
-                                <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.region') }}</label>
-                                    <select name="external_region" x-model="form.external_region" @change="onExternalRegionChange()" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.region') }} <span class="text-rose-500">*</span></label>
+                                    <select name="external_region" x-model="form.external_region" @change="onExternalRegionChange(); delete guarantorErrors.external_region; scheduleExternalInvitePrep()"
+                                            :class="guarantorErrors.external_region ? 'ring-rose-400' : 'ring-gray-200'"
+                                            class="w-full rounded-lg border-gray-300 ring-1 px-3 py-2.5 text-sm">
                                         <option value="">{{ __('borrower.profile.select_region') }}</option>
                                         @foreach (config('tanzania_locations') as $regionName => $districts)
                                             <option value="{{ $regionName }}">{{ $regionName }}</option>
                                         @endforeach
                                     </select>
+                                    <p x-show="guarantorErrors.external_region" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.external_region"></p>
                                 </div>
-                                <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.district') }}</label>
-                                    <select name="external_district" x-model="form.external_district" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.district') }} <span class="text-rose-500">*</span></label>
+                                    <select name="external_district" x-model="form.external_district" @change="delete guarantorErrors.external_district; scheduleExternalInvitePrep()"
+                                            :class="guarantorErrors.external_district ? 'ring-rose-400' : 'ring-gray-200'"
+                                            class="w-full rounded-lg border-gray-300 ring-1 px-3 py-2.5 text-sm">
                                         <option value="">{{ __('borrower.profile.select_district') }}</option>
                                         <template x-for="d in externalDistrictOptions" :key="d">
                                             <option :value="d" x-text="d"></option>
                                         </template>
                                     </select>
+                                    <p x-show="guarantorErrors.external_district" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.external_district"></p>
                                 </div>
                             </div>
                             <div class="sm:col-span-2" x-show="externalGuarantor?.invitation_url" x-cloak>
                                 <p class="text-sm font-semibold text-emerald-900 mb-2">{{ __('borrower.apply.guarantor_fields.share_via') }}</p>
                                 <p class="text-xs text-emerald-800 mb-3">{{ __('borrower.apply.guarantor_fields.share_ready') }}</p>
+                                <p class="text-xs font-mono text-emerald-900 bg-emerald-100/80 rounded-lg px-3 py-2 mb-3 break-all" x-text="externalGuarantor.invitation_url"></p>
                                 <div class="flex flex-wrap gap-2" x-data="{ copied: false }">
                                     <a x-show="externalGuarantor?.invitation_url" :href="externalGuarantor.whatsapp_url || '#'" :class="!externalGuarantor.whatsapp_url && 'pointer-events-none opacity-50'" target="_blank" rel="noopener"
                                        class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-full text-sm">
@@ -568,6 +611,8 @@
                 guarantorLookup: { ok: false, label: '', error: '', memberKey: '', phone: '' },
                 externalGuarantor: config.savedDraft?.external_guarantor || null,
                 guarantorInvitePreparing: false,
+                guarantorErrors: {},
+                externalInviteTimer: null,
                 initialPlan: config.initialPlan || [],
                 assetApplication: config.assetApplication || null,
                 reservationMode: !! config.reservationMode,
@@ -588,6 +633,8 @@
                     requested_tenure_months: 0,
                     purpose: '',
                     guarantor_mode: 'internal',
+                    internal_member_no: '',
+                    internal_guarantor_phone: '',
                     income_type: 'bank',
                     external_first_name: '',
                     external_middle_name: '',
@@ -615,6 +662,9 @@
                     window.applyWizardSaveDraft = () => this.persistDraft(true);
                     this.$watch('phase', () => this.scheduleDraftSave());
                     this.$watch('step', () => this.scheduleDraftSave());
+                    this.$watch('form.guarantor_mode', (mode) => {
+                        if (mode === 'external') this.scheduleExternalInvitePrep();
+                    });
                     if (this.reservationMode && this.assetApplication) {
                         this.beginReservationApplication();
                         return;
@@ -785,9 +835,14 @@
                             'external_first_name', 'external_middle_name', 'external_last_name',
                             'external_relationship', 'external_phone', 'external_email',
                             'external_region', 'external_district',
+                            'internal_member_no', 'internal_guarantor_phone',
                         ].forEach((key) => {
                             if (draft.inputs[key]) this.form[key] = draft.inputs[key];
                         });
+                    }
+                    this.syncGuarantorFormFromDom();
+                    if (this.form.guarantor_mode === 'external') {
+                        this.scheduleExternalInvitePrep();
                     }
                     if (draft.guarantor_lookup) this.guarantorLookup = draft.guarantor_lookup;
                     if (draft.application_fee) this.applicationFeeState = draft.application_fee;
@@ -999,19 +1054,39 @@
 
                 readFormField(name) {
                     const root = this.formRoot();
-                    if (Object.prototype.hasOwnProperty.call(this.form, name)) {
-                        const fromModel = this.form[name];
-                        if (fromModel !== undefined && fromModel !== null && String(fromModel).trim() !== '') {
-                            return String(fromModel).trim();
-                        }
-                    }
                     const radios = root.querySelectorAll(`[name="${name}"]`);
                     if (radios.length && radios[0].type === 'radio') {
                         const checked = root.querySelector(`[name="${name}"]:checked`);
                         return (checked?.value || '').toString().trim();
                     }
                     const el = root.querySelector(`[name="${name}"]`);
-                    return el ? (el.value || '').toString().trim() : '';
+                    if (el && String(el.value || '').trim() !== '') {
+                        return String(el.value).trim();
+                    }
+                    if (Object.prototype.hasOwnProperty.call(this.form, name)) {
+                        const fromModel = this.form[name];
+                        if (fromModel !== undefined && fromModel !== null) {
+                            return String(fromModel).trim();
+                        }
+                    }
+                    return '';
+                },
+
+                syncGuarantorFormFromDom() {
+                    const fields = [
+                        'internal_member_no', 'internal_guarantor_phone',
+                        'external_first_name', 'external_middle_name', 'external_last_name',
+                        'external_relationship', 'external_phone', 'external_email',
+                        'external_region', 'external_district',
+                    ];
+                    fields.forEach((name) => {
+                        const value = this.readFormField(name);
+                        if (value !== '' && Object.prototype.hasOwnProperty.call(this.form, name)) {
+                            this.form[name] = value;
+                        }
+                    });
+                    const mode = this.readFormField('guarantor_mode');
+                    if (mode) this.form.guarantor_mode = mode;
                 },
 
                 externalGuarantorPayload() {
@@ -1030,7 +1105,10 @@
                 },
 
                 externalGuarantorMissingFields() {
-                    const labels = {
+                    if (this.externalGuarantor?.invitation_url) {
+                        return [];
+                    }
+                    const required = {
                         external_first_name: @js(__('borrower.profile.fields.first_name')),
                         external_last_name: @js(__('borrower.profile.fields.last_name')),
                         external_relationship: @js(__('borrower.apply.guarantor_fields.relationship')),
@@ -1039,11 +1117,34 @@
                         external_district: @js(__('borrower.profile.fields.district')),
                     };
                     const p = this.externalGuarantorPayload();
-                    return Object.entries(labels).filter(([key]) => ! (p[key] || '').toString().trim()).map(([, label]) => label);
+                    const missing = {};
+                    Object.entries(required).forEach(([key, label]) => {
+                        if (! (p[key] || '').toString().trim()) {
+                            missing[key] = label + ' ' + @js(__('borrower.apply.guarantor_fields.is_required'));
+                        }
+                    });
+                    return missing;
+                },
+
+                setGuarantorFieldErrors(missingMap) {
+                    this.guarantorErrors = { ...missingMap };
                 },
 
                 isExternalGuarantorComplete() {
-                    return this.externalGuarantorMissingFields().length === 0;
+                    return Object.keys(this.externalGuarantorMissingFields()).length === 0;
+                },
+
+                scheduleExternalInvitePrep() {
+                    clearTimeout(this.externalInviteTimer);
+                    this.externalInviteTimer = setTimeout(() => this.maybePrepareExternalInvite(), 700);
+                },
+
+                async maybePrepareExternalInvite() {
+                    if (this.currentStepKey !== 'guarantor' || this.form.guarantor_mode !== 'external') return;
+                    if (this.guarantorInvitePreparing || this.externalGuarantor?.invitation_url) return;
+                    this.syncGuarantorFormFromDom();
+                    if (! this.isExternalGuarantorComplete()) return;
+                    await this.prepareExternalGuarantorInvite();
                 },
 
                 async prepareExternalGuarantorInvite() {
@@ -1089,6 +1190,7 @@
                         return false;
                     }
                     if (this.currentStepKey === 'guarantor' && this.current?.requires_guarantor) {
+                        this.syncGuarantorFormFromDom();
                         if (! this.form.guarantor_mode || this.form.guarantor_mode === 'none') {
                             alert(this.i18n.alerts.selectGuarantor);
                             return false;
@@ -1098,10 +1200,12 @@
                         }
                         if (this.form.guarantor_mode === 'external') {
                             const missing = this.externalGuarantorMissingFields();
-                            if (missing.length) {
-                                alert(@js(__('borrower.apply.alerts.guarantor_external_incomplete')) + ': ' + missing.join(', '));
+                            if (Object.keys(missing).length) {
+                                this.setGuarantorFieldErrors(missing);
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
                                 return false;
                             }
+                            this.guarantorErrors = {};
                             return true;
                         }
                     }
@@ -1125,17 +1229,22 @@
                 },
 
                 async verifyInternalGuarantor() {
-                    const fd = new FormData(this.formRoot());
-                    const member = (fd.get('internal_member_no') || '').toString().trim();
-                    const phone = (fd.get('internal_guarantor_phone') || '').toString().trim();
+                    this.syncGuarantorFormFromDom();
+                    const member = this.readFormField('internal_member_no');
+                    const phone = this.readFormField('internal_guarantor_phone');
+                    const errors = {};
                     if (! member) {
-                        alert(this.i18n.alerts.guarantor_membership);
-                        return false;
+                        errors.internal_member_no = this.i18n.alerts.guarantor_membership;
                     }
                     if (! phone) {
-                        alert(this.i18n.alerts.guarantor_phone);
+                        errors.internal_guarantor_phone = this.i18n.alerts.guarantor_phone;
+                    }
+                    if (Object.keys(errors).length) {
+                        this.setGuarantorFieldErrors(errors);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
                         return false;
                     }
+                    this.guarantorErrors = {};
                     if (this.guarantorLookup.ok && this.guarantorLookup.memberKey === member && this.guarantorLookup.phone === phone) {
                         return true;
                     }
@@ -1171,10 +1280,11 @@
                     if (this.guarantorInvitePreparing) return;
                     if (! await this.validateStep()) return;
 
-                    if (this.currentStepKey === 'guarantor' && this.form.guarantor_mode === 'external' && ! this.externalGuarantor?.invitation_url) {
-                        const ok = await this.prepareExternalGuarantorInvite();
-                        if (! ok) return;
-                        await this.persistDraft(true);
+                    if (this.currentStepKey === 'guarantor' && this.form.guarantor_mode === 'external') {
+                        if (! this.externalGuarantor?.invitation_url) {
+                            const ok = await this.prepareExternalGuarantorInvite();
+                            if (! ok) return;
+                        }
                     }
 
                     await this.persistDraft(true);

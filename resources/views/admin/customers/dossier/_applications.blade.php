@@ -21,7 +21,7 @@
                         <tr class="hover:bg-gray-50">
                             <td class="py-3 font-mono text-xs">{{ $app->application_number }}</td>
                             <td class="py-3">{{ $app->product?->name ?? '—' }}</td>
-                            <td class="py-3 text-right font-medium">TZS {{ number_format((float) ($app->recommended_amount ?: $app->requested_amount)) }}</td>
+                            <td class="py-3 text-right font-medium">{{ format_money((float) ($app->recommended_amount ?: $app->requested_amount)) }}</td>
                             <td class="py-3">{{ display_label($app->current_stage ?? 'submitted', 'application_stage') }}</td>
                             <td class="py-3">{{ display_label($app->status, 'application_status') }}</td>
                             <td class="py-3 text-right">

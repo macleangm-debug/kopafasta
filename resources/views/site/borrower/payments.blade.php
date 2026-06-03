@@ -27,7 +27,7 @@
             <div class="lg:col-span-1 space-y-3">
                 <h2 class="text-sm font-semibold text-gray-700">Payment channels</h2>
                 <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-xs text-amber-900">
-                    Mobile money is available for amounts up to TZS {{ number_format($paymentThreshold) }}.
+                    Mobile money is available for amounts up to {{ format_money($paymentThreshold) }}.
                     Above that threshold, bank transfer only.
                 </div>
                 <template x-for="channel in channels" :key="channel">
@@ -49,7 +49,7 @@
                         <label class="block text-xs font-medium text-gray-600 mb-1">Loan</label>
                         <select name="loan_id" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm">
                             @foreach ($loans as $loan)
-                                <option value="{{ $loan->id }}">{{ $loan->loan_number }} — TZS {{ number_format($loan->outstanding_balance) }} outstanding</option>
+                                <option value="{{ $loan->id }}">{{ $loan->loan_number }} — {{ format_money($loan->outstanding_balance) }} outstanding</option>
                             @endforeach
                         </select>
                     </div>
@@ -59,7 +59,7 @@
                         <input type="number" name="amount" min="100" step="100" required x-model.number="amount"
                                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm">
                         <p class="text-xs mt-2" :class="mobileAllowed ? 'text-emerald-700' : 'text-amber-700'"
-                           x-text="mobileAllowed ? 'Mobile money and bank transfer available.' : 'Amount exceeds TZS {{ number_format($paymentThreshold) }} — bank transfer only.'"></p>
+                           x-text="mobileAllowed ? 'Mobile money and bank transfer available.' : 'Amount exceeds {{ format_money($paymentThreshold) }} — bank transfer only.'"></p>
                     </div>
 
                     <div>

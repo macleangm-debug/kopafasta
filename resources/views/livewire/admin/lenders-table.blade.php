@@ -16,7 +16,7 @@
                     <div class="text-xs text-gray-500">{{ $r->email }}</div>
                 </td>
                 <td class="px-5 py-3 text-xs uppercase">{{ $r->type ?? '—' }}</td>
-                <td class="px-5 py-3">TZS {{ number_format((float) ($r->credit_limit ?? 0)) }}</td>
+                <td class="px-5 py-3">{{ format_money((float) ($r->credit_limit ?? 0)) }}</td>
                 <td class="px-5 py-3">
                     <x-admin.badge :value="$r->status" :map="[
                         'active'    => 'bg-emerald-100 text-emerald-800',

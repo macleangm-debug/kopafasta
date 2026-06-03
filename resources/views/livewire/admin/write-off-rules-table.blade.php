@@ -13,7 +13,7 @@
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3 font-medium"><a href="{{ route('admin.write-off-rules.show', $r) }}" class="hover:text-indigo-600">{{ $r->name }}</a></td>
                 <td class="px-5 py-3">{{ $r->days_past_due }} days</td>
-                <td class="px-5 py-3 text-right font-mono text-xs">{{ $r->min_outstanding ? number_format($r->min_outstanding, 0) : '—' }}</td>
+                <td class="px-5 py-3 text-right font-mono text-xs">{{ $r->min_outstanding ? format_number($r->min_outstanding, 0) : '—' }}</td>
                 <td class="px-5 py-3">{{ $r->auto_propose ? 'Yes' : 'No' }}</td>
                 <td class="px-5 py-3">{{ $r->require_committee_approval ? 'Required' : 'Not required' }}</td>
                 <td class="px-5 py-3"><span class="inline-flex items-center rounded px-2 py-0.5 text-xs {{ $r->is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600' }}">{{ $r->is_active ? 'Active' : 'Inactive' }}</span></td>

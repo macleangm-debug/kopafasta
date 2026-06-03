@@ -17,7 +17,7 @@
         'Min amount'          => format_money($record->min_amount),
         'Max amount'          => format_money($record->max_amount),
         'Grace after default' => ($record->default_grace_days ?? 7).' days',
-        'Penalty'             => number_format((float) ($record->penalty_rate_percent ?? 1), 2).'% of amount owed '.str_replace('_', ' ', (string) ($record->penalty_basis ?? 'per_day')),
+        'Penalty'             => format_number((float) ($record->penalty_rate_percent ?? 1), 2).'% of amount owed '.str_replace('_', ' ', (string) ($record->penalty_basis ?? 'per_day')),
         'Requires collateral' => $record->requires_collateral ? 'Yes' : 'No',
         'Requires guarantor'  => $record->requires_guarantor ? 'Yes' : 'No',
         'Uses capital partner' => ($record->uses_capital_partner ?? true) ? 'Yes' : 'No',
@@ -36,14 +36,14 @@
                 @php $parts = $tier->rateComponents(); @endphp
                 <details class="rounded-lg ring-1 ring-gray-100 bg-gray-50/50">
                     <summary class="cursor-pointer px-4 py-3 flex flex-wrap justify-between gap-2 text-sm font-semibold text-gray-900">
-                        <span>TZS {{ number_format((float) $tier->min_amount) }} – {{ number_format((float) $tier->max_amount) }}</span>
-                        <span class="text-amber-800">{{ number_format((float) $tier->monthly_rate * 100, 1) }}% / month</span>
+                        <span>{{ format_money((float) $tier->min_amount) }} – {{ format_number((float) $tier->max_amount) }}</span>
+                        <span class="text-amber-800">{{ format_number((float) $tier->monthly_rate * 100, 1) }}% / month</span>
                     </summary>
                     <div class="px-4 pb-4 pt-1 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm border-t border-gray-100">
-                        <div><span class="text-xs text-gray-500">BOT</span><p class="font-semibold">{{ number_format($parts['bot_regulated_rate'] * 100, 2) }}%</p></div>
-                        <div><span class="text-xs text-gray-500">Processing</span><p class="font-semibold">{{ number_format($parts['processing_fee_rate'] * 100, 2) }}%</p></div>
-                        <div><span class="text-xs text-gray-500">Risk</span><p class="font-semibold">{{ number_format($parts['service_fee_rate'] * 100, 2) }}%</p></div>
-                        <div><span class="text-xs text-gray-500">Insurance</span><p class="font-semibold">{{ number_format($parts['insurance_fee_rate'] * 100, 2) }}%</p></div>
+                        <div><span class="text-xs text-gray-500">BOT</span><p class="font-semibold">{{ format_number($parts['bot_regulated_rate'] * 100, 2) }}%</p></div>
+                        <div><span class="text-xs text-gray-500">Processing</span><p class="font-semibold">{{ format_number($parts['processing_fee_rate'] * 100, 2) }}%</p></div>
+                        <div><span class="text-xs text-gray-500">Risk</span><p class="font-semibold">{{ format_number($parts['service_fee_rate'] * 100, 2) }}%</p></div>
+                        <div><span class="text-xs text-gray-500">Insurance</span><p class="font-semibold">{{ format_number($parts['insurance_fee_rate'] * 100, 2) }}%</p></div>
                     </div>
                 </details>
             @endforeach
@@ -60,9 +60,9 @@
                         <span>{{ $fee->name }} <span class="text-xs text-gray-500">({{ $fee->code }})</span></span>
                         <span class="font-semibold text-gray-800">
                             @if ($fee->fee_type === 'percent')
-                                {{ number_format((float) $fee->amount, 2) }}%
+                                {{ format_number((float) $fee->amount, 2) }}%
                             @else
-                                TZS {{ number_format((float) $fee->amount, 0) }}
+                                {{ format_money((float) $fee->amount, 0) }}
                             @endif
                             · {{ $fee->is_active ? 'Active' : 'Off' }}
                         </span>

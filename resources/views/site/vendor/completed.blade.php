@@ -24,7 +24,7 @@
                             <td class="px-4 py-3 font-semibold">{{ ucfirst(str_replace('_',' ', $t->task_type)) }}</td>
                             <td class="px-4 py-3">{{ $t->customer_name ?: '—' }}</td>
                             <td class="px-4 py-3 text-gray-600">{{ $t->completed_at?->format('d M Y H:i') }}</td>
-                            <td class="px-4 py-3">TZS {{ number_format($t->fee_amount) }}</td>
+                            <td class="px-4 py-3">{{ format_money($t->fee_amount) }}</td>
                             <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-{{ $pc }}-100 text-{{ $pc }}-700">{{ $t->payment_status }}</span></td>
                             <td class="px-4 py-3 text-right"><a href="{{ route('site.vendor.task', $t) }}" class="text-indigo-600 hover:underline text-sm font-semibold">Open</a></td>
                         </tr>

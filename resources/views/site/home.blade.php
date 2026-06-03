@@ -128,7 +128,7 @@
                     <h3 class="text-lg font-semibold group-hover:text-amber-700">{{ $product->name }}</h3>
                     <p class="mt-1 text-sm text-gray-600 line-clamp-2">{{ $product->description }}</p>
                     <div class="mt-4 text-xs text-gray-500 flex items-center justify-between">
-                        <span>{{ number_format($product->min_amount / 1000) }}k – {{ number_format($product->max_amount / 1000000, 0) }}M TZS</span>
+                        <span>{{ format_number($product->min_amount / 1000) }}k – {{ format_number($product->max_amount / 1000000, 0) }}M TZS</span>
                         <span>{{ $product->tenure_min_months }}–{{ $product->tenure_max_months }} mo</span>
                     </div>
                 </a>

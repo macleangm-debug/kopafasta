@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Models\Lender;
+use App\Services\CapitalPartnerMetricsService;
 use Illuminate\Database\Eloquent\Model;
 
 class LenderController extends ResourceController
@@ -33,5 +34,14 @@ class LenderController extends ResourceController
             'types'    => ['bank' => 'Bank', 'institutional' => 'Institutional', 'individual' => 'Individual', 'sacco' => 'SACCO', 'other' => 'Other'],
             'statuses' => ['active' => 'Active', 'inactive' => 'Inactive', 'suspended' => 'Suspended'],
         ];
+    }
+
+    public function show($id)
+    {
+        $record = Lender::with('pools')->findOrFail($id);
+        $metrics = app(CapitalPartnerMetricsService::class)->forLender($record);
+        $pools = app(CapitalPartnerMetricsService::class)->poolRows($record);
+
+        return view('admin.lenders.show', compact('record', 'metrics', 'pools'));
     }
 }

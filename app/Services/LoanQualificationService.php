@@ -32,7 +32,7 @@ class LoanQualificationService
             $income = (float) (config('income_ranges.'.$customer->income_range.'.midpoint') ?? 0);
             $factors[] = ['label' => 'Income range', 'detail' => income_range_label($customer->income_range) ?? $customer->income_range];
         } elseif ($income > 0) {
-            $factors[] = ['label' => 'Declared income', 'detail' => 'TZS '.number_format($income).'/month'];
+            $factors[] = ['label' => 'Declared income', 'detail' => format_money($income).'/month'];
         }
 
         $base = (int) min(max($income * $cfg['income_multiplier'], 0), $cfg['max_cap']);

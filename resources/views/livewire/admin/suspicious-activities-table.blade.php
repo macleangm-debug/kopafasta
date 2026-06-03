@@ -18,7 +18,7 @@
                 <td class="px-5 py-3">{{ $r->customer ? trim(($r->customer->first_name ?? '').' '.($r->customer->last_name ?? '')) : '—' }}</td>
                 <td class="px-5 py-3"><span class="inline-flex items-center rounded px-2 py-0.5 text-xs {{ $sc }}">{{ ucfirst($r->severity) }}</span></td>
                 <td class="px-5 py-3"><span class="inline-flex items-center rounded px-2 py-0.5 text-xs {{ $stc }}">{{ ucfirst($r->status) }}</span></td>
-                <td class="px-5 py-3 text-right font-mono text-xs">{{ $r->amount ? number_format($r->amount, 0) : '—' }}</td>
+                <td class="px-5 py-3 text-right font-mono text-xs">{{ $r->amount ? format_number($r->amount, 0) : '—' }}</td>
             </tr>
         @empty
             <tr><td colspan="6" class="px-5 py-12 text-center text-gray-500">No suspicious activity reports.</td></tr>

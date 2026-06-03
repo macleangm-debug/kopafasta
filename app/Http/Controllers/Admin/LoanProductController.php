@@ -101,6 +101,10 @@ class LoanProductController extends ResourceController
         $data['requires_collateral'] = (bool) ($data['requires_collateral'] ?? false);
         $data['requires_guarantor']  = (bool) ($data['requires_guarantor'] ?? false);
         $data['uses_capital_partner'] = in_array((string) ($data['uses_capital_partner'] ?? '1'), ['1', 'true'], true);
+        $category = strtolower((string) ($data['category'] ?? ''));
+        if (in_array($category, ['asset_finance', 'asset_lending'], true)) {
+            $data['uses_capital_partner'] = false;
+        }
         $data['status']              = $data['status'] ?? 'inactive';
         $data['is_active']           = $data['status'] === 'active';
         $data['repayment_cadence']   = $data['repayment_cadence'] ?? 'weekly';

@@ -49,13 +49,13 @@
                     </div>
                     <div>
                         <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.rate_tenure_label') }}</p>
-                        <p class="font-semibold text-sm">{{ __('borrower.loans_page.rate_tenure', ['rate' => number_format($loan->interest_rate * 100, 2), 'months' => $loan->tenure_months]) }}</p>
+                        <p class="font-semibold text-sm">{{ __('borrower.loans_page.rate_tenure', ['rate' => format_number($loan->interest_rate * 100, 2), 'months' => $loan->tenure_months]) }}</p>
                     </div>
                 </div>
 
                 <div class="mb-5">
                     <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
-                        <span>{{ __('borrower.loans_page.repaid_pct', ['pct' => number_format($pct, 0)]) }}</span>
+                        <span>{{ __('borrower.loans_page.repaid_pct', ['pct' => format_number($pct, 0)]) }}</span>
                         <span>{{ __('borrower.loans_page.matures', ['date' => $loan->maturity_date ? \Carbon\Carbon::parse($loan->maturity_date)->format('d M Y') : '—']) }}</span>
                     </div>
                     <div class="h-2 bg-gray-100 rounded-full overflow-hidden">

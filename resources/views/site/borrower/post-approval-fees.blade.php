@@ -15,7 +15,7 @@
                         <p class="text-xs text-gray-500">{{ ucfirst($fee->fee_type) }} · {{ $fee->code }}</p>
                     </div>
                     <div class="text-right">
-                        <p class="font-semibold">TZS {{ number_format($fee->calculated_amount) }}</p>
+                        <p class="font-semibold">{{ format_money($fee->calculated_amount) }}</p>
                         <span class="text-xs font-semibold rounded-full px-2 py-0.5 {{ $fee->isPaid() ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700' }}">
                             {{ ucfirst($fee->status) }}
                         </span>
@@ -27,24 +27,24 @@
             @if ($feeQuote['discount'] > 0)
                 <div class="flex items-center justify-between text-sm text-gray-600">
                     <span>Subtotal</span>
-                    <span>TZS {{ number_format($feeQuote['base']) }}</span>
+                    <span>{{ format_money($feeQuote['base']) }}</span>
                 </div>
                 <div class="flex items-center justify-between text-sm text-emerald-700">
                     <span>Referral discount</span>
-                    <span>- TZS {{ number_format($feeQuote['discount']) }}</span>
+                    <span>- {{ format_money($feeQuote['discount']) }}</span>
                 </div>
             @endif
             <div class="flex items-center justify-between">
                 <span class="font-semibold">Total due</span>
-                <span class="text-lg font-bold">TZS {{ number_format($feeQuote['after_discount']) }}</span>
+                <span class="text-lg font-bold">{{ format_money($feeQuote['after_discount']) }}</span>
             </div>
         </div>
     </div>
 
     @if ($wallet->balance > 0 && $application->postApprovalFees->contains(fn ($f) => ! $f->isPaid()))
         <div class="mb-6 rounded-xl bg-indigo-50 ring-1 ring-indigo-200 px-4 py-4 text-sm text-indigo-900">
-            <p>Referral wallet balance: <strong>TZS {{ number_format($wallet->balance) }}</strong>.</p>
-            <p class="mt-1 text-xs">You may apply up to {{ rtrim(rtrim(number_format($referralSettings['wallet_max_fee_percent'], 2), '0'), '.') }}% of the fee total from your wallet (max <strong>TZS {{ number_format($maxWalletQuote['wallet_applied']) }}</strong>).</p>
+            <p>Referral wallet balance: <strong>{{ format_money($wallet->balance) }}</strong>.</p>
+            <p class="mt-1 text-xs">You may apply up to {{ rtrim(rtrim(format_number($referralSettings['wallet_max_fee_percent'], 2), '0'), '.') }}% of the fee total from your wallet (max <strong>{{ format_money($maxWalletQuote['wallet_applied']) }}</strong>).</p>
         </div>
     @endif
 
@@ -56,8 +56,8 @@
                 <label class="flex items-start gap-3 rounded-xl bg-white ring-1 ring-gray-200 px-4 py-3 text-sm cursor-pointer">
                     <input type="checkbox" name="use_wallet" value="1" class="mt-1 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
                     <span>
-                        Use referral wallet (up to <strong>TZS {{ number_format(min($wallet->balance, $maxWalletQuote['wallet_usable'])) }}</strong>).
-                        Estimated cash due after wallet: <strong>TZS {{ number_format($maxWalletQuote['cash_due']) }}</strong>.
+                        Use referral wallet (up to <strong>{{ format_money(min($wallet->balance, $maxWalletQuote['wallet_usable'])) }}</strong>).
+                        Estimated cash due after wallet: <strong>{{ format_money($maxWalletQuote['cash_due']) }}</strong>.
                     </span>
                 </label>
             @endif

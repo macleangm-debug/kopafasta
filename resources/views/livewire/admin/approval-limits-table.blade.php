@@ -13,8 +13,8 @@
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3 font-medium">{{ display_label($r->role_code, 'role') }}</td>
                 <td class="px-5 py-3"><a href="{{ route('admin.approval-limits.show', $r) }}" class="hover:text-indigo-600">{{ display_label($r->action, 'approval_action') }}</a></td>
-                <td class="px-5 py-3 text-right font-mono text-xs">{{ number_format($r->min_amount, 0) }}</td>
-                <td class="px-5 py-3 text-right font-mono text-xs">{{ number_format($r->max_amount, 0) }} {{ $r->currency }}</td>
+                <td class="px-5 py-3 text-right font-mono text-xs">{{ format_number($r->min_amount, 0) }}</td>
+                <td class="px-5 py-3 text-right font-mono text-xs">{{ format_number($r->max_amount, 0) }} {{ $r->currency }}</td>
                 <td class="px-5 py-3">{{ $r->requires_dual_control ? 'Yes' : 'No' }}</td>
                 <td class="px-5 py-3"><span class="inline-flex items-center rounded px-2 py-0.5 text-xs {{ $r->is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600' }}">{{ $r->is_active ? 'Active' : 'Inactive' }}</span></td>
             </tr>

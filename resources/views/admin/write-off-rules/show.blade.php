@@ -5,8 +5,8 @@
     :fields="[
         'Name' => $record->name,
         'DPD ≥' => $record->days_past_due.' days',
-        'Min outstanding' => $record->min_outstanding ? number_format($record->min_outstanding, 2) : '—',
-        'Max outstanding' => $record->max_outstanding ? number_format($record->max_outstanding, 2) : '—',
+        'Min outstanding' => $record->min_outstanding ? format_number($record->min_outstanding, 2) : '—',
+        'Max outstanding' => $record->max_outstanding ? format_number($record->max_outstanding, 2) : '—',
         'Committee approval' => $record->require_committee_approval ? 'Required' : 'Not required',
         'Auto propose' => $record->auto_propose ? 'Yes' : 'No',
         'Status' => $record->is_active ? 'Active' : 'Inactive',

@@ -16,7 +16,7 @@ class MacLeansCapitalPartnerSeeder extends Seeder
             ['code' => 'MACLEANS'],
             [
                 'name'              => 'MacLeans Group of Companies',
-                'type'              => 'institution',
+                'type'              => 'institutional',
                 'status'            => 'active',
                 'credit_limit'      => $capital,
                 'available_balance' => $capital,

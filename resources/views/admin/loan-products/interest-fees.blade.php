@@ -25,8 +25,8 @@
                             <a href="{{ route('admin.loan-products.show', $p) }}" class="hover:text-amber-700">{{ $p->name }}</a>
                         </td>
                         <td class="px-5 py-3 text-right font-semibold">{{ $rateService->formatBorrowerRateRange($p) }}</td>
-                        <td class="px-5 py-3 text-right">TZS {{ number_format((float) $p->min_amount) }}</td>
-                        <td class="px-5 py-3 text-right">TZS {{ number_format((float) $p->max_amount) }}</td>
+                        <td class="px-5 py-3 text-right">{{ format_money((float) $p->min_amount) }}</td>
+                        <td class="px-5 py-3 text-right">{{ format_money((float) $p->max_amount) }}</td>
                         <td class="px-5 py-3 text-right">{{ $p->tenure_min_months }}–{{ $p->tenure_max_months }} mo</td>
                         <td class="px-5 py-3">
                             <x-admin.badge :value="$p->is_active ? 'active' : 'inactive'" :map="[

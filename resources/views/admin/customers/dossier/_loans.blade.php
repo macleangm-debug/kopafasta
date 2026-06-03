@@ -19,8 +19,8 @@
                         <tr class="hover:bg-gray-50">
                             <td class="py-3 font-mono text-xs">{{ $loan->loan_number }}</td>
                             <td class="py-3">{{ $loan->product?->name ?? '—' }}</td>
-                            <td class="py-3 text-right">TZS {{ number_format((float) $loan->principal_amount) }}</td>
-                            <td class="py-3 text-right font-semibold">TZS {{ number_format((float) $loan->outstanding_balance) }}</td>
+                            <td class="py-3 text-right">{{ format_money((float) $loan->principal_amount) }}</td>
+                            <td class="py-3 text-right font-semibold">{{ format_money((float) $loan->outstanding_balance) }}</td>
                             <td class="py-3">{{ display_label($loan->status, 'loan_status') }}</td>
                             <td class="py-3 text-right">
                                 <a href="{{ route('admin.loans.show', $loan) }}" class="text-xs font-semibold text-amber-700 hover:text-amber-800">Open →</a>

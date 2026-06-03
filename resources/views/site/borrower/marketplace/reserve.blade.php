@@ -30,10 +30,10 @@
         <div class="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
             <h2 class="font-semibold">{{ __('borrower.marketplace.asset_summary') }}</h2>
             <dl class="space-y-2 text-sm">
-                <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ __('borrower.marketplace.asset_value') }}</dt><dd class="font-semibold">TZS {{ number_format($asset['asset_value'] ?? 0) }}</dd></div>
-                <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ __('borrower.marketplace.loan_amount') }}</dt><dd class="font-semibold">TZS {{ number_format($asset['remaining_loan'] ?? 0) }}</dd></div>
-                <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ __('borrower.marketplace.deposit') }}</dt><dd class="font-semibold">TZS {{ number_format($feeBreakdown['deposit']) }}</dd></div>
-                <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ __('borrower.marketplace.weekly_installment') }}</dt><dd class="font-semibold">TZS {{ number_format($asset['weekly_installment'] ?? 0) }}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ __('borrower.marketplace.asset_value') }}</dt><dd class="font-semibold">{{ format_money($asset['asset_value'] ?? 0) }}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ __('borrower.marketplace.loan_amount') }}</dt><dd class="font-semibold">{{ format_money($asset['remaining_loan'] ?? 0) }}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ __('borrower.marketplace.deposit') }}</dt><dd class="font-semibold">{{ format_money($feeBreakdown['deposit']) }}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ __('borrower.marketplace.weekly_installment') }}</dt><dd class="font-semibold">{{ format_money($asset['weekly_installment'] ?? 0) }}</dd></div>
                 @if (! empty($asset['max_tenure_months']))
                     <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ __('borrower.marketplace.max_tenure') }}</dt><dd class="font-semibold">{{ $asset['max_tenure_months'] }} {{ __('borrower.apply.quote.months') }}</dd></div>
                 @endif
@@ -45,14 +45,14 @@
             <dl class="space-y-2 text-sm">
                 <div class="flex justify-between gap-3">
                     <dt class="text-gray-500">{{ $feeBreakdown['application_fee_label'] }}</dt>
-                    <dd class="font-semibold">TZS {{ number_format($feeBreakdown['application_fee']) }}</dd>
+                    <dd class="font-semibold">{{ format_money($feeBreakdown['application_fee']) }}</dd>
                 </div>
                 @if (! empty($feeBreakdown['application_fee_detail']))
                     <p class="text-xs text-gray-500">{{ $feeBreakdown['application_fee_detail'] }}</p>
                 @endif
                 <div class="flex justify-between gap-3 pt-2 border-t border-gray-100">
                     <dt class="text-gray-500">{{ $feeBreakdown['deposit_label'] }}</dt>
-                    <dd class="font-semibold">TZS {{ number_format($feeBreakdown['deposit']) }}</dd>
+                    <dd class="font-semibold">{{ format_money($feeBreakdown['deposit']) }}</dd>
                 </div>
             </dl>
             @if (! empty($feeBreakdown['post_approval']))
@@ -139,7 +139,7 @@
             </form>
         @elseif ($reservation->status === 'interest_confirmed')
             @if ($applyRequirements['can_apply'] ?? false)
-                <p class="text-sm text-gray-600">{{ __('borrower.marketplace.pay_application_fee_hint', ['amount' => number_format($reservation->reservation_fee_amount)]) }}</p>
+                <p class="text-sm text-gray-600">{{ __('borrower.marketplace.pay_application_fee_hint', ['amount' => format_number($reservation->reservation_fee_amount)]) }}</p>
                 <form method="POST" action="{{ route('site.borrower.marketplace.reservation.advance', $asset['id']) }}">
                     @csrf
                     <input type="hidden" name="action" value="pay_reservation_fee">
@@ -148,7 +148,7 @@
             @endif
         @elseif ($reservation->status === 'reservation_fee_paid')
             @if ($applyRequirements['can_apply'] ?? false)
-                <p class="text-sm text-gray-600">{{ __('borrower.marketplace.pay_deposit_hint', ['amount' => number_format($reservation->deposit_amount)]) }}</p>
+                <p class="text-sm text-gray-600">{{ __('borrower.marketplace.pay_deposit_hint', ['amount' => format_number($reservation->deposit_amount)]) }}</p>
                 <form method="POST" action="{{ route('site.borrower.marketplace.reservation.advance', $asset['id']) }}">
                     @csrf
                     <input type="hidden" name="action" value="pay_deposit">

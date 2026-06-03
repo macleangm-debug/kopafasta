@@ -45,7 +45,7 @@
                     <div class="grid grid-cols-2 gap-3 mt-4 text-center">
                         <div class="rounded-lg bg-slate-50 p-3">
                             <p class="text-[11px] uppercase text-slate-500 font-semibold">Expected return</p>
-                            <p class="text-xl font-extrabold text-emerald-700">{{ rtrim(rtrim(number_format($pool->expected_yield, 2),'0'),'.') }}%</p>
+                            <p class="text-xl font-extrabold text-emerald-700">{{ rtrim(rtrim(format_number($pool->expected_yield, 2),'0'),'.') }}%</p>
                         </div>
                         <div class="rounded-lg bg-slate-50 p-3">
                             <p class="text-[11px] uppercase text-slate-500 font-semibold">Min invest</p>
@@ -55,8 +55,8 @@
 
                     <div class="grid grid-cols-3 gap-2 mt-4 text-xs">
                         <div><span class="text-slate-500">Borrowers</span><br><span class="font-semibold">{{ $pool->active_borrowers }}</span></div>
-                        <div><span class="text-slate-500">Repayment</span><br><span class="font-semibold text-emerald-700">{{ rtrim(rtrim(number_format($pool->repayment_rate, 1),'0'),'.') }}%</span></div>
-                        <div><span class="text-slate-500">Defaults</span><br><span class="font-semibold {{ $pool->default_rate > 5 ? 'text-red-600' : 'text-slate-700' }}">{{ rtrim(rtrim(number_format($pool->default_rate, 1),'0'),'.') }}%</span></div>
+                        <div><span class="text-slate-500">Repayment</span><br><span class="font-semibold text-emerald-700">{{ rtrim(rtrim(format_number($pool->repayment_rate, 1),'0'),'.') }}%</span></div>
+                        <div><span class="text-slate-500">Defaults</span><br><span class="font-semibold {{ $pool->default_rate > 5 ? 'text-red-600' : 'text-slate-700' }}">{{ rtrim(rtrim(format_number($pool->default_rate, 1),'0'),'.') }}%</span></div>
                     </div>
 
                     <div class="mt-4">

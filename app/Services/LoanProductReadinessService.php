@@ -116,7 +116,7 @@ class LoanProductReadinessService
 
         $detail = $lines === []
             ? __('borrower.apply.readiness.fees.post_approval_detail')
-            : collect($lines)->map(fn (array $l) => $l['name'].' (from TZS '.number_format($principal).')')->join(' · ');
+            : collect($lines)->map(fn (array $l) => $l['name'].' (from '.format_money($principal).')')->join(' · ');
 
         return [
             'total'  => round($total, 2),

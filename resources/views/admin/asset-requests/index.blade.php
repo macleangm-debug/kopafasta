@@ -17,7 +17,7 @@
                     <tr>
                         <td class="px-4 py-3 font-medium">{{ $requestRow->asset_name }}</td>
                         <td class="px-4 py-3">{{ $requestRow->customer?->full_name }}</td>
-                        <td class="px-4 py-3">TZS {{ number_format($requestRow->budget ?? 0) }}</td>
+                        <td class="px-4 py-3">{{ format_money($requestRow->budget ?? 0) }}</td>
                         <td class="px-4 py-3">{{ ucfirst($requestRow->status) }}</td>
                         <td class="px-4 py-3">{{ $requestRow->vendor?->name ?? '—' }}</td>
                         <td class="px-4 py-3">

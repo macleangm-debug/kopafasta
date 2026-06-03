@@ -33,7 +33,7 @@
                     <div class="col-span-2"><dt class="text-gray-500 text-xs">Vehicle</dt><dd class="font-medium">{{ $task->vehicle_details ?: '—' }}</dd></div>
                     <div class="col-span-2"><dt class="text-gray-500 text-xs">Location</dt><dd class="font-medium">{{ $task->location ?: '—' }}</dd></div>
                     <div><dt class="text-gray-500 text-xs">Due</dt><dd class="font-medium">{{ $task->due_at ? $task->due_at->format('d M Y H:i') : '—' }}</dd></div>
-                    <div><dt class="text-gray-500 text-xs">Fee</dt><dd class="font-medium">TZS {{ number_format($task->fee_amount) }}</dd></div>
+                    <div><dt class="text-gray-500 text-xs">Fee</dt><dd class="font-medium">{{ format_money($task->fee_amount) }}</dd></div>
                 </dl>
                 @if ($task->instructions)
                     <div class="mt-4 pt-4 border-t border-gray-100">
@@ -136,7 +136,7 @@
                 <div class="rounded-2xl border border-gray-200 bg-white p-5">
                     <h3 class="font-bold mb-3">Payment</h3>
                     <p class="text-sm"><span class="text-gray-500">Invoice:</span> <span class="font-mono">{{ $task->payment->invoice_number }}</span></p>
-                    <p class="text-sm"><span class="text-gray-500">Amount:</span> TZS {{ number_format($task->payment->amount) }}</p>
+                    <p class="text-sm"><span class="text-gray-500">Amount:</span> {{ format_money($task->payment->amount) }}</p>
                     @php $pc = $task->payment->status === 'paid' ? 'emerald' : 'amber'; @endphp
                     <p class="mt-1"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-{{ $pc }}-100 text-{{ $pc }}-700">{{ $task->payment->status }}</span></p>
                     <a href="{{ route('site.vendor.invoice', $task->payment) }}" class="block mt-3 text-sm text-indigo-600 hover:underline">View invoice →</a>

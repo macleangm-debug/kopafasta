@@ -8,7 +8,7 @@
         'Type'             => ucfirst($record->type),
         'Category'         => $record->category,
         'Parent'           => $record->parent->name ?? '—',
-        'Opening balance'  => number_format($record->opening_balance, 2).' '.$record->currency,
+        'Opening balance'  => format_number($record->opening_balance, 2).' '.$record->currency,
         'Status'           => $record->is_active ? 'Active' : 'Inactive',
         'Description'      => ['value' => $record->description, 'wide' => true],
         'Created'          => $record->created_at?->format('Y-m-d H:i'),

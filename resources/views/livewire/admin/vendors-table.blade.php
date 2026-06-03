@@ -23,7 +23,7 @@
                 </td>
                 @if ($affiliateMode ?? false)
                     <td class="px-5 py-3 font-mono text-xs">{{ $r->affiliate_code ?: '—' }}</td>
-                    <td class="px-5 py-3 text-sm">{{ number_format((float) ($r->affiliate_commission_percent ?? config('affiliates.default_commission_percent', 0)), 1) }}%</td>
+                    <td class="px-5 py-3 text-sm">{{ format_number((float) ($r->affiliate_commission_percent ?? config('affiliates.default_commission_percent', 0)), 1) }}%</td>
                     <td class="px-5 py-3 text-xs text-gray-600 max-w-[14rem] truncate">
                         @if ($r->affiliate_code)
                             {{ app(\App\Services\AffiliateService::class)->affiliateLink($r) }}

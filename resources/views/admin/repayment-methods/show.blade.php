@@ -5,8 +5,8 @@
     :fields="[
         'Code' => $record->code, 'Name' => $record->name,
         'Channel' => display_label($record->channel, 'channel'),
-        'Fixed fee' => number_format($record->fixed_fee, 2),
-        'Percentage fee' => number_format($record->percentage_fee * 100, 2).' %',
+        'Fixed fee' => format_number($record->fixed_fee, 2),
+        'Percentage fee' => format_number($record->percentage_fee * 100, 2).' %',
         'Auto reconcile' => $record->auto_reconcile ? 'Yes' : 'No',
         'Status' => $record->is_active ? 'Active' : 'Inactive',
     ]" />

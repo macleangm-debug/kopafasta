@@ -17,7 +17,7 @@
             </div>
             <div>
                 <div class="text-gray-500">Outstanding balance</div>
-                <div class="font-medium">{{ number_format((float) $loan->outstanding_balance) }} {{ $loan->currency ?? 'TZS' }}</div>
+                <div class="font-medium">{{ format_number((float) $loan->outstanding_balance) }} {{ $loan->currency ?? 'TZS' }}</div>
             </div>
             <div>
                 <div class="text-gray-500">Status</div>

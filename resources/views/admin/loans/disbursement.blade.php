@@ -25,7 +25,7 @@
                         <div>
                             <span class="font-mono text-xs text-gray-500">{{ $app->application_number }}</span>
                             <span class="font-medium text-gray-900 ml-2">{{ trim($app->customer?->first_name.' '.$app->customer?->last_name) }}</span>
-                            <span class="text-gray-500">· TZS {{ number_format((float) ($app->recommended_amount ?: $app->requested_amount)) }}</span>
+                            <span class="text-gray-500">· {{ format_money((float) ($app->recommended_amount ?: $app->requested_amount)) }}</span>
                         </div>
                         <div class="flex gap-2">
                             <a href="{{ route('admin.loan-applications.show', $app) }}" class="text-xs font-semibold text-gray-600 hover:text-gray-900">Application</a>

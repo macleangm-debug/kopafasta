@@ -10,15 +10,15 @@
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         <div class="bg-white rounded-xl ring-1 ring-gray-200 p-4">
             <div class="text-xs uppercase tracking-wider text-gray-500">Total entries</div>
-            <div class="text-2xl font-bold text-gray-900 mt-1">{{ number_format($entries->total()) }}</div>
+            <div class="text-2xl font-bold text-gray-900 mt-1">{{ format_number($entries->total()) }}</div>
         </div>
         <div class="bg-white rounded-xl ring-1 ring-gray-200 p-4">
             <div class="text-xs uppercase tracking-wider text-gray-500">Total debits</div>
-            <div class="text-2xl font-bold text-gray-900 mt-1">TZS {{ number_format($totalDr) }}</div>
+            <div class="text-2xl font-bold text-gray-900 mt-1">{{ format_money($totalDr) }}</div>
         </div>
         <div class="bg-white rounded-xl ring-1 ring-gray-200 p-4">
             <div class="text-xs uppercase tracking-wider text-gray-500">Total credits</div>
-            <div class="text-2xl font-bold text-gray-900 mt-1">TZS {{ number_format($totalCr) }}</div>
+            <div class="text-2xl font-bold text-gray-900 mt-1">{{ format_money($totalCr) }}</div>
         </div>
     </div>
 
@@ -56,8 +56,8 @@
                         <td class="px-4 py-2">{{ optional($e->entry_date)->format('Y-m-d') }}</td>
                         <td class="px-4 py-2">{{ $e->description }}</td>
                         <td class="px-4 py-2 text-xs text-gray-500">{{ class_basename($e->source_type ?? '') }}{{ $e->source_id ? ' #'.$e->source_id : '' }}</td>
-                        <td class="px-4 py-2 text-right">{{ number_format((float) $e->total_debit) }}</td>
-                        <td class="px-4 py-2 text-right">{{ number_format((float) $e->total_credit) }}</td>
+                        <td class="px-4 py-2 text-right">{{ format_number((float) $e->total_debit) }}</td>
+                        <td class="px-4 py-2 text-right">{{ format_number((float) $e->total_credit) }}</td>
                         <td class="px-4 py-2"><span @class([
                             'inline-flex px-2 py-0.5 rounded text-xs',
                             'bg-emerald-100 text-emerald-700' => $e->status === 'posted',

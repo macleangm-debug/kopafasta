@@ -55,7 +55,7 @@
                 <div>
                     <div class="text-xs uppercase tracking-wider text-gray-500">Outstanding balance</div>
                     <div class="text-3xl font-bold text-gray-900 mt-1">
-                        TZS {{ number_format((float) $loan->outstanding_balance) }}
+                        {{ format_money((float) $loan->outstanding_balance) }}
                     </div>
                 </div>
                 <span @class([
@@ -101,15 +101,15 @@
                 </div>
                 <div>
                     <dt class="text-xs text-gray-500">Principal amount</dt>
-                    <dd class="text-gray-900">TZS {{ number_format((float) $loan->principal_amount) }}</dd>
+                    <dd class="text-gray-900">{{ format_money((float) $loan->principal_amount) }}</dd>
                 </div>
                 <div>
                     <dt class="text-xs text-gray-500">Approved amount</dt>
-                    <dd class="text-gray-900">TZS {{ number_format((float) $loan->approved_amount) }}</dd>
+                    <dd class="text-gray-900">{{ format_money((float) $loan->approved_amount) }}</dd>
                 </div>
                 <div>
                     <dt class="text-xs text-gray-500">Interest rate</dt>
-                    <dd class="text-gray-900">{{ number_format((float) $loan->interest_rate * 100, 2) }}%</dd>
+                    <dd class="text-gray-900">{{ format_number((float) $loan->interest_rate * 100, 2) }}%</dd>
                 </div>
                 <div>
                     <dt class="text-xs text-gray-500">Tenure</dt>
@@ -150,13 +150,58 @@
         </div>
     </div>
 
+    @if ($loan->capitalAllocations->isNotEmpty())
+        <div class="mt-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+            <h3 class="text-sm font-semibold text-gray-700 mb-1">Capital partner funding</h3>
+            <p class="text-xs text-gray-500 mb-4">Proportional allocation at approval · interest split {{ \App\Services\CapitalPartnerAllocationService::PARTNER_INTEREST_SHARE }}% partner / {{ \App\Services\CapitalPartnerAllocationService::COMPANY_INTEREST_SHARE }}% company</p>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 text-sm">
+                <div class="rounded-lg bg-gray-50 px-3 py-2"><span class="text-xs text-gray-500 block">Allocated</span><span class="font-semibold">{{ format_money($capitalTotals['allocated_principal']) }}</span></div>
+                <div class="rounded-lg bg-gray-50 px-3 py-2"><span class="text-xs text-gray-500 block">Outstanding exposure</span><span class="font-semibold">{{ format_money($capitalTotals['outstanding_exposure']) }}</span></div>
+                <div class="rounded-lg bg-emerald-50 px-3 py-2"><span class="text-xs text-emerald-800 block">Partner interest</span><span class="font-semibold text-emerald-900">{{ format_money($capitalTotals['interest_earned_partner']) }}</span></div>
+                <div class="rounded-lg bg-sky-50 px-3 py-2"><span class="text-xs text-sky-800 block">Company interest</span><span class="font-semibold text-sky-900">{{ format_money($capitalTotals['interest_earned_company']) }}</span></div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="text-xs uppercase text-gray-500 border-b border-gray-200">
+                        <tr>
+                            <th class="text-left py-2 pr-4">Partner</th>
+                            <th class="text-left py-2 pr-4">Pool</th>
+                            <th class="text-right py-2 pr-4">Allocated</th>
+                            <th class="text-right py-2 pr-4">%</th>
+                            <th class="text-right py-2 pr-4">Exposure</th>
+                            <th class="text-right py-2 pr-4">Partner int.</th>
+                            <th class="text-right py-2">Company int.</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach ($capitalAllocations as $row)
+                            <tr>
+                                <td class="py-2 pr-4">{{ $row['partner'] }}</td>
+                                <td class="py-2 pr-4 text-xs text-gray-600">{{ $row['pool'] }}</td>
+                                <td class="py-2 pr-4 text-right font-mono">{{ format_money($row['allocated_principal']) }}</td>
+                                <td class="py-2 pr-4 text-right font-mono">{{ format_number($row['allocation_percent'], 2) }}%</td>
+                                <td class="py-2 pr-4 text-right font-mono">{{ format_money($row['outstanding_exposure']) }}</td>
+                                <td class="py-2 pr-4 text-right font-mono">{{ format_money($row['interest_earned_partner']) }}</td>
+                                <td class="py-2 text-right font-mono">{{ format_money($row['interest_earned_company']) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @elseif ($loan->product && ($loan->product->uses_capital_partner ?? true))
+        <div class="mt-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">
+            This product uses capital partner funding, but no allocation has been recorded for this loan yet.
+        </div>
+    @endif
+
     {{-- Fees applied at disbursement --}}
     <div class="mt-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
         <div class="flex items-center justify-between mb-3">
             <h3 class="text-sm font-semibold text-gray-700">Fees &amp; Charges</h3>
             <div class="text-sm text-gray-600">
                 Net disbursed:
-                <span class="font-semibold text-gray-900">TZS {{ number_format((float) ($loan->net_disbursed_amount ?? max(0, (float)$loan->approved_amount - (float)$loan->fees_total)) ) }}</span>
+                <span class="font-semibold text-gray-900">{{ format_money((float) ($loan->net_disbursed_amount ?? max(0, (float)$loan->approved_amount - (float)$loan->fees_total)) ) }}</span>
                 <span class="text-xs text-gray-500">(approved − fees)</span>
             </div>
         </div>
@@ -182,8 +227,8 @@
                                 <td class="py-2 pr-4 font-mono text-xs">{{ $fee->code }}</td>
                                 <td class="py-2 pr-4">{{ $fee->name }}</td>
                                 <td class="py-2 pr-4 text-xs text-gray-600">{{ $fee->basis }}</td>
-                                <td class="py-2 pr-4 text-right">{{ $fee->basis === 'percentage' ? rtrim(rtrim(number_format((float) $fee->rate_or_amount, 4), '0'), '.').'%' : number_format((float) $fee->rate_or_amount) }}</td>
-                                <td class="py-2 pr-4 text-right font-semibold">{{ number_format((float) $fee->computed_amount) }}</td>
+                                <td class="py-2 pr-4 text-right">{{ $fee->basis === 'percentage' ? rtrim(rtrim(format_number((float) $fee->rate_or_amount, 4), '0'), '.').'%' : format_number((float) $fee->rate_or_amount) }}</td>
+                                <td class="py-2 pr-4 text-right font-semibold">{{ format_number((float) $fee->computed_amount) }}</td>
                                 <td class="py-2 pr-4 capitalize text-xs">{{ $fee->status }}</td>
                                 <td class="py-2 text-xs text-gray-500">{{ optional($fee->charged_at)->format('Y-m-d H:i') }}</td>
                             </tr>
@@ -192,7 +237,7 @@
                     <tfoot>
                         <tr class="border-t-2 border-gray-200">
                             <td colspan="4" class="py-2 pr-4 text-right text-xs uppercase text-gray-500">Total fees</td>
-                            <td class="py-2 pr-4 text-right font-bold">{{ number_format((float) $loan->fees_total) }}</td>
+                            <td class="py-2 pr-4 text-right font-bold">{{ format_number((float) $loan->fees_total) }}</td>
                             <td colspan="2"></td>
                         </tr>
                     </tfoot>
@@ -214,7 +259,7 @@
         <div class="flex items-center justify-between mb-3">
             <h3 class="text-sm font-semibold text-gray-700">Repayment schedule</h3>
             <div class="text-xs text-gray-500">
-                {{ $schedule->count() }} installments · Paid TZS {{ number_format($sumPaid) }} / {{ number_format($sumTotal) }}
+                {{ $schedule->count() }} installments · Paid {{ format_money($sumPaid) }} / {{ format_number($sumTotal) }}
             </div>
         </div>
 
@@ -248,10 +293,10 @@
                             <tr>
                                 <td class="py-2 pr-4 font-mono text-xs">{{ $row->installment_no }}</td>
                                 <td class="py-2 pr-4">{{ \Carbon\Carbon::parse($row->due_date)->format('Y-m-d') }}</td>
-                                <td class="py-2 pr-4 text-right">{{ number_format((float) $row->principal_due) }}</td>
-                                <td class="py-2 pr-4 text-right">{{ number_format((float) $row->interest_due) }}</td>
-                                <td class="py-2 pr-4 text-right font-semibold">{{ number_format((float) $row->total_due) }}</td>
-                                <td class="py-2 pr-4 text-right">{{ number_format((float) $row->amount_paid) }}</td>
+                                <td class="py-2 pr-4 text-right">{{ format_number((float) $row->principal_due) }}</td>
+                                <td class="py-2 pr-4 text-right">{{ format_number((float) $row->interest_due) }}</td>
+                                <td class="py-2 pr-4 text-right font-semibold">{{ format_number((float) $row->total_due) }}</td>
+                                <td class="py-2 pr-4 text-right">{{ format_number((float) $row->amount_paid) }}</td>
                                 <td class="py-2">
                                     <span @class([
                                         'inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold uppercase',
@@ -267,10 +312,10 @@
                     <tfoot>
                         <tr class="border-t-2 border-gray-200">
                             <td colspan="2" class="py-2 pr-4 text-right text-xs uppercase text-gray-500">Totals</td>
-                            <td class="py-2 pr-4 text-right font-bold">{{ number_format($sumPrin) }}</td>
-                            <td class="py-2 pr-4 text-right font-bold">{{ number_format($sumInt) }}</td>
-                            <td class="py-2 pr-4 text-right font-bold">{{ number_format($sumTotal) }}</td>
-                            <td class="py-2 pr-4 text-right font-bold">{{ number_format($sumPaid) }}</td>
+                            <td class="py-2 pr-4 text-right font-bold">{{ format_number($sumPrin) }}</td>
+                            <td class="py-2 pr-4 text-right font-bold">{{ format_number($sumInt) }}</td>
+                            <td class="py-2 pr-4 text-right font-bold">{{ format_number($sumTotal) }}</td>
+                            <td class="py-2 pr-4 text-right font-bold">{{ format_number($sumPaid) }}</td>
                             <td></td>
                         </tr>
                     </tfoot>

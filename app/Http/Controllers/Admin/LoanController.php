@@ -9,6 +9,8 @@ use App\Models\Loan;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
 use App\Services\AuditService;
+use App\Services\CapitalPartnerAllocationService;
+use App\Services\CapitalPartnerMetricsService;
 use App\Services\LoanDisbursementService;
 use App\Services\LoanOriginationService;
 use App\Services\RepaymentScheduleGenerator;
@@ -117,6 +119,14 @@ class LoanController extends Controller
         $data['status']              = $data['status'] ?? 'pending';
 
         $loan = Loan::create($data);
+        $loan->load('product');
+        try {
+            app(CapitalPartnerAllocationService::class)->allocateForLoan($loan);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $loan->delete();
+
+            return back()->withErrors($e->errors())->withInput();
+        }
         $this->auditAdminCreated($loan);
 
         return redirect()
@@ -126,9 +136,21 @@ class LoanController extends Controller
 
     public function show(Loan $loan)
     {
-        $loan->load(['customer', 'product', 'application', 'fees', 'repaymentSchedules' => fn ($q) => $q->orderBy('installment_no')]);
+        $loan->load([
+            'customer',
+            'product',
+            'application',
+            'fees',
+            'capitalAllocations.lender',
+            'capitalAllocations.pool',
+            'repaymentSchedules' => fn ($q) => $q->orderBy('installment_no'),
+        ]);
 
-        return view('admin.loans.show', compact('loan'));
+        $metrics = app(CapitalPartnerMetricsService::class);
+        $capitalTotals = $metrics->loanTotals($loan);
+        $capitalAllocations = $metrics->allocationsForLoan($loan);
+
+        return view('admin.loans.show', compact('loan', 'capitalTotals', 'capitalAllocations'));
     }
 
     public function edit(Loan $loan)

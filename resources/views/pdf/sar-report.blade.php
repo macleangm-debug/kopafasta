@@ -32,7 +32,7 @@
       <tr><th>Activity type</th><td>{{ $activity->activity_type }}</td></tr>
       <tr><th>Severity</th><td><span class="pill pill-{{ $activity->severity }}">{{ $activity->severity }}</span></td></tr>
       <tr><th>Status</th><td>{{ ucfirst($activity->status) }}</td></tr>
-      <tr><th>Amount involved</th><td>{{ $activity->amount !== null ? 'TZS '.number_format((float)$activity->amount) : '—' }}</td></tr>
+      <tr><th>Amount involved</th><td>{{ $activity->amount !== null ? 'TZS '.format_number((float)$activity->amount) : '—' }}</td></tr>
       <tr><th>Detected at</th><td>{{ optional($activity->detected_at)->format('d M Y H:i') }}</td></tr>
       <tr><th>Triggered rule</th><td>{{ optional($activity->rule)->name ?? '—' }} ({{ optional($activity->rule)->code }})</td></tr>
     </table>

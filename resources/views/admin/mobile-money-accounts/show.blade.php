@@ -9,7 +9,7 @@
         'Paybill'      => $record->paybill_number,
         'Till'         => $record->till_number,
         'Environment'  => $record->environment,
-        'Opening balance' => number_format($record->opening_balance, 2),
+        'Opening balance' => format_number($record->opening_balance, 2),
         'GL account'   => $record->glAccount->name ?? '—',
         'Purpose'      => ucfirst($record->purpose),
         'Status'       => $record->is_active ? 'Active' : 'Inactive',

@@ -48,12 +48,12 @@
 <table class="kv">
     <tr><td class="label">Application number</td><td class="value">{{ $snapshot['application_number'] }}</td></tr>
     <tr><td class="label">Product</td><td class="value">{{ $snapshot['product_name'] }} ({{ $snapshot['product_code'] }})</td></tr>
-    <tr><td class="label">Principal</td><td class="value">TZS {{ number_format($snapshot['principal']) }}</td></tr>
+    <tr><td class="label">Principal</td><td class="value">{{ format_money($snapshot['principal']) }}</td></tr>
     <tr><td class="label">Tenure</td><td class="value">{{ $snapshot['tenure_months'] }} months ({{ $snapshot['installment_count'] }} {{ $snapshot['repayment_cadence'] === 'monthly' ? 'monthly' : 'weekly' }} instalments)</td></tr>
-    <tr><td class="label">{{ $snapshot['installment_label'] ?? 'Instalment' }}</td><td class="value">TZS {{ number_format($snapshot['estimated_emi']) }}</td></tr>
-    <tr><td class="label">Interest (total)</td><td class="value">TZS {{ number_format($snapshot['total_interest'] ?? 0) }}</td></tr>
-    <tr><td class="label">Fees</td><td class="value">TZS {{ number_format($snapshot['total_fees'] ?? 0) }}</td></tr>
-    <tr><td class="label">Monthly rate</td><td class="value">{{ number_format(($snapshot['displayed_monthly_rate'] ?? $snapshot['interest_rate'] ?? 0) * 100, 2) }}% per month (reducing balance)</td></tr>
+    <tr><td class="label">{{ $snapshot['installment_label'] ?? 'Instalment' }}</td><td class="value">{{ format_money($snapshot['estimated_emi']) }}</td></tr>
+    <tr><td class="label">Interest (total)</td><td class="value">{{ format_money($snapshot['total_interest'] ?? 0) }}</td></tr>
+    <tr><td class="label">Fees</td><td class="value">{{ format_money($snapshot['total_fees'] ?? 0) }}</td></tr>
+    <tr><td class="label">Monthly rate</td><td class="value">{{ format_number(($snapshot['displayed_monthly_rate'] ?? $snapshot['interest_rate'] ?? 0) * 100, 2) }}% per month (reducing balance)</td></tr>
     <tr><td class="label">Purpose</td><td class="value">{{ $snapshot['purpose'] ?: '—' }}</td></tr>
 </table>
 
@@ -73,9 +73,9 @@
             <tr>
                 <td>{{ $row['label'] ?? ('#'.$row['installment_no']) }}</td>
                 <td>{{ \Illuminate\Support\Carbon::parse($row['due_date'])->format('d M Y') }}</td>
-                <td>TZS {{ number_format($row['principal_due']) }}</td>
-                <td>TZS {{ number_format($row['interest_due']) }}</td>
-                <td>TZS {{ number_format($row['total_due']) }}</td>
+                <td>{{ format_money($row['principal_due']) }}</td>
+                <td>{{ format_money($row['interest_due']) }}</td>
+                <td>{{ format_money($row['total_due']) }}</td>
             </tr>
         @endforeach
     </tbody>

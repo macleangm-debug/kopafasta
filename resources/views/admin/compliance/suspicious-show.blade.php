@@ -29,7 +29,7 @@
                 </div>
                 <div><dt class="text-xs uppercase text-gray-500">Status</dt><dd class="font-semibold">{{ ucfirst($activity->status) }}</dd></div>
                 <div><dt class="text-xs uppercase text-gray-500">Amount</dt>
-                    <dd class="font-semibold">{{ $activity->amount !== null ? 'TZS '.number_format((float)$activity->amount) : '—' }}</dd></div>
+                    <dd class="font-semibold">{{ $activity->amount !== null ? 'TZS '.format_number((float)$activity->amount) : '—' }}</dd></div>
                 <div><dt class="text-xs uppercase text-gray-500">Detected</dt><dd>{{ optional($activity->detected_at)->format('Y-m-d H:i') }}</dd></div>
                 <div><dt class="text-xs uppercase text-gray-500">Rule triggered</dt><dd>{{ optional($activity->rule)->name ?? '—' }}</dd></div>
                 <div><dt class="text-xs uppercase text-gray-500">Assigned to</dt><dd>{{ optional($activity->assignee)->name ?? '—' }}</dd></div>

@@ -32,9 +32,9 @@
 
 <h2>Facility summary</h2>
 <table class="kv">
-    <tr><td class="label">Principal</td><td class="value">TZS {{ number_format($snapshot['principal']) }}</td></tr>
+    <tr><td class="label">Principal</td><td class="value">{{ format_money($snapshot['principal']) }}</td></tr>
     <tr><td class="label">Tenure</td><td class="value">{{ $snapshot['tenure_months'] }} months</td></tr>
-    <tr><td class="label">{{ $snapshot['installment_label'] ?? 'Instalment' }}</td><td class="value">TZS {{ number_format($snapshot['estimated_emi']) }}</td></tr>
+    <tr><td class="label">{{ $snapshot['installment_label'] ?? 'Instalment' }}</td><td class="value">{{ format_money($snapshot['estimated_emi']) }}</td></tr>
     <tr><td class="label">Repayment cadence</td><td class="value">{{ ucfirst($snapshot['repayment_cadence'] ?? 'weekly') }}</td></tr>
 </table>
 
@@ -46,7 +46,7 @@
             <tr>
                 <td>{{ $row['label'] ?? $row['installment_no'] }}</td>
                 <td>{{ \Illuminate\Support\Carbon::parse($row['due_date'])->format('d M Y') }}</td>
-                <td>TZS {{ number_format($row['total_due']) }}</td>
+                <td>{{ format_money($row['total_due']) }}</td>
             </tr>
         @endforeach
     </tbody>

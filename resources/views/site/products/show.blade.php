@@ -37,7 +37,7 @@
             </div>
             <div class="rounded-2xl border border-gray-200 p-5">
                 <div class="text-[11px] uppercase tracking-wider text-gray-500">Amount</div>
-                <div class="text-2xl font-bold mt-1">{{ number_format($product->min_amount / 1000) }}k <span class="text-base text-gray-500">– {{ number_format($product->max_amount / 1000000, 0) }}M</span></div>
+                <div class="text-2xl font-bold mt-1">{{ format_number($product->min_amount / 1000) }}k <span class="text-base text-gray-500">– {{ format_number($product->max_amount / 1000000, 0) }}M</span></div>
                 <div class="text-xs text-gray-500">TZS</div>
             </div>
             <div class="rounded-2xl border border-gray-200 p-5">

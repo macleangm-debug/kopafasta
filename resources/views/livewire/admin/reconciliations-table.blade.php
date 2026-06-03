@@ -15,10 +15,10 @@
                     {{ optional($r->period_start)->format('Y-m-d') }} → {{ optional($r->period_end)->format('Y-m-d') }}
                 </td>
                 <td class="px-5 py-3 font-mono text-xs">{{ $r->settlement?->reference ?? '—' }}</td>
-                <td class="px-5 py-3">TZS {{ format_number( ($r->system_total ?? 0)) }}</td>
-                <td class="px-5 py-3">TZS {{ format_number( ($r->bank_total ?? 0)) }}</td>
+                <td class="px-5 py-3">{{ format_money( ($r->system_total ?? 0)) }}</td>
+                <td class="px-5 py-3">{{ format_money( ($r->bank_total ?? 0)) }}</td>
                 <td class="px-5 py-3 @class(['font-semibold', 'text-red-700' => (float) ($r->variance ?? 0) !== 0.0])">
-                    TZS {{ format_number( ($r->variance ?? 0)) }}
+                    {{ format_money( ($r->variance ?? 0)) }}
                 </td>
                 <td class="px-5 py-3">
                     <x-admin.badge :value="$r->status" :map="[

@@ -83,7 +83,9 @@ class LoanProductSeeder extends Seeder
         ];
 
         foreach ($products as $row) {
-            $row['uses_capital_partner'] = ($row['category'] ?? '') !== 'asset_finance';
+            $category = strtolower((string) ($row['category'] ?? ''));
+            $row['uses_capital_partner'] = ! in_array($category, ['asset_finance', 'asset_lending'], true)
+                && ($row['code'] ?? '') !== 'AST-36';
             LoanProduct::query()->updateOrCreate(['code' => $row['code']], $row);
         }
     }

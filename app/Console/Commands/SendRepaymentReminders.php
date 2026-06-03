@@ -69,7 +69,7 @@ class SendRepaymentReminders extends Command
         $vars = [
             'name'           => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: 'Customer',
             'loan_number'    => $loan->loan_number,
-            'amount'         => 'TZS '.number_format($balanceDue),
+            'amount'         => format_money($balanceDue),
             'due_date'       => Carbon::parse($row->due_date)->format('d M Y'),
             'installment_no' => $row->installment_no,
         ];

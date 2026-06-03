@@ -106,8 +106,8 @@
                 <circle cx="64" cy="64" r="48" stroke-width="10" class="stroke-gray-200" fill="none"></circle>
                 <circle cx="64" cy="64" r="48" stroke-width="10" class="{{ $ringClass }}" fill="none"
                         stroke-linecap="round"
-                        stroke-dasharray="{{ number_format(2 * M_PI * 48, 2, '.', '') }}"
-                        stroke-dashoffset="{{ number_format((2 * M_PI * 48) - ($pct / 100) * (2 * M_PI * 48), 2, '.', '') }}"></circle>
+                        stroke-dasharray="{{ format_number(2 * M_PI * 48, 2, '.', '') }}"
+                        stroke-dashoffset="{{ format_number((2 * M_PI * 48) - ($pct / 100) * (2 * M_PI * 48), 2, '.', '') }}"></circle>
             </svg>
             <div class="absolute inset-0 flex flex-col items-center justify-center px-3 text-center pointer-events-none">
                 <span class="text-3xl font-bold text-gray-900 leading-none">{{ $days }}</span>

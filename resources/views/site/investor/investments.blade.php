@@ -38,7 +38,7 @@
                             <td class="px-4 py-3 font-mono text-xs"><a href="{{ route('site.investor.investment', $inv) }}" class="text-emerald-700 hover:underline">{{ $inv->reference }}</a></td>
                             <td class="px-4 py-3">{{ $inv->pool?->name ?? '—' }}</td>
                             <td class="px-4 py-3 text-right font-semibold">TZS {{ $fmt($inv->principal) }}</td>
-                            <td class="px-4 py-3 text-right text-emerald-700 font-semibold">{{ rtrim(rtrim(number_format($inv->return_rate, 2),'0'),'.') }}%</td>
+                            <td class="px-4 py-3 text-right text-emerald-700 font-semibold">{{ rtrim(rtrim(format_number($inv->return_rate, 2),'0'),'.') }}%</td>
                             <td class="px-4 py-3 text-slate-600">{{ optional($inv->invested_at)->format('d M Y') }}</td>
                             <td class="px-4 py-3 text-slate-600">{{ optional($inv->matures_at)->format('d M Y') ?: '—' }}</td>
                             <td class="px-4 py-3">

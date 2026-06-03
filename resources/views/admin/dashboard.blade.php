@@ -4,10 +4,10 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         @php
             $cards = [
-                ['Customers',     number_format($stats['customers']),    'bg-blue-500'],
-                ['Applications',  number_format($stats['applications']), 'bg-violet-500'],
-                ['Active Loans',  number_format($stats['active_loans']), 'bg-amber-500'],
-                ['Portfolio',     'TZS '.number_format($stats['portfolio_tzs'] / 1_000_000, 1).'M', 'bg-emerald-500'],
+                ['Customers',     format_number($stats['customers']),    'bg-blue-500'],
+                ['Applications',  format_number($stats['applications']), 'bg-violet-500'],
+                ['Active Loans',  format_number($stats['active_loans']), 'bg-amber-500'],
+                ['Portfolio',     'TZS '.format_number($stats['portfolio_tzs'] / 1_000_000, 1).'M', 'bg-emerald-500'],
             ];
         @endphp
 
@@ -46,7 +46,7 @@
                             <td class="px-5 py-3">
                                 {{ trim(($app->customer?->first_name ?? '').' '.($app->customer?->last_name ?? '')) ?: '—' }}
                             </td>
-                            <td class="px-5 py-3">TZS {{ number_format((float) ($app->requested_amount ?? 0)) }}</td>
+                            <td class="px-5 py-3">{{ format_money((float) ($app->requested_amount ?? 0)) }}</td>
                             <td class="px-5 py-3">
                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
                                     @class([

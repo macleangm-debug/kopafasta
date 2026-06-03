@@ -67,7 +67,7 @@
         <div class="mt-6 bg-white rounded-2xl border border-gray-200 p-6 text-left">
             <div class="grid grid-cols-2 gap-3 text-sm">
                 <div class="text-gray-500">Product</div><div class="font-medium">{{ $application->product->name }}</div>
-                <div class="text-gray-500">Amount</div><div class="font-medium">TZS {{ number_format($application->requested_amount, 0) }}</div>
+                <div class="text-gray-500">Amount</div><div class="font-medium">{{ format_money($application->requested_amount, true, 0) }}</div>
                 <div class="text-gray-500">Tenure</div><div class="font-medium">{{ $application->requested_tenure_months }} months</div>
             </div>
         </div>

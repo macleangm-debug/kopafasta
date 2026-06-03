@@ -50,16 +50,16 @@
                             <div class="text-xs font-mono text-gray-500">{{ $line->account?->code }}</div>
                         </td>
                         <td class="px-4 py-2 text-gray-700">{{ $line->description }}</td>
-                        <td class="px-4 py-2 text-right">{{ (float) $line->debit > 0 ? number_format((float) $line->debit) : '' }}</td>
-                        <td class="px-4 py-2 text-right">{{ (float) $line->credit > 0 ? number_format((float) $line->credit) : '' }}</td>
+                        <td class="px-4 py-2 text-right">{{ (float) $line->debit > 0 ? format_number((float) $line->debit) : '' }}</td>
+                        <td class="px-4 py-2 text-right">{{ (float) $line->credit > 0 ? format_number((float) $line->credit) : '' }}</td>
                     </tr>
                 @endforeach
             </tbody>
             <tfoot class="bg-gray-50 font-semibold">
                 <tr class="border-t-2 border-gray-200">
                     <td colspan="3" class="px-4 py-2 text-right text-xs uppercase text-gray-500">Totals</td>
-                    <td class="px-4 py-2 text-right">{{ number_format((float) $entry->total_debit) }}</td>
-                    <td class="px-4 py-2 text-right">{{ number_format((float) $entry->total_credit) }}</td>
+                    <td class="px-4 py-2 text-right">{{ format_number((float) $entry->total_debit) }}</td>
+                    <td class="px-4 py-2 text-right">{{ format_number((float) $entry->total_credit) }}</td>
                 </tr>
             </tfoot>
         </table>

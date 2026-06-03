@@ -34,7 +34,7 @@
     <div class="grid sm:grid-cols-3 gap-3 mb-6">
         <div class="bg-white rounded-2xl border border-gray-200 p-4">
             <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.application.requested_amount') }}</p>
-            <p class="text-lg font-bold">TZS {{ number_format($application->requested_amount) }}</p>
+            <p class="text-lg font-bold">{{ format_money($application->requested_amount) }}</p>
         </div>
         <div class="bg-white rounded-2xl border border-gray-200 p-4">
             <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.application.tenure') }}</p>

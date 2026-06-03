@@ -4,7 +4,7 @@
     <div class="rounded-2xl bg-gradient-to-br from-slate-900 to-emerald-900 text-white p-6 mt-4 mb-6 shadow-lg">
         <p class="text-xs uppercase tracking-widest text-emerald-300/80 font-semibold">Investment {{ $investment->reference }}</p>
         <p class="text-3xl font-extrabold mt-1">TZS {{ $fmt($investment->principal) }}</p>
-        <p class="text-sm text-slate-300 mt-2">At {{ rtrim(rtrim(number_format($investment->return_rate, 2),'0'),'.') }}% expected yield · expected return TZS {{ $fmt($investment->return_amount) }}</p>
+        <p class="text-sm text-slate-300 mt-2">At {{ rtrim(rtrim(format_number($investment->return_rate, 2),'0'),'.') }}% expected yield · expected return TZS {{ $fmt($investment->return_amount) }}</p>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">

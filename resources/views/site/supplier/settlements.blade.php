@@ -8,7 +8,7 @@
                 @forelse ($payments as $payment)
                     <tr>
                         <td class="px-4 py-3 font-medium">{{ $payment->invoice_number }}</td>
-                        <td class="px-4 py-3">TZS {{ number_format($payment->amount) }}</td>
+                        <td class="px-4 py-3">{{ format_money($payment->amount) }}</td>
                         <td class="px-4 py-3">{{ ucfirst($payment->status) }}</td>
                         <td class="px-4 py-3">{{ $payment->partnerSettlement?->reference ?? '—' }}</td>
                         <td class="px-4 py-3">{{ optional($payment->paid_at)->format('d M Y') ?? '—' }}</td>

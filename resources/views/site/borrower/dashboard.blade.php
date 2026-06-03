@@ -67,7 +67,7 @@
                     <p class="text-xs uppercase tracking-widest text-indigo-200 font-semibold">{{ __('borrower.referrals.grow') }}</p>
                     <h2 class="text-xl sm:text-2xl font-bold mt-1">{{ __('borrower.dashboard.referral_title') }}</h2>
                     <p class="text-sm text-indigo-100 mt-2">{{ __('borrower.referrals.your_code') }}: <span class="font-mono font-bold text-white">{{ $referralCode }}</span></p>
-                    <p class="text-sm text-indigo-100 mt-1">{{ __('borrower.dashboard.referral_wallet') }}: <span class="font-bold text-white">TZS {{ number_format($referralWallet->balance ?? 0) }}</span></p>
+                    <p class="text-sm text-indigo-100 mt-1">{{ __('borrower.dashboard.referral_wallet') }}: <span class="font-bold text-white">{{ format_money($referralWallet->balance ?? 0) }}</span></p>
                 </div>
                 <div class="flex flex-col sm:flex-row gap-3 shrink-0">
                     <x-site.referral-share :link="$referralLink" :code="$referralCode" />
@@ -98,7 +98,7 @@
                     <li class="px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
                         <div>
                             <a href="{{ route('site.borrower.application', $app) }}" class="text-sm font-mono font-semibold text-gray-900 hover:text-amber-700">{{ $app->application_number }}</a>
-                            <p class="text-xs text-gray-500 mt-0.5">{{ $app->product->name ?? '—' }} · TZS {{ number_format($app->requested_amount) }}</p>
+                            <p class="text-xs text-gray-500 mt-0.5">{{ $app->product->name ?? '—' }} · {{ format_money($app->requested_amount) }}</p>
                         </div>
                         <span class="text-xs font-semibold rounded-full px-2.5 py-1 bg-amber-100 text-amber-700">{{ ucfirst(str_replace('_',' ', $app->status)) }}</span>
                     </li>

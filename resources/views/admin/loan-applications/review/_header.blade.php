@@ -14,7 +14,7 @@
         <div class="grid sm:grid-cols-4 gap-3">
             <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 px-3 py-3">
                 <p class="text-[10px] uppercase tracking-widest text-gray-500">Amount requested</p>
-                <p class="text-sm font-bold text-gray-900 mt-1">TZS {{ number_format((float) $record->requested_amount) }}</p>
+                <p class="text-sm font-bold text-gray-900 mt-1">{{ format_money((float) $record->requested_amount) }}</p>
             </div>
             <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 px-3 py-3">
                 <p class="text-[10px] uppercase tracking-widest text-gray-500">Tenure</p>

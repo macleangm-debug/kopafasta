@@ -71,7 +71,7 @@
                                 </span>
                             </td>
                             <td class="px-5 py-3 font-medium whitespace-nowrap">
-                                {{ number_format((float) $payment->fee_amount, 0) }} TZS
+                                {{ format_number((float) $payment->fee_amount, 0) }} TZS
                             </td>
                             <td class="px-5 py-3 font-mono text-xs">{{ $payment->payment_reference }}</td>
                             <td class="px-5 py-3">{{ display_label($payment->channel ?? 'bank', 'channel') }}</td>

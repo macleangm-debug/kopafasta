@@ -56,7 +56,7 @@
                     <span>
                         {{ __('borrower.apply.application_fee.wallet_label', [
                             'balance' => format_money($referralWallet->balance ?? 0),
-                            'percent' => rtrim(rtrim(number_format($referralSettings['wallet_max_fee_percent'] ?? 0, 2), '0'), '.'),
+                            'percent' => rtrim(rtrim(format_number($referralSettings['wallet_max_fee_percent'] ?? 0, 2), '0'), '.'),
                         ]) }}
                     </span>
                 </label>

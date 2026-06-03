@@ -9,3 +9,16 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* System-wide numeric display (1,000 · 50,000,000) */
+@layer base {
+    .tabular-nums,
+    [data-format-money],
+    [data-format-number],
+    [data-auto-format],
+    .fmt-money,
+    .fmt-num,
+    table .font-mono {
+        font-variant-numeric: tabular-nums;
+    }
+}

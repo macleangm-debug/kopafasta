@@ -41,7 +41,7 @@ class AssetRequestController extends Controller
                 app(NotificationService::class)->sendEmail(
                     $vendor->email,
                     'New asset request assigned',
-                    "A borrower requested: {$assetRequest->asset_name}. Budget: ".number_format((float) ($assetRequest->budget ?? 0)).'. Log in to your supplier portal for details.',
+                    "A borrower requested: {$assetRequest->asset_name}. Budget: ".format_money((float) ($assetRequest->budget ?? 0)).'. Log in to your supplier portal for details.',
                     $assetRequest->customer,
                     'asset_request_assigned',
                 );

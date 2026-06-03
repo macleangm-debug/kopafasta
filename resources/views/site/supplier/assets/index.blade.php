@@ -13,8 +13,8 @@
                 @forelse ($assets as $asset)
                     <tr>
                         <td class="px-4 py-3 font-medium">{{ $asset->title }}</td>
-                        <td class="px-4 py-3">TZS {{ number_format($asset->customer_deposit) }}</td>
-                        <td class="px-4 py-3">TZS {{ number_format($asset->weekly_installment) }}</td>
+                        <td class="px-4 py-3">{{ format_money($asset->customer_deposit) }}</td>
+                        <td class="px-4 py-3">{{ format_money($asset->weekly_installment) }}</td>
                         <td class="px-4 py-3">{{ $asset->is_active ? 'Active' : 'Inactive' }}</td>
                         <td class="px-4 py-3 text-right"><a href="{{ route('site.supplier.assets.edit', $asset) }}" class="text-amber-700 font-semibold">Edit</a></td>
                     </tr>

@@ -7,7 +7,7 @@
                 @forelse ($requests as $row)
                     <tr>
                         <td class="px-4 py-3 font-medium">{{ $row->asset_name }}</td>
-                        <td class="px-4 py-3">TZS {{ number_format($row->budget ?? 0) }}</td>
+                        <td class="px-4 py-3">{{ format_money($row->budget ?? 0) }}</td>
                         <td class="px-4 py-3">{{ $row->preferred_tenure_months ?? '—' }} mo</td>
                         <td class="px-4 py-3">{{ ucfirst($row->status) }}</td>
                     </tr>

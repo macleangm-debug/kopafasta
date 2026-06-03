@@ -20,7 +20,7 @@
                             <a href="{{ route('admin.loan-products.show', $p) }}" class="font-medium text-gray-900 hover:text-amber-700">{{ $p->name }}</a>
                             <div class="text-xs text-gray-500 font-mono">{{ $p->code }}</div>
                         </td>
-                        <td class="px-5 py-3 text-right">TZS {{ number_format((float) $p->max_amount) }}</td>
+                        <td class="px-5 py-3 text-right">{{ format_money((float) $p->max_amount) }}</td>
                         <td class="px-5 py-3 text-center">
                             @if ($p->requires_collateral)
                                 <span class="inline-flex px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-800">Required</span>

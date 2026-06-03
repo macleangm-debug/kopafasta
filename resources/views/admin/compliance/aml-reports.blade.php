@@ -23,7 +23,7 @@
         @foreach ($cards as [$lbl, $val, $cls])
             <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5">
                 <div class="text-xs text-gray-500 uppercase tracking-wide">{{ $lbl }}</div>
-                <div class="mt-2 text-3xl font-bold {{ $cls }} inline-block rounded-md px-3">{{ number_format($val) }}</div>
+                <div class="mt-2 text-3xl font-bold {{ $cls }} inline-block rounded-md px-3">{{ format_number($val) }}</div>
             </div>
         @endforeach
     </div>
@@ -34,7 +34,7 @@
             <table class="w-full text-sm">
                 <tbody class="divide-y divide-gray-100">
                     @foreach (['critical','high','medium','low'] as $sv)
-                        <tr><td class="py-2 capitalize text-gray-600">{{ $sv }}</td><td class="py-2 text-right font-mono">{{ number_format($bySeverity[$sv] ?? 0) }}</td></tr>
+                        <tr><td class="py-2 capitalize text-gray-600">{{ $sv }}</td><td class="py-2 text-right font-mono">{{ format_number($bySeverity[$sv] ?? 0) }}</td></tr>
                     @endforeach
                 </tbody>
             </table>

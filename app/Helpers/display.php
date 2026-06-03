@@ -16,3 +16,33 @@ if (! function_exists('display_options')) {
         return app(DisplayLabelService::class)->options($values, $group);
     }
 }
+
+if (! function_exists('format_display_value')) {
+    /**
+     * Format values for read-only admin/detail views (auto comma-separates plain numbers).
+     */
+    function format_display_value(mixed $value, bool $asMoney = false, int $decimals = 0): string
+    {
+        if ($value === null || $value === '') {
+            return '—';
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'Yes' : 'No';
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return $asMoney
+                ? format_money($value, true, $decimals)
+                : format_number($value, $decimals);
+        }
+
+        if (is_string($value) && preg_match('/^-?\d+(\.\d+)?$/', str_replace(',', '', $value))) {
+            return $asMoney
+                ? format_money($value, true, $decimals)
+                : format_number($value, $decimals);
+        }
+
+        return (string) $value;
+    }
+}

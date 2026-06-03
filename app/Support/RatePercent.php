@@ -42,7 +42,7 @@ final class RatePercent
         $percent = (float) $decimal * 100;
         $decimals = abs($percent - round($percent)) < 0.05 ? 0 : 1;
 
-        return number_format($percent, $decimals).'%';
+        return format_number($percent, $decimals).'%';
     }
 
     public static function formatRange(float $minDecimal, float $maxDecimal): string

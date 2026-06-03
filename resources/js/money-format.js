@@ -96,6 +96,40 @@ export function formatMarkedElements(root = document) {
         const raw = el.dataset.formatMoney ?? el.textContent;
         el.textContent = formatMoney(raw, { currency, decimals });
     });
+
+    root.querySelectorAll('[data-auto-format="money"]').forEach((el) => {
+        if (el.dataset.autoFormatted === '1') return;
+        const raw = el.dataset.value ?? el.textContent;
+        const decimals = parseInt(el.dataset.decimals ?? '0', 10);
+        const currency = el.dataset.currency ?? 'TZS';
+        el.textContent = formatMoney(raw, { currency, decimals });
+        el.dataset.autoFormatted = '1';
+        el.classList.add('tabular-nums');
+    });
+
+    root.querySelectorAll('[data-auto-format="number"]').forEach((el) => {
+        if (el.dataset.autoFormatted === '1') return;
+        const raw = el.dataset.value ?? el.textContent;
+        const decimals = parseInt(el.dataset.decimals ?? '0', 10);
+        el.textContent = formatNumber(raw, decimals);
+        el.dataset.autoFormatted = '1';
+        el.classList.add('tabular-nums');
+    });
+}
+
+/** Format bare numeric text in elements marked for client-side display. */
+export function formatNumericTextNodes(root = document) {
+    root.querySelectorAll('.fmt-num, .fmt-money').forEach((el) => {
+        if (el.dataset.autoFormatted === '1' || el.children.length > 0) return;
+        const text = (el.textContent || '').trim();
+        if (! /^-?\d+(\.\d+)?$/.test(text.replace(/,/g, ''))) return;
+        const decimals = (text.split('.')[1] || '').length;
+        const isMoney = el.classList.contains('fmt-money');
+        el.textContent = isMoney
+            ? formatMoney(text, { decimals })
+            : formatNumber(text, decimals);
+        el.dataset.autoFormatted = '1';
+    });
 }
 
 export function bindMoneyFormatGlobally() {
@@ -106,6 +140,7 @@ export function bindMoneyFormatGlobally() {
         formatTzs,
         initMoneyInputs,
         formatMarkedElements,
+        formatNumericTextNodes,
     };
     window.formatNumber = formatNumber;
     window.formatMoney = formatMoney;
@@ -115,6 +150,7 @@ export function bindMoneyFormatGlobally() {
     const boot = () => {
         initMoneyInputs();
         formatMarkedElements();
+        formatNumericTextNodes();
     };
 
     if (document.readyState === 'loading') {

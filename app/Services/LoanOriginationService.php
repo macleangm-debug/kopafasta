@@ -18,10 +18,10 @@ class LoanOriginationService
             return $application->loan;
         }
 
-        if (! in_array($application->current_stage, ['disbursement'], true)
-            && $application->status !== 'disbursed') {
+        if (! in_array($application->current_stage, ['approval', 'disbursement'], true)
+            && ! in_array($application->status, ['approved', 'disbursed'], true)) {
             throw ValidationException::withMessages([
-                'application' => 'Application must be at disbursement stage before creating a loan.',
+                'application' => 'Application must be approved before creating a loan.',
             ]);
         }
 
