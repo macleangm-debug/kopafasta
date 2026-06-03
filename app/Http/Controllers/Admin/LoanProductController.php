@@ -33,7 +33,12 @@ class LoanProductController extends ResourceController
                 : collect(),
             'rateTiers' => $record
                 ? $record->rateTiers()->orderBy('sort_order')->get()
-                : collect(app(LoanRateTierTemplateService::class)->previewRows(old('code'))),
+                : collect(app(LoanRateTierTemplateService::class)->previewRows(
+                    old('code'),
+                    MoneyFormat::toNumber(old('min_amount', $record?->min_amount ?? 100_000)),
+                    MoneyFormat::toNumber(old('max_amount', $record?->max_amount ?? 5_000_000)),
+                    (float) old('interest_rate', $record?->interest_rate ?? 0.17),
+                )),
             'documentTemplates' => DocumentTemplate::query()
                 ->where('is_active', true)
                 ->orderBy('name')

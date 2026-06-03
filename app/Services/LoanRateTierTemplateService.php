@@ -7,33 +7,41 @@ use App\Models\LoanProductRateTier;
 
 class LoanRateTierTemplateService
 {
-    /** @return list<array<string, mixed>> */
     public function tiersForProduct(LoanProduct $product): array
     {
-        $code = strtoupper((string) $product->code);
-        $template = config("loan_product_rate_tiers.templates.{$code}")
-            ?? config('loan_product_rate_tiers.default_template', []);
+        $minAmount = (float) $product->min_amount;
+        $maxAmount = (float) $product->max_amount;
 
-        $minProduct = (float) $product->min_amount;
-        $maxProduct = (float) $product->max_amount;
+        if ($minAmount <= 0 || $maxAmount <= 0 || $maxAmount < $minAmount) {
+            return [];
+        }
+
+        $code = strtoupper((string) $product->code);
+        $overrides = config("loan_product_rate_tiers.products.{$code}", []);
+        $tierCount = (int) ($overrides['tier_count'] ?? config('loan_product_rate_tiers.tier_count', 4));
+        $tierCount = $this->resolveTierCount($minAmount, $maxAmount, $tierCount);
+
+        $maxRate = (float) ($product->interest_rate ?? 0);
+        if ($maxRate <= 0) {
+            $maxRate = 0.12;
+        }
+
+        $discount = (float) ($overrides['rate_discount_fraction']
+            ?? config('loan_product_rate_tiers.rate_discount_fraction', 0.30));
+        $discount = max(0, min(0.85, $discount));
+
+        $bands = $this->buildAmountBands($minAmount, $maxAmount, $tierCount);
+        $rates = $this->buildTierRates($maxRate, count($bands), $discount);
+
         $rows = [];
         $order = 0;
 
-        foreach ($template as $row) {
-            $min = max($minProduct, (float) $row['min_amount']);
-            $max = $row['max_amount'] === null
-                ? $maxProduct
-                : min($maxProduct, (float) $row['max_amount']);
-
-            if ($min > $max) {
-                continue;
-            }
-
-            $normalized = $this->normalizeTierRow($row);
+        foreach ($bands as $i => $band) {
+            $normalized = $this->normalizeTierRow(['monthly_rate' => $rates[$i] ?? $maxRate]);
 
             $rows[] = [
-                'min_amount'              => $min,
-                'max_amount'              => $max,
+                'min_amount'              => $band['min_amount'],
+                'max_amount'              => $band['max_amount'],
                 'bot_regulated_rate'      => $normalized['bot_regulated_rate'],
                 'processing_fee_rate'     => $normalized['processing_fee_rate'],
                 'service_fee_rate'        => $normalized['service_fee_rate'],
@@ -59,29 +67,106 @@ class LoanRateTierTemplateService
         }
     }
 
-    /** @return list<array<string, mixed>> */
-    public function previewRows(?string $code = null): array
+    /**
+     * Preview tiers for admin forms (create / validation errors).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function previewRows(
+        ?string $code = null,
+        ?float $minAmount = null,
+        ?float $maxAmount = null,
+        ?float $interestRate = null,
+    ): array {
+        $product = new LoanProduct([
+            'code'          => $code ?? 'PREVIEW',
+            'min_amount'    => $minAmount ?? 100_000,
+            'max_amount'    => $maxAmount ?? 5_000_000,
+            'interest_rate' => $interestRate ?? 0.17,
+        ]);
+
+        return $this->tiersForProduct($product);
+    }
+
+    /** @return list<array{min_amount: int, max_amount: int}> */
+    public function buildAmountBands(float $minAmount, float $maxAmount, int $tierCount): array
     {
-        $template = $code
-            ? (config('loan_product_rate_tiers.templates.'.strtoupper($code)) ?? config('loan_product_rate_tiers.default_template'))
-            : config('loan_product_rate_tiers.default_template', []);
+        $minAmount = (int) round($minAmount);
+        $maxAmount = (int) round($maxAmount);
+        $tierCount = max(1, $tierCount);
 
-        return collect($template)
-            ->map(function (array $row) {
-                $normalized = $this->normalizeTierRow($row);
+        if ($maxAmount <= $minAmount) {
+            return [['min_amount' => $minAmount, 'max_amount' => $maxAmount]];
+        }
 
-                return [
-                    'min_amount'              => (float) $row['min_amount'],
-                    'max_amount'              => $row['max_amount'] === null ? 50_000_000 : (float) $row['max_amount'],
-                    'bot_regulated_rate'      => $normalized['bot_regulated_rate'],
-                    'processing_fee_rate'     => $normalized['processing_fee_rate'],
-                    'service_fee_rate'        => $normalized['service_fee_rate'],
-                    'administration_fee_rate' => $normalized['administration_fee_rate'],
-                    'monthly_rate'            => $normalized['monthly_rate'],
-                ];
-            })
-            ->values()
-            ->all();
+        if ($tierCount === 1) {
+            return [['min_amount' => $minAmount, 'max_amount' => $maxAmount]];
+        }
+
+        $bands = [];
+        $span = $maxAmount - $minAmount;
+
+        for ($i = 0; $i < $tierCount; $i++) {
+            $bandMin = $i === 0
+                ? $minAmount
+                : (int) floor($minAmount + ($span * $i / $tierCount)) + 1;
+
+            $bandMax = $i === $tierCount - 1
+                ? $maxAmount
+                : (int) floor($minAmount + ($span * ($i + 1) / $tierCount));
+
+            if ($bandMin > $bandMax) {
+                continue;
+            }
+
+            $bands[] = ['min_amount' => $bandMin, 'max_amount' => $bandMax];
+        }
+
+        return $bands;
+    }
+
+    /** @return list<float> Monthly rates (decimals), highest first. */
+    public function buildTierRates(float $maxRate, int $tierCount, float $discountFraction): array
+    {
+        $tierCount = max(1, $tierCount);
+        $maxRate = max(0.01, round($maxRate, 4));
+        $minRate = max(0.01, round($maxRate * (1 - $discountFraction), 4));
+
+        if ($tierCount === 1) {
+            return [$maxRate];
+        }
+
+        $rates = [];
+        for ($i = 0; $i < $tierCount; $i++) {
+            $rates[] = round($maxRate - ($maxRate - $minRate) * ($i / ($tierCount - 1)), 4);
+        }
+
+        return $rates;
+    }
+
+    protected function resolveTierCount(float $minAmount, float $maxAmount, int $configured): int
+    {
+        $configured = max(1, min(6, $configured));
+
+        if ($maxAmount <= $minAmount) {
+            return 1;
+        }
+
+        $ratio = $maxAmount / max($minAmount, 1);
+
+        if ($ratio < 3) {
+            return 1;
+        }
+
+        if ($ratio < 12) {
+            return min($configured, 2);
+        }
+
+        if ($ratio < 50) {
+            return min($configured, 3);
+        }
+
+        return $configured;
     }
 
     /** @param array<string, mixed> $row */
