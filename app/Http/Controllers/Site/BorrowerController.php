@@ -144,23 +144,15 @@ class BorrowerController extends Controller
     /* ---------------------------------------------------------------------
      | 2. Applications
      |---------------------------------------------------------------------*/
-    public function applications(Request $request): View
+    public function applications(Request $request): RedirectResponse
     {
-        $customer = $this->customer();
-        $applications = LoanApplication::with('product')
-            ->where('customer_id', $customer->id)->latest()->get();
-
-        $user = Auth::user();
-        $viewMode = $request->query('view');
-        if (in_array($viewMode, ['cards', 'table'], true)) {
-            $prefs = $user->preferences ?? [];
-            $prefs['applications_view'] = $viewMode;
-            $user->update(['preferences' => $prefs]);
-        } else {
-            $viewMode = $user->preferences['applications_view'] ?? 'cards';
+        $params = ['tab' => 'applications'];
+        $view = $request->query('view');
+        if (in_array($view, ['cards', 'table'], true)) {
+            $params['view'] = $view;
         }
 
-        return view('site.borrower.applications', compact('customer', 'applications', 'viewMode'));
+        return redirect()->route('site.borrower.loans', $params);
     }
 
     /**
@@ -290,10 +282,28 @@ class BorrowerController extends Controller
     /* ---------------------------------------------------------------------
      | 3. My loans
      |---------------------------------------------------------------------*/
-    public function loans(): View
+    public function loans(Request $request): View
     {
         $customer = $this->customer();
-        $loans = Loan::with('product')->where('customer_id', $customer->id)->latest()->get();
+        $activeTab = $request->query('tab', 'applications');
+        $validTabs = ['applications', 'active', 'guarantor-requests', 'guaranteed'];
+        if (! in_array($activeTab, $validTabs, true)) {
+            $activeTab = 'applications';
+        }
+
+        $applications = LoanApplication::with('product')
+            ->where('customer_id', $customer->id)
+            ->whereNotIn('status', ['draft'])
+            ->latest()
+            ->get();
+
+        $resumableDrafts = app(\App\Services\LoanApplicationDraftService::class)->listResumable($customer);
+
+        $loans = Loan::with('product')
+            ->where('customer_id', $customer->id)
+            ->whereNotIn('status', ['closed', 'cancelled'])
+            ->latest()
+            ->get();
 
         $guaranteedLinks = CustomerGuarantor::query()
             ->with(['application.product', 'application.customer', 'application.loan'])
@@ -311,7 +321,26 @@ class BorrowerController extends Controller
             ->latest()
             ->get();
 
-        return view('site.borrower.loans', compact('customer', 'loans', 'guaranteedLinks', 'pendingGuarantorRequests'));
+        $user = Auth::user();
+        $viewMode = $request->query('view');
+        if (in_array($viewMode, ['cards', 'table'], true)) {
+            $prefs = $user->preferences ?? [];
+            $prefs['applications_view'] = $viewMode;
+            $user->update(['preferences' => $prefs]);
+        } else {
+            $viewMode = $user->preferences['applications_view'] ?? 'cards';
+        }
+
+        return view('site.borrower.loans', compact(
+            'customer',
+            'activeTab',
+            'applications',
+            'viewMode',
+            'loans',
+            'guaranteedLinks',
+            'pendingGuarantorRequests',
+            'resumableDrafts',
+        ));
     }
 
     /* ---------------------------------------------------------------------

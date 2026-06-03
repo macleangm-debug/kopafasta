@@ -7,7 +7,6 @@ $nav = [
     ['key' => 'membership',    'label' => __('borrower.nav.membership'),    'route' => 'site.membership.show',        'icon' => 'shield'],
     ['key' => 'referrals',     'label' => __('borrower.nav.referrals'),     'route' => 'site.borrower.referrals',     'icon' => 'users'],
     ['key' => 'loans',         'label' => __('borrower.nav.loans'),         'route' => 'site.borrower.loans',         'icon' => 'wallet'],
-    ['key' => 'applications',  'label' => __('borrower.nav.applications'),  'route' => 'site.borrower.applications',  'icon' => 'doc'],
     ['key' => 'marketplace',   'label' => __('borrower.nav.marketplace'),   'route' => 'site.borrower.marketplace', 'icon' => 'folder'],
     ['key' => 'payments',      'label' => __('borrower.nav.payments'),      'route' => 'site.borrower.payments',      'icon' => 'pay'],
     ['key' => 'notifications', 'label' => __('borrower.nav.notifications'), 'route' => 'site.borrower.notifications', 'icon' => 'bell'],

@@ -69,7 +69,7 @@ class GuarantorOnboardingController extends Controller
             'application_id' => $invitation->loan_application_id,
         ]);
 
-        return redirect()->route('site.borrower.loans')
+        return redirect()->route('site.borrower.loans', ['tab' => 'guaranteed'])
             ->with('status', 'You are now an approved guarantor for this loan application.');
     }
 }

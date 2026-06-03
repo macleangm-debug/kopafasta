@@ -20,6 +20,7 @@ use App\Services\AssetReservationService;
 use App\Services\FaceVerificationService;
 use App\Services\GuarantorInvitationService;
 use App\Services\KycFreshnessService;
+use App\Services\ApplicationFeePaymentService;
 use App\Services\LoanApplicationDraftService;
 use App\Services\LoanProductReadinessService;
 use App\Services\SmartLoanApplicationWizardService;
@@ -126,7 +127,16 @@ class ApplyController extends Controller
         $readinessUrl = route('site.borrower.apply.product-readiness', ['product' => '__ID__']);
 
         $applyRequirements = $requirements->checklist($customer);
-        $savedDraft = $drafts->payloadForWizard($customer);
+        $savedDraft = $request->filled('product')
+            ? $drafts->payloadForWizard($customer, (int) $request->query('product'))
+            : $drafts->payloadForWizard($customer);
+
+        $resumableDrafts = $drafts->listResumable($customer);
+
+        $feeQuote = $selectedProduct
+            ? app(ApplicationFeePaymentService::class)->quote($customer, $selectedProduct)
+            : null;
+        $bankAccounts = config('site.membership_bank_accounts', []);
 
         return view('site.apply.wizard', compact(
             'products',
@@ -144,6 +154,9 @@ class ApplyController extends Controller
             'selectedProduct',
             'applyRequirements',
             'savedDraft',
+            'resumableDrafts',
+            'feeQuote',
+            'bankAccounts',
         ))->with('loanPurposes', loan_purpose_options())
             ->with('marketplaceOnlyCodes', marketplace_only_loan_codes())
             ->with('marketplaceUrl', route('site.borrower.marketplace'))
@@ -230,10 +243,11 @@ class ApplyController extends Controller
             'form'                 => ['nullable', 'array'],
             'inputs'               => ['nullable', 'array'],
             'guarantor_lookup'     => ['nullable', 'array'],
+            'application_fee'    => ['nullable', 'array'],
         ]);
 
         if ($data['phase'] === 'browse' || empty($data['loan_product_id'])) {
-            $drafts->clear($customer);
+            $drafts->clear($customer, $data['loan_product_id'] ? (int) $data['loan_product_id'] : null);
 
             return response()->json(['ok' => true, 'cleared' => true]);
         }
@@ -241,6 +255,85 @@ class ApplyController extends Controller
         $drafts->save($customer, $data);
 
         return response()->json(['ok' => true, 'saved_at' => now()->toIso8601String()]);
+    }
+
+    public function payApplicationFee(
+        Request $request,
+        LoanApplicationDraftService $drafts,
+        ApplicationFeePaymentService $fees,
+    ): \Illuminate\Http\JsonResponse|RedirectResponse {
+        $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($customer, 403);
+
+        $data = $request->validate([
+            'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
+            'channel'         => ['required', 'in:mobile_money,bank'],
+            'payment_phone'   => ['required_if:channel,mobile_money', 'nullable', 'string', 'max:20'],
+            'use_wallet'      => ['nullable', 'boolean'],
+        ]);
+
+        $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
+        $amount = quoted_application_fee($customer, $product);
+
+        if ($amount <= 0) {
+            $feeState = ['status' => 'waived', 'reference' => null, 'channel' => 'waived', 'amount' => 0, 'paid_at' => now()->toIso8601String()];
+            $drafts->saveApplicationFee($customer, $product->id, $feeState);
+
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => true, 'fee' => $feeState]);
+            }
+
+            return back()->with('status', __('borrower.apply.application_fee.waived'));
+        }
+
+        $paymentReference = $request->session()->get('application_fee_payment_ref')
+            ?? $fees->generatePaymentReference();
+        $request->session()->put('application_fee_payment_ref', $paymentReference);
+
+        if ($data['channel'] === 'mobile_money') {
+            $feeState = $fees->processMobileMoney(
+                $customer,
+                $product,
+                $paymentReference,
+                $request->boolean('use_wallet'),
+            );
+            $drafts->saveApplicationFee($customer, $product->id, $feeState);
+            $request->session()->forget('application_fee_payment_ref');
+
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => true, 'fee' => $feeState, 'message' => __('borrower.apply.application_fee.paid')]);
+            }
+
+            return back()->with('status', __('borrower.apply.application_fee.paid'));
+        }
+
+        $feeState = $fees->processBankPending($customer, $product, $paymentReference);
+        $drafts->saveApplicationFee($customer, $product->id, $feeState);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok'      => true,
+                'fee'     => $feeState,
+                'message' => __('borrower.apply.application_fee.bank_submitted', ['ref' => $paymentReference]),
+            ]);
+        }
+
+        return back()->with('warning', __('borrower.apply.application_fee.bank_submitted', ['ref' => $paymentReference]));
+    }
+
+    public function applicationFeeQuote(Request $request, ApplicationFeePaymentService $fees): \Illuminate\Http\JsonResponse
+    {
+        $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($customer, 403);
+
+        $product = LoanProduct::where('id', $request->query('loan_product_id'))
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        return response()->json([
+            'amount' => quoted_application_fee($customer, $product),
+            'quote'  => $fees->quote($customer, $product),
+        ]);
     }
 
     public function submit(
@@ -423,6 +516,20 @@ class ApplyController extends Controller
         $submittedAt = now();
 
         $appFee = quoted_application_fee($customer, $loanProduct);
+        $draft = $drafts->find($customer, (int) $loanProduct->id);
+        $feeState = ($draft?->payload ?? [])['application_fee'] ?? null;
+        $feeService = app(ApplicationFeePaymentService::class);
+
+        if (! $feeService->isFeeSatisfied($feeState, $appFee)) {
+            return back()->withInput()->withErrors([
+                'application_fee' => __('borrower.apply.application_fee.required_before_submit'),
+            ]);
+        }
+
+        $feeStatus = $appFee <= 0 ? 'waived' : ($feeState['status'] ?? 'unpaid');
+        $feeReference = $feeState['reference'] ?? null;
+        $feeChannel = $feeState['channel'] ?? null;
+        $feePaidAt = isset($feeState['paid_at']) ? \Carbon\Carbon::parse($feeState['paid_at']) : ($feeStatus === 'paid' ? now() : null);
 
         $app = LoanApplication::create([
             'customer_id'                => $customer->id,
@@ -443,7 +550,10 @@ class ApplyController extends Controller
             'registration_fee_reference' => null,
             'registration_fee_paid_at'   => null,
             'application_fee_amount'     => $appFee,
-            'application_fee_status'     => 'unpaid',
+            'application_fee_status'     => $feeStatus === 'pending' ? 'pending' : ($feeStatus === 'paid' || $feeStatus === 'waived' ? 'paid' : 'unpaid'),
+            'application_fee_reference'  => $feeReference,
+            'application_fee_channel'    => $feeChannel,
+            'application_fee_paid_at'    => $feePaidAt,
             'submitted_at'               => $submittedAt,
         ]);
 
@@ -536,7 +646,7 @@ class ApplyController extends Controller
         ]);
 
         if ($customer) {
-            $drafts->clear($customer);
+            $drafts->clear($customer, (int) $loanProduct->id);
         }
 
         return redirect()->route('site.borrower.apply.success', $app)->with('status', $message);

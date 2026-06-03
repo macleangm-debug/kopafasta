@@ -105,6 +105,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::post('/borrower/apply/guarantor-lookup', [\App\Http\Controllers\Site\ApplyController::class, 'lookupGuarantor'])->name('borrower.apply.guarantor-lookup');
                 Route::get('/borrower/apply/draft', [\App\Http\Controllers\Site\ApplyController::class, 'loadDraft'])->name('borrower.apply.draft');
                 Route::put('/borrower/apply/draft', [\App\Http\Controllers\Site\ApplyController::class, 'saveDraft'])->name('borrower.apply.draft.save');
+                Route::post('/borrower/apply/application-fee', [\App\Http\Controllers\Site\ApplyController::class, 'payApplicationFee'])->name('borrower.apply.application-fee.pay');
+                Route::get('/borrower/apply/application-fee/quote', [\App\Http\Controllers\Site\ApplyController::class, 'applicationFeeQuote'])->name('borrower.apply.application-fee.quote');
                 Route::post('/borrower/apply', [\App\Http\Controllers\Site\ApplyController::class, 'submit'])->name('borrower.apply.submit');
                 Route::get('/apply', fn () => redirect()->route('site.borrower.apply'))->name('apply.show');
                 Route::post('/apply', [\App\Http\Controllers\Site\ApplyController::class, 'submit'])->name('apply.submit');
@@ -144,7 +146,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/face-verification/{angle}',     [\App\Http\Controllers\Site\BorrowerController::class, 'uploadFaceVerification'])->name('borrower.face-verification.store')->where('angle', 'front|left|right|holding_nida');
             Route::get('/borrower/guarantors',                     [\App\Http\Controllers\Site\BorrowerController::class, 'guarantors'])   ->name('borrower.guarantors');
             Route::post('/borrower/guarantors',                    [\App\Http\Controllers\Site\BorrowerController::class, 'addGuarantor']) ->name('borrower.guarantors.store');
-            Route::get('/borrower/guarantor-requests', fn () => redirect()->to(route('site.borrower.loans').'#guarantor-requests'))->name('borrower.guarantor-requests');
+            Route::get('/borrower/guarantor-requests', fn () => redirect()->route('site.borrower.loans', ['tab' => 'guarantor-requests']))->name('borrower.guarantor-requests');
             Route::post('/borrower/guarantor-requests/{customerGuarantor}', [\App\Http\Controllers\Site\BorrowerController::class, 'respondGuarantorRequest'])->name('borrower.guarantor-requests.respond');
             Route::get('/borrower/guarantor/onboarding', [\App\Http\Controllers\Site\GuarantorOnboardingController::class, 'show'])->name('guarantor.onboarding');
             Route::post('/borrower/guarantor/onboarding', [\App\Http\Controllers\Site\GuarantorOnboardingController::class, 'complete'])->name('guarantor.onboarding.complete');

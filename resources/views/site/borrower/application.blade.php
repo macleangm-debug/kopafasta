@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title('Application '.$application->application_number)" active="applications">
+<x-site.borrower-layout :title="brand_title('Application '.$application->application_number)" active="loans">
 
     @php
         $statusBadge = match (true) {
@@ -11,7 +11,7 @@
     @endphp
 
     <div class="mb-4">
-        <a href="{{ route('site.borrower.applications') }}" class="text-xs text-gray-500 hover:text-gray-700">{{ __('borrower.application.back') }}</a>
+        <a href="{{ route('site.borrower.loans', ['tab' => 'applications']) }}" class="text-xs text-gray-500 hover:text-gray-700">{{ __('borrower.application.back') }}</a>
     </div>
 
     <div class="flex items-start justify-between gap-3 mb-6 flex-wrap">

@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.apply.title'))" active="applications">
+<x-site.borrower-layout :title="brand_title(__('borrower.apply.title'))" active="loans">
     <div class="max-w-4xl mx-auto">
 
         <div class="mb-6">
@@ -66,6 +66,7 @@
                   products: @js($wizardProducts->map($wizardProductPayload)->values()->all()),
                   guarantorLookupUrl: @js(route('site.borrower.apply.guarantor-lookup')),
                   draftSaveUrl: @js(route('site.borrower.apply.draft.save')),
+                  applicationFeePayUrl: @js(route('site.borrower.apply.application-fee.pay')),
                   savedDraft: @js($savedDraft ?? null),
                   reservationId: {{ ($reservation ?? null) ? (int) $reservation->id : 'null' }},
                   preselect: {{ $preselect ? (int)$preselect : 'null' }},
@@ -131,6 +132,24 @@
             <div x-show="phase === 'browse'" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8">
                 <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.browse.title') }}</h2>
                 <p class="text-sm text-gray-600 mb-5">{{ __('borrower.apply.browse.subtitle') }}</p>
+
+                @if (($resumableDrafts ?? []) !== [])
+                    <div class="mb-6 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
+                        <p class="text-sm font-semibold text-amber-900">{{ __('borrower.applications_list.drafts_title') }}</p>
+                        <ul class="mt-3 space-y-2">
+                            @foreach ($resumableDrafts as $draft)
+                                <li class="flex flex-wrap items-center justify-between gap-2 bg-white rounded-lg ring-1 ring-amber-200 px-3 py-2.5">
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900">{{ $draft['label'] }}</p>
+                                        <p class="text-xs text-gray-600">{{ $draft['detail'] }}</p>
+                                    </div>
+                                    <a href="{{ $draft['url'] }}" class="text-xs font-semibold text-amber-700 hover:underline shrink-0">{{ __('borrower.applications_list.resume') }} →</a>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
                 <div class="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory -mx-1 px-1">
                     @foreach ($products as $p)
                         @if (is_marketplace_loan_product($p->code))
@@ -363,6 +382,13 @@
                     </div>
                 </div>
 
+                @php $membershipCfg = \App\Services\MembershipService::config(); @endphp
+                <x-site.application-fee-step
+                    :fee-quote="$feeQuote ?? null"
+                    :bank-accounts="$bankAccounts ?? []"
+                    :currency="$membershipCfg['currency'] ?? 'TZS'"
+                />
+
                 {{-- Product-specific questions --}}
                 <div x-show="currentStepKey === 'product_questions'" class="p-6 sm:p-8">
                     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.product_questions.title') }}</h2>
@@ -460,7 +486,8 @@
                     <button type="button" @click="step > 0 ? prev() : backToDetails()" class="text-sm font-medium text-gray-600 hover:text-gray-900" x-text="step > 0 ? i18n.back : i18n.backProducts"></button>
                     <div class="ml-auto flex items-center gap-3">
                         <a href="{{ route('site.borrower.dashboard') }}" class="text-sm text-gray-500 hover:text-gray-700">{{ __('borrower.apply.cancel') }}</a>
-                        <button type="button" @click="next()" x-show="currentStepKey !== 'signature'" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.continue') }}</button>
+                        <button type="button" @click="next()" x-show="currentStepKey !== 'signature' && currentStepKey !== 'application_fee'" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.continue') }}</button>
+                        <button type="button" @click="next()" x-show="currentStepKey === 'application_fee' && (['paid','waived'].includes(applicationFeeState?.status || '') || applicationFee <= 0)" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.continue') }}</button>
                         <button type="submit" x-show="currentStepKey === 'signature'" class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.submit') }}</button>
                     </div>
                 </div>
@@ -490,6 +517,12 @@
             return {
                 products: config.products,
                 applicationFee: config.applicationFee,
+                applicationFeePayUrl: config.applicationFeePayUrl || '',
+                applicationFeeState: config.savedDraft?.application_fee || null,
+                applicationFeePaid: false,
+                feeChannel: 'mobile_money',
+                feePhone: @js(old('payment_phone', $customer->phone ?? '')),
+                feePaying: false,
                 purposeLabels: config.purposeLabels,
                 productQuestions: config.productQuestions,
                 profileSections: config.profileSections,
@@ -531,6 +564,7 @@
                 },
 
                 init() {
+                    this.syncFeePaidState();
                     window.applyWizardSaveDraft = () => this.persistDraft(true);
                     this.$watch('phase', () => this.scheduleDraftSave());
                     this.$watch('step', () => this.scheduleDraftSave());
@@ -569,7 +603,50 @@
                         form: this.form,
                         inputs,
                         guarantor_lookup: this.guarantorLookup.ok ? this.guarantorLookup : null,
+                        application_fee: this.applicationFeeState,
                     };
+                },
+
+                syncFeePaidState() {
+                    const st = this.applicationFeeState?.status;
+                    this.applicationFeePaid = this.applicationFee <= 0
+                        || ['paid', 'waived'].includes(st || '');
+                },
+
+                async payApplicationFee() {
+                    if (! this.applicationFeePayUrl || ! this.form.loan_product_id) return;
+                    this.paying = true;
+                    try {
+                        const body = {
+                            loan_product_id: this.form.loan_product_id,
+                            channel: this.feeChannel || 'mobile_money',
+                            payment_phone: this.feePhone || '',
+                            use_wallet: false,
+                        };
+                        const res = await fetch(this.applicationFeePayUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
+                            },
+                            credentials: 'same-origin',
+                            body: JSON.stringify(body),
+                        });
+                        const data = await res.json();
+                        if (! res.ok || ! data.ok) {
+                            throw new Error(data.message || 'Payment failed');
+                        }
+                        this.applicationFeeState = data.fee;
+                        this.applicationFeePaid = true;
+                        await this.persistDraft(true);
+                        alert(data.message || @js(__('borrower.apply.application_fee.paid')));
+                    } catch (e) {
+                        alert(e?.message || @js(__('borrower.apply.application_fee.failed')));
+                    } finally {
+                        this.paying = false;
+                    }
                 },
 
                 persistDraft(sync = false) {
@@ -627,6 +704,8 @@
                     Object.assign(this.form, draft.form || {});
                     if (draft.inputs) this.restoreFormInputs(draft.inputs);
                     if (draft.guarantor_lookup) this.guarantorLookup = draft.guarantor_lookup;
+                    if (draft.application_fee) this.applicationFeeState = draft.application_fee;
+                    this.syncFeePaidState();
                     this.phase = draft.phase;
                     if (draft.phase === 'details') {
                         this.loadReadiness(product.id);
@@ -713,6 +792,9 @@
                             if (this.phase === 'application' && this.current) {
                                 this.rebuildSteps();
                             }
+                            if (data.fees?.application !== undefined) {
+                                this.applicationFee = data.fees.application;
+                            }
                             return data;
                         })
                         .catch(() => { this.readiness = null; alert(this.i18n.alerts.loadProduct); })
@@ -743,6 +825,9 @@
                         }
                         if (this.current?.requires_guarantor) {
                             steps.push({ key: 'guarantor', label: @js(__('borrower.apply.guarantor')) });
+                        }
+                        if (this.applicationFee > 0) {
+                            steps.push({ key: 'application_fee', label: @js(__('borrower.apply.steps.application_fee')) });
                         }
                         if (this.current?.code && this.productQuestions[this.current.code]) {
                             steps.push({ key: 'product_questions', label: stepLabels.product_questions });
@@ -849,6 +934,13 @@
                                 alert(this.i18n.alerts.guarantor_external_incomplete);
                                 return false;
                             }
+                        }
+                    }
+                    if (this.currentStepKey === 'application_fee' && this.applicationFee > 0) {
+                        const st = this.applicationFeeState?.status || '';
+                        if (! ['paid', 'waived'].includes(st)) {
+                            alert(@js(__('borrower.apply.application_fee.required_before_continue')));
+                            return false;
                         }
                     }
                     return true;

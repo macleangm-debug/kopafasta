@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title('Post-approval fees')" active="applications">
+<x-site.borrower-layout :title="brand_title('Post-approval fees')" active="loans">
     <div class="max-w-2xl mx-auto">
         <div class="mb-6">
             <a href="{{ route('site.borrower.application', $application) }}" class="text-sm text-amber-700 hover:text-amber-800">&larr; Back to application</a>

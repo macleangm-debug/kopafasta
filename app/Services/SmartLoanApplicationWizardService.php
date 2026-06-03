@@ -32,7 +32,7 @@ class SmartLoanApplicationWizardService
             'face'      => route('site.borrower.face-verification'),
             'activity'  => route('site.borrower.profile', ['section' => 'activity']),
             'residence' => route('site.borrower.profile', ['section' => 'residence']),
-            'kin'       => route('site.borrower.profile', ['section' => 'kin']),
+            'kin'       => route('site.borrower.profile', ['section' => 'personal']).'#next-of-kin',
         ];
 
         return collect($result['sections'])->map(fn (array $section) => [
@@ -139,6 +139,11 @@ class SmartLoanApplicationWizardService
 
         if ($requiresGuarantor) {
             $steps[] = ['key' => 'guarantor', 'label' => __('borrower.apply.steps.guarantor'), 'skippable' => false, 'skipped' => false];
+        }
+
+        $applicationFee = quoted_application_fee($customer, $product);
+        if ($applicationFee > 0) {
+            $steps[] = ['key' => 'application_fee', 'label' => __('borrower.apply.steps.application_fee'), 'skippable' => false, 'skipped' => false];
         }
 
         if ($hasProductQuestions) {

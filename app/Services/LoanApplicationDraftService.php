@@ -3,40 +3,52 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\LoanApplication;
 use App\Models\LoanApplicationDraft;
 use App\Models\LoanProduct;
 
 class LoanApplicationDraftService
 {
     /** @return array<string, mixed>|null */
-    public function payloadForWizard(Customer $customer): ?array
+    public function payloadForWizard(Customer $customer, ?int $loanProductId = null): ?array
     {
-        $draft = $this->find($customer);
+        $draft = $this->find($customer, $loanProductId);
 
         if (! $draft || $draft->phase === 'browse') {
             return null;
         }
+
+        return $this->formatPayload($draft);
+    }
+
+    /** @return array<string, mixed> */
+    private function formatPayload(LoanApplicationDraft $draft): array
+    {
+        $payload = $draft->payload ?? [];
 
         return [
             'phase'                => $draft->phase,
             'step'                 => (int) $draft->step,
             'loan_product_id'      => $draft->loan_product_id,
             'asset_reservation_id' => $draft->asset_reservation_id,
-            'form'                 => $draft->payload['form'] ?? [],
-            'inputs'               => $draft->payload['inputs'] ?? [],
-            'guarantor_lookup'     => $draft->payload['guarantor_lookup'] ?? null,
+            'form'                 => $payload['form'] ?? [],
+            'inputs'               => $payload['inputs'] ?? [],
+            'guarantor_lookup'     => $payload['guarantor_lookup'] ?? null,
+            'application_fee'      => $payload['application_fee'] ?? null,
         ];
     }
 
     /** @return array{url: string, product_name: string, phase: string, step: int}|null */
     public function resumeSummary(Customer $customer): ?array
     {
-        $draft = $this->find($customer);
+        $latest = $this->listForCustomer($customer)->first();
 
-        if (! $draft || ! in_array($draft->phase, ['details', 'application'], true)) {
-            return null;
-        }
+        return $latest ? $this->summarizeDraft($latest) : null;
+    }
 
+    /** @return array{url: string, product_name: string, phase: string, step: int, saved_at: string|null} */
+    public function summarizeDraft(LoanApplicationDraft $draft): array
+    {
         $product = $draft->product ?? LoanProduct::find($draft->loan_product_id);
 
         return [
@@ -44,6 +56,7 @@ class LoanApplicationDraftService
             'product_name' => $product?->name ?? __('borrower.apply.title'),
             'phase'        => $draft->phase,
             'step'         => (int) $draft->step,
+            'saved_at'     => optional($draft->saved_at)->diffForHumans(),
         ];
     }
 
@@ -58,31 +71,76 @@ class LoanApplicationDraftService
         return route('site.borrower.apply', $params);
     }
 
+    /**
+     * All in-progress wizard drafts and fee-pending applications.
+     *
+     * @return list<array{type: string, label: string, detail: string, url: string, saved_at: string|null}>
+     */
+    public function listResumable(Customer $customer): array
+    {
+        $items = [];
+
+        foreach ($this->listForCustomer($customer) as $draft) {
+            $product = $draft->product ?? LoanProduct::find($draft->loan_product_id);
+            $fee = ($draft->payload ?? [])['application_fee'] ?? null;
+            $feePending = $product && quoted_application_fee($customer, $product) > 0
+                && ! app(ApplicationFeePaymentService::class)->isFeeSatisfied($fee, quoted_application_fee($customer, $product));
+
+            $items[] = [
+                'type'      => 'wizard_draft',
+                'label'     => $product?->name ?? __('borrower.apply.title'),
+                'detail'    => $feePending
+                    ? __('borrower.applications_list.draft_fee_pending')
+                    : __('borrower.applications_list.draft_in_progress'),
+                'url'       => $this->resumeUrl($draft),
+                'saved_at'  => optional($draft->saved_at)->diffForHumans(),
+            ];
+        }
+
+        return $items;
+    }
+
+    /** @return \Illuminate\Support\Collection<int, LoanApplicationDraft> */
+    public function listForCustomer(Customer $customer): \Illuminate\Support\Collection
+    {
+        return LoanApplicationDraft::query()
+            ->where('customer_id', $customer->id)
+            ->whereIn('phase', ['details', 'application'])
+            ->with('product')
+            ->orderByDesc('saved_at')
+            ->get();
+    }
+
     /** @param array<string, mixed> $data */
-    public function save(Customer $customer, array $data): LoanApplicationDraft
+    public function save(Customer $customer, array $data): ?LoanApplicationDraft
     {
         $phase = (string) ($data['phase'] ?? 'browse');
         $productId = $data['loan_product_id'] ?? null;
 
         if ($phase === 'browse' || ! $productId) {
-            $this->clear($customer);
+            if ($productId) {
+                $this->clear($customer, (int) $productId);
+            } else {
+                $this->clearAll($customer);
+            }
 
-            return new LoanApplicationDraft([
-                'customer_id' => $customer->id,
-                'phase'       => 'browse',
-            ]);
+            return null;
         }
 
+        $existing = $this->find($customer, (int) $productId);
         $payload = [
-            'form'             => $data['form'] ?? [],
-            'inputs'           => $data['inputs'] ?? [],
-            'guarantor_lookup' => $data['guarantor_lookup'] ?? null,
+            'form'             => $data['form'] ?? ($existing?->payload['form'] ?? []),
+            'inputs'           => $data['inputs'] ?? ($existing?->payload['inputs'] ?? []),
+            'guarantor_lookup' => $data['guarantor_lookup'] ?? ($existing?->payload['guarantor_lookup'] ?? null),
+            'application_fee'  => $data['application_fee'] ?? ($existing?->payload['application_fee'] ?? null),
         ];
 
         return LoanApplicationDraft::updateOrCreate(
-            ['customer_id' => $customer->id],
             [
-                'loan_product_id'      => $productId,
+                'customer_id'     => $customer->id,
+                'loan_product_id' => (int) $productId,
+            ],
+            [
                 'asset_reservation_id' => $data['asset_reservation_id'] ?? null,
                 'phase'                => $phase,
                 'step'                 => (int) ($data['step'] ?? 0),
@@ -92,16 +150,57 @@ class LoanApplicationDraftService
         );
     }
 
-    public function clear(Customer $customer): void
+    /** @param array<string, mixed> $feeState */
+    public function saveApplicationFee(Customer $customer, int $loanProductId, array $feeState): LoanApplicationDraft
+    {
+        $draft = $this->find($customer, $loanProductId)
+            ?? new LoanApplicationDraft([
+                'customer_id'     => $customer->id,
+                'loan_product_id' => $loanProductId,
+                'phase'           => 'application',
+                'step'            => 0,
+                'payload'         => [],
+            ]);
+
+        $payload = $draft->payload ?? [];
+        $payload['application_fee'] = $feeState;
+
+        $draft->fill([
+            'payload'  => $payload,
+            'saved_at' => now(),
+        ])->save();
+
+        return $draft;
+    }
+
+    public function clear(Customer $customer, ?int $loanProductId = null): void
+    {
+        $query = LoanApplicationDraft::query()->where('customer_id', $customer->id);
+
+        if ($loanProductId) {
+            $query->where('loan_product_id', $loanProductId);
+        }
+
+        $query->delete();
+    }
+
+    public function clearAll(Customer $customer): void
     {
         LoanApplicationDraft::query()->where('customer_id', $customer->id)->delete();
     }
 
-    public function find(Customer $customer): ?LoanApplicationDraft
+    public function find(Customer $customer, ?int $loanProductId = null): ?LoanApplicationDraft
     {
-        return LoanApplicationDraft::query()
+        $query = LoanApplicationDraft::query()
             ->where('customer_id', $customer->id)
-            ->with('product')
-            ->first();
+            ->with('product');
+
+        if ($loanProductId) {
+            $query->where('loan_product_id', $loanProductId);
+        }
+
+        return $loanProductId
+            ? $query->first()
+            : $query->whereIn('phase', ['details', 'application'])->orderByDesc('saved_at')->first();
     }
 }

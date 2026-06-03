@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title('Application received')" active="applications">
+<x-site.borrower-layout :title="brand_title('Application received')" active="loans">
     <div class="max-w-xl mx-auto text-center py-6">
         <div class="size-16 rounded-full bg-emerald-100 text-emerald-600 grid place-items-center mx-auto mb-5">
             <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
