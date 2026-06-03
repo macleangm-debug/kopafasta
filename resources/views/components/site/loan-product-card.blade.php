@@ -38,6 +38,10 @@
                 <dd class="font-semibold text-gray-900">{{ $rateLabel }}</dd>
             </div>
             <div>
+                <dt class="text-xs text-gray-500">Minimum amount</dt>
+                <dd class="font-semibold text-gray-900">{{ format_money($product->min_amount, false) }}</dd>
+            </div>
+            <div>
                 <dt class="text-xs text-gray-500">Maximum amount</dt>
                 <dd class="font-semibold text-gray-900">{{ format_money($product->max_amount, false) }}</dd>
             </div>
