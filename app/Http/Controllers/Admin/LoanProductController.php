@@ -48,6 +48,10 @@ class LoanProductController extends ResourceController
             'category'            => ['nullable', 'string', 'max:50'],
             'description'         => ['nullable', 'string', 'max:1000'],
             'interest_rate'       => ['nullable', 'numeric', 'min:0', 'max:1'],
+            'bot_regulated_rate'    => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'processing_fee_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'service_fee_rate'    => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'administration_fee_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'application_fee_amount' => ['nullable', 'numeric', 'min:0'],
             'offer_letter_template_id' => ['nullable', 'integer', 'exists:document_templates,id'],
             'loan_contract_template_id' => ['nullable', 'integer', 'exists:document_templates,id'],
@@ -106,12 +110,24 @@ class LoanProductController extends ResourceController
             }
         }
 
-        unset(
-            $data['bot_regulated_rate'],
-            $data['processing_fee_rate'],
-            $data['service_fee_rate'],
-            $data['administration_fee_rate'],
-        );
+        foreach ([
+            'bot_regulated_rate',
+            'processing_fee_rate',
+            'service_fee_rate',
+            'administration_fee_rate',
+        ] as $rateField) {
+            if (array_key_exists($rateField, $data) && $data[$rateField] !== null && $data[$rateField] !== '') {
+                $data[$rateField] = RatePercent::toDecimal($data[$rateField]);
+            }
+        }
+
+        if (isset($data['bot_regulated_rate']) && $data['bot_regulated_rate'] !== null) {
+            $data['bot_regulated_rate'] = min((float) $data['bot_regulated_rate'], 0.035);
+        }
+
+        foreach (['processing_fee_rate', 'service_fee_rate', 'administration_fee_rate'] as $feeField) {
+            $data[$feeField] = (float) ($data[$feeField] ?? 0);
+        }
 
         return $data;
     }

@@ -2,7 +2,7 @@
 
 /**
  * Default tiered monthly rates (stored as decimals; admins enter percents).
- * Each tier monthly_rate is the TOTAL rate shown to borrowers (BOT + processing + risk + administration).
+ * Each tier monthly_rate is the TOTAL rate shown to borrowers (BOT + processing + risk + insurance).
  */
 return [
     'default_template' => [

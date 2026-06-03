@@ -33,7 +33,50 @@ class DisplayedRateService
 
     public function productLevelMonthlyRate(LoanProduct $product): float
     {
-        return (float) ($product->interest_rate ?? 0);
+        return $this->componentStackTotal($product);
+    }
+
+    /** Sum of BOT (capped) + processing + risk + insurance fee components. */
+    public function componentStackTotal(LoanProduct $product): float
+    {
+        return $this->feeStackBreakdown($product)['displayed_monthly_rate'];
+    }
+
+    /**
+     * @return array{
+     *     bot_regulated_rate: float,
+     *     processing_fee_rate: float,
+     *     service_fee_rate: float,
+     *     insurance_fee_rate: float,
+     *     internal_fee_rate: float,
+     *     component_total: float
+     * }
+     */
+    public function rateComponents(LoanProduct $product): array
+    {
+        $stack = $this->feeStackBreakdown($product);
+
+        return [
+            'bot_regulated_rate'   => $stack['bot_regulated_rate'],
+            'processing_fee_rate'  => $stack['processing_fee_rate'],
+            'service_fee_rate'     => $stack['service_fee_rate'],
+            'insurance_fee_rate'   => $stack['administration_fee_rate'],
+            'internal_fee_rate'    => $stack['internal_fee_rate'],
+            'component_total'      => $stack['displayed_monthly_rate'],
+        ];
+    }
+
+    public function lowestBorrowerRateLabel(iterable $products): string
+    {
+        $mins = collect($products)
+            ->map(fn (LoanProduct $p) => $this->borrowerRateRange($p)['min'])
+            ->filter(fn (float $r) => $r > 0);
+
+        if ($mins->isEmpty()) {
+            return '—';
+        }
+
+        return RatePercent::formatOne($mins->min());
     }
 
     /**

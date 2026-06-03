@@ -10,7 +10,7 @@
                     Capital that moves <br><span class="text-amber-400">at your pace.</span>
                 </h1>
                 <p class="mt-6 text-lg text-gray-300 max-w-xl">
-                    From your first individual loan to asset-backed financing — all-in monthly rates from 15%, fully disclosed before you sign, disbursed in hours.
+                    From your first individual loan to asset-backed financing — monthly rates from {{ $rateFromLabel ?? '12%' }}, fully disclosed before you sign, disbursed in hours.
                 </p>
                 <div class="mt-8 flex flex-wrap gap-3">
                     <a href="{{ route('site.register.borrower') }}" class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-3 rounded-full shadow-lg transition">

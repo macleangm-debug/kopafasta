@@ -25,10 +25,22 @@
         'Created'             => $record->created_at?->format('Y-m-d H:i'),
     ]">
 
+    @php $components = app(\App\Services\DisplayedRateService::class)->rateComponents($record); @endphp
+    <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+        <h2 class="text-sm font-semibold text-gray-900 mb-3">Monthly rate components</h2>
+        <dl class="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
+            <div><dt class="text-xs text-gray-500">BOT</dt><dd class="font-semibold">{{ number_format($components['bot_regulated_rate'] * 100, 2) }}%</dd></div>
+            <div><dt class="text-xs text-gray-500">Processing</dt><dd class="font-semibold">{{ number_format($components['processing_fee_rate'] * 100, 2) }}%</dd></div>
+            <div><dt class="text-xs text-gray-500">Risk</dt><dd class="font-semibold">{{ number_format($components['service_fee_rate'] * 100, 2) }}%</dd></div>
+            <div><dt class="text-xs text-gray-500">Insurance</dt><dd class="font-semibold">{{ number_format($components['insurance_fee_rate'] * 100, 2) }}%</dd></div>
+            <div><dt class="text-xs text-gray-500">Component total</dt><dd class="font-semibold">{{ number_format($components['component_total'] * 100, 2) }}%</dd></div>
+        </dl>
+    </div>
+
     @if ($record->rateTiers->isNotEmpty())
         <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <h2 class="text-sm font-semibold text-gray-900 mb-3">Tiered monthly rates</h2>
-            <p class="text-xs text-gray-500 mb-4">Total monthly rate to borrower (all components included).</p>
+            <p class="text-xs text-gray-500 mb-4">Total monthly rate to borrower by approved amount (from loan configuration).</p>
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead class="text-xs uppercase text-gray-500 border-b border-gray-100">

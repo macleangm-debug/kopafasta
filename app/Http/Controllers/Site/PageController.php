@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Controller;
 use App\Models\LoanProduct;
+use App\Services\DisplayedRateService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -12,7 +13,9 @@ class PageController extends Controller
     public function home(): View
     {
         $products = LoanProduct::with('rateTiers')->whereIn('status', ['active', 'coming_soon'])->orderBy('id')->get();
-        return view('site.home', compact('products'));
+        $rateFromLabel = app(DisplayedRateService::class)->lowestBorrowerRateLabel($products);
+
+        return view('site.home', compact('products', 'rateFromLabel'));
     }
 
     public function products(): View

@@ -15,8 +15,24 @@ class LoanProductRateTierSeeder extends Seeder
         $defaultAppFee = (int) (ChargesFee::query()->where('code', 'APP_FEE')->value('amount') ?? 5000);
 
         LoanProduct::query()->each(function (LoanProduct $product) use ($service, $defaultAppFee) {
+            $updates = [];
+
             if (! $product->application_fee_amount) {
-                $product->update(['application_fee_amount' => $defaultAppFee]);
+                $updates['application_fee_amount'] = $defaultAppFee;
+            }
+
+            if ($product->bot_regulated_rate === null) {
+                $updates['bot_regulated_rate'] = 0.035;
+            }
+            if ((float) ($product->processing_fee_rate ?? 0) === 0.0) {
+                $updates['processing_fee_rate'] = 0.05;
+            }
+            if ((float) ($product->service_fee_rate ?? 0) === 0.0) {
+                $updates['service_fee_rate'] = 0.035;
+            }
+
+            if ($updates !== []) {
+                $product->update($updates);
             }
 
             $service->applyDefaults($product, replaceExisting: true);

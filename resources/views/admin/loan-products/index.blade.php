@@ -7,7 +7,10 @@
 
     <x-admin.index-toolbar route="admin.loan-products" label="New product" />
 
-    @php($products = \App\Models\LoanProduct::query()->orderBy('code')->get())
+    @php
+        $products = \App\Models\LoanProduct::with('rateTiers')->orderBy('code')->get();
+        $rateService = app(\App\Services\DisplayedRateService::class);
+    @endphp
 
     <div class="bg-white rounded-xl ring-1 ring-gray-200 overflow-hidden">
         <table class="min-w-full text-sm">
@@ -16,7 +19,7 @@
                     <th class="px-5 py-2.5 text-left">Code</th>
                     <th class="px-5 py-2.5 text-left">Name</th>
                     <th class="px-5 py-2.5 text-left">Category</th>
-                    <th class="px-5 py-2.5 text-right">Rate</th>
+                    <th class="px-5 py-2.5 text-right">Monthly rate</th>
                     <th class="px-5 py-2.5 text-right">Tenure (m)</th>
                     <th class="px-5 py-2.5 text-right">Amount range</th>
                     <th class="px-5 py-2.5 text-left">Status</th>
@@ -29,7 +32,7 @@
                         <td class="px-5 py-3 font-mono text-xs">{{ $p->code }}</td>
                         <td class="px-5 py-3 font-medium text-gray-900">{{ $p->name }}</td>
                         <td class="px-5 py-3">{{ display_label((string) $p->category, 'product_category') }}</td>
-                        <td class="px-5 py-3 text-right">{{ number_format((float) $p->interest_rate * 100, 2) }} %</td>
+                        <td class="px-5 py-3 text-right font-semibold">{{ $rateService->formatBorrowerRateRange($p) }}</td>
                         <td class="px-5 py-3 text-right">{{ $p->tenure_min_months }}–{{ $p->tenure_max_months }}</td>
                         <td class="px-5 py-3 text-right">{{ number_format((float) $p->min_amount) }} – {{ number_format((float) $p->max_amount) }}</td>
                         <td class="px-5 py-3">
