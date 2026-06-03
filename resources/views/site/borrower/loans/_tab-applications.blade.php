@@ -79,7 +79,7 @@
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3 font-mono text-xs">{{ $app->application_number }}</td>
                             <td class="px-4 py-3">{{ $app->product->name ?? '—' }}</td>
-                            <td class="px-4 py-3 font-medium">TZS {{ number_format($app->requested_amount) }}</td>
+                            <td class="px-4 py-3 font-medium">{{ format_money($app->requested_amount) }}</td>
                             <td class="px-4 py-3">{{ __('borrower.applications_list.tenure_short', ['count' => $app->requested_tenure_months]) }}</td>
                             <td class="px-4 py-3">
                                 <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $badge }}">{{ ucfirst(str_replace('_',' ', $app->status)) }}</span>
@@ -121,7 +121,7 @@
                 <div class="grid grid-cols-2 gap-3 text-sm mb-4">
                     <div>
                         <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.requested') }}</p>
-                        <p class="font-semibold">TZS {{ number_format($app->requested_amount) }}</p>
+                        <p class="font-semibold">{{ format_money($app->requested_amount) }}</p>
                     </div>
                     <div>
                         <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.tenure') }}</p>

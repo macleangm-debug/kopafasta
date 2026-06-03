@@ -23,6 +23,7 @@ class LoanProduct extends Model
             'penalty_rate_percent' => 'decimal:2',
             'requires_collateral' => 'boolean',
             'requires_guarantor' => 'boolean',
+            'uses_capital_partner' => 'boolean',
             'collateral_rules' => 'array',
             'is_active' => 'boolean',
             'status' => 'string',

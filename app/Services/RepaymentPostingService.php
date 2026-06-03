@@ -129,6 +129,10 @@ class RepaymentPostingService
                 $repayment->update(['status' => 'allocated']);
             }
 
+            $capital = app(CapitalPartnerAllocationService::class);
+            $capital->distributeInterest($loan, (float) $repayment->interest_component);
+            $capital->reduceExposure($loan, (float) $repayment->principal_component);
+
             // 5) Post journal entry
             return $this->postJournal($repayment->fresh(), $loan);
         });

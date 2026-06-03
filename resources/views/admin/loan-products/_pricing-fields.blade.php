@@ -8,6 +8,10 @@
     </p>
     <x-admin.money-input name="application_fee_amount" label="Application fee (TZS)" :value="$r?->application_fee_amount"
                          placeholder="e.g. 5,000" help="Charged when a borrower applies for this product. Leave blank to use the global application fee." />
+    <x-admin.select name="uses_capital_partner" label="Uses capital partner?"
+                    :options="['1' => 'Yes', '0' => 'No']"
+                    :value="old('uses_capital_partner', ($r?->uses_capital_partner ?? true) ? '1' : '0')"
+                    help="When Yes, approved loans are funded proportionally from active capital partner pools. Asset lending products typically use No." />
     <x-admin.input name="tenure_min_months" label="Min tenure (months)" type="number" :value="$r?->tenure_min_months" required />
     <x-admin.input name="tenure_max_months" label="Max tenure (months)" type="number" :value="$r?->tenure_max_months" required />
     <x-admin.select name="repayment_cadence" label="Repayment cadence"

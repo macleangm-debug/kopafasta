@@ -12,7 +12,13 @@
                 <div>
                     <p class="text-xs uppercase tracking-widest text-amber-600 font-semibold">{{ __('borrower.apply.details.heading') }}</p>
                     <h2 class="text-2xl font-bold text-gray-900 mt-1" x-text="readiness.product.name"></h2>
+                    <p class="text-xs font-semibold uppercase tracking-widest text-amber-700 mt-1" x-text="readiness.product.loan_type"></p>
                     <p class="text-sm text-gray-600 mt-1 max-w-xl" x-text="readiness.product.description"></p>
+                    <ul class="mt-3 space-y-1 text-sm text-gray-700" x-show="readiness.product.features?.length">
+                        <template x-for="(feature, fi) in readiness.product.features" :key="fi">
+                            <li class="flex gap-2"><span class="text-amber-600">•</span><span x-text="feature"></span></li>
+                        </template>
+                    </ul>
                 </div>
                 <button type="button" @click="backToBrowse()" class="text-sm font-semibold text-gray-600 hover:text-gray-900">{{ __('borrower.apply.details.all_products') }}</button>
             </div>

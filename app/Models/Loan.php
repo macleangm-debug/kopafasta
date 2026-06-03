@@ -46,6 +46,11 @@ class Loan extends Model
         return $this->hasMany(Disbursement::class);
     }
 
+    public function capitalAllocations(): HasMany
+    {
+        return $this->hasMany(LoanCapitalAllocation::class);
+    }
+
     public function repaymentSchedules(): HasMany
     {
         return $this->hasMany(RepaymentSchedule::class);

@@ -30,9 +30,9 @@
         @endif
 
 
-        @if ($reservation ?? null)
+                @if ($reservation ?? null)
             <div class="mb-6 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">
-                {{ __('borrower.apply.asset_reservation', ['asset' => $reservation->asset?->title, 'amount' => number_format($reservation->deposit_amount)]) }}
+                {{ __('borrower.apply.asset_reservation', ['asset' => $reservation->asset?->title, 'amount' => format_number($reservation->deposit_amount)]) }}
             </div>
         @endif
 
@@ -168,7 +168,7 @@
                                 <div class="mt-2 font-semibold text-sm">{{ $p->name }}</div>
                                 <p class="text-[11px] text-gray-500 mt-1 line-clamp-2">{{ $p->description ?: __('borrower.apply.browse.flexible_terms') }}</p>
                                 <div class="text-[11px] text-gray-600 mt-2">
-                                    TZS {{ number_format($p->min_amount) }} – {{ number_format($p->max_amount) }}
+                                    {{ format_money($p->min_amount, false) }} – {{ format_money($p->max_amount, false) }}
                                     · {{ $p->tenure_min_months }}–{{ $p->tenure_max_months }} {{ __('borrower.apply.browse.months_short') }}
                                 </div>
                                 <p class="mt-3 text-xs font-semibold text-amber-700">{{ __('borrower.apply.browse.view_details') }}</p>
@@ -1006,16 +1006,21 @@
                     };
                 },
 
-                isExternalGuarantorComplete() {
+                externalGuarantorMissingFields() {
+                    const labels = {
+                        external_first_name: @js(__('borrower.profile.fields.first_name')),
+                        external_last_name: @js(__('borrower.profile.fields.last_name')),
+                        external_relationship: @js(__('borrower.apply.guarantor_fields.relationship')),
+                        external_phone: @js(__('borrower.profile.fields.phone')),
+                        external_region: @js(__('borrower.profile.fields.region')),
+                        external_district: @js(__('borrower.profile.fields.district')),
+                    };
                     const p = this.externalGuarantorPayload();
-                    return Boolean(
-                        p.external_first_name
-                        && p.external_last_name
-                        && p.external_relationship
-                        && p.external_phone
-                        && p.external_region
-                        && p.external_district
-                    );
+                    return Object.entries(labels).filter(([key]) => ! (p[key] || '').toString().trim()).map(([, label]) => label);
+                },
+
+                isExternalGuarantorComplete() {
+                    return this.externalGuarantorMissingFields().length === 0;
                 },
 
                 async prepareExternalGuarantorInvite() {
@@ -1069,18 +1074,12 @@
                             return await this.verifyInternalGuarantor();
                         }
                         if (this.form.guarantor_mode === 'external') {
-                            if (! this.isExternalGuarantorComplete()) {
-                                alert(this.i18n.alerts.guarantor_external_incomplete);
+                            const missing = this.externalGuarantorMissingFields();
+                            if (missing.length) {
+                                alert(@js(__('borrower.apply.alerts.guarantor_external_incomplete')) + ': ' + missing.join(', '));
                                 return false;
                             }
-                            if (this.externalGuarantor?.invitation_url) {
-                                return true;
-                            }
-                            const ok = await this.prepareExternalGuarantorInvite();
-                            if (ok) {
-                                await this.persistDraft(true);
-                            }
-                            return false;
+                            return true;
                         }
                     }
                     if (this.currentStepKey === 'application_fee' && this.applicationFee > 0) {
@@ -1139,6 +1138,13 @@
                 async next() {
                     if (this.guarantorInvitePreparing) return;
                     if (! await this.validateStep()) return;
+
+                    if (this.currentStepKey === 'guarantor' && this.form.guarantor_mode === 'external' && ! this.externalGuarantor?.invitation_url) {
+                        const ok = await this.prepareExternalGuarantorInvite();
+                        if (! ok) return;
+                        await this.persistDraft(true);
+                    }
+
                     await this.persistDraft(true);
                     const nextKey = this.steps[this.step + 1]?.key;
                     if (nextKey === 'review') {

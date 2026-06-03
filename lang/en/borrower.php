@@ -92,6 +92,19 @@ return [
             'months_short' => 'mo',
             'per_month' => 'per month',
         ],
+        'product_type' => [
+            'general' => 'General loan',
+            'salary' => 'Salary loan',
+            'business' => 'Business loan',
+            'agriculture' => 'Agriculture loan',
+            'asset' => 'Asset finance',
+            'emergency' => 'Emergency loan',
+        ],
+        'product_features' => [
+            'guarantor' => 'Guarantor required',
+            'collateral' => 'Collateral required',
+            'tenure_range' => 'Tenure :min–:max months',
+        ],
         'quote' => [
             'title' => 'Loan quote',
             'subtitle' => 'Adjust amount and tenure — your installment updates instantly.',

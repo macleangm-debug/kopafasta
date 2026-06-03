@@ -47,7 +47,9 @@ class LoanProductReadinessService
                 'id'                 => $product->id,
                 'code'               => $product->code,
                 'name'               => $product->name,
+                'loan_type'          => $this->loanTypeLabel($product),
                 'description'        => $product->description,
+                'features'           => $this->productFeatures($product),
                 'min_amount'         => (float) $product->min_amount,
                 'max_amount'         => (float) $product->max_amount,
                 'tenure_min_months'  => (int) $product->tenure_min_months,
@@ -266,5 +268,44 @@ class LoanProductReadinessService
             })
             ->values()
             ->all();
+    }
+
+    private function loanTypeLabel(LoanProduct $product): string
+    {
+        $category = (string) ($product->category ?? '');
+
+        return match ($category) {
+            'salary_loan'    => __('borrower.apply.product_type.salary'),
+            'business_loan'  => __('borrower.apply.product_type.business'),
+            'agriculture'    => __('borrower.apply.product_type.agriculture'),
+            'asset_finance'  => __('borrower.apply.product_type.asset'),
+            'emergency'      => __('borrower.apply.product_type.emergency'),
+            default          => ucfirst(str_replace('_', ' ', $category ?: __('borrower.apply.product_type.general'))),
+        };
+    }
+
+    /** @return list<string> */
+    private function productFeatures(LoanProduct $product): array
+    {
+        $features = [];
+
+        if ($product->description) {
+            $features[] = $product->description;
+        }
+
+        if ($product->requires_guarantor) {
+            $features[] = __('borrower.apply.product_features.guarantor');
+        }
+
+        if ($product->requires_collateral) {
+            $features[] = __('borrower.apply.product_features.collateral');
+        }
+
+        $features[] = __('borrower.apply.product_features.tenure_range', [
+            'min' => $product->tenure_min_months,
+            'max' => $product->tenure_max_months,
+        ]);
+
+        return $features;
     }
 }

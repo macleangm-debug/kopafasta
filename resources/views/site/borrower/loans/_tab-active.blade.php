@@ -37,15 +37,15 @@
                 <div class="grid sm:grid-cols-4 gap-4 mb-5">
                     <div>
                         <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.loan_amount') }}</p>
-                        <p class="font-semibold text-sm">TZS {{ number_format($loan->principal_amount) }}</p>
+                        <p class="font-semibold text-sm">{{ format_money($loan->principal_amount) }}</p>
                     </div>
                     <div>
                         <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.outstanding') }}</p>
-                        <p class="font-semibold text-sm">TZS {{ number_format($loan->outstanding_balance) }}</p>
+                        <p class="font-semibold text-sm">{{ format_money($loan->outstanding_balance) }}</p>
                     </div>
                     <div>
                         <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.monthly') }}</p>
-                        <p class="font-semibold text-sm">TZS {{ number_format($monthly) }}</p>
+                        <p class="font-semibold text-sm">{{ format_money($monthly) }}</p>
                     </div>
                     <div>
                         <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.rate_tenure_label') }}</p>

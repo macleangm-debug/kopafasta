@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             UserSeeder::class,
             LoanProductSeeder::class,
+            MacLeansCapitalPartnerSeeder::class,
             PublicLoanProductsSeeder::class,
             LoanProductRateTierSeeder::class,
             LoanProductPenaltyDefaultsSeeder::class,

@@ -10,16 +10,17 @@
         'Category'            => display_label((string) $record->category, 'product_category'),
         'Monthly rate (borrower)' => app(\App\Services\DisplayedRateService::class)->formatBorrowerRateRange($record).' / month',
         'Application fee'     => ($record->application_fee_amount ?? 0) > 0
-            ? 'TZS '.number_format((int) $record->application_fee_amount)
+            ? format_money($record->application_fee_amount)
             : 'Global default',
         'Tenure (months)'     => $record->tenure_min_months.' – '.$record->tenure_max_months,
         'Repayment cadence'   => ucfirst($record->repayment_cadence ?? 'weekly'),
-        'Min amount'          => 'TZS '.number_format((float) $record->min_amount),
-        'Max amount'          => 'TZS '.number_format((float) $record->max_amount),
+        'Min amount'          => format_money($record->min_amount),
+        'Max amount'          => format_money($record->max_amount),
         'Grace after default' => ($record->default_grace_days ?? 7).' days',
         'Penalty'             => number_format((float) ($record->penalty_rate_percent ?? 1), 2).'% of amount owed '.str_replace('_', ' ', (string) ($record->penalty_basis ?? 'per_day')),
         'Requires collateral' => $record->requires_collateral ? 'Yes' : 'No',
         'Requires guarantor'  => $record->requires_guarantor ? 'Yes' : 'No',
+        'Uses capital partner' => ($record->uses_capital_partner ?? true) ? 'Yes' : 'No',
         'Offer letter template' => $record->offerLetterTemplate?->name ?? 'System default',
         'Loan contract template' => $record->loanContractTemplate?->name ?? 'System default',
         'Status'              => $record->is_active ? 'Active' : 'Inactive',

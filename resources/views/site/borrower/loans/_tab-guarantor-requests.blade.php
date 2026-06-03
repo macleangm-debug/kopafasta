@@ -15,7 +15,7 @@
                 <p class="font-semibold">{{ trim($invitation->borrower->first_name.' '.$invitation->borrower->last_name) }}</p>
                 <p class="text-sm text-gray-600 mt-1">
                     @if ($invitation->application)
-                        {{ $invitation->application->product->name ?? __('borrower.guarantor.loan') }} · TZS {{ number_format((float) $invitation->application->requested_amount) }}
+                        {{ $invitation->application->product->name ?? __('borrower.guarantor.loan') }} · {{ format_money((float) $invitation->application->requested_amount) }}
                     @endif
                 </p>
                 @if ($link)

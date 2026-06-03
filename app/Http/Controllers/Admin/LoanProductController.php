@@ -71,6 +71,7 @@ class LoanProductController extends ResourceController
             'penalty_basis' => ['required', 'in:per_day,per_month,one_time'],
             'requires_collateral' => ['nullable', 'boolean'],
             'requires_guarantor'  => ['nullable', 'boolean'],
+            'uses_capital_partner' => ['nullable', 'in:0,1'],
             'status'              => ['required', 'in:active,inactive,coming_soon'],
             'requirements'        => ['nullable', 'array'],
             'requirements.*.id'   => ['nullable', 'integer'],
@@ -99,6 +100,7 @@ class LoanProductController extends ResourceController
     {
         $data['requires_collateral'] = (bool) ($data['requires_collateral'] ?? false);
         $data['requires_guarantor']  = (bool) ($data['requires_guarantor'] ?? false);
+        $data['uses_capital_partner'] = in_array((string) ($data['uses_capital_partner'] ?? '1'), ['1', 'true'], true);
         $data['status']              = $data['status'] ?? 'inactive';
         $data['is_active']           = $data['status'] === 'active';
         $data['repayment_cadence']   = $data['repayment_cadence'] ?? 'weekly';

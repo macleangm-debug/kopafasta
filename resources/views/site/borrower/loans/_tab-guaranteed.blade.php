@@ -27,7 +27,7 @@
                 <div class="grid sm:grid-cols-3 gap-4 text-sm">
                     <div>
                         <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.requested') }}</p>
-                        <p class="font-semibold">TZS {{ number_format($app?->requested_amount ?? 0) }}</p>
+                        <p class="font-semibold">{{ format_money($app?->requested_amount ?? 0) }}</p>
                     </div>
                     <div>
                         <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.application_status') }}</p>

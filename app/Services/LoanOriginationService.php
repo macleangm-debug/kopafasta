@@ -37,7 +37,7 @@ class LoanOriginationService
         $monthlyRate = app(DisplayedRateService::class)->displayedMonthlyRate($product, $amount);
         $penaltyDefaults = LoanPenaltyPolicy::defaultsForProduct($product);
 
-        return Loan::create([
+        $loan = Loan::create([
             'loan_application_id' => $application->id,
             'customer_id'         => $application->customer_id,
             'loan_product_id'     => $application->loan_product_id,
@@ -52,6 +52,10 @@ class LoanOriginationService
             'tenure_months'         => max(1, $tenure),
             'status'                => 'pending',
         ]);
+
+        app(CapitalPartnerAllocationService::class)->allocateForLoan($loan);
+
+        return $loan;
     }
 
     protected function generateLoanNumber(): string
