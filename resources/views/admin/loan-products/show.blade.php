@@ -25,40 +25,25 @@
         'Created'             => $record->created_at?->format('Y-m-d H:i'),
     ]">
 
-    @php $components = app(\App\Services\DisplayedRateService::class)->rateComponents($record); @endphp
-    <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
-        <h2 class="text-sm font-semibold text-gray-900 mb-3">Monthly rate components</h2>
-        <dl class="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
-            <div><dt class="text-xs text-gray-500">BOT</dt><dd class="font-semibold">{{ number_format($components['bot_regulated_rate'] * 100, 2) }}%</dd></div>
-            <div><dt class="text-xs text-gray-500">Processing</dt><dd class="font-semibold">{{ number_format($components['processing_fee_rate'] * 100, 2) }}%</dd></div>
-            <div><dt class="text-xs text-gray-500">Risk</dt><dd class="font-semibold">{{ number_format($components['service_fee_rate'] * 100, 2) }}%</dd></div>
-            <div><dt class="text-xs text-gray-500">Insurance</dt><dd class="font-semibold">{{ number_format($components['insurance_fee_rate'] * 100, 2) }}%</dd></div>
-            <div><dt class="text-xs text-gray-500">Component total</dt><dd class="font-semibold">{{ number_format($components['component_total'] * 100, 2) }}%</dd></div>
-        </dl>
-    </div>
-
     @if ($record->rateTiers->isNotEmpty())
-        <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
-            <h2 class="text-sm font-semibold text-gray-900 mb-3">Tiered monthly rates</h2>
-            <p class="text-xs text-gray-500 mb-4">Total monthly rate to borrower by approved amount (from loan configuration).</p>
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="text-xs uppercase text-gray-500 border-b border-gray-100">
-                        <tr>
-                            <th class="text-left py-2 pr-4">Amount band (TZS)</th>
-                            <th class="text-right py-2">Monthly rate</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
-                        @foreach ($record->rateTiers as $tier)
-                            <tr>
-                                <td class="py-2 pr-4">{{ number_format((float) $tier->min_amount) }} – {{ number_format((float) $tier->max_amount) }}</td>
-                                <td class="py-2 text-right font-semibold">{{ number_format((float) $tier->monthly_rate * 100, 1) }}%</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
+        <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-3">
+            <h2 class="text-sm font-semibold text-gray-900">Tiered monthly rates</h2>
+            <p class="text-xs text-gray-500">Expand a band to see BOT, processing, risk, and insurance components.</p>
+            @foreach ($record->rateTiers as $tier)
+                @php $parts = $tier->rateComponents(); @endphp
+                <details class="rounded-lg ring-1 ring-gray-100 bg-gray-50/50">
+                    <summary class="cursor-pointer px-4 py-3 flex flex-wrap justify-between gap-2 text-sm font-semibold text-gray-900">
+                        <span>TZS {{ number_format((float) $tier->min_amount) }} – {{ number_format((float) $tier->max_amount) }}</span>
+                        <span class="text-amber-800">{{ number_format((float) $tier->monthly_rate * 100, 1) }}% / month</span>
+                    </summary>
+                    <div class="px-4 pb-4 pt-1 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm border-t border-gray-100">
+                        <div><span class="text-xs text-gray-500">BOT</span><p class="font-semibold">{{ number_format($parts['bot_regulated_rate'] * 100, 2) }}%</p></div>
+                        <div><span class="text-xs text-gray-500">Processing</span><p class="font-semibold">{{ number_format($parts['processing_fee_rate'] * 100, 2) }}%</p></div>
+                        <div><span class="text-xs text-gray-500">Risk</span><p class="font-semibold">{{ number_format($parts['service_fee_rate'] * 100, 2) }}%</p></div>
+                        <div><span class="text-xs text-gray-500">Insurance</span><p class="font-semibold">{{ number_format($parts['insurance_fee_rate'] * 100, 2) }}%</p></div>
+                    </div>
+                </details>
+            @endforeach
         </div>
     @endif
 

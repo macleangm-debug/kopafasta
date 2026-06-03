@@ -1,59 +1,45 @@
 @php
     use App\Support\RatePercent;
-    $record = $record ?? null;
-    $existing = collect(old('rate_tiers', ($rateTiers ?? collect())->map(fn ($t) => [
-        'min_amount'   => $t->min_amount ?? $t['min_amount'] ?? 0,
-        'max_amount'   => $t->max_amount ?? $t['max_amount'] ?? 0,
-        'monthly_rate' => RatePercent::forInput(is_object($t) ? ($t->monthly_rate ?? null) : ($t['monthly_rate'] ?? null)),
-    ])->all()));
+    $existing = collect(old('rate_tiers', ($rateTiers ?? collect())->map(function ($t) {
+        $isModel = is_object($t);
+
+        return [
+            'min_amount'              => $isModel ? $t->min_amount : ($t['min_amount'] ?? 0),
+            'max_amount'              => $isModel ? $t->max_amount : ($t['max_amount'] ?? 0),
+            'bot_regulated_rate'      => RatePercent::forInput($isModel ? $t->bot_regulated_rate : ($t['bot_regulated_rate'] ?? null)),
+            'processing_fee_rate'     => RatePercent::forInput($isModel ? $t->processing_fee_rate : ($t['processing_fee_rate'] ?? null)),
+            'service_fee_rate'        => RatePercent::forInput($isModel ? $t->service_fee_rate : ($t['service_fee_rate'] ?? null)),
+            'administration_fee_rate' => RatePercent::forInput($isModel ? $t->administration_fee_rate : ($t['administration_fee_rate'] ?? null)),
+            'monthly_rate'            => $isModel ? (float) $t->monthly_rate : (float) ($t['monthly_rate'] ?? 0),
+        ];
+    })->all()));
 @endphp
 
 <x-admin.step title="Tiered monthly rates">
     <div class="md:col-span-2">
         <p class="text-xs text-gray-500 mb-4">
-            Set amount bands and the <strong>total monthly rate</strong> borrowers see for each band.
-            Smaller loans typically use higher totals; larger loans use lower totals.
+            Configure amount bands for this product. Each tier shows the <strong>total monthly rate</strong> on the summary;
+            expand a tier to enter BOT, processing, risk, and insurance — the total updates automatically.
         </p>
         <div class="space-y-3" id="rate-tier-rows">
             @foreach ($existing as $i => $row)
-                <div class="grid md:grid-cols-3 gap-3 rounded-lg bg-gray-50 p-3 rate-tier-row">
-                    <x-admin.money-input :name="'rate_tiers['.$i.'][min_amount]'" label="Min amount (TZS)" :value="$row['min_amount']" />
-                    <x-admin.money-input :name="'rate_tiers['.$i.'][max_amount]'" label="Max amount (TZS)" :value="$row['max_amount']" />
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Total monthly rate %</label>
-                        <input type="text" inputmode="decimal" name="rate_tiers[{{ $i }}][monthly_rate]" value="{{ $row['monthly_rate'] }}"
-                               class="tier-monthly-rate w-full text-sm bg-white border border-gray-300 rounded-lg shadow-sm px-3 py-2 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
-                               placeholder="e.g. 12">
-                    </div>
-                </div>
+                @include('admin.loan-products._rate-tier-row', ['index' => $i, 'row' => $row, 'open' => true])
             @endforeach
         </div>
+        <template id="rate-tier-row-template">
+            @include('admin.loan-products._rate-tier-row', ['index' => '__INDEX__', 'row' => [
+                'min_amount' => '',
+                'max_amount' => '',
+                'bot_regulated_rate' => '3.5',
+                'processing_fee_rate' => '5',
+                'service_fee_rate' => '3.5',
+                'administration_fee_rate' => '0',
+                'monthly_rate' => 0.12,
+            ], 'open' => true])
+        </template>
         <button type="button" class="mt-3 text-xs font-semibold text-amber-700" onclick="addRateTierRow()">+ Add tier</button>
         <p class="mt-3 text-xs text-amber-800/90 rounded-lg bg-amber-50 ring-1 ring-amber-100 p-3" id="tier-rate-preview">
             Borrower rate range: <strong id="tier-rate-preview-value">—</strong>
-        </p>
-    </div>
-
-    <div class="md:col-span-2 rounded-xl ring-1 ring-gray-200 bg-white p-5 space-y-4" id="rate-components-panel">
-        <div>
-            <h3 class="text-sm font-semibold text-gray-900">Monthly rate components</h3>
-            <p class="text-xs text-gray-500 mt-1">
-                Reference breakdown for this product (BOT + processing + risk + insurance). Tier totals above should include these components.
-            </p>
-        </div>
-        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <x-admin.input name="bot_regulated_rate" label="BOT rate %" type="text" inputmode="decimal" step="0.01" max="3.5"
-                           :value="RatePercent::forInput(old('bot_regulated_rate', $record?->bot_regulated_rate ?? 3.5))" placeholder="3.5" />
-            <x-admin.input name="processing_fee_rate" label="Processing rate %" type="text" inputmode="decimal"
-                           :value="RatePercent::forInput(old('processing_fee_rate', $record?->processing_fee_rate ?? 0))" placeholder="5" />
-            <x-admin.input name="service_fee_rate" label="Risk rate %" type="text" inputmode="decimal"
-                           :value="RatePercent::forInput(old('service_fee_rate', $record?->service_fee_rate ?? 0))" placeholder="3.5" />
-            <x-admin.input name="administration_fee_rate" label="Insurance rate %" type="text" inputmode="decimal"
-                           :value="RatePercent::forInput(old('administration_fee_rate', $record?->administration_fee_rate ?? 0))" placeholder="0" />
-        </div>
-        <p class="text-sm rounded-lg bg-gray-50 px-4 py-3 text-gray-800">
-            Component total: <strong id="component-total-preview">—</strong>
-            <span class="text-xs text-gray-500 block mt-1">Use as a guide when setting tier totals (e.g. 3.5% + 5% + 3.5% = 12%).</span>
         </p>
     </div>
 </x-admin.step>
@@ -62,79 +48,94 @@
     @push('scripts')
     <script>
         function parsePct(v) {
-            const n = parseFloat(String(v).replace(/,/g, ''));
-            if (Number.isNaN(n)) return null;
+            const n = parseFloat(String(v ?? '').replace(/,/g, ''));
+            if (Number.isNaN(n)) return 0;
             return n > 1 ? n / 100 : n;
         }
 
         function fmtPct(d) {
+            if (!d || d <= 0) return '—';
             return (d * 100).toFixed(Math.abs(d * 100 - Math.round(d * 100)) < 0.05 ? 0 : 1) + '%';
         }
 
-        function componentTotal() {
-            let bot = parsePct(document.querySelector('[name="bot_regulated_rate"]')?.value) ?? 0;
+        function tierRowTotal(row) {
+            let bot = parsePct(row.querySelector('[data-tier-bot]')?.value);
             bot = Math.min(bot, 0.035);
-            const fees = ['processing_fee_rate', 'service_fee_rate', 'administration_fee_rate']
-                .reduce((sum, name) => sum + (parsePct(document.querySelector(`[name="${name}"]`)?.value) ?? 0), 0);
-            return bot + fees;
+            const processing = parsePct(row.querySelector('[data-tier-processing]')?.value);
+            const risk = parsePct(row.querySelector('[data-tier-risk]')?.value);
+            const insurance = parsePct(row.querySelector('[data-tier-insurance]')?.value);
+            return Math.round((bot + processing + risk + insurance) * 10000) / 10000;
         }
 
-        function updateComponentPreview() {
-            const el = document.getElementById('component-total-preview');
-            if (!el) return;
-            const total = componentTotal();
-            el.textContent = total > 0 ? fmtPct(total) : '—';
-        }
-
-        function bindComponentInputs() {
-            ['bot_regulated_rate', 'processing_fee_rate', 'service_fee_rate', 'administration_fee_rate'].forEach((name) => {
-                const el = document.querySelector(`[name="${name}"]`);
-                if (!el || el.dataset.componentBound === '1') return;
-                el.dataset.componentBound = '1';
-                el.addEventListener('input', updateComponentPreview);
+        function updateTierRowSummary(row) {
+            const total = tierRowTotal(row);
+            row.querySelectorAll('[data-tier-summary-total], [data-tier-inline-total]').forEach((el) => {
+                el.textContent = fmtPct(total);
             });
-            updateComponentPreview();
+            const hidden = row.querySelector('[data-tier-monthly-hidden]');
+            if (hidden) hidden.value = total > 0 ? total : '';
+
+            const min = row.querySelector('[name$="[min_amount]"]')?.value ?? '';
+            const max = row.querySelector('[name$="[max_amount]"]')?.value ?? '';
+            const band = row.querySelector('[data-tier-summary-band]');
+            if (band && (min || max)) {
+                band.textContent = 'TZS ' + min + ' – ' + max;
+            }
+            return total;
         }
 
-        function addRateTierRow() {
-            const host = document.getElementById('rate-tier-rows');
-            const i = host.querySelectorAll('.rate-tier-row').length;
-            host.insertAdjacentHTML('beforeend', `
-                <div class="grid md:grid-cols-3 gap-3 rounded-lg bg-gray-50 p-3 rate-tier-row">
-                    <div><label class="text-xs font-semibold text-gray-700 mb-1">Min amount (TZS)</label><input type="text" inputmode="decimal" data-money-input="0" name="rate_tiers[${i}][min_amount]" class="mt-0 w-full rounded-lg border-gray-300 text-sm px-3 py-2"></div>
-                    <div><label class="text-xs font-semibold text-gray-700 mb-1">Max amount (TZS)</label><input type="text" inputmode="decimal" data-money-input="0" name="rate_tiers[${i}][max_amount]" class="mt-0 w-full rounded-lg border-gray-300 text-sm px-3 py-2"></div>
-                    <div><label class="text-xs font-semibold text-gray-700 mb-1">Total monthly rate %</label><input type="text" inputmode="decimal" name="rate_tiers[${i}][monthly_rate]" placeholder="e.g. 12" class="tier-monthly-rate mt-0 w-full rounded-lg border-gray-300 text-sm px-3 py-2"></div>
-                </div>`);
-            window.initMoneyInputs?.();
-            bindTierPreview();
-        }
-
-        function bindTierPreview() {
-            document.querySelectorAll('.tier-monthly-rate, [name^="rate_tiers"][name$="[monthly_rate]"]').forEach((el) => {
-                el.removeEventListener('input', updateTierPreview);
-                el.addEventListener('input', updateTierPreview);
+        function bindTierRow(row) {
+            if (!row || row.dataset.tierBound === '1') return;
+            row.dataset.tierBound = '1';
+            row.querySelectorAll('[data-tier-component]').forEach((input) => {
+                input.addEventListener('input', () => {
+                    updateTierRowSummary(row);
+                    updateTierPreview();
+                });
             });
+            row.querySelectorAll('[data-tier-band]').forEach((input) => {
+                input.addEventListener('input', () => updateTierRowSummary(row));
+            });
+            updateTierRowSummary(row);
+        }
+
+        function bindAllTierRows() {
+            document.querySelectorAll('.rate-tier-row').forEach(bindTierRow);
             updateTierPreview();
         }
 
         function updateTierPreview() {
-            const rates = [...document.querySelectorAll('[name^="rate_tiers"][name$="[monthly_rate]"]')]
-                .map((el) => parsePct(el.value))
-                .filter((r) => r !== null && r > 0);
+            const totals = [...document.querySelectorAll('.rate-tier-row')]
+                .map((row) => tierRowTotal(row))
+                .filter((r) => r > 0);
             const out = document.getElementById('tier-rate-preview-value');
             if (!out) return;
-            if (!rates.length) {
+            if (!totals.length) {
                 out.textContent = '—';
                 return;
             }
-            const min = Math.min(...rates);
-            const max = Math.max(...rates);
+            const min = Math.min(...totals);
+            const max = Math.max(...totals);
             out.textContent = Math.abs(min - max) < 0.0001 ? fmtPct(min) : fmtPct(min) + ' – ' + fmtPct(max);
         }
 
+        function addRateTierRow() {
+            const tpl = document.getElementById('rate-tier-row-template');
+            const host = document.getElementById('rate-tier-rows');
+            if (!tpl || !host) return;
+            const i = host.querySelectorAll('.rate-tier-row').length;
+            const html = tpl.innerHTML.replace(/__INDEX__/g, String(i));
+            const wrap = document.createElement('div');
+            wrap.innerHTML = html;
+            const row = wrap.firstElementChild;
+            host.appendChild(row);
+            window.initMoneyInputs?.(row);
+            bindTierRow(row);
+            updateTierPreview();
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
-            bindTierPreview();
-            bindComponentInputs();
+            bindAllTierRows();
         });
     </script>
     @endpush

@@ -7,6 +7,7 @@ use App\Models\LoanProduct;
 use App\Models\LoanProductRequirement;
 use App\Services\AuditService;
 use App\Services\DisplayedRateService;
+use App\Models\LoanProductRateTier;
 use App\Services\LoanRateTierTemplateService;
 use App\Support\MoneyFormat;
 use App\Support\RatePercent;
@@ -48,10 +49,6 @@ class LoanProductController extends ResourceController
             'category'            => ['nullable', 'string', 'max:50'],
             'description'         => ['nullable', 'string', 'max:1000'],
             'interest_rate'       => ['nullable', 'numeric', 'min:0', 'max:1'],
-            'bot_regulated_rate'    => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'processing_fee_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'service_fee_rate'    => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'administration_fee_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'application_fee_amount' => ['nullable', 'numeric', 'min:0'],
             'offer_letter_template_id' => ['nullable', 'integer', 'exists:document_templates,id'],
             'loan_contract_template_id' => ['nullable', 'integer', 'exists:document_templates,id'],
@@ -79,6 +76,10 @@ class LoanProductController extends ResourceController
             'rate_tiers' => ['nullable', 'array'],
             'rate_tiers.*.min_amount' => ['nullable', 'numeric', 'min:0'],
             'rate_tiers.*.max_amount' => ['nullable', 'numeric', 'min:0'],
+            'rate_tiers.*.bot_regulated_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'rate_tiers.*.processing_fee_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'rate_tiers.*.service_fee_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'rate_tiers.*.administration_fee_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'rate_tiers.*.monthly_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ];
     }
@@ -108,25 +109,6 @@ class LoanProductController extends ResourceController
             if (blank($data[$nullable] ?? null)) {
                 $data[$nullable] = null;
             }
-        }
-
-        foreach ([
-            'bot_regulated_rate',
-            'processing_fee_rate',
-            'service_fee_rate',
-            'administration_fee_rate',
-        ] as $rateField) {
-            if (array_key_exists($rateField, $data) && $data[$rateField] !== null && $data[$rateField] !== '') {
-                $data[$rateField] = RatePercent::toDecimal($data[$rateField]);
-            }
-        }
-
-        if (isset($data['bot_regulated_rate']) && $data['bot_regulated_rate'] !== null) {
-            $data['bot_regulated_rate'] = min((float) $data['bot_regulated_rate'], 0.035);
-        }
-
-        foreach (['processing_fee_rate', 'service_fee_rate', 'administration_fee_rate'] as $feeField) {
-            $data[$feeField] = (float) ($data[$feeField] ?? 0);
         }
 
         return $data;
@@ -310,15 +292,29 @@ class LoanProductController extends ResourceController
         $created = 0;
 
         foreach ($rows as $row) {
-            if (! isset($row['min_amount'], $row['max_amount']) || blank($row['monthly_rate'] ?? null)) {
+            if (! isset($row['min_amount'], $row['max_amount'])) {
+                continue;
+            }
+
+            $bot = min(RatePercent::toDecimal($row['bot_regulated_rate'] ?? 0), LoanProductRateTier::BOT_MAX);
+            $processing = RatePercent::toDecimal($row['processing_fee_rate'] ?? 0);
+            $risk = RatePercent::toDecimal($row['service_fee_rate'] ?? 0);
+            $insurance = RatePercent::toDecimal($row['administration_fee_rate'] ?? 0);
+            $monthly = LoanProductRateTier::totalFromComponents($bot, $processing, $risk, $insurance);
+
+            if ($monthly <= 0) {
                 continue;
             }
 
             $product->rateTiers()->create([
-                'min_amount'   => MoneyFormat::toNumber($row['min_amount']),
-                'max_amount'   => MoneyFormat::toNumber($row['max_amount']),
-                'monthly_rate' => RatePercent::toDecimal($row['monthly_rate']),
-                'sort_order'   => $order++,
+                'min_amount'              => MoneyFormat::toNumber($row['min_amount']),
+                'max_amount'              => MoneyFormat::toNumber($row['max_amount']),
+                'bot_regulated_rate'      => $bot,
+                'processing_fee_rate'     => $processing,
+                'service_fee_rate'        => $risk,
+                'administration_fee_rate' => $insurance,
+                'monthly_rate'            => $monthly,
+                'sort_order'              => $order++,
             ]);
             $created++;
         }

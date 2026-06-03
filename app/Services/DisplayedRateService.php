@@ -33,6 +33,11 @@ class DisplayedRateService
 
     public function productLevelMonthlyRate(LoanProduct $product): float
     {
+        $tiers = $this->loadTiers($product);
+        if ($tiers->isNotEmpty()) {
+            return (float) $tiers->first()->monthly_rate;
+        }
+
         return $this->componentStackTotal($product);
     }
 
