@@ -1,7 +1,7 @@
 @if (($resumableDrafts ?? []) !== [])
     <div class="mb-8 rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
-        <h3 class="text-sm font-semibold text-amber-900 mb-1">{{ __('borrower.applications_list.drafts_title') }}</h3>
-        <p class="text-xs text-amber-800 mb-4">{{ __('borrower.applications_list.drafts_hint') }}</p>
+        <h3 class="text-sm font-semibold text-amber-900 mb-1">{{ __('borrower.applications_list.continue_title') }}</h3>
+        <p class="text-xs text-amber-800 mb-4">{{ __('borrower.applications_list.continue_hint') }}</p>
         <ul class="space-y-3">
             @foreach ($resumableDrafts as $draft)
                 <li class="flex flex-wrap items-center justify-between gap-3 bg-white rounded-xl ring-1 ring-amber-200 px-4 py-3">
@@ -23,8 +23,8 @@
 
 <div class="flex items-center justify-between flex-wrap gap-3 mb-6">
     <div>
-        <h2 class="text-lg font-semibold">{{ __('borrower.applications_list.title') }}</h2>
-        <p class="text-sm text-gray-500">{{ __('borrower.applications_list.subtitle') }}</p>
+        <h2 class="text-lg font-semibold">{{ __('borrower.applications_list.in_review_title') }}</h2>
+        <p class="text-sm text-gray-500">{{ __('borrower.applications_list.in_review_hint') }}</p>
     </div>
     <div class="flex items-center gap-2">
         <div class="inline-flex rounded-lg ring-1 ring-gray-200 bg-white p-0.5 text-xs">

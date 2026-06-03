@@ -44,22 +44,7 @@
                     ->unique('id')
                     ->values();
             }
-            $displayedRateService = app(\App\Services\DisplayedRateService::class);
-            $wizardProductPayload = fn ($p) => [
-                'id' => $p->id,
-                'code' => $p->code,
-                'name' => $p->name,
-                'rate' => (float) $displayedRateService->displayedMonthlyRate($p),
-                'rate_label' => $displayedRateService->formatBorrowerRateRange($p),
-                'tiers' => app(\App\Services\LoanRateTierService::class)->tiersForProduct($p),
-                'min' => (float) $p->min_amount,
-                'max' => (float) $p->max_amount,
-                'tmin' => (int) $p->tenure_min_months,
-                'tmax' => (int) $p->tenure_max_months,
-                'desc' => $p->description,
-                'requires_guarantor' => (bool) $p->requires_guarantor,
-                'frequency' => 'weekly',
-            ];
+            $wizardProductPayload = fn ($p) => loan_product_wizard_payload($p, $customer);
         @endphp
 
         <div x-data="applyWizard({
@@ -166,11 +151,15 @@
                                     class="snap-start shrink-0 w-64 text-left rounded-xl border-2 border-gray-200 hover:border-amber-300 p-4 transition">
                                 <span class="text-[10px] font-mono font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">{{ $p->code }}</span>
                                 <div class="mt-2 font-semibold text-sm">{{ $p->name }}</div>
+                                <p class="text-[10px] font-semibold text-amber-800 mt-1">{{ loan_product_type_label($p) }}</p>
                                 <p class="text-[11px] text-gray-500 mt-1 line-clamp-2">{{ $p->description ?: __('borrower.apply.browse.flexible_terms') }}</p>
                                 <div class="text-[11px] text-gray-600 mt-2">
                                     {{ format_money($p->min_amount, false) }} – {{ format_money($p->max_amount, false) }}
                                     · {{ $p->tenure_min_months }}–{{ $p->tenure_max_months }} {{ __('borrower.apply.browse.months_short') }}
                                 </div>
+                                <p class="text-[11px] font-semibold text-gray-800 mt-2">
+                                    {{ __('borrower.apply.product_summary.application_fee') }}: {{ format_money(loan_product_application_fee($customer, $p)) }}
+                                </p>
                                 <p class="mt-3 text-xs font-semibold text-amber-700">{{ __('borrower.apply.browse.view_details') }}</p>
                             </button>
                         @endif
@@ -188,6 +177,8 @@
 
             {{-- Phase 3: Application wizard --}}
             <div x-show="phase === 'application'">
+                <x-site.apply-product-summary />
+
                 @if ($errors->any())
                     <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
                         <p class="font-semibold mb-1">{{ __('borrower.apply.errors_fix') }}</p>
@@ -419,6 +410,9 @@
                     :fee-quote="$feeQuote ?? null"
                     :bank-accounts="$bankAccounts ?? []"
                     :currency="$membershipCfg['currency'] ?? 'TZS'"
+                    :payment-reference="$applicationFeePaymentRef ?? null"
+                    :referral-wallet="$referralWallet ?? null"
+                    :referral-settings="$referralSettings ?? []"
                 />
 
                 {{-- Product-specific questions --}}
@@ -521,7 +515,7 @@
                         <button type="button" @click="next()" :disabled="guarantorInvitePreparing" x-show="currentStepKey !== 'signature' && currentStepKey !== 'application_fee'" class="bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
                             <span x-text="guarantorInvitePreparing ? @js(__('borrower.apply.application_fee.processing')) : @js(__('borrower.apply.continue'))"></span>
                         </button>
-                        <button type="button" @click="next()" x-show="currentStepKey === 'application_fee' && (['paid','waived'].includes(applicationFeeState?.status || '') || applicationFee <= 0)" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.continue') }}</button>
+                        <button type="button" @click="next()" x-show="currentStepKey === 'application_fee' && (['paid','waived','pending'].includes(applicationFeeState?.status || '') || applicationFee <= 0)" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.continue') }}</button>
                         <button type="submit" x-show="currentStepKey === 'signature'" class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.submit') }}</button>
                     </div>
                 </div>
@@ -556,7 +550,9 @@
                 applicationFeePaid: false,
                 feeChannel: 'mobile_money',
                 feePhone: @js(old('payment_phone', $customer->phone ?? '')),
+                feeUseWallet: false,
                 feePaying: false,
+                feePaymentReference: @js($applicationFeePaymentRef ?? null),
                 purposeLabels: config.purposeLabels,
                 productQuestions: config.productQuestions,
                 profileSections: config.profileSections,
@@ -665,6 +661,35 @@
                         || ['paid', 'waived'].includes(st || '');
                 },
 
+                feeGateSatisfied() {
+                    return this.applicationFee <= 0
+                        || ['paid', 'waived', 'pending'].includes(this.applicationFeeState?.status || '');
+                },
+
+                feeGateRequiredForStep(stepKey) {
+                    const feeIdx = this.steps.findIndex(s => s.key === 'application_fee');
+                    const targetIdx = this.steps.findIndex(s => s.key === stepKey);
+                    return feeIdx >= 0 && targetIdx > feeIdx && this.applicationFee > 0;
+                },
+
+                async autoWaiveApplicationFeeIfNeeded() {
+                    if (this.applicationFee > 0 || this.applicationFeePaid) return;
+                    this.applicationFeeState = {
+                        status: 'waived',
+                        reference: null,
+                        channel: 'waived',
+                        amount: 0,
+                        paid_at: new Date().toISOString(),
+                    };
+                    this.syncFeePaidState();
+                    await this.persistDraft(true);
+                },
+
+                onApplicationFeeStep() {
+                    if (this.currentStepKey !== 'application_fee') return;
+                    this.autoWaiveApplicationFeeIfNeeded();
+                },
+
                 async payApplicationFee() {
                     if (! this.applicationFeePayUrl || ! this.form.loan_product_id) return;
                     this.feePaying = true;
@@ -673,7 +698,7 @@
                             loan_product_id: this.form.loan_product_id,
                             channel: this.feeChannel || 'mobile_money',
                             payment_phone: this.feePhone || '',
-                            use_wallet: false,
+                            use_wallet: !!this.feeUseWallet,
                         };
                         const res = await fetch(this.applicationFeePayUrl, {
                             method: 'POST',
@@ -691,7 +716,7 @@
                             throw new Error(data.message || 'Payment failed');
                         }
                         this.applicationFeeState = data.fee;
-                        this.applicationFeePaid = true;
+                        this.syncFeePaidState();
                         await this.persistDraft(true);
                         alert(data.message || @js(__('borrower.apply.application_fee.paid')));
                     } catch (e) {
@@ -888,9 +913,7 @@
                         if (this.current?.requires_guarantor) {
                             steps.push({ key: 'guarantor', label: @js(__('borrower.apply.guarantor')) });
                         }
-                        if (this.applicationFee > 0) {
-                            steps.push({ key: 'application_fee', label: @js(__('borrower.apply.steps.application_fee')) });
-                        }
+                        steps.push({ key: 'application_fee', label: @js(__('borrower.apply.steps.application_fee')) });
                         if (this.current?.code && this.productQuestions[this.current.code]) {
                             steps.push({ key: 'product_questions', label: stepLabels.product_questions });
                         }
@@ -1082,12 +1105,21 @@
                             return true;
                         }
                     }
-                    if (this.currentStepKey === 'application_fee' && this.applicationFee > 0) {
-                        const st = this.applicationFeeState?.status || '';
-                        if (! ['paid', 'waived'].includes(st)) {
-                            alert(@js(__('borrower.apply.application_fee.required_before_continue')));
-                            return false;
+                    if (this.currentStepKey === 'application_fee') {
+                        if (this.applicationFee > 0) {
+                            const st = this.applicationFeeState?.status || '';
+                            if (! ['paid', 'waived', 'pending'].includes(st)) {
+                                alert(@js(__('borrower.apply.application_fee.required_before_continue')));
+                                return false;
+                            }
+                        } else if (! this.applicationFeePaid) {
+                            await this.autoWaiveApplicationFeeIfNeeded();
                         }
+                    }
+                    const nextKey = this.steps[this.step + 1]?.key;
+                    if (nextKey && this.feeGateRequiredForStep(nextKey) && ! this.feeGateSatisfied()) {
+                        alert(@js(__('borrower.apply.application_fee.required_before_continue')));
+                        return false;
                     }
                     return true;
                 },

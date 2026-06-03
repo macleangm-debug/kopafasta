@@ -105,6 +105,10 @@ return [
             'collateral' => 'Collateral required',
             'tenure_range' => 'Tenure :min–:max months',
         ],
+        'product_summary' => [
+            'label' => 'Selected product',
+            'application_fee' => 'Application fee',
+        ],
         'quote' => [
             'title' => 'Loan quote',
             'subtitle' => 'Adjust amount and tenure — your installment updates instantly.',
@@ -174,7 +178,7 @@ return [
         ],
         'application_fee' => [
             'title' => 'Application fee',
-            'subtitle' => 'Pay the application fee for this loan product before continuing. Amount is set in loan product settings.',
+            'subtitle' => 'Complete this step after your guarantor details. The fee comes from this loan product\'s settings (same payment options as registration). You cannot continue until payment is recorded or waived.',
             'amount_label' => 'Application fee',
             'product_note' => 'Fee is charged per product. Mobile money confirms instantly; bank transfers are verified by our team.',
             'already_paid' => 'Application fee recorded. You can continue.',
@@ -187,6 +191,9 @@ return [
             'failed' => 'Payment could not be completed. Try again or choose another method.',
             'required_before_continue' => 'Please pay the application fee before continuing.',
             'required_before_submit' => 'Application fee must be paid before you can submit.',
+            'wallet_label' => 'Use referral wallet balance (:balance). Up to :percent% of this fee can be paid from your wallet.',
+            'mobile_hint' => 'You will receive a USSD push. Confirm on your phone for instant confirmation.',
+            'bank_reference' => 'Use reference :ref in your transfer description.',
         ],
         'product_questions' => [
             'title' => 'Loan-specific details',
@@ -615,6 +622,10 @@ return [
         'subtitle' => 'Track every loan request and its status.',
         'drafts_title' => 'Continue your applications',
         'drafts_hint' => 'Pick up where you left off. Progress is saved automatically.',
+        'continue_title' => 'Resume incomplete applications',
+        'continue_hint' => 'Pick up where you left off. Progress is saved automatically.',
+        'in_review_title' => 'Applications in progress',
+        'in_review_hint' => 'Submitted applications currently in underwriting or awaiting action.',
         'draft_in_progress' => 'Application in progress',
         'draft_fee_pending' => 'Guarantor complete — application fee payment required',
         'draft_saved' => 'Last saved :time',
@@ -795,6 +806,7 @@ return [
         'bank_hint'          => 'Manual verification required',
         'pay_now'            => 'Pay now',
         'submit_bank'        => 'Submit bank payment',
+        'payment_reference'  => 'Payment reference',
     ],
 
     'kyc' => [

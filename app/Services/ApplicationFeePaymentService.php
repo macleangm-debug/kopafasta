@@ -140,4 +140,18 @@ class ApplicationFeePaymentService
 
         return in_array($feeState['status'] ?? '', ['paid', 'waived'], true);
     }
+
+    /** Wizard may advance after bank transfer is submitted (pending verification). */
+    public function isFeeRecordedForWizard(?array $feeState, int $requiredAmount): bool
+    {
+        if ($requiredAmount <= 0) {
+            return true;
+        }
+
+        if (! is_array($feeState)) {
+            return false;
+        }
+
+        return in_array($feeState['status'] ?? '', ['paid', 'waived', 'pending'], true);
+    }
 }

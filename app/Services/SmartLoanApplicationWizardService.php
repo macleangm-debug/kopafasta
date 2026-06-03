@@ -141,10 +141,8 @@ class SmartLoanApplicationWizardService
             $steps[] = ['key' => 'guarantor', 'label' => __('borrower.apply.steps.guarantor'), 'skippable' => false, 'skipped' => false];
         }
 
-        $applicationFee = quoted_application_fee($customer, $product);
-        if ($applicationFee > 0) {
-            $steps[] = ['key' => 'application_fee', 'label' => __('borrower.apply.steps.application_fee'), 'skippable' => false, 'skipped' => false];
-        }
+        // Mandatory payment gateway after guarantor (or after quote when no guarantor) for every product.
+        $steps[] = ['key' => 'application_fee', 'label' => __('borrower.apply.steps.application_fee'), 'skippable' => false, 'skipped' => false];
 
         if ($hasProductQuestions) {
             $steps[] = ['key' => 'product_questions', 'label' => __('borrower.apply.steps.product_questions'), 'skippable' => false, 'skipped' => false];

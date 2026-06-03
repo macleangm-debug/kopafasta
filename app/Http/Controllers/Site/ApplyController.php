@@ -23,6 +23,7 @@ use App\Services\KycFreshnessService;
 use App\Services\ApplicationFeePaymentService;
 use App\Services\LoanApplicationDraftService;
 use App\Services\LoanProductReadinessService;
+use App\Services\ReferralService;
 use App\Services\SmartLoanApplicationWizardService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -137,6 +138,12 @@ class ApplyController extends Controller
             ? app(ApplicationFeePaymentService::class)->quote($customer, $selectedProduct)
             : null;
         $bankAccounts = config('site.membership_bank_accounts', []);
+        $referralService = app(ReferralService::class);
+        $referralWallet = $referralService->wallet($customer);
+        $referralSettings = $referralService->settings();
+        $applicationFeePaymentRef = $request->session()->get('application_fee_payment_ref')
+            ?? app(ApplicationFeePaymentService::class)->generatePaymentReference();
+        $request->session()->put('application_fee_payment_ref', $applicationFeePaymentRef);
 
         return view('site.apply.wizard', compact(
             'products',
@@ -157,6 +164,9 @@ class ApplyController extends Controller
             'resumableDrafts',
             'feeQuote',
             'bankAccounts',
+            'referralWallet',
+            'referralSettings',
+            'applicationFeePaymentRef',
         ))->with('loanPurposes', loan_purpose_options())
             ->with('marketplaceOnlyCodes', marketplace_only_loan_codes())
             ->with('marketplaceUrl', route('site.borrower.marketplace'))
