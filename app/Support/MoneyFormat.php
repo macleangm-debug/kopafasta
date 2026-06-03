@@ -2,6 +2,10 @@
 
 namespace App\Support;
 
+/**
+ * System-wide numeric formatting (display: 1,000 · 50,000,000 · 1,500,000.50).
+ * Use format_number() / format_money() in Blade and services; data-money-input in forms.
+ */
 final class MoneyFormat
 {
     public static function toNumber(mixed $value): float

@@ -38,7 +38,7 @@
             @if ($feeQuote && ($feeQuote['base'] ?? 0) > ($feeQuote['after_discount'] ?? 0))
                 <p class="mt-1 text-sm text-white/80 line-through">{{ $currency }} {{ number_format($feeQuote['base']) }}</p>
             @endif
-            <p class="mt-1 text-3xl font-extrabold">{{ $currency }} <span x-text="new Intl.NumberFormat('en-US').format(applicationFee)"></span></p>
+            <p class="mt-1 text-3xl font-extrabold">{{ $currency }} <span x-text="window.formatNumber ? window.formatNumber(applicationFee) : applicationFee"></span></p>
             <p class="mt-3 text-xs text-white/90">{{ __('borrower.apply.application_fee.product_note') }}</p>
         </div>
 

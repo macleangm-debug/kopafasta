@@ -27,9 +27,9 @@
 </x-admin.step>
 
 <x-admin.step title="Amount & terms">
-    <x-admin.input name="principal_amount"    label="Principal amount (TZS)"             :value="$l?->principal_amount"    type="number" step="0.01" required />
-    <x-admin.input name="approved_amount"     label="Approved amount (TZS)"              :value="$l?->approved_amount"     type="number" step="0.01" placeholder="Defaults to principal" />
-    <x-admin.input name="outstanding_balance" label="Outstanding balance (TZS)"          :value="$l?->outstanding_balance" type="number" step="0.01" placeholder="Defaults to principal" />
+    <x-admin.input name="principal_amount"    label="Principal amount (TZS)"             :value="$l?->principal_amount"    money :decimals="2" required />
+    <x-admin.input name="approved_amount"     label="Approved amount (TZS)"              :value="$l?->approved_amount"     money :decimals="2" placeholder="Defaults to principal" />
+    <x-admin.input name="outstanding_balance" label="Outstanding balance (TZS)"          :value="$l?->outstanding_balance" money :decimals="2" placeholder="Defaults to principal" />
     <x-admin.input name="interest_rate"       label="Interest rate (decimal, e.g. 0.15)" :value="$l?->interest_rate"       type="number" step="0.0001" required />
     <x-admin.input name="tenure_months"       label="Tenure (months)"                    :value="$l?->tenure_months"       type="number" required />
 </x-admin.step>

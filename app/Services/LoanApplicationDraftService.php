@@ -35,6 +35,7 @@ class LoanApplicationDraftService
             'inputs'               => $payload['inputs'] ?? [],
             'guarantor_lookup'     => $payload['guarantor_lookup'] ?? null,
             'application_fee'      => $payload['application_fee'] ?? null,
+            'external_guarantor'   => $payload['external_guarantor'] ?? null,
         ];
     }
 
@@ -131,8 +132,9 @@ class LoanApplicationDraftService
         $payload = [
             'form'             => $data['form'] ?? ($existing?->payload['form'] ?? []),
             'inputs'           => $data['inputs'] ?? ($existing?->payload['inputs'] ?? []),
-            'guarantor_lookup' => $data['guarantor_lookup'] ?? ($existing?->payload['guarantor_lookup'] ?? null),
-            'application_fee'  => $data['application_fee'] ?? ($existing?->payload['application_fee'] ?? null),
+            'guarantor_lookup'   => $data['guarantor_lookup'] ?? ($existing?->payload['guarantor_lookup'] ?? null),
+            'application_fee'    => $data['application_fee'] ?? ($existing?->payload['application_fee'] ?? null),
+            'external_guarantor' => $data['external_guarantor'] ?? ($existing?->payload['external_guarantor'] ?? null),
         ];
 
         return LoanApplicationDraft::updateOrCreate(

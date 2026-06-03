@@ -8,10 +8,10 @@
     <x-admin.input name="supplier_name" label="Supplier display name" :value="$r?->supplier_name" />
 </x-admin.step>
 <x-admin.step title="Pricing">
-    <x-admin.input name="asset_value" label="Asset value" type="number" step="0.01" :value="$r?->asset_value ?? 0" required />
-    <x-admin.input name="supplier_deposit" label="Supplier deposit" type="number" step="0.01" :value="$r?->supplier_deposit ?? 0" required />
+    <x-admin.input name="asset_value" label="Asset value" money :decimals="2" :value="$r?->asset_value ?? 0" required />
+    <x-admin.input name="supplier_deposit" label="Supplier deposit" money :decimals="2" :value="$r?->supplier_deposit ?? 0" required />
     <x-admin.input name="deposit_markup_percent" label="Deposit markup (%)" type="number" step="0.01" :value="$r?->deposit_markup_percent ?? 10" />
-    <x-admin.input name="weekly_installment" label="Weekly installment" type="number" step="0.01" :value="$r?->weekly_installment ?? 0" required />
+    <x-admin.input name="weekly_installment" label="Weekly installment" money :decimals="2" :value="$r?->weekly_installment ?? 0" required />
     <x-admin.input name="max_tenure_months" label="Max tenure (months)" type="number" :value="$r?->max_tenure_months ?? 12" required />
     <x-admin.select name="is_active" label="Status" :options="['1' => 'Active', '0' => 'Inactive']" :value="($r?->is_active ?? true) ? '1' : '0'" />
     @if ($r)

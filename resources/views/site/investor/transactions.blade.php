@@ -1,4 +1,3 @@
-@php $fmt = fn ($n) => number_format((float) $n, 0); @endphp
 <x-site.investor-layout title="Transactions — Investor" active="transactions">
     <div class="flex items-center justify-between mb-6">
         <div>

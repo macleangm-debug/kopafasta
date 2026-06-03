@@ -29,6 +29,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -52,6 +53,8 @@ class AppServiceProvider extends ServiceProvider
         Model::unguard();
 
         Paginator::useTailwind();
+
+        View::share('fmt', fn (float|int|string|null $amount, int $decimals = 0): string => format_number($amount, $decimals));
 
         Gate::policy(Loan::class, LoanPolicy::class);
         Gate::policy(Disbursement::class, DisbursementPolicy::class);

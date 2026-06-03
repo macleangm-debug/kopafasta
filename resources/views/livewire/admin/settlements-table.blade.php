@@ -14,8 +14,8 @@
                 <td class="px-5 py-3 text-gray-500">{{ optional($r->settlement_date)->format('Y-m-d') }}</td>
                 <td class="px-5 py-3 font-mono text-xs">{{ $r->reference ?? '—' }}</td>
                 <td class="px-5 py-3">{{ $r->partner ?? '—' }}</td>
-                <td class="px-5 py-3">TZS {{ number_format((float) ($r->gross_amount ?? 0)) }}</td>
-                <td class="px-5 py-3 font-semibold">TZS {{ number_format((float) ($r->net_amount ?? 0)) }}</td>
+                <td class="px-5 py-3">TZS {{ format_number( ($r->gross_amount ?? 0)) }}</td>
+                <td class="px-5 py-3 font-semibold">TZS {{ format_number( ($r->net_amount ?? 0)) }}</td>
                 <td class="px-5 py-3">
                     <x-admin.badge :value="$r->status" :map="[
                         'reconciled' => 'bg-emerald-100 text-emerald-800',

@@ -9,7 +9,7 @@
         @if ($guarantorInvitation ?? null)
             <div class="mt-6 bg-emerald-50 rounded-2xl border border-emerald-200 p-6 text-left" x-data="{ copied: false }">
                 <p class="text-sm font-semibold text-emerald-900 mb-2">{{ __('borrower.apply.guarantor_fields.share_via') }}</p>
-                <p class="text-xs text-emerald-800 mb-4">{{ __('borrower.apply.guarantor_fields.share_after_submit') }}</p>
+                <p class="text-xs text-emerald-800 mb-4">{{ __('borrower.apply.guarantor_fields.share_ready') }}</p>
                 <div class="flex flex-wrap gap-2">
                     @if ($guarantorShareUrl ?? null)
                         <a href="{{ $guarantorShareUrl }}" target="_blank" rel="noopener"
@@ -21,6 +21,12 @@
                         <a href="{{ $guarantorSmsUrl }}"
                            class="inline-flex items-center gap-2 bg-white ring-1 ring-emerald-300 text-emerald-900 font-semibold px-4 py-2 rounded-full text-sm">
                             {{ __('borrower.apply.guarantor_fields.share_sms') }}
+                        </a>
+                    @endif
+                    @if ($guarantorEmailUrl ?? null)
+                        <a href="{{ $guarantorEmailUrl }}"
+                           class="inline-flex items-center gap-2 bg-white ring-1 ring-emerald-300 text-emerald-900 font-semibold px-4 py-2 rounded-full text-sm">
+                            {{ __('borrower.apply.guarantor_fields.share_email') }}
                         </a>
                     @endif
                     @if ($guarantorInvitationUrl ?? null)

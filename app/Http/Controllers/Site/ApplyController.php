@@ -220,6 +220,67 @@ class ApplyController extends Controller
         ]);
     }
 
+    public function prepareExternalGuarantor(
+        Request $request,
+        GuarantorInvitationService $guarantors,
+        LoanApplicationDraftService $drafts,
+    ): \Illuminate\Http\JsonResponse {
+        $borrower = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($borrower, 403);
+
+        $data = $request->validate([
+            'loan_product_id'       => ['required', 'integer', 'exists:loan_products,id'],
+            'external_first_name'   => ['required', 'string', 'max:60'],
+            'external_middle_name'  => ['nullable', 'string', 'max:60'],
+            'external_last_name'    => ['required', 'string', 'max:60'],
+            'external_phone'        => ['required', 'string', 'max:20'],
+            'external_email'        => ['nullable', 'email', 'max:120'],
+            'external_relationship' => ['required', 'string', 'max:40'],
+            'external_region'       => ['required', 'string', 'max:100'],
+            'external_district'     => ['required', 'string', 'max:100'],
+            'external_channel'      => ['nullable', 'in:whatsapp,sms,email'],
+            'external_invitation_id'=> ['nullable', 'integer'],
+        ]);
+
+        $draft = $drafts->find($borrower, (int) $data['loan_product_id']);
+        $existingId = $data['external_invitation_id']
+            ?? ($draft?->payload['external_guarantor']['invitation_id'] ?? null);
+
+        try {
+            $share = $guarantors->prepareWizardExternalInvitation(
+                $borrower,
+                trim($data['external_first_name']),
+                trim($data['external_middle_name'] ?? '') ?: null,
+                trim($data['external_last_name']),
+                $data['external_phone'],
+                $data['external_email'] ?? null,
+                $data['external_relationship'],
+                $data['external_region'],
+                $data['external_district'],
+                $data['external_channel'] ?? null,
+                $existingId ? (int) $existingId : null,
+            );
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'ok'      => false,
+                'message' => __('borrower.apply.alerts.guarantor_invite_failed'),
+            ], 500);
+        }
+
+        $drafts->save($borrower, [
+            'phase'           => $draft?->phase ?? 'application',
+            'step'            => $draft?->step ?? 0,
+            'loan_product_id' => (int) $data['loan_product_id'],
+            'form'            => $draft?->payload['form'] ?? [],
+            'inputs'          => $draft?->payload['inputs'] ?? [],
+            'external_guarantor' => $share,
+        ]);
+
+        return response()->json(['ok' => true, 'share' => $share]);
+    }
+
     public function loadDraft(LoanApplicationDraftService $drafts): \Illuminate\Http\JsonResponse
     {
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
@@ -243,7 +304,8 @@ class ApplyController extends Controller
             'form'                 => ['nullable', 'array'],
             'inputs'               => ['nullable', 'array'],
             'guarantor_lookup'     => ['nullable', 'array'],
-            'application_fee'    => ['nullable', 'array'],
+            'application_fee'      => ['nullable', 'array'],
+            'external_guarantor'   => ['nullable', 'array'],
         ]);
 
         if ($data['phase'] === 'browse' || empty($data['loan_product_id'])) {
@@ -406,6 +468,7 @@ class ApplyController extends Controller
             'external_region'         => ['nullable', 'string', 'max:100'],
             'external_district'       => ['nullable', 'string', 'max:100'],
             'external_channel'        => ['nullable', 'in:sms,whatsapp,email'],
+            'external_invitation_id'  => ['nullable', 'integer'],
             'signer_name'             => ['required', 'string', 'max:120'],
             'signature_data'          => ['required', 'string', 'starts_with:data:image/png;base64,'],
             'consent'                 => ['accepted'],
@@ -423,7 +486,7 @@ class ApplyController extends Controller
         $tenure = (int) $data['requested_tenure_months'];
 
         if ($amount < $loanProduct->min_amount || $amount > $loanProduct->max_amount) {
-            return back()->withInput()->withErrors(['requested_amount' => 'Requested amount must be between '.number_format($loanProduct->min_amount).' and '.number_format($loanProduct->max_amount).'.']);
+            return back()->withInput()->withErrors(['requested_amount' => 'Requested amount must be between '.format_number($loanProduct->min_amount).' and '.format_number($loanProduct->max_amount).'.']);
         }
 
         if ($tenure < $loanProduct->tenure_min_months || $tenure > $loanProduct->tenure_max_months) {
@@ -465,7 +528,7 @@ class ApplyController extends Controller
                 if ($first === '' || $last === '' || empty($data['external_phone']) || empty($data['external_relationship']) || empty($data['external_region']) || empty($data['external_district'])) {
                     return back()->withInput()->withErrors(['external_first_name' => 'Provide guarantor name, phone, relationship, region and district.']);
                 }
-                if (empty($data['external_channel'])) {
+                if (empty($data['external_invitation_id']) && empty($data['external_channel'])) {
                     return back()->withInput()->withErrors(['external_channel' => 'Select how to share the guarantor invitation.']);
                 }
             }
@@ -606,19 +669,24 @@ class ApplyController extends Controller
                 if (($data['guarantor_mode'] ?? '') === 'internal') {
                     $guarantors->attachInternal($customer, $app, $data['internal_member_no']);
                 } elseif (($data['guarantor_mode'] ?? '') === 'external') {
-                    $guarantors->attachExternal(
-                        $customer,
-                        $app,
-                        trim($data['external_first_name'] ?? ''),
-                        trim($data['external_middle_name'] ?? ''),
-                        trim($data['external_last_name'] ?? ''),
-                        $data['external_phone'],
-                        $data['external_email'] ?? null,
-                        $data['external_relationship'] ?? '',
-                        $data['external_region'] ?? '',
-                        $data['external_district'] ?? '',
-                        $data['external_channel'],
-                    );
+                    $inviteId = (int) ($data['external_invitation_id'] ?? 0);
+                    if ($inviteId > 0) {
+                        $guarantors->finalizeWizardExternalInvitation($customer, $app, $inviteId);
+                    } else {
+                        $guarantors->attachExternal(
+                            $customer,
+                            $app,
+                            trim($data['external_first_name'] ?? ''),
+                            trim($data['external_middle_name'] ?? ''),
+                            trim($data['external_last_name'] ?? ''),
+                            $data['external_phone'],
+                            $data['external_email'] ?? null,
+                            $data['external_relationship'] ?? '',
+                            $data['external_region'] ?? '',
+                            $data['external_district'] ?? '',
+                            $data['external_channel'] ?? 'whatsapp',
+                        );
+                    }
                 }
             } catch (\InvalidArgumentException $e) {
                 $app->delete();
@@ -674,6 +742,9 @@ class ApplyController extends Controller
         $guarantorSmsUrl = $guarantorInvitation
             ? $guarantorService->smsShareUrl($guarantorInvitation)
             : null;
+        $guarantorEmailUrl = $guarantorInvitation
+            ? $guarantorService->emailShareUrl($guarantorInvitation)
+            : null;
 
         return view('site.apply.success', compact(
             'application',
@@ -682,6 +753,7 @@ class ApplyController extends Controller
             'guarantorShareUrl',
             'guarantorInvitationUrl',
             'guarantorSmsUrl',
+            'guarantorEmailUrl',
         ));
     }
 }

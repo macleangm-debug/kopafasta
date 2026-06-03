@@ -18,7 +18,7 @@
                         {{ trim(($r->loan?->customer?->first_name ?? '').' '.($r->loan?->customer?->last_name ?? '')) }}
                     </div>
                 </td>
-                <td class="px-5 py-3 font-semibold">TZS {{ number_format((float) ($r->amount ?? 0)) }}</td>
+                <td class="px-5 py-3 font-semibold">TZS {{ format_number( ($r->amount ?? 0)) }}</td>
                 <td class="px-5 py-3 text-xs uppercase tracking-wide">{{ $r->channel ?? '—' }}</td>
                 <td class="px-5 py-3">
                     <x-admin.badge :value="$r->status" :map="[

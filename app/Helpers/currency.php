@@ -1,5 +1,7 @@
 <?php
 
+use App\Support\MoneyFormat;
+
 if (! function_exists('country_config')) {
     /** @return array{name: string, currency: string, currency_symbol: string, locale: string} */
     function country_config(): array
@@ -22,10 +24,23 @@ if (! function_exists('currency_symbol')) {
     }
 }
 
-if (! function_exists('format_money')) {
-    function format_money(float|int|null $amount, bool $withCode = true): string
+if (! function_exists('format_number')) {
+    /**
+     * Format a numeric value with thousands separators (e.g. 1,500,000.50).
+     */
+    function format_number(float|int|string|null $amount, int $decimals = 0): string
     {
-        $formatted = number_format((float) ($amount ?? 0));
+        return MoneyFormat::format(MoneyFormat::toNumber($amount), $decimals);
+    }
+}
+
+if (! function_exists('format_money')) {
+    /**
+     * Format currency for display (loan amounts, fees, balances, repayments, reports).
+     */
+    function format_money(float|int|string|null $amount, bool $withCode = true, int $decimals = 0): string
+    {
+        $formatted = format_number($amount, $decimals);
 
         return $withCode
             ? currency_code().' '.$formatted

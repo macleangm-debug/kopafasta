@@ -65,6 +65,8 @@
         <div x-data="applyWizard({
                   products: @js($wizardProducts->map($wizardProductPayload)->values()->all()),
                   guarantorLookupUrl: @js(route('site.borrower.apply.guarantor-lookup')),
+                  guarantorInviteUrl: @js(route('site.borrower.apply.guarantor-invite')),
+                  tanzaniaLocations: @js(config('tanzania_locations')),
                   draftSaveUrl: @js(route('site.borrower.apply.draft.save')),
                   applicationFeePayUrl: @js(route('site.borrower.apply.application-fee.pay')),
                   savedDraft: @js($savedDraft ?? null),
@@ -108,7 +110,7 @@
                           'guarantor_phone' => __('borrower.apply.alerts.guarantor_phone'),
                           'guarantor_lookup_failed' => __('borrower.apply.alerts.guarantor_lookup_failed'),
                           'guarantor_external_incomplete' => __('borrower.apply.alerts.guarantor_external_incomplete'),
-                          'selectShareChannel' => __('borrower.apply.alerts.select_share_channel'),
+                          'guarantor_invite_failed' => __('borrower.apply.alerts.guarantor_invite_failed'),
                           'acceptTerms' => __('borrower.apply.alerts.accept_terms'),
                           'drawSignature' => __('borrower.apply.alerts.draw_signature'),
                           'submitTitle' => __('borrower.apply.alerts.submit_title'),
@@ -339,12 +341,13 @@
                             <p x-show="guarantorLookup.error" class="text-sm text-red-700" x-text="guarantorLookup.error"></p>
                             <p class="text-xs text-gray-500">{{ __('borrower.apply.guarantor_fields.membership_hint_short') }}</p>
                         </div>
+                        <input type="hidden" name="external_invitation_id" :value="externalGuarantor?.invitation_id || ''">
                         <div x-show="form.guarantor_mode === 'external'" class="grid sm:grid-cols-2 gap-4">
-                            <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.first_name') }}</label><input name="external_first_name" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
-                            <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.middle_name') }}</label><input name="external_middle_name" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
-                            <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.last_name') }}</label><input name="external_last_name" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
+                            <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.first_name') }}</label><input name="external_first_name" x-model="form.external_first_name" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
+                            <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.middle_name') }}</label><input name="external_middle_name" x-model="form.external_middle_name" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
+                            <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.last_name') }}</label><input name="external_last_name" x-model="form.external_last_name" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
                             <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.guarantor_fields.relationship') }}</label>
-                                <select name="external_relationship" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                <select name="external_relationship" x-model="form.external_relationship" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                                     <option value="">{{ __('borrower.profile.select') }}</option>
                                     @foreach (trans('borrower.profile.guarantor_relationship_options') as $value => $label)
                                         <option value="{{ $value }}">{{ $label }}</option>
@@ -354,28 +357,57 @@
                             <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.phone') }}</label>
                                 <div class="flex rounded-lg ring-1 ring-gray-200 overflow-hidden">
                                     <span class="inline-flex items-center px-3 bg-gray-100 text-sm text-gray-600 border-r border-gray-200">+255</span>
-                                    <input name="external_phone" inputmode="numeric" placeholder="712345678" required class="flex-1 border-0 px-3 py-2.5 text-sm focus:ring-0">
+                                    <input name="external_phone" x-model="form.external_phone" inputmode="numeric" placeholder="712345678" class="flex-1 border-0 px-3 py-2.5 text-sm focus:ring-0">
                                 </div>
                             </div>
-                            <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.email') }} {{ __('borrower.profile.optional') }}</label><input name="external_email" type="email" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
-                            <div x-data="tzAddress(@js(config('tanzania_locations')), '', '', @js(['selectRegion' => __('borrower.profile.select_region'), 'selectDistrict' => __('borrower.profile.select_district')]))" x-init="init()" class="sm:col-span-2 grid sm:grid-cols-2 gap-4">
+                            <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.email') }} {{ __('borrower.profile.optional') }}</label><input name="external_email" x-model="form.external_email" type="email" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"></div>
+                            <div class="sm:col-span-2 grid sm:grid-cols-2 gap-4">
                                 <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.region') }}</label>
-                                    <select name="external_region" x-model="region" @change="onRegionChange()" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"><option value="" x-text="labels.selectRegion"></option><template x-for="(districts, name) in locations" :key="name"><option :value="name" x-text="name"></option></template></select>
+                                    <select name="external_region" x-model="form.external_region" @change="onExternalRegionChange()" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                        <option value="">{{ __('borrower.profile.select_region') }}</option>
+                                        @foreach (config('tanzania_locations') as $regionName => $districts)
+                                            <option value="{{ $regionName }}">{{ $regionName }}</option>
+                                        @endforeach
+                                    </select>
                                 </div>
                                 <div><label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.district') }}</label>
-                                    <select name="external_district" x-model="district" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"><option value="" x-text="labels.selectDistrict"></option><template x-for="d in districtOptions" :key="d"><option :value="d" x-text="d"></option></template></select>
+                                    <select name="external_district" x-model="form.external_district" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                        <option value="">{{ __('borrower.profile.select_district') }}</option>
+                                        <template x-for="d in externalDistrictOptions" :key="d">
+                                            <option :value="d" x-text="d"></option>
+                                        </template>
+                                    </select>
                                 </div>
                             </div>
-                            <div class="sm:col-span-2">
-                                <p class="block text-xs font-medium text-gray-600 mb-2">{{ __('borrower.apply.guarantor_fields.share_via') }}</p>
-                                <div class="flex flex-wrap gap-4">
-                                    <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="external_channel" value="whatsapp" class="text-amber-500" checked> {{ __('borrower.apply.guarantor_fields.channel_whatsapp') }}</label>
-                                    <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="external_channel" value="sms" class="text-amber-500"> {{ __('borrower.apply.guarantor_fields.channel_sms') }}</label>
-                                    <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="external_channel" value="email" class="text-amber-500"> {{ __('borrower.apply.guarantor_fields.channel_email') }}</label>
+                            <div class="sm:col-span-2" x-show="externalGuarantor?.invitation_url" x-cloak>
+                                <p class="text-sm font-semibold text-emerald-900 mb-2">{{ __('borrower.apply.guarantor_fields.share_via') }}</p>
+                                <p class="text-xs text-emerald-800 mb-3">{{ __('borrower.apply.guarantor_fields.share_ready') }}</p>
+                                <div class="flex flex-wrap gap-2" x-data="{ copied: false }">
+                                    <a x-show="externalGuarantor?.invitation_url" :href="externalGuarantor.whatsapp_url || '#'" :class="!externalGuarantor.whatsapp_url && 'pointer-events-none opacity-50'" target="_blank" rel="noopener"
+                                       class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-full text-sm">
+                                        {{ __('borrower.apply.guarantor_fields.share_whatsapp') }}
+                                    </a>
+                                    <a x-show="externalGuarantor?.invitation_url" :href="externalGuarantor.sms_url || '#'" :class="!externalGuarantor.sms_url && 'pointer-events-none opacity-50'"
+                                       class="inline-flex items-center gap-2 bg-white ring-1 ring-emerald-300 text-emerald-900 font-semibold px-4 py-2 rounded-full text-sm">
+                                        {{ __('borrower.apply.guarantor_fields.share_sms') }}
+                                    </a>
+                                    <a x-show="externalGuarantor?.invitation_url" :href="externalGuarantor.email_url || '#'" :class="!externalGuarantor.email_url && 'pointer-events-none opacity-50'"
+                                       class="inline-flex items-center gap-2 bg-white ring-1 ring-emerald-300 text-emerald-900 font-semibold px-4 py-2 rounded-full text-sm">
+                                        {{ __('borrower.apply.guarantor_fields.share_email') }}
+                                    </a>
+                                    <button type="button"
+                                            x-show="externalGuarantor?.invitation_url"
+                                            @click="navigator.clipboard.writeText(externalGuarantor.invitation_url); copied = true; setTimeout(() => copied = false, 2000)"
+                                            class="inline-flex items-center gap-2 bg-white ring-1 ring-emerald-300 text-emerald-900 font-semibold px-4 py-2 rounded-full text-sm">
+                                        <span x-text="copied ? @js(__('borrower.apply.guarantor_fields.link_copied')) : @js(__('borrower.apply.guarantor_fields.share_copy'))"></span>
+                                    </button>
                                 </div>
                             </div>
-                            <div class="sm:col-span-2 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900">
-                                {{ __('borrower.apply.guarantor_fields.share_after_submit') }}
+                            <div class="sm:col-span-2 rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-sm text-sky-900" x-show="!externalGuarantor?.invitation_url">
+                                {{ __('borrower.apply.guarantor_fields.share_generate') }}
+                            </div>
+                            <div class="sm:col-span-2 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900" x-show="externalGuarantor?.invitation_url" x-cloak>
+                                {{ __('borrower.apply.guarantor_fields.share_ready_continue') }}
                             </div>
                         </div>
                         <p class="text-xs text-amber-700 font-medium">{{ __('borrower.apply.guarantor_fields.status_waiting') }}</p>
@@ -486,7 +518,9 @@
                     <button type="button" @click="step > 0 ? prev() : backToDetails()" class="text-sm font-medium text-gray-600 hover:text-gray-900" x-text="step > 0 ? i18n.back : i18n.backProducts"></button>
                     <div class="ml-auto flex items-center gap-3">
                         <a href="{{ route('site.borrower.dashboard') }}" class="text-sm text-gray-500 hover:text-gray-700">{{ __('borrower.apply.cancel') }}</a>
-                        <button type="button" @click="next()" x-show="currentStepKey !== 'signature' && currentStepKey !== 'application_fee'" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.continue') }}</button>
+                        <button type="button" @click="next()" :disabled="guarantorInvitePreparing" x-show="currentStepKey !== 'signature' && currentStepKey !== 'application_fee'" class="bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                            <span x-text="guarantorInvitePreparing ? @js(__('borrower.apply.application_fee.processing')) : @js(__('borrower.apply.continue'))"></span>
+                        </button>
                         <button type="button" @click="next()" x-show="currentStepKey === 'application_fee' && (['paid','waived'].includes(applicationFeeState?.status || '') || applicationFee <= 0)" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.continue') }}</button>
                         <button type="submit" x-show="currentStepKey === 'signature'" class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.submit') }}</button>
                     </div>
@@ -529,11 +563,15 @@
                 incomeVerification: config.incomeVerification,
                 readinessUrl: config.readinessUrl,
                 guarantorLookupUrl: config.guarantorLookupUrl || '',
+                guarantorInviteUrl: config.guarantorInviteUrl || '',
+                tanzaniaLocations: config.tanzaniaLocations || {},
                 draftSaveUrl: config.draftSaveUrl || '',
                 reservationId: config.reservationId || null,
                 draftSavedAt: null,
                 draftSaveTimer: null,
                 guarantorLookup: { ok: false, label: '', error: '', memberKey: '', phone: '' },
+                externalGuarantor: config.savedDraft?.external_guarantor || null,
+                guarantorInvitePreparing: false,
                 initialPlan: config.initialPlan || [],
                 assetApplication: config.assetApplication || null,
                 reservationMode: !! config.reservationMode,
@@ -555,12 +593,25 @@
                     purpose: '',
                     guarantor_mode: 'internal',
                     income_type: 'bank',
+                    external_first_name: '',
+                    external_middle_name: '',
+                    external_last_name: '',
+                    external_relationship: '',
+                    external_phone: '',
+                    external_email: '',
+                    external_region: '',
+                    external_district: '',
                 },
                 quote: { monthly: 0, weekly: 0, interest: 0, total: 0, fees: 0 },
                 review: { personal: '', residence: '', nok: '', activity: '', guarantor: '' },
 
                 get currentStepKey() {
                     return this.steps[this.step]?.key ?? '';
+                },
+
+                get externalDistrictOptions() {
+                    const r = this.form.external_region;
+                    return r && this.tanzaniaLocations[r] ? this.tanzaniaLocations[r] : [];
                 },
 
                 init() {
@@ -604,6 +655,7 @@
                         inputs,
                         guarantor_lookup: this.guarantorLookup.ok ? this.guarantorLookup : null,
                         application_fee: this.applicationFeeState,
+                        external_guarantor: this.externalGuarantor,
                     };
                 },
 
@@ -615,7 +667,7 @@
 
                 async payApplicationFee() {
                     if (! this.applicationFeePayUrl || ! this.form.loan_product_id) return;
-                    this.paying = true;
+                    this.feePaying = true;
                     try {
                         const body = {
                             loan_product_id: this.form.loan_product_id,
@@ -645,7 +697,7 @@
                     } catch (e) {
                         alert(e?.message || @js(__('borrower.apply.application_fee.failed')));
                     } finally {
-                        this.paying = false;
+                        this.feePaying = false;
                     }
                 },
 
@@ -702,9 +754,19 @@
                     if (! product) return false;
                     this.current = product;
                     Object.assign(this.form, draft.form || {});
-                    if (draft.inputs) this.restoreFormInputs(draft.inputs);
+                    if (draft.inputs) {
+                        this.restoreFormInputs(draft.inputs);
+                        [
+                            'external_first_name', 'external_middle_name', 'external_last_name',
+                            'external_relationship', 'external_phone', 'external_email',
+                            'external_region', 'external_district',
+                        ].forEach((key) => {
+                            if (draft.inputs[key]) this.form[key] = draft.inputs[key];
+                        });
+                    }
                     if (draft.guarantor_lookup) this.guarantorLookup = draft.guarantor_lookup;
                     if (draft.application_fee) this.applicationFeeState = draft.application_fee;
+                    if (draft.external_guarantor) this.externalGuarantor = draft.external_guarantor;
                     this.syncFeePaidState();
                     this.phase = draft.phase;
                     if (draft.phase === 'details') {
@@ -898,11 +960,99 @@
                     this.review.nok = [g('nok_name'), g('nok_relationship'), g('nok_phone')].filter(Boolean).join(' · ');
                     this.review.activity = [g('activity_type'), g('income_range')].filter(Boolean).join(' · ');
                     if (this.form.guarantor_mode === 'internal') this.review.guarantor = g('internal_member_no');
-                    if (this.form.guarantor_mode === 'external') this.review.guarantor = [g('external_name'), g('external_channel')].filter(Boolean).join(' via ');
+                    if (this.form.guarantor_mode === 'external') {
+                        const name = [this.form.external_first_name, this.form.external_last_name].filter(Boolean).join(' ');
+                        this.review.guarantor = name || '—';
+                    }
                 },
 
                 formRoot() {
-                    return this.$root.querySelector('form') || this.$root;
+                    return this.$el.querySelector('form') || this.$el;
+                },
+
+                onExternalRegionChange() {
+                    this.form.external_district = '';
+                },
+
+                readFormField(name) {
+                    const root = this.formRoot();
+                    if (Object.prototype.hasOwnProperty.call(this.form, name)) {
+                        const fromModel = this.form[name];
+                        if (fromModel !== undefined && fromModel !== null && String(fromModel).trim() !== '') {
+                            return String(fromModel).trim();
+                        }
+                    }
+                    const radios = root.querySelectorAll(`[name="${name}"]`);
+                    if (radios.length && radios[0].type === 'radio') {
+                        const checked = root.querySelector(`[name="${name}"]:checked`);
+                        return (checked?.value || '').toString().trim();
+                    }
+                    const el = root.querySelector(`[name="${name}"]`);
+                    return el ? (el.value || '').toString().trim() : '';
+                },
+
+                externalGuarantorPayload() {
+                    return {
+                        loan_product_id: this.form.loan_product_id,
+                        external_first_name: this.readFormField('external_first_name') || this.form.external_first_name,
+                        external_middle_name: this.readFormField('external_middle_name') || this.form.external_middle_name,
+                        external_last_name: this.readFormField('external_last_name') || this.form.external_last_name,
+                        external_phone: this.readFormField('external_phone') || this.form.external_phone,
+                        external_email: this.readFormField('external_email') || this.form.external_email,
+                        external_relationship: this.readFormField('external_relationship') || this.form.external_relationship,
+                        external_region: this.readFormField('external_region') || this.form.external_region,
+                        external_district: this.readFormField('external_district') || this.form.external_district,
+                        external_invitation_id: this.externalGuarantor?.invitation_id || null,
+                    };
+                },
+
+                isExternalGuarantorComplete() {
+                    const p = this.externalGuarantorPayload();
+                    return Boolean(
+                        p.external_first_name
+                        && p.external_last_name
+                        && p.external_relationship
+                        && p.external_phone
+                        && p.external_region
+                        && p.external_district
+                    );
+                },
+
+                async prepareExternalGuarantorInvite() {
+                    if (! this.guarantorInviteUrl) {
+                        alert(this.i18n.alerts.guarantor_invite_failed);
+                        return false;
+                    }
+                    if (! this.form.loan_product_id) {
+                        alert(this.i18n.alerts.loadProduct);
+                        return false;
+                    }
+                    this.guarantorInvitePreparing = true;
+                    try {
+                        const res = await fetch(this.guarantorInviteUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
+                            },
+                            credentials: 'same-origin',
+                            body: JSON.stringify(this.externalGuarantorPayload()),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (! res.ok || ! data.ok || ! data.share) {
+                            alert(data.message || this.i18n.alerts.guarantor_invite_failed);
+                            return false;
+                        }
+                        this.externalGuarantor = data.share;
+                        return true;
+                    } catch {
+                        alert(this.i18n.alerts.guarantor_invite_failed);
+                        return false;
+                    } finally {
+                        this.guarantorInvitePreparing = false;
+                    }
                 },
 
                 async validateStep() {
@@ -919,21 +1069,18 @@
                             return await this.verifyInternalGuarantor();
                         }
                         if (this.form.guarantor_mode === 'external') {
-                            const fd = new FormData(this.formRoot());
-                            const required = ['external_first_name', 'external_last_name', 'external_relationship', 'external_phone', 'external_region', 'external_district'];
-                            if (required.some(n => ! (fd.get(n) || '').toString().trim())) {
+                            if (! this.isExternalGuarantorComplete()) {
                                 alert(this.i18n.alerts.guarantor_external_incomplete);
                                 return false;
                             }
-                            const channel = (fd.get('external_channel') || '').toString();
-                            if (! channel) {
-                                alert(this.i18n.alerts.selectShareChannel);
-                                return false;
+                            if (this.externalGuarantor?.invitation_url) {
+                                return true;
                             }
-                            if (channel === 'email' && ! (fd.get('external_email') || '').toString().trim()) {
-                                alert(this.i18n.alerts.guarantor_external_incomplete);
-                                return false;
+                            const ok = await this.prepareExternalGuarantorInvite();
+                            if (ok) {
+                                await this.persistDraft(true);
                             }
+                            return false;
                         }
                     }
                     if (this.currentStepKey === 'application_fee' && this.applicationFee > 0) {
@@ -990,11 +1137,12 @@
                 },
 
                 async next() {
+                    if (this.guarantorInvitePreparing) return;
                     if (! await this.validateStep()) return;
                     await this.persistDraft(true);
                     const nextKey = this.steps[this.step + 1]?.key;
                     if (nextKey === 'review') {
-                        this.refreshReview(this.$root);
+                        this.refreshReview(this.formRoot());
                     }
                     if (this.step < this.steps.length - 1) {
                         this.step++;
@@ -1045,8 +1193,8 @@
                     });
                 },
 
-                formatTzs(v) {
-                    return 'TZS ' + new Intl.NumberFormat('en-US').format(Math.round(v || 0));
+                formatTzs(v, decimals = 0) {
+                    return (window.formatMoney || ((x) => 'TZS ' + x))(v, { currency: 'TZS', decimals });
                 },
             };
         }

@@ -224,8 +224,8 @@
                 get detailsUrl() {
                     return '{{ url('/loans/product') }}/' + this.current.code;
                 },
-                formatTzs(value) {
-                    return 'TZS ' + new Intl.NumberFormat('en-US').format(Math.round(value || 0));
+                formatTzs(value, decimals = 0) {
+                    return window.formatMoney ? window.formatMoney(value, { currency: 'TZS', decimals }) : ('TZS ' + value);
                 },
             }
         }

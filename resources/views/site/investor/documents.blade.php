@@ -1,4 +1,3 @@
-@php $fmt = fn ($n) => number_format((float) $n, 0); @endphp
 <x-site.investor-layout title="Documents — Investor" active="documents">
     <h1 class="text-2xl lg:text-3xl font-bold tracking-tight mb-1">Documents & statements</h1>
     <p class="text-slate-500 text-sm mb-6">Contracts, monthly statements and tax reports.</p>

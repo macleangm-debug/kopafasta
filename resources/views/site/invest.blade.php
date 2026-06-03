@@ -300,7 +300,7 @@
                 get yieldRate() { return this.mixes.find(m => m.id === this.mix)?.yield || 0.18; },
                 get monthly()   { return Math.round((this.amount * this.yieldRate) / 12); },
                 get total()     { return this.monthly * this.months; },
-                formatTzs(v)    { return 'TZS ' + new Intl.NumberFormat('en-US').format(Math.round(v || 0)); },
+                formatTzs(v, decimals = 0) { return window.formatMoney ? window.formatMoney(v, { currency: 'TZS', decimals }) : ('TZS ' + v); },
             };
         }
     </script>

@@ -1,5 +1,4 @@
 @php
-    $fmt = fn ($n) => number_format((float) $n, 0);
     $max = max(1, $monthly->max('total') ?? 1);
 @endphp
 <x-site.investor-layout title="Returns & earnings — Investor" active="returns">

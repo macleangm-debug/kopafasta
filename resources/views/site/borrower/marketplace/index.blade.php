@@ -59,11 +59,11 @@
         </div>
         <div>
             <label class="block text-[11px] font-medium text-gray-500 mb-1">{{ __('borrower.marketplace.min_price') }}</label>
-            <input type="number" name="min_price" value="{{ $filters['min_price'] ?? '' }}" min="0" step="1000" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm">
+            <input type="text" inputmode="decimal" name="min_price" data-money-input="0" value="{{ \App\Support\MoneyFormat::forInput($filters['min_price'] ?? '') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm">
         </div>
         <div>
             <label class="block text-[11px] font-medium text-gray-500 mb-1">{{ __('borrower.marketplace.max_price') }}</label>
-            <input type="number" name="max_price" value="{{ $filters['max_price'] ?? '' }}" min="0" step="1000" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm">
+            <input type="text" inputmode="decimal" name="max_price" data-money-input="0" value="{{ \App\Support\MoneyFormat::forInput($filters['max_price'] ?? '') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm">
         </div>
         <div>
             <label class="block text-[11px] font-medium text-gray-500 mb-1">{{ __('borrower.marketplace.max_tenure') }}</label>

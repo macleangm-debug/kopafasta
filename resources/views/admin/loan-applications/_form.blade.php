@@ -11,9 +11,9 @@
 </x-admin.step>
 
 <x-admin.step title="Loan request">
-    <x-admin.input  name="requested_amount"         label="Requested amount"  :value="$r?->requested_amount" type="number" required />
+    <x-admin.input  name="requested_amount"         label="Requested amount"  :value="$r?->requested_amount" money required />
     <x-admin.input  name="requested_tenure_months"  label="Requested tenure (months)" :value="$r?->requested_tenure_months" type="number" required />
-    <x-admin.input  name="recommended_amount"       label="Recommended amount" :value="$r?->recommended_amount" type="number" />
+    <x-admin.input  name="recommended_amount"       label="Recommended amount" :value="$r?->recommended_amount" money />
     <div class="md:col-span-2">
         <x-admin.textarea name="purpose"          label="Purpose"          :value="$r?->purpose"          rows="2" />
     </div>

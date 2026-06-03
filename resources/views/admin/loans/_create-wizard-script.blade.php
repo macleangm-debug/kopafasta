@@ -1,7 +1,7 @@
 <script>
 (function () {
-    function formatTzs(v) {
-        return 'TZS ' + new Intl.NumberFormat('en-US').format(Math.round(v || 0));
+    function formatTzs(v, decimals = 0) {
+        return window.formatMoney ? window.formatMoney(v, { currency: 'TZS', decimals }) : ('TZS ' + v);
     }
 
     function estimateEmi(principal, monthlyRate, months) {

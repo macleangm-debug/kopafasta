@@ -6,7 +6,7 @@
         @csrf @method('PUT')
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <x-admin.input name="large_txn_threshold_tzs" label="Large txn threshold (TZS)" type="number" step="0.01" :value="$values['large_txn_threshold_tzs'] ?? '20000000'" required />
+            <x-admin.input name="large_txn_threshold_tzs" label="Large txn threshold (TZS)" money :decimals="2" :value="$values['large_txn_threshold_tzs'] ?? '20000000'" required />
             <x-admin.input name="large_txn_threshold_usd" label="Large txn threshold (USD)" type="number" step="0.01" :value="$values['large_txn_threshold_usd'] ?? '10000'" required />
             <x-admin.input name="velocity_threshold_count" label="Velocity threshold (count)" type="number" :value="$values['velocity_threshold_count'] ?? '10'" required />
             <x-admin.input name="velocity_window_days" label="Velocity window (days)" type="number" :value="$values['velocity_window_days'] ?? '7'" required />

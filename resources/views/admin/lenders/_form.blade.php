@@ -6,7 +6,7 @@
     <x-admin.input  name="name"           label="Name"            :value="$r?->name"           required />
     <x-admin.select name="type"           label="Type"            :options="$types"            :value="$r?->type ?? 'bank'" required />
     <x-admin.select name="status"         label="Status"          :options="$statuses"         :value="$r?->status ?? 'active'" required />
-    <x-admin.input  name="credit_limit"   label="Credit limit (TZS)" :value="$r?->credit_limit" type="number" />
+    <x-admin.input  name="credit_limit"   label="Credit limit (TZS)" :value="$r?->credit_limit" money />
 </x-admin.step>
 
 <x-admin.step title="Contact">

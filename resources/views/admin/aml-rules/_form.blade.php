@@ -3,7 +3,7 @@
     <x-admin.input  name="code"      label="Code" :value="$r?->code" required />
     <x-admin.input  name="name"      label="Name" :value="$r?->name" required />
     <x-admin.select name="rule_type" label="Rule type" :options="$rule_types" :value="$r?->rule_type" required placeholder="—" />
-    <x-admin.input  name="threshold_amount" label="Threshold amount" type="number" step="0.01" :value="$r?->threshold_amount" />
+    <x-admin.input  name="threshold_amount" label="Threshold amount" money :decimals="2" :value="$r?->threshold_amount" />
     <x-admin.input  name="threshold_count"  label="Threshold count"  type="number" :value="$r?->threshold_count" />
     <x-admin.input  name="window_days"      label="Window (days)"    type="number" :value="$r?->window_days" />
     <x-admin.select name="action"    label="Action" :options="$actions" :value="$r?->action ?? 'flag'" required />

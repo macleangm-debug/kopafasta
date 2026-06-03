@@ -1,5 +1,4 @@
 @php
-    $fmt = fn ($n) => number_format((float) $n, 0);
 @endphp
 <x-site.investor-layout title="Dashboard — Investor" active="dashboard">
     <div class="mb-6">

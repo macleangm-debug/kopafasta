@@ -23,5 +23,5 @@
     <x-admin.select name="status"         label="Status"            :options="$statuses"     :value="$r?->status ?? 'active'" required />
     <x-admin.input name="employment_type" label="Employment type"   :value="$r?->employment_type" />
     <x-admin.input name="business_name"   label="Business name"     :value="$r?->business_name" />
-    <x-admin.input name="monthly_income"  label="Monthly income (TZS)" :value="$r?->monthly_income" type="number" />
+    <x-admin.input name="monthly_income"  label="Monthly income (TZS)" :value="$r?->monthly_income" money />
 </x-admin.step>

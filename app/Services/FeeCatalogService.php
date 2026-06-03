@@ -57,7 +57,7 @@ class FeeCatalogService
     public function formatAmountLabel(ChargesFee $fee): string
     {
         return $fee->basis === 'percentage'
-            ? number_format((float) $fee->amount, 2).'% of principal'
-            : 'TZS '.number_format((float) $fee->amount, 0);
+            ? format_number($fee->amount, 2).'% of principal'
+            : format_money($fee->amount);
     }
 }

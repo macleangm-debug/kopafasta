@@ -13,8 +13,8 @@
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3 font-mono text-xs">{{ $r->reference ?? '—' }}</td>
                 <td class="px-5 py-3">{{ $r->lender?->name ?? '—' }}</td>
-                <td class="px-5 py-3">TZS {{ number_format((float) ($r->principal ?? 0)) }}</td>
-                <td class="px-5 py-3">TZS {{ number_format((float) ($r->return_amount ?? 0)) }}</td>
+                <td class="px-5 py-3">TZS {{ format_number( ($r->principal ?? 0)) }}</td>
+                <td class="px-5 py-3">TZS {{ format_number( ($r->return_amount ?? 0)) }}</td>
                 <td class="px-5 py-3 text-gray-500">{{ optional($r->matures_at)->format('Y-m-d') ?? '—' }}</td>
                 <td class="px-5 py-3">
                     <x-admin.badge :value="$r->status" :map="[

@@ -103,6 +103,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::get('/borrower/apply',  [\App\Http\Controllers\Site\ApplyController::class, 'show'])->name('borrower.apply');
                 Route::get('/borrower/apply/product/{product}/readiness', [\App\Http\Controllers\Site\ApplyController::class, 'productReadiness'])->name('borrower.apply.product-readiness');
                 Route::post('/borrower/apply/guarantor-lookup', [\App\Http\Controllers\Site\ApplyController::class, 'lookupGuarantor'])->name('borrower.apply.guarantor-lookup');
+                Route::post('/borrower/apply/guarantor-invite', [\App\Http\Controllers\Site\ApplyController::class, 'prepareExternalGuarantor'])->name('borrower.apply.guarantor-invite');
                 Route::get('/borrower/apply/draft', [\App\Http\Controllers\Site\ApplyController::class, 'loadDraft'])->name('borrower.apply.draft');
                 Route::put('/borrower/apply/draft', [\App\Http\Controllers\Site\ApplyController::class, 'saveDraft'])->name('borrower.apply.draft.save');
                 Route::post('/borrower/apply/application-fee', [\App\Http\Controllers\Site\ApplyController::class, 'payApplicationFee'])->name('borrower.apply.application-fee.pay');

@@ -36,8 +36,8 @@ class AssetMarketplaceFeeService
                 'code'         => $fee->code,
                 'name'         => $fee->name,
                 'amount_label' => $fee->basis === 'percentage'
-                    ? number_format((float) $fee->amount, 2).'%'
-                    : 'TZS '.number_format((float) $fee->amount, 0),
+                    ? format_number($fee->amount, 2).'%'
+                    : format_money($fee->amount),
                 'detail'       => $fee->description,
             ])
             ->values()

@@ -6,8 +6,22 @@
     'placeholder' => null,
     'required' => false,
     'help' => null,
+    'money' => false,
+    'decimals' => 0,
 ])
 
+@if ($money)
+    <x-admin.money-input
+        :name="$name"
+        :label="$label"
+        :value="$value"
+        :placeholder="$placeholder"
+        :required="$required"
+        :help="$help"
+        :decimals="$decimals"
+        {{ $attributes->except(['money', 'decimals', 'type', 'step']) }}
+    />
+@else
 <div @error($name) data-has-error="true" @enderror>
     @if ($label)
         <label for="{{ $name }}" class="block text-xs font-semibold text-gray-700 mb-1">
@@ -30,3 +44,4 @@
         <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
     @enderror
 </div>
+@endif

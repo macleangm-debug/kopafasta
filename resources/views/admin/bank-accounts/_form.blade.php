@@ -6,7 +6,7 @@
     <x-admin.input  name="branch"         label="Bank branch"  :value="$r?->branch" />
     <x-admin.input  name="swift_code"     label="SWIFT/BIC"    :value="$r?->swift_code" />
     <x-admin.input  name="currency"       label="Currency"     :value="$r?->currency ?? 'TZS'" required />
-    <x-admin.input  name="opening_balance" label="Opening balance" type="number" step="0.01" :value="$r?->opening_balance ?? '0'" required />
+    <x-admin.input  name="opening_balance" label="Opening balance" money :decimals="2" :value="$r?->opening_balance ?? '0'" required />
     <x-admin.select name="gl_account_id"  label="GL account"   :options="$glAccounts" :value="$r?->gl_account_id" placeholder="—" />
     <x-admin.select name="purpose"        label="Purpose"      :options="$purposes" :value="$r?->purpose ?? 'operating'" required />
     <x-admin.select name="is_active"      label="Status"       :options="['1'=>'Active','0'=>'Inactive']" :value="(string)($r?->is_active ?? '1')" required />

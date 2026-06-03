@@ -9,9 +9,9 @@
 </x-admin.step>
 
 <x-admin.step title="Totals">
-    <x-admin.input  name="system_total"   label="System total"  :value="$r?->system_total" type="number" required />
-    <x-admin.input  name="bank_total"     label="Bank total"    :value="$r?->bank_total"   type="number" required />
-    <x-admin.input  name="variance"       label="Variance"      :value="$r?->variance"     type="number" help="Auto-calculated if blank" />
+    <x-admin.input  name="system_total"   label="System total"  :value="$r?->system_total" money required />
+    <x-admin.input  name="bank_total"     label="Bank total"    :value="$r?->bank_total" money required />
+    <x-admin.input  name="variance"       label="Variance"      :value="$r?->variance" money help="Auto-calculated if blank" />
     <x-admin.input  name="reconciled_at"  label="Reconciled at" :value="optional($r?->reconciled_at)->format('Y-m-d')" type="date" />
     <div class="md:col-span-2">
         <x-admin.textarea name="notes" label="Notes" :value="$r?->notes" rows="2" />

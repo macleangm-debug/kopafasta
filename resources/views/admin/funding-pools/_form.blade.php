@@ -9,8 +9,8 @@
 </x-admin.step>
 
 <x-admin.step title="Capital">
-    <x-admin.input  name="amount_committed" label="Amount committed"  :value="$r?->amount_committed" type="number" required />
-    <x-admin.input  name="amount_deployed"  label="Amount deployed"   :value="$r?->amount_deployed"  type="number" />
+    <x-admin.input  name="amount_committed" label="Amount committed"  :value="$r?->amount_committed" money required />
+    <x-admin.input  name="amount_deployed"  label="Amount deployed"   :value="$r?->amount_deployed" money />
     <x-admin.input  name="expected_yield"   label="Expected yield (0-1)" :value="$r?->expected_yield" type="number" help="e.g. 0.18 = 18%" />
     <x-admin.input  name="start_date"       label="Start date"        :value="optional($r?->start_date)->format('Y-m-d')" type="date" />
     <x-admin.input  name="end_date"         label="End date"          :value="optional($r?->end_date)->format('Y-m-d')"   type="date" />

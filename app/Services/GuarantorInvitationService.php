@@ -48,14 +48,9 @@ class GuarantorInvitationService
             return null;
         }
 
-        $phone = preg_replace('/\D/', '', (string) $invitation->contact);
+        $phone = $this->sharePhoneDigits($invitation->contact);
         if ($phone === '') {
             return null;
-        }
-        if (str_starts_with($phone, '0')) {
-            $phone = '255'.substr($phone, 1);
-        } elseif (! str_starts_with($phone, '255')) {
-            $phone = '255'.$phone;
         }
 
         return 'https://wa.me/'.$phone.'?text='.urlencode($this->invitationMessage($invitation));
@@ -63,17 +58,185 @@ class GuarantorInvitationService
 
     public function smsShareUrl(GuarantorInvitation $invitation): ?string
     {
-        $phone = preg_replace('/\D/', '', (string) $invitation->contact);
+        $phone = $this->sharePhoneDigits($invitation->contact);
         if ($phone === '') {
             return null;
         }
-        if (str_starts_with($phone, '0')) {
-            $phone = '255'.substr($phone, 1);
-        } elseif (! str_starts_with($phone, '255')) {
-            $phone = '255'.$phone;
-        }
 
         return 'sms:+'.$phone.'?body='.urlencode($this->invitationMessage($invitation));
+    }
+
+    public function emailShareUrl(GuarantorInvitation $invitation): ?string
+    {
+        $invitation->loadMissing('customerGuarantor.guarantor');
+        $email = trim((string) ($invitation->customerGuarantor?->guarantor?->email ?? ''));
+        if ($email === '' || ! str_contains($email, '@')) {
+            $email = trim((string) $invitation->contact);
+        }
+        if ($email === '' || ! str_contains($email, '@')) {
+            return null;
+        }
+
+        $subject = 'KopaFasta guarantor invitation';
+        $body = $this->invitationMessage($invitation);
+
+        return 'mailto:'.$email.'?subject='.rawurlencode($subject).'&body='.rawurlencode($body);
+    }
+
+    /** @return array{invitation_url: string, whatsapp_url: string|null, sms_url: string|null, email_url: string|null, invitation_id: int} */
+    public function sharePayload(GuarantorInvitation $invitation, ?Customer $borrower = null): array
+    {
+        $borrower ??= $invitation->borrower;
+
+        return [
+            'invitation_id'  => $invitation->id,
+            'invitation_url' => $this->invitationUrl($invitation),
+            'whatsapp_url'   => $this->whatsAppShareUrl($invitation, $borrower),
+            'sms_url'        => $this->smsShareUrl($invitation),
+            'email_url'      => $this->emailShareUrl($invitation),
+        ];
+    }
+
+    /**
+     * Create or refresh a pending external invitation before the loan application is submitted.
+     *
+     * @return array{invitation_id: int, invitation_url: string, whatsapp_url: string|null, sms_url: string|null, email_url: string|null}
+     */
+    public function prepareWizardExternalInvitation(
+        Customer $borrower,
+        string $firstName,
+        ?string $middleName,
+        string $lastName,
+        string $phone,
+        ?string $email,
+        string $relationship,
+        string $region,
+        string $district,
+        ?string $preferredChannel,
+        ?int $existingInvitationId = null,
+    ): array {
+        $phone = $this->normalizePhone($phone);
+        $displayName = trim(collect([$firstName, $middleName, $lastName])->filter()->implode(' '));
+        $address = trim(collect([$region, $district])->filter()->implode(', '));
+        $channel = in_array($preferredChannel, ['whatsapp', 'sms', 'email'], true) ? $preferredChannel : 'whatsapp';
+        $contact = $phone;
+
+        return DB::transaction(function () use (
+            $borrower,
+            $firstName,
+            $middleName,
+            $lastName,
+            $phone,
+            $email,
+            $relationship,
+            $region,
+            $district,
+            $channel,
+            $contact,
+            $displayName,
+            $address,
+            $existingInvitationId,
+        ): array {
+            $invitation = null;
+            if ($existingInvitationId) {
+                $invitation = GuarantorInvitation::query()
+                    ->where('id', $existingInvitationId)
+                    ->where('customer_id', $borrower->id)
+                    ->where('type', 'external')
+                    ->whereNull('loan_application_id')
+                    ->where('status', 'pending')
+                    ->first();
+            }
+
+            if ($invitation?->customer_guarantor_id) {
+                $link = CustomerGuarantor::query()->find($invitation->customer_guarantor_id);
+                if ($link?->guarantor_id) {
+                    Guarantor::query()->where('id', $link->guarantor_id)->update([
+                        'first_name'   => trim($firstName.' '.($middleName ?: '')),
+                        'last_name'    => $lastName,
+                        'phone'        => $phone,
+                        'email'        => $email,
+                        'relationship' => $relationship,
+                        'address'      => $address,
+                    ]);
+                }
+                $invitation->update([
+                    'channel'      => $channel,
+                    'contact'      => $contact,
+                    'invitee_name' => $displayName,
+                    'expires_at'   => now()->addDays(14),
+                ]);
+            } else {
+                $guarantor = Guarantor::create([
+                    'first_name'   => trim($firstName.' '.($middleName ?: '')),
+                    'last_name'    => $lastName,
+                    'phone'        => $phone,
+                    'email'        => $email,
+                    'relationship' => $relationship,
+                    'address'      => $address,
+                ]);
+
+                $link = CustomerGuarantor::create([
+                    'customer_id'         => $borrower->id,
+                    'guarantor_id'        => $guarantor->id,
+                    'loan_application_id' => null,
+                    'status'              => 'pending',
+                ]);
+
+                $invitation = GuarantorInvitation::create([
+                    'customer_id'           => $borrower->id,
+                    'loan_application_id'   => null,
+                    'customer_guarantor_id' => $link->id,
+                    'type'                  => 'external',
+                    'channel'               => $channel,
+                    'contact'               => $contact,
+                    'invitee_name'          => $displayName,
+                    'token'                 => Str::random(48),
+                    'status'                => 'pending',
+                    'expires_at'            => now()->addDays(14),
+                ]);
+            }
+
+            $this->notifyExternalInvitation($borrower, $invitation, $displayName);
+
+            return $this->sharePayload($invitation, $borrower);
+        });
+    }
+
+    public function finalizeWizardExternalInvitation(
+        Customer $borrower,
+        LoanApplication $application,
+        int $invitationId,
+    ): GuarantorInvitation {
+        $invitation = GuarantorInvitation::query()
+            ->where('id', $invitationId)
+            ->where('customer_id', $borrower->id)
+            ->where('type', 'external')
+            ->whereNull('loan_application_id')
+            ->where('status', 'pending')
+            ->firstOrFail();
+
+        $link = CustomerGuarantor::query()->findOrFail($invitation->customer_guarantor_id);
+        $link->update(['loan_application_id' => $application->id]);
+        $invitation->update(['loan_application_id' => $application->id]);
+
+        return $invitation->fresh();
+    }
+
+    protected function sharePhoneDigits(?string $contact): string
+    {
+        $phone = preg_replace('/\D/', '', (string) $contact) ?? '';
+        if ($phone === '') {
+            return '';
+        }
+        if (str_starts_with($phone, '0')) {
+            return '255'.substr($phone, 1);
+        }
+        if (! str_starts_with($phone, '255')) {
+            return '255'.$phone;
+        }
+
+        return $phone;
     }
 
     public function normalizePhone(?string $phone): string
@@ -209,13 +372,13 @@ class GuarantorInvitationService
     protected function notifyExternalInvitation(Customer $borrower, GuarantorInvitation $invitation, string $inviteeName): void
     {
         $borrowerName = trim($borrower->first_name.' '.$borrower->last_name);
-        $productName = $invitation->application?->product?->name ?? 'loan';
-        $url = $this->invitationUrl($invitation);
         $message = $this->invitationMessage($invitation);
+        $invitation->loadMissing('customerGuarantor.guarantor');
+        $email = trim((string) ($invitation->customerGuarantor?->guarantor?->email ?? ''));
 
-        if ($invitation->channel === 'email' && str_contains((string) $invitation->contact, '@')) {
+        if ($invitation->channel === 'email' && $email !== '') {
             app(NotificationService::class)->sendEmail(
-                (string) $invitation->contact,
+                $email,
                 'Guarantor invitation from '.$borrowerName,
                 $message,
                 $borrower,

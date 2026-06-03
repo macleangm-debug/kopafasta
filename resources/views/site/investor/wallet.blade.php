@@ -1,4 +1,3 @@
-@php $fmt = fn ($n) => number_format((float) $n, 0); @endphp
 <x-site.investor-layout title="Wallet — Investor" active="wallet">
     <h1 class="text-2xl lg:text-3xl font-bold tracking-tight mb-1">Wallet</h1>
     <p class="text-slate-500 text-sm mb-6">Deposit funds to invest, or withdraw your earnings.</p>
@@ -23,7 +22,7 @@
                         @csrf
                         <div>
                             <label class="text-xs uppercase text-slate-500 font-semibold">Amount (TZS)</label>
-                            <input type="number" name="amount" min="1000" step="1000" required class="w-full mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" />
+                            <input type="text" inputmode="decimal" name="amount" data-money-input="0" required class="w-full mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" />
                         </div>
                         <div>
                             <label class="text-xs uppercase text-slate-500 font-semibold">Channel</label>
@@ -48,7 +47,7 @@
                         @csrf
                         <div>
                             <label class="text-xs uppercase text-slate-500 font-semibold">Amount (TZS)</label>
-                            <input type="number" name="amount" min="1000" step="1000" required class="w-full mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" />
+                            <input type="text" inputmode="decimal" name="amount" data-money-input="0" required class="w-full mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" />
                         </div>
                         <div>
                             <label class="text-xs uppercase text-slate-500 font-semibold">To channel</label>

@@ -380,6 +380,7 @@ document.addEventListener('keydown', function (event) {
     }
 });
 </script>
+<x-admin.number-format-script />
 @stack('scripts')
 </body>
 </html>

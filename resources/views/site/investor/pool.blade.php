@@ -1,4 +1,3 @@
-@php $fmt = fn ($n) => number_format((float) $n, 0); @endphp
 <x-site.investor-layout title="{{ $pool->name }} — Pool" active="pools">
     <a href="{{ route('site.investor.pools') }}" class="text-sm text-emerald-700 hover:underline font-semibold">← All pools</a>
 

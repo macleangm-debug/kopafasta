@@ -16,7 +16,7 @@
                     {{ trim(($r->customer?->first_name ?? '').' '.($r->customer?->last_name ?? '')) ?: '—' }}
                     <div class="text-xs text-gray-500">{{ $r->customer?->phone }}</div>
                 </td>
-                <td class="px-5 py-3">TZS {{ number_format((float) ($r->requested_amount ?? 0)) }}</td>
+                <td class="px-5 py-3">TZS {{ format_number( ($r->requested_amount ?? 0)) }}</td>
                 <td class="px-5 py-3">
                     <x-admin.badge :value="$r->status" group="application_status" :map="[
                         'approved'     => 'bg-emerald-100 text-emerald-800',

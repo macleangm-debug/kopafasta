@@ -131,6 +131,8 @@ class InvestorController extends Controller
     {
         abort_unless($pool->is_public && $pool->status === 'open', 422);
 
+        $request->merge(['amount' => \App\Support\MoneyFormat::toNumber($request->input('amount'))]);
+
         $data = $request->validate([
             'amount' => ['required', 'numeric', 'min:1'],
         ]);
@@ -139,7 +141,7 @@ class InvestorController extends Controller
         $amount = (float) $data['amount'];
 
         if ($amount < (float) $pool->min_investment) {
-            return back()->withErrors(['amount' => 'Minimum investment is '.number_format($pool->min_investment, 0).' TZS.']);
+            return back()->withErrors(['amount' => 'Minimum investment is '.format_number($pool->min_investment).' TZS.']);
         }
         if ($amount > (float) $lender->available_balance) {
             return back()->withErrors(['amount' => 'Insufficient available balance. Deposit funds first.']);
@@ -293,6 +295,8 @@ class InvestorController extends Controller
 
     public function deposit(Request $request)
     {
+        $request->merge(['amount' => \App\Support\MoneyFormat::toNumber($request->input('amount'))]);
+
         $data = $request->validate([
             'amount'  => ['required', 'numeric', 'min:1'],
             'channel' => ['required', 'in:bank,mobile_money,stablecoin'],
@@ -320,6 +324,8 @@ class InvestorController extends Controller
 
     public function withdraw(Request $request)
     {
+        $request->merge(['amount' => \App\Support\MoneyFormat::toNumber($request->input('amount'))]);
+
         $data = $request->validate([
             'amount'  => ['required', 'numeric', 'min:1'],
             'channel' => ['required', 'in:bank,mobile_money,stablecoin'],

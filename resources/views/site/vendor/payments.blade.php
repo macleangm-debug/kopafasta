@@ -1,5 +1,4 @@
 <x-site.vendor-layout title="Payments" active="payments">
-    @php $fmt = fn ($n) => 'TZS '.number_format((int) $n); @endphp
 
     <h1 class="text-2xl font-extrabold mb-1">Payments & earnings</h1>
     <p class="text-sm text-gray-500 mb-5">Invoices auto-generate when you complete a paid task.</p>

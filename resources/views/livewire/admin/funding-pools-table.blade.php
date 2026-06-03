@@ -13,9 +13,9 @@
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3 font-medium">{{ $r->name }}</td>
                 <td class="px-5 py-3">{{ $r->lender?->name ?? '—' }}</td>
-                <td class="px-5 py-3">TZS {{ number_format((float) ($r->amount_committed ?? 0)) }}</td>
-                <td class="px-5 py-3">TZS {{ number_format((float) ($r->amount_deployed ?? 0)) }}</td>
-                <td class="px-5 py-3 text-xs text-gray-600">{{ number_format((float) ($r->expected_yield ?? 0), 2) }}%</td>
+                <td class="px-5 py-3">TZS {{ format_number( ($r->amount_committed ?? 0)) }}</td>
+                <td class="px-5 py-3">TZS {{ format_number( ($r->amount_deployed ?? 0)) }}</td>
+                <td class="px-5 py-3 text-xs text-gray-600">{{ format_number( ($r->expected_yield ?? 0), 2) }}%</td>
                 <td class="px-5 py-3">
                     <x-admin.badge :value="$r->status" :map="[
                         'open'     => 'bg-emerald-100 text-emerald-800',

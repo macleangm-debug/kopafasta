@@ -1,5 +1,4 @@
 <x-site.vendor-layout title="Invoice" active="payments">
-    @php $fmt = fn ($n) => 'TZS '.number_format((int) $n); @endphp
 
     <div class="mb-5 flex items-center justify-between">
         <a href="{{ route('site.vendor.payments') }}" class="text-sm text-indigo-600 hover:underline">← Back to payments</a>

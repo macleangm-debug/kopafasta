@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Concerns\AuditsActions;
 use App\Http\Controllers\Controller;
 use App\Services\AuditService;
+use App\Support\MoneyFormat;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 
@@ -36,7 +37,22 @@ abstract class ResourceController extends Controller
     /** Hook to modify validated data before save (e.g. defaults, auto-numbers) */
     protected function transform(array $data, ?Model $existing = null): array
     {
+        foreach ($data as $key => $value) {
+            if (is_string($value) && $this->isMoneyFieldKey((string) $key)) {
+                $data[$key] = MoneyFormat::toNumber($value);
+            }
+        }
+
         return $data;
+    }
+
+    protected function isMoneyFieldKey(string $key): bool
+    {
+        if (preg_match('/(tenure|_count$|^count$|days|months|percent|rate|weight|priority|schedule|window|velocity|mismatch|lock_hours|tier|step)/i', $key)) {
+            return false;
+        }
+
+        return (bool) preg_match('/(amount|balance|principal|income|cost|gross|net|variance|deployed|committed|limit|threshold|installment|deposit|value|fee|penalty|interest|opening|budget|paid)/i', $key);
     }
 
     public function create()

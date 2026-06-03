@@ -9,7 +9,7 @@
         'Vendor'         => optional(\App\Models\Vendor::find($record->vendor_id))->name,
         'Category'       => $record->category,
         'Status'         => ucfirst($record->status ?? ''),
-        'Amount'         => $record->amount !== null ? (($record->currency ?? 'TZS').' '.number_format((float) $record->amount)) : null,
+        'Amount'         => $record->amount !== null ? format_money($record->amount, true, 2) : null,
         'Expense date'   => optional($record->expense_date)->format('Y-m-d'),
         'Payment method' => display_label($record->payment_method, 'payment_method'),
         'Reference'      => $record->reference,

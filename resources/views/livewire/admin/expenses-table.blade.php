@@ -17,7 +17,7 @@
                     <div class="font-medium">{{ $r->category ?? '—' }}</div>
                     <div class="text-xs text-gray-500">{{ \Illuminate\Support\Str::limit($r->description, 40) }}</div>
                 </td>
-                <td class="px-5 py-3">TZS {{ number_format((float) ($r->amount ?? 0)) }}</td>
+                <td class="px-5 py-3">TZS {{ format_number( ($r->amount ?? 0)) }}</td>
                 <td class="px-5 py-3 text-xs">{{ $r->branch?->name ?? '—' }}</td>
                 <td class="px-5 py-3">
                     <x-admin.badge :value="$r->status" :map="[

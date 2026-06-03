@@ -1,6 +1,5 @@
 <x-site.vendor-layout title="Vendor dashboard" active="dashboard">
     @php
-        $fmt = fn ($n) => 'TZS '.number_format((int) $n);
         $catLabels = [
             'gps_installer'      => 'GPS Installer',
             'insurance'          => 'Insurance Provider',
