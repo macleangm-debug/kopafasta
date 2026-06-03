@@ -2,7 +2,7 @@
 @php($r = $record ?? null)
 
 <x-admin.step title="Lender">
-    <x-admin.input  name="code"           label="Lender code"     :value="$r?->code"           required placeholder="e.g. LN-NMB" />
+    <x-admin.input  name="code"           :label="__('admin.capital_partner.reference')" :value="$r?->code" required placeholder="e.g. MACLEANS" />
     <x-admin.input  name="name"           label="Name"            :value="$r?->name"           required />
     <x-admin.select name="type"           label="Type"            :options="$types"            :value="$r?->type ?? 'bank'" required />
     <x-admin.select name="status"         label="Status"          :options="$statuses"         :value="$r?->status ?? 'active'" required />

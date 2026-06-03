@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class LenderTransaction extends Model
+class CapitalWithdrawalRequest extends Model
 {
     protected $guarded = [];
 
@@ -13,7 +13,7 @@ class LenderTransaction extends Model
     {
         return [
             'amount'       => 'decimal:2',
-            'processed_at' => 'datetime',
+            'reviewed_at'  => 'datetime',
         ];
     }
 
@@ -27,18 +27,13 @@ class LenderTransaction extends Model
         return $this->belongsTo(FundingPool::class, 'funding_pool_id');
     }
 
-    public function investment(): BelongsTo
+    public function requestedBy(): BelongsTo
     {
-        return $this->belongsTo(LenderInvestment::class, 'lender_investment_id');
+        return $this->belongsTo(User::class, 'requested_by');
     }
 
-    public function loan(): BelongsTo
+    public function reviewedBy(): BelongsTo
     {
-        return $this->belongsTo(Loan::class);
-    }
-
-    public function createdBy(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(User::class, 'reviewed_by');
     }
 }

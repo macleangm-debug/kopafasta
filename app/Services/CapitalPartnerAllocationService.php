@@ -9,12 +9,18 @@ use App\Models\LenderTransaction;
 use App\Models\Loan;
 use App\Models\LoanCapitalAllocation;
 use App\Models\LoanProduct;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class CapitalPartnerAllocationService
 {
+    public function __construct(
+        protected AuditService $audit,
+    ) {}
+
     public const PARTNER_INTEREST_SHARE = 60.0;
 
     public const COMPANY_INTEREST_SHARE = 40.0;
@@ -110,15 +116,26 @@ class CapitalPartnerAllocationService
                     'lender_id'             => $lender->id,
                     'funding_pool_id'       => $pool->id,
                     'lender_investment_id'  => $investment->id,
+                    'loan_id'               => $loan->id,
                     'reference'             => 'TXN-'.Str::upper(Str::random(10)),
                     'type'                  => 'investment',
+                    'direction'             => 'debit',
                     'amount'                => $share,
                     'status'                => 'completed',
                     'channel'               => 'system',
-                    'notes'                 => 'Loan '.$loan->loan_number.' proportional allocation',
+                    'notes'                 => 'Loan '.$loan->loan_number.' proportional allocation ('.format_number($percent, 2).'%)',
                     'processed_at'          => now(),
+                    'created_by'            => $this->actorId(),
                 ]);
             }
+
+            $this->audit->log(
+                $this->actor(),
+                'capital_partner.loan_allocation',
+                $loan,
+                [],
+                ['loan_number' => $loan->loan_number, 'principal' => $amount, 'partners' => $loan->capitalAllocations()->count()],
+            );
         });
     }
 
@@ -155,7 +172,32 @@ class CapitalPartnerAllocationService
                 $allocation->investment->return_amount = (float) $allocation->investment->return_amount + $partnerShare;
                 $allocation->investment->save();
             }
+
+            if ($partnerShare > 0 && $allocation->lender) {
+                LenderTransaction::create([
+                    'lender_id'        => $allocation->lender_id,
+                    'funding_pool_id'  => $allocation->funding_pool_id,
+                    'loan_id'          => $loan->id,
+                    'reference'        => 'TXN-'.Str::upper(Str::random(10)),
+                    'type'             => 'interest_earned',
+                    'direction'        => 'credit',
+                    'amount'           => $partnerShare,
+                    'status'           => 'completed',
+                    'channel'          => 'system',
+                    'notes'            => 'Interest share — loan '.$loan->loan_number,
+                    'processed_at'     => now(),
+                    'created_by'       => $this->actorId(),
+                ]);
+            }
         }
+
+        $this->audit->log(
+            $this->actor(),
+            'capital_partner.interest_distribution',
+            $loan,
+            [],
+            ['interest' => $interestAmount, 'partner_pct' => self::PARTNER_INTEREST_SHARE],
+        );
     }
 
     /** Reduce outstanding exposure when principal is repaid. */
@@ -217,5 +259,17 @@ class CapitalPartnerAllocationService
             ->filter(fn (array $row) => $row['available'] > 0)
             ->sortByDesc('available')
             ->values();
+    }
+
+    protected function actor(): ?User
+    {
+        $user = Auth::user();
+
+        return $user instanceof User ? $user : null;
+    }
+
+    protected function actorId(): ?int
+    {
+        return $this->actor()?->id;
     }
 }

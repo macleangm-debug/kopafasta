@@ -47,4 +47,9 @@ class Lender extends Model
     {
         return $this->hasMany(LoanCapitalAllocation::class);
     }
+
+    public function withdrawalRequests(): HasMany
+    {
+        return $this->hasMany(CapitalWithdrawalRequest::class);
+    }
 }

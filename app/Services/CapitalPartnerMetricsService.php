@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\CapitalWithdrawalRequest;
 use App\Models\FundingPool;
 use App\Models\Lender;
 use App\Models\Loan;
@@ -26,16 +27,29 @@ class CapitalPartnerMetricsService
         $partnerInterest = (float) ($sums->interest_earned_partner ?? 0);
         $companyInterest = (float) ($sums->interest_earned_company ?? 0);
 
+        $fundedLoans = (int) Loan::query()->whereHas('capitalAllocations')->count();
+        $defaultExposure = (float) LoanCapitalAllocation::query()
+            ->where('outstanding_exposure', '>', 0)
+            ->whereHas('loan', fn ($q) => $q->whereIn('status', ['defaulted', 'written_off']))
+            ->sum('outstanding_exposure');
+        $totalExposure = (float) ($sums->outstanding_exposure ?? 0);
+
         return [
             'capital_invested'        => $invested,
             'capital_utilized'        => $utilized,
             'capital_available'       => max(0, $invested - $utilized),
-            'outstanding_exposure'    => (float) ($sums->outstanding_exposure ?? 0),
+            'outstanding_exposure'    => $totalExposure,
             'interest_earned_total'   => $partnerInterest + $companyInterest,
             'interest_earned_partner' => $partnerInterest,
             'interest_earned_company' => $companyInterest,
+            'partner_share_payable'   => $partnerInterest,
+            'company_share_earned'    => $companyInterest,
             'active_partners'         => Lender::query()->where('status', 'active')->count(),
             'active_loans'            => (int) ($sums->active_loans ?? 0),
+            'loans_funded'            => $fundedLoans,
+            'default_exposure'        => $defaultExposure,
+            'default_ratio_pct'       => $totalExposure > 0 ? round(($defaultExposure / $totalExposure) * 100, 2) : 0,
+            'pending_withdrawals'     => CapitalWithdrawalRequest::query()->where('status', 'pending')->count(),
         ];
     }
 
@@ -162,5 +176,84 @@ class CapitalPartnerMetricsService
             'interest_earned_partner'   => (float) $rows->sum('interest_earned_partner'),
             'interest_earned_company' => (float) $rows->sum('interest_earned_company'),
         ];
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function fundedLoansReport(int $limit = 100): array
+    {
+        return Loan::query()
+            ->whereHas('capitalAllocations')
+            ->with(['customer', 'capitalAllocations.lender'])
+            ->latest('id')
+            ->limit($limit)
+            ->get()
+            ->map(function (Loan $loan) {
+                $totals = $this->loanTotals($loan);
+                $partners = $loan->capitalAllocations
+                    ->map(fn ($a) => $a->lender?->name.' ('.format_money((float) $a->allocated_principal).')')
+                    ->filter()
+                    ->implode('; ');
+
+                return [
+                    'id'                      => $loan->id,
+                    'loan_number'             => $loan->loan_number,
+                    'borrower'                => trim(($loan->customer?->first_name ?? '').' '.($loan->customer?->last_name ?? '')) ?: '—',
+                    'approved_amount'         => (float) ($loan->approved_amount ?? $loan->principal_amount),
+                    'funding_date'            => $loan->disbursement_date ?? $loan->created_at,
+                    'partner_contributions'   => $partners,
+                    'outstanding_principal'   => (float) $loan->outstanding_balance,
+                    'interest_collected'      => $totals['interest_earned_partner'] + $totals['interest_earned_company'],
+                    'partner_profit_share'    => $totals['interest_earned_partner'],
+                    'company_profit_share'    => $totals['interest_earned_company'],
+                    'status'                  => $loan->status,
+                ];
+            })
+            ->all();
+    }
+
+    /** @return Collection<int, LoanCapitalAllocation> */
+    public function allocationsForLender(Lender $lender, int $limit = 50): Collection
+    {
+        return LoanCapitalAllocation::query()
+            ->where('lender_id', $lender->id)
+            ->with(['loan.customer', 'pool'])
+            ->latest('id')
+            ->limit($limit)
+            ->get();
+    }
+
+    /** @return Collection<int, \App\Models\AuditLog> */
+    public function auditTrailForLender(Lender $lender, int $limit = 40): Collection
+    {
+        $loanIds = LoanCapitalAllocation::query()
+            ->where('lender_id', $lender->id)
+            ->pluck('loan_id');
+
+        $withdrawalIds = CapitalWithdrawalRequest::query()
+            ->where('lender_id', $lender->id)
+            ->pluck('id');
+
+        return \App\Models\AuditLog::query()
+            ->where(function ($q) use ($lender, $loanIds, $withdrawalIds): void {
+                $q->where(fn ($q2) => $q2
+                    ->where('auditable_type', $lender->getMorphClass())
+                    ->where('auditable_id', $lender->id));
+
+                if ($loanIds->isNotEmpty()) {
+                    $q->orWhere(fn ($q2) => $q2
+                        ->where('auditable_type', (new Loan)->getMorphClass())
+                        ->whereIn('auditable_id', $loanIds));
+                }
+
+                if ($withdrawalIds->isNotEmpty()) {
+                    $q->orWhere(fn ($q2) => $q2
+                        ->where('auditable_type', (new CapitalWithdrawalRequest)->getMorphClass())
+                        ->whereIn('auditable_id', $withdrawalIds));
+                }
+            })
+            ->with('user')
+            ->latest('id')
+            ->limit($limit)
+            ->get();
     }
 }

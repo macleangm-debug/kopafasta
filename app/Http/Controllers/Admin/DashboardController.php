@@ -23,6 +23,12 @@ class DashboardController extends Controller
             'portfolio_tzs'          => (float) Loan::query()->where('status', 'active')->sum('principal_amount'),
             'capital_available'      => $capital['capital_available'],
             'capital_utilized'       => $capital['capital_utilized'],
+            'capital_invested'       => $capital['capital_invested'],
+            'loans_funded'           => $capital['loans_funded'],
+            'interest_total'         => $capital['interest_earned_total'],
+            'company_share'          => $capital['interest_earned_company'],
+            'partner_share'          => $capital['interest_earned_partner'],
+            'outstanding_exposure'   => $capital['outstanding_exposure'],
         ];
 
         $recentApplications = LoanApplication::query()

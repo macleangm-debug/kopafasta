@@ -71,6 +71,8 @@
         ], null],
         ['Capital', 'M19 7H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2zM3 11h18', [
             ['Capital funding',      'admin.capital-funding.index'],
+            ['Funded loans',         'admin.capital-funding.funded-loans'],
+            ['Withdrawal requests',  'admin.capital-funding.withdrawals'],
             ['Capital Partners',     'admin.lenders.index'],
             ['Funding Pools',      'admin.funding-pools.index'],
             ['Lender Investments', 'admin.lender-investments.index'],

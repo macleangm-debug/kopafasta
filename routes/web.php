@@ -345,8 +345,15 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         $registerResource('promotions', 'promotion', \App\Http\Controllers\Admin\PromotionController::class);
 
         // Capital
-        Route::get('capital-funding', \App\Http\Controllers\Admin\CapitalPartnerFundingController::class)->name('capital-funding.index');
+        Route::get('capital-funding', [\App\Http\Controllers\Admin\CapitalPartnerFundingController::class, 'index'])->name('capital-funding.index');
+        Route::get('capital-funding/funded-loans', [\App\Http\Controllers\Admin\CapitalPartnerFundingController::class, 'fundedLoans'])->name('capital-funding.funded-loans');
+        Route::get('capital-funding/withdrawals', [\App\Http\Controllers\Admin\CapitalPartnerFundingController::class, 'withdrawals'])->name('capital-funding.withdrawals');
+        Route::post('capital-withdrawal-requests/{capital_withdrawal_request}/approve', [\App\Http\Controllers\Admin\CapitalWithdrawalRequestController::class, 'approve'])->name('capital-withdrawal-requests.approve');
+        Route::post('capital-withdrawal-requests/{capital_withdrawal_request}/reject', [\App\Http\Controllers\Admin\CapitalWithdrawalRequestController::class, 'reject'])->name('capital-withdrawal-requests.reject');
         $registerResource('lenders',            'lender',             LenderController::class);
+        Route::get('lenders/{lender}/adjust-capital', [LenderController::class, 'adjustCapitalForm'])->name('lenders.adjust-capital');
+        Route::post('lenders/{lender}/adjust-capital', [LenderController::class, 'adjustCapital'])->name('lenders.adjust-capital.store');
+        Route::post('lenders/{lender}/withdrawal-request', [LenderController::class, 'requestWithdrawal'])->name('lenders.withdrawal-request');
         $registerResource('funding-pools',      'funding_pool',       FundingPoolController::class);
         $registerResource('lender-investments', 'lender_investment',  LenderInvestmentController::class);
 

@@ -10,6 +10,17 @@
         ]) }}
     </div>
 
+    <div class="mb-4 flex flex-wrap gap-2 text-xs">
+        <a href="{{ route('admin.capital-funding.funded-loans') }}" class="font-semibold text-amber-700 hover:underline">{{ __('admin.capital_funding.funded_loans') }} →</a>
+        <a href="{{ route('admin.capital-funding.withdrawals') }}" class="font-semibold text-amber-700 hover:underline">
+            {{ __('admin.capital_funding.withdrawals') }}
+            @if (($summary['pending_withdrawals'] ?? 0) > 0)
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-amber-200 text-amber-900">{{ $summary['pending_withdrawals'] }}</span>
+            @endif
+            →
+        </a>
+    </div>
+
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
         @foreach ([
             __('admin.capital_funding.invested') => $summary['capital_invested'],
@@ -17,14 +28,18 @@
             __('admin.capital_funding.available') => $summary['capital_available'],
             __('admin.capital_funding.exposure') => $summary['outstanding_exposure'],
             __('admin.capital_funding.interest_total') => $summary['interest_earned_total'],
+            __('admin.capital_funding.partner_share_payable') => $summary['interest_earned_partner'],
+            __('admin.capital_funding.company_share_earned') => $summary['interest_earned_company'],
             __('admin.capital_funding.active_loans') => $summary['active_loans'],
+            __('admin.capital_funding.loans_funded') => $summary['loans_funded'],
+            __('admin.capital_funding.default_ratio') => format_number($summary['default_ratio_pct'], 2).'%',
             __('admin.capital_funding.active_partners') => $summary['active_partners'],
         ] as $label => $value)
             <div class="bg-white rounded-xl ring-1 ring-gray-200 p-4">
                 <p class="text-[10px] uppercase tracking-wider text-gray-500">{{ $label }}</p>
                 <p class="mt-1 text-lg font-bold text-gray-900">
-                    @if (in_array($label, [__('admin.capital_funding.active_loans'), __('admin.capital_funding.active_partners')], true))
-                        {{ format_number($value) }}
+                    @if (in_array($label, [__('admin.capital_funding.active_loans'), __('admin.capital_funding.active_partners'), __('admin.capital_funding.loans_funded'), __('admin.capital_funding.default_ratio')], true) || is_string($value))
+                        {{ is_string($value) ? $value : format_number($value) }}
                     @else
                         {{ format_money($value) }}
                     @endif

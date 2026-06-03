@@ -78,4 +78,28 @@
         </div>
     </div>
 
+    <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-sm font-semibold text-gray-900">Capital under management</h2>
+            <a href="{{ route('admin.capital-funding.index') }}" class="text-xs font-medium text-amber-600 hover:text-amber-700">Capital funding →</a>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 text-sm">
+            @foreach ([
+                'Total capital' => format_money($stats['capital_invested']),
+                'Loans funded' => format_number($stats['loans_funded']),
+                'Interest generated' => format_money($stats['interest_total']),
+                'Company revenue share' => format_money($stats['company_share']),
+                'Partner revenue share' => format_money($stats['partner_share']),
+                'Outstanding exposure' => format_money($stats['outstanding_exposure']),
+                'Available capital' => format_money($stats['capital_available']),
+                'Capital utilized' => format_money($stats['capital_utilized']),
+            ] as $label => $value)
+                <div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wider">{{ $label }}</div>
+                    <div class="mt-1 font-bold text-gray-900">{{ $value }}</div>
+                </div>
+            @endforeach
+        </div>
+    </div>
+
 </x-admin.layout>
