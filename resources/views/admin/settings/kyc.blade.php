@@ -10,7 +10,7 @@
                 'require_nida'         => 'Require NIDA',
                 'require_tin'          => 'Require TIN',
                 'require_selfie'       => 'Require selfie',
-                'require_address_proof'=> 'Require address proof',
+                'require_address_proof'=> 'Require residence verification letter',
                 'require_income_proof' => 'Require income proof',
                 'auto_approve_low_risk'=> 'Auto-approve low risk customers',
                 'crb_check_required'   => 'CRB check required',

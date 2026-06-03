@@ -32,10 +32,13 @@ use App\Services\LoanQualificationService;
 use App\Services\NidaVerificationService;
 use App\Services\PinService;
 use App\Services\PostApprovalFeeService;
+use App\Services\DocumentPageMerger;
 use App\Services\ProfileCompletionService;
+use App\Services\ProfileValidationService;
 use App\Services\AffiliateService;
 use App\Services\ReferralService;
 use App\Services\ResidenceLetterMerger;
+use Illuminate\Validation\Rule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -646,14 +649,17 @@ class BorrowerController extends Controller
             ['status' => 'pending', 'payload' => []]
         );
 
-        $section = in_array($section, ['personal', 'activity', 'residence', 'kin', 'kyc', 'security'], true)
+        if ($section === 'kin') {
+            return redirect()->to(route('site.borrower.profile', ['section' => 'personal']).'#next-of-kin');
+        }
+
+        $section = in_array($section, ['personal', 'activity', 'residence', 'kyc', 'security'], true)
             ? $section
             : 'personal';
 
         $view = match ($section) {
             'activity'  => 'site.borrower.profile.activity',
             'residence' => 'site.borrower.profile.residence',
-            'kin'       => 'site.borrower.profile.kin',
             'kyc'       => 'site.borrower.profile.kyc',
             'security'  => 'site.borrower.profile.security',
             default     => 'site.borrower.profile.personal',
@@ -663,7 +669,20 @@ class BorrowerController extends Controller
             ? TrustedDevice::where('user_id', auth()->id())->where('expires_at', '>', now())->latest('last_used_at')->get()
             : collect();
 
-        return view($view, compact('customer', 'kyc', 'trustedDevices'))
+        $nidaDocuments = CustomerDocument::query()
+            ->where('customer_id', $customer->id)
+            ->whereHas('documentType', fn ($q) => $q->whereIn('code', ['national_id_front', 'national_id_back']))
+            ->with('documentType')
+            ->get()
+            ->keyBy(fn ($doc) => $doc->documentType->code);
+
+        $employmentContract = CustomerDocument::query()
+            ->where('customer_id', $customer->id)
+            ->whereHas('documentType', fn ($q) => $q->where('code', 'employment_contract'))
+            ->latest()
+            ->first();
+
+        return view($view, compact('customer', 'kyc', 'trustedDevices', 'nidaDocuments', 'employmentContract'))
             ->with('crbUsesStub', app(CrbService::class)->usesStub())
             ->with('crbSamples', config('crb_samples.scenarios', []))
             ->with('profileSections', app(ProfileCompletionService::class)->displaySections($customer));
@@ -672,23 +691,72 @@ class BorrowerController extends Controller
     public function updateProfile(Request $request, string $section = 'personal'): RedirectResponse
     {
         $customer = $this->customer();
-        $section = in_array($section, ['personal', 'activity', 'residence', 'kin'], true) ? $section : 'personal';
+        if ($section === 'kin') {
+            $section = 'personal';
+        }
+
+        $section = in_array($section, ['personal', 'activity', 'residence'], true) ? $section : 'personal';
+        $validation = app(ProfileValidationService::class);
 
         if ($section === 'personal') {
             $data = $request->validate([
                 'phone' => ['nullable', 'string', 'max:20'],
                 'email' => ['nullable', 'email', 'max:120'],
+                'nok_name'         => ['required', 'string', 'max:120'],
+                'nok_relationship' => ['required', 'string', 'max:60'],
+                'nok_phone'        => ['required', 'string', 'max:30'],
+                'nok_region'       => ['required', 'string', 'max:100'],
+                'nok_district'     => ['required', 'string', 'max:100'],
+                'national_id_front' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                'national_id_front_pages' => ['nullable', 'array'],
+                'national_id_front_pages.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                'national_id_back' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                'national_id_back_pages' => ['nullable', 'array'],
+                'national_id_back_pages.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             ]);
 
-            $customer->fill($data)->save();
+            $customer->fill([
+                'phone'            => $data['phone'] ?? $customer->phone,
+                'email'            => $data['email'] ?? $customer->email,
+                'nok_name'         => $data['nok_name'],
+                'nok_relationship' => $data['nok_relationship'],
+                'nok_phone'        => $data['nok_phone'],
+                'nok_region'       => $data['nok_region'],
+                'nok_district'     => $data['nok_district'],
+            ])->save();
+
+            $this->persistProfileDocumentUpload($customer, 'national_id_front', $request->file('national_id_front'), $request->file('national_id_front_pages', []) ?? []);
+            $this->persistProfileDocumentUpload($customer, 'national_id_back', $request->file('national_id_back'), $request->file('national_id_back_pages', []) ?? []);
+
+            if (! $validation->nationalIdUploadsComplete($customer->fresh())) {
+                return redirect()
+                    ->route('site.borrower.profile', ['section' => 'personal'])
+                    ->withErrors(['national_id_front' => __('borrower.profile.nida_uploads_required')])
+                    ->withInput();
+            }
         }
 
         if ($section === 'activity') {
+            $employed = $request->input('activity_type') === 'employed';
+            $hasContract = $validation->hasDocument($customer, 'employment_contract');
+            $contractPages = array_values(array_filter($request->file('employment_contract_pages', []) ?? []));
+            $needsContract = $employed && ! $hasContract && ! $request->hasFile('employment_contract') && $contractPages === [];
+
             $data = $request->validate([
                 'activity_type'    => ['required', 'string', 'max:40'],
                 'activity_details' => ['nullable', 'array'],
                 'income_range'     => ['required', 'string', 'in:'.implode(',', array_keys(config('income_ranges')))],
+                'employment_contract' => [
+                    Rule::requiredIf($needsContract),
+                    'nullable',
+                    'file',
+                    'mimes:jpg,jpeg,png,pdf',
+                    'max:5120',
+                ],
+                'employment_contract_pages' => ['nullable', 'array'],
+                'employment_contract_pages.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             ]);
+
             $customer->fill([
                 'activity_type'    => $data['activity_type'],
                 'activity_details' => $data['activity_details'] ?? [],
@@ -696,6 +764,20 @@ class BorrowerController extends Controller
                 'income_range'     => $data['income_range'],
                 'monthly_income'   => config('income_ranges.'.$data['income_range'].'.midpoint'),
             ])->save();
+
+            $this->persistProfileDocumentUpload(
+                $customer,
+                'employment_contract',
+                $request->file('employment_contract'),
+                $request->file('employment_contract_pages', []) ?? []
+            );
+
+            if ($employed && ! $validation->employmentContractComplete($customer->fresh())) {
+                return redirect()
+                    ->route('site.borrower.profile', ['section' => 'activity'])
+                    ->withErrors(['employment_contract' => __('borrower.profile.employment_contract_required')])
+                    ->withInput();
+            }
         }
 
         if ($section === 'residence') {
@@ -729,18 +811,6 @@ class BorrowerController extends Controller
                     ['file_path' => $path, 'status' => 'pending_review']
                 );
             }
-        }
-
-        if ($section === 'kin') {
-            $data = $request->validate([
-                'nok_name'         => ['required', 'string', 'max:120'],
-                'nok_relationship' => ['required', 'string', 'max:60'],
-                'nok_phone'        => ['required', 'string', 'max:30'],
-                'nok_region'       => ['required', 'string', 'max:100'],
-                'nok_district'     => ['required', 'string', 'max:100'],
-            ]);
-
-            $customer->fill($data)->save();
         }
 
         $this->auditBorrower('profile.updated', $customer, ['section' => $section]);
@@ -863,6 +933,7 @@ class BorrowerController extends Controller
             return [
                 'key'         => $key,
                 'label'       => $meta['label'] ?? $key,
+                'step_title'  => $meta['step_title'] ?? ($meta['label'] ?? $key),
                 'instruction' => $meta['instruction'] ?? '',
                 'pose'        => match ($key) {
                     'left'  => 'left',
@@ -1147,6 +1218,35 @@ class BorrowerController extends Controller
             'has_referrer'   => false,
             'referrer'       => null,
         ]);
+    }
+
+    /**
+     * @param  list<\Illuminate\Http\UploadedFile>  $pageFiles
+     */
+    private function persistProfileDocumentUpload(
+        Customer $customer,
+        string $documentCode,
+        ?\Illuminate\Http\UploadedFile $single,
+        array $pageFiles,
+    ): void {
+        $pageFiles = array_values(array_filter($pageFiles));
+        if (! $single && $pageFiles === []) {
+            return;
+        }
+
+        $type = DocumentType::where('code', $documentCode)->where('is_active', true)->first();
+        if (! $type) {
+            return;
+        }
+
+        $path = $single
+            ? $single->store("customer/{$customer->id}/documents", 'public')
+            : app(DocumentPageMerger::class)->merge($pageFiles, $customer->id, $documentCode);
+
+        CustomerDocument::updateOrCreate(
+            ['customer_id' => $customer->id, 'document_type_id' => $type->id],
+            ['file_path' => $path, 'status' => 'pending_review']
+        );
     }
 
     private function nidaMismatchRedirect(Customer $customer, NidaVerificationService $nida): RedirectResponse

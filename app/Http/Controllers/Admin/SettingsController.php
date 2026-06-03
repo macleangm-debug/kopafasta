@@ -113,6 +113,7 @@ class SettingsController extends Controller
         }
 
         $data['freshness_days'] = (int) ($data['freshness_days'] ?? 90);
+        $data['require_residence_letter'] = (bool) ($data['require_address_proof'] ?? false);
 
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["kyc.$k" => $v])->all());
         return back()->with('status', 'KYC settings saved.');

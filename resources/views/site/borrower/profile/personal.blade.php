@@ -158,12 +158,19 @@
             @endif
         </div>
 
-        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}" class="bg-white rounded-2xl border border-gray-200 p-6"
+        @php
+            $nidaDocs = $nidaDocuments ?? collect();
+            $nidaFront = $nidaDocs->get('national_id_front');
+            $nidaBack = $nidaDocs->get('national_id_back');
+        @endphp
+
+        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}" enctype="multipart/form-data" class="bg-white rounded-2xl border border-gray-200 p-6 space-y-8"
               @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.save_confirm_title')), message: @js(__('borrower.profile.save_confirm_message')), confirmLabel: @js(__('borrower.profile.save')), confirmClass: 'bg-amber-500 hover:bg-amber-400 text-gray-900' })">
             @csrf @method('PUT')
 
+            <div>
             <h2 class="font-semibold mb-1">{{ __('borrower.profile.personal_info') }}</h2>
-            <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.personal_info_hint') }}</p>
+            <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.personal_sections_hint') }}</p>
             <dl class="grid sm:grid-cols-2 gap-x-4 gap-y-3 text-sm mb-6 pb-6 border-b border-gray-100">
                 <div><dt class="text-xs text-gray-500">{{ __('borrower.profile.fields.full_name') }}</dt><dd class="font-medium mt-0.5">{{ trim($customer->first_name.' '.($customer->middle_name ?? '').' '.$customer->last_name) ?: '—' }}</dd></div>
                 <div><dt class="text-xs text-gray-500">{{ __('borrower.profile.fields.date_of_birth') }}</dt><dd class="font-medium mt-0.5">{{ optional($customer->date_of_birth)->format('d M Y') ?? '—' }}</dd></div>
@@ -171,6 +178,35 @@
                 <div><dt class="text-xs text-gray-500">{{ __('borrower.profile.fields.national_id') }}</dt><dd class="font-medium mt-0.5 font-mono">{{ $customer->national_id ?? '—' }}</dd></div>
             </dl>
 
+            </div>
+
+            <div class="border-t border-gray-100 pt-6">
+                <h3 class="font-semibold mb-1">{{ __('borrower.profile.nida_card_uploads') }}</h3>
+                <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.nida_card_uploads_hint') }}</p>
+                @error('national_id_front')<p class="text-xs text-red-600 mb-2">{{ $message }}</p>@enderror
+                <div class="grid sm:grid-cols-2 gap-6">
+                    <div>
+                        <p class="text-xs font-medium text-gray-600 mb-2">{{ __('borrower.profile.nida_front') }} <span class="text-red-500">*</span></p>
+                        @if ($nidaFront)
+                            <p class="text-xs text-emerald-700 mb-2">{{ __('borrower.profile.nida_uploaded') }}</p>
+                        @endif
+                        <x-site.multi-page-document-upload name="national_id_front_pages" input-host-id="nida-front-pages" />
+                        <label class="mt-3 block text-xs text-gray-500">{{ __('borrower.profile.residence_letter_single') }}</label>
+                        <input type="file" name="national_id_front" accept="image/*,application/pdf" class="mt-1 block w-full text-sm text-gray-600">
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium text-gray-600 mb-2">{{ __('borrower.profile.nida_back') }} <span class="text-red-500">*</span></p>
+                        @if ($nidaBack)
+                            <p class="text-xs text-emerald-700 mb-2">{{ __('borrower.profile.nida_uploaded') }}</p>
+                        @endif
+                        <x-site.multi-page-document-upload name="national_id_back_pages" input-host-id="nida-back-pages" />
+                        <label class="mt-3 block text-xs text-gray-500">{{ __('borrower.profile.residence_letter_single') }}</label>
+                        <input type="file" name="national_id_back" accept="image/*,application/pdf" class="mt-1 block w-full text-sm text-gray-600">
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-100 pt-6">
             <h3 class="font-semibold mb-4">{{ __('borrower.profile.contact_details') }}</h3>
             <div class="grid sm:grid-cols-2 gap-4">
                 <div>
@@ -204,8 +240,39 @@
                 </div>
             </div>
 
+            </div>
+
+            <div id="next-of-kin" class="border-t border-gray-100 pt-6 scroll-mt-24">
+                <h3 class="font-semibold mb-1">{{ __('borrower.profile.kin') }}</h3>
+                <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.kin_subtitle') }}</p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.full_name') }} <span class="text-red-500">*</span></label>
+                        <input name="nok_name" value="{{ old('nok_name', $customer->nok_name) }}" required class="{{ $editable }}">
+                    </div>
+                    <div class="grid sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.relationship') }} <span class="text-red-500">*</span></label>
+                            <input name="nok_relationship" value="{{ old('nok_relationship', $customer->nok_relationship) }}" required class="{{ $editable }}">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.phone') }} <span class="text-red-500">*</span></label>
+                            <input name="nok_phone" value="{{ old('nok_phone', $customer->nok_phone) }}" required class="{{ $editable }}">
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium text-gray-600 mb-3">{{ __('borrower.profile.residence') }}</p>
+                        <x-site.address-fields
+                            prefix="nok"
+                            :region="old('nok_region', $customer->nok_region)"
+                            :district="old('nok_district', $customer->nok_district)"
+                        />
+                    </div>
+                </div>
+            </div>
+
             <button class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                {{ __('borrower.profile.save_contact') }}
+                {{ __('borrower.profile.save_personal') }}
             </button>
         </form>
     </div>

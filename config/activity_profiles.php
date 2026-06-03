@@ -59,7 +59,8 @@ return [
         ],
         'employed' => [
             ['key' => 'employer_name', 'label' => 'Employer name', 'type' => 'text', 'required' => true],
-            ['key' => 'job_title', 'label' => 'Job title', 'type' => 'text', 'required' => false],
+            ['key' => 'job_title', 'label' => 'Job title', 'type' => 'text', 'required' => true],
+            ['key' => 'employment_contract', 'label' => 'Employment contract', 'type' => 'document', 'document_code' => 'employment_contract', 'required' => true],
         ],
         'trader' => [
             ['key' => 'trade_type', 'label' => 'What do you trade?', 'type' => 'select', 'options' => [

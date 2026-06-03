@@ -13,16 +13,25 @@ class ProfileCompletionService
             return false;
         }
 
+        $validation = app(ProfileValidationService::class);
         $fields = config('activity_profiles.fields.'.$customer->activity_type, []);
         $details = $customer->activity_details ?? [];
 
         foreach ($fields as $field) {
+            if (($field['type'] ?? 'text') === 'document') {
+                if (($field['required'] ?? false) && ! $validation->hasDocument($customer, $field['document_code'] ?? $field['key'])) {
+                    return false;
+                }
+
+                continue;
+            }
+
             if (($field['required'] ?? false) && blank($details[$field['key']] ?? null)) {
                 return false;
             }
         }
 
-        return true;
+        return $validation->employmentContractComplete($customer);
     }
 
     public function isResidenceComplete(Customer $customer): bool
@@ -44,12 +53,13 @@ class ProfileCompletionService
         $freshness = app(KycFreshnessService::class);
         $staleKeys = $freshness->sectionsDueForRefresh($customer);
 
+        $personalComplete = app(ProfileValidationService::class)->isPersonalInfoComplete($customer);
+
         $sections = [
             [
                 'key'        => 'personal',
                 'label'      => __('borrower.profile.personal'),
-                'status'     => (filled($customer->first_name) && filled($customer->last_name) && filled($customer->date_of_birth))
-                    ? 'complete' : 'missing',
+                'status'     => $personalComplete ? 'complete' : 'missing',
                 'action_url' => route('site.borrower.profile', ['section' => 'personal']),
             ],
             [
@@ -63,14 +73,6 @@ class ProfileCompletionService
                 'label'      => __('borrower.profile.residence'),
                 'status'     => $this->isResidenceComplete($customer) ? 'complete' : 'missing',
                 'action_url' => route('site.borrower.profile', ['section' => 'residence']),
-            ],
-            [
-                'key'        => 'kin',
-                'label'      => __('borrower.profile.kin'),
-                'status'     => filled($customer->nok_name) && filled($customer->nok_phone) && filled($customer->nok_relationship)
-                    && filled($customer->nok_region) && filled($customer->nok_district)
-                    ? 'complete' : 'missing',
-                'action_url' => route('site.borrower.profile', ['section' => 'kin']),
             ],
             [
                 'key'        => 'documents',
@@ -115,7 +117,7 @@ class ProfileCompletionService
     public function isDocumentsComplete(Customer $customer): bool
     {
         $requireIncome = (bool) (Setting::group('kyc')['require_income_proof'] ?? false);
-        $requireResidenceLetter = (bool) (Setting::group('kyc')['require_residence_letter'] ?? false);
+        $requireResidenceLetter = app(ProfileValidationService::class)->requiresResidenceLetter();
 
         if (! $requireIncome && ! $requireResidenceLetter) {
             return true;
@@ -150,12 +152,14 @@ class ProfileCompletionService
     /** @return array{percent: int, sections: list<array{key: string, label: string, complete: bool, weight: int}>} */
     public function calculate(Customer $customer): array
     {
+        $validation = app(ProfileValidationService::class);
+
         $sections = [
             [
                 'key'      => 'personal',
                 'label'    => __('borrower.profile.personal'),
-                'complete' => filled($customer->first_name) && filled($customer->last_name) && filled($customer->date_of_birth),
-                'weight'   => 15,
+                'complete' => $validation->isPersonalInfoComplete($customer),
+                'weight'   => 20,
             ],
             [
                 'key'      => 'nida',
@@ -173,20 +177,13 @@ class ProfileCompletionService
                 'key'      => 'activity',
                 'label'    => __('borrower.profile.activity'),
                 'complete' => $this->isActivityComplete($customer),
-                'weight'   => 15,
+                'weight'   => 20,
             ],
             [
                 'key'      => 'residence',
                 'label'    => __('borrower.profile.residence'),
                 'complete' => $this->isResidenceComplete($customer),
-                'weight'   => 15,
-            ],
-            [
-                'key'      => 'kin',
-                'label'    => __('borrower.profile.kin'),
-                'complete' => filled($customer->nok_name) && filled($customer->nok_phone) && filled($customer->nok_relationship)
-                    && filled($customer->nok_region) && filled($customer->nok_district),
-                'weight'   => 15,
+                'weight'   => 20,
             ],
         ];
 

@@ -66,7 +66,13 @@
                     </select>
                 </template>
 
-                <template x-if="field.type !== 'select' && field.type !== 'region' && field.type !== 'district'">
+                <template x-if="field.type === 'document'">
+                    <div class="sm:col-span-2 space-y-2">
+                        <p class="text-xs text-gray-500" x-text="field.hint || ''"></p>
+                    </div>
+                </template>
+
+                <template x-if="field.type !== 'select' && field.type !== 'region' && field.type !== 'district' && field.type !== 'document'">
                     <input type="text"
                            :name="'activity_details[' + field.key + ']'" x-model="details[field.key]"
                            class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"
@@ -74,6 +80,14 @@
                 </template>
             </div>
         </template>
+
+        <div class="sm:col-span-2" x-show="activityType === 'employed'" x-cloak>
+            <p class="text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.employment_contract') }} <span class="text-red-500">*</span></p>
+            <p class="text-xs text-gray-500 mb-3">{{ __('borrower.profile.employment_contract_hint') }}</p>
+            <x-site.multi-page-document-upload name="employment_contract_pages" input-host-id="employment-contract-pages" />
+            <label class="mt-3 block text-xs text-gray-500">{{ __('borrower.profile.residence_letter_single') }}</label>
+            <input type="file" name="employment_contract" accept="image/*,application/pdf" class="mt-1 block w-full text-sm text-gray-600">
+        </div>
 
         <div class="sm:col-span-2">
             <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.income_range') }} <span class="text-red-500">*</span></label>

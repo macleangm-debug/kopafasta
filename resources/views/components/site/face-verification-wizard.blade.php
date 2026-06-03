@@ -25,17 +25,25 @@
                 </svg>
             </div>
             <h2 class="text-xl font-bold text-gray-900 mb-2">Face ID verification</h2>
-            <p class="text-sm text-gray-500 mb-4">You control each photo — nothing is captured until you tap <strong>Capture</strong>.</p>
-            <ul class="text-left text-sm text-gray-600 space-y-2 mb-6">
+            <p class="text-sm text-gray-500 mb-4">{{ __('borrower.nida.face_steps_intro') }}</p>
+            <ul class="text-left text-sm text-gray-600 space-y-2 mb-4">
                 <template x-for="(step, i) in steps" :key="step.key">
                     <li class="flex items-center gap-2">
                         <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
                               :class="step.done ? 'bg-emerald-100 text-emerald-700' : (i === stepIndex ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-500')"
                               x-text="i + 1"></span>
-                        <span x-text="step.instruction" :class="step.done ? 'line-through text-gray-400' : ''"></span>
+                        <span x-text="step.step_title || step.label" :class="step.done ? 'line-through text-gray-400' : ''"></span>
                     </li>
                 </template>
+                <li class="flex items-center gap-2 text-gray-500">
+                    <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-gray-100 text-gray-500" x-text="steps.length + 1"></span>
+                    <span>{{ __('borrower.nida.face_submit_step') }}</span>
+                </li>
             </ul>
+            <div class="mb-6 rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-left text-xs text-sky-900">
+                <p class="font-semibold">{{ __('borrower.nida.face_permission_title') }}</p>
+                <p class="mt-1">{{ __('borrower.nida.face_permission_body') }}</p>
+            </div>
             <p x-show="!ready && !isDesktop" class="text-sm text-gray-400 mb-4">Loading face scanner…</p>
             <button type="button" @click="startScan()" :disabled="!ready || loading"
                     class="w-full bg-gray-900 hover:bg-gray-800 disabled:opacity-50 text-white font-semibold px-6 py-4 rounded-2xl text-sm">
@@ -46,8 +54,12 @@
         </div>
     </div>
 
-    {{-- iOS-style scanner — keep mounted so camera ref exists before stream attaches --}}
-    <div x-show="phase === 'scanning' || phase === 'saving'" x-cloak class="relative rounded-3xl overflow-hidden bg-black w-full min-h-[70vh] max-h-[80vh] shadow-2xl ring-1 ring-gray-800">
+    {{-- Scanner — stay in DOM (not display:none) so desktop browsers can attach the camera stream --}}
+    <div
+        x-cloak
+        class="relative rounded-3xl overflow-hidden bg-black w-full min-h-[70vh] max-h-[80vh] shadow-2xl ring-1 ring-gray-800"
+        :class="(phase === 'scanning' || phase === 'saving') ? '' : 'fixed left-[-9999px] top-0 w-px h-px overflow-hidden opacity-0 pointer-events-none'"
+    >
         <video x-ref="video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover mirror"></video>
         <canvas x-ref="overlay" class="absolute inset-0 w-full h-full pointer-events-none mirror"></canvas>
 
@@ -140,7 +152,7 @@
         <div x-show="phase === 'review'" x-cloak class="bg-white rounded-3xl ring-1 ring-gray-200 overflow-hidden">
             <div class="p-5 border-b border-gray-100">
                 <h2 class="text-lg font-bold text-gray-900">Review your photos</h2>
-                <p class="text-sm text-gray-500 mt-1">Confirm all four images before submitting for review.</p>
+                <p class="text-sm text-gray-500 mt-1">Step {{ count($steps) + 1 }} — confirm all photos, then submit for review.</p>
             </div>
             <div class="grid grid-cols-2 gap-3 p-5">
                 <template x-for="(step, i) in steps" :key="step.key">
@@ -152,7 +164,7 @@
             </div>
             <div class="p-5 border-t border-gray-100 flex flex-wrap gap-3">
                 <button type="button" @click="phase = 'intro'" class="flex-1 min-w-[120px] bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold px-4 py-3 rounded-2xl text-sm">Retake</button>
-                <button type="button" @click="phase = 'done'" class="flex-1 min-w-[120px] bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-3 rounded-2xl text-sm">Confirm & submit</button>
+                <button type="button" @click="phase = 'done'" class="flex-1 min-w-[120px] bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-3 rounded-2xl text-sm">{{ __('borrower.nida.face_submit_step') }}</button>
             </div>
         </div>
 
@@ -344,24 +356,18 @@
                         this.notice = null;
                         this.phase = 'scanning';
                         try {
-                            await this.$nextTick();
-                            const constraints = {
-                                video: {
-                                    width: { ideal: 1280 },
-                                    height: { ideal: 720 },
-                                    facingMode: { ideal: 'user' },
-                                },
-                                audio: false,
-                            };
-                            if (! this.isDesktop) {
-                                constraints.video.facingMode = { ideal: 'user' };
+                            if (!window.isSecureContext) {
+                                throw new Error('Camera requires HTTPS. Open this site over a secure connection and try again.');
                             }
-                            this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+                            await this.$nextTick();
+                            this.stream = await this.requestCameraStream();
                             const video = this.$refs.video;
                             if (! video) {
                                 throw new Error('Camera preview unavailable');
                             }
                             video.srcObject = this.stream;
+                            video.setAttribute('playsinline', 'true');
+                            video.muted = true;
                             await video.play();
                             this.holdProgress = 0;
                             this.poseOk = false;
@@ -377,11 +383,28 @@
                             this.stopCamera();
                             this.phase = 'intro';
                             this.notice = e?.name === 'NotAllowedError'
-                                ? 'Camera access was denied. Allow camera permission in your browser settings, then tap Start verification.'
-                                : (e?.message || 'Could not open the camera. Use HTTPS and allow camera access, then try again.');
+                                ? @js(__('borrower.profile.camera_denied'))
+                                : (e?.message || @js(__('borrower.profile.camera_denied')));
                         } finally {
                             this.loading = false;
                         }
+                    },
+
+                    async requestCameraStream() {
+                        const attempts = [
+                            { video: { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+                            { video: { facingMode: 'user' }, audio: false },
+                            { video: true, audio: false },
+                        ];
+                        let lastError;
+                        for (const constraints of attempts) {
+                            try {
+                                return await navigator.mediaDevices.getUserMedia(constraints);
+                            } catch (e) {
+                                lastError = e;
+                            }
+                        }
+                        throw lastError;
                     },
 
                     cancelScan() {

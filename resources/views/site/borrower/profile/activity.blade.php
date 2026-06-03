@@ -11,11 +11,16 @@
 
         @include('site.borrower.profile._completion')
 
-        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'activity']) }}" class="bg-white rounded-2xl border border-gray-200 p-6"
+        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'activity']) }}" enctype="multipart/form-data" class="bg-white rounded-2xl border border-gray-200 p-6"
               @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.save_confirm_title')), message: @js(__('borrower.profile.save_confirm_message')), confirmLabel: @js(__('borrower.profile.save')), confirmClass: 'bg-amber-500 hover:bg-amber-400 text-gray-900' })">
             @csrf @method('PUT')
 
             <h2 class="font-semibold mb-4">{{ __('borrower.profile.activity') }}</h2>
+            <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.activity_subtitle') }}</p>
+            @error('employment_contract')<p class="text-xs text-red-600 mb-3">{{ $message }}</p>@enderror
+            @if ($employmentContract ?? null)
+                <p class="text-xs text-emerald-700 mb-4">{{ __('borrower.profile.employment_contract_uploaded') }}</p>
+            @endif
             <x-site.activity-fields
                 :activity-type="old('activity_type', $customer->activity_type ?? $customer->employment_type)"
                 :activity-details="old('activity_details', $customer->activity_details ?? [])"

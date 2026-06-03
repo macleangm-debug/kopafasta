@@ -11,7 +11,7 @@
         ['key' => 'face', 'label' => __('borrower.kyc_progress.face'), 'complete' => $faceVerified, 'route' => route('site.borrower.face-verification')],
         ['key' => 'activity', 'label' => __('borrower.profile.activity'), 'complete' => (bool) ($sections['activity']['complete'] ?? false), 'route' => route('site.borrower.profile', ['section' => 'activity'])],
         ['key' => 'residence', 'label' => __('borrower.profile.residence'), 'complete' => (bool) ($sections['residence']['complete'] ?? false), 'route' => route('site.borrower.profile', ['section' => 'residence'])],
-        ['key' => 'kin', 'label' => __('borrower.profile.kin'), 'complete' => (bool) ($sections['kin']['complete'] ?? false), 'route' => route('site.borrower.profile', ['section' => 'kin'])],
+        ['key' => 'kin', 'label' => __('borrower.profile.kin'), 'complete' => app(\App\Services\ProfileValidationService::class)->isKinComplete($customer), 'route' => route('site.borrower.profile', ['section' => 'personal']).'#next-of-kin'],
     ];
 
     $next = collect($steps)->first(fn ($step) => ! $step['complete']);
@@ -22,10 +22,9 @@
     <ol class="flex flex-wrap items-center gap-2 text-sm">
         @foreach ($steps as $index => $step)
             @php
-                $isActive = ($active === 'personal' && $step['key'] === 'nida')
+                $isActive = ($active === 'personal' && in_array($step['key'], ['nida', 'kin'], true))
                     || ($active === 'activity' && $step['key'] === 'activity')
                     || ($active === 'residence' && $step['key'] === 'residence')
-                    || ($active === 'kin' && $step['key'] === 'kin')
                     || ($active === 'kyc' && $step['key'] === 'face');
             @endphp
             <li class="flex items-center gap-2">

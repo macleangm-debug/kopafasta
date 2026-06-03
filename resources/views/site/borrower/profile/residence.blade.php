@@ -27,7 +27,18 @@
             <div class="mt-6 pt-6 border-t border-gray-100">
                 <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.profile.residence_letter') }}</label>
                 <p class="text-xs text-gray-500 mb-3">{{ __('borrower.profile.residence_letter_hint') }}</p>
-                <x-site.multi-page-residence-upload />
+                <x-site.multi-page-document-upload
+                    name="residence_letter_pages"
+                    input-host-id="residence-letter-pages"
+                    :labels="[
+                        'hint' => __('borrower.profile.residence_upload_hint'),
+                        'uploadFile' => __('borrower.profile.residence_upload_file'),
+                        'capturePage' => __('borrower.profile.residence_capture_page'),
+                        'close' => __('borrower.profile.residence_close'),
+                        'pageLabel' => __('borrower.profile.residence_page_label'),
+                        'remove' => __('borrower.profile.residence_remove'),
+                    ]"
+                />
                 <p class="text-xs text-gray-400 mt-3">{{ __('borrower.profile.residence_letter_single') }}</p>
                 <input type="file" name="residence_letter" accept=".jpg,.jpeg,.png,.pdf"
                        class="mt-2 w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-amber-50 file:text-amber-800 file:font-semibold">

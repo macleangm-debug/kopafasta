@@ -5,7 +5,6 @@
         'personal'  => [__('borrower.profile.personal'), 'site.borrower.profile', ['section' => 'personal']],
         'activity'  => [__('borrower.profile.activity'), 'site.borrower.profile', ['section' => 'activity']],
         'residence' => [__('borrower.profile.residence'), 'site.borrower.profile', ['section' => 'residence']],
-        'kin'       => [__('borrower.profile.kin'), 'site.borrower.profile', ['section' => 'kin']],
         'kyc'       => [__('borrower.profile.kyc'), 'site.borrower.profile', ['section' => 'kyc']],
         'security'  => [__('borrower.profile.security'), 'site.borrower.profile', ['section' => 'security']],
     ];
