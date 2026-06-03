@@ -35,7 +35,7 @@
     <p x-show="cameraNotice" x-cloak class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2" x-text="cameraNotice"></p>
 
     <div x-show="cameraOpen" x-cloak class="rounded-2xl overflow-hidden ring-1 ring-gray-200 bg-black">
-        <video x-ref="camVideo" autoplay playsinline muted class="w-full max-h-72 object-cover mirror"></video>
+        <video x-ref="camVideo" autoplay playsinline webkit-playsinline muted class="w-full max-h-72 object-cover mirror"></video>
         <div class="p-3 flex gap-2 bg-white">
             <button type="button" @click="capturePage()" class="flex-1 bg-gray-900 text-white font-semibold px-4 py-2 rounded-xl text-sm" x-text="labels.capturePage"></button>
             <button type="button" @click="closeCamera()" class="px-4 py-2 rounded-xl text-sm ring-1 ring-gray-200" x-text="labels.close"></button>
@@ -83,9 +83,17 @@
                     try {
                         this.cameraOpen = true;
                         await this.$nextTick();
+                        await this.$nextTick();
                         this.stream = await this.requestCameraStream();
                         const video = this.$refs.camVideo;
+                        if (!video) {
+                            throw new Error(this.labels.cameraUnsupported);
+                        }
                         video.srcObject = this.stream;
+                        video.setAttribute('playsinline', 'true');
+                        video.setAttribute('webkit-playsinline', 'true');
+                        video.muted = true;
+                        await this.waitForVideoReady(video);
                         await video.play();
                     } catch (e) {
                         this.cameraOpen = false;
@@ -94,6 +102,20 @@
                             ? this.labels.cameraDenied
                             : (e?.message || this.labels.cameraDenied);
                     }
+                },
+                async waitForVideoReady(video) {
+                    if (video.readyState >= 2 && video.videoWidth > 0) {
+                        return;
+                    }
+                    await new Promise((resolve, reject) => {
+                        const timeout = setTimeout(() => reject(new Error(this.labels.cameraDenied)), 15000);
+                        const done = () => {
+                            clearTimeout(timeout);
+                            video.removeEventListener('loadedmetadata', done);
+                            resolve();
+                        };
+                        video.addEventListener('loadedmetadata', done);
+                    });
                 },
                 async requestCameraStream() {
                     const attempts = [

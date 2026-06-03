@@ -169,7 +169,7 @@
             @csrf @method('PUT')
 
             <div>
-            <h2 class="font-semibold mb-1">{{ __('borrower.profile.personal_info') }}</h2>
+            <h2 class="font-semibold mb-1">{{ __('borrower.profile.personal') }}</h2>
             <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.personal_sections_hint') }}</p>
             <dl class="grid sm:grid-cols-2 gap-x-4 gap-y-3 text-sm mb-6 pb-6 border-b border-gray-100">
                 <div><dt class="text-xs text-gray-500">{{ __('borrower.profile.fields.full_name') }}</dt><dd class="font-medium mt-0.5">{{ trim($customer->first_name.' '.($customer->middle_name ?? '').' '.$customer->last_name) ?: '—' }}</dd></div>
@@ -243,7 +243,7 @@
             </div>
 
             <div id="next-of-kin" class="border-t border-gray-100 pt-6 scroll-mt-24">
-                <h3 class="font-semibold mb-1">{{ __('borrower.profile.kin') }}</h3>
+                <h3 class="font-semibold mb-1">{{ __('borrower.profile.kin_info') }}</h3>
                 <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.kin_subtitle') }}</p>
                 <div class="space-y-4">
                     <div>

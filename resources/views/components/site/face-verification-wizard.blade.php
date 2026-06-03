@@ -54,13 +54,13 @@
         </div>
     </div>
 
-    {{-- Scanner — stay in DOM (not display:none) so desktop browsers can attach the camera stream --}}
+    {{-- Scanner — visible only while capturing so desktop browsers receive a sized video element --}}
     <div
+        x-show="phase === 'scanning' || phase === 'saving'"
         x-cloak
         class="relative rounded-3xl overflow-hidden bg-black w-full min-h-[70vh] max-h-[80vh] shadow-2xl ring-1 ring-gray-800"
-        :class="(phase === 'scanning' || phase === 'saving') ? '' : 'fixed left-[-9999px] top-0 w-px h-px overflow-hidden opacity-0 pointer-events-none'"
     >
-        <video x-ref="video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover mirror"></video>
+        <video x-ref="video" autoplay playsinline webkit-playsinline muted class="absolute inset-0 w-full h-full object-cover mirror"></video>
         <canvas x-ref="overlay" class="absolute inset-0 w-full h-full pointer-events-none mirror"></canvas>
 
         {{-- Step illustration --}}
@@ -164,7 +164,7 @@
             </div>
             <div class="p-5 border-t border-gray-100 flex flex-wrap gap-3">
                 <button type="button" @click="phase = 'intro'" class="flex-1 min-w-[120px] bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold px-4 py-3 rounded-2xl text-sm">Retake</button>
-                <button type="button" @click="phase = 'done'" class="flex-1 min-w-[120px] bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-3 rounded-2xl text-sm">{{ __('borrower.nida.face_submit_step') }}</button>
+                <button type="button" @click="submitVerification()" class="flex-1 min-w-[120px] bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-3 rounded-2xl text-sm">{{ __('borrower.nida.face_submit_step') }}</button>
             </div>
         </div>
 
@@ -287,24 +287,28 @@
                         this.simpleMode = this.isDesktop;
                         this.ready = true;
                         this.notice = null;
+                    },
 
-                        let autoStart = this.isDesktop;
-                        try {
-                            if (navigator.permissions?.query) {
-                                const perm = await navigator.permissions.query({ name: 'camera' });
-                                autoStart = perm.state === 'granted';
-                            }
-                        } catch (e) {
-                            autoStart = this.isDesktop;
-                        }
+                    submitVerification() {
+                        window.location.reload();
+                    },
 
-                        if (autoStart) {
-                            await this.$nextTick();
-                            await this.startScan();
-                            if (this.phase === 'scanning' && ! this.isDesktop) {
-                                this.loadMediaPipeAsync();
-                            }
+                    async waitForVideoReady(video) {
+                        if (!video) {
+                            throw new Error('Camera preview unavailable');
                         }
+                        if (video.readyState >= 2 && video.videoWidth > 0) {
+                            return;
+                        }
+                        await new Promise((resolve, reject) => {
+                            const timeout = setTimeout(() => reject(new Error('Camera preview timed out. Check permissions and try again.')), 15000);
+                            const done = () => {
+                                clearTimeout(timeout);
+                                video.removeEventListener('loadedmetadata', done);
+                                resolve();
+                            };
+                            video.addEventListener('loadedmetadata', done);
+                        });
                     },
 
                     async loadMediaPipeAsync() {
@@ -360,6 +364,7 @@
                                 throw new Error('Camera requires HTTPS. Open this site over a secure connection and try again.');
                             }
                             await this.$nextTick();
+                            await this.$nextTick();
                             this.stream = await this.requestCameraStream();
                             const video = this.$refs.video;
                             if (! video) {
@@ -367,7 +372,9 @@
                             }
                             video.srcObject = this.stream;
                             video.setAttribute('playsinline', 'true');
+                            video.setAttribute('webkit-playsinline', 'true');
                             video.muted = true;
+                            await this.waitForVideoReady(video);
                             await video.play();
                             this.holdProgress = 0;
                             this.poseOk = false;
@@ -589,12 +596,26 @@
                         this.phase = 'preview';
                     },
 
-                    retakePreview() {
+                    async retakePreview() {
                         if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
                         this.previewUrl = null;
                         this.previewBlob = null;
                         this.holdProgress = 0;
                         this.phase = 'scanning';
+                        await this.$nextTick();
+                        const video = this.$refs.video;
+                        if (video && this.stream && video.srcObject !== this.stream) {
+                            video.srcObject = this.stream;
+                        }
+                        if (video && this.stream) {
+                            try {
+                                await this.waitForVideoReady(video);
+                                await video.play();
+                            } catch (e) { /* user can tap Start again */ }
+                        } else if (!this.stream) {
+                            await this.startScan();
+                            return;
+                        }
                         this.stepStartedAt = performance.now();
                         this.startLoop();
                     },
