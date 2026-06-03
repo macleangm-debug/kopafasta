@@ -273,6 +273,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::view('loan-applications/pre-approvals',    'admin.loan-applications.pre-approvals')    ->name('loan-applications.pre-approvals');
         Route::view('loan-applications/final-approvals',  'admin.loan-applications.final-approvals')  ->name('loan-applications.final-approvals');
         Route::view('loan-applications/rejected',         'admin.loan-applications.rejected')         ->name('loan-applications.rejected');
+        Route::view('loan-applications/incomplete',      'admin.loan-applications.incomplete')      ->name('loan-applications.incomplete');
         Route::get('loan-applications/wizard-data/{customer}', [LoanApplicationController::class, 'wizardCustomerData'])
             ->name('loan-applications.wizard-data');
         $registerResource('loan-applications', 'loan_application', LoanApplicationController::class);
@@ -344,6 +345,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         $registerResource('promotions', 'promotion', \App\Http\Controllers\Admin\PromotionController::class);
 
         // Capital
+        Route::get('capital-funding', \App\Http\Controllers\Admin\CapitalPartnerFundingController::class)->name('capital-funding.index');
         $registerResource('lenders',            'lender',             LenderController::class);
         $registerResource('funding-pools',      'funding_pool',       FundingPoolController::class);
         $registerResource('lender-investments', 'lender_investment',  LenderInvestmentController::class);

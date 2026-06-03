@@ -555,10 +555,9 @@
                     <button type="button" @click="step > 0 ? prev() : backToDetails()" class="text-sm font-medium text-gray-600 hover:text-gray-900" x-text="step > 0 ? i18n.back : i18n.backProducts"></button>
                     <div class="ml-auto flex items-center gap-3">
                         <a href="{{ route('site.borrower.dashboard') }}" class="text-sm text-gray-500 hover:text-gray-700">{{ __('borrower.apply.cancel') }}</a>
-                        <button type="button" @click="next()" :disabled="guarantorInvitePreparing" x-show="currentStepKey !== 'signature' && currentStepKey !== 'application_fee'" class="bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                        <button type="button" @click="next()" :disabled="guarantorInvitePreparing" x-show="currentStepKey !== 'signature'" class="bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
                             <span x-text="guarantorInvitePreparing ? @js(__('borrower.apply.application_fee.processing')) : @js(__('borrower.apply.continue'))"></span>
                         </button>
-                        <button type="button" @click="next()" x-show="currentStepKey === 'application_fee' && (['paid','waived','pending'].includes(applicationFeeState?.status || '') || applicationFee <= 0)" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.continue') }}</button>
                         <button type="submit" x-show="currentStepKey === 'signature'" class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.submit') }}</button>
                     </div>
                 </div>
@@ -857,10 +856,16 @@
                     if (draft.phase === 'application') {
                         this.phase = 'application';
                         const resumeStep = draft.step || 0;
+                        this.selectProduct(product, true);
+                        this.step = Math.min(resumeStep, Math.max(0, this.steps.length - 1));
+                        this.updateQuote();
                         this.loadReadiness(product.id).then(() => {
                             this.rebuildSteps();
                             this.step = Math.min(resumeStep, Math.max(0, this.steps.length - 1));
                             this.updateQuote();
+                            if (this.currentStepKey === 'review') {
+                                this.refreshReview(this.formRoot());
+                            }
                         });
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                         return true;
@@ -876,14 +881,11 @@
                 beginReservationApplication() {
                     const p = this.products.find(x => x.id == config.preselect);
                     if (! p) return;
-                    this.current = p;
-                    this.form.loan_product_id = p.id;
+                    this.selectProduct(p, true);
                     this.form.requested_amount = this.assetApplication.remaining_loan;
                     this.form.requested_tenure_months = this.assetApplication.max_tenure_months;
                     this.form.purpose = this.assetApplication.purpose || 'asset_financing';
-                    if (! p.requires_guarantor) this.form.guarantor_mode = 'none';
                     this.phase = 'application';
-                    this.steps = this.initialPlan.map(s => ({ key: s.key, label: s.label }));
                     this.step = 0;
                     this.loadReadiness(p.id);
                 },
@@ -893,8 +895,7 @@
                         window.location.href = this.marketplaceUrl;
                         return;
                     }
-                    this.current = p;
-                    this.form.loan_product_id = p.id;
+                    this.selectProduct(p, false);
                     this.phase = 'details';
                     this.loadReadiness(p.id);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -945,9 +946,15 @@
 
                 startApplication() {
                     if (! this.current) return;
-                    this.selectProduct(this.current, false);
+                    if (! this.steps.length) {
+                        this.selectProduct(this.current, true);
+                    }
                     this.phase = 'application';
                     this.rebuildSteps();
+                    if (! this.steps.length) {
+                        alert(this.i18n.alerts.loadProduct);
+                        return;
+                    }
                     this.step = 0;
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 },
@@ -982,6 +989,9 @@
                 selectProduct(p, rebuild = true) {
                     this.current = p;
                     this.form.loan_product_id = p.id;
+                    if (typeof p.application_fee === 'number') {
+                        this.applicationFee = p.application_fee;
+                    }
                     if (! this.form.requested_amount || this.form.requested_amount < p.min) this.form.requested_amount = p.min;
                     if (! this.form.requested_tenure_months || this.form.requested_tenure_months < p.tmin) this.form.requested_tenure_months = p.tmin;
                     if (! p.requires_guarantor) this.form.guarantor_mode = 'none';
@@ -1189,7 +1199,7 @@
                         alert(this.i18n.alerts.selectPurpose);
                         return false;
                     }
-                    if (this.currentStepKey === 'guarantor' && this.current?.requires_guarantor) {
+                    if (this.currentStepKey === 'guarantor' && this.hasStep('guarantor')) {
                         this.syncGuarantorFormFromDom();
                         if (! this.form.guarantor_mode || this.form.guarantor_mode === 'none') {
                             alert(this.i18n.alerts.selectGuarantor);
@@ -1199,6 +1209,10 @@
                             return await this.verifyInternalGuarantor();
                         }
                         if (this.form.guarantor_mode === 'external') {
+                            if (this.externalGuarantor?.invitation_url) {
+                                this.guarantorErrors = {};
+                                return true;
+                            }
                             const missing = this.externalGuarantorMissingFields();
                             if (Object.keys(missing).length) {
                                 this.setGuarantorFieldErrors(missing);
@@ -1278,6 +1292,13 @@
 
                 async next() {
                     if (this.guarantorInvitePreparing) return;
+                    if (! this.steps.length) {
+                        this.rebuildSteps();
+                    }
+                    if (! this.steps.length) {
+                        alert(this.i18n.alerts.loadProduct);
+                        return;
+                    }
                     if (! await this.validateStep()) return;
 
                     if (this.currentStepKey === 'guarantor' && this.form.guarantor_mode === 'external') {
@@ -1289,13 +1310,14 @@
 
                     await this.persistDraft(true);
                     const nextKey = this.steps[this.step + 1]?.key;
-                    if (nextKey === 'review') {
+                    if (this.step >= this.steps.length - 1) {
+                        return;
+                    }
+                    this.step++;
+                    if (this.steps[this.step]?.key === 'review') {
                         this.refreshReview(this.formRoot());
                     }
-                    if (this.step < this.steps.length - 1) {
-                        this.step++;
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                 },
 
                 prev() {

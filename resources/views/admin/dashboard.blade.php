@@ -1,24 +1,34 @@
 <x-admin.layout title="Dashboard" heading="Dashboard" subheading="Overview of operations">
 
     {{-- KPI cards --}}
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
         @php
             $cards = [
-                ['Customers',     format_number($stats['customers']),    'bg-blue-500'],
-                ['Applications',  format_number($stats['applications']), 'bg-violet-500'],
-                ['Active Loans',  format_number($stats['active_loans']), 'bg-amber-500'],
-                ['Portfolio',     'TZS '.format_number($stats['portfolio_tzs'] / 1_000_000, 1).'M', 'bg-emerald-500'],
+                ['Customers', format_number($stats['customers']), 'bg-blue-500', null],
+                ['Applications', format_number($stats['applications']), 'bg-violet-500', route('admin.loan-applications.index')],
+                ['Incomplete apps', format_number($stats['incomplete_applications']), 'bg-amber-500', route('admin.loan-applications.incomplete')],
+                ['Active loans', format_number($stats['active_loans']), 'bg-amber-600', route('admin.loans.index')],
+                ['Capital available', format_money($stats['capital_available']), 'bg-teal-500', route('admin.capital-funding.index')],
+                ['Capital utilized', format_money($stats['capital_utilized']), 'bg-emerald-500', route('admin.capital-funding.index')],
             ];
         @endphp
 
-        @foreach ($cards as [$label, $value, $accent])
-            <div class="bg-white rounded-xl p-5 shadow-sm ring-1 ring-gray-200 relative overflow-hidden">
+        @foreach ($cards as [$label, $value, $accent, $url])
+            @if ($url)
+                <a href="{{ $url }}" class="bg-white rounded-xl p-5 shadow-sm ring-1 ring-gray-200 relative overflow-hidden hover:ring-amber-300 transition block">
+            @else
+                <div class="bg-white rounded-xl p-5 shadow-sm ring-1 ring-gray-200 relative overflow-hidden">
+            @endif
                 <div class="absolute top-0 left-0 w-1 h-full {{ $accent }}"></div>
                 <div class="pl-2">
                     <div class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ $label }}</div>
                     <div class="mt-2 text-2xl font-bold text-gray-900">{{ $value }}</div>
                 </div>
-            </div>
+            @if ($url)
+                </a>
+            @else
+                </div>
+            @endif
         @endforeach
     </div>
 

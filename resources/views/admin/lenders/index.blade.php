@@ -1,4 +1,7 @@
-<x-admin.layout title="Lenders" heading="Lenders" subheading="Capital providers and partners">
-    <x-admin.index-toolbar route="admin.lenders" label="New lender" />
+<x-admin.layout title="Capital Partners" heading="Capital Partners" subheading="Institutional and individual capital providers">
+    <div class="mb-4 flex flex-wrap items-center gap-3 text-sm">
+        <a href="{{ route('admin.capital-funding.index') }}" class="font-semibold text-amber-700 hover:underline">← {{ __('admin.capital_funding.title') }}</a>
+    </div>
+    <x-admin.index-toolbar route="admin.lenders" label="New capital partner" />
     @livewire('admin.lenders-table')
 </x-admin.layout>

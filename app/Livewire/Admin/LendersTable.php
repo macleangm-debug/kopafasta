@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Models\Lender;
+use App\Services\CapitalPartnerMetricsService;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -31,6 +32,7 @@ class LendersTable extends Component
     public function render()
     {
         $rows = Lender::query()
+            ->with('pools')
             ->when($this->search !== '', function ($q) {
                 $term = '%'.$this->search.'%';
                 $q->where(function ($q) use ($term) {
@@ -46,6 +48,8 @@ class LendersTable extends Component
 
         $statuses = ['active', 'inactive', 'suspended'];
 
-        return view('livewire.admin.lenders-table', compact('rows', 'statuses'));
+        $metricsService = app(CapitalPartnerMetricsService::class);
+
+        return view('livewire.admin.lenders-table', compact('rows', 'statuses', 'metricsService'));
     }
 }

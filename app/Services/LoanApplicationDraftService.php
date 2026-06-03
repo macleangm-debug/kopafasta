@@ -205,4 +205,69 @@ class LoanApplicationDraftService
             ? $query->first()
             : $query->whereIn('phase', ['details', 'application'])->orderByDesc('saved_at')->first();
     }
+
+    /** Human-readable wizard position for admin dashboards. */
+    public function progressLabel(LoanApplicationDraft $draft): string
+    {
+        if ($draft->phase === 'details') {
+            return __('admin.application_drafts.phase_details');
+        }
+
+        $customer = $draft->relationLoaded('customer') ? $draft->customer : $draft->customer()->first();
+        $product = $draft->relationLoaded('product') ? $draft->product : $draft->product()->first();
+
+        if (! $customer || ! $product) {
+            return __('admin.application_drafts.phase_application').' · '.__('admin.application_drafts.step_n', ['n' => (int) $draft->step + 1]);
+        }
+
+        $steps = collect(app(SmartLoanApplicationWizardService::class)->borrowerStepPlan($customer, $product))
+            ->reject(fn (array $step) => $step['key'] === 'product')
+            ->values();
+
+        $index = max(0, min((int) $draft->step, max(0, $steps->count() - 1)));
+        $label = $steps[$index]['label'] ?? __('admin.application_drafts.step_n', ['n' => $index + 1]);
+        $total = max(1, $steps->count());
+
+        return $label.' ('.($index + 1).'/'.$total.')';
+    }
+
+    /** @return array{label: string, tone: string} */
+    public function statusBadge(LoanApplicationDraft $draft): array
+    {
+        $product = $draft->product ?? LoanProduct::find($draft->loan_product_id);
+        $customer = $draft->customer ?? Customer::find($draft->customer_id);
+        $fee = ($draft->payload ?? [])['application_fee'] ?? null;
+        $feePending = $customer && $product && quoted_application_fee($customer, $product) > 0
+            && ! app(ApplicationFeePaymentService::class)->isFeeSatisfied($fee, quoted_application_fee($customer, $product));
+
+        if ($feePending) {
+            return ['label' => __('admin.application_drafts.status_fee_pending'), 'tone' => 'amber'];
+        }
+
+        if ($draft->phase === 'details') {
+            return ['label' => __('admin.application_drafts.status_browsing'), 'tone' => 'gray'];
+        }
+
+        $external = ($draft->payload ?? [])['external_guarantor'] ?? null;
+        if (is_array($external) && ! empty($external['invitation_url']) && empty($external['approved'])) {
+            return ['label' => __('admin.application_drafts.status_awaiting_guarantor'), 'tone' => 'purple'];
+        }
+
+        return ['label' => __('admin.application_drafts.status_in_progress'), 'tone' => 'blue'];
+    }
+
+    public function requestedAmount(LoanApplicationDraft $draft): ?float
+    {
+        $form = ($draft->payload ?? [])['form'] ?? [];
+        $amount = (float) ($form['requested_amount'] ?? 0);
+
+        return $amount > 0 ? $amount : null;
+    }
+
+    public function countIncomplete(): int
+    {
+        return LoanApplicationDraft::query()
+            ->whereIn('phase', ['details', 'application'])
+            ->count();
+    }
 }

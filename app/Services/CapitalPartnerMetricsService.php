@@ -6,9 +6,76 @@ use App\Models\FundingPool;
 use App\Models\Lender;
 use App\Models\Loan;
 use App\Models\LoanCapitalAllocation;
+use Illuminate\Support\Collection;
 
 class CapitalPartnerMetricsService
 {
+    /** @return array<string, float|int> */
+    public function platformSummary(): array
+    {
+        $invested = (float) FundingPool::query()->sum('amount_committed');
+        $utilized = (float) FundingPool::query()->sum('amount_deployed');
+
+        $sums = LoanCapitalAllocation::query()
+            ->selectRaw('COALESCE(SUM(outstanding_exposure), 0) as outstanding_exposure')
+            ->selectRaw('COALESCE(SUM(interest_earned_partner), 0) as interest_earned_partner')
+            ->selectRaw('COALESCE(SUM(interest_earned_company), 0) as interest_earned_company')
+            ->selectRaw('COUNT(DISTINCT CASE WHEN outstanding_exposure > 0 THEN loan_id END) as active_loans')
+            ->first();
+
+        $partnerInterest = (float) ($sums->interest_earned_partner ?? 0);
+        $companyInterest = (float) ($sums->interest_earned_company ?? 0);
+
+        return [
+            'capital_invested'        => $invested,
+            'capital_utilized'        => $utilized,
+            'capital_available'       => max(0, $invested - $utilized),
+            'outstanding_exposure'    => (float) ($sums->outstanding_exposure ?? 0),
+            'interest_earned_total'   => $partnerInterest + $companyInterest,
+            'interest_earned_partner' => $partnerInterest,
+            'interest_earned_company' => $companyInterest,
+            'active_partners'         => Lender::query()->where('status', 'active')->count(),
+            'active_loans'            => (int) ($sums->active_loans ?? 0),
+        ];
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function partnersOverview(): array
+    {
+        return Lender::query()
+            ->with('pools')
+            ->orderBy('name')
+            ->get()
+            ->map(function (Lender $lender) {
+                $metrics = $this->forLender($lender);
+
+                return [
+                    'id'                      => $lender->id,
+                    'code'                    => $lender->code,
+                    'name'                    => $lender->name,
+                    'status'                  => $lender->status,
+                    'capital_invested'        => $metrics['capital_invested'],
+                    'capital_utilized'        => $metrics['capital_utilized'],
+                    'capital_available'       => $metrics['capital_available'],
+                    'outstanding_exposure'    => $metrics['outstanding_exposure'],
+                    'interest_earned_partner' => $metrics['interest_earned_partner'],
+                    'interest_earned_company' => $metrics['interest_earned_company'],
+                    'active_loans'            => $metrics['active_loans'],
+                ];
+            })
+            ->all();
+    }
+
+    /** @return Collection<int, LoanCapitalAllocation> */
+    public function recentAllocations(int $limit = 20): Collection
+    {
+        return LoanCapitalAllocation::query()
+            ->with(['loan.customer', 'lender', 'pool'])
+            ->latest('id')
+            ->limit($limit)
+            ->get();
+    }
+
     /** @return array<string, float|int> */
     public function forLender(Lender $lender): array
     {

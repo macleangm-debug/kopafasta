@@ -4,7 +4,8 @@
     :subheading="$record->code">
 
     <div class="flex flex-wrap items-center gap-3 mb-6">
-        <a href="{{ route('admin.lenders.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-800">← Capital partners</a>
+        <a href="{{ route('admin.capital-funding.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-800">← {{ __('admin.capital_funding.title') }}</a>
+        <a href="{{ route('admin.lenders.index') }}" class="text-sm font-medium text-gray-500 hover:text-gray-700">All partners</a>
         <a href="{{ route('admin.lenders.edit', $record) }}" class="ml-auto text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-4 py-2 rounded-lg">Edit</a>
     </div>
 

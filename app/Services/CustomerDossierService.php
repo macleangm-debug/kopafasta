@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\DocumentType;
+use App\Models\LoanApplicationDraft;
 
 class CustomerDossierService
 {
@@ -63,7 +64,13 @@ class CustomerDossierService
             'face_verified'    => $this->face->isVerified($customer),
             'documents'        => $documents,
             'document_types'   => $documentTypes,
-            'applications'     => $customer->applications->sortByDesc('created_at')->values(),
+            'applications'          => $customer->applications->sortByDesc('created_at')->values(),
+            'application_drafts'  => LoanApplicationDraft::query()
+                ->where('customer_id', $customer->id)
+                ->whereIn('phase', ['details', 'application'])
+                ->with('product')
+                ->orderByDesc('saved_at')
+                ->get(),
             'loans'            => $customer->loans->sortByDesc('created_at')->values(),
             'activity_label'   => activity_type_label($customer->activity_type) ?? $customer->activity_type,
             'income_label'     => income_range_label($customer->income_range) ?? $customer->income_range,

@@ -34,6 +34,7 @@
         ['Applications', 'M9 12h6m-6 4h6M5 7h14M5 4h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z', [
             ['All Applications',      'admin.loan-applications.index'],
             ['New Applications',      'admin.loan-applications.new'],
+            ['Incomplete Applications', 'admin.loan-applications.incomplete'],
             ['Pending Documents',     'admin.loan-applications.pending-documents'],
             ['Under Review',          'admin.loan-applications.under-review'],
             ['Pre-Approvals',         'admin.loan-applications.pre-approvals'],
@@ -69,6 +70,7 @@
             ['Vendor Tasks',        'admin.vendors.tasks'],
         ], null],
         ['Capital', 'M19 7H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2zM3 11h18', [
+            ['Capital funding',      'admin.capital-funding.index'],
             ['Capital Partners',     'admin.lenders.index'],
             ['Funding Pools',      'admin.funding-pools.index'],
             ['Lender Investments', 'admin.lender-investments.index'],
