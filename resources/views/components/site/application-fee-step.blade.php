@@ -7,7 +7,7 @@
     'referralSettings' => [],
 ])
 
-<div x-show="currentStepKey === 'application_fee'" class="p-6 sm:p-8" x-effect="onApplicationFeeStep()">
+<div x-show="stepKey === 'application_fee'" class="p-6 sm:p-8" x-effect="onApplicationFeeStep()">
     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.application_fee.title') }}</h2>
     <p class="text-sm text-gray-600 mb-5">{{ __('borrower.apply.application_fee.subtitle') }}</p>
 

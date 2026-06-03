@@ -246,7 +246,7 @@
                     <input type="hidden" name="loan_product_id" :value="form.loan_product_id">
 
                 {{-- Quote --}}
-                <div x-show="currentStepKey === 'quote'" class="p-6 sm:p-8">
+                <div x-show="stepKey === 'quote'" class="p-6 sm:p-8">
                     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.quote.title') }}</h2>
                     <p class="text-sm text-gray-600 mb-5">{{ __('borrower.apply.quote.subtitle') }}</p>
                     <template x-if="current">
@@ -280,7 +280,7 @@
                 </div>
 
                 {{-- Asset lending tenure --}}
-                <div x-show="currentStepKey === 'asset_tenure'" class="p-6 sm:p-8">
+                <div x-show="stepKey === 'asset_tenure'" class="p-6 sm:p-8">
                     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.asset_tenure.title') }}</h2>
                     <p class="text-sm text-gray-600 mb-5">{{ __('borrower.apply.asset_tenure.subtitle') }}</p>
                     <template x-if="assetApplication">
@@ -305,7 +305,7 @@
                 </div>
 
                 {{-- Guarantor --}}
-                <div x-show="currentStepKey === 'guarantor'" class="p-6 sm:p-8">
+                <div x-show="stepKey === 'guarantor'" class="p-6 sm:p-8">
                     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.guarantor') }}</h2>
                     <p class="text-sm text-gray-600 mb-4">{{ __('borrower.apply.guarantor_required') }}</p>
                     <div x-show="Object.keys(guarantorErrors).length" x-cloak class="mb-4 rounded-xl bg-rose-50 ring-1 ring-rose-200 px-4 py-3 text-sm text-rose-800">
@@ -405,7 +405,7 @@
                                             :class="guarantorErrors.external_district ? 'ring-rose-400' : 'ring-gray-200'"
                                             class="w-full rounded-lg border-gray-300 ring-1 px-3 py-2.5 text-sm">
                                         <option value="">{{ __('borrower.profile.select_district') }}</option>
-                                        <template x-for="d in externalDistrictOptions" :key="d">
+                                        <template x-for="d in districtsForRegion()" :key="d">
                                             <option :value="d" x-text="d"></option>
                                         </template>
                                     </select>
@@ -459,7 +459,7 @@
                 />
 
                 {{-- Product-specific questions --}}
-                <div x-show="currentStepKey === 'product_questions'" class="p-6 sm:p-8">
+                <div x-show="stepKey === 'product_questions'" class="p-6 sm:p-8">
                     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.product_questions.title') }}</h2>
                     <p class="text-sm text-gray-600 mb-5">{{ __('borrower.apply.product_questions.subtitle') }}</p>
                     @foreach ($productQuestions as $code => $block)
@@ -489,7 +489,7 @@
                 </div>
 
                 {{-- Review --}}
-                <div x-show="currentStepKey === 'review'" class="p-6 sm:p-8">
+                <div x-show="stepKey === 'review'" class="p-6 sm:p-8">
                     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.review_step.title') }}</h2>
                     <p class="text-sm text-gray-600 mb-4">{{ __('borrower.apply.review_step.subtitle') }}</p>
                     @if (! ($applyRequirements['can_apply'] ?? false))
@@ -541,7 +541,7 @@
                 </div>
 
                 {{-- Signature --}}
-                <div x-show="currentStepKey === 'signature'" class="p-6 sm:p-8">
+                <div x-show="stepKey === 'signature'" class="p-6 sm:p-8">
                     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.signature_title') }}</h2>
                     <p class="text-sm text-gray-600 mb-5">{{ __('borrower.apply.signature_subtitle') }}</p>
                     <label class="flex items-start gap-3 text-sm text-gray-700 mb-5">
@@ -555,10 +555,10 @@
                     <button type="button" @click="step > 0 ? prev() : backToDetails()" class="text-sm font-medium text-gray-600 hover:text-gray-900" x-text="step > 0 ? i18n.back : i18n.backProducts"></button>
                     <div class="ml-auto flex items-center gap-3">
                         <a href="{{ route('site.borrower.dashboard') }}" class="text-sm text-gray-500 hover:text-gray-700">{{ __('borrower.apply.cancel') }}</a>
-                        <button type="button" @click="next()" :disabled="guarantorInvitePreparing" x-show="currentStepKey !== 'signature'" class="bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                        <button type="button" @click.prevent="next()" :disabled="guarantorInvitePreparing" x-show="stepKey !== 'signature'" class="bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
                             <span x-text="guarantorInvitePreparing ? @js(__('borrower.apply.application_fee.processing')) : @js(__('borrower.apply.continue'))"></span>
                         </button>
-                        <button type="submit" x-show="currentStepKey === 'signature'" class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.submit') }}</button>
+                        <button type="submit" x-show="stepKey === 'signature'" class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.submit') }}</button>
                     </div>
                 </div>
             </div>
@@ -625,6 +625,7 @@
                 readinessLoading: false,
                 steps: [],
                 step: 0,
+                stepKey: '',
                 current: null,
                 form: {
                     loan_product_id: null,
@@ -647,11 +648,11 @@
                 quote: { monthly: 0, weekly: 0, interest: 0, total: 0, fees: 0 },
                 review: { personal: '', residence: '', nok: '', activity: '', guarantor: '' },
 
-                get currentStepKey() {
-                    return this.steps[this.step]?.key ?? '';
+                syncStepKey() {
+                    this.stepKey = this.steps[this.step]?.key ?? '';
                 },
 
-                get externalDistrictOptions() {
+                districtsForRegion() {
                     const r = this.form.external_region;
                     return r && this.tanzaniaLocations[r] ? this.tanzaniaLocations[r] : [];
                 },
@@ -660,10 +661,15 @@
                     this.syncFeePaidState();
                     window.applyWizardSaveDraft = () => this.persistDraft(true);
                     this.$watch('phase', () => this.scheduleDraftSave());
-                    this.$watch('step', () => this.scheduleDraftSave());
+                    this.$watch('step', () => {
+                        this.scheduleDraftSave();
+                        this.syncStepKey();
+                    });
+                    this.$watch('steps', () => this.syncStepKey());
                     this.$watch('form.guarantor_mode', (mode) => {
                         if (mode === 'external') this.scheduleExternalInvitePrep();
                     });
+                    this.syncStepKey();
                     if (this.reservationMode && this.assetApplication) {
                         this.beginReservationApplication();
                         return;
@@ -715,9 +721,9 @@
                         || ['paid', 'waived', 'pending'].includes(this.applicationFeeState?.status || '');
                 },
 
-                feeGateRequiredForStep(stepKey) {
+                feeGateRequiredForStep(targetStepKey) {
                     const feeIdx = this.steps.findIndex(s => s.key === 'application_fee');
-                    const targetIdx = this.steps.findIndex(s => s.key === stepKey);
+                    const targetIdx = this.steps.findIndex(s => s.key === targetStepKey);
                     return feeIdx >= 0 && targetIdx > feeIdx && this.applicationFee > 0;
                 },
 
@@ -735,7 +741,7 @@
                 },
 
                 onApplicationFeeStep() {
-                    if (this.currentStepKey !== 'application_fee') return;
+                    if (this.stepKey !== 'application_fee') return;
                     this.autoWaiveApplicationFeeIfNeeded();
                 },
 
@@ -859,11 +865,13 @@
                         this.selectProduct(product, true);
                         this.step = Math.min(resumeStep, Math.max(0, this.steps.length - 1));
                         this.updateQuote();
+                        this.syncStepKey();
                         this.loadReadiness(product.id).then(() => {
                             this.rebuildSteps();
                             this.step = Math.min(resumeStep, Math.max(0, this.steps.length - 1));
                             this.updateQuote();
-                            if (this.currentStepKey === 'review') {
+                            this.syncStepKey();
+                            if (this.stepKey === 'review') {
                                 this.refreshReview(this.formRoot());
                             }
                         });
@@ -887,6 +895,7 @@
                     this.form.purpose = this.assetApplication.purpose || 'asset_financing';
                     this.phase = 'application';
                     this.step = 0;
+                    this.syncStepKey();
                     this.loadReadiness(p.id);
                 },
 
@@ -938,14 +947,18 @@
                             if (data.fees?.application !== undefined) {
                                 this.applicationFee = data.fees.application;
                             }
+                            this.syncStepKey();
                             return data;
                         })
                         .catch(() => { this.readiness = null; alert(this.i18n.alerts.loadProduct); })
                         .finally(() => { this.readinessLoading = false; });
                 },
 
-                startApplication() {
+                async startApplication() {
                     if (! this.current) return;
+                    if (! this.readiness && ! this.readinessLoading) {
+                        await this.loadReadiness(this.current.id);
+                    }
                     if (! this.steps.length) {
                         this.selectProduct(this.current, true);
                     }
@@ -956,6 +969,7 @@
                         return;
                     }
                     this.step = 0;
+                    this.syncStepKey();
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 },
 
@@ -984,6 +998,7 @@
                         this.steps = steps;
                     }
                     if (this.step >= this.steps.length) this.step = this.steps.length - 1;
+                    this.syncStepKey();
                 },
 
                 selectProduct(p, rebuild = true) {
@@ -1150,7 +1165,7 @@
                 },
 
                 async maybePrepareExternalInvite() {
-                    if (this.currentStepKey !== 'guarantor' || this.form.guarantor_mode !== 'external') return;
+                    if (this.stepKey !== 'guarantor' || this.form.guarantor_mode !== 'external') return;
                     if (this.guarantorInvitePreparing || this.externalGuarantor?.invitation_url) return;
                     this.syncGuarantorFormFromDom();
                     if (! this.isExternalGuarantorComplete()) return;
@@ -1195,11 +1210,11 @@
                 },
 
                 async validateStep() {
-                    if (this.currentStepKey === 'quote' && this.hasStep('quote') && ! this.form.purpose) {
+                    if (this.stepKey === 'quote' && this.hasStep('quote') && ! this.form.purpose) {
                         alert(this.i18n.alerts.selectPurpose);
                         return false;
                     }
-                    if (this.currentStepKey === 'guarantor' && this.hasStep('guarantor')) {
+                    if (this.stepKey === 'guarantor' && this.hasStep('guarantor')) {
                         this.syncGuarantorFormFromDom();
                         if (! this.form.guarantor_mode || this.form.guarantor_mode === 'none') {
                             alert(this.i18n.alerts.selectGuarantor);
@@ -1223,7 +1238,7 @@
                             return true;
                         }
                     }
-                    if (this.currentStepKey === 'application_fee') {
+                    if (this.stepKey === 'application_fee') {
                         if (this.applicationFee > 0) {
                             const st = this.applicationFeeState?.status || '';
                             if (! ['paid', 'waived', 'pending'].includes(st)) {
@@ -1301,7 +1316,7 @@
                     }
                     if (! await this.validateStep()) return;
 
-                    if (this.currentStepKey === 'guarantor' && this.form.guarantor_mode === 'external') {
+                    if (this.stepKey === 'guarantor' && this.form.guarantor_mode === 'external') {
                         if (! this.externalGuarantor?.invitation_url) {
                             const ok = await this.prepareExternalGuarantorInvite();
                             if (! ok) return;
@@ -1314,7 +1329,8 @@
                         return;
                     }
                     this.step++;
-                    if (this.steps[this.step]?.key === 'review') {
+                    this.syncStepKey();
+                    if (this.stepKey === 'review') {
                         this.refreshReview(this.formRoot());
                     }
                     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1323,12 +1339,16 @@
                 prev() {
                     if (this.step > 0) {
                         this.step--;
+                        this.syncStepKey();
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                     }
                 },
 
                 goto(i) {
-                    if (i <= this.step) this.step = i;
+                    if (i <= this.step) {
+                        this.step = i;
+                        this.syncStepKey();
+                    }
                 },
 
                 onSubmit(e) {
@@ -1368,5 +1388,9 @@
                 },
             };
         }
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('applyWizard', (config) => applyWizard(config));
+        });
     </script>
 </x-site.borrower-layout>
