@@ -1,20 +1,27 @@
+@php
+    $displayedRate = app(\App\Services\DisplayedRateService::class);
+    $tierService = app(\App\Services\LoanRateTierService::class);
+    $catalogProducts = $products->map(fn ($p) => [
+        'id' => $p->id,
+        'code' => $p->code,
+        'status' => $p->status,
+        'name' => $p->name,
+        'description' => $p->description,
+        'rate_label' => $displayedRate->formatBorrowerRateRange($p),
+        'rate' => (float) $displayedRate->displayedMonthlyRate($p),
+        'tiers' => $tierService->tiersForProduct($p),
+        'min' => (float) $p->min_amount,
+        'max' => (float) $p->max_amount,
+        'tmin' => (int) $p->tenure_min_months,
+        'tmax' => (int) $p->tenure_max_months,
+        'requires_collateral' => $p->requires_collateral,
+        'requires_guarantor' => $p->requires_guarantor,
+    ]);
+@endphp
 <x-site.layout title="Loan Products — Kopafasta">
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16"
-             x-data="loanProducts({ selectedId: {{ $products->first()?->id ?? 0 }}, products: @json($products->map(fn($p) => [
-                'id' => $p->id,
-" x-init="init()"
-                'code' => $p->code,
-                'status' => $p->status,
-                'name' => $p->name,
-                'description' => $p->description,
-                'rate' => (float) $p->interest_rate,
-                'min' => (float) $p->min_amount,
-                'max' => (float) $p->max_amount,
-                'tmin' => (int) $p->tenure_min_months,
-                'tmax' => (int) $p->tenure_max_months,
-                'requires_collateral' => $p->requires_collateral,
-                'requires_guarantor' => $p->requires_guarantor,
-            ])) }})">
+             x-data="loanProducts({ selectedId: {{ $products->first()?->id ?? 0 }}, products: @json($catalogProducts) })"
+             x-init="init()">
         <p class="text-xs uppercase tracking-widest text-amber-600 mb-2">Catalogue</p>
         <h1 class="text-3xl sm:text-4xl font-bold tracking-tight">All loan products</h1>
         <p class="mt-3 text-gray-600 max-w-2xl">Pick the one that matches your need. All applications go through the same fast, secure wizard.</p>
@@ -45,8 +52,8 @@
                                 <span x-text="product.tmin + '–' + product.tmax + ' mo'"></span>
                             </div>
                             <div class="flex items-center justify-between">
-                                <span>Rate</span>
-                                <span x-text="(product.rate * 100).toFixed(1) + '% / mo'"></span>
+                                <span>Monthly rate</span>
+                                <span x-text="product.rate_label + ' / mo'"></span>
                             </div>
                         </div>
 
@@ -85,8 +92,8 @@
                         <div class="mt-2 font-semibold" x-text="formatTzs(current.max)"></div>
                     </div>
                     <div class="rounded-3xl bg-gray-50 p-4">
-                        <div class="text-[11px] uppercase tracking-wider text-gray-500">Rate</div>
-                        <div class="mt-2 font-semibold" x-text="(current.rate * 100).toFixed(1) + '%' + ' / mo'"></div>
+                        <div class="text-[11px] uppercase tracking-wider text-gray-500">Monthly rate</div>
+                        <div class="mt-2 font-semibold" x-text="current.rate_label + ' / mo'"></div>
                     </div>
                 </div>
 
@@ -194,8 +201,17 @@
                 get current() {
                     return this.products.find(p => p.id === this.selected) || this.products[0] || {};
                 },
+                resolveMonthlyRate(product, amount) {
+                    if (! product) return 0;
+                    const tiers = product.tiers || [];
+                    if (tiers.length) {
+                        const tier = tiers.find(t => amount >= t.min && amount <= t.max);
+                        if (tier) return tier.rate;
+                    }
+                    return product.rate || 0;
+                },
                 get monthly() {
-                    const r = this.current.rate || 0;
+                    const r = this.resolveMonthlyRate(this.current, this.amount);
                     const n = this.tenure || 1;
                     return Math.round((this.amount / n) + (this.amount * r));
                 },

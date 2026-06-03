@@ -50,6 +50,8 @@
                 'code' => $p->code,
                 'name' => $p->name,
                 'rate' => (float) $displayedRateService->displayedMonthlyRate($p),
+                'rate_label' => $displayedRateService->formatBorrowerRateRange($p),
+                'tiers' => app(\App\Services\LoanRateTierService::class)->tiersForProduct($p),
                 'min' => (float) $p->min_amount,
                 'max' => (float) $p->max_amount,
                 'tmin' => (int) $p->tenure_min_months,
@@ -770,9 +772,20 @@
                     return Math.round(principal * rate * pow / (pow - 1));
                 },
 
+                resolveMonthlyRate(product, amount) {
+                    if (! product) return 0;
+                    const tiers = product.tiers || [];
+                    if (tiers.length) {
+                        const tier = tiers.find(t => amount >= t.min && amount <= t.max);
+                        if (tier) return tier.rate;
+                    }
+                    return product.rate || 0;
+                },
+
                 updateQuote() {
                     if (! this.current) return;
-                    const emi = this.estimateEmi(this.form.requested_amount, this.current.rate, this.form.requested_tenure_months);
+                    const rate = this.resolveMonthlyRate(this.current, this.form.requested_amount);
+                    const emi = this.estimateEmi(this.form.requested_amount, rate, this.form.requested_tenure_months);
                     const interest = Math.max(0, (emi * this.form.requested_tenure_months) - this.form.requested_amount);
                     this.quote = {
                         monthly: emi,

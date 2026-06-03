@@ -30,14 +30,28 @@
 
             {{-- Loan calculator --}}
             <div class="bg-white rounded-2xl shadow-2xl p-6 lg:p-8"
-                 x-data="loanCalc({{ $products->first()?->id ?? 0 }}, {{ json_encode($products->map(fn($p)=>['id'=>$p->id,'code'=>$p->code,'name'=>$p->name,'rate'=>(float)$p->interest_rate,'min'=>(float)$p->min_amount,'max'=>(float)$p->max_amount,'tmin'=>(int)$p->tenure_min_months,'tmax'=>(int)$p->tenure_max_months])) }})">
+                 x-data="loanCalc({{ $products->first()?->id ?? 0 }}, {{ json_encode($products->map(function ($p) {
+                    $rates = app(\App\Services\DisplayedRateService::class);
+                    return [
+                        'id' => $p->id,
+                        'code' => $p->code,
+                        'name' => $p->name,
+                        'rate' => (float) $rates->displayedMonthlyRate($p),
+                        'rate_label' => $rates->formatBorrowerRateRange($p),
+                        'tiers' => app(\App\Services\LoanRateTierService::class)->tiersForProduct($p),
+                        'min' => (float) $p->min_amount,
+                        'max' => (float) $p->max_amount,
+                        'tmin' => (int) $p->tenure_min_months,
+                        'tmax' => (int) $p->tenure_max_months,
+                    ];
+                 })) }})">
                 <p class="text-xs uppercase tracking-widest text-amber-600 mb-2">Live quote · TZS</p>
                 <h3 class="text-xl font-semibold mb-4">Loan calculator</h3>
 
                 <label class="block text-xs font-medium text-gray-600 mb-1">Product</label>
                 <select x-model="productId" @change="onProduct()" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm mb-4">
                     <template x-for="p in products" :key="p.id">
-                        <option :value="p.id" x-text="p.name + ' (' + (p.rate*100).toFixed(1) + '%)'"></option>
+                        <option :value="p.id" x-text="p.name + ' (' + (p.rate_label || ((p.rate*100).toFixed(1) + '%')) + ')'"></option>
                     </template>
                 </select>
 
@@ -108,7 +122,8 @@
                         <span class="inline-flex items-center rounded-full text-[11px] font-semibold px-2.5 py-1.5 text-white {{ $product->status === 'coming_soon' ? 'bg-slate-500' : 'bg-emerald-600' }}">
                             {{ ucfirst(str_replace('_', ' ', $product->status)) }}
                         </span>
-                        <span class="text-xs text-gray-500">from <span class="font-bold text-gray-900">{{ number_format($product->interest_rate * 100, 1) }}%</span> / mo</span>
+                        @php $homeRate = app(\App\Services\DisplayedRateService::class)->formatBorrowerRateRange($product); @endphp
+                        <span class="text-xs text-gray-500"><span class="font-bold text-gray-900">{{ $homeRate }}</span> / mo</span>
                     </div>
                     <h3 class="text-lg font-semibold group-hover:text-amber-700">{{ $product->name }}</h3>
                     <p class="mt-1 text-sm text-gray-600 line-clamp-2">{{ $product->description }}</p>
@@ -202,10 +217,18 @@
                     this.amount = Math.min(Math.max(this.amount, this.current.min), this.current.max) || this.current.min;
                     this.tenure = Math.min(Math.max(this.tenure, this.current.tmin), this.current.tmax) || this.current.tmin;
                 },
+                resolveMonthlyRate(product, amount) {
+                    if (! product) return 0;
+                    const tiers = product.tiers || [];
+                    if (tiers.length) {
+                        const tier = tiers.find(t => amount >= t.min && amount <= t.max);
+                        if (tier) return tier.rate;
+                    }
+                    return product.rate || 0;
+                },
                 get monthly() {
-                    const r = this.current.rate || 0;
+                    const r = this.resolveMonthlyRate(this.current, this.amount);
                     const n = this.tenure || 1;
-                    // simple interest monthly: principal/n + principal*r
                     return Math.round((this.amount / n) + (this.amount * r));
                 },
                 get total() { return this.monthly * this.tenure; },

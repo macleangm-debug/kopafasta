@@ -35,7 +35,7 @@ class LoanProductReadinessService
 
         $applicationFee = quoted_application_fee($customer);
         $origFee = ChargesFee::where('code', 'ORIG_FEE')->where('is_active', true)->first();
-        $rateBreakdown = app(DisplayedRateService::class)->breakdown($product);
+        $displayedRate = app(DisplayedRateService::class);
 
         $readinessEmoji = match (true) {
             $percent >= 90 => '🟢',
@@ -54,8 +54,8 @@ class LoanProductReadinessService
                 'tenure_min_months'  => (int) $product->tenure_min_months,
                 'tenure_max_months'  => (int) $product->tenure_max_months,
                 'interest_rate'      => (float) $product->interest_rate,
-                'displayed_monthly_rate' => $rateBreakdown['displayed_monthly_rate'],
-                'rate_breakdown'     => $rateBreakdown,
+                'displayed_monthly_rate' => $displayedRate->displayedMonthlyRate($product),
+                'displayed_monthly_rate_label' => $displayedRate->formatBorrowerRateRange($product),
                 'requires_guarantor' => (bool) $product->requires_guarantor,
                 'repayment_frequency'=> $product->repayment_frequency ?? 'weekly',
             ],

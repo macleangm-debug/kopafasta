@@ -109,7 +109,7 @@ if (! function_exists('borrower_catalogue_products')) {
     {
         $order = config('loan_products.display_order', ['IL', 'GL', 'AL', 'FC', 'KB', 'BP', 'EL', 'EM', 'WL', 'AB']);
 
-        return \App\Models\LoanProduct::where('is_active', true)->get()
+        return \App\Models\LoanProduct::with('rateTiers')->where('is_active', true)->get()
             ->sortBy(fn (\App\Models\LoanProduct $p) => ($i = array_search($p->code, $order, true)) === false ? 99 : $i)
             ->values();
     }

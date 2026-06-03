@@ -53,11 +53,7 @@
     <tr><td class="label">{{ $snapshot['installment_label'] ?? 'Instalment' }}</td><td class="value">TZS {{ number_format($snapshot['estimated_emi']) }}</td></tr>
     <tr><td class="label">Interest (total)</td><td class="value">TZS {{ number_format($snapshot['total_interest'] ?? 0) }}</td></tr>
     <tr><td class="label">Fees</td><td class="value">TZS {{ number_format($snapshot['total_fees'] ?? 0) }}</td></tr>
-    <tr><td class="label">Interest rate (displayed)</td><td class="value">{{ number_format(($snapshot['displayed_monthly_rate'] ?? $snapshot['interest_rate'] ?? 0) * 100, 2) }}% per month (reducing balance)</td></tr>
-    @if (! empty($snapshot['rate_breakdown']))
-    <tr><td class="label">BOT regulated interest</td><td class="value">{{ number_format(($snapshot['rate_breakdown']['bot_regulated_rate'] ?? 0) * 100, 2) }}% / month</td></tr>
-    <tr><td class="label">Internal fees</td><td class="value">{{ number_format(($snapshot['rate_breakdown']['internal_fee_rate'] ?? 0) * 100, 2) }}% / month (processing, service, administration)</td></tr>
-    @endif
+    <tr><td class="label">Monthly rate</td><td class="value">{{ number_format(($snapshot['displayed_monthly_rate'] ?? $snapshot['interest_rate'] ?? 0) * 100, 2) }}% per month (reducing balance)</td></tr>
     <tr><td class="label">Purpose</td><td class="value">{{ $snapshot['purpose'] ?: '—' }}</td></tr>
 </table>
 

@@ -29,10 +29,11 @@
             </div>
         </div>
 
+        @php $monthlyRateLabel = app(\App\Services\DisplayedRateService::class)->formatBorrowerRateRange($product); @endphp
         <div class="mt-10 grid sm:grid-cols-3 gap-4">
             <div class="rounded-2xl border border-gray-200 p-5">
-                <div class="text-[11px] uppercase tracking-wider text-gray-500">Interest</div>
-                <div class="text-2xl font-bold mt-1">{{ number_format($product->interest_rate * 100, 1) }}<span class="text-base font-medium text-gray-500">% / mo</span></div>
+                <div class="text-[11px] uppercase tracking-wider text-gray-500">Monthly rate</div>
+                <div class="text-2xl font-bold mt-1">{{ $monthlyRateLabel }}<span class="text-base font-medium text-gray-500"> / mo</span></div>
             </div>
             <div class="rounded-2xl border border-gray-200 p-5">
                 <div class="text-[11px] uppercase tracking-wider text-gray-500">Amount</div>

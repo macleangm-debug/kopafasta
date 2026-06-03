@@ -2,7 +2,8 @@
 
 @php
     $theme = loan_product_theme($product->code);
-    $displayedRate = app(\App\Services\DisplayedRateService::class)->displayedMonthlyRate($product);
+    $rateService = app(\App\Services\DisplayedRateService::class);
+    $rateLabel = $rateService->formatBorrowerRateRange($product);
     $themeClasses = match ($theme['theme'] ?? 'slate') {
         'emerald' => 'from-emerald-500 to-emerald-700 text-white',
         'indigo'  => 'from-indigo-500 to-indigo-700 text-white',
@@ -31,13 +32,26 @@
     <button type="button" @click="open = open === {{ $product->id }} ? null : {{ $product->id }}"
             class="text-left p-5 flex-1 hover:bg-gray-50 transition">
         <p class="text-sm text-gray-600 line-clamp-3">{{ $product->description ?: 'Collateral-driven lending product.' }}</p>
-        <p class="text-sm font-semibold text-gray-900 mt-3">{{ format_money($product->min_amount) }} – {{ format_money($product->max_amount, false) }}</p>
-        <p class="text-xs text-gray-500 mt-1">{{ __('borrower.apply.details.monthly_rate') }} {{ number_format($displayedRate * 100, 1) }}% · {{ $product->tenure_min_months }}–{{ $product->tenure_max_months }} {{ __('borrower.apply.details.months') }}</p>
+        <dl class="mt-4 space-y-2 text-sm">
+            <div>
+                <dt class="text-xs text-gray-500">{{ __('borrower.apply.details.monthly_rate') }}</dt>
+                <dd class="font-semibold text-gray-900">{{ $rateLabel }}</dd>
+            </div>
+            <div>
+                <dt class="text-xs text-gray-500">Maximum amount</dt>
+                <dd class="font-semibold text-gray-900">{{ format_money($product->max_amount, false) }}</dd>
+            </div>
+            <div>
+                <dt class="text-xs text-gray-500">Maximum tenure</dt>
+                <dd class="font-semibold text-gray-900">{{ $product->tenure_max_months }} {{ __('borrower.apply.details.months') }}</dd>
+            </div>
+        </dl>
     </button>
     <div x-show="open === {{ $product->id }}" x-transition x-cloak class="border-t border-gray-100 px-5 pb-5">
         <dl class="grid gap-2 text-sm pt-4">
-            <div><dt class="text-gray-500">{{ __('borrower.apply.details.monthly_rate') }}</dt><dd class="font-medium">{{ number_format($displayedRate * 100, 2) }}% {{ __('borrower.apply.browse.per_month') }}</dd></div>
-            <div><dt class="text-gray-500">Tenure</dt><dd class="font-medium">{{ $product->tenure_min_months }}–{{ $product->tenure_max_months }} months</dd></div>
+            <div><dt class="text-gray-500">{{ __('borrower.apply.details.monthly_rate') }}</dt><dd class="font-medium">{{ $rateLabel }} {{ __('borrower.apply.browse.per_month') }}</dd></div>
+            <div><dt class="text-gray-500">Maximum amount</dt><dd class="font-medium">{{ format_money($product->max_amount, false) }}</dd></div>
+            <div><dt class="text-gray-500">Maximum tenure</dt><dd class="font-medium">{{ $product->tenure_max_months }} {{ __('borrower.apply.details.months') }}</dd></div>
         </dl>
         <a href="{{ route('site.borrower.apply', ['product' => $product->id]) }}"
            class="mt-4 inline-flex w-full justify-center bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">

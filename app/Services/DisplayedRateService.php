@@ -3,11 +3,128 @@
 namespace App\Services;
 
 use App\Models\LoanProduct;
+use App\Models\LoanProductRateTier;
 use App\Models\Setting;
+use App\Support\RatePercent;
 
 class DisplayedRateService
 {
     public const BOT_MAX_MONTHLY_RATE = 0.035;
+
+    public function tierRateAt(LoanProduct $product, float $amount): ?float
+    {
+        $tier = $this->findTier($product, $amount);
+
+        return $tier ? (float) $tier->monthly_rate : null;
+    }
+
+    /**
+     * Total monthly rate shown to borrowers (tier total, or BOT + fee components).
+     */
+    public function displayedMonthlyRate(LoanProduct $product, ?float $principal = null): float
+    {
+        $amount = $principal ?? (float) $product->min_amount;
+        $tierRate = $this->tierRateAt($product, $amount);
+
+        if ($tierRate !== null) {
+            return $tierRate;
+        }
+
+        return $this->productLevelMonthlyRate($product);
+    }
+
+    public function productLevelMonthlyRate(LoanProduct $product): float
+    {
+        return $this->feeStackBreakdown($product)['displayed_monthly_rate'];
+    }
+
+    /**
+     * @return array{min: float, max: float}
+     */
+    public function borrowerRateRange(LoanProduct $product): array
+    {
+        $tiers = $this->loadTiers($product);
+
+        if ($tiers->isNotEmpty()) {
+            $rates = $tiers->pluck('monthly_rate')->map(fn ($r) => (float) $r);
+
+            return ['min' => $rates->min(), 'max' => $rates->max()];
+        }
+
+        $rate = $this->productLevelMonthlyRate($product);
+
+        return ['min' => $rate, 'max' => $rate];
+    }
+
+    public function formatBorrowerRateRange(LoanProduct $product): string
+    {
+        $range = $this->borrowerRateRange($product);
+
+        return RatePercent::formatRange($range['min'], $range['max']);
+    }
+
+    /**
+     * Admin-only: BOT cap + internal fee components (does not use tier bands as BOT base).
+     *
+     * @return array{
+     *     bot_regulated_rate: float,
+     *     processing_fee_rate: float,
+     *     service_fee_rate: float,
+     *     administration_fee_rate: float,
+     *     internal_fee_rate: float,
+     *     displayed_monthly_rate: float,
+     *     uses_tiers: bool,
+     *     tier_borrower_rate_at_min: float|null,
+     *     tier_borrower_range: string|null
+     * }
+     */
+    public function breakdown(LoanProduct $product, ?float $principal = null): array
+    {
+        $stack = $this->feeStackBreakdown($product);
+        $amount = $principal ?? (float) $product->min_amount;
+        $tiers = $this->loadTiers($product);
+
+        if ($tiers->isEmpty()) {
+            return array_merge($stack, [
+                'uses_tiers'              => false,
+                'tier_borrower_rate_at_min' => null,
+                'tier_borrower_range'     => null,
+            ]);
+        }
+
+        $range = $this->borrowerRateRange($product);
+
+        return array_merge($stack, [
+            'uses_tiers'                => true,
+            'tier_borrower_rate_at_min' => $this->displayedMonthlyRate($product, $amount),
+            'tier_borrower_range'       => RatePercent::formatRange($range['min'], $range['max']),
+            'displayed_monthly_rate'    => $this->displayedMonthlyRate($product, $amount),
+        ]);
+    }
+
+    public function formatPercent(float $rate): string
+    {
+        return RatePercent::formatOne($rate);
+    }
+
+    /** @return list<string> */
+    public function disclosureLines(LoanProduct $product, ?float $principal = null): array
+    {
+        $parts = $this->breakdown($product, $principal);
+
+        if ($parts['uses_tiers']) {
+            return [
+                'Tiered monthly rate to borrower: '.$parts['tier_borrower_range'].' per month (by approved amount)',
+                'At minimum amount: '.$this->formatPercent($parts['tier_borrower_rate_at_min'] ?? $parts['displayed_monthly_rate']).' per month',
+            ];
+        }
+
+        return [
+            'BOT regulated interest: '.$this->formatPercent($parts['bot_regulated_rate']).' per month (max '.$this->formatPercent(self::BOT_MAX_MONTHLY_RATE).')',
+            'Internal fees: '.$this->formatPercent($parts['internal_fee_rate']).' per month (processing + risk + administration)',
+            'Monthly rate to borrower: '.$this->formatPercent($parts['displayed_monthly_rate']).' per month',
+        ];
+    }
 
     /**
      * @return array{
@@ -19,17 +136,12 @@ class DisplayedRateService
      *     displayed_monthly_rate: float
      * }
      */
-    public function breakdown(LoanProduct $product, ?float $principal = null): array
+    private function feeStackBreakdown(LoanProduct $product): array
     {
         $botCap = (float) (Setting::group('loan')['bot_max_monthly_rate'] ?? self::BOT_MAX_MONTHLY_RATE);
         $botCap = min(max($botCap, 0), self::BOT_MAX_MONTHLY_RATE);
 
-        $baseRate = app(LoanRateTierService::class)->resolveRate(
-            $product,
-            $principal ?? (float) $product->min_amount
-        );
-
-        $bot = (float) ($product->bot_regulated_rate ?? $baseRate);
+        $bot = (float) ($product->bot_regulated_rate ?? $product->interest_rate ?? 0);
         $bot = min(max($bot, 0), $botCap);
 
         $processing = max(0, (float) ($product->processing_fee_rate ?? 0));
@@ -43,29 +155,35 @@ class DisplayedRateService
             'service_fee_rate'        => $service,
             'administration_fee_rate' => $administration,
             'internal_fee_rate'       => $internal,
-            'displayed_monthly_rate'    => round($bot + $internal, 4),
+            'displayed_monthly_rate'  => round($bot + $internal, 4),
         ];
     }
 
-    public function displayedMonthlyRate(LoanProduct $product, ?float $principal = null): float
+    private function findTier(LoanProduct $product, float $amount): ?LoanProductRateTier
     {
-        return $this->breakdown($product, $principal)['displayed_monthly_rate'];
+        if (! $product->id) {
+            return null;
+        }
+
+        return LoanProductRateTier::query()
+            ->where('loan_product_id', $product->id)
+            ->where('min_amount', '<=', $amount)
+            ->where('max_amount', '>=', $amount)
+            ->orderBy('sort_order')
+            ->first();
     }
 
-    public function formatPercent(float $rate): string
+    /** @return \Illuminate\Support\Collection<int, LoanProductRateTier> */
+    private function loadTiers(LoanProduct $product): \Illuminate\Support\Collection
     {
-        return number_format($rate * 100, 2).'%';
-    }
+        if ($product->relationLoaded('rateTiers')) {
+            return $product->rateTiers->sortBy('sort_order')->values();
+        }
 
-    /** @return list<string> */
-    public function disclosureLines(LoanProduct $product, ?float $principal = null): array
-    {
-        $parts = $this->breakdown($product, $principal);
+        if (! $product->id) {
+            return collect();
+        }
 
-        return [
-            'BOT regulated interest: '.$this->formatPercent($parts['bot_regulated_rate']).' per month (max '. $this->formatPercent(self::BOT_MAX_MONTHLY_RATE).')',
-            'Internal fees: '.$this->formatPercent($parts['internal_fee_rate']).' per month (processing + service + administration)',
-            'Displayed rate to borrower: '.$this->formatPercent($parts['displayed_monthly_rate']).' per month',
-        ];
+        return $product->rateTiers()->orderBy('sort_order')->get();
     }
 }

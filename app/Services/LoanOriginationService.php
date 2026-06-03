@@ -31,8 +31,9 @@ class LoanOriginationService
             ]);
         }
 
-        $amount = (float) ($application->recommended_amount ?: $application->requested_amount);
+        $amount = (float) ($application->approved_amount ?: $application->recommended_amount ?: $application->requested_amount);
         $tenure = (int) ($application->requested_tenure_months ?: $application->product->tenure_min_months);
+        $monthlyRate = app(DisplayedRateService::class)->displayedMonthlyRate($application->product, $amount);
 
         return Loan::create([
             'loan_application_id' => $application->id,
@@ -42,7 +43,7 @@ class LoanOriginationService
             'principal_amount'      => $amount,
             'approved_amount'       => $amount,
             'outstanding_balance'   => $amount,
-            'interest_rate'         => (float) $application->product->interest_rate,
+            'interest_rate'         => $monthlyRate,
             'tenure_months'         => max(1, $tenure),
             'status'                => 'pending',
         ]);

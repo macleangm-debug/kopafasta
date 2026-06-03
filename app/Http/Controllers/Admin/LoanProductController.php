@@ -6,6 +6,8 @@ use App\Models\DocumentTemplate;
 use App\Models\LoanProduct;
 use App\Models\LoanProductRequirement;
 use App\Services\AuditService;
+use App\Services\LoanRateTierTemplateService;
+use App\Support\RatePercent;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,7 +30,7 @@ class LoanProductController extends ResourceController
                 : collect(),
             'rateTiers' => $record
                 ? $record->rateTiers()->orderBy('sort_order')->get()
-                : collect(),
+                : collect(app(LoanRateTierTemplateService::class)->previewRows(old('code'))),
             'documentTemplates' => DocumentTemplate::query()
                 ->where('is_active', true)
                 ->orderBy('name')
@@ -43,11 +45,11 @@ class LoanProductController extends ResourceController
             'name'                => ['required', 'string', 'max:150'],
             'category'            => ['nullable', 'string', 'max:50'],
             'description'         => ['nullable', 'string', 'max:1000'],
-            'interest_rate'       => ['required', 'numeric', 'min:0', 'max:1'],
-            'bot_regulated_rate'    => ['nullable', 'numeric', 'min:0', 'max:0.035'],
-            'processing_fee_rate' => ['nullable', 'numeric', 'min:0', 'max:1'],
-            'service_fee_rate'    => ['nullable', 'numeric', 'min:0', 'max:1'],
-            'administration_fee_rate' => ['nullable', 'numeric', 'min:0', 'max:1'],
+            'interest_rate'       => ['required', 'numeric', 'min:0', 'max:100'],
+            'bot_regulated_rate'    => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'processing_fee_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'service_fee_rate'    => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'administration_fee_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'offer_letter_template_id' => ['nullable', 'integer', 'exists:document_templates,id'],
             'loan_contract_template_id' => ['nullable', 'integer', 'exists:document_templates,id'],
             'guarantor_agreement_template_id' => ['nullable', 'integer', 'exists:document_templates,id'],
@@ -74,7 +76,7 @@ class LoanProductController extends ResourceController
             'rate_tiers' => ['nullable', 'array'],
             'rate_tiers.*.min_amount' => ['nullable', 'numeric', 'min:0'],
             'rate_tiers.*.max_amount' => ['nullable', 'numeric', 'min:0'],
-            'rate_tiers.*.monthly_rate' => ['nullable', 'numeric', 'min:0', 'max:1'],
+            'rate_tiers.*.monthly_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ];
     }
 
@@ -98,8 +100,24 @@ class LoanProductController extends ResourceController
             }
         }
 
+        foreach ([
+            'interest_rate',
+            'bot_regulated_rate',
+            'processing_fee_rate',
+            'service_fee_rate',
+            'administration_fee_rate',
+        ] as $rateField) {
+            if (array_key_exists($rateField, $data) && $data[$rateField] !== null && $data[$rateField] !== '') {
+                $data[$rateField] = RatePercent::toDecimal($data[$rateField]);
+            }
+        }
+
         foreach (['processing_fee_rate', 'service_fee_rate', 'administration_fee_rate'] as $feeField) {
             $data[$feeField] = (float) ($data[$feeField] ?? 0);
+        }
+
+        if (isset($data['bot_regulated_rate']) && $data['bot_regulated_rate'] !== null) {
+            $data['bot_regulated_rate'] = min((float) $data['bot_regulated_rate'], 0.035);
         }
 
         return $data;
@@ -123,7 +141,7 @@ class LoanProductController extends ResourceController
         $record = LoanProduct::create($this->transform($validated));
         $this->syncRequirements($record, $requirements);
         $this->syncPostApprovalFees($record, $postApprovalFees);
-        $this->syncRateTiers($record, $rateTiers);
+        $this->syncRateTiers($record, $rateTiers, applyDefaultsIfEmpty: true);
         $this->auditAdminCreated($record);
 
         return redirect()
@@ -222,22 +240,29 @@ class LoanProductController extends ResourceController
     }
 
     /** @param list<array<string, mixed>> $rows */
-    protected function syncRateTiers(LoanProduct $product, array $rows): void
+    protected function syncRateTiers(LoanProduct $product, array $rows, bool $applyDefaultsIfEmpty = false): void
     {
         $product->rateTiers()->delete();
 
         $order = 0;
+        $created = 0;
+
         foreach ($rows as $row) {
-            if (! isset($row['min_amount'], $row['max_amount'], $row['monthly_rate'])) {
+            if (! isset($row['min_amount'], $row['max_amount']) || blank($row['monthly_rate'] ?? null)) {
                 continue;
             }
 
             $product->rateTiers()->create([
                 'min_amount'   => (float) $row['min_amount'],
                 'max_amount'   => (float) $row['max_amount'],
-                'monthly_rate' => (float) $row['monthly_rate'],
+                'monthly_rate' => RatePercent::toDecimal($row['monthly_rate']),
                 'sort_order'   => $order++,
             ]);
+            $created++;
+        }
+
+        if ($created === 0 && $applyDefaultsIfEmpty) {
+            app(LoanRateTierTemplateService::class)->applyDefaults($product);
         }
     }
 }

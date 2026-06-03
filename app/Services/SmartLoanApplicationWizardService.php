@@ -96,7 +96,7 @@ class SmartLoanApplicationWizardService
     /** @return array{monthly_installment: float, weekly_installment: float, interest_total: float, fees: float, total_repayment: float} */
     public function loanQuote(LoanProduct $product, float $amount, int $tenureMonths): array
     {
-        $rate = (float) $product->interest_rate;
+        $rate = app(DisplayedRateService::class)->displayedMonthlyRate($product, $amount);
         $emi = $this->estimateEmi($amount, $rate, $tenureMonths);
         $interestTotal = max(0, ($emi * $tenureMonths) - $amount);
         $fees = (int) (optional(ChargesFee::where('code', 'APP_FEE')->where('is_active', true)->first())->amount ?? 0);

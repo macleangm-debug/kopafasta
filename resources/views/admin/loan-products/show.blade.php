@@ -10,7 +10,7 @@
         'Category'            => display_label((string) $record->category, 'product_category'),
         'Base interest rate'  => number_format((float) $record->interest_rate * 100, 2).' %',
         'BOT regulated rate'  => number_format((float) (app(\App\Services\DisplayedRateService::class)->breakdown($record)['bot_regulated_rate']) * 100, 2).' %',
-        'Displayed rate'      => number_format((float) app(\App\Services\DisplayedRateService::class)->displayedMonthlyRate($record) * 100, 2).' % / month',
+        'Monthly rate (borrower)' => app(\App\Services\DisplayedRateService::class)->formatBorrowerRateRange($record).' / month',
         'Tenure (months)'     => $record->tenure_min_months.' – '.$record->tenure_max_months,
         'Repayment cadence'   => ucfirst($record->repayment_cadence ?? 'weekly'),
         'Min amount'          => 'TZS '.number_format((float) $record->min_amount),
