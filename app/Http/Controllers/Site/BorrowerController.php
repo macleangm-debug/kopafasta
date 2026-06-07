@@ -146,13 +146,7 @@ class BorrowerController extends Controller
      |---------------------------------------------------------------------*/
     public function applications(Request $request): RedirectResponse
     {
-        $params = ['tab' => 'applications'];
-        $view = $request->query('view');
-        if (in_array($view, ['cards', 'table'], true)) {
-            $params['view'] = $view;
-        }
-
-        return redirect()->route('site.borrower.loans', $params);
+        return redirect()->route('site.borrower.loans');
     }
 
     /**
@@ -164,7 +158,12 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         abort_if($application->customer_id !== $customer->id, 404);
 
-        $application->load('product.requirements', 'documentRequests.uploads');
+        $application->load('product.requirements', 'documentRequests.uploads', 'customerGuarantors.guarantorCustomer');
+
+        $guarantorInvitations = \App\Models\GuarantorInvitation::query()
+            ->where('loan_application_id', $application->id)
+            ->latest()
+            ->get();
 
         // Documents already uploaded for THIS application
         $uploads = CustomerDocument::where('customer_id', $customer->id)
@@ -182,7 +181,7 @@ class BorrowerController extends Controller
         $documentRequests = $application->documentRequests()->with('uploads')->latest()->get();
 
         return view('site.borrower.application', compact(
-            'customer','application','requirements','uploads','requiredCount','satisfiedCount','documentRequests'
+            'customer','application','requirements','uploads','requiredCount','satisfiedCount','documentRequests','guarantorInvitations'
         ));
     }
 
@@ -285,21 +284,9 @@ class BorrowerController extends Controller
     public function loans(Request $request): View
     {
         $customer = $this->customer();
-        $activeTab = $request->query('tab', 'applications');
-        $validTabs = ['applications', 'active', 'guarantor-requests', 'guaranteed'];
-        if (! in_array($activeTab, $validTabs, true)) {
-            $activeTab = 'applications';
-        }
 
         $applicationsDashboard = app(\App\Services\BorrowerApplicationsDashboardService::class);
         $applicationRows = $applicationsDashboard->applicationsForCustomer($customer);
-        $resumableDrafts = $applicationsDashboard->resumableDrafts($customer);
-
-        $applications = LoanApplication::with('product')
-            ->where('customer_id', $customer->id)
-            ->whereNotIn('status', ['draft'])
-            ->latest()
-            ->get();
 
         $loans = Loan::with('product')
             ->where('customer_id', $customer->id)
@@ -307,42 +294,10 @@ class BorrowerController extends Controller
             ->latest()
             ->get();
 
-        $guaranteedLinks = CustomerGuarantor::query()
-            ->with(['application.product', 'application.customer', 'application.loan'])
-            ->where('status', 'approved')
-            ->whereIn('id', \App\Models\GuarantorInvitation::query()
-                ->where('guarantor_customer_id', $customer->id)
-                ->whereIn('status', ['accepted', 'approved'])
-                ->pluck('customer_guarantor_id'))
-            ->latest()
-            ->get();
-
-        $pendingGuarantorRequests = \App\Models\GuarantorInvitation::with(['borrower', 'application.product', 'customerGuarantor'])
-            ->where('guarantor_customer_id', $customer->id)
-            ->where('status', 'pending')
-            ->latest()
-            ->get();
-
-        $user = Auth::user();
-        $viewMode = $request->query('view');
-        if (in_array($viewMode, ['cards', 'table'], true)) {
-            $prefs = $user->preferences ?? [];
-            $prefs['applications_view'] = $viewMode;
-            $user->update(['preferences' => $prefs]);
-        } else {
-            $viewMode = $user->preferences['applications_view'] ?? 'cards';
-        }
-
         return view('site.borrower.loans', compact(
             'customer',
-            'activeTab',
-            'applications',
             'applicationRows',
-            'viewMode',
             'loans',
-            'guaranteedLinks',
-            'pendingGuarantorRequests',
-            'resumableDrafts',
         ));
     }
 

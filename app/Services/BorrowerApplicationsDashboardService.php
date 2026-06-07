@@ -133,17 +133,15 @@ class BorrowerApplicationsDashboardService
         }
 
         $assessment = $this->readiness->assess($customer, $product);
-        $milestones = [];
+        $profileRequirements = collect($assessment['requirements'] ?? [])
+            ->reject(fn (array $requirement) => ! empty($requirement['application_step']))
+            ->values();
+        $profileComplete = $profileRequirements->every(fn (array $requirement) => ! empty($requirement['complete']));
 
-        foreach ($assessment['requirements'] as $requirement) {
-            if (! empty($requirement['application_step'])) {
-                continue;
-            }
-            $milestones[] = [
-                'label'    => (string) $requirement['label'],
-                'complete' => (bool) $requirement['complete'],
-            ];
-        }
+        $milestones = [[
+            'label'    => __('borrower.applications_list.profile_completion'),
+            'complete' => $profileComplete,
+        ]];
 
         $wizardSteps = collect($this->wizard->borrowerStepPlan($customer, $product))
             ->reject(fn (array $step) => $step['key'] === 'product')

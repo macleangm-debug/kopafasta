@@ -83,7 +83,7 @@
     <div class="mb-8 bg-white rounded-2xl border border-gray-200 overflow-hidden">
         <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 class="font-semibold">{{ __('borrower.active_applications') }}</h2>
-            <a href="{{ route('site.borrower.loans', ['tab' => 'applications']) }}" class="text-xs text-amber-600 hover:underline">{{ __('borrower.dashboard.view_all') }}</a>
+            <a href="{{ route('site.borrower.loans') }}" class="text-xs text-amber-600 hover:underline">{{ __('borrower.dashboard.view_all') }}</a>
         </div>
         @if (($activeApplications ?? collect())->isEmpty())
             <div class="p-8 text-center text-sm text-gray-500">

@@ -11,7 +11,7 @@
     @endphp
 
     <div class="mb-4">
-        <a href="{{ route('site.borrower.loans', ['tab' => 'applications']) }}" class="text-xs text-gray-500 hover:text-gray-700">{{ __('borrower.application.back') }}</a>
+        <a href="{{ route('site.borrower.loans') }}" class="text-xs text-gray-500 hover:text-gray-700">{{ __('borrower.application.back') }}</a>
     </div>
 
     <div class="flex items-start justify-between gap-3 mb-6 flex-wrap">
@@ -45,6 +45,57 @@
             <p class="text-lg font-bold">{{ optional($application->submitted_at)->format('d M Y') ?? '—' }}</p>
         </div>
     </div>
+
+    @if (($application->product?->requires_guarantor ?? false) && (($guarantorInvitations ?? collect())->isNotEmpty() || ($application->customerGuarantors ?? collect())->isNotEmpty()))
+        <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-6">
+            <div class="px-5 py-4 border-b border-gray-200">
+                <h2 class="font-semibold">{{ __('borrower.application.guarantor_section') }}</h2>
+                <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.application.guarantor_section_hint') }}</p>
+            </div>
+            <ul class="divide-y divide-gray-100">
+                @foreach ($guarantorInvitations as $invite)
+                    @php
+                        $gBadge = match ($invite->status) {
+                            'approved', 'accepted' => 'bg-emerald-100 text-emerald-700',
+                            'declined', 'rejected' => 'bg-red-100 text-red-700',
+                            default => 'bg-amber-100 text-amber-700',
+                        };
+                        $gLabel = match ($invite->status) {
+                            'approved', 'accepted' => __('borrower.application.guarantor_accepted'),
+                            'declined', 'rejected' => __('borrower.application.guarantor_declined'),
+                            default => __('borrower.application.guarantor_pending'),
+                        };
+                    @endphp
+                    <li class="px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">{{ $invite->invitee_name ?? __('borrower.application.guarantor_external') }}</p>
+                            <p class="text-xs text-gray-500">{{ ucfirst($invite->type ?? 'guarantor') }} · {{ $invite->contact }}</p>
+                        </div>
+                        <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $gBadge }}">{{ $gLabel }}</span>
+                    </li>
+                @endforeach
+                @foreach ($application->customerGuarantors as $link)
+                    @if ($guarantorInvitations->contains('customer_guarantor_id', $link->id))
+                        @continue
+                    @endif
+                    @php
+                        $gBadge = match ($link->status) {
+                            'approved' => 'bg-emerald-100 text-emerald-700',
+                            'declined', 'rejected' => 'bg-red-100 text-red-700',
+                            default => 'bg-amber-100 text-amber-700',
+                        };
+                    @endphp
+                    <li class="px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">{{ $link->guarantorCustomer?->full_name ?? __('borrower.application.guarantor_member') }}</p>
+                            <p class="text-xs text-gray-500">{{ __('borrower.application.guarantor_internal') }}</p>
+                        </div>
+                        <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $gBadge }}">{{ ucfirst($link->status) }}</span>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
     @php
         $offer = \App\Models\LoanAgreement::where('loan_application_id', $application->id)

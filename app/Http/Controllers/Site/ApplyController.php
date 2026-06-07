@@ -143,7 +143,11 @@ class ApplyController extends Controller
             }
         }
 
-        $resumableDrafts = $drafts->listResumable($customer);
+        if ($isResume && ! $savedDraft) {
+            return redirect()
+                ->route('site.borrower.loans')
+                ->with('error', __('borrower.applications_list.resume_not_found'));
+        }
 
         $feeQuote = $selectedProduct
             ? app(ApplicationFeePaymentService::class)->quote($customer, $selectedProduct)
@@ -174,7 +178,6 @@ class ApplyController extends Controller
             'selectedProduct',
             'applyRequirements',
             'savedDraft',
-            'resumableDrafts',
             'isResume',
             'feeQuote',
             'bankAccounts',

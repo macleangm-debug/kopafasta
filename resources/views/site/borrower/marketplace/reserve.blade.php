@@ -162,7 +162,7 @@
             </a>
         @else
             <p class="text-sm text-emerald-700 font-semibold">{{ __('borrower.marketplace.in_progress') }}</p>
-            <a href="{{ route('site.borrower.loans', ['tab' => 'applications']) }}" class="text-sm font-semibold text-amber-700 hover:underline mt-2 inline-block">{{ __('borrower.dashboard.view_all') }}</a>
+            <a href="{{ route('site.borrower.loans') }}" class="text-sm font-semibold text-amber-700 hover:underline mt-2 inline-block">{{ __('borrower.dashboard.view_all') }}</a>
         @endif
     </div>
 

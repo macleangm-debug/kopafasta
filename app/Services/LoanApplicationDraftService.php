@@ -18,11 +18,54 @@ class LoanApplicationDraftService
             return null;
         }
 
-        return $this->formatPayload($draft);
+        return $this->formatPayload($customer, $draft);
+    }
+
+    /** @return array{phase: string, step_key: string|null, step: int, reason: string|null} */
+    public function resumeTarget(Customer $customer, LoanApplicationDraft $draft): array
+    {
+        $product = $draft->product ?? LoanProduct::find($draft->loan_product_id);
+        if (! $product) {
+            return ['phase' => 'browse', 'step_key' => null, 'step' => 0, 'reason' => 'missing_product'];
+        }
+
+        $assessment = app(LoanProductReadinessService::class)->assess($customer, $product);
+        $profileIncomplete = collect($assessment['requirements'] ?? [])
+            ->contains(fn (array $requirement) => empty($requirement['application_step']) && empty($requirement['complete']));
+
+        $payload = $draft->payload ?? [];
+        $stepKey = $payload['step_key'] ?? null;
+        $step = (int) $draft->step;
+        $applicationStarted = (bool) ($payload['application_started'] ?? $draft->phase === 'application');
+
+        if ($profileIncomplete) {
+            return [
+                'phase'    => 'details',
+                'step_key' => null,
+                'step'     => 0,
+                'reason'   => 'profile_incomplete',
+            ];
+        }
+
+        if ($draft->phase === 'details' && ! $applicationStarted && ! $stepKey && $step === 0) {
+            return [
+                'phase'    => 'details',
+                'step_key' => null,
+                'step'     => 0,
+                'reason'   => 'readiness_review',
+            ];
+        }
+
+        return [
+            'phase'    => 'application',
+            'step_key' => $stepKey,
+            'step'     => $step,
+            'reason'   => null,
+        ];
     }
 
     /** @return array<string, mixed> */
-    private function formatPayload(LoanApplicationDraft $draft): array
+    private function formatPayload(Customer $customer, LoanApplicationDraft $draft): array
     {
         $payload = $draft->payload ?? [];
 
@@ -31,6 +74,7 @@ class LoanApplicationDraftService
             'step'                 => (int) $draft->step,
             'step_key'             => $payload['step_key'] ?? null,
             'application_started'  => (bool) ($payload['application_started'] ?? $draft->phase === 'application'),
+            'resume_target'        => $this->resumeTarget($customer, $draft),
             'loan_product_id'      => $draft->loan_product_id,
             'asset_reservation_id' => $draft->asset_reservation_id,
             'form'                 => $payload['form'] ?? [],

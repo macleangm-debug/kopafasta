@@ -73,6 +73,7 @@
                   paymentGatewayDummy: @js($paymentGatewayDummy ?? payment_gateway_is_dummy()),
                   savedDraft: @js($savedDraft ?? null),
                   isResume: @js($isResume ?? false),
+                  loansUrl: @js(route('site.borrower.loans')),
                   reservationId: {{ ($reservation ?? null) ? (int) $reservation->id : 'null' }},
                   preselect: {{ $preselect ? (int)$preselect : 'null' }},
                   applicationFee: {{ (int) ($applicationFee ?? 0) }},
@@ -140,23 +141,6 @@
             <div x-show="phase === 'browse'" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8">
                 <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.browse.title') }}</h2>
                 <p class="text-sm text-gray-600 mb-5">{{ __('borrower.apply.browse.subtitle') }}</p>
-
-                @if (($resumableDrafts ?? []) !== [])
-                    <div class="mb-6 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
-                        <p class="text-sm font-semibold text-amber-900">{{ __('borrower.applications_list.drafts_title') }}</p>
-                        <ul class="mt-3 space-y-2">
-                            @foreach ($resumableDrafts as $draft)
-                                <li class="flex flex-wrap items-center justify-between gap-2 bg-white rounded-lg ring-1 ring-amber-200 px-3 py-2.5">
-                                    <div>
-                                        <p class="text-sm font-medium text-gray-900">{{ $draft['label'] }}</p>
-                                        <p class="text-xs text-gray-600">{{ $draft['detail'] }}</p>
-                                    </div>
-                                    <a href="{{ $draft['url'] }}" class="text-xs font-semibold text-amber-700 hover:underline shrink-0">{{ __('borrower.applications_list.resume') }} →</a>
-                                </li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
 
                 <div class="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory -mx-1 px-1">
                     @foreach ($products as $p)
@@ -832,10 +816,12 @@
                         this.beginReservationApplication();
                         return;
                     }
-                    if (config.savedDraft && this.restoreDraft(config.savedDraft)) {
+                    if (config.savedDraft) {
+                        this.restoreDraft(config.savedDraft);
                         return;
                     }
                     if (config.isResume) {
+                        window.location.href = config.loansUrl || '{{ route('site.borrower.loans') }}';
                         return;
                     }
                     if (config.preselect) {
@@ -1084,10 +1070,20 @@
                     });
                 },
 
+                profileHasGaps() {
+                    return (this.readiness?.missing || []).some(item => ! item.application_step);
+                },
+
                 restoreDraft(draft) {
                     const product = this.products.find(p => p.id == draft.loan_product_id);
-                    if (! product) return false;
+                    if (! product) {
+                        if (this.isResume && config.loansUrl) {
+                            window.location.href = config.loansUrl;
+                        }
+                        return false;
+                    }
                     this.current = product;
+                    this.form.loan_product_id = product.id;
                     Object.assign(this.form, draft.form || {});
                     if (draft.inputs) {
                         this.restoreFormInputs(draft.inputs);
@@ -1109,23 +1105,28 @@
                     if (draft.external_guarantor) this.externalGuarantor = draft.external_guarantor;
                     this.syncFeePaidState();
 
-                    const resumeStep = draft.step || 0;
-                    const resumeKey = draft.step_key || '';
-                    const shouldEnterWizard = draft.phase === 'application'
-                        || draft.application_started
-                        || (this.isResume && (resumeKey || resumeStep > 0));
-
-                    if (draft.phase === 'details' && ! shouldEnterWizard) {
+                    const target = draft.resume_target || {};
+                    if (target.phase === 'details') {
                         this.phase = 'details';
-                        this.loadReadiness(product.id);
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                        return true;
+                    } else if (target.phase === 'application') {
+                        this.phase = 'application';
                     }
 
+                    const resumeStep = target.step ?? draft.step ?? 0;
+                    const resumeKey = target.step_key ?? draft.step_key ?? '';
+
                     this.resumeLoading = true;
-                    this.phase = 'application';
                     this.selectProduct(product, false);
-                    this.loadReadiness(product.id).then(() => {
+
+                    return this.loadReadiness(product.id).then(() => {
+                        const profileIncomplete = this.profileHasGaps() || target.phase === 'details' || target.reason === 'profile_incomplete';
+
+                        if (profileIncomplete) {
+                            this.phase = 'details';
+                            return true;
+                        }
+
+                        this.phase = 'application';
                         this.rebuildSteps();
                         this.step = this.resolveStepIndex(resumeKey, resumeStep);
                         this.updateQuote();
@@ -1134,11 +1135,11 @@
                         if (this.stepKey === 'review' || this.stepKey === 'signature') {
                             this.refreshReview(this.formRoot());
                         }
+                        return true;
                     }).finally(() => {
                         this.resumeLoading = false;
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
                     });
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                    return true;
                 },
 
                 isMarketplaceProduct(product) {
