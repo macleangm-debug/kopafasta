@@ -45,16 +45,34 @@
                     ->values();
             }
             $wizardProductPayload = fn ($p) => loan_product_wizard_payload($p, $customer);
+            $activityLabels = activity_type_options();
+            $incomeRangeLabels = collect(config('income_ranges', []))->mapWithKeys(fn ($v, $k) => [$k => $v['label'] ?? $k])->all();
+            $borrowerSnapshot = [
+                'personal' => trim(collect([$customer->first_name, $customer->last_name])->filter()->implode(' '))
+                    . ($customer->national_id ? ' · '.$customer->national_id : ''),
+                'employment' => trim(collect([
+                    $activityLabels[$customer->activity_type ?? $customer->employment_type ?? ''] ?? ($customer->activity_type ?? $customer->employment_type),
+                    $incomeRangeLabels[$customer->income_range ?? ''] ?? $customer->income_range,
+                ])->filter()->implode(' · ')),
+                'residence' => collect([$customer->street ?? $customer->address, $customer->ward, $customer->district, $customer->region])->filter()->implode(', '),
+            ];
         @endphp
 
         <div x-data="applyWizard({
                   products: @js($wizardProducts->map($wizardProductPayload)->values()->all()),
                   guarantorLookupUrl: @js(route('site.borrower.apply.guarantor-lookup')),
                   guarantorInviteUrl: @js(route('site.borrower.apply.guarantor-invite')),
+                  repaymentPreviewUrl: @js(route('site.borrower.apply.repayment-preview')),
+                  borrowerSnapshot: @js($borrowerSnapshot),
+                  incomeRangeLabels: @js($incomeRangeLabels),
+                  activityTypeLabels: @js($activityLabels),
                   tanzaniaLocations: @js(config('tanzania_locations')),
                   draftSaveUrl: @js(route('site.borrower.apply.draft.save')),
                   applicationFeePayUrl: @js(route('site.borrower.apply.application-fee.pay')),
+                  applicationFeeQuoteUrl: @js(route('site.borrower.apply.application-fee.quote')),
+                  paymentGatewayDummy: @js($paymentGatewayDummy ?? payment_gateway_is_dummy()),
                   savedDraft: @js($savedDraft ?? null),
+                  isResume: @js($isResume ?? false),
                   reservationId: {{ ($reservation ?? null) ? (int) $reservation->id : 'null' }},
                   preselect: {{ $preselect ? (int)$preselect : 'null' }},
                   applicationFee: {{ (int) ($applicationFee ?? 0) }},
@@ -93,9 +111,12 @@
                           'selectGuarantor' => __('borrower.apply.alerts.select_guarantor'),
                           'guarantor_membership' => __('borrower.apply.alerts.guarantor_membership'),
                           'guarantor_phone' => __('borrower.apply.alerts.guarantor_phone'),
+                          'guarantor_name' => __('borrower.apply.alerts.guarantor_name_required'),
+                          'guarantor_validate_first' => __('borrower.apply.alerts.guarantor_validate_first'),
                           'guarantor_lookup_failed' => __('borrower.apply.alerts.guarantor_lookup_failed'),
                           'guarantor_external_incomplete' => __('borrower.apply.alerts.guarantor_external_incomplete'),
                           'guarantor_invite_failed' => __('borrower.apply.alerts.guarantor_invite_failed'),
+                          'guarantor_external_invite_required' => __('borrower.apply.alerts.guarantor_external_invite_required'),
                           'acceptTerms' => __('borrower.apply.alerts.accept_terms'),
                           'drawSignature' => __('borrower.apply.alerts.draw_signature'),
                           'submitTitle' => __('borrower.apply.alerts.submit_title'),
@@ -186,7 +207,13 @@
                     </div>
                 @endif
 
-                <form method="POST" action="{{ route('site.borrower.apply.submit') }}" enctype="multipart/form-data" novalidate
+                <form id="apply-wizard-form"
+                      data-apply-wizard-form
+                      x-ref="wizardForm"
+                      method="POST"
+                      action="{{ route('site.borrower.apply.submit') }}"
+                      enctype="multipart/form-data"
+                      novalidate
                       @submit="onSubmit($event)">
                     @csrf
                     @if ($reservation ?? null)
@@ -231,12 +258,16 @@
                                 :class="i === step ? 'bg-amber-500 text-gray-900 border-amber-500'
                                                    : (i < step ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                                                : 'bg-white text-gray-500 border-gray-300')"
-                                class="size-8 rounded-full grid place-items-center text-xs font-bold border-2 transition">
+                                class="size-9 rounded-full grid place-items-center text-sm font-bold border-2 transition"
+                                :title="(i + 1) + '. ' + s.label">
                             <template x-if="i < step"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 20 20" stroke="currentColor" stroke-width="3"><path d="M5 10l3 3 7-7"/></svg></template>
-                            <template x-if="i >= step"><span x-text="i + 1"></span></template>
+                            <template x-if="i >= step"><span x-text="s.icon || (i + 1)"></span></template>
                         </button>
-                        <span class="hidden sm:inline text-[11px] font-medium text-gray-600 mr-2" x-text="s.label"></span>
-                        <span x-show="i < steps.length - 1" class="text-gray-300 hidden sm:inline">→</span>
+                        <span class="text-[10px] sm:text-[11px] font-medium text-gray-600 mr-1 sm:mr-2 max-w-[5.5rem] sm:max-w-none truncate" :title="s.label">
+                            <span class="text-gray-400" x-text="(i + 1) + '.'"></span>
+                            <span x-text="s.label"></span>
+                        </span>
+                        <span x-show="i < steps.length - 1" class="text-gray-300">→</span>
                     </li>
                 </template>
             </ol>
@@ -326,7 +357,7 @@
                                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.guarantor_fields.membership_no') }}</label>
                                 <div class="flex rounded-lg ring-1 overflow-hidden" :class="guarantorErrors.internal_member_no ? 'ring-rose-400' : 'ring-gray-200'">
                                     <span class="inline-flex items-center px-3 bg-gray-100 text-sm font-mono text-gray-600 border-r border-gray-200">KPF-TZ-</span>
-                                    <input name="internal_member_no" x-model="form.internal_member_no" @input="delete guarantorErrors.internal_member_no" placeholder="ABC12345" class="flex-1 border-0 px-3 py-2.5 text-sm font-mono focus:ring-0">
+                                    <input name="internal_member_no" x-model="form.internal_member_no" @input="delete guarantorErrors.internal_member_no; guarantorLookup.ok = false" placeholder="ABC12345" class="flex-1 border-0 px-3 py-2.5 text-sm font-mono focus:ring-0">
                                 </div>
                                 <p x-show="guarantorErrors.internal_member_no" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.internal_member_no"></p>
                             </div>
@@ -334,19 +365,36 @@
                                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.phone') }}</label>
                                 <div class="flex rounded-lg ring-1 overflow-hidden" :class="guarantorErrors.internal_guarantor_phone ? 'ring-rose-400' : 'ring-gray-200'">
                                     <span class="inline-flex items-center px-3 bg-gray-100 text-sm text-gray-600 border-r border-gray-200">+255</span>
-                                    <input name="internal_guarantor_phone" x-model="form.internal_guarantor_phone" @input="delete guarantorErrors.internal_guarantor_phone" inputmode="numeric" placeholder="712345678" class="flex-1 border-0 px-3 py-2.5 text-sm focus:ring-0">
+                                    <input name="internal_guarantor_phone" x-model="form.internal_guarantor_phone" @input="delete guarantorErrors.internal_guarantor_phone; guarantorLookup.ok = false" inputmode="numeric" placeholder="712345678" class="flex-1 border-0 px-3 py-2.5 text-sm focus:ring-0">
                                 </div>
                                 <p x-show="guarantorErrors.internal_guarantor_phone" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.internal_guarantor_phone"></p>
                             </div>
-                            <p x-show="guarantorLookup.ok" class="text-sm text-emerald-800 font-medium" x-text="guarantorLookup.label"></p>
-                            <p x-show="guarantorLookup.error" class="text-sm text-red-700" x-text="guarantorLookup.error"></p>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.guarantor_fields.guarantor_name') }}</label>
+                                <input name="internal_guarantor_name" x-model="form.internal_guarantor_name" @input="delete guarantorErrors.internal_guarantor_name; guarantorLookup.ok = false"
+                                       :class="guarantorErrors.internal_guarantor_name ? 'ring-rose-400' : 'ring-gray-200'"
+                                       class="w-full rounded-lg border-gray-300 ring-1 px-3 py-2.5 text-sm" placeholder="Full name">
+                                <p x-show="guarantorErrors.internal_guarantor_name" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.internal_guarantor_name"></p>
+                                <p class="mt-1 text-xs text-gray-500">{{ __('borrower.apply.guarantor_fields.guarantor_name_hint') }}</p>
+                            </div>
+                            <div x-show="guarantorLookup.ok" x-cloak class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900">
+                                <p class="font-semibold">{{ __('borrower.apply.alerts.guarantor_verified') }}</p>
+                                <p class="mt-1" x-text="guarantorLookup.label"></p>
+                            </div>
+                            <p x-show="guarantorLookup.error" x-cloak class="text-sm text-red-700" x-text="guarantorLookup.error"></p>
                             <p class="text-xs text-gray-500">{{ __('borrower.apply.guarantor_fields.membership_hint_short') }}</p>
+                            <button type="button"
+                                    @click="validateInternalGuarantor()"
+                                    :disabled="guarantorValidating"
+                                    class="inline-flex bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
+                                <span x-text="guarantorValidating ? @js(__('borrower.apply.guarantor_fields.validating')) : @js(__('borrower.apply.guarantor_fields.validate'))"></span>
+                            </button>
                         </div>
                         <input type="hidden" name="external_invitation_id" :value="externalGuarantor?.invitation_id || ''">
                         <div x-show="form.guarantor_mode === 'external'" class="grid sm:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.first_name') }} <span class="text-rose-500">*</span></label>
-                                <input name="external_first_name" x-model="form.external_first_name" @input="delete guarantorErrors.external_first_name; scheduleExternalInvitePrep()"
+                                <input name="external_first_name" x-model="form.external_first_name" @input="delete guarantorErrors.external_first_name; invalidateExternalInvite()"
                                        :class="guarantorErrors.external_first_name ? 'ring-rose-400' : 'ring-gray-200'"
                                        class="w-full rounded-lg border-gray-300 ring-1 px-3 py-2.5 text-sm">
                                 <p x-show="guarantorErrors.external_first_name" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.external_first_name"></p>
@@ -357,14 +405,14 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.last_name') }} <span class="text-rose-500">*</span></label>
-                                <input name="external_last_name" x-model="form.external_last_name" @input="delete guarantorErrors.external_last_name; scheduleExternalInvitePrep()"
+                                <input name="external_last_name" x-model="form.external_last_name" @input="delete guarantorErrors.external_last_name; invalidateExternalInvite()"
                                        :class="guarantorErrors.external_last_name ? 'ring-rose-400' : 'ring-gray-200'"
                                        class="w-full rounded-lg border-gray-300 ring-1 px-3 py-2.5 text-sm">
                                 <p x-show="guarantorErrors.external_last_name" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.external_last_name"></p>
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.guarantor_fields.relationship') }} <span class="text-rose-500">*</span></label>
-                                <select name="external_relationship" x-model="form.external_relationship" @change="delete guarantorErrors.external_relationship; scheduleExternalInvitePrep()"
+                                <select name="external_relationship" x-model="form.external_relationship" @change="delete guarantorErrors.external_relationship; invalidateExternalInvite()"
                                         :class="guarantorErrors.external_relationship ? 'ring-rose-400' : 'ring-gray-200'"
                                         class="w-full rounded-lg border-gray-300 ring-1 px-3 py-2.5 text-sm">
                                     <option value="">{{ __('borrower.profile.select') }}</option>
@@ -378,7 +426,7 @@
                                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.phone') }} <span class="text-rose-500">*</span></label>
                                 <div class="flex rounded-lg ring-1 overflow-hidden" :class="guarantorErrors.external_phone ? 'ring-rose-400' : 'ring-gray-200'">
                                     <span class="inline-flex items-center px-3 bg-gray-100 text-sm text-gray-600 border-r border-gray-200">+255</span>
-                                    <input name="external_phone" x-model="form.external_phone" @input="delete guarantorErrors.external_phone; scheduleExternalInvitePrep()" inputmode="numeric" placeholder="712345678" class="flex-1 border-0 px-3 py-2.5 text-sm focus:ring-0">
+                                    <input name="external_phone" x-model="form.external_phone" @input="delete guarantorErrors.external_phone; invalidateExternalInvite()" inputmode="numeric" placeholder="712345678" class="flex-1 border-0 px-3 py-2.5 text-sm focus:ring-0">
                                 </div>
                                 <p x-show="guarantorErrors.external_phone" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.external_phone"></p>
                             </div>
@@ -389,7 +437,7 @@
                             <div class="sm:col-span-2 grid sm:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.region') }} <span class="text-rose-500">*</span></label>
-                                    <select name="external_region" x-model="form.external_region" @change="onExternalRegionChange(); delete guarantorErrors.external_region; scheduleExternalInvitePrep()"
+                                    <select name="external_region" x-model="form.external_region" @change="onExternalRegionChange(); delete guarantorErrors.external_region; invalidateExternalInvite()"
                                             :class="guarantorErrors.external_region ? 'ring-rose-400' : 'ring-gray-200'"
                                             class="w-full rounded-lg border-gray-300 ring-1 px-3 py-2.5 text-sm">
                                         <option value="">{{ __('borrower.profile.select_region') }}</option>
@@ -401,7 +449,7 @@
                                 </div>
                                 <div>
                                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.district') }} <span class="text-rose-500">*</span></label>
-                                    <select name="external_district" x-model="form.external_district" @change="delete guarantorErrors.external_district; scheduleExternalInvitePrep()"
+                                    <select name="external_district" x-model="form.external_district" @change="delete guarantorErrors.external_district; invalidateExternalInvite()"
                                             :class="guarantorErrors.external_district ? 'ring-rose-400' : 'ring-gray-200'"
                                             class="w-full rounded-lg border-gray-300 ring-1 px-3 py-2.5 text-sm">
                                         <option value="">{{ __('borrower.profile.select_district') }}</option>
@@ -412,10 +460,18 @@
                                     <p x-show="guarantorErrors.external_district" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.external_district"></p>
                                 </div>
                             </div>
+                            <div class="sm:col-span-2" x-show="isExternalGuarantorComplete() && !externalGuarantor?.invitation_url">
+                                <button type="button"
+                                        @click="generateExternalInvite()"
+                                        :disabled="guarantorInvitePreparing"
+                                        class="inline-flex bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
+                                    <span x-text="guarantorInvitePreparing ? @js(__('borrower.apply.guarantor_fields.generating_link')) : @js(__('borrower.apply.guarantor_fields.generate_link'))"></span>
+                                </button>
+                            </div>
                             <div class="sm:col-span-2" x-show="externalGuarantor?.invitation_url" x-cloak>
                                 <p class="text-sm font-semibold text-emerald-900 mb-2">{{ __('borrower.apply.guarantor_fields.share_via') }}</p>
                                 <p class="text-xs text-emerald-800 mb-3">{{ __('borrower.apply.guarantor_fields.share_ready') }}</p>
-                                <p class="text-xs font-mono text-emerald-900 bg-emerald-100/80 rounded-lg px-3 py-2 mb-3 break-all" x-text="externalGuarantor.invitation_url"></p>
+                                <p class="text-xs font-mono text-emerald-900 bg-emerald-100/80 rounded-lg px-3 py-2 mb-3 break-all" x-text="externalGuarantor.short_url || externalGuarantor.invitation_url"></p>
                                 <div class="flex flex-wrap gap-2" x-data="{ copied: false }">
                                     <a x-show="externalGuarantor?.invitation_url" :href="externalGuarantor.whatsapp_url || '#'" :class="!externalGuarantor.whatsapp_url && 'pointer-events-none opacity-50'" target="_blank" rel="noopener"
                                        class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-full text-sm">
@@ -431,13 +487,13 @@
                                     </a>
                                     <button type="button"
                                             x-show="externalGuarantor?.invitation_url"
-                                            @click="navigator.clipboard.writeText(externalGuarantor.invitation_url); copied = true; setTimeout(() => copied = false, 2000)"
+                                            @click="navigator.clipboard.writeText(externalGuarantor.short_url || externalGuarantor.invitation_url); copied = true; setTimeout(() => copied = false, 2000)"
                                             class="inline-flex items-center gap-2 bg-white ring-1 ring-emerald-300 text-emerald-900 font-semibold px-4 py-2 rounded-full text-sm">
                                         <span x-text="copied ? @js(__('borrower.apply.guarantor_fields.link_copied')) : @js(__('borrower.apply.guarantor_fields.share_copy'))"></span>
                                     </button>
                                 </div>
                             </div>
-                            <div class="sm:col-span-2 rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-sm text-sky-900" x-show="!externalGuarantor?.invitation_url">
+                            <div class="sm:col-span-2 rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-sm text-sky-900" x-show="!isExternalGuarantorComplete()">
                                 {{ __('borrower.apply.guarantor_fields.share_generate') }}
                             </div>
                             <div class="sm:col-span-2 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900" x-show="externalGuarantor?.invitation_url" x-cloak>
@@ -456,6 +512,7 @@
                     :payment-reference="$applicationFeePaymentRef ?? null"
                     :referral-wallet="$referralWallet ?? null"
                     :referral-settings="$referralSettings ?? []"
+                    :payment-gateway-dummy="$paymentGatewayDummy ?? payment_gateway_is_dummy()"
                 />
 
                 {{-- Product-specific questions --}}
@@ -527,16 +584,73 @@
                                 </p>
                             </div>
                         </template>
-                        <div class="px-4 py-3 flex justify-between gap-3" x-show="hasStep('quote')"><div><span class="text-gray-500 block">{{ __('borrower.apply.review_step.amount_tenure') }}</span><span class="font-medium"><span x-text="formatTzs(form.requested_amount)"></span> · <span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.browse.months_short') }}</span></div><button type="button" @click="gotoKey('quote')" class="text-xs text-amber-700 shrink-0">{{ __('borrower.apply.edit') }}</button></div>
-                        <div class="px-4 py-3 flex justify-between gap-3" x-show="hasStep('asset_tenure')"><div><span class="text-gray-500 block">{{ __('borrower.apply.review_step.amount_tenure') }}</span><span class="font-medium"><span x-text="formatTzs(form.requested_amount)"></span> · <span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.browse.months_short') }}</span></div><button type="button" @click="gotoKey('asset_tenure')" class="text-xs text-amber-700 shrink-0">{{ __('borrower.apply.edit') }}</button></div>
                         <div class="px-4 py-3" x-show="hasStep('quote')"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.purpose') }}</span><span class="font-medium" x-text="purposeLabels[form.purpose] || form.purpose || '—'"></span></div>
-                        <div class="px-4 py-3">
-                            <span class="text-gray-500 block">{{ __('borrower.apply.review_step.profile_on_file') }}</span>
-                            <span class="font-medium" x-text="review.personal"></span>
-                            <p class="text-xs text-gray-500 mt-1" x-show="review.residence" x-text="review.residence"></p>
-                            <a :href="profileUrl" class="text-xs text-amber-700 font-medium mt-1 inline-block">{{ __('borrower.apply.edit_profile') }}</a>
+                    </div>
+
+                    <h3 class="text-sm font-semibold text-gray-900 mb-2">{{ __('borrower.apply.review_step.borrower_section') }}</h3>
+                    <div class="rounded-xl border border-gray-200 divide-y divide-gray-200 mb-5 text-sm">
+                        <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.personal') }}</span><span class="font-medium" x-text="review.personal"></span></div>
+                        <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.employment') }}</span><span class="font-medium" x-text="review.employment"></span></div>
+                        <div class="px-4 py-3 flex justify-between gap-3">
+                            <div><span class="text-gray-500 block">{{ __('borrower.apply.review_step.residence') }}</span><span class="font-medium" x-text="review.residence"></span></div>
+                            <a :href="profileUrl" class="text-xs text-amber-700 shrink-0">{{ __('borrower.apply.edit_profile') }}</a>
                         </div>
-                        <div class="px-4 py-3 flex justify-between gap-3" x-show="hasStep('guarantor')"><div><span class="text-gray-500 block">{{ __('borrower.apply.guarantor') }}</span><span class="font-medium" x-text="review.guarantor || '—'"></span></div><button type="button" @click="gotoKey('guarantor')" class="text-xs text-amber-700 shrink-0">{{ __('borrower.apply.edit') }}</button></div>
+                    </div>
+
+                    <h3 class="text-sm font-semibold text-gray-900 mb-2">{{ __('borrower.apply.review_step.loan_section') }}</h3>
+                    <div class="rounded-xl border border-gray-200 divide-y divide-gray-200 mb-5 text-sm">
+                        <div class="px-4 py-3 flex justify-between gap-3" x-show="hasStep('quote') || hasStep('asset_tenure')">
+                            <div><span class="text-gray-500 block">{{ __('borrower.apply.review_step.loan_amount') }}</span><span class="font-medium" x-text="formatTzs(form.requested_amount)"></span></div>
+                            <button type="button" @click="gotoKey(hasStep('quote') ? 'quote' : 'asset_tenure')" class="text-xs text-amber-700 shrink-0">{{ __('borrower.apply.edit') }}</button>
+                        </div>
+                        <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.duration') }}</span><span class="font-medium"><span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.browse.months_short') }}</span></div>
+                        <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.interest_rate') }}</span><span class="font-medium" x-text="reviewSummary.monthly_rate_pct ? (reviewSummary.monthly_rate_pct + '% / month') : '—'"></span></div>
+                        <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.application_fee') }}</span><span class="font-medium" x-text="formatTzs(reviewSummary.application_fee ?? applicationFee)"></span></div>
+                        <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.monthly_repayment') }}</span><span class="font-medium" x-text="formatTzs(reviewSummary.monthly_installment ?? quote.monthly)"></span></div>
+                    </div>
+
+                    <div x-show="hasStep('guarantor')" class="mb-5">
+                        <h3 class="text-sm font-semibold text-gray-900 mb-2">{{ __('borrower.apply.review_step.guarantor_section') }}</h3>
+                        <div class="rounded-xl border border-gray-200 divide-y divide-gray-200 text-sm">
+                            <div class="px-4 py-3 flex justify-between gap-3">
+                                <div><span class="text-gray-500 block">{{ __('borrower.apply.review_step.guarantor_type') }}</span><span class="font-medium" x-text="review.guarantorType"></span></div>
+                                <button type="button" @click="gotoKey('guarantor')" class="text-xs text-amber-700 shrink-0">{{ __('borrower.apply.edit') }}</button>
+                            </div>
+                            <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.guarantor_name') }}</span><span class="font-medium" x-text="review.guarantorName || '—'"></span></div>
+                            <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.guarantor_status') }}</span><span class="font-medium" x-text="review.guarantorStatus"></span></div>
+                        </div>
+                    </div>
+
+                    <h3 class="text-sm font-semibold text-gray-900 mb-2">{{ __('borrower.apply.review_step.schedule_section') }}</h3>
+                    <div class="rounded-xl border border-gray-200 overflow-hidden mb-5 text-sm">
+                        <p x-show="scheduleLoading" class="px-4 py-6 text-center text-gray-500">{{ __('borrower.apply.review_step.schedule_loading') }}</p>
+                        <p x-show="!scheduleLoading && !repaymentSchedule.length" class="px-4 py-6 text-center text-gray-500">{{ __('borrower.apply.review_step.schedule_empty') }}</p>
+                        <div x-show="!scheduleLoading && repaymentSchedule.length" class="overflow-x-auto">
+                            <table class="min-w-full text-xs">
+                                <thead class="bg-gray-50 text-gray-600">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left font-semibold">{{ __('borrower.apply.review_step.col_installment') }}</th>
+                                        <th class="px-3 py-2 text-left font-semibold">{{ __('borrower.apply.review_step.col_due_date') }}</th>
+                                        <th class="px-3 py-2 text-right font-semibold">{{ __('borrower.apply.review_step.col_principal') }}</th>
+                                        <th class="px-3 py-2 text-right font-semibold">{{ __('borrower.apply.review_step.col_interest') }}</th>
+                                        <th class="px-3 py-2 text-right font-semibold">{{ __('borrower.apply.review_step.col_total') }}</th>
+                                        <th class="px-3 py-2 text-right font-semibold">{{ __('borrower.apply.review_step.col_balance') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    <template x-for="row in repaymentSchedule" :key="row.installment_no">
+                                        <tr>
+                                            <td class="px-3 py-2" x-text="row.installment_no"></td>
+                                            <td class="px-3 py-2 whitespace-nowrap" x-text="row.due_date"></td>
+                                            <td class="px-3 py-2 text-right" x-text="formatTzs(row.principal_due)"></td>
+                                            <td class="px-3 py-2 text-right" x-text="formatTzs(row.interest_due)"></td>
+                                            <td class="px-3 py-2 text-right font-medium" x-text="formatTzs(row.total_due)"></td>
+                                            <td class="px-3 py-2 text-right" x-text="formatTzs(row.remaining_balance)"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -555,8 +669,8 @@
                     <button type="button" @click="step > 0 ? prev() : backToDetails()" class="text-sm font-medium text-gray-600 hover:text-gray-900" x-text="step > 0 ? i18n.back : i18n.backProducts"></button>
                     <div class="ml-auto flex items-center gap-3">
                         <a href="{{ route('site.borrower.dashboard') }}" class="text-sm text-gray-500 hover:text-gray-700">{{ __('borrower.apply.cancel') }}</a>
-                        <button type="button" @click.prevent="next()" :disabled="guarantorInvitePreparing" x-show="stepKey !== 'signature'" class="bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                            <span x-text="guarantorInvitePreparing ? @js(__('borrower.apply.application_fee.processing')) : @js(__('borrower.apply.continue'))"></span>
+                        <button type="button" @click.prevent="next()" :disabled="advancing || resumeLoading || (guarantorInvitePreparing && stepKey === 'guarantor') || (stepKey === 'guarantor' && form.guarantor_mode === 'internal' && !guarantorLookup.ok) || (stepKey === 'guarantor' && form.guarantor_mode === 'external' && (!externalGuarantor?.invitation_url || !isExternalGuarantorComplete()))" x-show="stepKey !== 'signature'" class="bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                            <span x-text="(guarantorInvitePreparing && stepKey === 'guarantor') ? @js(__('borrower.apply.application_fee.processing')) : @js(__('borrower.apply.continue'))"></span>
                         </button>
                         <button type="submit" x-show="stepKey === 'signature'" class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.submit') }}</button>
                     </div>
@@ -588,6 +702,7 @@
                 products: config.products,
                 applicationFee: config.applicationFee,
                 applicationFeePayUrl: config.applicationFeePayUrl || '',
+                applicationFeeQuoteUrl: config.applicationFeeQuoteUrl || '',
                 applicationFeeState: config.savedDraft?.application_fee || null,
                 applicationFeePaid: false,
                 feeChannel: 'mobile_money',
@@ -602,14 +717,22 @@
                 readinessUrl: config.readinessUrl,
                 guarantorLookupUrl: config.guarantorLookupUrl || '',
                 guarantorInviteUrl: config.guarantorInviteUrl || '',
+                repaymentPreviewUrl: config.repaymentPreviewUrl || '',
+                borrowerSnapshot: config.borrowerSnapshot || {},
+                incomeRangeLabels: config.incomeRangeLabels || {},
+                activityTypeLabels: config.activityTypeLabels || {},
                 tanzaniaLocations: config.tanzaniaLocations || {},
                 draftSaveUrl: config.draftSaveUrl || '',
                 reservationId: config.reservationId || null,
                 draftSavedAt: null,
                 draftSaveTimer: null,
-                guarantorLookup: { ok: false, label: '', error: '', memberKey: '', phone: '' },
+                guarantorLookup: { ok: false, label: '', error: '', memberKey: '', phone: '', name: '' },
+                guarantorValidating: false,
                 externalGuarantor: config.savedDraft?.external_guarantor || null,
                 guarantorInvitePreparing: false,
+                advancing: false,
+                resumeLoading: false,
+                isResume: !! config.isResume,
                 guarantorErrors: {},
                 externalInviteTimer: null,
                 initialPlan: config.initialPlan || [],
@@ -635,6 +758,7 @@
                     guarantor_mode: 'internal',
                     internal_member_no: '',
                     internal_guarantor_phone: '',
+                    internal_guarantor_name: '',
                     income_type: 'bank',
                     external_first_name: '',
                     external_middle_name: '',
@@ -646,10 +770,30 @@
                     external_district: '',
                 },
                 quote: { monthly: 0, weekly: 0, interest: 0, total: 0, fees: 0 },
-                review: { personal: '', residence: '', nok: '', activity: '', guarantor: '' },
+                review: { personal: '', residence: '', employment: '', nok: '', activity: '', guarantor: '', guarantorType: '', guarantorName: '', guarantorStatus: '' },
+                reviewSummary: { monthly_rate_pct: 0, application_fee: 0, monthly_installment: 0 },
+                repaymentSchedule: [],
+                scheduleLoading: false,
+                stepIcons: {
+                    quote: '💰',
+                    asset_tenure: '📅',
+                    application_fee: '💳',
+                    guarantor: '🤝',
+                    product_questions: '📄',
+                    review: '✅',
+                    signature: '✍️',
+                },
 
                 syncStepKey() {
                     this.stepKey = this.steps[this.step]?.key ?? '';
+                },
+
+                resolveStepIndex(stepKey, fallbackIndex = 0) {
+                    if (stepKey) {
+                        const byKey = this.steps.findIndex(s => s.key === stepKey);
+                        if (byKey >= 0) return byKey;
+                    }
+                    return Math.min(Math.max(0, fallbackIndex), Math.max(0, this.steps.length - 1));
                 },
 
                 districtsForRegion() {
@@ -660,14 +804,28 @@
                 init() {
                     this.syncFeePaidState();
                     window.applyWizardSaveDraft = () => this.persistDraft(true);
-                    this.$watch('phase', () => this.scheduleDraftSave());
+                    this.$watch('phase', (value, oldValue) => {
+                        this.scheduleDraftSave();
+                        if (value === 'application' && oldValue !== 'application') {
+                            this.persistDraft(true);
+                        }
+                    });
                     this.$watch('step', () => {
                         this.scheduleDraftSave();
                         this.syncStepKey();
                     });
+                    this.$watch('stepKey', (key) => {
+                        if (key === 'application_fee') {
+                            this.enterApplicationFeeStep();
+                        }
+                    });
                     this.$watch('steps', () => this.syncStepKey());
                     this.$watch('form.guarantor_mode', (mode) => {
-                        if (mode === 'external') this.scheduleExternalInvitePrep();
+                        if (mode === 'external') {
+                            this.scheduleExternalInvitePrep();
+                        } else if (mode === 'internal') {
+                            this.guarantorLookup = { ok: false, label: '', error: '', memberKey: '', phone: '', name: '' };
+                        }
                     });
                     this.syncStepKey();
                     if (this.reservationMode && this.assetApplication) {
@@ -675,6 +833,9 @@
                         return;
                     }
                     if (config.savedDraft && this.restoreDraft(config.savedDraft)) {
+                        return;
+                    }
+                    if (config.isResume) {
                         return;
                     }
                     if (config.preselect) {
@@ -691,15 +852,20 @@
                 buildDraftPayload() {
                     const inputs = {};
                     if (this.phase === 'application') {
-                        const fd = new FormData(this.formRoot());
-                        for (const [key, value] of fd.entries()) {
-                            if (value instanceof File) continue;
-                            inputs[key] = value;
+                        const form = this.formRoot();
+                        if (form) {
+                            const fd = new FormData(form);
+                            for (const [key, value] of fd.entries()) {
+                                if (value instanceof File) continue;
+                                inputs[key] = value;
+                            }
                         }
                     }
                     return {
                         phase: this.phase,
                         step: this.step,
+                        step_key: this.stepKey,
+                        application_started: this.phase === 'application',
                         loan_product_id: this.form.loan_product_id,
                         asset_reservation_id: this.reservationId,
                         form: this.form,
@@ -710,25 +876,71 @@
                     };
                 },
 
+                feeAmount() {
+                    return Number(this.applicationFee) || 0;
+                },
+
+                effectiveFeeAmount() {
+                    const fromQuote = this.feeAmount();
+                    const fromProduct = Number(this.current?.application_fee) || 0;
+                    const fromReadiness = Number(this.readiness?.fees?.application) || 0;
+                    return Math.max(fromQuote, fromProduct, fromReadiness);
+                },
+
+                showsApplicationFeePayment() {
+                    return ! this.applicationFeePaid && this.effectiveFeeAmount() > 0;
+                },
+
+                enterApplicationFeeStep() {
+                    const amount = this.effectiveFeeAmount();
+                    if (amount > 0 && this.feeAmount() < amount) {
+                        this.applicationFee = amount;
+                    }
+                    this.syncFeePaidState();
+                    this.refreshApplicationFeeQuote();
+                },
+
                 syncFeePaidState() {
-                    const st = this.applicationFeeState?.status;
-                    this.applicationFeePaid = this.applicationFee <= 0
-                        || ['paid', 'waived'].includes(st || '');
+                    const amount = this.effectiveFeeAmount();
+                    const st = this.applicationFeeState?.status || '';
+                    if (amount > 0 && st === 'waived' && ! this.applicationFeeState?.reference) {
+                        this.applicationFeeState = null;
+                    }
+                    const status = this.applicationFeeState?.status || '';
+                    this.applicationFeePaid = amount <= 0
+                        || ['paid', 'waived'].includes(status);
                 },
 
                 feeGateSatisfied() {
-                    return this.applicationFee <= 0
+                    return this.effectiveFeeAmount() <= 0
                         || ['paid', 'waived', 'pending'].includes(this.applicationFeeState?.status || '');
                 },
 
                 feeGateRequiredForStep(targetStepKey) {
                     const feeIdx = this.steps.findIndex(s => s.key === 'application_fee');
                     const targetIdx = this.steps.findIndex(s => s.key === targetStepKey);
-                    return feeIdx >= 0 && targetIdx > feeIdx && this.applicationFee > 0;
+                    return feeIdx >= 0 && targetIdx > feeIdx && this.effectiveFeeAmount() > 0;
+                },
+
+                enforceStepRequirements(onResume = false) {
+                    const feeIdx = this.steps.findIndex(s => s.key === 'application_fee');
+                    if (feeIdx < 0 || this.effectiveFeeAmount() <= 0 || this.feeGateSatisfied()) return;
+                    const currentIdx = this.steps.findIndex(s => s.key === this.stepKey);
+                    if (currentIdx <= feeIdx) return;
+                    if (onResume && this.applicationFeeState?.status) return;
+                    if (currentIdx > feeIdx) {
+                        this.step = feeIdx;
+                        this.syncStepKey();
+                    }
+                },
+
+                syncQuoteFormFromDom() {
+                    const purpose = this.readFormField('purpose');
+                    if (purpose) this.form.purpose = purpose;
                 },
 
                 async autoWaiveApplicationFeeIfNeeded() {
-                    if (this.applicationFee > 0 || this.applicationFeePaid) return;
+                    if (this.effectiveFeeAmount() > 0 || this.applicationFeePaid) return;
                     this.applicationFeeState = {
                         status: 'waived',
                         reference: null,
@@ -740,9 +952,31 @@
                     await this.persistDraft(true);
                 },
 
-                onApplicationFeeStep() {
-                    if (this.stepKey !== 'application_fee') return;
-                    this.autoWaiveApplicationFeeIfNeeded();
+                async refreshApplicationFeeQuote() {
+                    if (! this.form.loan_product_id) return;
+                    if (this.current?.application_fee > 0) {
+                        this.applicationFee = this.current.application_fee;
+                    }
+                    if (! this.applicationFeeQuoteUrl) {
+                        this.syncFeePaidState();
+                        return;
+                    }
+                    try {
+                        const url = `${this.applicationFeeQuoteUrl}?loan_product_id=${encodeURIComponent(this.form.loan_product_id)}`;
+                        const res = await fetch(url, {
+                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                            credentials: 'same-origin',
+                        });
+                        if (! res.ok) return;
+                        const data = await res.json();
+                        if (data.amount !== undefined) {
+                            this.applicationFee = data.amount;
+                        }
+                    } catch (e) {
+                        console.warn('application fee quote failed', e);
+                    } finally {
+                        this.syncFeePaidState();
+                    }
                 },
 
                 async payApplicationFee() {
@@ -794,13 +1028,33 @@
                         }
                         return Promise.resolve();
                     }
-                    const request = () => fetch(this.draftSaveUrl, {
-                        method: 'PUT',
-                        headers: this.draftHeaders(),
-                        credentials: 'same-origin',
-                        body: JSON.stringify(this.buildDraftPayload()),
-                    }).then(res => res.ok ? res.json() : Promise.reject(res))
-                      .then(() => { this.draftSavedAt = new Date().toLocaleTimeString(); });
+                    const request = () => {
+                        let payload;
+                        try {
+                            payload = this.buildDraftPayload();
+                        } catch (e) {
+                            console.warn('apply wizard draft payload failed', e);
+                            payload = {
+                                phase: this.phase,
+                                step: this.step,
+                                step_key: this.stepKey,
+                                loan_product_id: this.form.loan_product_id,
+                                asset_reservation_id: this.reservationId,
+                                form: this.form,
+                                inputs: {},
+                                guarantor_lookup: this.guarantorLookup.ok ? this.guarantorLookup : null,
+                                application_fee: this.applicationFeeState,
+                                external_guarantor: this.externalGuarantor,
+                            };
+                        }
+                        return fetch(this.draftSaveUrl, {
+                            method: 'PUT',
+                            headers: this.draftHeaders(),
+                            credentials: 'same-origin',
+                            body: JSON.stringify(payload),
+                        }).then(res => res.ok ? res.json() : Promise.reject(res))
+                          .then(() => { this.draftSavedAt = new Date().toLocaleTimeString(); });
+                    };
 
                     return sync ? request().catch(() => {}) : request().catch(() => {});
                 },
@@ -816,6 +1070,7 @@
 
                 restoreFormInputs(inputs) {
                     const root = this.formRoot();
+                    if (! root) return;
                     Object.entries(inputs || {}).forEach(([name, value]) => {
                         const el = root.querySelector(`[name="${name}"]`);
                         if (! el || el.type === 'file') return;
@@ -840,7 +1095,7 @@
                             'external_first_name', 'external_middle_name', 'external_last_name',
                             'external_relationship', 'external_phone', 'external_email',
                             'external_region', 'external_district',
-                            'internal_member_no', 'internal_guarantor_phone',
+                            'internal_member_no', 'internal_guarantor_phone', 'internal_guarantor_name',
                         ].forEach((key) => {
                             if (draft.inputs[key]) this.form[key] = draft.inputs[key];
                         });
@@ -853,32 +1108,37 @@
                     if (draft.application_fee) this.applicationFeeState = draft.application_fee;
                     if (draft.external_guarantor) this.externalGuarantor = draft.external_guarantor;
                     this.syncFeePaidState();
-                    this.phase = draft.phase;
-                    if (draft.phase === 'details') {
+
+                    const resumeStep = draft.step || 0;
+                    const resumeKey = draft.step_key || '';
+                    const shouldEnterWizard = draft.phase === 'application'
+                        || draft.application_started
+                        || (this.isResume && (resumeKey || resumeStep > 0));
+
+                    if (draft.phase === 'details' && ! shouldEnterWizard) {
+                        this.phase = 'details';
                         this.loadReadiness(product.id);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                         return true;
                     }
-                    if (draft.phase === 'application') {
-                        this.phase = 'application';
-                        const resumeStep = draft.step || 0;
-                        this.selectProduct(product, true);
-                        this.step = Math.min(resumeStep, Math.max(0, this.steps.length - 1));
+
+                    this.resumeLoading = true;
+                    this.phase = 'application';
+                    this.selectProduct(product, false);
+                    this.loadReadiness(product.id).then(() => {
+                        this.rebuildSteps();
+                        this.step = this.resolveStepIndex(resumeKey, resumeStep);
                         this.updateQuote();
                         this.syncStepKey();
-                        this.loadReadiness(product.id).then(() => {
-                            this.rebuildSteps();
-                            this.step = Math.min(resumeStep, Math.max(0, this.steps.length - 1));
-                            this.updateQuote();
-                            this.syncStepKey();
-                            if (this.stepKey === 'review') {
-                                this.refreshReview(this.formRoot());
-                            }
-                        });
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                        return true;
-                    }
-                    return false;
+                        this.enforceStepRequirements(this.isResume);
+                        if (this.stepKey === 'review' || this.stepKey === 'signature') {
+                            this.refreshReview(this.formRoot());
+                        }
+                    }).finally(() => {
+                        this.resumeLoading = false;
+                    });
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    return true;
                 },
 
                 isMarketplaceProduct(product) {
@@ -931,10 +1191,13 @@
                 },
 
                 loadReadiness(productId) {
+                    if (this._readinessPromise && this._readinessProductId === productId) {
+                        return this._readinessPromise;
+                    }
                     this.readinessLoading = true;
-                    this.readiness = null;
+                    this._readinessProductId = productId;
                     const url = this.readinessUrl.replace('__ID__', encodeURIComponent(productId));
-                    return fetch(url, {
+                    this._readinessPromise = fetch(url, {
                         headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                         credentials: 'same-origin',
                     })
@@ -943,21 +1206,36 @@
                             this.readiness = data;
                             if (this.phase === 'application' && this.current) {
                                 this.rebuildSteps();
+                                if (! this.resumeLoading) {
+                                    this.enforceStepRequirements(this.isResume);
+                                }
                             }
                             if (data.fees?.application !== undefined) {
                                 this.applicationFee = data.fees.application;
+                                this.syncFeePaidState();
                             }
                             this.syncStepKey();
                             return data;
                         })
-                        .catch(() => { this.readiness = null; alert(this.i18n.alerts.loadProduct); })
-                        .finally(() => { this.readinessLoading = false; });
+                        .catch(() => {
+                            if (this.readiness?.product?.id !== productId) {
+                                this.readiness = null;
+                            }
+                            alert(this.i18n.alerts.loadProduct);
+                        })
+                        .finally(() => {
+                            this.readinessLoading = false;
+                            this._readinessPromise = null;
+                            this._readinessProductId = null;
+                        });
+                    return this._readinessPromise;
                 },
 
                 async startApplication() {
                     if (! this.current) return;
-                    if (! this.readiness && ! this.readinessLoading) {
-                        await this.loadReadiness(this.current.id);
+                    const productId = this.current.id;
+                    if (! this.readiness || this.readiness?.product?.id !== productId) {
+                        await this.loadReadiness(productId);
                     }
                     if (! this.steps.length) {
                         this.selectProduct(this.current, true);
@@ -970,14 +1248,20 @@
                     }
                     this.step = 0;
                     this.syncStepKey();
+                    await this.persistDraft(true);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 },
 
+                withStepIcon(step) {
+                    return { ...step, icon: this.stepIcons[step.key] || '' };
+                },
+
                 rebuildSteps() {
+                    const prevKey = this.stepKey || this.steps[this.step]?.key || '';
                     if (this.readiness?.step_plan?.length) {
-                        this.steps = this.readiness.step_plan.map(s => ({ key: s.key, label: s.label }));
+                        this.steps = this.readiness.step_plan.map(s => this.withStepIcon(s));
                     } else if (this.initialPlan?.length) {
-                        this.steps = this.initialPlan.map(s => ({ key: s.key, label: s.label }));
+                        this.steps = this.initialPlan.map(s => this.withStepIcon(s));
                     } else {
                         const stepLabels = this.i18n.steps;
                         const steps = [];
@@ -986,18 +1270,18 @@
                         } else {
                             steps.push({ key: 'asset_tenure', label: stepLabels.asset_tenure || stepLabels.quote });
                         }
-                        if (this.current?.requires_guarantor) {
-                            steps.push({ key: 'guarantor', label: @js(__('borrower.apply.guarantor')) });
-                        }
                         steps.push({ key: 'application_fee', label: @js(__('borrower.apply.steps.application_fee')) });
+                        if (this.current?.requires_guarantor) {
+                            steps.push({ key: 'guarantor', label: @js(__('borrower.apply.steps.guarantor')) });
+                        }
                         if (this.current?.code && this.productQuestions[this.current.code]) {
                             steps.push({ key: 'product_questions', label: stepLabels.product_questions });
                         }
-                        steps.push({ key: 'review', label: @js(__('borrower.apply.review')) });
-                        steps.push({ key: 'signature', label: @js(__('borrower.apply.sign')) });
-                        this.steps = steps;
+                        steps.push({ key: 'review', label: @js(__('borrower.apply.steps.review')) });
+                        steps.push({ key: 'signature', label: @js(__('borrower.apply.steps.signature')) });
+                        this.steps = steps.map(s => this.withStepIcon(s));
                     }
-                    if (this.step >= this.steps.length) this.step = this.steps.length - 1;
+                    this.step = this.resolveStepIndex(prevKey, this.step);
                     this.syncStepKey();
                 },
 
@@ -1055,22 +1339,101 @@
                     if (i >= 0 && i <= this.step) this.step = i;
                 },
 
-                refreshReview(formEl) {
-                    const fd = new FormData(formEl);
-                    const g = (n) => fd.get(n) || '';
-                    this.review.personal = [g('first_name'), g('last_name'), g('national_id')].filter(Boolean).join(' · ');
-                    this.review.residence = [g('street'), g('ward'), g('district'), g('region')].filter(Boolean).join(', ');
-                    this.review.nok = [g('nok_name'), g('nok_relationship'), g('nok_phone')].filter(Boolean).join(' · ');
-                    this.review.activity = [g('activity_type'), g('income_range')].filter(Boolean).join(' · ');
-                    if (this.form.guarantor_mode === 'internal') this.review.guarantor = g('internal_member_no');
+                guarantorReviewStatus() {
+                    if (this.form.guarantor_mode === 'internal') {
+                        return this.guarantorLookup.ok
+                            ? @js(__('borrower.apply.guarantor_status.internal_validated'))
+                            : @js(__('borrower.apply.guarantor_status.pending_acceptance'));
+                    }
                     if (this.form.guarantor_mode === 'external') {
-                        const name = [this.form.external_first_name, this.form.external_last_name].filter(Boolean).join(' ');
-                        this.review.guarantor = name || '—';
+                        if (this.externalGuarantor?.invitation_url) {
+                            return @js(__('borrower.apply.guarantor_status.external_invited'));
+                        }
+                        if (this.isExternalGuarantorComplete()) {
+                            return @js(__('borrower.apply.guarantor_status.pending_acceptance'));
+                        }
+
+                        return @js(__('borrower.apply.guarantor_status.external_incomplete'));
+                    }
+
+                    return '—';
+                },
+
+                async loadRepaymentSchedule() {
+                    if (! this.repaymentPreviewUrl || ! this.form.loan_product_id) {
+                        return;
+                    }
+                    this.scheduleLoading = true;
+                    try {
+                        const params = new URLSearchParams({
+                            loan_product_id: String(this.form.loan_product_id),
+                            requested_amount: String(this.form.requested_amount),
+                            requested_tenure_months: String(this.form.requested_tenure_months),
+                        });
+                        const res = await fetch(`${this.repaymentPreviewUrl}?${params}`, {
+                            headers: { Accept: 'application/json' },
+                            credentials: 'same-origin',
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (res.ok && data.ok) {
+                            this.repaymentSchedule = data.schedule || [];
+                            this.reviewSummary = {
+                                monthly_rate_pct: data.summary?.monthly_rate_pct ?? 0,
+                                application_fee: data.summary?.application_fee ?? this.applicationFee,
+                                monthly_installment: data.summary?.monthly_installment ?? this.quote.monthly,
+                            };
+                        }
+                    } catch {
+                        this.repaymentSchedule = [];
+                    } finally {
+                        this.scheduleLoading = false;
                     }
                 },
 
+                refreshReview(formEl) {
+                    const form = formEl instanceof HTMLFormElement ? formEl : this.formRoot();
+                    const snapshot = this.borrowerSnapshot || {};
+                    if (! form) {
+                        this.review.personal = snapshot.personal || [this.form.first_name, this.form.last_name].filter(Boolean).join(' · ');
+                        this.review.employment = snapshot.employment || '';
+                        this.review.residence = snapshot.residence || '';
+                    } else {
+                        const fd = new FormData(form);
+                        const g = (n) => fd.get(n) || '';
+                        this.review.personal = snapshot.personal || [g('first_name'), g('last_name'), g('national_id')].filter(Boolean).join(' · ');
+                        const activity = this.activityTypeLabels[g('activity_type')] || g('activity_type');
+                        const income = this.incomeRangeLabels[g('income_range')] || g('income_range');
+                        this.review.employment = snapshot.employment || [activity, income].filter(Boolean).join(' · ');
+                        this.review.residence = snapshot.residence || [g('street'), g('ward'), g('district'), g('region')].filter(Boolean).join(', ');
+                        this.review.nok = [g('nok_name'), g('nok_relationship'), g('nok_phone')].filter(Boolean).join(' · ');
+                        this.review.activity = [activity, income].filter(Boolean).join(' · ');
+                    }
+
+                    if (this.form.guarantor_mode === 'internal') {
+                        this.review.guarantorType = @js(__('borrower.apply.review_step.internal_type'));
+                        this.review.guarantorName = this.guarantorLookup.label || this.form.internal_guarantor_name || this.form.internal_member_no || '—';
+                    } else if (this.form.guarantor_mode === 'external') {
+                        this.review.guarantorType = @js(__('borrower.apply.review_step.external_type'));
+                        this.review.guarantorName = [this.form.external_first_name, this.form.external_last_name].filter(Boolean).join(' ') || '—';
+                    } else {
+                        this.review.guarantorType = '—';
+                        this.review.guarantorName = '—';
+                    }
+                    this.review.guarantorStatus = this.guarantorReviewStatus();
+                    this.review.guarantor = this.review.guarantorName;
+                    this.loadRepaymentSchedule();
+                },
+
                 formRoot() {
-                    return this.$el.querySelector('form') || this.$el;
+                    const ref = this.$refs?.wizardForm;
+                    if (ref instanceof HTMLFormElement) return ref;
+                    const byId = document.getElementById('apply-wizard-form');
+                    if (byId instanceof HTMLFormElement) return byId;
+                    const scoped = this.$el?.querySelector?.('form[data-apply-wizard-form]');
+                    if (scoped instanceof HTMLFormElement) return scoped;
+                    const nested = this.$el?.querySelector?.('form');
+                    if (nested instanceof HTMLFormElement) return nested;
+                    return null;
                 },
 
                 onExternalRegionChange() {
@@ -1079,6 +1442,15 @@
 
                 readFormField(name) {
                     const root = this.formRoot();
+                    if (! root) {
+                        if (Object.prototype.hasOwnProperty.call(this.form, name)) {
+                            const fromModel = this.form[name];
+                            if (fromModel !== undefined && fromModel !== null) {
+                                return String(fromModel).trim();
+                            }
+                        }
+                        return '';
+                    }
                     const radios = root.querySelectorAll(`[name="${name}"]`);
                     if (radios.length && radios[0].type === 'radio') {
                         const checked = root.querySelector(`[name="${name}"]:checked`);
@@ -1099,7 +1471,7 @@
 
                 syncGuarantorFormFromDom() {
                     const fields = [
-                        'internal_member_no', 'internal_guarantor_phone',
+                        'internal_member_no', 'internal_guarantor_phone', 'internal_guarantor_name',
                         'external_first_name', 'external_middle_name', 'external_last_name',
                         'external_relationship', 'external_phone', 'external_email',
                         'external_region', 'external_district',
@@ -1129,10 +1501,29 @@
                     };
                 },
 
-                externalGuarantorMissingFields() {
-                    if (this.externalGuarantor?.invitation_url) {
-                        return [];
+                externalGuarantorFingerprint() {
+                    const p = this.externalGuarantorPayload();
+                    return JSON.stringify({
+                        external_first_name: (p.external_first_name || '').toString().trim(),
+                        external_last_name: (p.external_last_name || '').toString().trim(),
+                        external_relationship: (p.external_relationship || '').toString().trim(),
+                        external_phone: (p.external_phone || '').toString().trim(),
+                        external_region: (p.external_region || '').toString().trim(),
+                        external_district: (p.external_district || '').toString().trim(),
+                    });
+                },
+
+                invalidateExternalInvite() {
+                    if (! this.externalGuarantor?.invitation_url) {
+                        return;
                     }
+                    const current = this.externalGuarantorFingerprint();
+                    if (this.externalGuarantor._fingerprint && this.externalGuarantor._fingerprint !== current) {
+                        this.externalGuarantor = null;
+                    }
+                },
+
+                externalGuarantorMissingFields() {
                     const required = {
                         external_first_name: @js(__('borrower.profile.fields.first_name')),
                         external_last_name: @js(__('borrower.profile.fields.last_name')),
@@ -1159,16 +1550,15 @@
                     return Object.keys(this.externalGuarantorMissingFields()).length === 0;
                 },
 
-                scheduleExternalInvitePrep() {
-                    clearTimeout(this.externalInviteTimer);
-                    this.externalInviteTimer = setTimeout(() => this.maybePrepareExternalInvite(), 700);
-                },
-
-                async maybePrepareExternalInvite() {
-                    if (this.stepKey !== 'guarantor' || this.form.guarantor_mode !== 'external') return;
-                    if (this.guarantorInvitePreparing || this.externalGuarantor?.invitation_url) return;
+                async generateExternalInvite() {
                     this.syncGuarantorFormFromDom();
-                    if (! this.isExternalGuarantorComplete()) return;
+                    const missing = this.externalGuarantorMissingFields();
+                    if (Object.keys(missing).length) {
+                        this.setGuarantorFieldErrors(missing);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        return;
+                    }
+                    this.guarantorErrors = {};
                     await this.prepareExternalGuarantorInvite();
                 },
 
@@ -1199,7 +1589,10 @@
                             alert(data.message || this.i18n.alerts.guarantor_invite_failed);
                             return false;
                         }
-                        this.externalGuarantor = data.share;
+                        this.externalGuarantor = {
+                            ...data.share,
+                            _fingerprint: this.externalGuarantorFingerprint(),
+                        };
                         return true;
                     } catch {
                         alert(this.i18n.alerts.guarantor_invite_failed);
@@ -1210,9 +1603,12 @@
                 },
 
                 async validateStep() {
-                    if (this.stepKey === 'quote' && this.hasStep('quote') && ! this.form.purpose) {
-                        alert(this.i18n.alerts.selectPurpose);
-                        return false;
+                    if (this.stepKey === 'quote' && this.hasStep('quote')) {
+                        this.syncQuoteFormFromDom();
+                        if (! this.form.purpose) {
+                            alert(this.i18n.alerts.selectPurpose);
+                            return false;
+                        }
                     }
                     if (this.stepKey === 'guarantor' && this.hasStep('guarantor')) {
                         this.syncGuarantorFormFromDom();
@@ -1221,17 +1617,21 @@
                             return false;
                         }
                         if (this.form.guarantor_mode === 'internal') {
-                            return await this.verifyInternalGuarantor();
+                            if (! this.internalGuarantorValidated()) {
+                                alert(this.i18n.alerts.guarantor_validate_first);
+                                return false;
+                            }
+                            return true;
                         }
                         if (this.form.guarantor_mode === 'external') {
-                            if (this.externalGuarantor?.invitation_url) {
-                                this.guarantorErrors = {};
-                                return true;
-                            }
                             const missing = this.externalGuarantorMissingFields();
                             if (Object.keys(missing).length) {
                                 this.setGuarantorFieldErrors(missing);
                                 window.scrollTo({ top: 0, behavior: 'smooth' });
+                                return false;
+                            }
+                            if (! this.externalGuarantor?.invitation_url) {
+                                alert(this.i18n.alerts.guarantor_external_invite_required);
                                 return false;
                             }
                             this.guarantorErrors = {};
@@ -1239,7 +1639,8 @@
                         }
                     }
                     if (this.stepKey === 'application_fee') {
-                        if (this.applicationFee > 0) {
+                        await this.refreshApplicationFeeQuote();
+                        if (this.effectiveFeeAmount() > 0) {
                             const st = this.applicationFeeState?.status || '';
                             if (! ['paid', 'waived', 'pending'].includes(st)) {
                                 alert(@js(__('borrower.apply.application_fee.required_before_continue')));
@@ -1249,6 +1650,11 @@
                             await this.autoWaiveApplicationFeeIfNeeded();
                         }
                     }
+                    if (! this.feeGateSatisfied() && this.feeGateRequiredForStep(this.stepKey)) {
+                        this.enforceStepRequirements();
+                        alert(@js(__('borrower.apply.application_fee.required_before_continue')));
+                        return false;
+                    }
                     const nextKey = this.steps[this.step + 1]?.key;
                     if (nextKey && this.feeGateRequiredForStep(nextKey) && ! this.feeGateSatisfied()) {
                         alert(@js(__('borrower.apply.application_fee.required_before_continue')));
@@ -1257,10 +1663,23 @@
                     return true;
                 },
 
-                async verifyInternalGuarantor() {
+                internalGuarantorValidated() {
                     this.syncGuarantorFormFromDom();
                     const member = this.readFormField('internal_member_no');
                     const phone = this.readFormField('internal_guarantor_phone');
+                    const name = this.readFormField('internal_guarantor_name');
+
+                    return this.guarantorLookup.ok
+                        && this.guarantorLookup.memberKey === member
+                        && this.guarantorLookup.phone === phone
+                        && this.guarantorLookup.name === name;
+                },
+
+                async validateInternalGuarantor() {
+                    this.syncGuarantorFormFromDom();
+                    const member = this.readFormField('internal_member_no');
+                    const phone = this.readFormField('internal_guarantor_phone');
+                    const name = this.readFormField('internal_guarantor_name');
                     const errors = {};
                     if (! member) {
                         errors.internal_member_no = this.i18n.alerts.guarantor_membership;
@@ -1268,16 +1687,17 @@
                     if (! phone) {
                         errors.internal_guarantor_phone = this.i18n.alerts.guarantor_phone;
                     }
+                    if (! name) {
+                        errors.internal_guarantor_name = this.i18n.alerts.guarantor_name;
+                    }
                     if (Object.keys(errors).length) {
                         this.setGuarantorFieldErrors(errors);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
-                        return false;
+                        return;
                     }
                     this.guarantorErrors = {};
-                    if (this.guarantorLookup.ok && this.guarantorLookup.memberKey === member && this.guarantorLookup.phone === phone) {
-                        return true;
-                    }
-                    this.guarantorLookup = { ok: false, label: '', error: '', memberKey: member, phone };
+                    this.guarantorValidating = true;
+                    this.guarantorLookup = { ok: false, label: '', error: '', memberKey: member, phone, name };
                     try {
                         const res = await fetch(this.guarantorLookupUrl, {
                             method: 'POST',
@@ -1288,25 +1708,31 @@
                                 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
                             },
                             credentials: 'same-origin',
-                            body: JSON.stringify({ membership_no: member, phone }),
+                            body: JSON.stringify({ membership_no: member, phone, name }),
                         });
                         const data = await res.json().catch(() => ({}));
                         if (! res.ok || ! data.ok) {
                             this.guarantorLookup.error = data.message || this.i18n.alerts.guarantor_lookup_failed;
-                            alert(this.guarantorLookup.error);
-                            return false;
+                            return;
                         }
-                        this.guarantorLookup = { ok: true, label: data.label || data.name, error: '', memberKey: member, phone };
-                        return true;
+                        this.guarantorLookup = {
+                            ok: true,
+                            label: data.label || data.name,
+                            error: '',
+                            memberKey: member,
+                            phone,
+                            name,
+                        };
                     } catch {
                         this.guarantorLookup.error = this.i18n.alerts.guarantor_lookup_failed;
-                        alert(this.guarantorLookup.error);
-                        return false;
+                    } finally {
+                        this.guarantorValidating = false;
                     }
                 },
 
                 async next() {
-                    if (this.guarantorInvitePreparing) return;
+                    if (this.advancing || this.resumeLoading) return;
+                    if (this.guarantorInvitePreparing && this.stepKey === 'guarantor') return;
                     if (! this.steps.length) {
                         this.rebuildSteps();
                     }
@@ -1314,26 +1740,28 @@
                         alert(this.i18n.alerts.loadProduct);
                         return;
                     }
-                    if (! await this.validateStep()) return;
+                    this.advancing = true;
+                    try {
+                        this.syncQuoteFormFromDom();
+                        if (! await this.validateStep()) return;
 
-                    if (this.stepKey === 'guarantor' && this.form.guarantor_mode === 'external') {
-                        if (! this.externalGuarantor?.invitation_url) {
-                            const ok = await this.prepareExternalGuarantorInvite();
-                            if (! ok) return;
+                        await this.persistDraft(true);
+                        if (this.step >= this.steps.length - 1) {
+                            return;
                         }
+                        this.step++;
+                        this.syncStepKey();
+                        this.enforceStepRequirements();
+                        if (this.stepKey === 'application_fee') {
+                            this.enterApplicationFeeStep();
+                        }
+                        if (this.stepKey === 'review') {
+                            this.refreshReview(this.formRoot());
+                        }
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    } finally {
+                        this.advancing = false;
                     }
-
-                    await this.persistDraft(true);
-                    const nextKey = this.steps[this.step + 1]?.key;
-                    if (this.step >= this.steps.length - 1) {
-                        return;
-                    }
-                    this.step++;
-                    this.syncStepKey();
-                    if (this.stepKey === 'review') {
-                        this.refreshReview(this.formRoot());
-                    }
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
                 },
 
                 prev() {

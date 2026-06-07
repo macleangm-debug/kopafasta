@@ -64,7 +64,7 @@ class PublicGuarantorController extends Controller
                 }
 
                 return redirect()->route('site.borrower.dashboard')
-                    ->with('status', 'Invitation accepted. Complete registration, membership, and profile verification to finalize your guarantor role.');
+                    ->with('status', 'Invitation accepted. Pay your registration fee and complete your profile to finalize your guarantor role.');
             }
 
             return redirect()

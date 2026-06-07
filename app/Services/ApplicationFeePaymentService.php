@@ -9,6 +9,11 @@ use Illuminate\Support\Str;
 
 class ApplicationFeePaymentService
 {
+    public function usesDummyGateway(): bool
+    {
+        return payment_gateway_is_dummy();
+    }
+
     public function generatePaymentReference(): string
     {
         do {
@@ -107,7 +112,7 @@ class ApplicationFeePaymentService
         return [
             'status'    => 'paid',
             'reference' => $paymentReference,
-            'channel'   => 'mobile_money',
+            'channel'   => $this->usesDummyGateway() ? 'dummy_mobile_money' : 'mobile_money',
             'amount'    => $amount,
             'paid_at'   => now()->toIso8601String(),
         ];
@@ -119,8 +124,28 @@ class ApplicationFeePaymentService
         $quote = $this->quote($customer, $product);
         $amount = (int) $quote['after_discount'];
 
+        if ($amount <= 0) {
+            return [
+                'status'    => 'waived',
+                'reference' => $paymentReference,
+                'channel'   => 'bank',
+                'amount'    => 0,
+                'paid_at'   => now()->toIso8601String(),
+            ];
+        }
+
+        if ($this->usesDummyGateway()) {
+            return [
+                'status'    => 'paid',
+                'reference' => $paymentReference,
+                'channel'   => 'dummy_bank',
+                'amount'    => $amount,
+                'paid_at'   => now()->toIso8601String(),
+            ];
+        }
+
         return [
-            'status'    => $amount <= 0 ? 'waived' : 'pending',
+            'status'    => 'pending',
             'reference' => $paymentReference,
             'channel'   => 'bank',
             'amount'    => $amount,

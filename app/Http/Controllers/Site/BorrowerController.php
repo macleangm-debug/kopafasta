@@ -291,13 +291,15 @@ class BorrowerController extends Controller
             $activeTab = 'applications';
         }
 
+        $applicationsDashboard = app(\App\Services\BorrowerApplicationsDashboardService::class);
+        $applicationRows = $applicationsDashboard->applicationsForCustomer($customer);
+        $resumableDrafts = $applicationsDashboard->resumableDrafts($customer);
+
         $applications = LoanApplication::with('product')
             ->where('customer_id', $customer->id)
             ->whereNotIn('status', ['draft'])
             ->latest()
             ->get();
-
-        $resumableDrafts = app(\App\Services\LoanApplicationDraftService::class)->listResumable($customer);
 
         $loans = Loan::with('product')
             ->where('customer_id', $customer->id)
@@ -335,6 +337,7 @@ class BorrowerController extends Controller
             'customer',
             'activeTab',
             'applications',
+            'applicationRows',
             'viewMode',
             'loans',
             'guaranteedLinks',

@@ -21,9 +21,11 @@ use App\Services\FaceVerificationService;
 use App\Services\GuarantorInvitationService;
 use App\Services\KycFreshnessService;
 use App\Services\ApplicationFeePaymentService;
+use App\Services\DisplayedRateService;
 use App\Services\LoanApplicationDraftService;
 use App\Services\LoanProductReadinessService;
 use App\Services\ReferralService;
+use App\Services\RepaymentScheduleGenerator;
 use App\Services\SmartLoanApplicationWizardService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -132,12 +134,23 @@ class ApplyController extends Controller
             ? $drafts->payloadForWizard($customer, (int) $request->query('product'))
             : $drafts->payloadForWizard($customer);
 
+        $isResume = $request->boolean('resume');
+
+        if ($isResume && ! $savedDraft && $request->filled('product')) {
+            $draft = $drafts->find($customer, (int) $request->query('product'));
+            if ($draft && in_array($draft->phase, ['details', 'application'], true)) {
+                $savedDraft = $drafts->payloadForWizard($customer, (int) $request->query('product'));
+            }
+        }
+
         $resumableDrafts = $drafts->listResumable($customer);
 
         $feeQuote = $selectedProduct
             ? app(ApplicationFeePaymentService::class)->quote($customer, $selectedProduct)
             : null;
-        $bankAccounts = config('site.membership_bank_accounts', []);
+        $bankAccounts = config('site.membership_bank_accounts', [
+            ['bank' => 'CRDB Bank', 'account_name' => 'Kopafasta Microfinance Ltd', 'account_number' => '0150-XXXXX-00', 'branch' => 'Dar es Salaam'],
+        ]);
         $referralService = app(ReferralService::class);
         $referralWallet = $referralService->wallet($customer);
         $referralSettings = $referralService->settings();
@@ -162,12 +175,14 @@ class ApplyController extends Controller
             'applyRequirements',
             'savedDraft',
             'resumableDrafts',
+            'isResume',
             'feeQuote',
             'bankAccounts',
             'referralWallet',
             'referralSettings',
             'applicationFeePaymentRef',
-        ))->with('loanPurposes', loan_purpose_options())
+        ))->with('paymentGatewayDummy', payment_gateway_is_dummy())
+            ->with('loanPurposes', loan_purpose_options())
             ->with('marketplaceOnlyCodes', marketplace_only_loan_codes())
             ->with('marketplaceUrl', route('site.borrower.marketplace'))
             ->with('incomeRanges', config('income_ranges'))
@@ -191,42 +206,28 @@ class ApplyController extends Controller
 
         $data = $request->validate([
             'membership_no' => ['required', 'string', 'max:32'],
-            'phone'           => ['required', 'string', 'max:20'],
+            'phone'         => ['required', 'string', 'max:20'],
+            'name'          => ['required', 'string', 'max:120'],
         ]);
 
-        $member = $guarantors->findMemberByNumber($data['membership_no']);
-        if (! $member) {
+        $result = $guarantors->verifyInternalMember(
+            $borrower,
+            $data['membership_no'],
+            $data['phone'],
+            $data['name'],
+        );
+
+        if (! $result['ok']) {
             return response()->json([
                 'ok'      => false,
-                'message' => __('borrower.apply.alerts.guarantor_lookup_failed'),
+                'message' => $result['message'],
             ], 422);
         }
-
-        if ($member->id === $borrower->id) {
-            return response()->json([
-                'ok'      => false,
-                'message' => __('borrower.apply.alerts.guarantor_self'),
-            ], 422);
-        }
-
-        $inputPhone = $guarantors->normalizePhone($data['phone']);
-        $memberPhone = $guarantors->normalizePhone($member->phone);
-        if ($inputPhone === '' || $memberPhone === '' || $inputPhone !== $memberPhone) {
-            return response()->json([
-                'ok'      => false,
-                'message' => __('borrower.apply.alerts.guarantor_phone_mismatch'),
-            ], 422);
-        }
-
-        $name = trim(($member->first_name ?? '').' '.($member->last_name ?? ''));
-        $statusKey = $member->isMembershipActive()
-            ? 'active'
-            : ($member->isMembershipInGrace() ? 'grace' : 'inactive');
 
         return response()->json([
             'ok'    => true,
-            'name'  => $name,
-            'label' => trim($name.' · '.__('borrower.apply.guarantor_fields.membership_'.$statusKey)),
+            'name'  => $result['name'],
+            'label' => $result['label'],
         ]);
     }
 
@@ -255,6 +256,9 @@ class ApplyController extends Controller
         $draft = $drafts->find($borrower, (int) $data['loan_product_id']);
         $existingId = $data['external_invitation_id']
             ?? ($draft?->payload['external_guarantor']['invitation_id'] ?? null);
+        $draftForm = $draft?->payload['form'] ?? [];
+        $requestedAmount = isset($draftForm['requested_amount']) ? (int) $draftForm['requested_amount'] : null;
+        $requestedTenure = isset($draftForm['requested_tenure_months']) ? (int) $draftForm['requested_tenure_months'] : null;
 
         try {
             $share = $guarantors->prepareWizardExternalInvitation(
@@ -269,6 +273,8 @@ class ApplyController extends Controller
                 $data['external_district'],
                 $data['external_channel'] ?? null,
                 $existingId ? (int) $existingId : null,
+                $requestedAmount,
+                $requestedTenure,
             );
         } catch (\Throwable $e) {
             report($e);
@@ -309,6 +315,7 @@ class ApplyController extends Controller
         $data = $request->validate([
             'phase'                => ['required', 'string', 'in:browse,details,application'],
             'step'                 => ['nullable', 'integer', 'min:0'],
+            'step_key'             => ['nullable', 'string', 'max:64'],
             'loan_product_id'      => ['nullable', 'integer', 'exists:loan_products,id'],
             'asset_reservation_id' => ['nullable', 'integer'],
             'form'                 => ['nullable', 'array'],
@@ -337,10 +344,11 @@ class ApplyController extends Controller
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($customer, 403);
 
+        $dummyGateway = payment_gateway_is_dummy();
         $data = $request->validate([
             'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
             'channel'         => ['required', 'in:mobile_money,bank'],
-            'payment_phone'   => ['required_if:channel,mobile_money', 'nullable', 'string', 'max:20'],
+            'payment_phone'   => [$dummyGateway ? 'nullable' : 'required_if:channel,mobile_money', 'nullable', 'string', 'max:20'],
             'use_wallet'      => ['nullable', 'boolean'],
         ]);
 
@@ -372,25 +380,35 @@ class ApplyController extends Controller
             $drafts->saveApplicationFee($customer, $product->id, $feeState);
             $request->session()->forget('application_fee_payment_ref');
 
+            $message = $dummyGateway
+                ? __('borrower.apply.application_fee.dummy_paid')
+                : __('borrower.apply.application_fee.paid');
+
             if ($request->expectsJson()) {
-                return response()->json(['ok' => true, 'fee' => $feeState, 'message' => __('borrower.apply.application_fee.paid')]);
+                return response()->json(['ok' => true, 'fee' => $feeState, 'message' => $message, 'dummy' => $dummyGateway]);
             }
 
-            return back()->with('status', __('borrower.apply.application_fee.paid'));
+            return back()->with('status', $message);
         }
 
         $feeState = $fees->processBankPending($customer, $product, $paymentReference);
         $drafts->saveApplicationFee($customer, $product->id, $feeState);
+        $request->session()->forget('application_fee_payment_ref');
+
+        $bankMessage = ($dummyGateway && ($feeState['status'] ?? '') === 'paid')
+            ? __('borrower.apply.application_fee.dummy_paid')
+            : __('borrower.apply.application_fee.bank_submitted', ['ref' => $paymentReference]);
 
         if ($request->expectsJson()) {
             return response()->json([
                 'ok'      => true,
                 'fee'     => $feeState,
-                'message' => __('borrower.apply.application_fee.bank_submitted', ['ref' => $paymentReference]),
+                'message' => $bankMessage,
+                'dummy'   => $dummyGateway,
             ]);
         }
 
-        return back()->with('warning', __('borrower.apply.application_fee.bank_submitted', ['ref' => $paymentReference]));
+        return back()->with(($feeState['status'] ?? '') === 'paid' ? 'status' : 'warning', $bankMessage);
     }
 
     public function applicationFeeQuote(Request $request, ApplicationFeePaymentService $fees): \Illuminate\Http\JsonResponse
@@ -405,6 +423,61 @@ class ApplyController extends Controller
         return response()->json([
             'amount' => quoted_application_fee($customer, $product),
             'quote'  => $fees->quote($customer, $product),
+        ]);
+    }
+
+    public function repaymentPreview(
+        Request $request,
+        RepaymentScheduleGenerator $schedules,
+        SmartLoanApplicationWizardService $wizard,
+    ): \Illuminate\Http\JsonResponse {
+        $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($customer, 403);
+
+        $data = $request->validate([
+            'loan_product_id'  => ['required', 'exists:loan_products,id'],
+            'requested_amount' => ['required', 'numeric', 'min:1000'],
+            'requested_tenure_months' => ['required', 'integer', 'min:1', 'max:60'],
+        ]);
+
+        $product = LoanProduct::where('id', $data['loan_product_id'])
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        $amount = (float) $data['requested_amount'];
+        $tenure = (int) $data['requested_tenure_months'];
+        $rate = app(DisplayedRateService::class)->displayedMonthlyRate($product, $amount);
+        $cadence = $product->repayment_cadence ?? 'weekly';
+        $rows = $schedules->preview($amount, $rate, $tenure, $cadence);
+
+        $balance = $amount;
+        $schedule = [];
+        foreach ($rows as $row) {
+            $balance = max(0, round($balance - $row['principal_due'], 2));
+            $schedule[] = [
+                'installment_no'      => $row['installment_no'],
+                'due_date'            => $row['due_date'],
+                'principal_due'       => round($row['principal_due'], 2),
+                'interest_due'        => round($row['interest_due'], 2),
+                'total_due'           => round($row['total_due'], 2),
+                'remaining_balance'   => $balance,
+                'label'               => $row['label'],
+            ];
+        }
+
+        $quote = $wizard->loanQuote($product, $amount, $tenure);
+
+        return response()->json([
+            'ok'       => true,
+            'schedule' => $schedule,
+            'summary'  => [
+                'monthly_rate'        => $rate,
+                'monthly_rate_pct'    => round($rate * 100, 2),
+                'application_fee'     => quoted_application_fee($customer, $product),
+                'monthly_installment' => $quote['monthly_installment'],
+                'interest_total'      => $quote['interest_total'],
+                'total_repayment'     => $quote['total_repayment'],
+            ],
         ]);
     }
 
@@ -468,6 +541,8 @@ class ApplyController extends Controller
             'income_range'            => ['required', 'string', 'in:'.implode(',', array_keys(config('income_ranges')))],
             'guarantor_mode'          => ['nullable', 'in:none,internal,external'],
             'internal_member_no'      => ['nullable', 'string', 'max:40'],
+            'internal_guarantor_phone'=> ['nullable', 'string', 'max:20'],
+            'internal_guarantor_name' => ['nullable', 'string', 'max:120'],
             'external_first_name'     => ['nullable', 'string', 'max:60'],
             'external_middle_name'    => ['nullable', 'string', 'max:60'],
             'external_last_name'      => ['nullable', 'string', 'max:60'],
@@ -503,6 +578,11 @@ class ApplyController extends Controller
             return back()->withInput()->withErrors(['requested_tenure_months' => 'Tenure must be between '.$loanProduct->tenure_min_months.' and '.$loanProduct->tenure_max_months.' months.']);
         }
 
+        $submittingBorrower = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        if ($loanProduct->requires_guarantor && ! $submittingBorrower) {
+            return back()->withInput()->withErrors(['guarantor_mode' => __('borrower.apply.alerts.guarantor_lookup_failed')]);
+        }
+
         if ($loanProduct->requires_guarantor) {
             $mode = $data['guarantor_mode'] ?? 'none';
             if ($mode === 'none') {
@@ -517,11 +597,26 @@ class ApplyController extends Controller
                 if (empty($data['internal_member_no'])) {
                     return back()->withInput()->withErrors(['internal_member_no' => 'Enter the guarantor membership number.']);
                 }
-                $member = $guarantors->findMemberByNumber($data['internal_member_no']);
-                $inputPhone = $guarantors->normalizePhone($data['internal_guarantor_phone'] ?? '');
-                $memberPhone = $guarantors->normalizePhone($member?->phone);
-                if (! $member || $inputPhone === '' || $memberPhone === '' || $inputPhone !== $memberPhone) {
-                    return back()->withInput()->withErrors(['internal_guarantor_phone' => __('borrower.apply.alerts.guarantor_lookup_failed')]);
+                if (empty($data['internal_guarantor_name'])) {
+                    return back()->withInput()->withErrors(['internal_guarantor_name' => __('borrower.apply.alerts.guarantor_name_required')]);
+                }
+                $verified = $guarantors->verifyInternalMember(
+                    $submittingBorrower,
+                    $data['internal_member_no'],
+                    $data['internal_guarantor_phone'] ?? '',
+                    $data['internal_guarantor_name'] ?? '',
+                );
+                if (! $verified['ok']) {
+                    $field = match (true) {
+                        str_contains($verified['message'], __('borrower.apply.alerts.guarantor_name_mismatch')) => 'internal_guarantor_name',
+                        str_contains($verified['message'], __('borrower.apply.alerts.guarantor_phone_mismatch')) => 'internal_guarantor_phone',
+                        str_contains($verified['message'], __('borrower.apply.alerts.guarantor_not_found')),
+                        str_contains($verified['message'], __('borrower.apply.alerts.guarantor_not_member')),
+                        str_contains($verified['message'], __('borrower.apply.alerts.guarantor_membership_inactive')) => 'internal_member_no',
+                        default => 'internal_guarantor_phone',
+                    };
+
+                    return back()->withInput()->withErrors([$field => $verified['message']]);
                 }
             }
             if ($mode === 'external') {
@@ -677,7 +772,13 @@ class ApplyController extends Controller
         if ($loanProduct->requires_guarantor) {
             try {
                 if (($data['guarantor_mode'] ?? '') === 'internal') {
-                    $guarantors->attachInternal($customer, $app, $data['internal_member_no']);
+                    $guarantors->attachInternal(
+                        $customer,
+                        $app,
+                        $data['internal_member_no'],
+                        $data['internal_guarantor_phone'] ?? '',
+                        $data['internal_guarantor_name'] ?? '',
+                    );
                 } elseif (($data['guarantor_mode'] ?? '') === 'external') {
                     $inviteId = (int) ($data['external_invitation_id'] ?? 0);
                     if ($inviteId > 0) {
@@ -708,14 +809,13 @@ class ApplyController extends Controller
                 $app->update([
                     'status'        => 'awaiting_guarantor',
                     'current_stage' => 'awaiting_guarantor',
-                    'submitted_at'  => null,
                 ]);
             }
         }
 
         $message = $app->status === 'awaiting_guarantor'
-            ? 'Application saved. Waiting for guarantor approval before submission.'
-            : 'Application received.';
+            ? __('borrower.apply.success.awaiting_guarantor_message')
+            : __('borrower.apply.success.submitted_message');
 
         $this->auditBorrower('application.submitted', $app, [
             'product_id' => $loanProduct->id,
@@ -747,7 +847,7 @@ class ApplyController extends Controller
             ? $guarantorService->whatsAppShareUrl($guarantorInvitation, $application->customer)
             : null;
         $guarantorInvitationUrl = $guarantorInvitation
-            ? $guarantorService->invitationUrl($guarantorInvitation)
+            ? $guarantorService->shortInvitationUrl($guarantorInvitation)
             : null;
         $guarantorSmsUrl = $guarantorInvitation
             ? $guarantorService->smsShareUrl($guarantorInvitation)

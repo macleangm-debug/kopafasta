@@ -13,7 +13,7 @@
             <div class="relative mt-12" x-data x-effect>
                 <p class="text-xs uppercase tracking-widest text-amber-300 font-semibold">Borrower onboarding</p>
                 <h2 class="mt-2 text-3xl font-bold tracking-tight leading-tight">Just a few details to get you started.</h2>
-                <p class="mt-3 text-white/70 text-sm">We keep things short. You can complete KYC later in your application wizard.</p>
+                <p class="mt-3 text-white/70 text-sm">We keep things short. You can complete your profile later in the application wizard.</p>
             </div>
 
             <ol class="relative mt-12 space-y-6">

@@ -7,6 +7,13 @@ use App\Services\AffiliateService;
 use App\Services\PromotionService;
 use App\Services\ReferralService;
 
+if (! function_exists('payment_gateway_is_dummy')) {
+    function payment_gateway_is_dummy(): bool
+    {
+        return config('payments.gateway_mode', 'dummy') !== 'live';
+    }
+}
+
 if (! function_exists('payment_channels_for_amount')) {
     /**
      * @return array{mobile_money_allowed: bool, channels: list<string>, threshold: int}

@@ -29,6 +29,8 @@ class LoanApplicationDraftService
         return [
             'phase'                => $draft->phase,
             'step'                 => (int) $draft->step,
+            'step_key'             => $payload['step_key'] ?? null,
+            'application_started'  => (bool) ($payload['application_started'] ?? $draft->phase === 'application'),
             'loan_product_id'      => $draft->loan_product_id,
             'asset_reservation_id' => $draft->asset_reservation_id,
             'form'                 => $payload['form'] ?? [],
@@ -130,11 +132,14 @@ class LoanApplicationDraftService
 
         $existing = $this->find($customer, (int) $productId);
         $payload = [
-            'form'             => $data['form'] ?? ($existing?->payload['form'] ?? []),
-            'inputs'           => $data['inputs'] ?? ($existing?->payload['inputs'] ?? []),
-            'guarantor_lookup'   => $data['guarantor_lookup'] ?? ($existing?->payload['guarantor_lookup'] ?? null),
-            'application_fee'    => $data['application_fee'] ?? ($existing?->payload['application_fee'] ?? null),
-            'external_guarantor' => $data['external_guarantor'] ?? ($existing?->payload['external_guarantor'] ?? null),
+            'form'                 => $data['form'] ?? ($existing?->payload['form'] ?? []),
+            'inputs'               => $data['inputs'] ?? ($existing?->payload['inputs'] ?? []),
+            'step_key'             => $data['step_key'] ?? ($existing?->payload['step_key'] ?? null),
+            'application_started'  => $phase === 'application'
+                || (bool) ($data['application_started'] ?? ($existing?->payload['application_started'] ?? false)),
+            'guarantor_lookup'     => $data['guarantor_lookup'] ?? ($existing?->payload['guarantor_lookup'] ?? null),
+            'application_fee'      => $data['application_fee'] ?? ($existing?->payload['application_fee'] ?? null),
+            'external_guarantor'   => $data['external_guarantor'] ?? ($existing?->payload['external_guarantor'] ?? null),
         ];
 
         return LoanApplicationDraft::updateOrCreate(

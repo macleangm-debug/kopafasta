@@ -20,7 +20,7 @@ return [
         'step_n'                   => 'Step :n',
         'status_fee_pending'       => 'Application fee pending',
         'status_browsing'          => 'Browsing product',
-        'status_awaiting_guarantor'=> 'Awaiting guarantor',
+        'status_awaiting_guarantor'=> 'Submitted – Awaiting Guarantor Completion',
         'status_in_progress'       => 'In progress',
         'dossier_heading'          => 'Incomplete (not submitted)',
         'dossier_empty'            => 'No in-progress drafts for this customer.',

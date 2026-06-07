@@ -20,7 +20,7 @@
             <h1 class="text-2xl sm:text-3xl font-bold font-mono">{{ $application->application_number }}</h1>
             <p class="text-sm text-gray-500 mt-1">{{ $application->product->name ?? '—' }}</p>
         </div>
-        <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1.5 {{ $statusBadge }}">{{ ucfirst(str_replace('_',' ', $application->status)) }}</span>
+        <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1.5 {{ $statusBadge }}">{{ app(\App\Services\BorrowerApplicationsDashboardService::class)->borrowerStatusLabel($application->status, $application->current_stage) }}</span>
     </div>
 
     @if (session('status'))

@@ -3,6 +3,17 @@
 return [
     /*
     |--------------------------------------------------------------------------
+    | Payment gateway mode
+    |--------------------------------------------------------------------------
+    |
+    | dummy — instant test payments (no M-Pesa / bank API). Use until live rails.
+    | live  — production gateway behaviour (bank transfers await verification).
+    |
+    */
+    'gateway_mode' => env('PAYMENT_GATEWAY_MODE', 'dummy'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Mobile money payment threshold (TZS)
     |--------------------------------------------------------------------------
     |

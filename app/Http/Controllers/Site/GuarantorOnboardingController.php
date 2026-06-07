@@ -29,7 +29,7 @@ class GuarantorOnboardingController extends Controller
 
         if (! $onboarding->canFinalize($customer, $invitation)) {
             return redirect()->route('site.borrower.dashboard')
-                ->with('warning', 'Complete identity verification and profile requirements before finalizing your guarantor role.');
+                ->with('warning', 'Complete your profile before finalizing your guarantor role.');
         }
 
         return view('site.guarantor.onboarding', compact('invitation', 'customer'));

@@ -10,7 +10,7 @@ return [
 
         'application_status' => [
             'draft'               => 'Draft',
-            'awaiting_guarantor'  => 'Awaiting guarantor',
+            'awaiting_guarantor'  => 'Submitted – Awaiting Guarantor Completion',
             'submitted'           => 'Submitted',
             'pending'             => 'Pending',
             'pending_documents'   => 'Pending documents',

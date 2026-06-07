@@ -5,43 +5,45 @@
     'paymentReference' => null,
     'referralWallet' => null,
     'referralSettings' => [],
+    'paymentGatewayDummy' => true,
 ])
 
-<div x-show="stepKey === 'application_fee'" class="p-6 sm:p-8" x-effect="onApplicationFeeStep()">
+<div x-show="stepKey === 'application_fee'" class="p-6 sm:p-8">
     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.application_fee.title') }}</h2>
     <p class="text-sm text-gray-600 mb-5">{{ __('borrower.apply.application_fee.subtitle') }}</p>
 
-    <template x-if="applicationFeeState?.status === 'pending'">
-        <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-4 text-sm text-sky-900 mb-6">
-            <p class="font-semibold">{{ __('borrower.apply.application_fee.bank_submitted', ['ref' => $paymentReference ?? '—']) }}</p>
-            <p class="mt-1 text-xs font-mono" x-show="applicationFeeState?.reference" x-text="applicationFeeState.reference"></p>
-            <p class="mt-2 text-xs">{{ __('borrower.membership.bank_hint') }}</p>
+    @if ($paymentGatewayDummy)
+        <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 text-sm text-amber-900 mb-6">
+            <p class="font-semibold">{{ __('borrower.apply.application_fee.dummy_banner_title') }}</p>
+            <p class="mt-1 text-amber-800">{{ __('borrower.apply.application_fee.dummy_banner') }}</p>
         </div>
-    </template>
+    @endif
 
-    <template x-if="applicationFeePaid">
-        <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-4 text-sm text-emerald-900 mb-6">
-            <p class="font-semibold">{{ __('borrower.apply.application_fee.already_paid') }}</p>
-            <p class="mt-1 text-xs" x-show="applicationFeeState?.reference">
-                {{ __('borrower.apply.application_fee.reference') }}:
-                <span class="font-mono font-semibold" x-text="applicationFeeState.reference"></span>
-            </p>
-        </div>
-    </template>
+    <div x-show="applicationFeeState?.status === 'pending'" x-cloak class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-4 text-sm text-sky-900 mb-6">
+        <p class="font-semibold">{{ __('borrower.apply.application_fee.bank_submitted', ['ref' => $paymentReference ?? '—']) }}</p>
+        <p class="mt-1 text-xs font-mono" x-show="applicationFeeState?.reference" x-text="applicationFeeState.reference"></p>
+        <p class="mt-2 text-xs">{{ __('borrower.membership.bank_hint') }}</p>
+    </div>
 
-    <template x-if="!applicationFeePaid && applicationFee <= 0">
-        <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-4 text-sm text-gray-700 mb-6">
-            {{ __('borrower.apply.application_fee.waived') }}
-        </div>
-    </template>
+    <div x-show="applicationFeePaid" x-cloak class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-4 text-sm text-emerald-900 mb-6">
+        <p class="font-semibold">{{ __('borrower.apply.application_fee.already_paid') }}</p>
+        <p class="mt-1 text-xs" x-show="applicationFeeState?.reference">
+            {{ __('borrower.apply.application_fee.reference') }}:
+            <span class="font-mono font-semibold" x-text="applicationFeeState.reference"></span>
+        </p>
+    </div>
 
-    <template x-if="!applicationFeePaid && applicationFee > 0">
+    <div x-show="!applicationFeePaid && effectiveFeeAmount() <= 0" x-cloak class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-4 text-sm text-gray-700 mb-6">
+        {{ __('borrower.apply.application_fee.waived') }}
+    </div>
+
+    <div x-show="showsApplicationFeePayment()" x-cloak>
         <div class="rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white p-6 shadow-lg mb-6">
             <p class="text-[10px] uppercase tracking-widest text-white/80">{{ __('borrower.apply.application_fee.amount_label') }}</p>
             @if ($feeQuote && ($feeQuote['base'] ?? 0) > ($feeQuote['after_discount'] ?? 0))
                 <p class="mt-1 text-sm text-white/80 line-through">{{ $currency }} {{ format_number($feeQuote['base']) }}</p>
             @endif
-            <p class="mt-1 text-3xl font-extrabold">{{ $currency }} <span x-text="window.formatNumber ? window.formatNumber(applicationFee) : applicationFee"></span></p>
+            <p class="mt-1 text-3xl font-extrabold">{{ $currency }} <span x-text="formatTzs(effectiveFeeAmount())"></span></p>
             @if ($paymentReference)
                 <p class="mt-3 text-xs text-white/90">{{ __('borrower.membership.payment_reference') }}</p>
                 <p class="mt-1 font-mono text-sm bg-white/15 inline-block px-3 py-1 rounded-lg">{{ $paymentReference }}</p>
@@ -87,28 +89,39 @@
             <div x-show="feeChannel === 'mobile_money'" x-transition>
                 <label class="block text-xs uppercase tracking-wider text-gray-500 mb-1">{{ __('borrower.membership.mobile_money') }}</label>
                 <input type="tel" x-model="feePhone" class="w-full rounded-lg border-gray-300 px-3 py-2.5 text-sm" placeholder="+255 7XX XXX XXX">
-                <p class="mt-2 text-xs text-gray-500">{{ __('borrower.apply.application_fee.mobile_hint') }}</p>
+                <p class="mt-2 text-xs text-gray-500">
+                    @if ($paymentGatewayDummy)
+                        {{ __('borrower.apply.application_fee.dummy_mobile_hint') }}
+                    @else
+                        {{ __('borrower.apply.application_fee.mobile_hint') }}
+                    @endif
+                </p>
             </div>
 
             <div x-show="feeChannel === 'bank'" x-cloak class="rounded-xl bg-sky-50 border border-sky-200 p-4 text-sm">
-                <p class="font-semibold text-sky-900 mb-2">{{ __('borrower.apply.application_fee.bank_instructions') }}</p>
-                @if ($paymentReference)
-                    <p class="text-sky-800 text-xs mb-3">{{ __('borrower.apply.application_fee.bank_reference', ['ref' => $paymentReference]) }}</p>
+                @if ($paymentGatewayDummy)
+                    <p class="font-semibold text-sky-900 mb-2">{{ __('borrower.apply.application_fee.dummy_banner_title') }}</p>
+                    <p class="text-sky-800 text-xs">{{ __('borrower.apply.application_fee.dummy_bank_hint') }}</p>
+                @else
+                    <p class="font-semibold text-sky-900 mb-2">{{ __('borrower.apply.application_fee.bank_instructions') }}</p>
+                    @if ($paymentReference)
+                        <p class="text-sky-800 text-xs mb-3">{{ __('borrower.apply.application_fee.bank_reference', ['ref' => $paymentReference]) }}</p>
+                    @endif
+                    @foreach ($bankAccounts as $acct)
+                        <div class="mb-2 last:mb-0 text-xs text-sky-800">
+                            <p class="font-medium">{{ $acct['bank'] }}</p>
+                            <p>{{ $acct['account_name'] }} · {{ $acct['account_number'] }}</p>
+                        </div>
+                    @endforeach
                 @endif
-                @foreach ($bankAccounts as $acct)
-                    <div class="mb-2 last:mb-0 text-xs text-sky-800">
-                        <p class="font-medium">{{ $acct['bank'] }}</p>
-                        <p>{{ $acct['account_name'] }} · {{ $acct['account_number'] }}</p>
-                    </div>
-                @endforeach
             </div>
 
             <button type="button"
                     @click="payApplicationFee()"
                     :disabled="feePaying"
                     class="w-full bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white font-semibold px-5 py-3 rounded-full text-sm">
-                <span x-text="feePaying ? @js(__('borrower.apply.application_fee.processing')) : (feeChannel === 'mobile_money' ? @js(__('borrower.membership.pay_now')) : @js(__('borrower.membership.submit_bank')))"></span>
+                <span x-text="feePaying ? @js(__('borrower.apply.application_fee.processing')) : (@js($paymentGatewayDummy) ? @js(__('borrower.apply.application_fee.dummy_pay')) : (feeChannel === 'mobile_money' ? @js(__('borrower.membership.pay_now')) : @js(__('borrower.membership.submit_bank'))))"></span>
             </button>
         </div>
-    </template>
+    </div>
 </div>

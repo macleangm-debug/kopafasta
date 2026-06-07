@@ -125,9 +125,7 @@ class SmartLoanApplicationWizardService
         $profileKeys = ['personal', 'residence', 'kin', 'activity'];
         $isAssetLending = is_marketplace_loan_product($productCode);
 
-        $steps = [
-            ['key' => 'product', 'label' => __('borrower.apply.steps.product'), 'skippable' => false, 'skipped' => false],
-        ];
+        $steps = [];
 
         if (! $isAssetLending) {
             $steps[] = ['key' => 'quote', 'label' => __('borrower.apply.steps.quote'), 'skippable' => false, 'skipped' => false];
@@ -137,12 +135,12 @@ class SmartLoanApplicationWizardService
 
         // Profile/KYC/income are completed in Profile — never duplicated in the apply wizard.
 
+        // Application fee immediately after quote (same gateway as registration fee).
+        $steps[] = ['key' => 'application_fee', 'label' => __('borrower.apply.steps.application_fee'), 'skippable' => false, 'skipped' => false];
+
         if ($requiresGuarantor) {
             $steps[] = ['key' => 'guarantor', 'label' => __('borrower.apply.steps.guarantor'), 'skippable' => false, 'skipped' => false];
         }
-
-        // Mandatory payment gateway after guarantor (or after quote when no guarantor) for every product.
-        $steps[] = ['key' => 'application_fee', 'label' => __('borrower.apply.steps.application_fee'), 'skippable' => false, 'skipped' => false];
 
         if ($hasProductQuestions) {
             $steps[] = ['key' => 'product_questions', 'label' => __('borrower.apply.steps.product_questions'), 'skippable' => false, 'skipped' => false];

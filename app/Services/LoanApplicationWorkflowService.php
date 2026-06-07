@@ -64,6 +64,7 @@ class LoanApplicationWorkflowService
         return collect(self::ACTIONS)
             ->filter(fn (array $action) => in_array($stage, $action['from'], true))
             ->filter(fn (array $action, string $key) => $this->permissions->has($user, $action['permission']))
+            ->filter(fn (array $action, string $key) => ! ($key === 'acknowledge' && $application->status === 'awaiting_guarantor'))
             ->filter(fn (array $action) => $this->sameBranch($user, $application))
             ->map(fn (array $action, string $key) => [
                 'key'        => $key,
@@ -99,6 +100,10 @@ class LoanApplicationWorkflowService
 
         if (! in_array($from, $action['from'], true)) {
             throw ValidationException::withMessages(['action' => 'This action is not available at the current stage.']);
+        }
+
+        if ($actionKey === 'acknowledge' && $application->status === 'awaiting_guarantor') {
+            throw ValidationException::withMessages(['action' => 'Underwriting cannot start until the guarantor accepts and completes their profile.']);
         }
 
         $to = $action['to_stage'];
