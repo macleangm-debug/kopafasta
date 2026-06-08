@@ -564,6 +564,17 @@ class ApplyController extends Controller
             $request->merge(['consent' => '1']);
         }
 
+        abort_unless($customer, 403);
+        $requirements->mergeSubmitProfileFromCustomer($request, $customer);
+
+        if (! $requirements->hasCompleteResidence($customer)) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'region' => __('borrower.apply.errors_residence_incomplete'),
+                ]);
+        }
+
         $data = $request->validate([
             'loan_product_id'         => ['required', 'exists:loan_products,id'],
             'requested_amount'        => ['required', 'numeric', 'min:1000'],
@@ -638,45 +649,14 @@ class ApplyController extends Controller
                 $data['guarantor_mode'] = $mode;
             }
             if ($mode === 'none') {
-                return back()->withInput()->withErrors(['guarantor_mode' => 'This product requires a guarantor.']);
-            }
-            if ($mode === 'internal') {
+                // Borrower submission must not be blocked by incomplete guarantor onboarding.
+            } elseif ($mode === 'internal') {
                 foreach (['internal_member_no', 'internal_guarantor_phone', 'internal_guarantor_name'] as $field) {
                     if (blank($data[$field] ?? null) && filled($draftForm[$field] ?? null)) {
                         $data[$field] = $draftForm[$field];
                     }
                 }
-                $memberKey = \App\Support\MemberNumberFormatter::lookupKey($data['internal_member_no'] ?? '');
-                if (! $memberKey) {
-                    return back()->withInput()->withErrors(['internal_member_no' => 'Enter a valid membership number.']);
-                }
-                $data['internal_member_no'] = $memberKey;
-                if (empty($data['internal_member_no'])) {
-                    return back()->withInput()->withErrors(['internal_member_no' => 'Enter the guarantor membership number.']);
-                }
-                if (empty($data['internal_guarantor_name'])) {
-                    return back()->withInput()->withErrors(['internal_guarantor_name' => __('borrower.apply.alerts.guarantor_name_required')]);
-                }
-                $verified = $guarantors->verifyInternalMember(
-                    $submittingBorrower,
-                    $data['internal_member_no'],
-                    $data['internal_guarantor_phone'] ?? '',
-                    $data['internal_guarantor_name'] ?? '',
-                );
-                if (! $verified['ok']) {
-                    $field = match (true) {
-                        str_contains($verified['message'], __('borrower.apply.alerts.guarantor_name_mismatch')) => 'internal_guarantor_name',
-                        str_contains($verified['message'], __('borrower.apply.alerts.guarantor_phone_mismatch')) => 'internal_guarantor_phone',
-                        str_contains($verified['message'], __('borrower.apply.alerts.guarantor_not_found')),
-                        str_contains($verified['message'], __('borrower.apply.alerts.guarantor_not_member')),
-                        str_contains($verified['message'], __('borrower.apply.alerts.guarantor_membership_inactive')) => 'internal_member_no',
-                        default => 'internal_guarantor_phone',
-                    };
-
-                    return back()->withInput()->withErrors([$field => $verified['message']]);
-                }
-            }
-            if ($mode === 'external') {
+            } elseif ($mode === 'external') {
                 foreach ([
                     'external_first_name', 'external_last_name', 'external_phone',
                     'external_relationship', 'external_region', 'external_district',
@@ -701,7 +681,7 @@ class ApplyController extends Controller
                     }
                 }
                 if ($first === '' || $last === '' || empty($data['external_phone']) || empty($data['external_relationship']) || empty($data['external_region']) || empty($data['external_district'])) {
-                    return back()->withInput()->withErrors(['external_first_name' => 'Provide guarantor name, phone, relationship, region and district.']);
+                    // Allow submission; guarantor details can be completed independently.
                 }
             }
         }
@@ -842,40 +822,45 @@ class ApplyController extends Controller
             ]);
         }
 
-        if ($loanProduct->requires_guarantor) {
+        if ($loanProduct->requires_guarantor && ($data['guarantor_mode'] ?? 'none') !== 'none') {
             try {
                 if (($data['guarantor_mode'] ?? '') === 'internal') {
-                    $guarantors->attachInternal(
-                        $customer,
-                        $app,
-                        $data['internal_member_no'],
-                        $data['internal_guarantor_phone'] ?? '',
-                        $data['internal_guarantor_name'] ?? '',
-                    );
+                    $memberKey = \App\Support\MemberNumberFormatter::lookupKey($data['internal_member_no'] ?? '');
+                    if ($memberKey && filled($data['internal_guarantor_name'] ?? null)) {
+                        $guarantors->attachInternal(
+                            $customer,
+                            $app,
+                            $memberKey,
+                            $data['internal_guarantor_phone'] ?? '',
+                            $data['internal_guarantor_name'] ?? '',
+                        );
+                    }
                 } elseif (($data['guarantor_mode'] ?? '') === 'external') {
                     $inviteId = (int) ($data['external_invitation_id'] ?? 0);
                     if ($inviteId > 0) {
                         $guarantors->finalizeWizardExternalInvitation($customer, $app, $inviteId);
                     } else {
-                        $guarantors->attachExternal(
-                            $customer,
-                            $app,
-                            trim($data['external_first_name'] ?? ''),
-                            trim($data['external_middle_name'] ?? ''),
-                            trim($data['external_last_name'] ?? ''),
-                            $data['external_phone'],
-                            $data['external_email'] ?? null,
-                            $data['external_relationship'] ?? '',
-                            $data['external_region'] ?? '',
-                            $data['external_district'] ?? '',
-                            $data['external_channel'] ?? 'whatsapp',
-                        );
+                        $first = trim($data['external_first_name'] ?? '');
+                        $last = trim($data['external_last_name'] ?? '');
+                        if ($first !== '' && $last !== '' && filled($data['external_phone'] ?? null)) {
+                            $guarantors->attachExternal(
+                                $customer,
+                                $app,
+                                $first,
+                                trim($data['external_middle_name'] ?? ''),
+                                $last,
+                                $data['external_phone'],
+                                $data['external_email'] ?? null,
+                                $data['external_relationship'] ?? '',
+                                $data['external_region'] ?? '',
+                                $data['external_district'] ?? '',
+                                $data['external_channel'] ?? 'whatsapp',
+                            );
+                        }
                     }
                 }
             } catch (\InvalidArgumentException $e) {
-                $app->delete();
-
-                return back()->withInput()->withErrors(['internal_member_no' => $e->getMessage()]);
+                report($e);
             }
         }
 

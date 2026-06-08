@@ -180,7 +180,7 @@ class LoanApplicationReviewService
                 'tone'   => $approved ? 'emerald' : 'amber',
                 'detail' => $approved
                     ? __('borrower.apply.guarantor_status.accepted')
-                    : ($guarantorRows->first()['status_label'] ?? __('borrower.apply.guarantor_status.pending_completion')),
+                    : ($guarantorRows->first()['status_label'] ?? __('borrower.apply.guarantor_status.invitation_sent')),
             ];
         }
 

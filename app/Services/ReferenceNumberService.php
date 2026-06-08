@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Loan;
+use App\Models\LoanApplication;
+use App\Models\LoanApplicationDraft;
 use App\Models\LoanProduct;
 use Illuminate\Support\Facades\DB;
 
@@ -10,17 +13,15 @@ class ReferenceNumberService
     public function applicationReference(LoanProduct $product): string
     {
         $code = $this->productCode($product);
-        $sequence = $this->nextSequence('APP', $code);
 
-        return sprintf('APP-%s-A%s', $code, str_pad((string) $sequence, 3, '0', STR_PAD_LEFT));
+        return $this->generateUniqueReference('APP', $code, fn (string $reference) => $this->applicationReferenceExists($reference));
     }
 
     public function loanReference(LoanProduct $product): string
     {
         $code = $this->productCode($product);
-        $sequence = $this->nextSequence('LN', $code);
 
-        return sprintf('LN-%s-%s', $code, str_pad((string) $sequence, 4, '0', STR_PAD_LEFT));
+        return $this->generateUniqueReference('LN', $code, fn (string $reference) => $this->loanReferenceExists($reference));
     }
 
     public function productCode(LoanProduct $product): string
@@ -40,34 +41,40 @@ class ReferenceNumberService
         };
     }
 
-    private function nextSequence(string $prefix, string $productCode): int
+    private function generateUniqueReference(string $prefix, string $productCode, callable $exists): string
     {
-        return (int) DB::transaction(function () use ($prefix, $productCode): int {
-            $row = DB::table('reference_sequences')
-                ->where('prefix', $prefix)
-                ->where('product_code', $productCode)
-                ->lockForUpdate()
-                ->first();
-
-            if (! $row) {
-                DB::table('reference_sequences')->insert([
-                    'prefix'       => $prefix,
-                    'product_code' => $productCode,
-                    'last_value'   => 1,
-                    'created_at'   => now(),
-                    'updated_at'   => now(),
-                ]);
-
-                return 1;
+        return DB::transaction(function () use ($prefix, $productCode, $exists): string {
+            for ($attempt = 0; $attempt < 30; $attempt++) {
+                $reference = sprintf('%s-%s-%s', $prefix, $productCode, $this->randomSuffix(4));
+                if (! $exists($reference)) {
+                    return $reference;
+                }
             }
 
-            $next = ((int) $row->last_value) + 1;
-
-            DB::table('reference_sequences')
-                ->where('id', $row->id)
-                ->update(['last_value' => $next, 'updated_at' => now()]);
-
-            return $next;
+            throw new \RuntimeException("Unable to generate unique {$prefix} reference.");
         });
+    }
+
+    private function applicationReferenceExists(string $reference): bool
+    {
+        return LoanApplication::query()->where('application_number', $reference)->exists()
+            || LoanApplicationDraft::query()->where('draft_reference', $reference)->exists();
+    }
+
+    private function loanReferenceExists(string $reference): bool
+    {
+        return Loan::query()->where('loan_number', $reference)->exists();
+    }
+
+    private function randomSuffix(int $length = 4): string
+    {
+        $alphabet = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+        $suffix = '';
+
+        for ($i = 0; $i < $length; $i++) {
+            $suffix .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+        }
+
+        return $suffix;
     }
 }

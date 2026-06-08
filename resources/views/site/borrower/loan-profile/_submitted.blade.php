@@ -59,15 +59,11 @@
         <ul class="divide-y divide-gray-100">
             @foreach ($guarantorInvitations as $invite)
                 @php
-                    $gBadge = match ($invite->status) {
-                        'approved', 'accepted' => 'bg-emerald-100 text-emerald-700',
-                        'declined', 'rejected' => 'bg-red-100 text-red-700',
+                    $status = app(\App\Services\GuarantorInvitationService::class)->invitationWorkflowStatusLabel($invite);
+                    $gBadge = match (true) {
+                        str_contains(strtolower($status), 'accepted') => 'bg-emerald-100 text-emerald-700',
+                        str_contains(strtolower($status), 'rejected') => 'bg-red-100 text-red-700',
                         default => 'bg-amber-100 text-amber-700',
-                    };
-                    $gLabel = match ($invite->status) {
-                        'approved', 'accepted' => __('borrower.application.guarantor_accepted'),
-                        'declined', 'rejected' => __('borrower.application.guarantor_declined'),
-                        default => __('borrower.application.guarantor_pending'),
                     };
                 @endphp
                 <li class="px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
@@ -75,7 +71,7 @@
                         <p class="text-sm font-medium text-gray-900">{{ $invite->invitee_name ?? __('borrower.application.guarantor_external') }}</p>
                         <p class="text-xs text-gray-500">{{ ucfirst($invite->type ?? 'guarantor') }} · {{ $invite->contact }}</p>
                     </div>
-                    <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $gBadge }}">{{ $gLabel }}</span>
+                    <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $gBadge }}">{{ $status }}</span>
                 </li>
             @endforeach
             @foreach ($application->customerGuarantors as $link)
@@ -83,9 +79,10 @@
                     @continue
                 @endif
                 @php
-                    $gBadge = match ($link->status) {
-                        'approved' => 'bg-emerald-100 text-emerald-700',
-                        'declined', 'rejected' => 'bg-red-100 text-red-700',
+                    $status = app(\App\Services\GuarantorInvitationService::class)->guarantorLinkStatusLabel($link);
+                    $gBadge = match (true) {
+                        str_contains(strtolower($status), 'accepted') => 'bg-emerald-100 text-emerald-700',
+                        str_contains(strtolower($status), 'rejected') => 'bg-red-100 text-red-700',
                         default => 'bg-amber-100 text-amber-700',
                     };
                 @endphp
@@ -94,7 +91,7 @@
                         <p class="text-sm font-medium text-gray-900">{{ $link->guarantorCustomer?->full_name ?? __('borrower.application.guarantor_member') }}</p>
                         <p class="text-xs text-gray-500">{{ __('borrower.application.guarantor_internal') }}</p>
                     </div>
-                    <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $gBadge }}">{{ ucfirst($link->status) }}</span>
+                    <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $gBadge }}">{{ $status }}</span>
                 </li>
             @endforeach
         </ul>

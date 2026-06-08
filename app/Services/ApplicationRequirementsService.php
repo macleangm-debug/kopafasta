@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\Setting;
+use Illuminate\Http\Request;
 
 class ApplicationRequirementsService
 {
@@ -279,5 +280,41 @@ class ApplicationRequirementsService
             'cta_url'  => $firstIncomplete['action_url'] ?? route('site.borrower.profile'),
             'items'    => $actionable->all(),
         ];
+    }
+
+    /** @return array<string, mixed> */
+    public function submitProfilePayload(Customer $customer): array
+    {
+        $customer->refresh();
+
+        return [
+            'first_name'       => $customer->first_name,
+            'last_name'        => $customer->last_name,
+            'date_of_birth'    => $customer->date_of_birth?->format('Y-m-d'),
+            'gender'           => $customer->gender,
+            'national_id'      => $customer->national_id,
+            'region'           => $customer->region,
+            'district'         => $customer->district,
+            'ward'             => $customer->ward,
+            'street'           => $customer->street ?: $customer->address,
+            'nok_name'         => $customer->nok_name,
+            'nok_relationship' => $customer->nok_relationship,
+            'nok_phone'        => $customer->nok_phone,
+            'nok_region'       => $customer->nok_region,
+            'nok_district'     => $customer->nok_district,
+            'activity_type'    => $customer->activity_type ?? $customer->employment_type,
+            'income_range'     => $customer->income_range,
+            'activity_details' => $customer->activity_details ?? [],
+        ];
+    }
+
+    public function mergeSubmitProfileFromCustomer(Request $request, Customer $customer): void
+    {
+        $request->merge($this->submitProfilePayload($customer));
+    }
+
+    public function hasCompleteResidence(Customer $customer): bool
+    {
+        return app(ProfileCompletionService::class)->isResidenceComplete($customer);
     }
 }
