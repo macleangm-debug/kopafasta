@@ -30,7 +30,7 @@
                     <div class="flex items-start justify-between gap-3 mb-3">
                         <div>
                             <p class="font-semibold text-gray-900">{{ $row['loan_type'] }}</p>
-                            @if (($row['application_number'] ?? '') !== __('borrower.applications_list.draft_reference'))
+                            @if (! empty($row['application_number']))
                                 <p class="font-mono text-xs text-gray-500 mt-0.5">{{ $row['application_number'] }}</p>
                             @endif
                             <p class="text-xs text-gray-500">{{ $row['product_name'] }}</p>

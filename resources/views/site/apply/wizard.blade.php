@@ -5,6 +5,10 @@
             <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">{{ brand_name() }} {{ __('borrower.apply.smart_application') }}</p>
             <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">{{ __('borrower.apply.title') }}</h1>
             <p class="mt-1 text-sm text-gray-500">{{ __('borrower.apply.subtitle') }}</p>
+            <p x-show="draftReference" x-cloak class="mt-2 text-sm text-gray-600">
+                {{ __('borrower.apply.submit_step.reference') }}:
+                <span class="font-mono font-semibold text-gray-900" x-text="draftReference"></span>
+            </p>
         </div>
 
         @if (! ($applyRequirements['can_apply'] ?? false))
@@ -642,6 +646,9 @@
                 <div x-show="stepKey === 'signature'" class="p-6 sm:p-8">
                     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.signature_title') }}</h2>
                     <p class="text-sm text-gray-600 mb-5">{{ __('borrower.apply.signature_subtitle') }}</p>
+                    <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-4 mb-5">
+                        <p class="text-sm font-semibold text-gray-900">{{ __('borrower.apply.signature_declaration') }}</p>
+                    </div>
                     <label class="flex items-start gap-3 text-sm text-gray-700 mb-5">
                         <input type="checkbox" name="consent" value="1" required class="mt-1 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
                         <span>{{ __('borrower.apply.signature_consent', ['brand' => brand_name()]) }}</span>
@@ -649,14 +656,32 @@
                     <x-site.signature-pad :default-name="trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''))" />
                 </div>
 
+                {{-- Submit --}}
+                <div x-show="stepKey === 'submit'" class="p-6 sm:p-8">
+                    <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.submit_step.title') }}</h2>
+                    <p class="text-sm text-gray-600 mb-5">{{ __('borrower.apply.submit_step.subtitle') }}</p>
+                    <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-4 mb-5">
+                        <p class="text-sm font-semibold text-emerald-900">{{ __('borrower.apply.submit_step.signed_title') }}</p>
+                        <p class="text-sm text-emerald-800 mt-1">{{ __('borrower.apply.submit_step.signed_hint') }}</p>
+                    </div>
+                    <p x-show="draftReference" class="text-sm text-gray-600 mb-5">
+                        {{ __('borrower.apply.submit_step.reference') }}:
+                        <span class="font-mono font-semibold text-gray-900" x-text="draftReference"></span>
+                    </p>
+                    <input type="hidden" name="signer_name" :value="borrowerSignature?.signer_name || ''">
+                    <input type="hidden" name="signature_data" :value="borrowerSignature?.signature_data || ''">
+                    <input type="hidden" name="consent" value="1">
+                </div>
+
                 <div class="px-6 sm:px-8 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl flex items-center justify-between">
                     <button type="button" @click="step > 0 ? prev() : backToDetails()" class="text-sm font-medium text-gray-600 hover:text-gray-900" x-text="step > 0 ? i18n.back : i18n.backProducts"></button>
                     <div class="ml-auto flex items-center gap-3">
                         <a href="{{ route('site.borrower.dashboard') }}" class="text-sm text-gray-500 hover:text-gray-700">{{ __('borrower.apply.cancel') }}</a>
-                        <button type="button" @click.prevent="next()" :disabled="advancing || resumeLoading || (guarantorInvitePreparing && stepKey === 'guarantor') || (stepKey === 'guarantor' && form.guarantor_mode === 'internal' && !guarantorLookup.ok) || (stepKey === 'guarantor' && form.guarantor_mode === 'external' && (!externalGuarantor?.invitation_url || !isExternalGuarantorComplete()))" x-show="stepKey !== 'signature'" class="bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                        <button type="button" @click.prevent="next()" :disabled="advancing || resumeLoading || (guarantorInvitePreparing && stepKey === 'guarantor') || (stepKey === 'guarantor' && form.guarantor_mode === 'internal' && !internalGuarantorFieldsFilled()) || (stepKey === 'guarantor' && form.guarantor_mode === 'external' && !isExternalGuarantorComplete())" x-show="!['signature', 'submit'].includes(stepKey)" class="bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
                             <span x-text="(guarantorInvitePreparing && stepKey === 'guarantor') ? @js(__('borrower.apply.application_fee.processing')) : @js(__('borrower.apply.continue'))"></span>
                         </button>
-                        <button type="submit" x-show="stepKey === 'signature'" class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.submit') }}</button>
+                        <button type="button" @click.prevent="signApplication()" :disabled="advancing" x-show="stepKey === 'signature'" class="bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.sign_application') }}</button>
+                        <button type="submit" x-show="stepKey === 'submit'" class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.submit') }}</button>
                     </div>
                 </div>
             </div>
@@ -734,6 +759,8 @@
                 reservationId: config.reservationId || null,
                 draftSavedAt: null,
                 draftSaveTimer: null,
+                draftReference: config.savedDraft?.draft_reference || '',
+                borrowerSignature: config.savedDraft?.borrower_signature || null,
                 guarantorLookup: { ok: false, label: '', error: '', memberKey: '', phone: '', name: '' },
                 guarantorValidating: false,
                 externalGuarantor: config.savedDraft?.external_guarantor || null,
@@ -790,6 +817,7 @@
                     product_questions: '📄',
                     review: '✅',
                     signature: '✍️',
+                    submit: '📤',
                 },
 
                 syncStepKey() {
@@ -883,6 +911,7 @@
                         guarantor_lookup: this.guarantorLookup.ok ? this.guarantorLookup : null,
                         application_fee: this.applicationFeeState,
                         external_guarantor: this.externalGuarantor,
+                        borrower_signature: this.borrowerSignature,
                     };
                 },
 
@@ -1056,6 +1085,7 @@
                                 guarantor_lookup: this.guarantorLookup.ok ? this.guarantorLookup : null,
                                 application_fee: this.applicationFeeState,
                                 external_guarantor: this.externalGuarantor,
+                                borrower_signature: this.borrowerSignature,
                             };
                         }
                         return fetch(this.draftSaveUrl, {
@@ -1064,7 +1094,12 @@
                             credentials: 'same-origin',
                             body: JSON.stringify(payload),
                         }).then(res => res.ok ? res.json() : Promise.reject(res))
-                          .then(() => { this.draftSavedAt = new Date().toLocaleTimeString(); });
+                          .then((data) => {
+                              this.draftSavedAt = new Date().toLocaleTimeString();
+                              if (data?.draft_reference) {
+                                  this.draftReference = data.draft_reference;
+                              }
+                          });
                     };
 
                     return sync ? request().catch(() => {}) : request().catch(() => {});
@@ -1134,6 +1169,8 @@
                     if (draft.guarantor_lookup) this.guarantorLookup = draft.guarantor_lookup;
                     if (draft.application_fee) this.applicationFeeState = draft.application_fee;
                     if (draft.external_guarantor) this.externalGuarantor = draft.external_guarantor;
+                    if (draft.borrower_signature) this.borrowerSignature = draft.borrower_signature;
+                    if (draft.draft_reference) this.draftReference = draft.draft_reference;
                     this.syncFeePaidState();
 
                     const resumeStep = target.step ?? draft.step ?? 0;
@@ -1158,7 +1195,7 @@
                         this.updateQuote();
                         this.syncStepKey();
                         this.enforceStepRequirements(this.isResume);
-                        if (this.stepKey === 'review' || this.stepKey === 'signature') {
+                        if (this.stepKey === 'review' || this.stepKey === 'signature' || this.stepKey === 'submit') {
                             this.refreshReview(this.formRoot());
                         }
                         return true;
@@ -1309,6 +1346,7 @@
                         }
                         steps.push({ key: 'review', label: @js(__('borrower.apply.steps.review')) });
                         steps.push({ key: 'signature', label: @js(__('borrower.apply.steps.signature')) });
+                        steps.push({ key: 'submit', label: @js(__('borrower.apply.steps.submit')) });
                         this.steps = steps.map(s => this.withStepIcon(s));
                     }
                     this.step = this.resolveStepIndex(prevKey, this.step);
@@ -1580,6 +1618,63 @@
                     return Object.keys(this.externalGuarantorMissingFields()).length === 0;
                 },
 
+                scheduleExternalInvitePrep() {
+                    clearTimeout(this.externalInviteTimer);
+                    this.externalInviteTimer = setTimeout(() => {
+                        if (this.form.guarantor_mode !== 'external') {
+                            return;
+                        }
+                        this.invalidateExternalInvite();
+                    }, 600);
+                },
+
+                internalGuarantorFieldsFilled() {
+                    this.syncGuarantorFormFromDom();
+                    return !! (
+                        this.readFormField('internal_member_no')
+                        && this.readFormField('internal_guarantor_phone')
+                        && this.readFormField('internal_guarantor_name')
+                    );
+                },
+
+                async signApplication() {
+                    if (this.advancing) {
+                        return;
+                    }
+                    const form = this.formRoot();
+                    const consent = form?.elements['consent'];
+                    const sig = form?.elements['signature_data'];
+                    const signer = form?.elements['signer_name'];
+                    if (consent && ! consent.checked) {
+                        alert(this.i18n.alerts.acceptTerms);
+                        return;
+                    }
+                    if (! signer?.value?.trim()) {
+                        alert(this.i18n.alerts.drawSignature);
+                        return;
+                    }
+                    if (! sig?.value) {
+                        alert(this.i18n.alerts.drawSignature);
+                        return;
+                    }
+                    this.advancing = true;
+                    try {
+                        this.borrowerSignature = {
+                            signer_name: signer.value.trim(),
+                            signature_data: sig.value,
+                            signed_at: new Date().toISOString(),
+                        };
+                        await this.persistDraft(true);
+                        if (this.step < this.steps.length - 1) {
+                            this.step++;
+                            this.syncStepKey();
+                        }
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    } finally {
+                        this.advancing = false;
+                    }
+                },
+
                 async generateExternalInvite() {
                     this.syncGuarantorFormFromDom();
                     const missing = this.externalGuarantorMissingFields();
@@ -1647,7 +1742,7 @@
                             return false;
                         }
                         if (this.form.guarantor_mode === 'internal') {
-                            if (! this.internalGuarantorValidated()) {
+                            if (! this.internalGuarantorFieldsFilled()) {
                                 alert(this.i18n.alerts.guarantor_validate_first);
                                 return false;
                             }
@@ -1658,10 +1753,6 @@
                             if (Object.keys(missing).length) {
                                 this.setGuarantorFieldErrors(missing);
                                 window.scrollTo({ top: 0, behavior: 'smooth' });
-                                return false;
-                            }
-                            if (! this.externalGuarantor?.invitation_url) {
-                                alert(this.i18n.alerts.guarantor_external_invite_required);
                                 return false;
                             }
                             this.guarantorErrors = {};
@@ -1788,6 +1879,13 @@
                         if (this.stepKey === 'review') {
                             this.refreshReview(this.formRoot());
                         }
+                        if (this.stepKey === 'submit' && ! this.borrowerSignature?.signature_data) {
+                            const signatureIndex = this.steps.findIndex(s => s.key === 'signature');
+                            if (signatureIndex >= 0) {
+                                this.step = signatureIndex;
+                                this.syncStepKey();
+                            }
+                        }
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                     } finally {
                         this.advancing = false;
@@ -1810,6 +1908,10 @@
                 },
 
                 onSubmit(e) {
+                    if (this.stepKey !== 'submit') {
+                        e.preventDefault();
+                        return;
+                    }
                     if (! this.canApply) {
                         e.preventDefault();
                         const url = @js($applyRequirements['first_action_url'] ?? null);
@@ -1820,14 +1922,14 @@
                         }
                         return;
                     }
-                    const consent = e.target.elements['consent'];
-                    const sig = e.target.elements['signature_data'];
-                    if (consent && ! consent.checked) {
+                    const sigData = this.borrowerSignature?.signature_data || e.target.elements['signature_data']?.value;
+                    const signerName = this.borrowerSignature?.signer_name || e.target.elements['signer_name']?.value;
+                    if (! signerName?.trim()) {
                         e.preventDefault();
-                        alert(this.i18n.alerts.acceptTerms);
+                        alert(this.i18n.alerts.drawSignature);
                         return;
                     }
-                    if (sig && ! sig.value) {
+                    if (! sigData) {
                         e.preventDefault();
                         alert(this.i18n.alerts.drawSignature);
                         return;

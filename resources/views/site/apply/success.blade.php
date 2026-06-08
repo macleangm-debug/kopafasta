@@ -3,8 +3,12 @@
         <div class="size-16 rounded-full bg-emerald-100 text-emerald-600 grid place-items-center mx-auto mb-5">
             <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
         </div>
-        <h1 class="text-3xl font-bold tracking-tight animate-[fadeIn_0.5s_ease-out]">{{ $application->status === 'awaiting_guarantor' ? __('borrower.apply.success.awaiting_guarantor_title') : __('borrower.apply.success.submitted_title') }}</h1>
+        <h1 class="text-3xl font-bold tracking-tight animate-[fadeIn_0.5s_ease-out]">{{ __('borrower.apply.success.submitted_title') }}</h1>
         <p class="mt-2 text-gray-600">Reference <span class="font-mono font-bold text-gray-900">{{ $application->application_number }}</span></p>
+
+        @if ($guarantorInvitation ?? null)
+            <p class="mt-3 text-sm text-amber-800">{{ __('borrower.apply.success.submitted_guarantor_pending_message') }}</p>
+        @endif
 
         @if ($guarantorInvitation ?? null)
             <div class="mt-6 bg-emerald-50 rounded-2xl border border-emerald-200 p-6 text-left" x-data="{ copied: false }">

@@ -41,7 +41,7 @@
             <div>
                 <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-1">{{ __('borrower.loan_profile.next_action_title') }}</p>
                 <p class="text-sm font-semibold text-gray-900">{{ $next['label'] ?? __('borrower.loan_profile.next_actions.continue_form') }}</p>
-                @if (! empty($profile['can_submit']))
+                @if (! empty($next['ready']))
                     <p class="text-xs text-emerald-700 font-medium mt-1">{{ __('borrower.loan_profile.application_ready') }}</p>
                 @endif
             </div>

@@ -346,6 +346,7 @@ class ApplyController extends Controller
             'guarantor_lookup'     => ['nullable', 'array'],
             'application_fee'      => ['nullable', 'array'],
             'external_guarantor'   => ['nullable', 'array'],
+            'borrower_signature'   => ['nullable', 'array'],
         ]);
 
         if ($data['phase'] === 'browse' || empty($data['loan_product_id'])) {
@@ -356,7 +357,13 @@ class ApplyController extends Controller
 
         $drafts->save($customer, $data);
 
-        return response()->json(['ok' => true, 'saved_at' => now()->toIso8601String()]);
+        $draft = $drafts->find($customer, (int) ($data['loan_product_id'] ?? 0));
+
+        return response()->json([
+            'ok'              => true,
+            'saved_at'        => now()->toIso8601String(),
+            'draft_reference' => $draft?->draft_reference,
+        ]);
     }
 
     public function payApplicationFee(
@@ -541,6 +548,16 @@ class ApplyController extends Controller
             ->firstOrFail();
         $isMarketplaceProduct = is_marketplace_loan_product($loanProduct->code);
 
+        $draft = $drafts->find($customer, (int) $loanProduct->id);
+        $storedSignature = ($draft?->payload ?? [])['borrower_signature'] ?? null;
+        if ($storedSignature && ! $request->filled('signature_data')) {
+            $request->merge([
+                'signer_name'    => $storedSignature['signer_name'] ?? '',
+                'signature_data' => $storedSignature['signature_data'] ?? '',
+                'consent'        => '1',
+            ]);
+        }
+
         $data = $request->validate([
             'loan_product_id'         => ['required', 'exists:loan_products,id'],
             'requested_amount'        => ['required', 'numeric', 'min:1000'],
@@ -657,9 +674,6 @@ class ApplyController extends Controller
                 if ($first === '' || $last === '' || empty($data['external_phone']) || empty($data['external_relationship']) || empty($data['external_region']) || empty($data['external_district'])) {
                     return back()->withInput()->withErrors(['external_first_name' => 'Provide guarantor name, phone, relationship, region and district.']);
                 }
-                if (empty($data['external_invitation_id']) && empty($data['external_channel'])) {
-                    return back()->withInput()->withErrors(['external_channel' => 'Select how to share the guarantor invitation.']);
-                }
             }
         }
 
@@ -708,7 +722,6 @@ class ApplyController extends Controller
         $submittedAt = now();
 
         $appFee = quoted_application_fee($customer, $loanProduct);
-        $draft = $drafts->find($customer, (int) $loanProduct->id);
         $feeState = ($draft?->payload ?? [])['application_fee'] ?? null;
         $feeService = app(ApplicationFeePaymentService::class);
 
@@ -835,18 +848,15 @@ class ApplyController extends Controller
 
                 return back()->withInput()->withErrors(['internal_member_no' => $e->getMessage()]);
             }
-
-            if (! $guarantors->hasApprovedGuarantor($app)) {
-                $app->update([
-                    'status'        => 'awaiting_guarantor',
-                    'current_stage' => 'awaiting_guarantor',
-                ]);
-            }
         }
 
-        $message = $app->status === 'awaiting_guarantor'
-            ? __('borrower.apply.success.awaiting_guarantor_message')
-            : __('borrower.apply.success.submitted_message');
+        $guarantorPending = $loanProduct->requires_guarantor
+            && ! $guarantors->hasApprovedGuarantor($app);
+
+        $message = __('borrower.apply.success.submitted_message');
+        if ($guarantorPending) {
+            $message = __('borrower.apply.success.submitted_guarantor_pending_message');
+        }
 
         $this->auditBorrower('application.submitted', $app, [
             'product_id' => $loanProduct->id,

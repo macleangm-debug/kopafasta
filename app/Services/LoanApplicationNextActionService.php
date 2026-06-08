@@ -11,10 +11,8 @@ class LoanApplicationNextActionService
 {
     public function __construct(
         private readonly ApplicationProgressService $progress,
-        private readonly ProfileCompletionService $profileCompletion,
         private readonly ApplicationRequirementsService $requirements,
         private readonly LoanApplicationDraftService $drafts,
-        private readonly SmartLoanApplicationWizardService $wizard,
     ) {}
 
     /**
@@ -59,6 +57,9 @@ class LoanApplicationNextActionService
 
         $payload = $draft->payload ?? [];
         $applicationStarted = (bool) ($payload['application_started'] ?? $draft->phase === 'application');
+        $signature = $payload['borrower_signature'] ?? null;
+        $hasSignature = filled($signature['signature_data'] ?? null);
+        $stepKey = (string) ($resumeTarget['step_key'] ?? $payload['step_key'] ?? '');
 
         if (! $applicationStarted || ($resumeTarget['phase'] ?? '') !== 'application') {
             return $this->action(
@@ -69,25 +70,37 @@ class LoanApplicationNextActionService
             );
         }
 
-        if ($product?->requires_guarantor && ! $this->guarantorComplete($customer, $draft, $product)) {
+        if ($hasSignature) {
             return $this->action(
-                'guarantor_pending',
-                __('borrower.loan_profile.next_actions.guarantor'),
-                __('borrower.loan_profile.actions.complete_guarantor'),
-                $this->wizardUrlWithStep($wizardUrl, 'guarantor'),
+                'submit_application',
+                __('borrower.loan_profile.next_actions.submit'),
+                __('borrower.loan_profile.actions.submit_application'),
+                $this->wizardUrlWithStep($wizardUrl, 'submit'),
+                tone: 'primary',
+                canSubmit: (bool) ($this->requirements->checklist($customer)['can_apply'] ?? false),
+                ready: true,
             );
         }
 
-        $stepKey = (string) ($resumeTarget['step_key'] ?? '');
-
-        if (in_array($stepKey, ['review', 'signature'], true)) {
+        if ($stepKey === 'signature' || $stepKey === 'submit') {
             return $this->action(
                 'sign_application',
                 __('borrower.loan_profile.next_actions.sign'),
                 __('borrower.loan_profile.actions.sign_application'),
                 $this->wizardUrlWithStep($wizardUrl, 'signature'),
                 tone: 'primary',
-                canSubmit: $this->requirements->checklist($customer)['can_apply'] ?? false,
+                canSubmit: (bool) ($this->requirements->checklist($customer)['can_apply'] ?? false),
+                ready: true,
+            );
+        }
+
+        if ($stepKey === 'review') {
+            return $this->action(
+                'review_application',
+                __('borrower.loan_profile.next_actions.review'),
+                __('borrower.loan_profile.actions.review_application'),
+                $this->wizardUrlWithStep($wizardUrl, 'review'),
+                tone: 'primary',
                 ready: true,
             );
         }
@@ -154,15 +167,6 @@ class LoanApplicationNextActionService
             );
         }
 
-        if ($status === 'awaiting_guarantor') {
-            return $this->action(
-                'guarantor_pending',
-                __('borrower.loan_profile.next_actions.awaiting_guarantor'),
-                __('borrower.loan_profile.actions.view_guarantor'),
-                $profileUrl.'#guarantors',
-            );
-        }
-
         return $this->action(
             'view_application',
             __('borrower.loan_profile.next_actions.submitted'),
@@ -170,32 +174,6 @@ class LoanApplicationNextActionService
             $profileUrl,
             tone: 'secondary',
         );
-    }
-
-    private function guarantorComplete(Customer $customer, LoanApplicationDraft $draft, ?LoanProduct $product): bool
-    {
-        $payload = $draft->payload ?? [];
-
-        if (! empty($payload['guarantor_lookup']['ok'])) {
-            return true;
-        }
-
-        if (! empty($payload['external_guarantor']['invitation_id'])) {
-            return true;
-        }
-
-        $stepKey = (string) ($payload['step_key'] ?? '');
-        $wizardSteps = collect($this->wizard->borrowerStepPlan($customer, $product))
-            ->reject(fn (array $step) => $step['key'] === 'product')
-            ->values();
-        $guarantorIndex = $wizardSteps->search(fn (array $step) => $step['key'] === 'guarantor');
-        $currentIndex = $wizardSteps->search(fn (array $step) => $step['key'] === $stepKey);
-
-        if ($guarantorIndex === false) {
-            return true;
-        }
-
-        return $currentIndex !== false && $currentIndex > $guarantorIndex;
     }
 
     private function wizardUrlWithStep(string $wizardUrl, ?string $stepKey): string

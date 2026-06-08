@@ -158,6 +158,7 @@ class SmartLoanApplicationWizardService
 
         $steps[] = ['key' => 'review', 'label' => __('borrower.apply.steps.review'), 'skippable' => false, 'skipped' => false];
         $steps[] = ['key' => 'signature', 'label' => __('borrower.apply.steps.signature'), 'skippable' => false, 'skipped' => false];
+        $steps[] = ['key' => 'submit', 'label' => __('borrower.apply.steps.submit'), 'skippable' => false, 'skipped' => false];
 
         return $steps;
     }

@@ -90,6 +90,8 @@ class LoanApplicationDraftService
             'guarantor_lookup'     => $payload['guarantor_lookup'] ?? null,
             'application_fee'      => $payload['application_fee'] ?? null,
             'external_guarantor'   => $payload['external_guarantor'] ?? null,
+            'borrower_signature'   => $payload['borrower_signature'] ?? null,
+            'draft_reference'      => $draft->draft_reference,
         ];
     }
 
@@ -207,6 +209,7 @@ class LoanApplicationDraftService
             'guarantor_lookup'     => $data['guarantor_lookup'] ?? ($existing?->payload['guarantor_lookup'] ?? null),
             'application_fee'      => $data['application_fee'] ?? ($existing?->payload['application_fee'] ?? null),
             'external_guarantor'   => $data['external_guarantor'] ?? ($existing?->payload['external_guarantor'] ?? null),
+            'borrower_signature'   => $data['borrower_signature'] ?? ($existing?->payload['borrower_signature'] ?? null),
         ];
 
         $product = LoanProduct::find((int) $productId);

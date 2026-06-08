@@ -37,11 +37,7 @@ class LoanApplicationProfileService
             'application'          => null,
             'loan'                 => null,
             'summary'              => $this->draftSummary($customer, $draft, $product),
-            'status'               => [
-                'code'  => 'draft',
-                'label' => $this->dashboard->borrowerStatusLabel('draft'),
-                'tone'  => 'gray',
-            ],
+            'status'               => $this->draftStatus($draft, $next),
             'progress'             => [
                 'percent'   => $requirementSummary['percent'],
                 'completed' => $requirementSummary['completed'],
@@ -50,7 +46,7 @@ class LoanApplicationProfileService
             ],
             'missing_requirements' => $missingRequirements,
             'next_action'          => $next,
-            'can_submit'           => (bool) ($next['ready'] ?? false) && ($next['can_submit'] ?? false),
+            'can_submit'           => (bool) ($next['can_submit'] ?? false) && ($next['code'] ?? '') === 'submit_application',
             'actions'              => $this->primaryActions($next),
             'resume_target'        => $resumeTarget,
             'wizard_url'           => $this->drafts->wizardApplyUrl($draft, $resumeTarget),
@@ -308,6 +304,45 @@ class LoanApplicationProfileService
         $separator = str_contains($url, '?') ? '&' : '?';
 
         return $url.$separator.'return='.urlencode($returnUrl);
+    }
+
+    /** @param  array{code?: string}  $next */
+    /** @return array{code: string, label: string, tone: string} */
+    private function draftStatus(LoanApplicationDraft $draft, array $next): array
+    {
+        $payload = $draft->payload ?? [];
+        $hasSignature = filled(($payload['borrower_signature']['signature_data'] ?? null));
+
+        if ($hasSignature) {
+            return [
+                'code'  => 'ready_for_submission',
+                'label' => __('borrower.loan_profile.statuses.ready_for_submission'),
+                'tone'  => 'emerald',
+            ];
+        }
+
+        return match ($next['code'] ?? 'continue_application') {
+            'sign_application' => [
+                'code'  => 'ready_for_signature',
+                'label' => __('borrower.loan_profile.statuses.ready_for_signature'),
+                'tone'  => 'amber',
+            ],
+            'review_application' => [
+                'code'  => 'ready_for_review',
+                'label' => __('borrower.loan_profile.statuses.ready_for_review'),
+                'tone'  => 'sky',
+            ],
+            'submit_application' => [
+                'code'  => 'ready_for_submission',
+                'label' => __('borrower.loan_profile.statuses.ready_for_submission'),
+                'tone'  => 'emerald',
+            ],
+            default => [
+                'code'  => 'draft',
+                'label' => $this->dashboard->borrowerStatusLabel('draft'),
+                'tone'  => 'gray',
+            ],
+        };
     }
 
     private function loanTypeLabel(?LoanProduct $product): string
