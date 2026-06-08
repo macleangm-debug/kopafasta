@@ -21,29 +21,69 @@ class LoanApplicationDocumentRequestController extends Controller
     ): RedirectResponse {
         $data = $request->validate([
             'type'         => ['required', 'in:document,clarification'],
-            'label'        => ['required', 'string', 'max:120'],
+            'label'        => ['nullable', 'string', 'max:120'],
+            'labels'       => ['nullable', 'array'],
+            'labels.*'     => ['string', 'max:120'],
+            'presets'      => ['nullable', 'array'],
+            'presets.*'    => ['string', 'max:120'],
             'instructions' => ['nullable', 'string', 'max:2000'],
             'due_at'       => ['nullable', 'date', 'after_or_equal:today'],
         ]);
 
-        $docRequest = $service->create(
+        $labels = collect($data['labels'] ?? [])
+            ->merge($data['presets'] ?? [])
+            ->push($data['label'] ?? null)
+            ->map(fn ($label) => trim((string) $label))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($labels === []) {
+            return back()->withErrors(['label' => 'Select or enter at least one document to request.'])->withInput();
+        }
+
+        $dueAt = isset($data['due_at']) ? new \DateTimeImmutable($data['due_at']) : null;
+
+        if (count($labels) === 1) {
+            $docRequest = $service->create(
+                $loanApplication,
+                $request->user(),
+                $labels[0],
+                $data['instructions'] ?? null,
+                $dueAt,
+                $data['type'],
+            );
+
+            $this->auditAdmin('admin.loan_applications.document_request_created', $loanApplication, [
+                'request_id' => $docRequest->id,
+                'label'      => $labels[0],
+                'type'       => $data['type'],
+            ]);
+
+            return redirect()
+                ->route('admin.loan-applications.show', $loanApplication)
+                ->with('status', 'Document request sent to borrower.');
+        }
+
+        $created = $service->createMany(
             $loanApplication,
             $request->user(),
-            $data['label'],
+            $labels,
             $data['instructions'] ?? null,
-            isset($data['due_at']) ? new \DateTimeImmutable($data['due_at']) : null,
+            $dueAt,
             $data['type'],
         );
 
-        $this->auditAdmin('admin.loan_applications.document_request_created', $loanApplication, [
-            'request_id' => $docRequest->id,
-            'label'      => $data['label'],
-            'type'       => $data['type'],
+        $this->auditAdmin('admin.loan_applications.document_requests_created', $loanApplication, [
+            'count'  => $created->count(),
+            'labels' => $created->pluck('label')->all(),
+            'type'   => $data['type'],
         ]);
 
         return redirect()
             ->route('admin.loan-applications.show', $loanApplication)
-            ->with('status', 'Document request sent to borrower.');
+            ->with('status', $created->count().' document requests sent to borrower.');
     }
 
     public function satisfy(

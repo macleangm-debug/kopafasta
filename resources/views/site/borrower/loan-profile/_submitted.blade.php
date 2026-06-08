@@ -88,7 +88,7 @@
                 @endphp
                 <li class="px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
                     <div>
-                        <p class="text-sm font-medium text-gray-900">{{ $link->guarantorCustomer?->full_name ?? __('borrower.application.guarantor_member') }}</p>
+                        <p class="text-sm font-medium text-gray-900">{{ $link->displayName() }}</p>
                         <p class="text-xs text-gray-500">{{ __('borrower.application.guarantor_internal') }}</p>
                     </div>
                     <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $gBadge }}">{{ $status }}</span>
@@ -113,6 +113,12 @@
                         'rejected'  => 'bg-red-100 text-red-700',
                         default     => 'bg-sky-100 text-sky-700',
                     };
+                    $reqLabel = match ($docReq->status) {
+                        'satisfied' => __('borrower.application.request_status_completed'),
+                        'uploaded'  => __('borrower.application.request_status_uploaded'),
+                        'rejected'  => __('borrower.application.request_status_pending'),
+                        default     => __('borrower.application.request_status_pending'),
+                    };
                 @endphp
                 <li id="request-{{ $docReq->id }}" class="p-5">
                     <div class="flex items-start justify-between gap-3 mb-3 flex-wrap">
@@ -129,7 +135,7 @@
                                 <p class="text-xs text-red-700 bg-red-50 ring-1 ring-red-200 rounded-lg px-3 py-2 mt-2">{{ $docReq->admin_notes }}</p>
                             @endif
                         </div>
-                        <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $reqBadge }}">{{ ucfirst($docReq->status) }}</span>
+                        <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $reqBadge }}">{{ $reqLabel }}</span>
                     </div>
 
                     @if ($docReq->uploads->isNotEmpty())

@@ -25,7 +25,15 @@ class BorrowerApplicationsDashboardService
     {
         $items = [];
 
+        $submittedReferences = LoanApplication::query()
+            ->where('customer_id', $customer->id)
+            ->pluck('application_number');
+
         foreach ($this->drafts->listForCustomer($customer) as $draft) {
+            if ($draft->draft_reference && $submittedReferences->contains($draft->draft_reference)) {
+                continue;
+            }
+
             $items[] = $this->formatDraft($customer, $draft);
         }
 
@@ -161,7 +169,7 @@ class BorrowerApplicationsDashboardService
             'submitted'          => __('borrower.applications_list.pipeline.submitted'),
             'awaiting_guarantor' => __('borrower.applications_list.pipeline.awaiting_guarantor'),
             'screening'          => __('borrower.applications_list.pipeline.screening'),
-            'credit_appraisal'   => __('borrower.applications_list.pipeline.underwriting'),
+            'credit_appraisal'   => __('borrower.applications_list.pipeline.credit_review'),
             'pre_approval'       => __('borrower.applications_list.pipeline.pre_approval'),
             'approval'           => __('borrower.applications_list.pipeline.approval'),
             'disbursement'       => __('borrower.applications_list.pipeline.disbursement'),
@@ -191,6 +199,7 @@ class BorrowerApplicationsDashboardService
                 'label'    => $label,
                 'complete' => $index !== false && $index < $currentIndex,
                 'active'   => $index === $currentIndex,
+                'current'  => $index === $currentIndex,
             ];
         }
 
@@ -201,12 +210,30 @@ class BorrowerApplicationsDashboardService
 
     public function borrowerStatusLabel(string $status, ?string $stage = null): string
     {
+        if ($status === 'pending_documents') {
+            return __('borrower.applications_list.statuses.pending_documents');
+        }
+
+        if ($stage === 'credit_appraisal' || $status === 'under_review') {
+            return __('borrower.applications_list.statuses.credit_review');
+        }
+
+        if ($stage === 'screening') {
+            return __('borrower.applications_list.statuses.screening');
+        }
+
+        if ($stage === 'pre_approval') {
+            return __('borrower.applications_list.statuses.pre_approved');
+        }
+
+        if ($stage === 'approval' || $stage === 'disbursement') {
+            return __('borrower.applications_list.statuses.approved');
+        }
+
         return match ($status) {
             'draft'              => __('borrower.applications_list.statuses.draft'),
             'submitted', 'pending' => __('borrower.applications_list.statuses.submitted'),
             'awaiting_guarantor' => __('borrower.applications_list.statuses.awaiting_guarantor'),
-            'pending_documents'  => __('borrower.applications_list.statuses.pending_documents'),
-            'under_review'       => __('borrower.applications_list.statuses.underwriting'),
             'pre_approved'       => __('borrower.applications_list.statuses.pre_approved'),
             'approved'           => __('borrower.applications_list.statuses.approved'),
             'rejected'           => __('borrower.applications_list.statuses.rejected'),

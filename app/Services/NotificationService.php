@@ -92,14 +92,22 @@ class NotificationService
         }
     }
 
-    public function notifyInApp(Customer $customer, string $message, string $category = 'general', ?string $template = null): NotificationLog
-    {
+    public function notifyInApp(
+        Customer $customer,
+        string $message,
+        string $category = 'general',
+        ?string $template = null,
+        ?string $title = null,
+        ?string $actionUrl = null,
+        ?string $actionLabel = null,
+    ): NotificationLog {
         return NotificationLog::create([
             'customer_id' => $customer->id,
             'channel'     => 'in_app',
             'category'    => $category,
             'template'    => $template,
-            'message'     => Str::limit($message, 800, ''),
+            'recipient'   => $actionUrl ?: (string) ($customer->phone ?: $customer->email ?: 'in_app'),
+            'message'     => Str::limit(trim(($title ? $title."\n" : '').$message), 800, ''),
             'status'      => 'sent',
             'sent_at'     => now(),
         ]);

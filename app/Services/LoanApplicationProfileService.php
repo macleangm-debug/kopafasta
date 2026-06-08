@@ -65,7 +65,7 @@ class LoanApplicationProfileService
         $application->loadMissing([
             'product.requirements',
             'documentRequests.uploads',
-            'customerGuarantors.guarantorCustomer',
+            'customerGuarantors.guarantor',
         ]);
 
         $pipelineProgress = $this->dashboard->submittedProgress($application);
@@ -111,6 +111,7 @@ class LoanApplicationProfileService
             ->map(fn (array $step) => [
                 'label'    => $step['label'],
                 'complete' => (bool) ($step['complete'] ?? false),
+                'current'  => (bool) ($step['current'] ?? ($step['active'] ?? false)),
             ])
             ->values()
             ->all();
@@ -292,10 +293,25 @@ class LoanApplicationProfileService
 
     private function statusDetail(LoanApplication $application): ?string
     {
+        if ((string) $application->status === 'pending_documents') {
+            $pending = $application->documentRequests()
+                ->whereIn('status', ['pending', 'rejected'])
+                ->pluck('label')
+                ->filter()
+                ->values();
+
+            if ($pending->isNotEmpty()) {
+                return __('borrower.loan_profile.underwriter_feedback', [
+                    'items' => $pending->implode(', '),
+                ]);
+            }
+
+            return __('borrower.applications_list.documents_required');
+        }
+
         return match ((string) $application->status) {
-            'rejected'          => $application->rejection_reason ?? __('borrower.applications_list.rejected_default'),
-            'pending_documents' => __('borrower.applications_list.documents_required'),
-            default             => null,
+            'rejected' => $application->rejection_reason ?? __('borrower.applications_list.rejected_default'),
+            default    => null,
         };
     }
 

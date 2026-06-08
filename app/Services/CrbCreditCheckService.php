@@ -294,4 +294,47 @@ class CrbCreditCheckService
 
         return $score >= 650 ? 'approve' : ($score >= 500 ? 'refer' : 'reject');
     }
+
+    /** @return array{summary: string, reasons: list<string>} */
+    public function recommendationExplanation(array $summary): array
+    {
+        $recommendation = strtolower((string) ($summary['recommendation'] ?? 'refer'));
+
+        $reasons = [];
+
+        if ((int) ($summary['existing_loans'] ?? 0) > 0) {
+            $reasons[] = 'Existing active loans on credit report';
+        }
+
+        if ((float) ($summary['outstanding_balance'] ?? 0) > 0) {
+            $reasons[] = 'Outstanding balances reported';
+        }
+
+        if ((int) ($summary['delinquencies'] ?? 0) > 0) {
+            $reasons[] = 'Delinquency history on record';
+        }
+
+        if (($summary['score'] ?? null) === null) {
+            $reasons[] = 'Incomplete credit profile';
+        }
+
+        if (! ($summary['is_fresh'] ?? false)) {
+            $reasons[] = 'Credit report may need refresh before final decision';
+        }
+
+        if ($reasons === [] && $recommendation === 'refer') {
+            $reasons[] = 'Manual review recommended before lending decision';
+        }
+
+        $text = match ($recommendation) {
+            'approve' => 'The credit report supports proceeding, subject to underwriting review.',
+            'reject'  => 'The credit report indicates elevated risk. Manual review is required before any approval.',
+            default   => 'Referral means the application requires manual review before a lending decision can be made.',
+        };
+
+        return [
+            'summary' => $text,
+            'reasons' => $reasons,
+        ];
+    }
 }

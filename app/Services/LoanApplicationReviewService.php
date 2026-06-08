@@ -92,6 +92,13 @@ class LoanApplicationReviewService
             $application,
         );
 
+        $kycDocuments = CustomerDocument::query()
+            ->where('customer_id', $customer->id)
+            ->with('documentType')
+            ->latest()
+            ->get()
+            ->unique(fn (CustomerDocument $doc) => $doc->document_type_id ?: $doc->id);
+
         return [
             'customer'           => $customer,
             'product'            => $application->product,
@@ -111,6 +118,7 @@ class LoanApplicationReviewService
             'crb'                => $crb,
             'guarantors'         => $guarantorRows,
             'checklist'          => $checklist,
+            'kyc_documents'      => $kycDocuments,
             'activity_label'     => display_label($customer->activity_type, 'activity_type')
                 ?: activity_type_label($customer->activity_type) ?? $customer->activity_type,
             'income_label'       => income_range_label($customer->income_range) ?? $customer->income_range,
@@ -130,8 +138,22 @@ class LoanApplicationReviewService
     ): array {
         $items = [
             [
+                'key'    => 'profile',
+                'label'  => 'Profile complete',
+                'status' => $this->profile->meetsThreshold($customer) ? 'complete' : 'pending',
+                'tone'   => $this->profile->meetsThreshold($customer) ? 'emerald' : 'amber',
+                'detail' => $profile['percent'].'% (min '.$profile['threshold'].'%)',
+            ],
+            [
+                'key'    => 'documents',
+                'label'  => 'Required documents present',
+                'status' => $documentProgress >= 100 ? 'complete' : ($documentProgress > 0 ? 'review' : 'pending'),
+                'tone'   => $documentProgress >= 100 ? 'emerald' : ($documentProgress > 0 ? 'amber' : 'gray'),
+                'detail' => $documentProgress.'% satisfied',
+            ],
+            [
                 'key'    => 'nida',
-                'label'  => 'NIDA verified',
+                'label'  => 'Identity verified',
                 'status' => $this->nida->isVerified($customer) ? 'complete' : 'pending',
                 'tone'   => $this->nida->isVerified($customer) ? 'emerald' : 'amber',
                 'detail' => display_label($customer->nida_verification_status, 'nida_verification_status')
@@ -156,28 +178,29 @@ class LoanApplicationReviewService
                     ?: 'Not started',
             ],
             [
-                'key'    => 'profile',
-                'label'  => 'Profile completion',
-                'status' => $this->profile->meetsThreshold($customer) ? 'complete' : 'pending',
-                'tone'   => $this->profile->meetsThreshold($customer) ? 'emerald' : 'amber',
-                'detail' => $profile['percent'].'% (min '.$profile['threshold'].'%)',
+                'key'    => 'residence',
+                'label'  => 'Residence verified',
+                'status' => app(ProfileValidationService::class)->hasResidenceLetter($customer) ? 'complete' : 'pending',
+                'tone'   => app(ProfileValidationService::class)->hasResidenceLetter($customer) ? 'emerald' : 'amber',
+                'detail' => app(ProfileValidationService::class)->hasResidenceLetter($customer) ? 'On file' : 'Missing',
             ],
             [
-                'key'    => 'documents',
-                'label'  => 'Required documents',
-                'status' => $documentProgress >= 100 ? 'complete' : ($documentProgress > 0 ? 'review' : 'pending'),
-                'tone'   => $documentProgress >= 100 ? 'emerald' : ($documentProgress > 0 ? 'amber' : 'gray'),
-                'detail' => $documentProgress.'% satisfied',
+                'key'    => 'income',
+                'label'  => 'Proof of income present',
+                'status' => app(IncomeProofService::class)->satisfiesRequirement($customer) ? 'complete' : 'pending',
+                'tone'   => app(IncomeProofService::class)->satisfiesRequirement($customer) ? 'emerald' : 'amber',
+                'detail' => app(IncomeProofService::class)->satisfiesRequirement($customer) ? 'On file' : 'Missing',
             ],
         ];
 
         if ($application->product?->requires_guarantor) {
             $approved = $guarantorRows->contains(fn (array $row) => $row['status'] === 'approved');
+            $assigned = $guarantorRows->isNotEmpty();
             $items[] = [
                 'key'    => 'guarantor',
-                'label'  => 'Guarantor approval',
-                'status' => $approved ? 'complete' : 'pending',
-                'tone'   => $approved ? 'emerald' : 'amber',
+                'label'  => 'Guarantor assigned',
+                'status' => $assigned ? ($approved ? 'complete' : 'review') : 'pending',
+                'tone'   => $approved ? 'emerald' : ($assigned ? 'amber' : 'gray'),
                 'detail' => $approved
                     ? __('borrower.apply.guarantor_status.accepted')
                     : ($guarantorRows->first()['status_label'] ?? __('borrower.apply.guarantor_status.invitation_sent')),

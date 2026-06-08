@@ -134,8 +134,8 @@
             <h2 class="font-semibold mb-4">{{ __('borrower.loan_profile.timeline_title') }}</h2>
             <ul class="space-y-2">
                 @foreach ($progress['timeline'] as $step)
-                    <li class="flex items-start gap-2 text-sm {{ ($step['complete'] ?? false) ? 'text-emerald-700' : 'text-gray-600' }}">
-                        <span class="mt-0.5">{{ ($step['complete'] ?? false) ? '✓' : '○' }}</span>
+                    <li class="flex items-start gap-2 text-sm {{ ($step['complete'] ?? false) ? 'text-emerald-700' : (($step['current'] ?? false) ? 'text-amber-900 font-semibold' : 'text-gray-600') }}">
+                        <span class="mt-0.5">{{ ($step['complete'] ?? false) ? '✓' : (($step['current'] ?? false) ? '→' : '○') }}</span>
                         <span>{{ $step['label'] }}</span>
                     </li>
                 @endforeach

@@ -63,3 +63,36 @@
         </div>
     @endif
 </x-admin.review-section>
+
+@if (($review['kyc_documents'] ?? collect())->isNotEmpty())
+    <x-admin.review-section id="review-kyc-documents" title="Borrower document library" subtitle="All KYC and supporting documents on the customer profile">
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead>
+                    <tr class="text-left text-xs uppercase tracking-widest text-gray-500 border-b border-gray-100">
+                        <th class="pb-3 pr-4 font-semibold">Document</th>
+                        <th class="pb-3 pr-4 font-semibold">Category</th>
+                        <th class="pb-3 pr-4 font-semibold">Status</th>
+                        <th class="pb-3 font-semibold">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    @foreach ($review['kyc_documents'] as $doc)
+                        <tr>
+                            <td class="py-3 pr-4 font-medium text-gray-900">{{ $doc->documentType?->name ?? 'Supporting document' }}</td>
+                            <td class="py-3 pr-4 capitalize">{{ $doc->documentType?->category ?? 'kyc' }}</td>
+                            <td class="py-3 pr-4">{{ display_label($doc->status, 'document_status') }}</td>
+                            <td class="py-3">
+                                @if ($doc->file_path)
+                                    <a href="{{ asset('storage/'.$doc->file_path) }}" target="_blank" class="text-xs font-semibold text-amber-700 hover:text-amber-800">View / download</a>
+                                @else
+                                    <span class="text-xs text-gray-400">—</span>
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </x-admin.review-section>
+@endif

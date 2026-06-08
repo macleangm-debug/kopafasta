@@ -20,7 +20,7 @@ class LoanApplicationWorkflowService
             'from'       => ['submitted'],
         ],
         'complete_screening' => [
-            'label'      => 'Complete screening → review',
+            'label'      => 'Complete screening',
             'to_stage'   => 'credit_appraisal',
             'permission' => 'applications.review',
             'from'       => ['screening'],
@@ -114,7 +114,8 @@ class LoanApplicationWorkflowService
             $result = app(AffordabilityService::class)->evaluate($application->loadMissing(['customer', 'product']));
             $appraisal['affordability'] = $result;
 
-            if ($result['verdict'] === 'fail' && ! $overrideAffordability) {
+            if ($result['verdict'] === 'fail' && ! $overrideAffordability
+                && in_array($to, ['pre_approval', 'approval', 'disbursement'], true)) {
                 throw ValidationException::withMessages([
                     'affordability' => 'Affordability check failed: '.($result['reason'] ?? 'DSR too high'),
                 ]);
@@ -211,7 +212,8 @@ class LoanApplicationWorkflowService
             $result = app(AffordabilityService::class)->evaluate($application->loadMissing(['customer', 'product']));
             $appraisal['affordability'] = $result;
 
-            if ($result['verdict'] === 'fail' && ! $overrideAffordability) {
+            if ($result['verdict'] === 'fail' && ! $overrideAffordability
+                && in_array($toStage, ['pre_approval', 'approval', 'disbursement'], true)) {
                 throw ValidationException::withMessages([
                     'affordability' => 'Affordability check failed: '.($result['reason'] ?? 'DSR too high'),
                 ]);
@@ -272,7 +274,7 @@ class LoanApplicationWorkflowService
     {
         return match ($stage) {
             'submitted'         => 'Submitted',
-            'screening'         => 'Screening / documents',
+            'screening'         => 'Screening',
             'credit_appraisal'  => 'Credit review',
             'pre_approval'      => 'Pre-approval',
             'approval'          => 'Final approval',

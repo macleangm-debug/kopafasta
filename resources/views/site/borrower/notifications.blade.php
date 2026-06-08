@@ -30,6 +30,14 @@
     @else
         <div class="space-y-3">
             @foreach ($items as $n)
+                @php
+                    $actionUrl = ($n->channel === 'in_app' && filled($n->recipient) && str_starts_with($n->recipient, '/'))
+                        ? $n->recipient
+                        : null;
+                    $lines = preg_split("/\r\n|\n|\r/", (string) ($n->message ?: '')) ?: [];
+                    $title = $lines[0] ?? 'Notification';
+                    $body = trim(implode(' ', array_slice($lines, 1))) ?: ($n->message ?: $n->template);
+                @endphp
                 <div class="bg-white rounded-2xl border border-gray-200 p-5 flex gap-4 {{ $n->read_at ? '' : 'ring-2 ring-amber-100' }}">
                     <div class="size-10 rounded-full shrink-0 grid place-items-center {{ $n->read_at ? 'bg-gray-100 text-gray-500' : 'bg-amber-100 text-amber-700' }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9z"/></svg>
@@ -37,14 +45,20 @@
                     <div class="min-w-0 flex-1">
                         <div class="flex flex-wrap items-center gap-2 mb-1">
                             @if ($n->category)
-                                <span class="text-[10px] uppercase tracking-widest font-semibold text-gray-500">{{ $n->category }}</span>
+                                <span class="text-[10px] uppercase tracking-widest font-semibold text-gray-500">{{ str_replace('_', ' ', $n->category) }}</span>
                             @endif
                             @unless ($n->read_at)
                                 <span class="text-[10px] font-semibold rounded-full px-2 py-0.5 bg-amber-100 text-amber-800">Unread</span>
                             @endunless
                         </div>
-                        <p class="text-sm text-gray-800">{{ $n->message ?: $n->template }}</p>
-                        <p class="text-xs text-gray-400 mt-2">{{ \Carbon\Carbon::parse($n->created_at)->format('d M Y, H:i') }} · {{ strtoupper($n->channel) }}</p>
+                        <p class="text-sm font-semibold text-gray-900">{{ $title }}</p>
+                        <p class="text-sm text-gray-700 mt-1">{{ $body }}</p>
+                        <p class="text-xs text-gray-400 mt-2">{{ \Carbon\Carbon::parse($n->created_at)->format('d M Y, H:i') }}</p>
+                        @if ($actionUrl)
+                            <a href="{{ $actionUrl }}" class="inline-flex mt-3 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-4 py-2 rounded-full">
+                                View application
+                            </a>
+                        @endif
                     </div>
                     <div class="flex flex-col gap-2 shrink-0">
                         @unless ($n->read_at)

@@ -747,8 +747,25 @@ class ApplyController extends Controller
 
         $crbMeta = $crbCredit->ensureFreshForSubmission($customer);
 
-        $applicationNumber = $draft?->draft_reference
-            ?: app(ReferenceNumberService::class)->applicationReference($loanProduct);
+        $referenceService = app(ReferenceNumberService::class);
+        $draftReference = $draft?->draft_reference;
+
+        if ($draftReference) {
+            $existingApplication = LoanApplication::query()
+                ->where('customer_id', $customer->id)
+                ->where('application_number', $draftReference)
+                ->first();
+
+            if ($existingApplication) {
+                $drafts->clear($customer, (int) $loanProduct->id);
+
+                return redirect()
+                    ->route('site.borrower.apply.success', $existingApplication)
+                    ->with('status', __('borrower.apply.success.already_submitted_message'));
+            }
+        }
+
+        $applicationNumber = $referenceService->resolveApplicationReference($loanProduct, $draftReference);
 
         $app = LoanApplication::create([
             'customer_id'                => $customer->id,
@@ -859,7 +876,7 @@ class ApplyController extends Controller
                         }
                     }
                 }
-            } catch (\InvalidArgumentException $e) {
+            } catch (\Throwable $e) {
                 report($e);
             }
         }

@@ -87,7 +87,7 @@
                     @endphp
                     <li class="px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
                         <div>
-                            <p class="text-sm font-medium text-gray-900">{{ $link->guarantorCustomer?->full_name ?? __('borrower.application.guarantor_member') }}</p>
+                            <p class="text-sm font-medium text-gray-900">{{ $link->displayName() }}</p>
                             <p class="text-xs text-gray-500">{{ __('borrower.application.guarantor_internal') }}</p>
                         </div>
                         <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $gBadge }}">{{ ucfirst($link->status) }}</span>

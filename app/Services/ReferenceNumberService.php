@@ -17,6 +17,18 @@ class ReferenceNumberService
         return $this->generateUniqueReference('APP', $code, fn (string $reference) => $this->applicationReferenceExists($reference));
     }
 
+    /** Use a draft reference when still available; otherwise allocate a new one. */
+    public function resolveApplicationReference(LoanProduct $product, ?string $preferred = null): string
+    {
+        $preferred = filled($preferred) ? trim((string) $preferred) : null;
+
+        if ($preferred && ! LoanApplication::query()->where('application_number', $preferred)->exists()) {
+            return $preferred;
+        }
+
+        return $this->applicationReference($product);
+    }
+
     public function loanReference(LoanProduct $product): string
     {
         $code = $this->productCode($product);

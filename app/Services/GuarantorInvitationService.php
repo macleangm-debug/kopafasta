@@ -355,7 +355,7 @@ class GuarantorInvitationService
                     ->where('customer_id', $borrower->id)
                     ->where('type', 'external')
                     ->whereNull('loan_application_id')
-                    ->where('status', 'pending')
+                    ->whereIn('status', ['pending', 'accepted'])
                     ->first();
             }
 
@@ -430,10 +430,18 @@ class GuarantorInvitationService
             ->where('customer_id', $borrower->id)
             ->where('type', 'external')
             ->whereNull('loan_application_id')
-            ->where('status', 'pending')
-            ->firstOrFail();
+            ->whereIn('status', ['pending', 'accepted'])
+            ->first();
 
-        $link = CustomerGuarantor::query()->findOrFail($invitation->customer_guarantor_id);
+        if (! $invitation) {
+            throw new \InvalidArgumentException('External guarantor invitation not found or already linked.');
+        }
+
+        $link = CustomerGuarantor::query()->find($invitation->customer_guarantor_id);
+        if (! $link) {
+            throw new \InvalidArgumentException('External guarantor link not found.');
+        }
+
         $link->update(['loan_application_id' => $application->id]);
         $invitation->update([
             'loan_application_id'     => $application->id,

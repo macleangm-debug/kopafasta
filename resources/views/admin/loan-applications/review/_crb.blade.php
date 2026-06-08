@@ -1,6 +1,15 @@
-@php $crb = $review['crb']; @endphp
+@php $crb = $review['crb']; $crbExplain = app(\App\Services\CrbCreditCheckService::class)->recommendationExplanation($crb); @endphp
 
 <x-admin.review-section id="review-crb" title="CRB & credit review" subtitle="Internal credit bureau data for underwriting — not shown to borrowers">
+    @if (($record->current_stage ?? 'submitted') === 'screening')
+        <p class="mb-4 text-sm text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-4 py-3">
+            Complete screening to begin formal credit review. CRB data below is available for reference.
+        </p>
+    @elseif (! in_array($record->current_stage ?? 'submitted', ['credit_appraisal', 'pre_approval', 'approval', 'disbursement'], true))
+        <p class="mb-4 text-sm text-gray-600 bg-gray-50 ring-1 ring-gray-100 rounded-lg px-4 py-3">
+            Credit review becomes the active underwriting stage after screening is completed.
+        </p>
+    @endif
     <div class="grid sm:grid-cols-2 gap-4 mb-5">
         <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-4">
             <p class="text-[10px] uppercase tracking-widest text-gray-500">Identity (from NIDA / CRB)</p>
@@ -62,7 +71,15 @@
                 'text-emerald-700' => $crb['recommendation'] === 'approve',
                 'text-amber-700'   => $crb['recommendation'] === 'refer',
                 'text-red-700'     => $crb['recommendation'] === 'reject',
-            ])>{{ $crb['recommendation'] }}</p>
+            ])>{{ ucfirst($crb['recommendation']) }}</p>
+            <p class="text-xs text-gray-600 mt-2">{{ $crbExplain['summary'] }}</p>
+            @if (! empty($crbExplain['reasons']))
+                <ul class="mt-2 space-y-1 text-xs text-gray-600">
+                    @foreach ($crbExplain['reasons'] as $reason)
+                        <li>• {{ $reason }}</li>
+                    @endforeach
+                </ul>
+            @endif
         </div>
     </div>
 

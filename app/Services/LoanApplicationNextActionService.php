@@ -142,6 +142,19 @@ class LoanApplicationNextActionService
 
         if ($missingRequirements !== []) {
             $first = $missingRequirements[0];
+            $openRequests = $application->documentRequests()
+                ->whereIn('status', ['pending', 'rejected'])
+                ->count();
+
+            if ($openRequests > 0) {
+                return $this->action(
+                    'upload_documents',
+                    __('borrower.loan_profile.next_actions.upload_documents', ['count' => $openRequests]),
+                    __('borrower.loan_profile.upload'),
+                    $profileUrl.'#documents',
+                    tone: 'primary',
+                );
+            }
 
             return $this->action(
                 'upload_document',

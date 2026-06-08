@@ -106,7 +106,7 @@ class NotificationTemplateSeeder extends Seeder
                 'name' => 'Application Document Request',
                 'channel' => 'all',
                 'subject' => 'Document needed for {{ application_number }}',
-                'body'    => 'Hi {{ name }}, underwriting needs "{{ label }}" for application {{ application_number }}. {{ instructions }} Please upload by {{ due_date }}: {{ upload_url }} — Kopa Fasta',
+                'body'    => 'Hi {{ name }}, additional documents are required for application {{ application_number }}. {{ instructions }} Please log in to KopaFasta to upload by {{ due_date }}.',
             ],
         ];
 

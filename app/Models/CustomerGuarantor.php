@@ -19,6 +19,17 @@ class CustomerGuarantor extends Model
         return $this->belongsTo(Guarantor::class);
     }
 
+    public function displayName(): string
+    {
+        $guarantor = $this->guarantor;
+
+        if ($guarantor) {
+            return trim(($guarantor->first_name ?? '').' '.($guarantor->last_name ?? '')) ?: __('borrower.application.guarantor_member');
+        }
+
+        return __('borrower.application.guarantor_member');
+    }
+
     public function application(): BelongsTo
     {
         return $this->belongsTo(LoanApplication::class, 'loan_application_id');
