@@ -4,13 +4,16 @@
     $profile = app(\App\Services\ProfileCompletionService::class)->calculate($customer);
     $sections = collect($profile['sections'] ?? [])->keyBy('key');
     $nidaVerified = app(\App\Services\NidaVerificationService::class)->isVerified($customer);
+    $nidaUploaded = app(\App\Services\ProfileValidationService::class)->nationalIdUploadsComplete($customer);
     $faceVerified = ($customer->face_verification_status ?? '') === 'verified';
+    $documentsComplete = app(\App\Services\ProfileCompletionService::class)->isDocumentsComplete($customer);
 
     $steps = [
-        ['key' => 'nida', 'label' => __('borrower.kyc_progress.nida'), 'complete' => $nidaVerified, 'route' => route('site.borrower.profile', ['section' => 'personal'])],
+        ['key' => 'nida', 'label' => __('borrower.kyc_progress.nida'), 'complete' => $nidaUploaded && $nidaVerified, 'route' => route('site.borrower.profile', ['section' => 'personal'])],
         ['key' => 'face', 'label' => __('borrower.kyc_progress.face'), 'complete' => $faceVerified, 'route' => route('site.borrower.face-verification')],
+        ['key' => 'residence', 'label' => __('borrower.profile.residence'), 'complete' => (bool) ($sections['residence']['complete'] ?? false) && (! app(\App\Services\ProfileValidationService::class)->requiresResidenceLetter() || app(\App\Services\ProfileValidationService::class)->hasResidenceLetter($customer)), 'route' => route('site.borrower.profile', ['section' => 'residence'])],
         ['key' => 'activity', 'label' => __('borrower.profile.activity'), 'complete' => (bool) ($sections['activity']['complete'] ?? false), 'route' => route('site.borrower.profile', ['section' => 'activity'])],
-        ['key' => 'residence', 'label' => __('borrower.profile.residence'), 'complete' => (bool) ($sections['residence']['complete'] ?? false), 'route' => route('site.borrower.profile', ['section' => 'residence'])],
+        ['key' => 'documents', 'label' => __('borrower.profile.documents_proof'), 'complete' => $documentsComplete, 'route' => route('site.borrower.profile', ['section' => 'kyc'])],
         ['key' => 'kin', 'label' => __('borrower.profile.kin'), 'complete' => app(\App\Services\ProfileValidationService::class)->isKinComplete($customer), 'route' => route('site.borrower.profile', ['section' => 'personal']).'#next-of-kin'],
     ];
 
@@ -22,10 +25,10 @@
     <ol class="flex flex-wrap items-center gap-2 text-sm">
         @foreach ($steps as $index => $step)
             @php
-                $isActive = ($active === 'personal' && in_array($step['key'], ['nida', 'kin'], true))
+                $isActive = ($active === 'personal' && in_array($step['key'], ['nida', 'face', 'kin'], true))
                     || ($active === 'activity' && $step['key'] === 'activity')
                     || ($active === 'residence' && $step['key'] === 'residence')
-                    || ($active === 'kyc' && $step['key'] === 'face');
+                    || ($active === 'kyc' && $step['key'] === 'documents');
             @endphp
             <li class="flex items-center gap-2">
                 @if ($index > 0)

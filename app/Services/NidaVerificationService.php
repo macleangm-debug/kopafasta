@@ -116,6 +116,27 @@ class NidaVerificationService
             );
         }
 
+        $latest = app(CrbCreditCheckService::class)->latest($customer);
+        if ($latest
+            && app(CrbFreshnessService::class)->isFresh($latest)
+            && ($latest->payload['national_id'] ?? null) === $formatted
+            && filled($latest->payload['full_name'] ?? null)) {
+            $payload = $latest->payload;
+            $parsed = $this->names->parse($payload['full_name'], null, null);
+
+            return $this->finalizeSuccessfulLookup($customer, $formatted, CrbIdentityResult::verified(
+                fullName: $payload['full_name'],
+                firstName: $parsed['first_name'],
+                lastName: $parsed['last_name'],
+                dateOfBirth: optional($customer->date_of_birth)->format('Y-m-d'),
+                gender: $customer->gender,
+                nationalId: $formatted,
+                searchScore: $payload['search_score'] ?? null,
+                crbRuid: $payload['crb_ruid'] ?? null,
+                raw: $payload['identity_raw'] ?? [],
+            ));
+        }
+
         $result = $this->crb->verifyConsumerIdentity(
             identifierNumber: $formatted,
             fullName: $customer->full_name,
@@ -223,14 +244,14 @@ class NidaVerificationService
                 'search_score'  => $result->searchScore,
                 'crb_ruid'      => $result->crbRuid,
                 'full_name'     => $result->fullName,
-            ]);
+            ], $result->raw);
         });
 
         return $result;
     }
 
-    /** @param array<string, mixed> $data */
-    private function lockIdentity(Customer $customer, array $data): void
+    /** @param  array<string, mixed>  $data */
+    private function lockIdentity(Customer $customer, array $data, array $raw = []): void
     {
         $customer->fill([
             'national_id'              => $data['national_id'],
@@ -273,6 +294,8 @@ class NidaVerificationService
             'payload' => $payload,
             'status'  => $kyc->status === 'rejected' ? 'in_review' : $kyc->status,
         ]);
+
+        app(CrbCreditCheckService::class)->recordIdentityVerification($customer, $data, $raw);
     }
 
     public function confirmCandidate(

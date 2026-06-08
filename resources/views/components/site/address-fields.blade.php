@@ -33,10 +33,11 @@
     <div>
         <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.district') }} @if($required)<span class="text-red-500">*</span>@endif</label>
         <select name="{{ $districtName }}" x-model="district" @if($required) required @endif
-                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm">
+                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm"
+                :key="'district-' + region">
             <option value="" x-text="labels.selectDistrict"></option>
             <template x-for="d in districtOptions" :key="d">
-                <option :value="d" x-text="d"></option>
+                <option :value="d" x-text="d" :selected="d === district"></option>
             </template>
         </select>
     </div>
@@ -61,20 +62,37 @@
             return {
                 locations,
                 labels: labels || {},
+                savedDistrict: initialDistrict || '',
                 region: initialRegion || '',
                 district: initialDistrict || '',
                 districtOptions: [],
                 init() {
                     this.refreshDistricts();
+                    this.syncDistrictSelection();
                 },
                 onRegionChange() {
                     this.district = '';
+                    this.savedDistrict = '';
                     this.refreshDistricts();
                 },
                 refreshDistricts() {
-                    this.districtOptions = this.region && this.locations[this.region]
-                        ? this.locations[this.region]
+                    const districts = this.region && this.locations[this.region]
+                        ? [...this.locations[this.region]]
                         : [];
+
+                    const preserve = this.savedDistrict || this.district;
+                    if (preserve && !districts.includes(preserve)) {
+                        districts.unshift(preserve);
+                    }
+
+                    this.districtOptions = districts;
+                },
+                syncDistrictSelection() {
+                    this.$nextTick(() => {
+                        if (this.savedDistrict) {
+                            this.district = this.savedDistrict;
+                        }
+                    });
                 },
             };
         }

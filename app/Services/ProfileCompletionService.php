@@ -124,18 +124,13 @@ class ProfileCompletionService
         }
 
         if ($requireIncome) {
-            if (! app(IncomeProofService::class)->hasPrimaryProof($customer)) {
+            if (! app(IncomeProofService::class)->satisfiesRequirement($customer)) {
                 return false;
             }
         }
 
         if ($requireResidenceLetter) {
-            $hasLetter = \App\Models\CustomerDocument::query()
-                ->where('customer_id', $customer->id)
-                ->whereHas('documentType', fn ($q) => $q->where('code', 'residence_letter'))
-                ->exists();
-
-            if (! $hasLetter) {
+            if (! app(ProfileValidationService::class)->hasResidenceLetter($customer)) {
                 return false;
             }
         }
@@ -143,54 +138,43 @@ class ProfileCompletionService
         return true;
     }
 
-    /** @return array{percent: int, sections: list<array{key: string, label: string, complete: bool, weight: int}>} */
-    public function calculate(Customer $customer): array
+    /** @return array{percent: int, remaining: list<string>, completed: list<string>} */
+    public function completionSummary(Customer $customer): array
     {
-        $validation = app(ProfileValidationService::class);
+        $requirements = collect(app(ApplicationProgressService::class)->requirements($customer, null, null))
+            ->reject(fn (array $item) => str_starts_with((string) ($item['key'] ?? ''), 'wizard_'))
+            ->values();
 
-        $sections = [
-            [
-                'key'      => 'personal',
-                'label'    => __('borrower.profile.personal'),
-                'complete' => $validation->isPersonalInfoComplete($customer),
-                'weight'   => 20,
-            ],
-            [
-                'key'      => 'nida',
-                'label'    => __('borrower.profile.nida_verification'),
-                'complete' => app(NidaVerificationService::class)->isVerified($customer),
-                'weight'   => 20,
-            ],
-            [
-                'key'      => 'face',
-                'label'    => __('borrower.nida.face_title'),
-                'complete' => in_array($customer->face_verification_status, ['pending', 'verified'], true),
-                'weight'   => 20,
-            ],
-            [
-                'key'      => 'activity',
-                'label'    => __('borrower.profile.activity'),
-                'complete' => $this->isActivityComplete($customer),
-                'weight'   => 20,
-            ],
-            [
-                'key'      => 'residence',
-                'label'    => __('borrower.profile.residence'),
-                'complete' => $this->isResidenceComplete($customer),
-                'weight'   => 20,
-            ],
-        ];
-
-        $totalWeight = array_sum(array_column($sections, 'weight'));
-        $earned = 0;
-        foreach ($sections as $section) {
-            if ($section['complete']) {
-                $earned += $section['weight'];
-            }
-        }
+        $completed = $requirements->where('complete', true)->pluck('label')->values()->all();
+        $remaining = $requirements->where('complete', false)->pluck('label')->values()->all();
+        $total = max(1, $requirements->count());
 
         return [
-            'percent'   => $totalWeight > 0 ? (int) round(($earned / $totalWeight) * 100) : 0,
+            'percent'   => (int) round(($requirements->where('complete', true)->count() / $total) * 100),
+            'remaining' => $remaining,
+            'completed' => $completed,
+        ];
+    }
+
+    /** @return array{percent: int, sections: list<array{key: string, label: string, complete: bool, weight: int}>, threshold: int} */
+    public function calculate(Customer $customer): array
+    {
+        $requirements = collect(app(ApplicationProgressService::class)->requirements($customer, null, null))
+            ->reject(fn (array $item) => str_starts_with((string) ($item['key'] ?? ''), 'wizard_'))
+            ->values();
+
+        $sections = $requirements->map(fn (array $item) => [
+            'key'      => (string) ($item['key'] ?? ''),
+            'label'    => (string) ($item['label'] ?? ''),
+            'complete' => (bool) ($item['complete'] ?? false),
+            'weight'   => 1,
+        ])->all();
+
+        $totalWeight = max(1, count($sections));
+        $earned = collect($sections)->where('complete', true)->count();
+
+        return [
+            'percent'   => (int) round(($earned / $totalWeight) * 100),
             'sections'  => $sections,
             'threshold' => (int) (Setting::group('loan')['qualification_min_profile_percent'] ?? 60),
         ];

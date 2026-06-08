@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\CreditHistory;
 use App\Models\Customer;
 use App\Models\CustomerDocument;
 use App\Models\CustomerGuarantor;
@@ -81,7 +80,7 @@ class LoanApplicationReviewService
         $faceProgress = $this->face->progress($customer);
         $nidaPhotoPath = $customer->kyc?->payload['nida_verification']['photo_path'] ?? null;
 
-        $crb = $this->crbSummary($customer);
+        $crb = $this->crbSummary($customer, $application);
 
         $guarantorRows = $this->guarantorRows($application);
 
@@ -233,41 +232,9 @@ class LoanApplicationReviewService
     }
 
     /** @return array<string, mixed> */
-    private function crbSummary(Customer $customer): array
+    private function crbSummary(Customer $customer, ?LoanApplication $application = null): array
     {
-        $history = CreditHistory::query()
-            ->where('customer_id', $customer->id)
-            ->latest('checked_at')
-            ->first();
-
-        $kyc = $customer->kyc?->payload ?? [];
-        $nidaVerification = $kyc['nida_verification'] ?? [];
-        $raw = $kyc['crb_identity_raw'] ?? [];
-
-        $score = $history?->score ?? ($customer->risk_score ?? null);
-        $recommendation = 'refer';
-
-        if ($score !== null) {
-            $recommendation = $score >= 650 ? 'approve' : ($score >= 500 ? 'refer' : 'reject');
-        } elseif ($this->nida->isVerified($customer)) {
-            $recommendation = 'refer';
-        } else {
-            $recommendation = 'reject';
-        }
-
-        return [
-            'status'         => $history?->source ? strtoupper($history->source) : ($this->nida->isVerified($customer) ? 'NIDA verified' : 'Not checked'),
-            'score'          => $score,
-            'risk_grade'     => $history?->risk_grade ?? $customer->risk_band,
-            'existing_loans' => (int) ($raw['existing_loans'] ?? $customer->loans()->whereIn('status', ['active', 'disbursed'])->count()),
-            'delinquencies'  => (int) ($raw['delinquencies'] ?? RepaymentSchedule::query()
-                ->whereHas('loan', fn ($q) => $q->where('customer_id', $customer->id))
-                ->where('status', 'overdue')
-                ->count()),
-            'recommendation' => $recommendation,
-            'checked_at'     => $history?->checked_at,
-            'crb_ruid'       => $nidaVerification['crb_ruid'] ?? null,
-        ];
+        return app(CrbCreditCheckService::class)->summaryForCustomer($customer, $application);
     }
 
     /** @param array{percent: int, threshold: int} $profile */

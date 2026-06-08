@@ -13,7 +13,7 @@
                 'require_address_proof'=> 'Require residence verification letter',
                 'require_income_proof' => 'Require income proof',
                 'auto_approve_low_risk'=> 'Auto-approve low risk customers',
-                'crb_check_required'   => 'CRB check required',
+                'crb_check_required'   => 'Pull CRB credit report on loan submission (underwriting only)',
             ];
         @endphp
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -30,6 +30,7 @@
             <x-admin.input name="min_age" label="Minimum age" type="number" :value="$values['min_age'] ?? '18'" required />
             <x-admin.input name="max_age" label="Maximum age" type="number" :value="$values['max_age'] ?? '75'" required />
             <x-admin.input name="freshness_days" label="KYC freshness (days)" type="number" :value="$values['freshness_days'] ?? '90'" required />
+            <x-admin.input name="crb_freshness_days" label="CRB freshness (days)" type="number" :value="$values['crb_freshness_days'] ?? '90'" required />
         </div>
 
         <div class="border-t border-gray-100 pt-6">

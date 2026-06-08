@@ -143,8 +143,11 @@ class ApplicationRequirementsService
 
     private function requiresIncomeProof(Customer $customer): bool
     {
-        return ! app(IncomeProofService::class)->satisfiesRequirement($customer)
-            && app(IncomeProofService::class)->isRequired();
+        if (! app(IncomeProofService::class)->isRequired()) {
+            return false;
+        }
+
+        return ! app(IncomeProofService::class)->satisfiesRequirement($customer);
     }
 
     /** @deprecated Use onboardingBanner() — single source of truth for onboarding progress. */
@@ -183,7 +186,7 @@ class ApplicationRequirementsService
         $activityComplete = $profile->isActivityComplete($customer);
         $residenceComplete = $profile->isResidenceComplete($customer);
         $kinComplete = filled($customer->nok_name) && filled($customer->nok_phone) && filled($customer->nok_relationship)
-            && filled($customer->nok_region) && filled($customer->nok_district);
+            && filled($customer->nok_region) && filled($customer->nok_district) && filled($customer->nok_street);
         $documentsComplete = $profile->isDocumentsComplete($customer);
         $staleKeys = $freshness->sectionsDueForRefresh($customer);
 
@@ -227,13 +230,30 @@ class ApplicationRequirementsService
         ];
 
         if (! $documentsComplete || in_array('documents', $staleKeys, true)) {
+            $validation = app(ProfileValidationService::class);
+            $income = app(IncomeProofService::class);
+            $needsLetter = $validation->requiresResidenceLetter() && ! $validation->hasResidenceLetter($customer);
+            $needsIncome = $income->isRequired() && ! $income->satisfiesRequirement($customer);
+            $documentsUrl = match (true) {
+                $needsLetter && ! $needsIncome => route('site.borrower.profile', ['section' => 'residence']),
+                $needsIncome && ! $needsLetter => route('site.borrower.profile', ['section' => 'kyc']),
+                default => route('site.borrower.profile', ['section' => 'kyc']),
+            };
+
+            $documentsLabel = match (true) {
+                $needsLetter && $needsIncome => __('borrower.profile.documents_proof'),
+                $needsLetter => __('borrower.profile.residence_letter'),
+                $needsIncome => __('borrower.loan_profile.sections.proof_of_income'),
+                default => __('borrower.profile.documents_proof'),
+            };
+
             $items[] = [
                 'key'        => 'documents',
                 'label'      => in_array('documents', $staleKeys, true)
-                    ? 'Proof of income & residence letter (refresh required)'
-                    : 'Proof of income & residence letter',
+                    ? $documentsLabel.' '.__('borrower.profile.refresh_required')
+                    : $documentsLabel,
                 'status'     => 'missing',
-                'action_url' => route('site.borrower.profile', ['section' => 'kyc']),
+                'action_url' => $documentsUrl,
             ];
         }
 

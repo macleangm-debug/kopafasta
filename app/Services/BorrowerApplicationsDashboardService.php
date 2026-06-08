@@ -70,7 +70,7 @@ class BorrowerApplicationsDashboardService
             'is_draft'           => true,
             'id'                 => 'draft-'.$draft->id,
             'loan_type'          => $this->loanTypeLabel($product),
-            'application_number' => __('borrower.applications_list.draft_reference'),
+            'application_number' => $draft->draft_reference ?: __('borrower.applications_list.draft_reference'),
             'product_name'       => $product?->name ?? __('borrower.apply.title'),
             'requested_amount'   => $this->drafts->requestedAmount($draft),
             'requested_tenure_months' => (int) (($draft->payload ?? [])['form']['requested_tenure_months'] ?? 0),
@@ -87,7 +87,7 @@ class BorrowerApplicationsDashboardService
                 ? __('borrower.applications_list.draft_fee_pending')
                 : __('borrower.applications_list.draft_in_progress'),
             'action_url'         => $this->drafts->resumeUrl($customer, $draft),
-            'action_label'       => __('borrower.applications_list.resume'),
+            'action_label'       => __('borrower.applications_list.open'),
             'saved_at_human'     => optional($draft->saved_at)->diffForHumans(),
         ];
     }
@@ -135,49 +135,7 @@ class BorrowerApplicationsDashboardService
             return ['percent' => 0, 'steps' => []];
         }
 
-        $assessment = $this->readiness->assess($customer, $product);
-        $profileRequirements = collect($assessment['requirements'] ?? [])
-            ->reject(fn (array $requirement) => ! empty($requirement['application_step']))
-            ->values();
-        $profileComplete = $profileRequirements->every(fn (array $requirement) => ! empty($requirement['complete']));
-
-        $milestones = [[
-            'label'    => __('borrower.applications_list.profile_completion'),
-            'complete' => $profileComplete,
-        ]];
-
-        $wizardSteps = collect($this->wizard->borrowerStepPlan($customer, $product))
-            ->reject(fn (array $step) => $step['key'] === 'product')
-            ->values();
-
-        $payload = $draft->payload ?? [];
-        $stepKey = $payload['step_key'] ?? null;
-        $savedStep = (int) $draft->step;
-        $currentWizardIndex = $this->resolveWizardStepIndex($wizardSteps, $stepKey, $savedStep);
-
-        if ($draft->phase === 'application' || ! empty($payload['application_started'])) {
-            foreach ($wizardSteps as $index => $step) {
-                $milestones[] = [
-                    'label'    => (string) $step['label'],
-                    'complete' => $index < $currentWizardIndex,
-                ];
-            }
-        } else {
-            foreach ($wizardSteps as $step) {
-                $milestones[] = [
-                    'label'    => (string) $step['label'],
-                    'complete' => false,
-                ];
-            }
-        }
-
-        $completed = collect($milestones)->where('complete', true)->count();
-        $total = max(1, count($milestones));
-
-        return [
-            'percent' => (int) round(($completed / $total) * 100),
-            'steps'   => $milestones,
-        ];
+        return app(ApplicationProgressService::class)->draftProgress($customer, $draft, $product);
     }
 
     /**

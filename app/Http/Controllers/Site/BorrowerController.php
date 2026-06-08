@@ -12,6 +12,7 @@ use App\Models\DocumentType;
 use App\Models\Guarantor;
 use App\Models\Loan;
 use App\Models\LoanApplication;
+use App\Models\LoanApplicationDraft;
 use App\Models\LoanApplicationDocumentRequest;
 use App\Models\NotificationLog;
 use App\Models\Repayment;
@@ -663,29 +664,25 @@ class BorrowerController extends Controller
             ? TrustedDevice::where('user_id', auth()->id())->where('expires_at', '>', now())->latest('last_used_at')->get()
             : collect();
 
-        $nidaDocuments = CustomerDocument::query()
-            ->where('customer_id', $customer->id)
-            ->whereHas('documentType', fn ($q) => $q->whereIn('code', ['national_id_front', 'national_id_back']))
-            ->with('documentType')
-            ->get()
-            ->keyBy(fn ($doc) => $doc->documentType->code);
+        $nidaDocuments = app(\App\Services\ProfileDocumentService::class)
+            ->latestByCodes($customer, ['national_id_front']);
 
-        $employmentContract = CustomerDocument::query()
-            ->where('customer_id', $customer->id)
-            ->whereHas('documentType', fn ($q) => $q->where('code', 'employment_contract'))
-            ->latest()
-            ->first();
+        $employmentContract = app(\App\Services\ProfileDocumentService::class)
+            ->latestByCodes($customer, ['employment_contract'])
+            ->get('employment_contract');
 
-        $residenceLetter = CustomerDocument::query()
-            ->where('customer_id', $customer->id)
-            ->whereHas('documentType', fn ($q) => $q->where('code', 'residence_letter'))
-            ->latest()
-            ->first();
+        $residenceLetter = app(\App\Services\ProfileDocumentService::class)
+            ->latestByCodes($customer, ['residence_letter'])
+            ->get('residence_letter');
 
         $incomeProofChecklist = app(\App\Services\IncomeProofService::class)->checklist($customer);
+        $incomeProofEmployed = app(\App\Services\IncomeProofService::class)->isEmployed($customer);
+        $incomeProofMethod = app(\App\Services\IncomeProofService::class)->selectedPrimaryMethod($customer);
+        $incomePrimaryOptions = app(\App\Services\IncomeProofService::class)->informalPrimaryOptions();
+        $completionSummary = app(\App\Services\ProfileCompletionService::class)->completionSummary($customer);
         $returnUrl = $request->query('return');
 
-        return view($view, compact('customer', 'kyc', 'trustedDevices', 'nidaDocuments', 'employmentContract', 'residenceLetter', 'incomeProofChecklist', 'returnUrl'))
+        return view($view, compact('customer', 'kyc', 'trustedDevices', 'nidaDocuments', 'employmentContract', 'residenceLetter', 'incomeProofChecklist', 'incomeProofEmployed', 'incomeProofMethod', 'incomePrimaryOptions', 'completionSummary', 'returnUrl'))
             ->with('crbUsesStub', app(CrbService::class)->usesStub())
             ->with('crbSamples', config('crb_samples.scenarios', []))
             ->with('profileSections', app(ProfileCompletionService::class)->displaySections($customer));
@@ -710,12 +707,9 @@ class BorrowerController extends Controller
                 'nok_phone'        => ['required', 'string', 'max:30'],
                 'nok_region'       => ['required', 'string', 'max:100'],
                 'nok_district'     => ['required', 'string', 'max:100'],
+                'nok_ward'         => ['nullable', 'string', 'max:100'],
+                'nok_street'       => ['required', 'string', 'max:255'],
                 'national_id_front' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-                'national_id_front_pages' => ['nullable', 'array'],
-                'national_id_front_pages.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-                'national_id_back' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-                'national_id_back_pages' => ['nullable', 'array'],
-                'national_id_back_pages.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             ]);
 
             $customer->fill([
@@ -726,15 +720,16 @@ class BorrowerController extends Controller
                 'nok_phone'        => $data['nok_phone'],
                 'nok_region'       => $data['nok_region'],
                 'nok_district'     => $data['nok_district'],
+                'nok_ward'         => $data['nok_ward'] ?? null,
+                'nok_street'       => $data['nok_street'],
             ])->save();
 
-            $this->persistProfileDocumentUpload($customer, 'national_id_front', $request->file('national_id_front'), $request->file('national_id_front_pages', []) ?? []);
-            $this->persistProfileDocumentUpload($customer, 'national_id_back', $request->file('national_id_back'), $request->file('national_id_back_pages', []) ?? []);
+            $this->persistProfileDocumentUpload($customer, 'national_id_front', $request->file('national_id_front'), []);
 
             if (! $validation->nationalIdUploadsComplete($customer->fresh())) {
                 return redirect()
                     ->route('site.borrower.profile', ['section' => 'personal'])
-                    ->withErrors(['national_id_front' => __('borrower.profile.nida_uploads_required')])
+                    ->withErrors(['national_id_front' => __('borrower.profile.nida_upload_required')])
                     ->withInput();
             }
         }
@@ -801,31 +796,60 @@ class BorrowerController extends Controller
                 'address'  => trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', ')),
             ])->save();
 
-            $pageFiles = array_filter($request->file('residence_letter_pages', []) ?? []);
-            $type = DocumentType::where('code', 'residence_letter')->where('is_active', true)->first();
+            $pageFiles = array_values(array_filter($request->file('residence_letter_pages', []) ?? []));
+            $this->persistProfileDocumentUpload(
+                $customer,
+                'residence_letter',
+                $request->file('residence_letter'),
+                $pageFiles,
+            );
 
-            if ($type && ($request->hasFile('residence_letter') || $pageFiles !== [])) {
-                $path = $request->hasFile('residence_letter')
-                    ? $request->file('residence_letter')->store("customer/{$customer->id}/documents", 'public')
-                    : app(ResidenceLetterMerger::class)->merge($pageFiles, $customer->id);
-
-                CustomerDocument::updateOrCreate(
-                    ['customer_id' => $customer->id, 'document_type_id' => $type->id],
-                    ['file_path' => $path, 'status' => 'pending_review']
-                );
+            if ($validation->requiresResidenceLetter() && ! $validation->hasResidenceLetter($customer->fresh())) {
+                return redirect()
+                    ->route('site.borrower.profile', ['section' => 'residence'])
+                    ->withErrors(['residence_letter' => __('borrower.profile.residence_letter_required')])
+                    ->withInput();
             }
         }
 
         if ($section === 'kyc') {
-            $request->validate([
-                'bank_statement' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-                'mobile_money_statement' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-                'salary_slip' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            ]);
+            $pageRules = ['nullable', 'array'];
+            $pageItemRules = ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'];
+            $codes = [
+                'bank_statement',
+                'mobile_money_statement',
+                'salary_slip',
+                'business_license',
+                'business_registration',
+                'tin_certificate',
+                'vat_certificate',
+                'business_photos',
+                'workshop_photos',
+            ];
+            $rules = [
+                'income_proof_method' => ['nullable', 'string', 'in:bank_statement,mobile_money_statement'],
+            ];
+            foreach ($codes as $code) {
+                $rules[$code] = ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'];
+                $rules[$code.'_pages'] = $pageRules;
+                $rules[$code.'_pages.*'] = $pageItemRules;
+            }
+            $request->validate($rules);
 
-            $this->persistProfileDocumentUpload($customer, 'bank_statement', $request->file('bank_statement'), []);
-            $this->persistProfileDocumentUpload($customer, 'mobile_money_statement', $request->file('mobile_money_statement'), []);
-            $this->persistProfileDocumentUpload($customer, 'salary_slip', $request->file('salary_slip'), []);
+            if ($request->filled('income_proof_method')) {
+                $details = $customer->activity_details ?? [];
+                $details['income_proof_method'] = $request->input('income_proof_method');
+                $customer->update(['activity_details' => $details]);
+            }
+
+            foreach ($codes as $code) {
+                $this->persistProfileDocumentUpload(
+                    $customer,
+                    $code,
+                    $request->file($code),
+                    $request->file($code.'_pages', []) ?? [],
+                );
+            }
         }
 
         $this->auditBorrower('profile.updated', $customer, ['section' => $section]);
@@ -1063,6 +1087,7 @@ class BorrowerController extends Controller
         $customer = $this->customer();
 
         $data = $request->validate([
+            'residence_unchanged' => ['nullable', 'boolean'],
             'region'           => ['required', 'string', 'max:100'],
             'district'         => ['required', 'string', 'max:100'],
             'ward'             => ['nullable', 'string', 'max:100'],
@@ -1070,17 +1095,48 @@ class BorrowerController extends Controller
             'activity_type'    => ['required', 'string', 'max:40'],
             'activity_details' => ['nullable', 'array'],
             'income_range'     => ['required', 'string', 'in:'.implode(',', array_keys(config('income_ranges')))],
+            'residence_letter' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'residence_letter_pages' => ['nullable', 'array'],
+            'residence_letter_pages.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
+        $unchanged = (bool) ($data['residence_unchanged'] ?? false);
+        $addressMatches = $customer->region === $data['region']
+            && $customer->district === $data['district']
+            && ($customer->ward ?? '') === ($data['ward'] ?? '')
+            && $customer->street === $data['street'];
+
+        if ($unchanged && ! $addressMatches) {
+            return back()->withErrors(['region' => __('borrower.kyc.residence_unchanged_mismatch')])->withInput();
+        }
+
+        if (! $unchanged) {
+            $customer->fill([
+                'region'   => $data['region'],
+                'district' => $data['district'],
+                'ward'     => $data['ward'] ?? null,
+                'street'   => $data['street'],
+                'address'  => trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', ')),
+            ]);
+        }
+
         $customer->fill([
-            ...collect($data)->only(['region', 'district', 'ward', 'street'])->all(),
-            'address'         => trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', ')),
             'activity_type'   => $data['activity_type'],
             'activity_details'=> $data['activity_details'] ?? [],
             'employment_type' => $data['activity_type'],
             'income_range'    => $data['income_range'],
             'monthly_income'  => config('income_ranges.'.$data['income_range'].'.midpoint'),
         ])->save();
+
+        if (! $unchanged) {
+            $pageFiles = array_values(array_filter($request->file('residence_letter_pages', []) ?? []));
+            $this->persistProfileDocumentUpload(
+                $customer,
+                'residence_letter',
+                $request->file('residence_letter'),
+                $pageFiles,
+            );
+        }
 
         $freshness->markReconfirmed($customer);
 
@@ -1277,9 +1333,24 @@ class BorrowerController extends Controller
             ? $single->store("customer/{$customer->id}/documents", 'public')
             : app(DocumentPageMerger::class)->merge($pageFiles, $customer->id, $documentCode);
 
+        $pageCount = $single ? 1 : count($pageFiles);
+        $originalName = $single?->getClientOriginalName()
+            ?? ($pageCount === 1 ? ($pageFiles[0]->getClientOriginalName() ?? null) : null);
+
         CustomerDocument::updateOrCreate(
-            ['customer_id' => $customer->id, 'document_type_id' => $type->id],
-            ['file_path' => $path, 'status' => 'pending_review']
+            [
+                'customer_id'       => $customer->id,
+                'document_type_id'  => $type->id,
+                'loan_application_id' => null,
+            ],
+            [
+                'file_path' => $path,
+                'status'    => 'pending_review',
+                'notes'     => json_encode(array_filter([
+                    'page_count'    => max(1, $pageCount),
+                    'original_name' => $originalName,
+                ])),
+            ]
         );
     }
 

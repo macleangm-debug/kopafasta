@@ -21,9 +21,11 @@ use App\Services\FaceVerificationService;
 use App\Services\GuarantorInvitationService;
 use App\Services\KycFreshnessService;
 use App\Services\ApplicationFeePaymentService;
+use App\Services\CrbCreditCheckService;
 use App\Services\DisplayedRateService;
 use App\Services\LoanApplicationDraftService;
 use App\Services\LoanProductReadinessService;
+use App\Services\ReferenceNumberService;
 use App\Services\ReferralService;
 use App\Services\RepaymentScheduleGenerator;
 use App\Services\SmartLoanApplicationWizardService;
@@ -509,6 +511,7 @@ class ApplyController extends Controller
         GuarantorInvitationService $guarantors,
         ApplicationRequirementsService $requirements,
         LoanApplicationDraftService $drafts,
+        CrbCreditCheckService $crbCredit,
     ): RedirectResponse {
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
 
@@ -720,10 +723,15 @@ class ApplyController extends Controller
         $feeChannel = $feeState['channel'] ?? null;
         $feePaidAt = isset($feeState['paid_at']) ? \Carbon\Carbon::parse($feeState['paid_at']) : ($feeStatus === 'paid' ? now() : null);
 
+        $crbMeta = $crbCredit->ensureFreshForSubmission($customer);
+
+        $applicationNumber = $draft?->draft_reference
+            ?: app(ReferenceNumberService::class)->applicationReference($loanProduct);
+
         $app = LoanApplication::create([
             'customer_id'                => $customer->id,
             'loan_product_id'            => $data['loan_product_id'],
-            'application_number'         => 'LN-'.now()->format('Y').'-'.str_pad((string) (LoanApplication::max('id') + 1), 6, '0', STR_PAD_LEFT),
+            'application_number'         => $applicationNumber,
             'requested_amount'           => $data['requested_amount'],
             'requested_tenure_months'    => $data['requested_tenure_months'],
             'status'                     => $status,
@@ -745,6 +753,8 @@ class ApplyController extends Controller
             'application_fee_paid_at'    => $feePaidAt,
             'submitted_at'               => $submittedAt,
         ]);
+
+        $crbCredit->attachToApplication($app, $crbMeta['history'] ?? null, $crbMeta);
 
         if ($request->filled('asset_reservation_id')) {
             $reservation = AssetReservation::query()

@@ -197,7 +197,7 @@ class LoanProductReadinessService
         ];
 
         if ($profileValidation->requiresResidenceLetter()) {
-            $hasLetter = $profileValidation->hasDocument($customer, 'residence_letter');
+            $hasLetter = $profileValidation->hasResidenceLetter($customer);
             $checks[] = [
                 'key'        => 'residence_letter',
                 'label'      => __('borrower.profile.residence_letter'),

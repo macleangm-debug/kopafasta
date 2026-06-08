@@ -161,7 +161,6 @@
         @php
             $nidaDocs = $nidaDocuments ?? collect();
             $nidaFront = $nidaDocs->get('national_id_front');
-            $nidaBack = $nidaDocs->get('national_id_back');
         @endphp
 
         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}" enctype="multipart/form-data" class="bg-white rounded-2xl border border-gray-200 p-6 space-y-8"
@@ -182,28 +181,16 @@
 
             <div class="border-t border-gray-100 pt-6">
                 <h3 class="font-semibold mb-1">{{ __('borrower.profile.nida_card_uploads') }}</h3>
-                <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.nida_card_uploads_hint') }}</p>
+                <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.nida_front_only_hint') }}</p>
                 @error('national_id_front')<p class="text-xs text-red-600 mb-2">{{ $message }}</p>@enderror
-                <div class="grid sm:grid-cols-2 gap-6">
-                    <div>
-                        <p class="text-xs font-medium text-gray-600 mb-2">{{ __('borrower.profile.nida_front') }} <span class="text-red-500">*</span></p>
-                        @if ($nidaFront)
-                            <p class="text-xs text-emerald-700 mb-2">{{ __('borrower.profile.nida_uploaded') }}</p>
-                        @endif
-                        <x-site.multi-page-document-upload name="national_id_front_pages" input-host-id="nida-front-pages" />
-                        <label class="mt-3 block text-xs text-gray-500">{{ __('borrower.profile.residence_letter_single') }}</label>
-                        <input type="file" name="national_id_front" accept="image/*,application/pdf" class="mt-1 block w-full text-sm text-gray-600">
-                    </div>
-                    <div>
-                        <p class="text-xs font-medium text-gray-600 mb-2">{{ __('borrower.profile.nida_back') }} <span class="text-red-500">*</span></p>
-                        @if ($nidaBack)
-                            <p class="text-xs text-emerald-700 mb-2">{{ __('borrower.profile.nida_uploaded') }}</p>
-                        @endif
-                        <x-site.multi-page-document-upload name="national_id_back_pages" input-host-id="nida-back-pages" />
-                        <label class="mt-3 block text-xs text-gray-500">{{ __('borrower.profile.residence_letter_single') }}</label>
-                        <input type="file" name="national_id_back" accept="image/*,application/pdf" class="mt-1 block w-full text-sm text-gray-600">
-                    </div>
-                </div>
+                <x-site.profile-document-field
+                    :document="$nidaFront"
+                    field-name="national_id_front"
+                    mode="single"
+                    :label="__('borrower.profile.nida_front')"
+                    input-host-id="nida-front-upload"
+                    :required="true"
+                />
             </div>
 
             <div class="border-t border-gray-100 pt-6">
@@ -217,24 +204,24 @@
                     <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.email') }}</label>
                     <input type="email" name="email" value="{{ old('email', $customer->email) }}" class="{{ $editable }}">
                 </div>
-                <div class="sm:col-span-2 rounded-lg bg-gray-50 ring-1 ring-gray-200 px-4 py-3 text-sm">
+                <div class="sm:col-span-2 rounded-lg bg-amber-50 ring-1 ring-amber-200 px-4 py-4 text-sm">
                     @php
                         $faceKey = $customer->face_verification_status ?? 'incomplete';
                         $faceStatus = match ($faceKey) {
                             'verified' => [__('borrower.nida.face_status.verified'), 'bg-emerald-100 text-emerald-800'],
-                            'pending'  => [__('borrower.nida.face_status.pending'), 'bg-sky-100 text-sky-800'],
-                            'rejected' => [__('borrower.nida.face_status.rejected'), 'bg-red-100 text-red-800'],
+                            'pending'  => [__('borrower.nida.face_status.review_required'), 'bg-sky-100 text-sky-800'],
+                            'rejected' => [__('borrower.nida.face_status.failed'), 'bg-red-100 text-red-800'],
                             default    => [__('borrower.nida.face_status.incomplete'), 'bg-amber-100 text-amber-800'],
                         };
                     @endphp
                     <div class="flex items-center justify-between gap-3 flex-wrap">
                         <div>
-                            <p class="font-medium text-gray-900">{{ __('borrower.nida.face_title') }}</p>
-                            <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.nida.face_required') }}</p>
+                            <p class="font-semibold text-gray-900">{{ __('borrower.nida.face_title') }}</p>
+                            <p class="text-xs text-gray-600 mt-0.5">{{ __('borrower.nida.face_compare_hint') }}</p>
                         </div>
                         <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $faceStatus[1] }}">{{ $faceStatus[0] }}</span>
                     </div>
-                    <a href="{{ route('site.borrower.face-verification') }}" class="inline-flex mt-3 text-sm font-semibold text-amber-700 hover:text-amber-800">
+                    <a href="{{ route('site.borrower.face-verification') }}" class="inline-flex mt-3 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2 rounded-full text-sm">
                         {{ ($customer->face_verification_status ?? 'incomplete') === 'verified' ? __('borrower.nida.face_view') : __('borrower.nida.face_complete') }}
                     </a>
                 </div>
@@ -266,6 +253,8 @@
                             prefix="nok"
                             :region="old('nok_region', $customer->nok_region)"
                             :district="old('nok_district', $customer->nok_district)"
+                            :ward="old('nok_ward', $customer->nok_ward)"
+                            :street="old('nok_street', $customer->nok_street)"
                         />
                     </div>
                 </div>

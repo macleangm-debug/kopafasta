@@ -4,6 +4,7 @@
     'incomeRange' => '',
     'prefix' => '',
     'groupedSections' => false,
+    'employmentContract' => null,
 ])
 
 @php
@@ -105,11 +106,20 @@
                         </div>
                     </template>
                     <div class="sm:col-span-2">
-                        <p class="text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.employment_contract') }} <span class="text-red-500">*</span></p>
-                        <p class="text-xs text-gray-500 mb-3">{{ __('borrower.profile.employment_contract_hint') }}</p>
-                        <x-site.multi-page-document-upload name="employment_contract_pages" input-host-id="employment-contract-pages" />
-                        <label class="mt-3 block text-xs text-gray-500">{{ __('borrower.profile.residence_letter_single') }}</label>
-                        <input type="file" name="employment_contract" accept="image/*,application/pdf" class="mt-1 block w-full text-sm text-gray-600">
+                        <x-site.profile-document-field
+                            :document="$employmentContract"
+                            field-name="employment_contract"
+                            pages-field-name="employment_contract_pages"
+                            mode="multi"
+                            :label="__('borrower.profile.employment_contract')"
+                            input-host-id="employment-contract-pages"
+                            :required="true"
+                            :labels="[
+                                'hint' => __('borrower.profile.employment_contract_hint'),
+                                'uploadFile' => __('borrower.profile.capture_pages_upload'),
+                                'capturePage' => __('borrower.profile.capture_pages'),
+                            ]"
+                        />
                     </div>
                 </div>
             </section>

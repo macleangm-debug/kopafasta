@@ -19,19 +19,12 @@
             @endif
 
             @error('employment_contract')<p class="text-xs text-red-600 mb-3">{{ $message }}</p>@enderror
-            @if ($employmentContract ?? null)
-                <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-3 py-2 text-xs text-emerald-800 flex items-center justify-between gap-3 flex-wrap">
-                    <span>{{ __('borrower.profile.employment_contract_uploaded') }}</span>
-                    <a href="{{ asset('storage/'.$employmentContract->file_path) }}" target="_blank" class="font-semibold text-emerald-700 hover:underline">
-                        {{ __('borrower.profile.view_document') }}
-                    </a>
-                </div>
-            @endif
 
             <x-site.activity-fields
                 :activity-type="old('activity_type', $customer->activity_type ?? $customer->employment_type)"
                 :activity-details="old('activity_details', $customer->activity_details ?? [])"
                 :income-range="old('income_range', $customer->income_range)"
+                :employment-contract="$employmentContract ?? null"
                 :grouped-sections="true"
             />
 

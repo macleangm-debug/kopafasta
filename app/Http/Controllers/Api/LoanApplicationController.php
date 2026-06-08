@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\ApplicationStageHistory;
 use App\Models\Customer;
 use App\Models\LoanApplication;
+use App\Models\LoanProduct;
 use App\Services\LoanApplicationWorkflowService;
+use App\Services\ReferenceNumberService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -43,8 +45,10 @@ class LoanApplicationController extends Controller
             ], 422);
         }
 
+        $product = LoanProduct::findOrFail($data['loan_product_id']);
+
         $application = LoanApplication::create(array_merge($data, [
-            'application_number' => 'APP-'.strtoupper(Str::random(10)),
+            'application_number' => app(ReferenceNumberService::class)->applicationReference($product),
             'status' => 'submitted',
             'current_stage' => 'submitted',
             'submitted_at' => now(),

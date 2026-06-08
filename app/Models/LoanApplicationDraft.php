@@ -10,6 +10,7 @@ class LoanApplicationDraft extends Model
     protected $fillable = [
         'customer_id',
         'loan_product_id',
+        'draft_reference',
         'asset_reservation_id',
         'phase',
         'step',

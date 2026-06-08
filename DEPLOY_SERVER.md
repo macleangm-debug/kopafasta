@@ -152,6 +152,25 @@ sudo certbot --nginx -d your-domain.com
 
 ## Notes
 
-- This script keeps server .env and storage uploads intact.
+- This script keeps server `.env` and storage uploads intact.
 - It installs production PHP dependencies and runs migrations automatically.
 - If you use Redis in production, install and configure Redis before deployment.
+- **Document uploads** require raised limits on the server (see below).
+
+## Upload limits (required for borrower documents)
+
+Borrower uploads allow up to **5 MB per file** (bank statements, multi-page scans). The default Nginx/PHP limits are too low and cause **413 Request Entity Too Large**.
+
+On the server, apply:
+
+```bash
+# Nginx — inside /etc/nginx/sites-available/kopafasta.triptz.net server block
+client_max_body_size 25M;
+
+# PHP-FPM
+sudo cp deploy/php-upload-limits.ini /etc/php/8.3/fpm/conf.d/99-kopafasta-uploads.ini
+sudo systemctl reload nginx
+sudo systemctl reload php8.3-fpm
+```
+
+Reference snippets are in `deploy/nginx-upload-limits.snippet` and `deploy/php-upload-limits.ini`.

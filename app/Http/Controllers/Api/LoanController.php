@@ -5,8 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Loan;
 use App\Models\LoanApplication;
+use App\Models\LoanProduct;
+use App\Services\ReferenceNumberService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class LoanController extends Controller
 {
@@ -31,8 +32,10 @@ class LoanController extends Controller
             'tenure_months' => ['required', 'integer', 'min:1'],
         ]);
 
+        $product = LoanProduct::findOrFail($data['loan_product_id']);
+
         $loan = Loan::create(array_merge($data, [
-            'loan_number' => 'LN-'.strtoupper(Str::random(10)),
+            'loan_number' => app(ReferenceNumberService::class)->loanReference($product),
             'status' => 'approved',
             'outstanding_balance' => $data['approved_amount'],
         ]));

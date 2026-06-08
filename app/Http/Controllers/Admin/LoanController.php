@@ -113,7 +113,9 @@ class LoanController extends Controller
 
         $data = $this->validated($request);
 
-        $data['loan_number']         = $data['loan_number'] ?? $this->generateLoanNumber();
+        $data['loan_number'] = $data['loan_number'] ?? $this->generateLoanNumber(
+            LoanProduct::find($data['loan_product_id'] ?? null)
+        );
         $data['approved_amount']     = $data['approved_amount'] ?? $data['principal_amount'];
         $data['outstanding_balance'] = $data['outstanding_balance'] ?? $data['principal_amount'];
         $data['status']              = $data['status'] ?? 'pending';
@@ -267,8 +269,12 @@ class LoanController extends Controller
         ]);
     }
 
-    protected function generateLoanNumber(): string
+    protected function generateLoanNumber(?LoanProduct $product = null): string
     {
-        return 'LN-'.now()->format('Ymd').'-'.Str::upper(Str::random(5));
+        if ($product) {
+            return app(\App\Services\ReferenceNumberService::class)->loanReference($product);
+        }
+
+        return 'LN-IL-'.str_pad((string) ((int) Loan::max('id') + 1), 4, '0', STR_PAD_LEFT);
     }
 }

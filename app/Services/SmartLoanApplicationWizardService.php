@@ -52,28 +52,22 @@ class SmartLoanApplicationWizardService
         $incomeProof = app(IncomeProofService::class);
         $doc = $incomeProof->primaryDocument($customer);
 
-        if (! $doc) {
-            $legacy = CustomerDocument::with('documentType')
-                ->where('customer_id', $customer->id)
-                ->whereHas('documentType', function ($q) {
-                    $q->where(function ($q) {
-                        $q->where('name', 'like', '%bank%')
-                            ->orWhere('name', 'like', '%income%')
-                            ->orWhere('name', 'like', '%statement%')
-                            ->orWhere('name', 'like', '%mobile%')
-                            ->orWhere('code', 'like', '%bank%')
-                            ->orWhere('code', 'like', '%income%')
-                            ->orWhere('code', 'like', '%statement%');
-                    });
-                })
-                ->latest()
-                ->first();
-
-            $doc = $legacy;
+        if (! $doc && $incomeProof->isEmployed($customer)) {
+            foreach (config('income_proof.employed_required_codes', []) as $code) {
+                $found = CustomerDocument::with('documentType')
+                    ->where('customer_id', $customer->id)
+                    ->whereHas('documentType', fn ($q) => $q->where('code', $code))
+                    ->latest()
+                    ->first();
+                if ($found) {
+                    $doc = $found;
+                    break;
+                }
+            }
         }
 
         if (! $doc) {
-            if (! $incomeProof->isRequired() && $this->profile->isActivityComplete($customer)) {
+            if (! $incomeProof->isRequired()) {
                 return [
                     'has_document' => false,
                     'status'       => null,
@@ -86,6 +80,15 @@ class SmartLoanApplicationWizardService
                 'has_document' => false,
                 'status'       => null,
                 'label'        => null,
+                'can_skip'     => false,
+            ];
+        }
+
+        if ($incomeProof->isRequired() && ! $incomeProof->satisfiesRequirement($customer)) {
+            return [
+                'has_document' => true,
+                'status'       => $doc->status,
+                'label'        => $doc->documentType?->name,
                 'can_skip'     => false,
             ];
         }

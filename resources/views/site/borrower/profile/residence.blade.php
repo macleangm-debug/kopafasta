@@ -27,35 +27,27 @@
                 :street="old('street', $customer->street ?? $customer->address)"
             />
 
+            @php $requiresLetter = app(\App\Services\ProfileValidationService::class)->requiresResidenceLetter(); @endphp
+            @if ($requiresLetter)
             <div class="mt-6 pt-6 border-t border-gray-100">
-                <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.profile.residence_letter') }}</label>
+                <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.profile.residence_letter') }} <span class="text-red-500">*</span></label>
                 <p class="text-xs text-gray-500 mb-3">{{ __('borrower.profile.residence_letter_hint') }}</p>
-                @if ($residenceLetter ?? null)
-                    <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-3 py-2 text-xs text-emerald-800 flex items-center justify-between gap-3 flex-wrap">
-                        <span>{{ __('borrower.profile.document_on_file') }}</span>
-                        <a href="{{ asset('storage/'.$residenceLetter->file_path) }}" target="_blank" class="font-semibold text-emerald-700 hover:underline">
-                            {{ __('borrower.profile.view_document') }}
-                        </a>
-                    </div>
-                @endif
-                <x-site.multi-page-document-upload
-                    name="residence_letter_pages"
+                <x-site.profile-document-field
+                    :document="$residenceLetter ?? null"
+                    field-name="residence_letter"
+                    pages-field-name="residence_letter_pages"
+                    mode="multi"
+                    :label="__('borrower.profile.residence_letter')"
                     input-host-id="residence-letter-pages"
                     :labels="[
                         'hint' => __('borrower.profile.residence_upload_hint'),
-                        'uploadFile' => __('borrower.profile.residence_upload_file'),
-                        'capturePage' => __('borrower.profile.residence_capture_page'),
-                        'close' => __('borrower.profile.residence_close'),
-                        'pageLabel' => __('borrower.profile.residence_page_label'),
-                        'remove' => __('borrower.profile.residence_remove'),
+                        'uploadFile' => __('borrower.profile.capture_pages_upload'),
+                        'capturePage' => __('borrower.profile.capture_pages'),
                     ]"
+                    :required="true"
                 />
-                <p class="text-xs text-gray-400 mt-3">{{ __('borrower.profile.residence_letter_single') }}</p>
-                <input type="file" name="residence_letter" accept=".jpg,.jpeg,.png,.pdf"
-                       class="mt-2 w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-amber-50 file:text-amber-800 file:font-semibold">
-                @error('residence_letter')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
-                @error('residence_letter_pages.*')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
             </div>
+            @endif
 
             <button class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.profile.save_residence') }}</button>
         </form>

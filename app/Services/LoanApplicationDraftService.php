@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationDraft;
 use App\Models\LoanProduct;
+use App\Services\ReferenceNumberService;
 
 class LoanApplicationDraftService
 {
@@ -107,12 +108,17 @@ class LoanApplicationDraftService
         $product = $draft->product ?? LoanProduct::find($draft->loan_product_id);
 
         return [
-            'url'          => $customer ? $this->resumeUrl($customer, $draft) : route('site.borrower.apply'),
+            'url'          => $this->applicationsListUrl(),
             'product_name' => $product?->name ?? __('borrower.apply.title'),
             'phase'        => $draft->phase,
             'step'         => (int) $draft->step,
             'saved_at'     => optional($draft->saved_at)->diffForHumans(),
         ];
+    }
+
+    public function applicationsListUrl(): string
+    {
+        return route('site.borrower.loans', ['tab' => 'applications']);
     }
 
     public function resumeUrl(Customer $customer, LoanApplicationDraft $draft): string
@@ -156,7 +162,7 @@ class LoanApplicationDraftService
                 'detail'    => $feePending
                     ? __('borrower.applications_list.draft_fee_pending')
                     : __('borrower.applications_list.draft_in_progress'),
-                'url'       => $this->resumeUrl($customer, $draft),
+                'url'       => route('site.borrower.loan-profile.draft', $draft),
                 'saved_at'  => optional($draft->saved_at)->diffForHumans(),
             ];
         }
@@ -203,12 +209,20 @@ class LoanApplicationDraftService
             'external_guarantor'   => $data['external_guarantor'] ?? ($existing?->payload['external_guarantor'] ?? null),
         ];
 
+        $product = LoanProduct::find((int) $productId);
+        $draftReference = $existing?->draft_reference;
+
+        if (! $draftReference && $product) {
+            $draftReference = app(ReferenceNumberService::class)->applicationReference($product);
+        }
+
         return LoanApplicationDraft::updateOrCreate(
             [
                 'customer_id'     => $customer->id,
                 'loan_product_id' => (int) $productId,
             ],
             [
+                'draft_reference'      => $draftReference,
                 'asset_reservation_id' => $data['asset_reservation_id'] ?? null,
                 'phase'                => $phase,
                 'step'                 => (int) ($data['step'] ?? 0),
@@ -221,6 +235,7 @@ class LoanApplicationDraftService
     /** @param array<string, mixed> $feeState */
     public function saveApplicationFee(Customer $customer, int $loanProductId, array $feeState): LoanApplicationDraft
     {
+        $product = LoanProduct::find($loanProductId);
         $draft = $this->find($customer, $loanProductId)
             ?? new LoanApplicationDraft([
                 'customer_id'     => $customer->id,
@@ -229,6 +244,10 @@ class LoanApplicationDraftService
                 'step'            => 0,
                 'payload'         => [],
             ]);
+
+        if (! $draft->draft_reference && $product) {
+            $draft->draft_reference = app(ReferenceNumberService::class)->applicationReference($product);
+        }
 
         $payload = $draft->payload ?? [];
         $payload['application_fee'] = $feeState;

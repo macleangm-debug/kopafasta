@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Loan;
 use App\Models\LoanApplication;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class LoanOriginationService
@@ -41,7 +40,7 @@ class LoanOriginationService
             'loan_application_id' => $application->id,
             'customer_id'         => $application->customer_id,
             'loan_product_id'     => $application->loan_product_id,
-            'loan_number'           => $this->generateLoanNumber(),
+            'loan_number'         => app(ReferenceNumberService::class)->loanReference($product),
             'principal_amount'      => $amount,
             'approved_amount'       => $amount,
             'outstanding_balance'   => $amount,
@@ -56,10 +55,5 @@ class LoanOriginationService
         app(CapitalPartnerAllocationService::class)->allocateForLoan($loan);
 
         return $loan;
-    }
-
-    protected function generateLoanNumber(): string
-    {
-        return 'LN-'.now()->format('Ymd').'-'.Str::upper(Str::random(5));
     }
 }

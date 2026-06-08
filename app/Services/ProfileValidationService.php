@@ -49,10 +49,12 @@ class ProfileValidationService
 
     public function hasDocument(Customer $customer, string $code): bool
     {
-        return CustomerDocument::query()
-            ->where('customer_id', $customer->id)
-            ->whereHas('documentType', fn ($q) => $q->where('code', $code))
-            ->exists();
+        return app(ProfileDocumentService::class)->hasProfileDocument($customer, $code);
+    }
+
+    public function hasResidenceLetter(Customer $customer): bool
+    {
+        return $this->hasDocument($customer, 'residence_letter');
     }
 
     public function requiresNationalIdUploads(): bool
@@ -62,8 +64,12 @@ class ProfileValidationService
 
     public function nationalIdUploadsComplete(Customer $customer): bool
     {
-        return $this->hasDocument($customer, 'national_id_front')
-            && $this->hasDocument($customer, 'national_id_back');
+        return $this->hasDocument($customer, 'national_id_front');
+    }
+
+    public function identityDocumentsComplete(Customer $customer): bool
+    {
+        return $this->nationalIdUploadsComplete($customer);
     }
 
     public function isKinComplete(Customer $customer): bool
@@ -72,7 +78,8 @@ class ProfileValidationService
             && filled($customer->nok_phone)
             && filled($customer->nok_relationship)
             && filled($customer->nok_region)
-            && filled($customer->nok_district);
+            && filled($customer->nok_district)
+            && filled($customer->nok_street);
     }
 
     public function requiresEmploymentContract(Customer $customer): bool

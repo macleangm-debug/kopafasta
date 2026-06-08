@@ -106,6 +106,7 @@ class SettingsController extends Controller
             'crb_endpoint'          => ['nullable', 'url', 'max:255'],
             'crb_email'             => ['nullable', 'string', 'max:150'],
             'freshness_days'        => ['nullable', 'integer', 'min:30', 'max:365'],
+            'crb_freshness_days'    => ['nullable', 'integer', 'min:30', 'max:365'],
         ]);
 
         foreach (['require_nida','require_tin','require_selfie','require_address_proof','require_income_proof','auto_approve_low_risk','crb_check_required','crb_sandbox'] as $k) {
@@ -113,6 +114,7 @@ class SettingsController extends Controller
         }
 
         $data['freshness_days'] = (int) ($data['freshness_days'] ?? 90);
+        $data['crb_freshness_days'] = (int) ($data['crb_freshness_days'] ?? 90);
         $data['require_residence_letter'] = (bool) ($data['require_address_proof'] ?? false);
 
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["kyc.$k" => $v])->all());

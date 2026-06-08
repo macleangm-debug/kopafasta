@@ -6,9 +6,11 @@ use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
+use App\Services\CrbCreditCheckService;
 use App\Services\LoanApplicationReviewService;
 use App\Services\LoanApplicationWorkflowService;
 use App\Services\LoanOriginationService;
+use App\Services\ReferenceNumberService;
 use App\Services\SmartLoanApplicationWizardService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
@@ -129,8 +131,11 @@ class LoanApplicationController extends ResourceController
 
     protected function transform(array $data, ?Model $existing = null): array
     {
-        if (empty($data['application_number'])) {
-            $data['application_number'] = 'APP-'.now()->format('ymd').'-'.Str::upper(Str::random(5));
+        if (empty($data['application_number']) && ! empty($data['loan_product_id'])) {
+            $product = LoanProduct::find($data['loan_product_id']);
+            if ($product) {
+                $data['application_number'] = app(ReferenceNumberService::class)->applicationReference($product);
+            }
         }
 
         if (empty($data['current_stage']) && ! empty($data['status'])) {
@@ -225,6 +230,26 @@ class LoanApplicationController extends ResourceController
         return redirect()
             ->route("{$this->routePrefix}.show", $loan_application)
             ->with('status', $label.' completed successfully.');
+    }
+
+    public function refreshCrb(LoanApplication $loan_application, CrbCreditCheckService $crbCredit): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.view'), 403);
+
+        $customer = $loan_application->customer;
+        abort_unless($customer, 404);
+
+        $history = $crbCredit->refreshCreditReport($customer);
+        $crbCredit->attachToApplication($loan_application, $history, [
+            'reused'    => false,
+            'refreshed' => true,
+            'error'     => $history ? null : 'CRB refresh failed.',
+        ]);
+
+        return back()->with(
+            'status',
+            $history ? 'CRB report refreshed and attached to this application.' : 'CRB refresh could not be completed.',
+        );
     }
 
     public function createLoan(LoanApplication $loan_application, LoanOriginationService $origination): RedirectResponse
