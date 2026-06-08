@@ -32,7 +32,7 @@
                             </p>
                         </div>
                         <div class="flex flex-wrap gap-2">
-                            <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $statusClass }}">{{ ucfirst($guarantor['status']) }}</span>
+                            <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $statusClass }}">{{ $guarantor['status_label'] ?? ucfirst($guarantor['status']) }}</span>
                             <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $riskClass }}">{{ $guarantor['risk_label'] }}</span>
                         </div>
                     </div>

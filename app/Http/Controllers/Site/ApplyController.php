@@ -347,6 +347,7 @@ class ApplyController extends Controller
             'application_fee'      => ['nullable', 'array'],
             'external_guarantor'   => ['nullable', 'array'],
             'borrower_signature'   => ['nullable', 'array'],
+            'declaration_accepted' => ['nullable', 'boolean'],
         ]);
 
         if ($data['phase'] === 'browse' || empty($data['loan_product_id'])) {
@@ -549,13 +550,18 @@ class ApplyController extends Controller
         $isMarketplaceProduct = is_marketplace_loan_product($loanProduct->code);
 
         $draft = $drafts->find($customer, (int) $loanProduct->id);
-        $storedSignature = ($draft?->payload ?? [])['borrower_signature'] ?? null;
+        $draftPayload = $draft?->payload ?? [];
+        $storedSignature = $draftPayload['borrower_signature'] ?? null;
+        $declarationAccepted = (bool) ($draftPayload['declaration_accepted'] ?? false);
+
         if ($storedSignature && ! $request->filled('signature_data')) {
             $request->merge([
                 'signer_name'    => $storedSignature['signer_name'] ?? '',
                 'signature_data' => $storedSignature['signature_data'] ?? '',
                 'consent'        => '1',
             ]);
+        } elseif ($declarationAccepted && ! $request->boolean('consent')) {
+            $request->merge(['consent' => '1']);
         }
 
         $data = $request->validate([
@@ -626,10 +632,20 @@ class ApplyController extends Controller
 
         if ($loanProduct->requires_guarantor) {
             $mode = $data['guarantor_mode'] ?? 'none';
+            $draftForm = $draftPayload['form'] ?? [];
+            if ($mode === 'none' && filled($draftForm['guarantor_mode'] ?? null)) {
+                $mode = (string) $draftForm['guarantor_mode'];
+                $data['guarantor_mode'] = $mode;
+            }
             if ($mode === 'none') {
                 return back()->withInput()->withErrors(['guarantor_mode' => 'This product requires a guarantor.']);
             }
             if ($mode === 'internal') {
+                foreach (['internal_member_no', 'internal_guarantor_phone', 'internal_guarantor_name'] as $field) {
+                    if (blank($data[$field] ?? null) && filled($draftForm[$field] ?? null)) {
+                        $data[$field] = $draftForm[$field];
+                    }
+                }
                 $memberKey = \App\Support\MemberNumberFormatter::lookupKey($data['internal_member_no'] ?? '');
                 if (! $memberKey) {
                     return back()->withInput()->withErrors(['internal_member_no' => 'Enter a valid membership number.']);
@@ -661,6 +677,19 @@ class ApplyController extends Controller
                 }
             }
             if ($mode === 'external') {
+                foreach ([
+                    'external_first_name', 'external_last_name', 'external_phone',
+                    'external_relationship', 'external_region', 'external_district',
+                    'external_invitation_id',
+                ] as $field) {
+                    if (blank($data[$field] ?? null) && filled($draftForm[$field] ?? null)) {
+                        $data[$field] = $draftForm[$field];
+                    }
+                }
+                $externalDraft = $draftPayload['external_guarantor'] ?? [];
+                if (blank($data['external_invitation_id'] ?? null) && filled($externalDraft['invitation_id'] ?? null)) {
+                    $data['external_invitation_id'] = $externalDraft['invitation_id'];
+                }
                 $first = trim($data['external_first_name'] ?? '');
                 $last = trim($data['external_last_name'] ?? '');
                 if ($first === '' || $last === '') {
@@ -783,7 +812,7 @@ class ApplyController extends Controller
         ApplicationSignature::create([
             'loan_application_id' => $app->id,
             'signer_type'         => 'borrower',
-            'signer_name'         => $data['signer_name'],
+            'signer_name'         => $customer->full_name ?: $data['signer_name'],
             'signature_data'      => $data['signature_data'],
             'signed_at'           => now(),
         ]);

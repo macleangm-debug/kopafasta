@@ -178,7 +178,9 @@ class LoanApplicationReviewService
                 'label'  => 'Guarantor approval',
                 'status' => $approved ? 'complete' : 'pending',
                 'tone'   => $approved ? 'emerald' : 'amber',
-                'detail' => $approved ? 'Guarantor approved' : 'Awaiting guarantor',
+                'detail' => $approved
+                    ? __('borrower.apply.guarantor_status.accepted')
+                    : ($guarantorRows->first()['status_label'] ?? __('borrower.apply.guarantor_status.pending_completion')),
             ];
         }
 
@@ -222,6 +224,7 @@ class LoanApplicationReviewService
                     'membership_no'    => $member?->member_no ?? $invitation?->membership_id,
                     'phone'            => $guarantor?->phone,
                     'status'           => $link->status,
+                    'status_label'     => app(GuarantorInvitationService::class)->underwritingGuarantorStatusLabel($link),
                     'relationship'     => $guarantor?->relationship,
                     'active_loans'     => $activeLoans,
                     'guaranteed_loans' => $guaranteedLoans,

@@ -91,6 +91,7 @@ class LoanApplicationDraftService
             'application_fee'      => $payload['application_fee'] ?? null,
             'external_guarantor'   => $payload['external_guarantor'] ?? null,
             'borrower_signature'   => $payload['borrower_signature'] ?? null,
+            'declaration_accepted' => (bool) ($payload['declaration_accepted'] ?? false),
             'draft_reference'      => $draft->draft_reference,
         ];
     }
@@ -210,6 +211,9 @@ class LoanApplicationDraftService
             'application_fee'      => $data['application_fee'] ?? ($existing?->payload['application_fee'] ?? null),
             'external_guarantor'   => $data['external_guarantor'] ?? ($existing?->payload['external_guarantor'] ?? null),
             'borrower_signature'   => $data['borrower_signature'] ?? ($existing?->payload['borrower_signature'] ?? null),
+            'declaration_accepted' => array_key_exists('declaration_accepted', $data)
+                ? (bool) $data['declaration_accepted']
+                : (bool) ($existing?->payload['declaration_accepted'] ?? false),
         ];
 
         $product = LoanProduct::find((int) $productId);

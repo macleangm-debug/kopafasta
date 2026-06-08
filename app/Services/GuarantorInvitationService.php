@@ -162,9 +162,14 @@ class GuarantorInvitationService
 
     public function guarantorLinkStatusLabel(CustomerGuarantor $link): string
     {
+        return $this->underwritingGuarantorStatusLabel($link);
+    }
+
+    public function underwritingGuarantorStatusLabel(CustomerGuarantor $link): string
+    {
         $link->loadMissing('guarantor');
         if ($link->status === 'approved') {
-            return __('borrower.apply.guarantor_status.approved');
+            return __('borrower.apply.guarantor_status.accepted');
         }
         if ($link->status === 'rejected') {
             return __('borrower.apply.guarantor_status.rejected');
@@ -175,15 +180,25 @@ class GuarantorInvitationService
             ->latest()
             ->first();
 
-        if ($invitation?->status === 'accepted' && $link->type === 'external') {
-            return __('borrower.apply.guarantor_status.pending_profile');
+        if ($invitation?->type === 'external') {
+            $guarantorCustomer = $invitation->guarantor_customer_id
+                ? Customer::find($invitation->guarantor_customer_id)
+                : null;
+
+            if ($guarantorCustomer && ! app(ProfileCompletionService::class)->meetsThreshold($guarantorCustomer)) {
+                return __('borrower.apply.guarantor_status.pending_kyc');
+            }
+
+            if (in_array($invitation->status, ['pending', 'sent'], true)) {
+                return __('borrower.apply.guarantor_status.pending_acceptance');
+            }
         }
 
-        if (in_array($invitation?->status, ['pending', 'accepted'], true)) {
+        if (in_array($invitation?->status, ['pending', 'sent'], true)) {
             return __('borrower.apply.guarantor_status.pending_acceptance');
         }
 
-        return __('borrower.apply.guarantor_status.pending');
+        return __('borrower.apply.guarantor_status.pending_completion');
     }
 
     public function whatsAppShareUrl(GuarantorInvitation $invitation, Customer $borrower): ?string

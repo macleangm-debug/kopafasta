@@ -60,6 +60,9 @@
                 ])->filter()->implode(' · ')),
                 'residence' => collect([$customer->street ?? $customer->address, $customer->ward, $customer->district, $customer->region])->filter()->implode(', '),
             ];
+            $verifiedLegalName = $customer->full_name;
+            $identityVerified = app(\App\Services\NidaVerificationService::class)->isVerified($customer)
+                || filled($customer->nida_verified_at);
         @endphp
 
         <div x-data="applyWizard({
@@ -88,6 +91,8 @@
                   marketplaceUrl: @js($marketplaceUrl ?? route('site.borrower.marketplace')),
                   profileUrl: @js(route('site.borrower.profile')),
                   canApply: @js((bool) ($applyRequirements['can_apply'] ?? false)),
+                  verifiedLegalName: @js($verifiedLegalName),
+                  identityVerified: @js($identityVerified),
                   profileSections: @js($profileSections),
                   incomeVerification: @js($incomeVerification),
                   productQuestions: @js($productQuestions),
@@ -643,17 +648,26 @@
                 </div>
 
                 {{-- Signature --}}
-                <div x-show="stepKey === 'signature'" class="p-6 sm:p-8">
+                <div x-show="stepKey === 'signature'" class="p-6 sm:p-8" data-signature-step>
                     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.signature_title') }}</h2>
                     <p class="text-sm text-gray-600 mb-5">{{ __('borrower.apply.signature_subtitle') }}</p>
                     <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-4 mb-5">
                         <p class="text-sm font-semibold text-gray-900">{{ __('borrower.apply.signature_declaration') }}</p>
                     </div>
                     <label class="flex items-start gap-3 text-sm text-gray-700 mb-5">
-                        <input type="checkbox" name="consent" value="1" required class="mt-1 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                        <input type="checkbox"
+                               name="borrower_consent"
+                               value="1"
+                               x-model="declarationAccepted"
+                               @change="persistDeclaration()"
+                               class="mt-1 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
                         <span>{{ __('borrower.apply.signature_consent', ['brand' => brand_name()]) }}</span>
                     </label>
-                    <x-site.signature-pad :default-name="trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''))" />
+                    <p x-show="declarationAccepted" x-cloak class="text-xs font-semibold text-emerald-700 mb-4">{{ __('borrower.apply.signature_declaration_saved') }}</p>
+                    <x-site.signature-pad
+                        :default-name="$verifiedLegalName"
+                        :readonly-name="true"
+                        :verified="$identityVerified" />
                 </div>
 
                 {{-- Submit --}}
@@ -668,7 +682,7 @@
                         {{ __('borrower.apply.submit_step.reference') }}:
                         <span class="font-mono font-semibold text-gray-900" x-text="draftReference"></span>
                     </p>
-                    <input type="hidden" name="signer_name" :value="borrowerSignature?.signer_name || ''">
+                    <input type="hidden" name="signer_name" :value="borrowerSignature?.signer_name || verifiedLegalName">
                     <input type="hidden" name="signature_data" :value="borrowerSignature?.signature_data || ''">
                     <input type="hidden" name="consent" value="1">
                 </div>
@@ -680,7 +694,7 @@
                         <button type="button" @click.prevent="next()" :disabled="advancing || resumeLoading || (guarantorInvitePreparing && stepKey === 'guarantor') || (stepKey === 'guarantor' && form.guarantor_mode === 'internal' && !internalGuarantorFieldsFilled()) || (stepKey === 'guarantor' && form.guarantor_mode === 'external' && !isExternalGuarantorComplete())" x-show="!['signature', 'submit'].includes(stepKey)" class="bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
                             <span x-text="(guarantorInvitePreparing && stepKey === 'guarantor') ? @js(__('borrower.apply.application_fee.processing')) : @js(__('borrower.apply.continue'))"></span>
                         </button>
-                        <button type="button" @click.prevent="signApplication()" :disabled="advancing" x-show="stepKey === 'signature'" class="bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.sign_application') }}</button>
+                        <button type="button" @click.prevent="signApplication()" :disabled="advancing || !declarationAccepted" x-show="stepKey === 'signature'" class="bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.sign_application') }}</button>
                         <button type="submit" x-show="stepKey === 'submit'" class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.submit') }}</button>
                     </div>
                 </div>
@@ -777,6 +791,9 @@
                 marketplaceUrl: config.marketplaceUrl || '',
                 profileUrl: config.profileUrl || '',
                 canApply: !! config.canApply,
+                verifiedLegalName: config.verifiedLegalName || '',
+                declarationAccepted: !!(config.savedDraft?.declaration_accepted || config.savedDraft?.borrower_signature),
+                declarationSaveTimer: null,
                 i18n: config.i18n,
                 phase: 'browse',
                 readiness: null,
@@ -887,6 +904,11 @@
                     this.draftSaveTimer = setTimeout(() => this.persistDraft(), 900);
                 },
 
+                persistDeclaration() {
+                    clearTimeout(this.declarationSaveTimer);
+                    this.declarationSaveTimer = setTimeout(() => this.persistDraft(true), 250);
+                },
+
                 buildDraftPayload() {
                     const inputs = {};
                     if (this.phase === 'application') {
@@ -912,6 +934,7 @@
                         application_fee: this.applicationFeeState,
                         external_guarantor: this.externalGuarantor,
                         borrower_signature: this.borrowerSignature,
+                        declaration_accepted: this.declarationAccepted,
                     };
                 },
 
@@ -1086,6 +1109,7 @@
                                 application_fee: this.applicationFeeState,
                                 external_guarantor: this.externalGuarantor,
                                 borrower_signature: this.borrowerSignature,
+                                declaration_accepted: this.declarationAccepted,
                             };
                         }
                         return fetch(this.draftSaveUrl, {
@@ -1170,6 +1194,7 @@
                     if (draft.application_fee) this.applicationFeeState = draft.application_fee;
                     if (draft.external_guarantor) this.externalGuarantor = draft.external_guarantor;
                     if (draft.borrower_signature) this.borrowerSignature = draft.borrower_signature;
+                    if (draft.declaration_accepted || draft.borrower_signature) this.declarationAccepted = true;
                     if (draft.draft_reference) this.draftReference = draft.draft_reference;
                     this.syncFeePaidState();
 
@@ -1641,18 +1666,12 @@
                     if (this.advancing) {
                         return;
                     }
-                    const form = this.formRoot();
-                    const consent = form?.elements['consent'];
-                    const sig = form?.elements['signature_data'];
-                    const signer = form?.elements['signer_name'];
-                    if (consent && ! consent.checked) {
+                    if (! this.declarationAccepted) {
                         alert(this.i18n.alerts.acceptTerms);
                         return;
                     }
-                    if (! signer?.value?.trim()) {
-                        alert(this.i18n.alerts.drawSignature);
-                        return;
-                    }
+                    const form = this.formRoot();
+                    const sig = form?.querySelector('[data-signature-step] [name="signature_data"]');
                     if (! sig?.value) {
                         alert(this.i18n.alerts.drawSignature);
                         return;
@@ -1660,10 +1679,12 @@
                     this.advancing = true;
                     try {
                         this.borrowerSignature = {
-                            signer_name: signer.value.trim(),
+                            signer_name: this.verifiedLegalName,
                             signature_data: sig.value,
+                            consent_accepted: true,
                             signed_at: new Date().toISOString(),
                         };
+                        this.declarationAccepted = true;
                         await this.persistDraft(true);
                         if (this.step < this.steps.length - 1) {
                             this.step++;
