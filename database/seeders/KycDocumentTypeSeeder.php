@@ -15,6 +15,11 @@ class KycDocumentTypeSeeder extends Seeder
             ['code' => 'selfie',            'name' => 'Selfie with ID'],
             ['code' => 'residence_letter',  'name' => 'Residence verification letter (LGA)'],
             ['code' => 'employment_contract', 'name' => 'Employment contract'],
+            ['code' => 'bank_statement',      'name' => 'Bank statement (last 6 months)'],
+            ['code' => 'mobile_money_statement', 'name' => 'Mobile money statement (last 6 months)'],
+            ['code' => 'mpesa_statement',     'name' => 'M-Pesa statement (last 6 months)'],
+            ['code' => 'salary_slip',         'name' => 'Salary slip'],
+            ['code' => 'income_statement',    'name' => 'Income statement'],
             ['code' => 'signature',         'name' => 'Signature sample'],
         ];
 

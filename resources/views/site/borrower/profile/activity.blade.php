@@ -11,13 +11,21 @@
 
         @include('site.borrower.profile._completion')
 
-        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'activity']) }}" enctype="multipart/form-data" class="bg-white rounded-2xl border border-gray-200 p-6"
+        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'activity']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data" class="bg-white rounded-2xl border border-gray-200 p-6"
               @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.save_confirm_title')), message: @js(__('borrower.profile.save_confirm_message')), confirmLabel: @js(__('borrower.profile.save')), confirmClass: 'bg-amber-500 hover:bg-amber-400 text-gray-900' })">
             @csrf @method('PUT')
+            @if (! empty($returnUrl))
+                <input type="hidden" name="return" value="{{ $returnUrl }}">
+            @endif
 
             @error('employment_contract')<p class="text-xs text-red-600 mb-3">{{ $message }}</p>@enderror
             @if ($employmentContract ?? null)
-                <p class="text-xs text-emerald-700 mb-4">{{ __('borrower.profile.employment_contract_uploaded') }}</p>
+                <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-3 py-2 text-xs text-emerald-800 flex items-center justify-between gap-3 flex-wrap">
+                    <span>{{ __('borrower.profile.employment_contract_uploaded') }}</span>
+                    <a href="{{ asset('storage/'.$employmentContract->file_path) }}" target="_blank" class="font-semibold text-emerald-700 hover:underline">
+                        {{ __('borrower.profile.view_document') }}
+                    </a>
+                </div>
             @endif
 
             <x-site.activity-fields

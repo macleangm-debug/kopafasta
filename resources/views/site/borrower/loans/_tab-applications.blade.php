@@ -10,46 +10,20 @@
     ];
 @endphp
 
-@if (($resumableDrafts ?? []) !== [])
-    <div class="mb-8 rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
-        <h3 class="text-sm font-semibold text-amber-900 mb-1">{{ __('borrower.applications_list.continue_title') }}</h3>
-        <p class="text-xs text-amber-800 mb-4">{{ __('borrower.applications_list.continue_hint') }}</p>
-        <ul class="space-y-3">
-            @foreach ($resumableDrafts as $draft)
-                <li class="flex flex-wrap items-center justify-between gap-3 bg-white rounded-xl ring-1 ring-amber-200 px-4 py-3">
-                    <div>
-                        <p class="text-sm font-semibold text-gray-900">{{ $draft['product_name'] }}</p>
-                        <p class="text-xs text-gray-600 mt-0.5">{{ $draft['detail'] }}</p>
-                        @if (! empty($draft['saved_at_human']))
-                            <p class="text-[11px] text-gray-400 mt-1">{{ __('borrower.applications_list.draft_saved', ['time' => $draft['saved_at_human']]) }}</p>
-                        @endif
-                    </div>
-                    <a href="{{ $draft['action_url'] }}" class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2 rounded-full text-sm shrink-0">
-                        {{ $draft['action_label'] }}
-                    </a>
-                </li>
-            @endforeach
-        </ul>
-    </div>
-@endif
-
 <div class="flex items-center justify-between flex-wrap gap-3 mb-6">
     <div>
         <h2 class="text-lg font-semibold">{{ __('borrower.applications_list.all_title') }}</h2>
         <p class="text-sm text-gray-500">{{ __('borrower.applications_list.all_hint') }}</p>
     </div>
-    <div class="flex items-center gap-2">
-        <div class="inline-flex rounded-lg ring-1 ring-gray-200 bg-white p-0.5 text-xs">
-            <a href="{{ route('site.borrower.loans', ['tab' => 'applications', 'view' => 'cards']) }}"
-               class="px-3 py-1.5 rounded-md font-semibold {{ ($viewMode ?? 'cards') === 'cards' ? 'bg-amber-500 text-gray-900' : 'text-gray-600 hover:bg-gray-50' }}">
-                {{ __('borrower.applications_list.cards') }}
-            </a>
-            <a href="{{ route('site.borrower.loans', ['tab' => 'applications', 'view' => 'table']) }}"
-               class="px-3 py-1.5 rounded-md font-semibold {{ ($viewMode ?? 'cards') === 'table' ? 'bg-amber-500 text-gray-900' : 'text-gray-600 hover:bg-gray-50' }}">
-                {{ __('borrower.applications_list.table') }}
-            </a>
-        </div>
-        <a href="{{ route('site.borrower.apply') }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">+ {{ __('borrower.new_application') }}</a>
+    <div class="inline-flex rounded-lg ring-1 ring-gray-200 bg-white p-0.5 text-xs">
+        <a href="{{ route('site.borrower.loans', ['tab' => 'applications', 'view' => 'cards']) }}"
+           class="px-3 py-1.5 rounded-md font-semibold {{ ($viewMode ?? 'cards') === 'cards' ? 'bg-amber-500 text-gray-900' : 'text-gray-600 hover:bg-gray-50' }}">
+            {{ __('borrower.applications_list.cards') }}
+        </a>
+        <a href="{{ route('site.borrower.loans', ['tab' => 'applications', 'view' => 'table']) }}"
+           class="px-3 py-1.5 rounded-md font-semibold {{ ($viewMode ?? 'cards') === 'table' ? 'bg-amber-500 text-gray-900' : 'text-gray-600 hover:bg-gray-50' }}">
+            {{ __('borrower.applications_list.table') }}
+        </a>
     </div>
 </div>
 
@@ -72,6 +46,7 @@
                         <th class="px-4 py-3">{{ __('borrower.applications_list.created') }}</th>
                         <th class="px-4 py-3">{{ __('borrower.applications_list.status') }}</th>
                         <th class="px-4 py-3">{{ __('borrower.applications_list.progress') }}</th>
+                        <th class="px-4 py-3">{{ __('borrower.applications_list.current_step') }}</th>
                         <th class="px-4 py-3">{{ __('borrower.applications_list.last_updated') }}</th>
                         <th class="px-4 py-3 text-right">{{ __('borrower.applications_list.actions') }}</th>
                     </tr>
@@ -97,6 +72,7 @@
                                     <span class="text-xs text-gray-600 shrink-0">{{ $row['progress_percent'] }}%</span>
                                 </div>
                             </td>
+                            <td class="px-4 py-3 text-xs text-gray-600">{{ $row['current_step'] ?? '—' }}</td>
                             <td class="px-4 py-3 text-xs text-gray-500">{{ optional($row['updated_at'])->format('d M Y') ?? '—' }}</td>
                             <td class="px-4 py-3 text-right">
                                 <a href="{{ $row['action_url'] }}" class="text-amber-600 font-semibold hover:underline text-xs">{{ $row['action_label'] }}</a>
@@ -165,6 +141,13 @@
                         </ul>
                     @endif
                 </div>
+
+                @if (! empty($row['current_step']))
+                    <p class="text-xs text-gray-600 mb-3">
+                        <span class="font-medium text-gray-700">{{ __('borrower.applications_list.current_step') }}:</span>
+                        {{ $row['current_step'] }}
+                    </p>
+                @endif
 
                 @if (! empty($row['detail']))
                     <p class="text-xs {{ ($row['status'] ?? '') === 'rejected' ? 'text-red-600' : 'text-gray-600' }} mb-3">{{ $row['detail'] }}</p>

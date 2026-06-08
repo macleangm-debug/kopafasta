@@ -20,10 +20,12 @@ class LoanProductReadinessService
 
         $profileSections = collect($this->wizard->profileSections($customer))->keyBy('key');
         $income = $this->wizard->incomeVerification($customer);
+        $incomeProof = app(IncomeProofService::class);
+        $profileValidation = app(ProfileValidationService::class);
         $nida = app(NidaVerificationService::class);
         $face = app(FaceVerificationService::class);
 
-        $requirements = $this->requirementChecks($customer, $product, $profileSections, $income, $nida, $face);
+        $requirements = $this->requirementChecks($customer, $product, $profileSections, $income, $incomeProof, $profileValidation, $nida, $face);
         $completed = collect($requirements)->where('complete', true)->count();
         $total = max(1, count($requirements));
         $percent = (int) round(($completed / $total) * 100);
@@ -131,13 +133,15 @@ class LoanProductReadinessService
         LoanProduct $product,
         \Illuminate\Support\Collection $profileSections,
         array $income,
+        IncomeProofService $incomeProof,
+        ProfileValidationService $profileValidation,
         NidaVerificationService $nida,
         FaceVerificationService $face,
     ): array {
         $isGroup = strtoupper($product->code) === 'GL' || ($product->category ?? '') === 'group';
         $membershipActive = $customer->isMembershipActive() || $customer->isMembershipInGrace();
         $kinComplete = (bool) ($profileSections['kin']['complete'] ?? false);
-        $incomeComplete = (bool) ($income['can_skip'] ?? false);
+        $incomeComplete = $incomeProof->satisfiesRequirement($customer);
 
         $checks = [
             [
@@ -181,16 +185,29 @@ class LoanProductReadinessService
             ],
             [
                 'key'        => 'income',
-                'label'      => __('borrower.apply.readiness.requirements.income.label'),
+                'label'      => __('borrower.loan_profile.sections.proof_of_income'),
                 'complete'   => $incomeComplete,
                 'detail'     => $incomeComplete
                     ? __('borrower.apply.readiness.on_file', [
                         'item' => $income['label'] ?? __('borrower.apply.income.income_document'),
                     ])
                     : __('borrower.apply.readiness.requirements.income.upload'),
-                'action_url' => $incomeComplete ? null : route('site.borrower.documents'),
+                'action_url' => $incomeComplete ? null : route('site.borrower.profile', ['section' => 'kyc']),
             ],
         ];
+
+        if ($profileValidation->requiresResidenceLetter()) {
+            $hasLetter = $profileValidation->hasDocument($customer, 'residence_letter');
+            $checks[] = [
+                'key'        => 'residence_letter',
+                'label'      => __('borrower.profile.residence_letter'),
+                'complete'   => $hasLetter,
+                'detail'     => $hasLetter
+                    ? __('borrower.apply.readiness.on_file', ['item' => __('borrower.profile.residence_letter')])
+                    : __('borrower.loan_profile.residence_letter_missing'),
+                'action_url' => $hasLetter ? null : route('site.borrower.profile', ['section' => 'residence']),
+            ];
+        }
 
         if ($product->requires_guarantor && ! $isGroup) {
             $checks[] = [
@@ -251,12 +268,29 @@ class LoanProductReadinessService
         return $product->requirements
             ->where('is_required', true)
             ->map(function ($req) use ($uploads) {
-                $matched = $uploads->first(function (CustomerDocument $doc) use ($req) {
+                $reqName = strtolower($req->name);
+                $matched = $uploads->first(function (CustomerDocument $doc) use ($reqName) {
+                    $code = strtolower($doc->documentType?->code ?? '');
                     $name = strtolower($doc->documentType?->name ?? '');
 
-                    return str_contains(strtolower($req->name), 'income')
-                        ? str_contains($name, 'income') || str_contains($name, 'bank') || str_contains($name, 'statement')
-                        : str_contains(strtolower($req->name), strtok($name, ' ') ?: $name);
+                    if (str_contains($reqName, 'income') || str_contains($reqName, 'bank') || str_contains($reqName, 'statement')) {
+                        return str_contains($name, 'income')
+                            || str_contains($name, 'bank')
+                            || str_contains($name, 'statement')
+                            || str_contains($name, 'mobile')
+                            || str_contains($code, 'bank')
+                            || str_contains($code, 'statement')
+                            || str_contains($code, 'income');
+                    }
+
+                    if (str_contains($reqName, 'residence') || str_contains($reqName, 'address')) {
+                        return str_contains($code, 'residence') || str_contains($name, 'residence');
+                    }
+
+                    $reqWords = preg_split('/\s+/', $reqName) ?: [];
+                    $docWords = preg_split('/\s+/', $name) ?: [];
+
+                    return collect($reqWords)->contains(fn (string $word) => strlen($word) > 2 && in_array($word, $docWords, true));
                 });
 
                 return [

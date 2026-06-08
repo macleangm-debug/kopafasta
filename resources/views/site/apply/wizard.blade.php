@@ -1001,17 +1001,18 @@
                     }
                 },
 
+                clearSavedDraft() {
+                    if (! this.draftSaveUrl) return Promise.resolve();
+                    return fetch(this.draftSaveUrl, {
+                        method: 'PUT',
+                        headers: this.draftHeaders(),
+                        credentials: 'same-origin',
+                        body: JSON.stringify({ phase: 'browse' }),
+                    }).catch(() => {});
+                },
+
                 persistDraft(sync = false) {
-                    if (! this.draftSaveUrl || this.phase === 'browse') {
-                        if (this.phase === 'browse' && this.draftSaveUrl) {
-                            const clear = () => fetch(this.draftSaveUrl, {
-                                method: 'PUT',
-                                headers: this.draftHeaders(),
-                                credentials: 'same-origin',
-                                body: JSON.stringify({ phase: 'browse' }),
-                            });
-                            return sync ? clear() : clear().catch(() => {});
-                        }
+                    if (! this.draftSaveUrl || this.phase === 'browse' || this.resumeLoading) {
                         return Promise.resolve();
                     }
                     const request = () => {
@@ -1082,8 +1083,14 @@
                         }
                         return false;
                     }
+
+                    const target = draft.resume_target || {};
+                    this.resumeLoading = true;
                     this.current = product;
                     this.form.loan_product_id = product.id;
+                    this.phase = target.phase === 'application' ? 'application' : 'details';
+                    this.selectProduct(product, false);
+
                     Object.assign(this.form, draft.form || {});
                     if (draft.inputs) {
                         this.restoreFormInputs(draft.inputs);
@@ -1105,23 +1112,18 @@
                     if (draft.external_guarantor) this.externalGuarantor = draft.external_guarantor;
                     this.syncFeePaidState();
 
-                    const target = draft.resume_target || {};
-                    if (target.phase === 'details') {
-                        this.phase = 'details';
-                    } else if (target.phase === 'application') {
-                        this.phase = 'application';
-                    }
-
                     const resumeStep = target.step ?? draft.step ?? 0;
                     const resumeKey = target.step_key ?? draft.step_key ?? '';
 
-                    this.resumeLoading = true;
-                    this.selectProduct(product, false);
-
                     return this.loadReadiness(product.id).then(() => {
-                        const profileIncomplete = this.profileHasGaps() || target.phase === 'details' || target.reason === 'profile_incomplete';
+                        const profileIncomplete = this.profileHasGaps() || target.reason === 'profile_incomplete';
 
                         if (profileIncomplete) {
+                            const profileUrl = this.readiness?.missing_action_url;
+                            if (profileUrl) {
+                                window.location.href = profileUrl;
+                                return true;
+                            }
                             this.phase = 'details';
                             return true;
                         }
@@ -1174,6 +1176,9 @@
                 backToBrowse() {
                     this.phase = 'browse';
                     this.readiness = null;
+                    this.current = null;
+                    this.form.loan_product_id = null;
+                    this.clearSavedDraft();
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 },
 

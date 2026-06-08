@@ -146,43 +146,33 @@ class BorrowerController extends Controller
      |---------------------------------------------------------------------*/
     public function applications(Request $request): RedirectResponse
     {
-        return redirect()->route('site.borrower.loans');
+        return redirect()->route('site.borrower.loans', ['tab' => 'applications']);
     }
 
     /**
-     * Show a single application with its product's requirement checklist
-     * and upload widgets for each requirement.
+     * Loan profile dashboard for an in-progress draft.
+     */
+    public function loanProfileDraft(LoanApplicationDraft $draft): View|RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_if($draft->customer_id !== $customer->id, 404);
+
+        $profile = app(\App\Services\LoanApplicationProfileService::class)->forDraft($customer, $draft);
+
+        return view('site.borrower.loan-profile', compact('customer', 'profile'));
+    }
+
+    /**
+     * Show a single application — unified loan profile dashboard.
      */
     public function application(LoanApplication $application): View
     {
         $customer = $this->customer();
         abort_if($application->customer_id !== $customer->id, 404);
 
-        $application->load('product.requirements', 'documentRequests.uploads', 'customerGuarantors.guarantorCustomer');
+        $profile = app(\App\Services\LoanApplicationProfileService::class)->forApplication($customer, $application);
 
-        $guarantorInvitations = \App\Models\GuarantorInvitation::query()
-            ->where('loan_application_id', $application->id)
-            ->latest()
-            ->get();
-
-        // Documents already uploaded for THIS application
-        $uploads = CustomerDocument::where('customer_id', $customer->id)
-            ->where('loan_application_id', $application->id)
-            ->whereNotNull('loan_product_requirement_id')
-            ->latest()
-            ->get()
-            ->groupBy('loan_product_requirement_id');
-
-        $requirements = $application->product?->requirements ?? collect();
-        $requiredCount  = $requirements->where('is_required', true)->count();
-        $satisfiedCount = $requirements->where('is_required', true)
-            ->filter(fn ($r) => $uploads->has($r->id))->count();
-
-        $documentRequests = $application->documentRequests()->with('uploads')->latest()->get();
-
-        return view('site.borrower.application', compact(
-            'customer','application','requirements','uploads','requiredCount','satisfiedCount','documentRequests','guarantorInvitations'
-        ));
+        return view('site.borrower.loan-profile', compact('customer', 'profile'));
     }
 
     public function uploadDocumentRequest(
@@ -285,18 +275,35 @@ class BorrowerController extends Controller
     {
         $customer = $this->customer();
 
+        $activeTab = $request->query('tab', 'applications');
+        if (! in_array($activeTab, ['applications', 'active'], true)) {
+            $activeTab = 'applications';
+        }
+
         $applicationsDashboard = app(\App\Services\BorrowerApplicationsDashboardService::class);
         $applicationRows = $applicationsDashboard->applicationsForCustomer($customer);
 
         $loans = Loan::with('product')
             ->where('customer_id', $customer->id)
-            ->whereNotIn('status', ['closed', 'cancelled'])
+            ->whereIn('status', ['active', 'disbursed', 'arrears'])
             ->latest()
             ->get();
 
+        $user = Auth::user();
+        $viewMode = $request->query('view');
+        if (in_array($viewMode, ['cards', 'table'], true)) {
+            $prefs = $user->preferences ?? [];
+            $prefs['applications_view'] = $viewMode;
+            $user->update(['preferences' => $prefs]);
+        } else {
+            $viewMode = $user->preferences['applications_view'] ?? 'cards';
+        }
+
         return view('site.borrower.loans', compact(
             'customer',
+            'activeTab',
             'applicationRows',
+            'viewMode',
             'loans',
         ));
     }
@@ -669,7 +676,16 @@ class BorrowerController extends Controller
             ->latest()
             ->first();
 
-        return view($view, compact('customer', 'kyc', 'trustedDevices', 'nidaDocuments', 'employmentContract'))
+        $residenceLetter = CustomerDocument::query()
+            ->where('customer_id', $customer->id)
+            ->whereHas('documentType', fn ($q) => $q->where('code', 'residence_letter'))
+            ->latest()
+            ->first();
+
+        $incomeProofChecklist = app(\App\Services\IncomeProofService::class)->checklist($customer);
+        $returnUrl = $request->query('return');
+
+        return view($view, compact('customer', 'kyc', 'trustedDevices', 'nidaDocuments', 'employmentContract', 'residenceLetter', 'incomeProofChecklist', 'returnUrl'))
             ->with('crbUsesStub', app(CrbService::class)->usesStub())
             ->with('crbSamples', config('crb_samples.scenarios', []))
             ->with('profileSections', app(ProfileCompletionService::class)->displaySections($customer));
@@ -682,7 +698,7 @@ class BorrowerController extends Controller
             $section = 'personal';
         }
 
-        $section = in_array($section, ['personal', 'activity', 'residence'], true) ? $section : 'personal';
+        $section = in_array($section, ['personal', 'activity', 'residence', 'kyc'], true) ? $section : 'personal';
         $validation = app(ProfileValidationService::class);
 
         if ($section === 'personal') {
@@ -800,11 +816,42 @@ class BorrowerController extends Controller
             }
         }
 
+        if ($section === 'kyc') {
+            $request->validate([
+                'bank_statement' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                'mobile_money_statement' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                'salary_slip' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            ]);
+
+            $this->persistProfileDocumentUpload($customer, 'bank_statement', $request->file('bank_statement'), []);
+            $this->persistProfileDocumentUpload($customer, 'mobile_money_statement', $request->file('mobile_money_statement'), []);
+            $this->persistProfileDocumentUpload($customer, 'salary_slip', $request->file('salary_slip'), []);
+        }
+
         $this->auditBorrower('profile.updated', $customer, ['section' => $section]);
 
+        if ($return = $this->validatedReturnUrl($request)) {
+            return redirect($return)->with('status', __('borrower.profile.saved_return'));
+        }
+
         return redirect()
-            ->route('site.borrower.profile', ['section' => $section])
+            ->route('site.borrower.profile', array_filter(['section' => $section !== 'personal' ? $section : null]))
             ->with('status', 'Profile updated.');
+    }
+
+    private function validatedReturnUrl(Request $request): ?string
+    {
+        $return = (string) ($request->query('return') ?? $request->input('return') ?? '');
+        if ($return === '') {
+            return null;
+        }
+
+        $path = parse_url($return, PHP_URL_PATH) ?: '';
+        if (! str_starts_with($path, '/')) {
+            return null;
+        }
+
+        return $return;
     }
 
     public function verifyNida(Request $request, NidaVerificationService $nida): RedirectResponse

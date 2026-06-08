@@ -7,69 +7,76 @@
         ])
 
         @include('site.borrower.profile._tabs', ['active' => 'kyc'])
-
+        @include('site.borrower.profile._kyc_progress', ['customer' => $customer, 'active' => 'kyc'])
         @include('site.borrower.profile._completion')
 
-        @php
-            $kycStatus = $kyc->status ?? 'pending';
-            $statusLabel = match ($kycStatus) {
-                'verified', 'approved' => [__('borrower.kyc_tab.status.verified'), 'bg-emerald-100 text-emerald-800'],
-                'rejected'             => [__('borrower.kyc_tab.status.rejected'), 'bg-red-100 text-red-800'],
-                'in_review'            => [__('borrower.kyc_tab.status.in_review'), 'bg-sky-100 text-sky-800'],
-                default                => [__('borrower.kyc_tab.status.pending'), 'bg-amber-100 text-amber-800'],
-            };
-        @endphp
+        @if (session('status'))
+            <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
+        @endif
 
-        <div class="grid sm:grid-cols-3 gap-4 mb-6">
-            <div class="bg-white rounded-xl ring-1 ring-gray-200 p-4">
-                <p class="text-xs text-gray-500">{{ __('borrower.kyc_tab.verification_status') }}</p>
-                <span class="mt-2 inline-flex text-xs font-semibold rounded-full px-2.5 py-1 {{ $statusLabel[1] }}">{{ $statusLabel[0] }}</span>
+        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'kyc']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}"
+              enctype="multipart/form-data" class="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
+            @csrf @method('PUT')
+            @if (! empty($returnUrl))
+                <input type="hidden" name="return" value="{{ $returnUrl }}">
+            @endif
+
+            <h2 class="font-semibold mb-1">{{ __('borrower.profile.proof_of_income_title') }}</h2>
+            <p class="text-sm text-gray-600 mb-4">{{ __('borrower.profile.proof_of_income_hint') }}</p>
+
+            <div class="space-y-5">
+                @foreach ($incomeProofChecklist ?? [] as $item)
+                    <div class="rounded-xl border border-gray-100 p-4">
+                        <div class="flex items-start justify-between gap-3 mb-2">
+                            <div>
+                                <p class="text-sm font-semibold text-gray-900">
+                                    {{ $item['label'] }}
+                                    @if ($item['required'])
+                                        <span class="text-red-500">*</span>
+                                    @else
+                                        <span class="text-xs font-normal text-gray-400">{{ __('borrower.profile.optional') }}</span>
+                                    @endif
+                                </p>
+                                @if (($item['key'] ?? '') === 'bank_statement' || ($item['key'] ?? '') === 'mobile_money_statement')
+                                    <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.profile.income_primary_hint') }}</p>
+                                @endif
+                            </div>
+                            @if ($item['complete'] ?? false)
+                                <span class="text-xs font-semibold rounded-full px-2.5 py-1 bg-emerald-100 text-emerald-700">{{ __('borrower.profile.document_on_file') }}</span>
+                            @endif
+                        </div>
+
+                        @if (! empty($item['document']?->file_path))
+                            <p class="text-xs text-gray-500 mb-3">
+                                <a href="{{ asset('storage/'.$item['document']->file_path) }}" target="_blank" class="text-amber-600 hover:underline">
+                                    {{ __('borrower.profile.view_document') }}
+                                </a>
+                            </p>
+                        @endif
+
+                        <input type="file" name="{{ $item['key'] }}" accept=".jpg,.jpeg,.png,.pdf"
+                               class="w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-amber-50 file:text-amber-800 file:font-semibold">
+                        @error($item['key'])<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                    </div>
+                @endforeach
             </div>
-            <div class="bg-white rounded-xl ring-1 ring-gray-200 p-4">
-                <p class="text-xs text-gray-500">{{ __('borrower.kyc_tab.nida_status') }}</p>
-                @php
-                    $nidaStatus = $customer->nida_verification_status ?? 'unverified';
-                    $nidaLabel = match ($nidaStatus) {
-                        'verified' => [__('borrower.kyc_tab.status.verified'), 'bg-emerald-100 text-emerald-800'],
-                        'multihit' => [__('borrower.nida.status.multihit'), 'bg-sky-100 text-sky-800'],
-                        'failed'   => [__('borrower.kyc_tab.status.failed'), 'bg-red-100 text-red-800'],
-                        default    => [$customer->national_id ? __('borrower.kyc_tab.not_verified') : __('borrower.kyc_tab.not_provided'), 'bg-amber-100 text-amber-800'],
-                    };
-                @endphp
-                <span class="mt-2 inline-flex text-xs font-semibold rounded-full px-2.5 py-1 {{ $nidaLabel[1] }}">{{ $nidaLabel[0] }}</span>
-                @if ($customer->nida_verified_at)
-                    <p class="text-[11px] text-gray-500 mt-2">{{ __('borrower.kyc_tab.verified_ago', ['time' => $customer->nida_verified_at->diffForHumans(), 'source' => strtoupper($customer->nida_verified_source ?? 'CRB')]) }}</p>
-                @endif
-            </div>
-            <div class="bg-white rounded-xl ring-1 ring-gray-200 p-4">
-                <p class="text-xs text-gray-500">{{ __('borrower.kyc_tab.face_match') }}</p>
-                @php
-                    $faceLabel = match ($customer->face_verification_status ?? 'incomplete') {
-                        'verified' => [__('borrower.nida.face_status.verified'), 'bg-emerald-100 text-emerald-800'],
-                        'pending'  => [__('borrower.nida.face_status.pending'), 'bg-sky-100 text-sky-800'],
-                        'rejected' => [__('borrower.nida.face_status.rejected'), 'bg-red-100 text-red-800'],
-                        default    => [__('borrower.kyc_tab.status.incomplete'), 'bg-amber-100 text-amber-800'],
-                    };
-                @endphp
-                <span class="mt-2 inline-flex text-xs font-semibold rounded-full px-2.5 py-1 {{ $faceLabel[1] }}">{{ $faceLabel[0] }}</span>
-                @if ($customer->face_verified_at)
-                    <p class="text-[11px] text-gray-500 mt-2">{{ __('borrower.kyc_tab.approved_ago', ['time' => $customer->face_verified_at->diffForHumans()]) }}</p>
-                @endif
-            </div>
-        </div>
+
+            <p class="text-xs text-gray-500 mt-4">{{ __('borrower.profile.income_validation_hint') }}</p>
+
+            <button class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                {{ __('borrower.profile.save_documents') }}
+            </button>
+        </form>
 
         <div class="bg-white rounded-2xl border border-gray-200 p-6">
             <h2 class="font-semibold mb-2">{{ __('borrower.kyc_tab.documents_title') }}</h2>
             <p class="text-sm text-gray-600 mb-4">{{ __('borrower.kyc_tab.documents_hint') }}</p>
             <div class="flex flex-wrap gap-3">
-                <a href="{{ route('site.borrower.kyc') }}" class="inline-flex items-center bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                <a href="{{ route('site.borrower.kyc') }}" class="inline-flex items-center bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-700 font-semibold px-5 py-2.5 rounded-full text-sm">
                     {{ __('borrower.kyc_tab.manage_documents') }}
                 </a>
                 <a href="{{ route('site.borrower.face-verification') }}" class="inline-flex items-center bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-700 font-semibold px-5 py-2.5 rounded-full text-sm">
                     {{ __('borrower.kyc_tab.face_verification') }}
-                </a>
-                <a href="{{ route('site.borrower.documents') }}" class="inline-flex items-center bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-700 font-semibold px-5 py-2.5 rounded-full text-sm">
-                    {{ __('borrower.kyc_tab.all_documents') }}
                 </a>
             </div>
         </div>

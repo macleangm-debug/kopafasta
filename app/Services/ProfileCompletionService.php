@@ -124,13 +124,7 @@ class ProfileCompletionService
         }
 
         if ($requireIncome) {
-            $types = ['bank_statement', 'mobile_money_statement', 'mpesa_statement'];
-            $hasIncome = \App\Models\CustomerDocument::query()
-                ->where('customer_id', $customer->id)
-                ->whereHas('documentType', fn ($q) => $q->whereIn('code', $types))
-                ->exists();
-
-            if (! $hasIncome) {
+            if (! app(IncomeProofService::class)->hasPrimaryProof($customer)) {
                 return false;
             }
         }

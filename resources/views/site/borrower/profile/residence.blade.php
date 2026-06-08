@@ -11,10 +11,13 @@
 
         @include('site.borrower.profile._completion')
 
-        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'residence']) }}"
+        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'residence']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}"
               enctype="multipart/form-data" class="bg-white rounded-2xl border border-gray-200 p-6"
               @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.save_confirm_title')), message: @js(__('borrower.profile.save_confirm_message')), confirmLabel: @js(__('borrower.profile.save')), confirmClass: 'bg-amber-500 hover:bg-amber-400 text-gray-900' })">
             @csrf @method('PUT')
+            @if (! empty($returnUrl))
+                <input type="hidden" name="return" value="{{ $returnUrl }}">
+            @endif
 
             <h2 class="font-semibold mb-4">{{ __('borrower.profile.residence') }}</h2>
             <x-site.address-fields
@@ -27,6 +30,14 @@
             <div class="mt-6 pt-6 border-t border-gray-100">
                 <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.profile.residence_letter') }}</label>
                 <p class="text-xs text-gray-500 mb-3">{{ __('borrower.profile.residence_letter_hint') }}</p>
+                @if ($residenceLetter ?? null)
+                    <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-3 py-2 text-xs text-emerald-800 flex items-center justify-between gap-3 flex-wrap">
+                        <span>{{ __('borrower.profile.document_on_file') }}</span>
+                        <a href="{{ asset('storage/'.$residenceLetter->file_path) }}" target="_blank" class="font-semibold text-emerald-700 hover:underline">
+                            {{ __('borrower.profile.view_document') }}
+                        </a>
+                    </div>
+                @endif
                 <x-site.multi-page-document-upload
                     name="residence_letter_pages"
                     input-host-id="residence-letter-pages"

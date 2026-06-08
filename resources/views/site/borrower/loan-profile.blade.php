@@ -1,0 +1,167 @@
+<x-site.borrower-layout
+    :title="brand_title($profile['summary']['application_number'] ?? __('borrower.loan_profile.title'))"
+    active="loans">
+
+    @php
+        $summary = $profile['summary'];
+        $status = $profile['status'];
+        $progress = $profile['progress'];
+        $toneClasses = [
+            'gray'    => 'bg-gray-100 text-gray-700',
+            'amber'   => 'bg-amber-100 text-amber-700',
+            'sky'     => 'bg-sky-100 text-sky-700',
+            'emerald' => 'bg-emerald-100 text-emerald-700',
+            'red'     => 'bg-red-100 text-red-700',
+            'orange'  => 'bg-orange-100 text-orange-700',
+        ];
+        $statusBadge = $toneClasses[$status['tone']] ?? $toneClasses['sky'];
+        $application = $profile['application'] ?? null;
+        $draft = $profile['draft'] ?? null;
+    @endphp
+
+    <div class="mb-4">
+        <a href="{{ route('site.borrower.loans', ['tab' => 'applications']) }}" class="text-xs text-gray-500 hover:text-gray-700">
+            {{ __('borrower.loan_profile.back') }}
+        </a>
+    </div>
+
+    <div class="flex items-start justify-between gap-3 mb-6 flex-wrap">
+        <div>
+            <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">{{ __('borrower.loan_profile.label') }}</p>
+            <h1 class="text-2xl sm:text-3xl font-bold">{{ $summary['product_name'] }}</h1>
+            <p class="text-sm text-gray-500 mt-1 font-mono">{{ $summary['application_number'] }}</p>
+        </div>
+        <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1.5 {{ $statusBadge }}">{{ $status['label'] }}</span>
+    </div>
+
+    @if (session('status'))
+        <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
+    @endif
+    @if ($errors->any())
+        <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">{{ $errors->first() }}</div>
+    @endif
+
+    @if (! empty($status['detail']))
+        <div class="mb-6 rounded-xl {{ ($status['code'] ?? '') === 'rejected' ? 'bg-red-50 ring-red-200 text-red-800' : 'bg-amber-50 ring-amber-200 text-amber-900' }} ring-1 px-4 py-3 text-sm">
+            {{ $status['detail'] }}
+        </div>
+    @endif
+
+    {{-- Application summary --}}
+    <div class="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
+        <h2 class="font-semibold mb-4">{{ __('borrower.loan_profile.summary_title') }}</h2>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.loan_type') }}</p>
+                <p class="font-semibold mt-1">{{ $summary['loan_type'] }}</p>
+            </div>
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.amount') }}</p>
+                <p class="font-semibold mt-1">{{ $summary['requested_amount'] ? format_money($summary['requested_amount']) : '—' }}</p>
+            </div>
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.tenure') }}</p>
+                <p class="font-semibold mt-1">
+                    @if (! empty($summary['requested_tenure']))
+                        {{ __('borrower.applications_list.tenure_months', ['count' => $summary['requested_tenure']]) }}
+                    @else
+                        —
+                    @endif
+                </p>
+            </div>
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loan_profile.interest_rate') }}</p>
+                <p class="font-semibold mt-1">{{ $summary['interest_rate_label'] ?? '—' }}</p>
+            </div>
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.created') }}</p>
+                <p class="font-semibold mt-1">{{ optional($summary['created_at'])->format('d M Y') ?? '—' }}</p>
+            </div>
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.last_updated') }}</p>
+                <p class="font-semibold mt-1">{{ optional($summary['updated_at'])->format('d M Y') ?? '—' }}</p>
+            </div>
+        </div>
+    </div>
+
+    {{-- Progress --}}
+    <div class="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
+        <div class="flex items-center justify-between gap-3 mb-4">
+            <h2 class="font-semibold">{{ __('borrower.loan_profile.progress_title') }}</h2>
+            <span class="text-sm font-bold text-amber-700">{{ $progress['percent'] }}%</span>
+        </div>
+        <div class="h-2 bg-gray-100 rounded-full overflow-hidden mb-5">
+            <div class="h-full bg-amber-500 transition-all" style="width: {{ $progress['percent'] }}%"></div>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-6">
+            @if (! empty($progress['missing']))
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">{{ __('borrower.loan_profile.missing') }}</p>
+                    <ul class="space-y-1.5">
+                        @foreach ($progress['missing'] as $item)
+                            <li class="text-sm text-gray-700 flex items-start gap-2">
+                                <span class="text-amber-500 mt-0.5">○</span>
+                                <span>{{ $item }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+            @if (! empty($progress['completed']))
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">{{ __('borrower.loan_profile.completed') }}</p>
+                    <ul class="space-y-1.5">
+                        @foreach ($progress['completed'] as $item)
+                            <li class="text-sm text-emerald-700 flex items-start gap-2">
+                                <span class="mt-0.5">✓</span>
+                                <span>{{ $item }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+        </div>
+    </div>
+
+    {{-- Missing requirements with upload links --}}
+    @if (! empty($profile['missing_requirements']))
+        <div class="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
+            <h2 class="font-semibold mb-1">{{ __('borrower.loan_profile.missing_requirements_title') }}</h2>
+            <p class="text-xs text-gray-500 mb-4">{{ __('borrower.loan_profile.missing_requirements_hint') }}</p>
+            <ul class="divide-y divide-gray-100">
+                @foreach ($profile['missing_requirements'] as $requirement)
+                    <li class="py-3 flex items-center justify-between gap-3 flex-wrap">
+                        <span class="text-sm font-medium text-gray-900">{{ $requirement['label'] }}</span>
+                        <a href="{{ $requirement['upload_url'] }}"
+                           class="inline-flex items-center bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2 rounded-full text-xs">
+                            {{ __('borrower.loan_profile.upload') }}
+                        </a>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    {{-- Action buttons --}}
+    @if (! empty($profile['actions']))
+        <div class="flex flex-wrap gap-3 mb-8">
+            @foreach ($profile['actions'] as $action)
+                @php
+                    $btnClass = ($action['tone'] ?? '') === 'primary'
+                        ? 'bg-amber-500 hover:bg-amber-400 text-gray-900'
+                        : 'bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-800';
+                @endphp
+                <a href="{{ $action['url'] }}"
+                   class="inline-flex items-center font-semibold px-5 py-2.5 rounded-full text-sm {{ $btnClass }}">
+                    {{ $action['label'] }}
+                </a>
+            @endforeach
+        </div>
+    @endif
+
+    @if (! ($profile['is_draft'] ?? false) && $application)
+        @include('site.borrower.loan-profile._submitted', ['profile' => $profile, 'application' => $application, 'customer' => $customer])
+    @endif
+
+</x-site.borrower-layout>

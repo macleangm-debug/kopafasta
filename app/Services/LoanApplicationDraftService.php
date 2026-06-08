@@ -56,10 +56,17 @@ class LoanApplicationDraftService
             ];
         }
 
+        $wizardSteps = collect(app(SmartLoanApplicationWizardService::class)->borrowerStepPlan($customer, $product))
+            ->reject(fn (array $step) => $step['key'] === 'product')
+            ->values();
+
+        $resumeIndex = $this->resolveWizardStepIndex($wizardSteps, $stepKey, $step);
+        $resumeStep = $wizardSteps[$resumeIndex] ?? null;
+
         return [
             'phase'    => 'application',
-            'step_key' => $stepKey,
-            'step'     => $step,
+            'step_key' => $resumeStep['key'] ?? $stepKey,
+            'step'     => $resumeIndex,
             'reason'   => null,
         ];
     }
@@ -90,16 +97,17 @@ class LoanApplicationDraftService
     {
         $latest = $this->listForCustomer($customer)->first();
 
-        return $latest ? $this->summarizeDraft($latest) : null;
+        return $latest ? $this->summarizeDraft($latest, $customer) : null;
     }
 
     /** @return array{url: string, product_name: string, phase: string, step: int, saved_at: string|null} */
-    public function summarizeDraft(LoanApplicationDraft $draft): array
+    public function summarizeDraft(LoanApplicationDraft $draft, ?Customer $customer = null): array
     {
+        $customer = $customer ?? $draft->customer ?? Customer::find($draft->customer_id);
         $product = $draft->product ?? LoanProduct::find($draft->loan_product_id);
 
         return [
-            'url'          => $this->resumeUrl($draft),
+            'url'          => $customer ? $this->resumeUrl($customer, $draft) : route('site.borrower.apply'),
             'product_name' => $product?->name ?? __('borrower.apply.title'),
             'phase'        => $draft->phase,
             'step'         => (int) $draft->step,
@@ -107,13 +115,22 @@ class LoanApplicationDraftService
         ];
     }
 
-    public function resumeUrl(LoanApplicationDraft $draft): string
+    public function resumeUrl(Customer $customer, LoanApplicationDraft $draft): string
+    {
+        return route('site.borrower.loan-profile.draft', $draft);
+    }
+
+    /** @param  array{phase?: string, step_key?: string|null, step?: int, reason?: string|null}  $target */
+    public function wizardApplyUrl(LoanApplicationDraft $draft, array $target = []): string
     {
         $params = array_filter([
             'product'     => $draft->loan_product_id,
             'reservation' => $draft->asset_reservation_id,
             'resume'      => 1,
-        ]);
+            'phase'       => $target['phase'] ?? null,
+            'step'        => array_key_exists('step', $target) ? (int) $target['step'] : null,
+            'step_key'    => $target['step_key'] ?? null,
+        ], fn ($value) => $value !== null && $value !== '');
 
         return route('site.borrower.apply', $params);
     }
@@ -139,7 +156,7 @@ class LoanApplicationDraftService
                 'detail'    => $feePending
                     ? __('borrower.applications_list.draft_fee_pending')
                     : __('borrower.applications_list.draft_in_progress'),
-                'url'       => $this->resumeUrl($draft),
+                'url'       => $this->resumeUrl($customer, $draft),
                 'saved_at'  => optional($draft->saved_at)->diffForHumans(),
             ];
         }
@@ -318,5 +335,18 @@ class LoanApplicationDraftService
         return LoanApplicationDraft::query()
             ->whereIn('phase', ['details', 'application'])
             ->count();
+    }
+
+    /** @param  \Illuminate\Support\Collection<int, array{key: string, label: string}>  $wizardSteps */
+    private function resolveWizardStepIndex(\Illuminate\Support\Collection $wizardSteps, ?string $stepKey, int $fallbackIndex): int
+    {
+        if ($stepKey) {
+            $byKey = $wizardSteps->search(fn (array $step) => $step['key'] === $stepKey);
+            if ($byKey !== false) {
+                return (int) $byKey;
+            }
+        }
+
+        return max(0, min($fallbackIndex, max(0, $wizardSteps->count() - 1)));
     }
 }

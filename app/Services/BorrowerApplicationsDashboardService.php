@@ -64,6 +64,8 @@ class BorrowerApplicationsDashboardService
         $feePending = $product && quoted_application_fee($customer, $product) > 0
             && ! app(ApplicationFeePaymentService::class)->isFeeSatisfied($fee, quoted_application_fee($customer, $product));
 
+        $resumeTarget = $this->drafts->resumeTarget($customer, $draft);
+
         return [
             'is_draft'           => true,
             'id'                 => 'draft-'.$draft->id,
@@ -77,13 +79,14 @@ class BorrowerApplicationsDashboardService
             'status_tone'        => 'gray',
             'progress_percent'   => $progress['percent'],
             'progress_steps'     => $progress['steps'],
+            'current_step'       => $this->draftCurrentStepLabel($customer, $draft, $product, $resumeTarget, $progress),
             'created_at'         => $draft->created_at,
             'updated_at'         => $draft->saved_at ?? $draft->updated_at,
             'sort_at'            => ($draft->saved_at ?? $draft->updated_at)?->timestamp ?? 0,
             'detail'             => $feePending
                 ? __('borrower.applications_list.draft_fee_pending')
                 : __('borrower.applications_list.draft_in_progress'),
-            'action_url'         => $this->drafts->resumeUrl($draft),
+            'action_url'         => $this->drafts->resumeUrl($customer, $draft),
             'action_label'       => __('borrower.applications_list.resume'),
             'saved_at_human'     => optional($draft->saved_at)->diffForHumans(),
         ];
@@ -169,7 +172,7 @@ class BorrowerApplicationsDashboardService
         }
 
         $completed = collect($milestones)->where('complete', true)->count();
-        $total = max(1, $milestones->count());
+        $total = max(1, count($milestones));
 
         return [
             'percent' => (int) round(($completed / $total) * 100),
@@ -283,6 +286,45 @@ class BorrowerApplicationsDashboardService
             'group'         => __('borrower.applications_list.loan_type_group'),
             default         => ucfirst(str_replace('_', ' ', $category ?: $product->name)),
         };
+    }
+
+    /**
+     * @param  array{phase: string, step_key: string|null, step: int, reason: string|null}  $resumeTarget
+     * @param  array{percent: int, steps: list<array{label: string, complete: bool}>}  $progress
+     */
+    private function draftCurrentStepLabel(
+        Customer $customer,
+        LoanApplicationDraft $draft,
+        ?LoanProduct $product,
+        array $resumeTarget,
+        array $progress,
+    ): string {
+        if (($resumeTarget['reason'] ?? null) === 'profile_incomplete') {
+            return __('borrower.applications_list.profile_completion');
+        }
+
+        if (! $product) {
+            return __('borrower.applications_list.draft_in_progress');
+        }
+
+        $wizardSteps = collect($this->wizard->borrowerStepPlan($customer, $product))
+            ->reject(fn (array $step) => $step['key'] === 'product')
+            ->values();
+
+        $stepKey = $resumeTarget['step_key'] ?? (($draft->payload ?? [])['step_key'] ?? null);
+        $stepIndex = $this->resolveWizardStepIndex($wizardSteps, $stepKey, (int) ($resumeTarget['step'] ?? $draft->step));
+
+        if (($resumeTarget['phase'] ?? '') === 'application' && $wizardSteps->has($stepIndex)) {
+            return (string) $wizardSteps[$stepIndex]['label'];
+        }
+
+        foreach ($progress['steps'] as $step) {
+            if (! ($step['complete'] ?? false)) {
+                return (string) $step['label'];
+            }
+        }
+
+        return __('borrower.applications_list.draft_in_progress');
     }
 
     /** @param  Collection<int, array{key: string, label: string}>  $wizardSteps */

@@ -145,8 +145,26 @@ class ApplyController extends Controller
 
         if ($isResume && ! $savedDraft) {
             return redirect()
-                ->route('site.borrower.loans')
+                ->route('site.borrower.loans', ['tab' => 'applications'])
                 ->with('error', __('borrower.applications_list.resume_not_found'));
+        }
+
+        if ($isResume && $savedDraft) {
+            $target = $savedDraft['resume_target'] ?? [];
+            if ($request->filled('phase')) {
+                $target['phase'] = (string) $request->query('phase');
+            }
+            if ($request->filled('step_key')) {
+                $target['step_key'] = (string) $request->query('step_key');
+            }
+            if ($request->filled('step')) {
+                $target['step'] = (int) $request->query('step');
+                $savedDraft['step'] = (int) $request->query('step');
+            }
+            $savedDraft['resume_target'] = $target;
+            if (! empty($target['step_key'])) {
+                $savedDraft['step_key'] = $target['step_key'];
+            }
         }
 
         $feeQuote = $selectedProduct

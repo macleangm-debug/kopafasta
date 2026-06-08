@@ -107,11 +107,11 @@ class ApplicationRequirementsService
         if ($this->requiresIncomeProof($customer)) {
             $items[] = [
                 'key'        => 'income_proof',
-                'label'      => 'Proof of income',
+                'label'      => __('borrower.loan_profile.sections.proof_of_income'),
                 'complete'   => false,
                 'pending'    => true,
-                'detail'     => 'Upload a 6-month bank or mobile money statement on your activity profile',
-                'action_url' => route('site.borrower.profile', ['section' => 'activity']),
+                'detail'     => __('borrower.profile.income_proof_required'),
+                'action_url' => route('site.borrower.profile', ['section' => 'kyc']),
             ];
         }
 
@@ -143,17 +143,8 @@ class ApplicationRequirementsService
 
     private function requiresIncomeProof(Customer $customer): bool
     {
-        if (! (bool) (Setting::group('kyc')['require_income_proof'] ?? false)) {
-            return false;
-        }
-
-        $types = ['bank_statement', 'mobile_money_statement', 'mpesa_statement'];
-        $uploaded = \App\Models\CustomerDocument::query()
-            ->where('customer_id', $customer->id)
-            ->whereHas('documentType', fn ($q) => $q->whereIn('code', $types))
-            ->exists();
-
-        return ! $uploaded;
+        return ! app(IncomeProofService::class)->satisfiesRequirement($customer)
+            && app(IncomeProofService::class)->isRequired();
     }
 
     /** @deprecated Use onboardingBanner() — single source of truth for onboarding progress. */

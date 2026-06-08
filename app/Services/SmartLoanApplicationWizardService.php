@@ -49,24 +49,31 @@ class SmartLoanApplicationWizardService
     /** @return array{has_document: bool, status: string|null, label: string|null, can_skip: bool} */
     public function incomeVerification(Customer $customer): array
     {
-        $doc = CustomerDocument::with('documentType')
-            ->where('customer_id', $customer->id)
-            ->whereHas('documentType', function ($q) {
-                $q->where(function ($q) {
-                    $q->where('name', 'like', '%bank%')
-                        ->orWhere('name', 'like', '%income%')
-                        ->orWhere('name', 'like', '%statement%')
-                        ->orWhere('name', 'like', '%mobile%')
-                        ->orWhere('code', 'like', '%bank%')
-                        ->orWhere('code', 'like', '%income%')
-                        ->orWhere('code', 'like', '%statement%');
-                });
-            })
-            ->latest()
-            ->first();
+        $incomeProof = app(IncomeProofService::class);
+        $doc = $incomeProof->primaryDocument($customer);
 
         if (! $doc) {
-            if ($this->profile->isActivityComplete($customer)) {
+            $legacy = CustomerDocument::with('documentType')
+                ->where('customer_id', $customer->id)
+                ->whereHas('documentType', function ($q) {
+                    $q->where(function ($q) {
+                        $q->where('name', 'like', '%bank%')
+                            ->orWhere('name', 'like', '%income%')
+                            ->orWhere('name', 'like', '%statement%')
+                            ->orWhere('name', 'like', '%mobile%')
+                            ->orWhere('code', 'like', '%bank%')
+                            ->orWhere('code', 'like', '%income%')
+                            ->orWhere('code', 'like', '%statement%');
+                    });
+                })
+                ->latest()
+                ->first();
+
+            $doc = $legacy;
+        }
+
+        if (! $doc) {
+            if (! $incomeProof->isRequired() && $this->profile->isActivityComplete($customer)) {
                 return [
                     'has_document' => false,
                     'status'       => null,
@@ -89,7 +96,7 @@ class SmartLoanApplicationWizardService
             'has_document' => true,
             'status'       => $status,
             'label'        => $doc->documentType?->name,
-            'can_skip'     => in_array($status, ['approved', 'verified', 'pending'], true),
+            'can_skip'     => in_array($status, ['approved', 'verified', 'pending', 'pending_review'], true),
         ];
     }
 

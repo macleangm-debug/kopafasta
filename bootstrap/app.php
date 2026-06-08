@@ -26,6 +26,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->redirectGuestsTo(function ($request) {
+            if ($request->is('borrower*', 'apply*', 'login', 'register*')) {
+                return route('site.login');
+            }
+
             return route('admin.login');
         });
     })
