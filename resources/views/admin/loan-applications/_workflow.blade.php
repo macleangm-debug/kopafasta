@@ -18,6 +18,9 @@
         </div>
         @if ($currentStage === 'rejected')
             <span class="text-xs font-semibold rounded-full px-3 py-1 bg-red-100 text-red-800">Rejected</span>
+            @if ($record->rejection_reason)
+                <span class="text-xs text-red-700">Reason: {{ $record->rejection_reason }}</span>
+            @endif
         @elseif ($currentStage === 'disbursement')
             <span class="text-xs font-semibold rounded-full px-3 py-1 bg-emerald-100 text-emerald-800">Ready for disbursement</span>
         @endif
@@ -75,9 +78,26 @@
                                 @csrf
                                 <input type="hidden" name="action" value="reject">
                                 <h4 class="font-semibold text-gray-900">Reject application</h4>
-                                <p class="text-sm text-gray-600">Provide a reason — it may be shown to the borrower.</p>
-                                <textarea name="remarks" required rows="3" maxlength="1000" placeholder="Reason for rejection"
-                                          class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500"></textarea>
+                                <p class="text-sm text-gray-600">Select a standardized reason. The borrower sees the reason label only — internal notes stay private.</p>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Rejection reason</label>
+                                    <select name="rejection_reason_code" required
+                                            class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500">
+                                        <option value="">Select reason…</option>
+                                        @foreach (($rejectionReasons ?? []) as $category => $reasons)
+                                            <optgroup label="{{ $category }}">
+                                                @foreach ($reasons as $reason)
+                                                    <option value="{{ $reason['code'] }}">{{ $reason['label'] }}</option>
+                                                @endforeach
+                                            </optgroup>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Internal notes (optional)</label>
+                                    <textarea name="rejection_internal_notes" rows="3" maxlength="2000" placeholder="Notes for internal use only"
+                                              class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500"></textarea>
+                                </div>
                                 <div class="flex justify-end gap-2 pt-1">
                                     <button type="button"
                                             data-close-dialog="reject-application-{{ $record->id }}"

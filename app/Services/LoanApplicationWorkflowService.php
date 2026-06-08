@@ -81,6 +81,8 @@ class LoanApplicationWorkflowService
         string $actionKey,
         ?string $remarks = null,
         bool $overrideAffordability = false,
+        ?string $rejectionReasonCode = null,
+        ?string $rejectionInternalNotes = null,
     ): LoanApplication {
         $action = self::ACTIONS[$actionKey] ?? null;
 
@@ -134,15 +136,32 @@ class LoanApplicationWorkflowService
         }
 
         $oldStatus = $application->status;
+        $rejectionLabel = null;
+
+        if ($to === 'rejected') {
+            $reasonService = app(LoanRejectionReasonService::class);
+            if (! $reasonService->isValidCode($rejectionReasonCode)) {
+                throw ValidationException::withMessages([
+                    'rejection_reason_code' => 'Select a valid rejection reason.',
+                ]);
+            }
+            $rejectionLabel = $reasonService->labelForCode($rejectionReasonCode);
+        }
 
         $application->update([
             'current_stage'             => $to,
             'status'                    => $this->statusForStage($to, $oldStatus),
             'pre_approved_at'           => $to === 'pre_approval' ? now() : $application->pre_approved_at,
             'approved_at'               => $to === 'approval' ? now() : $application->approved_at,
-            'rejection_reason'          => $to === 'rejected' ? ($remarks ?: $application->rejection_reason) : $application->rejection_reason,
+            'rejection_reason_code'     => $to === 'rejected' ? $rejectionReasonCode : $application->rejection_reason_code,
+            'rejection_reason'          => $to === 'rejected' ? ($rejectionLabel ?: $application->rejection_reason) : $application->rejection_reason,
+            'rejection_internal_notes'  => $to === 'rejected' ? $rejectionInternalNotes : $application->rejection_internal_notes,
             'credit_appraisal_payload'  => $appraisal,
         ]);
+
+        if ($to === 'rejected') {
+            $this->notifyRejection($application->fresh(['customer']));
+        }
 
         if ($to === 'approval') {
             app(PostApprovalFeeService::class)->generateForApplication($application->fresh(['product']));
@@ -159,7 +178,9 @@ class LoanApplicationWorkflowService
             'from_stage'          => $from,
             'to_stage'            => $to,
             'changed_by'          => $user->id,
-            'remarks'             => $remarks,
+            'remarks'             => $to === 'rejected'
+                ? ($rejectionInternalNotes ?: $remarks)
+                : $remarks,
         ]);
 
         $this->audit->log($user, 'application.stage_changed', $application, [
@@ -282,6 +303,42 @@ class LoanApplicationWorkflowService
             'rejected'          => 'Rejected',
             default             => ucfirst(str_replace('_', ' ', $stage)),
         };
+    }
+
+    private function notifyRejection(LoanApplication $application): void
+    {
+        $customer = $application->customer;
+        if (! $customer) {
+            return;
+        }
+
+        $reason = app(LoanRejectionReasonService::class)->labelForCode($application->rejection_reason_code)
+            ?: $application->rejection_reason
+            ?: 'Application declined';
+
+        $name = $customer->full_name ?? $customer->first_name ?? 'Customer';
+
+        $vars = [
+            'name'               => $name,
+            'application_number' => $application->application_number,
+            'reason'             => $reason,
+            '_fallback_body'     => 'Hi '.$name.', your loan application '.$application->application_number.' was not approved. Reason: '.$reason.'. — Kopa Fasta',
+            '_fallback_subject'  => 'Loan application update',
+        ];
+
+        app(NotificationService::class)->notifyCustomer($customer, 'application_rejected', $vars);
+        app(NotificationService::class)->notifyInApp(
+            $customer,
+            __('borrower.notifications.application_rejected', [
+                'reference' => $application->application_number,
+                'reason'    => $reason,
+            ]),
+            'application',
+            'application_rejected',
+            __('borrower.notifications.application_rejected_title'),
+            route('site.borrower.application', $application->id),
+            __('borrower.notifications.view_application'),
+        );
     }
 
     private function statusForStage(string $toStage, ?string $previous): string

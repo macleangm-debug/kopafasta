@@ -287,4 +287,56 @@ class SettingsController extends Controller
 
         return back()->with('status', 'Referral settings saved.');
     }
+
+    public function creditPolicy()
+    {
+        $countryService = app(\App\Services\CountryCreditSettingsService::class);
+        $reasonService = app(\App\Services\LoanRejectionReasonService::class);
+        $configured = Setting::get('rejection.reasons');
+        $enabledCodes = is_array($configured) && $configured !== []
+            ? collect($configured)->pluck('code')->all()
+            : collect($reasonService->defaults())->pluck('code')->all();
+
+        return view('admin.settings.credit-policy', [
+            'country'           => $countryService->summary(),
+            'rejectionReasons'  => $reasonService->grouped(),
+            'enabledCodes'      => $enabledCodes,
+        ]);
+    }
+
+    public function saveCreditPolicy(Request $request)
+    {
+        $data = $request->validate([
+            'default_code'          => ['required', 'string', 'size:2'],
+            'repayment_ratio_pct'   => ['required', 'numeric', 'min:1', 'max:100'],
+            'crb_freshness_days'    => ['required', 'integer', 'min:30', 'max:365'],
+            'kyc_freshness_days'    => ['required', 'integer', 'min:30', 'max:365'],
+            'guarantor_required'    => ['nullable', 'boolean'],
+            'enabled_reasons'       => ['nullable', 'array'],
+            'enabled_reasons.*'     => ['string', 'max:80'],
+        ]);
+
+        $code = strtolower($data['default_code']);
+        $ratio = round((float) $data['repayment_ratio_pct'] / 100, 4);
+
+        Setting::setMany([
+            'country.default_code'              => strtoupper($data['default_code']),
+            "country.{$code}.repayment_ratio"   => $ratio,
+            'credit.repayment_ratio'            => $ratio,
+            "country.{$code}.crb_freshness_days"=> (int) $data['crb_freshness_days'],
+            "country.{$code}.kyc_freshness_days"=> (int) $data['kyc_freshness_days'],
+            "country.{$code}.guarantor_required" => (bool) ($data['guarantor_required'] ?? false),
+        ]);
+
+        $defaults = collect(app(\App\Services\LoanRejectionReasonService::class)->defaults());
+        $enabled = collect($data['enabled_reasons'] ?? []);
+        $reasons = $defaults
+            ->filter(fn (array $row) => $enabled->contains($row['code']))
+            ->values()
+            ->all();
+
+        Setting::set('rejection.reasons', $reasons ?: $defaults->all());
+
+        return back()->with('status', 'Credit policy saved.');
+    }
 }

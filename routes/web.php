@@ -466,6 +466,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/identity-verification', [SettingsController::class, 'saveIdentityVerification'])->name('settings.identity.save');
         Route::get('settings/loan-rules',       [SettingsController::class, 'loanRules'])     ->name('settings.loan-rules');
         Route::put('settings/loan-rules',       [SettingsController::class, 'saveLoanRules']) ->name('settings.loan-rules.save');
+        Route::get('settings/credit-policy',    [SettingsController::class, 'creditPolicy'])  ->name('settings.credit-policy');
+        Route::put('settings/credit-policy',    [SettingsController::class, 'saveCreditPolicy'])->name('settings.credit-policy.save');
         Route::get('settings/loan-products',    [SettingsController::class, 'loanProducts']) ->name('settings.loan-products');
         Route::get('settings/membership',       [SettingsController::class, 'membership'])    ->name('settings.membership');
         Route::put('settings/membership',       [SettingsController::class, 'saveMembership'])->name('settings.membership.save');

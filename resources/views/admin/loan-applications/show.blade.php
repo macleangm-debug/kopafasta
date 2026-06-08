@@ -20,6 +20,8 @@
 
     @include('admin.loan-applications.review._header')
 
+    @include('admin.loan-applications.review._affordability-summary')
+
     @include('admin.loan-applications.review._nav')
 
     @include('admin.loan-applications._workflow')

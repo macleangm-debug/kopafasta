@@ -1,55 +1,76 @@
 @perm('applications.request_documents')
 @php
     $presets = app(\App\Services\ApplicationDocumentRequestService::class)::PRESET_LABELS;
+    $groups = $groupedDocumentRequests ?? [
+        'pending' => collect(),
+        'uploaded' => collect(),
+        'completed' => collect(),
+        'rejected' => collect(),
+    ];
+    $groupLabels = [
+        'pending'   => 'Pending documents',
+        'uploaded'  => 'Uploaded documents',
+        'completed' => 'Completed requests',
+        'rejected'  => 'Rejected documents',
+    ];
 @endphp
 <x-admin.review-section title="Request additional documents" subtitle="Request one or more documents from the borrower">
     @if ($documentRequests->isNotEmpty())
-        <div class="mb-6 overflow-x-auto">
-            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Requested documents</p>
-            <table class="min-w-full text-sm">
-                <thead>
-                    <tr class="text-left text-xs uppercase tracking-widest text-gray-500 border-b border-gray-100">
-                        <th class="pb-2 pr-4 font-semibold">Document</th>
-                        <th class="pb-2 pr-4 font-semibold">Status</th>
-                        <th class="pb-2 font-semibold">Borrower action</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
-                    @foreach ($documentRequests as $docReq)
-                        @php
-                            $statusClass = match ($docReq->status) {
-                                'satisfied' => 'bg-emerald-100 text-emerald-700',
-                                'uploaded'  => 'bg-amber-100 text-amber-700',
-                                'rejected'  => 'bg-red-100 text-red-700',
-                                default     => 'bg-gray-100 text-gray-600',
-                            };
-                            $statusLabel = match ($docReq->status) {
-                                'satisfied' => 'Completed',
-                                'uploaded'  => 'Uploaded',
-                                'rejected'  => 'Rejected',
-                                default     => 'Pending',
-                            };
-                        @endphp
-                        <tr>
-                            <td class="py-3 pr-4 font-medium text-gray-900">{{ $docReq->label }}</td>
-                            <td class="py-3 pr-4">
-                                <span class="inline-flex px-2 py-0.5 rounded text-xs font-semibold {{ $statusClass }}">{{ $statusLabel }}</span>
-                            </td>
-                            <td class="py-3 text-xs text-gray-600">
-                                @if ($docReq->status === 'pending')
-                                    Awaiting upload
-                                @elseif ($docReq->status === 'uploaded')
-                                    Ready for review
-                                @elseif ($docReq->status === 'rejected')
-                                    Re-upload required
-                                @else
-                                    —
-                                @endif
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
+        <div class="mb-6 space-y-5">
+            @foreach ($groupLabels as $groupKey => $groupLabel)
+                @php $items = $groups[$groupKey] ?? collect(); @endphp
+                @if ($items->isNotEmpty())
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">{{ $groupLabel }}</p>
+                        <div class="overflow-x-auto ring-1 ring-gray-100 rounded-xl">
+                            <table class="min-w-full text-sm bg-white">
+                                <thead>
+                                    <tr class="text-left text-xs uppercase tracking-widest text-gray-500 border-b border-gray-100">
+                                        <th class="px-4 py-2 font-semibold">Document</th>
+                                        <th class="px-4 py-2 font-semibold">Status</th>
+                                        <th class="px-4 py-2 font-semibold">Borrower action</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-50">
+                                    @foreach ($items as $docReq)
+                                        @php
+                                            $statusClass = match ($docReq->status) {
+                                                'satisfied' => 'bg-emerald-100 text-emerald-700',
+                                                'uploaded'  => 'bg-amber-100 text-amber-700',
+                                                'rejected'  => 'bg-red-100 text-red-700',
+                                                default     => 'bg-gray-100 text-gray-600',
+                                            };
+                                            $statusLabel = match ($docReq->status) {
+                                                'satisfied' => 'Completed',
+                                                'uploaded'  => 'Uploaded',
+                                                'rejected'  => 'Rejected',
+                                                default     => 'Pending',
+                                            };
+                                        @endphp
+                                        <tr>
+                                            <td class="px-4 py-3 font-medium text-gray-900">{{ $docReq->label }}</td>
+                                            <td class="px-4 py-3">
+                                                <span class="inline-flex px-2 py-0.5 rounded text-xs font-semibold {{ $statusClass }}">{{ $statusLabel }}</span>
+                                            </td>
+                                            <td class="px-4 py-3 text-xs text-gray-600">
+                                                @if ($docReq->status === 'pending')
+                                                    Awaiting upload
+                                                @elseif ($docReq->status === 'uploaded')
+                                                    Ready for review
+                                                @elseif ($docReq->status === 'rejected')
+                                                    Re-upload required
+                                                @else
+                                                    —
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endif
+            @endforeach
         </div>
     @endif
 

@@ -189,6 +189,13 @@ class LoanApplicationController extends ResourceController
             ->latest()
             ->get();
 
+        $affordability = app(\App\Services\AffordabilityService::class)->evaluate(
+            $record->loadMissing(['customer', 'product'])
+        );
+        $rejectionReasons = app(\App\Services\LoanRejectionReasonService::class)->grouped();
+        $groupedDocumentRequests = app(\App\Services\ApplicationBorrowerStatusService::class)
+            ->groupedDocumentRequests($documentRequests);
+
         return view("admin.{$this->viewFolder}.show", compact(
             'record',
             'review',
@@ -198,6 +205,9 @@ class LoanApplicationController extends ResourceController
             'workflow',
             'offer',
             'documentRequests',
+            'affordability',
+            'rejectionReasons',
+            'groupedDocumentRequests',
         ));
     }
 
@@ -206,12 +216,14 @@ class LoanApplicationController extends ResourceController
         abort_unless(auth()->user()?->hasPermission('applications.view'), 403);
 
         $data = $request->validate([
-            'action'  => ['required', 'string', 'in:'.implode(',', array_keys(LoanApplicationWorkflowService::ACTIONS))],
-            'remarks' => ['nullable', 'string', 'max:1000'],
+            'action'                   => ['required', 'string', 'in:'.implode(',', array_keys(LoanApplicationWorkflowService::ACTIONS))],
+            'remarks'                  => ['nullable', 'string', 'max:1000'],
+            'rejection_reason_code'    => ['nullable', 'string', 'max:80'],
+            'rejection_internal_notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        if ($data['action'] === 'reject' && empty(trim($data['remarks'] ?? ''))) {
-            return back()->withErrors(['remarks' => 'Rejection reason is required.'])->withInput();
+        if ($data['action'] === 'reject' && empty(trim($data['rejection_reason_code'] ?? ''))) {
+            return back()->withErrors(['rejection_reason_code' => 'Select a rejection reason.'])->withInput();
         }
 
         try {
@@ -220,6 +232,9 @@ class LoanApplicationController extends ResourceController
                 auth()->user(),
                 $data['action'],
                 $data['remarks'] ?? null,
+                false,
+                $data['rejection_reason_code'] ?? null,
+                $data['rejection_internal_notes'] ?? null,
             );
         } catch (\Illuminate\Validation\ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();

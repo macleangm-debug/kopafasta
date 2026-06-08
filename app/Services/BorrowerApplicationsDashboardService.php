@@ -14,6 +14,7 @@ class BorrowerApplicationsDashboardService
         private readonly LoanApplicationDraftService $drafts,
         private readonly SmartLoanApplicationWizardService $wizard,
         private readonly LoanProductReadinessService $readiness,
+        private readonly ApplicationBorrowerStatusService $borrowerStatus,
     ) {}
 
     /**
@@ -38,7 +39,7 @@ class BorrowerApplicationsDashboardService
         }
 
         $submitted = LoanApplication::query()
-            ->with('product')
+            ->with(['product', 'documentRequests', 'loan'])
             ->where('customer_id', $customer->id)
             ->whereNotIn('status', ['draft'])
             ->latest()
@@ -83,7 +84,7 @@ class BorrowerApplicationsDashboardService
             'requested_amount'   => $this->drafts->requestedAmount($draft),
             'requested_tenure_months' => (int) (($draft->payload ?? [])['form']['requested_tenure_months'] ?? 0),
             'status'             => 'draft',
-            'status_label'       => $this->borrowerStatusLabel('draft'),
+            'status_label'       => $this->borrowerStatus->forDraft($draft)['label'],
             'status_tone'        => 'gray',
             'progress_percent'   => $progress['percent'],
             'progress_steps'     => $progress['steps'],
@@ -104,8 +105,9 @@ class BorrowerApplicationsDashboardService
     public function formatSubmitted(LoanApplication $application): array
     {
         $progress = $this->submittedProgress($application);
-        $status = (string) $application->status;
-        $needsDocuments = $status === 'pending_documents';
+        $borrowerStatus = $this->borrowerStatus->forApplication($application);
+        $statusCode = $borrowerStatus['code'];
+        $needsDocuments = in_array($statusCode, ['documents_requested', 'documents_resubmitted'], true);
 
         return [
             'is_draft'           => false,
@@ -115,19 +117,18 @@ class BorrowerApplicationsDashboardService
             'product_name'       => $application->product->name ?? '—',
             'requested_amount'   => (float) $application->requested_amount,
             'requested_tenure_months' => (int) $application->requested_tenure_months,
-            'status'             => $status,
-            'status_label'       => $this->borrowerStatusLabel($status, $application->current_stage),
-            'status_tone'        => $this->statusTone($status),
+            'status'             => $statusCode,
+            'status_label'       => $borrowerStatus['label'],
+            'status_tone'        => $borrowerStatus['tone'],
             'progress_percent'   => $progress['percent'],
             'progress_steps'     => $progress['steps'],
             'created_at'         => $application->created_at,
             'updated_at'         => $application->updated_at,
+            'last_updated_human' => optional($application->updated_at)->diffForHumans(),
             'sort_at'            => ($application->submitted_at ?? $application->updated_at)?->timestamp ?? 0,
-            'detail'             => $status === 'rejected'
-                ? ($application->rejection_reason ?? __('borrower.applications_list.rejected_default'))
-                : ($needsDocuments ? __('borrower.applications_list.documents_required') : null),
+            'detail'             => $this->borrowerStatus->borrowerDetail($application),
             'action_url'         => route('site.borrower.application', $application->id),
-            'action_label'       => $needsDocuments || in_array($status, ['submitted', 'pending', 'pending_documents', 'under_review', 'awaiting_guarantor'], true)
+            'action_label'       => $needsDocuments || in_array($statusCode, ['submitted', 'screening', 'credit_review', 'documents_requested', 'documents_resubmitted'], true)
                 ? __('borrower.applications_list.view')
                 : __('borrower.applications_list.open'),
             'receipt_url'        => route('site.apply.success', $application->id),
@@ -151,95 +152,25 @@ class BorrowerApplicationsDashboardService
      */
     public function submittedProgress(LoanApplication $application): array
     {
-        $status = (string) $application->status;
-
-        if ($status === 'rejected') {
-            return ['percent' => 0, 'steps' => []];
-        }
-
-        if ($status === 'disbursed') {
-            return [
-                'percent' => 100,
-                'steps'   => [['label' => display_label('disbursed', 'application_status'), 'complete' => true]],
-            ];
-        }
-
-        $stage = (string) ($application->current_stage ?? $status);
-        $pipeline = [
-            'submitted'          => __('borrower.applications_list.pipeline.submitted'),
-            'awaiting_guarantor' => __('borrower.applications_list.pipeline.awaiting_guarantor'),
-            'screening'          => __('borrower.applications_list.pipeline.screening'),
-            'credit_appraisal'   => __('borrower.applications_list.pipeline.credit_review'),
-            'pre_approval'       => __('borrower.applications_list.pipeline.pre_approval'),
-            'approval'           => __('borrower.applications_list.pipeline.approval'),
-            'disbursement'       => __('borrower.applications_list.pipeline.disbursement'),
-        ];
-
-        $stageOrder = array_keys($pipeline);
-        $currentIndex = array_search($stage, $stageOrder, true);
-
-        if ($currentIndex === false) {
-            $currentIndex = match ($status) {
-                'under_review'   => array_search('credit_appraisal', $stageOrder, true),
-                'pre_approved' => array_search('pre_approval', $stageOrder, true),
-                'approved'     => array_search('approval', $stageOrder, true),
-                'pending_documents' => array_search('screening', $stageOrder, true),
-                default        => 0,
-            };
-        }
-
-        if ($currentIndex === false) {
-            $currentIndex = 0;
-        }
-
-        $steps = [];
-        foreach ($pipeline as $key => $label) {
-            $index = array_search($key, $stageOrder, true);
-            $steps[] = [
-                'label'    => $label,
-                'complete' => $index !== false && $index < $currentIndex,
-                'active'   => $index === $currentIndex,
-                'current'  => $index === $currentIndex,
-            ];
-        }
-
-        $percent = (int) round((($currentIndex + 1) / max(1, count($pipeline))) * 100);
-
-        return ['percent' => min(100, $percent), 'steps' => $steps];
+        return $this->borrowerStatus->timeline($application);
     }
 
     public function borrowerStatusLabel(string $status, ?string $stage = null): string
     {
-        if ($status === 'pending_documents') {
-            return __('borrower.applications_list.statuses.pending_documents');
+        if ($status === 'draft') {
+            return __('borrower.applications_list.statuses.draft');
         }
 
-        if ($stage === 'credit_appraisal' || $status === 'under_review') {
-            return __('borrower.applications_list.statuses.credit_review');
-        }
-
-        if ($stage === 'screening') {
-            return __('borrower.applications_list.statuses.screening');
-        }
-
-        if ($stage === 'pre_approval') {
-            return __('borrower.applications_list.statuses.pre_approved');
-        }
-
-        if ($stage === 'approval' || $stage === 'disbursement') {
-            return __('borrower.applications_list.statuses.approved');
-        }
-
-        return match ($status) {
-            'draft'              => __('borrower.applications_list.statuses.draft'),
-            'submitted', 'pending' => __('borrower.applications_list.statuses.submitted'),
-            'awaiting_guarantor' => __('borrower.applications_list.statuses.awaiting_guarantor'),
-            'pre_approved'       => __('borrower.applications_list.statuses.pre_approved'),
-            'approved'           => __('borrower.applications_list.statuses.approved'),
-            'rejected'           => __('borrower.applications_list.statuses.rejected'),
-            'disbursed'          => __('borrower.applications_list.statuses.disbursed'),
-            'cancelled'          => display_label('cancelled', 'application_status'),
-            default              => display_label($stage ?: $status, 'application_status'),
+        return match (true) {
+            $status === 'rejected' => __('borrower.applications_list.statuses.rejected'),
+            $status === 'disbursed' => __('borrower.applications_list.statuses.disbursed'),
+            $stage === 'screening' => __('borrower.applications_list.statuses.screening'),
+            $stage === 'credit_appraisal' || $status === 'under_review' => __('borrower.applications_list.statuses.credit_review'),
+            in_array($stage, ['approval', 'disbursement', 'pre_approval'], true)
+                || in_array($status, ['approved', 'pre_approved'], true) => __('borrower.applications_list.statuses.approved'),
+            $status === 'pending_documents' => __('borrower.applications_list.statuses.documents_requested'),
+            in_array($status, ['submitted', 'pending'], true) => __('borrower.applications_list.statuses.submitted'),
+            default => display_label($stage ?: $status, 'application_status'),
         };
     }
 
@@ -247,9 +178,9 @@ class BorrowerApplicationsDashboardService
     {
         return match ($status) {
             'rejected' => 'red',
-            'approved', 'disbursed' => 'emerald',
-            'submitted', 'pending', 'draft' => 'amber',
-            'pending_documents' => 'orange',
+            'approved', 'disbursed', 'closed' => 'emerald',
+            'draft', 'submitted' => 'amber',
+            'documents_requested', 'documents_resubmitted' => 'orange',
             default => 'sky',
         };
     }

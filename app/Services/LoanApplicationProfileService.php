@@ -19,6 +19,7 @@ class LoanApplicationProfileService
         private readonly ProfileValidationService $profileValidation,
         private readonly DisplayedRateService $displayedRate,
         private readonly LoanApplicationNextActionService $nextAction,
+        private readonly ApplicationBorrowerStatusService $borrowerStatus,
     ) {}
 
     /** @return array<string, mixed> */
@@ -68,7 +69,7 @@ class LoanApplicationProfileService
             'customerGuarantors.guarantor',
         ]);
 
-        $pipelineProgress = $this->dashboard->submittedProgress($application);
+        $pipelineProgress = $this->borrowerStatus->timeline($application);
         $uploads = CustomerDocument::query()
             ->where('customer_id', $customer->id)
             ->where('loan_application_id', $application->id)
@@ -116,6 +117,8 @@ class LoanApplicationProfileService
             ->values()
             ->all();
 
+        $borrowerStatus = $this->borrowerStatus->forApplication($application);
+
         return [
             'is_draft'             => false,
             'draft'                => null,
@@ -124,13 +127,13 @@ class LoanApplicationProfileService
             'next_due'             => $nextDue,
             'summary'              => $this->applicationSummary($application, $loan),
             'status'               => [
-                'code'    => (string) $application->status,
-                'label'   => $this->dashboard->borrowerStatusLabel((string) $application->status, $application->current_stage),
-                'tone'    => $this->dashboard->statusTone((string) $application->status),
+                'code'    => $borrowerStatus['code'],
+                'label'   => $borrowerStatus['label'],
+                'tone'    => $borrowerStatus['tone'],
                 'detail'  => $this->statusDetail($application),
             ],
             'progress'             => [
-                'percent'   => $profileProgress['percent'],
+                'percent'   => $pipelineProgress['percent'],
                 'completed' => $profileProgress['completed'],
                 'missing'   => $profileProgress['missing'],
                 'timeline'  => $pipelineSteps,
@@ -142,6 +145,9 @@ class LoanApplicationProfileService
             'resume_target'        => null,
             'wizard_url'           => null,
             'document_requests'    => $application->documentRequests()->with('uploads')->latest()->get(),
+            'document_request_groups' => $this->borrowerStatus->groupedDocumentRequests(
+                $application->documentRequests()->with('uploads')->latest()->get()
+            ),
             'guarantor_invitations' => $guarantorInvitations,
             'customer_guarantors'  => $application->customerGuarantors,
             'product_requirements' => $requirements,
@@ -293,26 +299,7 @@ class LoanApplicationProfileService
 
     private function statusDetail(LoanApplication $application): ?string
     {
-        if ((string) $application->status === 'pending_documents') {
-            $pending = $application->documentRequests()
-                ->whereIn('status', ['pending', 'rejected'])
-                ->pluck('label')
-                ->filter()
-                ->values();
-
-            if ($pending->isNotEmpty()) {
-                return __('borrower.loan_profile.underwriter_feedback', [
-                    'items' => $pending->implode(', '),
-                ]);
-            }
-
-            return __('borrower.applications_list.documents_required');
-        }
-
-        return match ((string) $application->status) {
-            'rejected' => $application->rejection_reason ?? __('borrower.applications_list.rejected_default'),
-            default    => null,
-        };
+        return $this->borrowerStatus->borrowerDetail($application);
     }
 
     private function appendReturn(string $url, string $returnUrl): string

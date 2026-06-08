@@ -4,22 +4,33 @@ namespace App\Services;
 
 use App\Models\LoanApplication;
 use App\Models\RepaymentSchedule;
-use App\Models\SystemSetting;
+use App\Models\Setting;
 use Illuminate\Support\Carbon;
 
 class AffordabilityService
 {
+    public function __construct(
+        private readonly CountryCreditSettingsService $countryCredit,
+    ) {}
+
     /**
-     * Evaluate borrower affordability (DSR) for a loan application.
+     * Evaluate borrower affordability using the one-third income rule.
      *
      * @return array{
      *   net_income: float,
      *   existing_obligations: float,
      *   new_emi: float,
+     *   proposed_installment: float,
+     *   max_repayment_capacity: float,
+     *   available_capacity: float,
      *   total_obligations: float,
      *   dsr: float,
      *   threshold: float,
+     *   repayment_ratio: float,
+     *   repayment_ratio_pct: float,
      *   verdict: 'pass'|'warn'|'fail',
+     *   pass: bool,
+     *   status_label: string,
      *   reason: string,
      *   evaluated_at: string
      * }
@@ -31,7 +42,6 @@ class AffordabilityService
 
         $netIncome = (float) ($customer->monthly_income ?? 0);
 
-        // Sum existing obligations (next 30 days of pending/partial/overdue installments)
         $existing = (float) RepaymentSchedule::query()
             ->whereHas('loan', fn ($q) => $q->where('customer_id', $customer->id))
             ->whereIn('status', ['pending', 'partial', 'overdue'])
@@ -40,59 +50,66 @@ class AffordabilityService
 
         $principal = (float) ($application->recommended_amount ?? $application->requested_amount);
         $tenure    = (int) ($application->requested_tenure_months ?? 0);
-        $rate      = (float) ($product->interest_rate ?? 0); // monthly decimal
+        $rate      = (float) ($product->interest_rate ?? 0);
 
         $newEmi = $this->computeEmi($principal, $rate, $tenure);
 
-        $threshold = $this->thresholdSetting();
-        $warnAt    = max(0.0, $threshold - 0.1);
+        $ratio = $this->countryCredit->repaymentRatio();
+        $maxRepayment = round($netIncome * $ratio, 2);
+        $availableCapacity = max(0.0, round($maxRepayment - $existing, 2));
 
         $total = $existing + $newEmi;
-        $dsr   = $netIncome > 0 ? round($total / $netIncome, 4) : 1.0;
+        $dsr = $netIncome > 0 ? round($total / $netIncome, 4) : 1.0;
+        $threshold = $ratio;
 
         $verdict = 'pass';
-        $reason  = 'Within debt-service threshold.';
+        $statusLabel = 'Affordability Passed';
+        $reason = 'Proposed installment is within available capacity.';
+
         if ($netIncome <= 0) {
             $verdict = 'fail';
-            $reason  = 'No declared monthly income on file.';
-        } elseif ($dsr > $threshold) {
+            $statusLabel = 'Affordability Failed';
+            $reason = 'No declared monthly income on file.';
+        } elseif ($newEmi > $availableCapacity) {
             $verdict = 'fail';
-            $reason  = 'Debt-service ratio '.($this->pct($dsr)).' exceeds limit '.($this->pct($threshold)).'.';
-        } elseif ($dsr > $warnAt) {
+            $statusLabel = 'Affordability Failed';
+            $reason = 'Proposed installment '.format_money($newEmi).' exceeds available capacity '.format_money($availableCapacity).'.';
+        } elseif ($newEmi > ($maxRepayment * 0.9)) {
             $verdict = 'warn';
-            $reason  = 'Debt-service ratio '.($this->pct($dsr)).' is near limit '.($this->pct($threshold)).'.';
+            $statusLabel = 'Affordability Passed';
+            $reason = 'Proposed installment is near the maximum repayment capacity.';
         }
 
         return [
-            'net_income'           => round($netIncome, 2),
-            'existing_obligations' => round($existing, 2),
-            'new_emi'              => round($newEmi, 2),
-            'total_obligations'    => round($total, 2),
-            'dsr'                  => $dsr,
-            'threshold'            => $threshold,
-            'verdict'              => $verdict,
-            'reason'               => $reason,
-            'evaluated_at'         => now()->toIso8601String(),
+            'net_income'              => round($netIncome, 2),
+            'existing_obligations'    => round($existing, 2),
+            'new_emi'                 => round($newEmi, 2),
+            'proposed_installment'    => round($newEmi, 2),
+            'max_repayment_capacity'  => $maxRepayment,
+            'available_capacity'      => $availableCapacity,
+            'total_obligations'       => round($total, 2),
+            'dsr'                     => $dsr,
+            'threshold'               => $threshold,
+            'repayment_ratio'         => $ratio,
+            'repayment_ratio_pct'     => round($ratio * 100, 2),
+            'verdict'                 => $verdict,
+            'pass'                    => $verdict === 'pass',
+            'status_label'            => $statusLabel,
+            'reason'                  => $reason,
+            'evaluated_at'            => now()->toIso8601String(),
         ];
     }
 
     private function computeEmi(float $principal, float $monthlyRate, int $months): float
     {
-        if ($principal <= 0 || $months <= 0) return 0.0;
-        if ($monthlyRate <= 0) return round($principal / $months, 2);
+        if ($principal <= 0 || $months <= 0) {
+            return 0.0;
+        }
+        if ($monthlyRate <= 0) {
+            return round($principal / $months, 2);
+        }
         $pow = (1 + $monthlyRate) ** $months;
+
         return round($principal * $monthlyRate * $pow / ($pow - 1), 2);
-    }
-
-    private function thresholdSetting(): float
-    {
-        $val = optional(SystemSetting::where('key', 'credit.dsr_max')->first())->value;
-        $f = is_numeric($val) ? (float) $val : 0.5;
-        return $f > 1 ? $f / 100 : $f; // allow stored as 50 or 0.5
-    }
-
-    private function pct(float $v): string
-    {
-        return format_number($v * 100, 1).'%';
     }
 }

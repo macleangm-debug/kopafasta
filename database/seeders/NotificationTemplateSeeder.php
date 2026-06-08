@@ -46,6 +46,13 @@ class NotificationTemplateSeeder extends Seeder
                 'body'    => 'Good news {{ name }}! Your loan application {{ application_number }} for {{ amount }} has been APPROVED. Please review and sign your offer letter. — Kopa Fasta',
             ],
             [
+                'code' => 'application_rejected',
+                'name' => 'Loan Application Rejected',
+                'channel' => 'sms',
+                'subject' => 'Application update',
+                'body'    => 'Hi {{ name }}, your loan application {{ application_number }} was not approved. Reason: {{ reason }}. — Kopa Fasta',
+            ],
+            [
                 'code' => 'loan_disbursed',
                 'name' => 'Loan Disbursed',
                 'channel' => 'sms',

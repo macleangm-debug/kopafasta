@@ -14,12 +14,15 @@ class ApplicationDocumentRequestService
 {
     /** @var list<string> */
     public const PRESET_LABELS = [
-        'Updated bank statement (last 6 months)',
-        'Mobile money statement (last 6 months)',
+        'Updated Bank Statement',
+        'Updated Mobile Money Statement',
+        'Additional Income Proof',
+        'Business Registration Document',
+        'Business Photos',
+        'Supplier Invoices',
+        'Tax Documents',
+        'Employment Confirmation Letter',
         'Guarantor residence letter',
-        'Additional income proof',
-        'Business registration documents',
-        'Business photos',
         'Updated employment contract',
         'Latest salary slip',
     ];

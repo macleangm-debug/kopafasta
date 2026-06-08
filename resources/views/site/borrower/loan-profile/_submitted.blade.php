@@ -98,67 +98,92 @@
     </div>
 @endif
 
-@if ($documentRequests->isNotEmpty())
+@php
+    $documentGroups = $profile['document_request_groups'] ?? [
+        'pending' => collect(),
+        'uploaded' => collect(),
+        'completed' => collect(),
+        'rejected' => collect(),
+    ];
+    $groupLabels = [
+        'pending'   => __('borrower.application.doc_group_pending'),
+        'uploaded'  => __('borrower.application.doc_group_uploaded'),
+        'completed' => __('borrower.application.doc_group_completed'),
+        'rejected'  => __('borrower.application.doc_group_rejected'),
+    ];
+@endphp
+
+@if (collect($documentGroups)->flatten(1)->isNotEmpty())
     <div id="documents" class="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-6">
         <div class="px-5 py-4 border-b border-gray-200">
             <h2 class="font-semibold">{{ __('borrower.application.requested_documents') }}</h2>
             <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.application.requested_documents_hint') }}</p>
         </div>
-        <ul class="divide-y divide-gray-100">
-            @foreach ($documentRequests as $docReq)
-                @php
-                    $reqBadge = match ($docReq->status) {
-                        'satisfied' => 'bg-emerald-100 text-emerald-700',
-                        'uploaded'  => 'bg-amber-100 text-amber-700',
-                        'rejected'  => 'bg-red-100 text-red-700',
-                        default     => 'bg-sky-100 text-sky-700',
-                    };
-                    $reqLabel = match ($docReq->status) {
-                        'satisfied' => __('borrower.application.request_status_completed'),
-                        'uploaded'  => __('borrower.application.request_status_uploaded'),
-                        'rejected'  => __('borrower.application.request_status_pending'),
-                        default     => __('borrower.application.request_status_pending'),
-                    };
-                @endphp
-                <li id="request-{{ $docReq->id }}" class="p-5">
-                    <div class="flex items-start justify-between gap-3 mb-3 flex-wrap">
-                        <div>
-                            <p class="font-semibold text-gray-900">{{ $docReq->label }}</p>
-                            <p class="text-xs text-gray-500 mt-0.5">
-                                {{ ucfirst($docReq->type) }}
-                                @if ($docReq->due_at) · Due {{ $docReq->due_at->format('d M Y') }} @endif
-                            </p>
-                            @if ($docReq->instructions)
-                                <p class="text-sm text-gray-600 mt-2">{{ $docReq->instructions }}</p>
-                            @endif
-                            @if ($docReq->admin_notes && $docReq->status === 'rejected')
-                                <p class="text-xs text-red-700 bg-red-50 ring-1 ring-red-200 rounded-lg px-3 py-2 mt-2">{{ $docReq->admin_notes }}</p>
-                            @endif
-                        </div>
-                        <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $reqBadge }}">{{ $reqLabel }}</span>
-                    </div>
+        <div class="p-5 space-y-6">
+            @foreach ($groupLabels as $groupKey => $groupLabel)
+                @php $items = $documentGroups[$groupKey] ?? collect(); @endphp
+                @if ($items->isNotEmpty())
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">{{ $groupLabel }}</p>
+                        <ul class="divide-y divide-gray-100 ring-1 ring-gray-100 rounded-xl overflow-hidden">
+                            @foreach ($items as $docReq)
+                                @php
+                                    $reqBadge = match ($docReq->status) {
+                                        'satisfied' => 'bg-emerald-100 text-emerald-700',
+                                        'uploaded'  => 'bg-amber-100 text-amber-700',
+                                        'rejected'  => 'bg-red-100 text-red-700',
+                                        default     => 'bg-sky-100 text-sky-700',
+                                    };
+                                    $reqLabel = match ($docReq->status) {
+                                        'satisfied' => __('borrower.application.request_status_completed'),
+                                        'uploaded'  => __('borrower.application.request_status_uploaded'),
+                                        'rejected'  => __('borrower.application.request_status_pending'),
+                                        default     => __('borrower.application.request_status_pending'),
+                                    };
+                                @endphp
+                                <li id="request-{{ $docReq->id }}" class="p-5 bg-white">
+                                    <div class="flex items-start justify-between gap-3 mb-3 flex-wrap">
+                                        <div>
+                                            <p class="font-semibold text-gray-900">{{ $docReq->label }}</p>
+                                            <p class="text-xs text-gray-500 mt-0.5">
+                                                {{ ucfirst($docReq->type) }}
+                                                @if ($docReq->due_at) · Due {{ $docReq->due_at->format('d M Y') }} @endif
+                                            </p>
+                                            @if ($docReq->instructions)
+                                                <p class="text-sm text-gray-600 mt-2">{{ $docReq->instructions }}</p>
+                                            @endif
+                                            @if ($docReq->admin_notes && $docReq->status === 'rejected')
+                                                <p class="text-xs text-red-700 bg-red-50 ring-1 ring-red-200 rounded-lg px-3 py-2 mt-2">{{ $docReq->admin_notes }}</p>
+                                            @endif
+                                        </div>
+                                        <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $reqBadge }}">{{ $reqLabel }}</span>
+                                    </div>
 
-                    @if ($docReq->uploads->isNotEmpty())
-                        <div class="flex flex-wrap gap-2 mb-3">
-                            @foreach ($docReq->uploads as $upload)
-                                <a href="{{ asset('storage/'.$upload->file_path) }}" target="_blank"
-                                   class="text-xs font-semibold text-amber-700 hover:underline">
-                                    {{ __('borrower.application.view_upload') }}
-                                </a>
+                                    @if ($docReq->uploads->isNotEmpty())
+                                        <div class="flex flex-wrap gap-2 mb-3">
+                                            @foreach ($docReq->uploads as $upload)
+                                                <a href="{{ asset('storage/'.$upload->file_path) }}" target="_blank"
+                                                   class="text-xs font-semibold text-amber-700 hover:underline">
+                                                    {{ __('borrower.application.view_upload') }}
+                                                </a>
+                                            @endforeach
+                                        </div>
+                                    @endif
+
+                                    @if ($docReq->needsBorrowerAction())
+                                        <x-site.document-upload
+                                            :action="route('site.borrower.application.document-requests.store', [$application, $docReq])"
+                                            :show-clarification="$docReq->type === 'clarification'"
+                                            :multiple="true"
+                                        />
+                                    @endif
+                                </li>
                             @endforeach
-                        </div>
-                    @endif
-
-                    @if ($docReq->needsBorrowerAction())
-                        <x-site.document-upload
-                            :action="route('site.borrower.application.document-requests.store', [$application, $docReq])"
-                            :show-clarification="$docReq->type === 'clarification'"
-                            :multiple="true"
-                        />
-                    @endif
-                </li>
+                        </ul>
+                    </div>
+                @endif
             @endforeach
-        </ul>
+        </div>
     </div>
 @endif
 

@@ -17,11 +17,11 @@
     </div>
     <div class="inline-flex rounded-lg ring-1 ring-gray-200 bg-white p-0.5 text-xs">
         <a href="{{ route('site.borrower.loans', ['tab' => 'applications', 'view' => 'cards']) }}"
-           class="px-3 py-1.5 rounded-md font-semibold {{ ($viewMode ?? 'cards') === 'cards' ? 'bg-amber-500 text-gray-900' : 'text-gray-600 hover:bg-gray-50' }}">
+           class="px-3 py-1.5 rounded-md font-semibold {{ ($viewMode ?? 'table') === 'cards' ? 'bg-amber-500 text-gray-900' : 'text-gray-600 hover:bg-gray-50' }}">
             {{ __('borrower.applications_list.cards') }}
         </a>
         <a href="{{ route('site.borrower.loans', ['tab' => 'applications', 'view' => 'table']) }}"
-           class="px-3 py-1.5 rounded-md font-semibold {{ ($viewMode ?? 'cards') === 'table' ? 'bg-amber-500 text-gray-900' : 'text-gray-600 hover:bg-gray-50' }}">
+           class="px-3 py-1.5 rounded-md font-semibold {{ ($viewMode ?? 'table') === 'table' ? 'bg-amber-500 text-gray-900' : 'text-gray-600 hover:bg-gray-50' }}">
             {{ __('borrower.applications_list.table') }}
         </a>
     </div>
@@ -35,18 +35,15 @@
         :action-label="__('borrower.applications_list.empty_action')"
         :action-url="route('site.borrower.apply')"
     />
-@elseif (($viewMode ?? 'cards') === 'table')
+@elseif (($viewMode ?? 'table') === 'table')
     <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                     <tr>
-                        <th class="px-4 py-3">{{ __('borrower.applications_list.loan_type') }}</th>
                         <th class="px-4 py-3">{{ __('borrower.applications_list.reference') }}</th>
-                        <th class="px-4 py-3">{{ __('borrower.applications_list.created') }}</th>
+                        <th class="px-4 py-3">{{ __('borrower.applications_list.product') }}</th>
                         <th class="px-4 py-3">{{ __('borrower.applications_list.status') }}</th>
-                        <th class="px-4 py-3">{{ __('borrower.applications_list.progress') }}</th>
-                        <th class="px-4 py-3">{{ __('borrower.applications_list.current_step') }}</th>
                         <th class="px-4 py-3">{{ __('borrower.applications_list.last_updated') }}</th>
                         <th class="px-4 py-3 text-right">{{ __('borrower.applications_list.actions') }}</th>
                     </tr>
@@ -55,25 +52,15 @@
                     @foreach ($rows as $row)
                         @php $badge = $toneClasses[$row['status_tone']] ?? $toneClasses['sky']; @endphp
                         <tr class="hover:bg-gray-50">
-                            <td class="px-4 py-3">{{ $row['loan_type'] }}</td>
-                            <td class="px-4 py-3">
-                                <p class="font-mono text-xs">{{ $row['application_number'] }}</p>
-                                <p class="text-xs text-gray-500">{{ $row['product_name'] }}</p>
-                            </td>
-                            <td class="px-4 py-3 text-xs text-gray-500">{{ optional($row['created_at'])->format('d M Y') ?? '—' }}</td>
+                            <td class="px-4 py-3 font-mono text-xs font-semibold">{{ $row['application_number'] }}</td>
+                            <td class="px-4 py-3">{{ $row['product_name'] }}</td>
                             <td class="px-4 py-3">
                                 <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $badge }}">{{ $row['status_label'] }}</span>
+                                @if (! empty($row['detail']) && ($row['status'] ?? '') === 'rejected')
+                                    <p class="text-[11px] text-red-600 mt-1">{{ $row['detail'] }}</p>
+                                @endif
                             </td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-2 min-w-[120px]">
-                                    <div class="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                        <div class="h-full bg-amber-500" style="width: {{ $row['progress_percent'] }}%"></div>
-                                    </div>
-                                    <span class="text-xs text-gray-600 shrink-0">{{ $row['progress_percent'] }}%</span>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3 text-xs text-gray-600">{{ $row['current_step'] ?? '—' }}</td>
-                            <td class="px-4 py-3 text-xs text-gray-500">{{ optional($row['updated_at'])->format('d M Y') ?? '—' }}</td>
+                            <td class="px-4 py-3 text-xs text-gray-600">{{ $row['last_updated_human'] ?? optional($row['updated_at'])->diffForHumans() ?? '—' }}</td>
                             <td class="px-4 py-3 text-right">
                                 <a href="{{ $row['action_url'] }}" class="text-amber-600 font-semibold hover:underline text-xs">{{ $row['action_label'] }}</a>
                             </td>

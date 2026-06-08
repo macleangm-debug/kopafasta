@@ -297,7 +297,7 @@ class BorrowerController extends Controller
             $prefs['applications_view'] = $viewMode;
             $user->update(['preferences' => $prefs]);
         } else {
-            $viewMode = $user->preferences['applications_view'] ?? 'cards';
+            $viewMode = $user->preferences['applications_view'] ?? 'table';
         }
 
         return view('site.borrower.loans', compact(
