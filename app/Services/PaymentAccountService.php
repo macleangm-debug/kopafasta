@@ -72,6 +72,40 @@ class PaymentAccountService
         ];
     }
 
+    /**
+     * Bank transfer details for borrower-facing screens (membership, application fee, etc.).
+     *
+     * @return list<array{bank: string, account_name: string, account_number: string, branch: ?string, reference: string, instructions: ?string}>
+     */
+    public function bankAccountsForDisplay(string $paymentType, string $reference, ?LoanProduct $product = null): array
+    {
+        $resolved = $this->resolve($paymentType, 'bank_transfer', $product);
+
+        if ($resolved['bank_account']) {
+            $details = $this->bankTransferDetails($resolved['bank_account'], $reference);
+
+            return [[
+                'bank'           => $details['bank_name'],
+                'account_name'   => $details['account_name'],
+                'account_number' => $details['account_number'],
+                'branch'         => $resolved['bank_account']->branch,
+                'reference'      => $details['reference'],
+                'instructions'   => $resolved['instructions'] ?? $details['instructions'],
+            ]];
+        }
+
+        $details = $this->bankTransferDetails(null, $reference);
+
+        return [[
+            'bank'           => $details['bank_name'],
+            'account_name'   => $details['account_name'],
+            'account_number' => $details['account_number'],
+            'branch'         => null,
+            'reference'      => $details['reference'],
+            'instructions'   => $resolved['instructions'] ?? $details['instructions'],
+        ]];
+    }
+
     /** @return array{number: ?string, provider: ?string, instructions: ?string} */
     public function mobileMoneyDetails(?MobileMoneyAccount $account): array
     {

@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Services\AffiliateService;
 use App\Services\GuarantorOnboardingService;
 use App\Services\MembershipService;
+use App\Services\PaymentAccountService;
 use App\Services\ReferralService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -65,9 +66,8 @@ class MembershipController extends Controller
         $referralWallet = $referrals->wallet($customer);
         $referralSettings = $referrals->settings();
 
-        $bankAccounts = config('site.membership_bank_accounts', [
-            ['bank' => 'CRDB Bank', 'account_name' => 'Kopafasta Microfinance Ltd', 'account_number' => '0150-XXXXX-00', 'branch' => 'Dar es Salaam'],
-        ]);
+        $bankAccounts = app(PaymentAccountService::class)
+            ->bankAccountsForDisplay('registration_fee', $paymentReference);
 
         return view('site.borrower.membership-renew', [
             'customer'         => $customer,

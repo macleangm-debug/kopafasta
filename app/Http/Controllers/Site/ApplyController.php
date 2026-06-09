@@ -937,26 +937,12 @@ class ApplyController extends Controller
         ));
     }
 
-    /** @return list<array{bank: string, account_name: string, account_number: string, reference: string}> */
+    /** @return list<array{bank: string, account_name: string, account_number: string, branch: ?string, reference: string, instructions: ?string}> */
     private function paymentBankAccountsForProduct(?LoanProduct $product, ?string $reference): array
     {
-        $accounts = app(\App\Services\PaymentAccountService::class);
-        $resolved = $accounts->resolve('application_fee', 'bank_transfer', $product);
         $ref = $reference ?? app(\App\Services\CustomerPaymentService::class)->generateReference();
 
-        if ($resolved['bank_account']) {
-            $details = $accounts->bankTransferDetails($resolved['bank_account'], $ref);
-
-            return [[
-                'bank'           => $details['bank_name'],
-                'account_name'   => $details['account_name'],
-                'account_number' => $details['account_number'],
-                'reference'      => $details['reference'],
-            ]];
-        }
-
-        return config('site.membership_bank_accounts', [
-            ['bank' => 'CRDB Bank', 'account_name' => 'Kopafasta Microfinance Ltd', 'account_number' => '0150-XXXXX-00', 'branch' => 'Dar es Salaam', 'reference' => $ref],
-        ]);
+        return app(\App\Services\PaymentAccountService::class)
+            ->bankAccountsForDisplay('application_fee', $ref, $product);
     }
 }

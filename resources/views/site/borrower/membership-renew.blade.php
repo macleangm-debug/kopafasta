@@ -87,7 +87,10 @@
                 @foreach ($bankAccounts as $acct)
                     <div class="mb-2 last:mb-0">
                         <p class="font-medium">{{ $acct['bank'] }}</p>
-                        <p class="text-xs text-sky-800">{{ $acct['account_name'] }} · {{ $acct['account_number'] }} · {{ $acct['branch'] ?? '' }}</p>
+                        <p class="text-xs text-sky-800">{{ $acct['account_name'] }} · {{ $acct['account_number'] }}@if (! empty($acct['branch'])) · {{ $acct['branch'] }}@endif</p>
+                        @if (! empty($acct['instructions']))
+                            <p class="text-xs text-sky-700 mt-1">{{ $acct['instructions'] }}</p>
+                        @endif
                     </div>
                 @endforeach
                 <p class="mt-3 text-xs text-amber-800 font-medium">⏳ Waiting for verification after you submit.</p>
