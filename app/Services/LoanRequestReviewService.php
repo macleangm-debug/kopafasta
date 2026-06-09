@@ -31,11 +31,14 @@ class LoanRequestReviewService
             'status'         => $request->restructure_type === 'payment_holiday' ? 'restructuring' : $loan->status,
         ]);
 
+        $loan = $loan->fresh();
+        $installments = app(RepaymentScheduleGenerator::class)->regenerateRemaining($loan);
+
         $this->notifyBorrower(
             $request->customer_id ?? $loan->customer_id,
             'restructure_approved',
             'Restructure request approved',
-            'Your loan restructure request has been approved. Our team will update your schedule shortly.',
+            'Your loan restructure request has been approved. '.$installments.' new instalment(s) scheduled.',
         );
 
         return $request->fresh(['loan']);
@@ -85,11 +88,14 @@ class LoanRequestReviewService
             'outstanding_balance' => (float) $loan->outstanding_balance + $amount,
         ]);
 
+        $loan = $loan->fresh();
+        $installments = app(RepaymentScheduleGenerator::class)->regenerateRemaining($loan);
+
         $this->notifyBorrower(
             $request->customer_id,
             'top_up_approved',
             'Top-up request approved',
-            'Your top-up of '.format_money($amount).' has been approved and added to your loan balance.',
+            'Your top-up of '.format_money($amount).' has been approved. '.$installments.' instalment(s) updated.',
         );
 
         return $request->fresh(['loan']);

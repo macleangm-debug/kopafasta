@@ -126,6 +126,11 @@ class BorrowerController extends Controller
             ->limit(5)
             ->get();
 
+        $applicationsDashboard = app(\App\Services\BorrowerApplicationsDashboardService::class);
+        $activeApplicationRows = $activeApplications
+            ->map(fn (LoanApplication $app) => $applicationsDashboard->formatSubmitted($app))
+            ->all();
+
         // Active loan products — public catalogue order
         $products = borrower_catalogue_products();
 
@@ -140,7 +145,7 @@ class BorrowerController extends Controller
         return view('site.borrower.dashboard', compact(
             'customer','activeLoan','nextDue','applicationsCount',
             'notifications','eligibility',
-            'products','applyRequirements','onboardingBanner','applyDraftResume','activeApplications','unreadNotificationCount',
+            'products','applyRequirements','onboardingBanner','applyDraftResume','activeApplications','activeApplicationRows','unreadNotificationCount',
             'openDocumentRequests','referralCode','referralLink','referralWallet',
         ));
     }
@@ -387,13 +392,18 @@ class BorrowerController extends Controller
             'new_tenure_months' => ['nullable', 'integer', 'min:1', 'max:120'],
         ]);
 
-        RestructureRequest::create([
+        $record = RestructureRequest::create([
             'loan_id'           => $loan->id,
             'customer_id'       => $customer->id,
             'restructure_type'  => $data['restructure_type'],
             'reason'            => $data['reason'],
             'new_tenure_months' => $data['new_tenure_months'] ?? null,
             'status'            => 'pending',
+        ]);
+
+        $this->auditBorrower('loan.restructure_requested', $record, [
+            'loan_id' => $loan->id,
+            'type'    => $data['restructure_type'],
         ]);
 
         return redirect()
@@ -435,12 +445,17 @@ class BorrowerController extends Controller
             'reason'           => ['required', 'string', 'max:500'],
         ]);
 
-        LoanTopUpRequest::create([
+        $record = LoanTopUpRequest::create([
             'loan_id'          => $loan->id,
             'customer_id'      => $customer->id,
             'requested_amount' => $data['requested_amount'],
             'reason'           => $data['reason'],
             'status'           => 'pending',
+        ]);
+
+        $this->auditBorrower('loan.top_up_requested', $record, [
+            'loan_id' => $loan->id,
+            'amount'  => $data['requested_amount'],
         ]);
 
         return redirect()

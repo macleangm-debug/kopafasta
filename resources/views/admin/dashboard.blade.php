@@ -10,6 +10,8 @@
                 ['Active loans', format_number($stats['active_loans']), 'bg-amber-600', route('admin.loans.index')],
                 ['Capital available', format_money($stats['capital_available']), 'bg-teal-500', route('admin.capital-funding.index')],
                 ['Capital utilized', format_money($stats['capital_utilized']), 'bg-emerald-500', route('admin.capital-funding.index')],
+                ['Restructure queue', format_number($stats['pending_restructures'] ?? 0), 'bg-orange-500', route('admin.restructure-requests.index')],
+                ['Top-up queue', format_number($stats['pending_top_ups'] ?? 0), 'bg-rose-500', route('admin.top-up-requests.index')],
             ];
         @endphp
 

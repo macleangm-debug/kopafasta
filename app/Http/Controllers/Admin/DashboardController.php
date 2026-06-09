@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Loan;
 use App\Models\LoanApplication;
+use App\Models\LoanTopUpRequest;
+use App\Models\RestructureRequest;
 use App\Services\CapitalPartnerMetricsService;
 use App\Services\LoanApplicationDraftService;
 
@@ -29,6 +31,8 @@ class DashboardController extends Controller
             'company_share'          => $capital['interest_earned_company'],
             'partner_share'          => $capital['interest_earned_partner'],
             'outstanding_exposure'   => $capital['outstanding_exposure'],
+            'pending_restructures'   => RestructureRequest::where('status', 'pending')->count(),
+            'pending_top_ups'        => LoanTopUpRequest::where('status', 'pending')->count(),
         ];
 
         $recentApplications = LoanApplication::query()

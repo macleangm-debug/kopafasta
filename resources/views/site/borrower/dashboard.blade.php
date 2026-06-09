@@ -94,13 +94,26 @@
             </div>
         @else
             <ul class="divide-y divide-gray-100">
-                @foreach ($activeApplications as $app)
+                @foreach ($activeApplicationRows ?? [] as $row)
                     <li class="px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
-                        <div>
-                            <a href="{{ route('site.borrower.application', $app) }}" class="text-sm font-mono font-semibold text-gray-900 hover:text-amber-700">{{ $app->application_number }}</a>
-                            <p class="text-xs text-gray-500 mt-0.5">{{ $app->product->name ?? '—' }} · {{ format_money($app->requested_amount) }}</p>
+                        <div class="min-w-0">
+                            <a href="{{ $row['action_url'] }}" class="text-sm font-mono font-semibold text-gray-900 hover:text-amber-700">{{ $row['application_number'] }}</a>
+                            <p class="text-xs text-gray-500 mt-0.5">{{ $row['product_name'] }} · {{ format_money($row['requested_amount']) }}</p>
+                            <div class="flex flex-wrap gap-3 mt-2 text-xs">
+                                <span class="text-gray-500">{{ __('borrower.applications_list.profile') }}:
+                                    @if ($row['profile_complete'] ?? false)
+                                        <span class="font-semibold text-emerald-700">100%</span>
+                                    @else
+                                        <span class="font-semibold text-gray-800">{{ $row['profile_percent'] ?? 0 }}%</span>
+                                    @endif
+                                </span>
+                                <span class="text-gray-500">{{ __('borrower.applications_list.application') }}:
+                                    <span class="font-semibold text-gray-800">{{ $row['application_percent'] ?? 0 }}%</span>
+                                    <span class="text-gray-500">· {{ $row['application_status'] ?? $row['status_label'] }}</span>
+                                </span>
+                            </div>
                         </div>
-                        <span class="text-xs font-semibold rounded-full px-2.5 py-1 bg-amber-100 text-amber-700">{{ ucfirst(str_replace('_',' ', $app->status)) }}</span>
+                        <span class="text-xs font-semibold rounded-full px-2.5 py-1 bg-amber-100 text-amber-700 shrink-0">{{ $row['status_label'] }}</span>
                     </li>
                 @endforeach
             </ul>

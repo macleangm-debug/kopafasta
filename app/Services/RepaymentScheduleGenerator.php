@@ -22,6 +22,66 @@ use Illuminate\Support\Facades\DB;
  */
 class RepaymentScheduleGenerator
 {
+    public function regenerateRemaining(Loan $loan, string $method = 'reducing'): int
+    {
+        return DB::transaction(function () use ($loan, $method) {
+            $loan->loadMissing('product');
+
+            $principal = (float) $loan->outstanding_balance;
+            $tenureMonths = (int) ($loan->tenure_months ?? 0);
+            $monthlyRate = (float) ($loan->interest_rate ?? 0);
+            $cadence = $loan->product->repayment_cadence ?? 'weekly';
+
+            if ($principal <= 0 || $tenureMonths <= 0) {
+                return 0;
+            }
+
+            RepaymentSchedule::query()
+                ->where('loan_id', $loan->id)
+                ->whereNotIn('status', ['paid'])
+                ->delete();
+
+            $lastPaid = RepaymentSchedule::query()
+                ->where('loan_id', $loan->id)
+                ->where('status', 'paid')
+                ->orderByDesc('due_date')
+                ->first();
+
+            $start = $lastPaid?->due_date
+                ? Carbon::parse($lastPaid->due_date)->add($cadence === 'monthly' ? '1 month' : '1 week')
+                : ($loan->next_due_date ? Carbon::parse($loan->next_due_date) : Carbon::now());
+
+            $offset = (int) RepaymentSchedule::query()
+                ->where('loan_id', $loan->id)
+                ->max('installment_no');
+
+            $rows = $this->buildSchedule($principal, $monthlyRate, $tenureMonths, $cadence, $start, $method);
+
+            foreach ($rows as $index => $row) {
+                RepaymentSchedule::create([
+                    'loan_id'        => $loan->id,
+                    'installment_no' => $offset + $index + 1,
+                    'due_date'       => $row['due_date'],
+                    'principal_due'  => $row['principal_due'],
+                    'interest_due'   => $row['interest_due'],
+                    'total_due'      => $row['total_due'],
+                    'amount_paid'    => 0,
+                    'status'         => 'pending',
+                ]);
+            }
+
+            $first = $rows[0] ?? null;
+            $last = $rows[array_key_last($rows)] ?? null;
+            $loan->update([
+                'next_due_date' => $first ? $first['due_date'] : $loan->next_due_date,
+                'maturity_date' => $last ? $last['due_date'] : $loan->maturity_date,
+                'status'        => $loan->status === 'restructuring' ? 'active' : $loan->status,
+            ]);
+
+            return count($rows);
+        });
+    }
+
     public function generate(Loan $loan, bool $force = false, string $method = 'reducing'): int
     {
         return DB::transaction(function () use ($loan, $force, $method) {
