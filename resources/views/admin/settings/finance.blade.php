@@ -19,13 +19,16 @@
                 return [$name, $label, $val, $hint];
             };
             $fields = [
-                ['cash_gl_account_id',             'Cash / Bank account',          'Credited for net amount paid out on disbursement.'],
-                ['loan_receivable_gl_account_id',  'Loan receivable account',      'Debited for the full approved loan principal.'],
-                ['fee_income_gl_account_id',       'Default fee income account',   'Used as fallback when a charge has no GL account set.'],
-                ['interest_income_gl_account_id',  'Interest income account',      'Credited when interest accrues / is collected.'],
-                ['penalty_income_gl_account_id',   'Penalty income account',       'Credited when late-payment penalties are charged.'],
-                ['bad_debt_expense_gl_account_id', 'Bad debt expense account',     'Debited when a loan is written off.'],
-                ['default_expense_gl_account_id',  'Default expense account',      'Used when an expense has no GL account set.'],
+                ['cash_gl_account_id',                      'Cash / Bank account',              'Credited for net amount paid out on disbursement.'],
+                ['customer_gl_account_id',                  'Customer account',                 'Debited when borrower payments are collected.'],
+                ['loan_receivable_gl_account_id',           'Loan receivable account',          'Credited on loan repayments; debited for principal.'],
+                ['registration_fee_income_gl_account_id',   'Registration fee income',          'Credited when registration fees are verified.'],
+                ['application_fee_income_gl_account_id',    'Application fee income',           'Credited when application fees are verified.'],
+                ['fee_income_gl_account_id',                'Default fee income account',       'Fallback when a specific fee income account is not set.'],
+                ['interest_income_gl_account_id',           'Interest income account',          'Credited when interest accrues / is collected.'],
+                ['penalty_income_gl_account_id',            'Penalty income account',           'Credited when late-payment penalties are charged.'],
+                ['bad_debt_expense_gl_account_id',          'Bad debt expense account',         'Debited when a loan is written off.'],
+                ['default_expense_gl_account_id',           'Default expense account',          'Used when an expense has no GL account set.'],
             ];
         @endphp
 

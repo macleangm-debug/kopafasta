@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\CustomerPayment;
 use App\Models\MembershipHistory;
 use App\Models\Setting;
 use Carbon\CarbonImmutable;
@@ -213,11 +214,7 @@ $this->notify($customer, 'membership_issued');
 
     public function generatePaymentReference(Customer $customer): string
     {
-        do {
-            $ref = 'KPF-'.strtoupper(Str::random(10));
-        } while (MembershipHistory::where('payment_reference', $ref)->exists());
-
-        return $ref;
+        return app(CustomerPaymentService::class)->generateReference();
     }
 
     /**
@@ -234,7 +231,7 @@ $this->notify($customer, 'membership_issued');
         $isFirstTime = ! $customer->hasMembership();
         $baseFee = $isFirstTime ? $cfg['registration_fee'] : $cfg['renewal_fee'];
 
-        MembershipHistory::create([
+        $history = MembershipHistory::create([
             'customer_id'              => $customer->id,
             'event'                    => 'payment_pending',
             'fee_amount'               => $paymentBreakdown['after_discount'] ?? $baseFee,
@@ -245,6 +242,16 @@ $this->notify($customer, 'membership_issued');
             'channel'                  => $channel,
             'actor_user_id'            => $actorUserId,
             'notes'                    => $isFirstTime ? 'Registration fee awaiting verification' : 'Renewal fee awaiting verification',
+        ]);
+
+        app(CustomerPaymentService::class)->create([
+            'customer'       => $customer,
+            'payment_type'   => 'registration_fee',
+            'payment_method' => 'bank_transfer',
+            'amount'         => $paymentBreakdown['after_discount'] ?? $baseFee,
+            'reference'      => $paymentReference,
+            'source'         => $history,
+            'auto_verify'    => false,
         ]);
     }
 
@@ -302,6 +309,16 @@ $this->notify($customer, 'membership_issued');
                 'notes'         => $notes,
             ]);
 
+            $customerPayment = CustomerPayment::query()
+                ->where('source_type', MembershipHistory::class)
+                ->where('source_id', $pending->id)
+                ->pending()
+                ->first();
+
+            if ($customerPayment) {
+                app(CustomerPaymentService::class)->verify($customerPayment, $actorUserId, $adminNotes);
+            }
+
             if ($isRegistration) {
                 return $this->issue($customer, null, $ref, $actorUserId, $fee, $channel, $paymentBreakdown);
             }
@@ -329,6 +346,16 @@ $this->notify($customer, 'membership_issued');
             'actor_user_id' => $actorUserId,
             'notes'         => $notes,
         ]);
+
+        $customerPayment = CustomerPayment::query()
+            ->where('source_type', MembershipHistory::class)
+            ->where('source_id', $pending->id)
+            ->pending()
+            ->first();
+
+        if ($customerPayment) {
+            app(CustomerPaymentService::class)->reject($customerPayment, $actorUserId, $adminNotes);
+        }
     }
 
     /**

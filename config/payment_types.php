@@ -1,0 +1,50 @@
+<?php
+
+return [
+    'types' => [
+        'registration_fee' => [
+            'label'       => 'Registration Fee',
+            'credit_gl'   => 'registration_fee_income_gl_account_id',
+            'fallback_gl' => 'fee_income_gl_account_id',
+        ],
+        'application_fee' => [
+            'label'       => 'Application Fee',
+            'credit_gl'   => 'application_fee_income_gl_account_id',
+            'fallback_gl' => 'fee_income_gl_account_id',
+        ],
+        'loan_repayment' => [
+            'label'       => 'Loan Repayment',
+            'credit_gl'   => 'loan_receivable_gl_account_id',
+            'fallback_gl' => 'loan_receivable_gl_account_id',
+        ],
+        'penalty_payment' => [
+            'label'       => 'Penalty Payment',
+            'credit_gl'   => 'penalty_income_gl_account_id',
+            'fallback_gl' => 'penalty_income_gl_account_id',
+        ],
+    ],
+
+    'methods' => [
+        'bank_transfer' => [
+            'label'     => 'Bank Transfer',
+            'short'     => 'Bank',
+            'channel'   => 'bank',
+        ],
+        'mobile_money' => [
+            'label'     => 'Mobile Money',
+            'short'     => 'M-Pesa',
+            'channel'   => 'mobile_money',
+        ],
+    ],
+
+    'statuses' => [
+        'pending_verification'    => 'Pending Verification',
+        'clarification_requested' => 'Clarification Requested',
+        'verified'                  => 'Verified',
+        'rejected'                  => 'Rejected',
+        'paid'                      => 'Paid',
+    ],
+
+    'debit_gl' => 'customer_gl_account_id',
+    'debit_gl_fallback' => 'cash_gl_account_id',
+];

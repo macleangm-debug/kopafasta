@@ -155,6 +155,16 @@ class MembershipController extends Controller
         }
 
         if ($data['channel'] === 'mobile_money') {
+            app(\App\Services\CustomerPaymentService::class)->create([
+                'customer'       => $customer,
+                'payment_type'   => 'registration_fee',
+                'payment_method' => 'mobile_money',
+                'amount'         => $paymentBreakdown['after_discount'] ?? $baseFee,
+                'reference'      => $paymentReference,
+                'mobile_number'  => $data['payment_phone'] ?? null,
+                'auto_verify'    => payment_gateway_is_dummy(),
+            ]);
+
             if ($isFirstTime) {
                 $service->issue($customer, null, $paymentReference, $request->user()?->id, null, 'mobile_money', $paymentBreakdown);
                 $message = 'Registration fee received. Your membership is now active!';

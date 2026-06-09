@@ -29,6 +29,8 @@ use App\Http\Controllers\Admin\LoanApplicationDocumentRequestController;
 use App\Http\Controllers\Admin\LoanController;
 use App\Http\Controllers\Admin\LoanProductController;
 use App\Http\Controllers\Admin\MembershipPaymentController;
+use App\Http\Controllers\Admin\PaymentAccountSettingsController;
+use App\Http\Controllers\Admin\PaymentVerificationController;
 use App\Http\Controllers\Admin\MobileMoneyAccountController;
 use App\Http\Controllers\Admin\NotificationTemplateController;
 use App\Http\Controllers\Admin\PepFlagController;
@@ -144,8 +146,11 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/agreements/{agreement}/download',                     [\App\Http\Controllers\Site\LoanAgreementController::class, 'download']) ->name('borrower.agreement.download');
             Route::get('/borrower/loans',                          [\App\Http\Controllers\Site\BorrowerController::class, 'loans'])        ->name('borrower.loans');
             Route::get('/borrower/schedule/{loan?}',               [\App\Http\Controllers\Site\BorrowerController::class, 'schedule'])     ->name('borrower.schedule');
-            Route::get('/borrower/payments',                       [\App\Http\Controllers\Site\BorrowerController::class, 'payments'])     ->name('borrower.payments');
-            Route::post('/borrower/payments',                      [\App\Http\Controllers\Site\BorrowerController::class, 'submitPayment'])->name('borrower.payments.store');
+            Route::get('/borrower/payments',                       [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'index'])       ->name('borrower.payments');
+            Route::get('/borrower/payments/new',                   [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'create'])      ->name('borrower.payments.create');
+            Route::post('/borrower/payments',                      [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'store'])       ->name('borrower.payments.store');
+            Route::get('/borrower/payments/{payment}',             [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'show'])        ->name('borrower.payments.show');
+            Route::post('/borrower/payments/{payment}/proof',      [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'uploadProof']) ->name('borrower.payments.proof');
             Route::get('/borrower/documents',                      [\App\Http\Controllers\Site\BorrowerController::class, 'documents'])    ->name('borrower.documents');
             Route::post('/borrower/documents',                     [\App\Http\Controllers\Site\BorrowerController::class, 'uploadDocument'])->name('borrower.documents.store');
             Route::get('/borrower/kyc',                            [\App\Http\Controllers\Site\BorrowerController::class, 'kyc'])          ->name('borrower.kyc');
@@ -398,6 +403,16 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         $registerResource('support-tickets', 'support_ticket', SupportTicketController::class);
         $registerResource('complaints',      'complaint',      ComplaintController::class);
 
+        // Payment verification queue
+        Route::middleware('permission:finance.operations')->group(function (): void {
+            Route::get('payments', [PaymentVerificationController::class, 'index'])->name('payments.index');
+            Route::get('payments/{payment}', [PaymentVerificationController::class, 'show'])->name('payments.show');
+            Route::post('payments/{payment}/verify', [PaymentVerificationController::class, 'verify'])->name('payments.verify');
+            Route::post('payments/{payment}/reject', [PaymentVerificationController::class, 'reject'])->name('payments.reject');
+            Route::post('payments/{payment}/clarify', [PaymentVerificationController::class, 'requestClarification'])->name('payments.clarify');
+            Route::get('payments/{payment}/proof', [PaymentVerificationController::class, 'proof'])->name('payments.proof');
+        });
+
         // Membership bank payments
         Route::get('membership-payments', [MembershipPaymentController::class, 'index'])->name('membership-payments.index');
         Route::post('membership-payments/{membershipHistory}/approve', [MembershipPaymentController::class, 'approve'])->name('membership-payments.approve');
@@ -477,6 +492,10 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/aml',              [SettingsController::class, 'saveAmlSettings'])->name('settings.aml.save');
         Route::get('settings/finance',          [SettingsController::class, 'finance'])       ->name('settings.finance');
         Route::put('settings/finance',          [SettingsController::class, 'saveFinance'])   ->name('settings.finance.save');
+        Route::get('settings/payment-accounts',   [PaymentAccountSettingsController::class, 'index'])         ->name('settings.payment-accounts');
+        Route::put('settings/payment-accounts',   [PaymentAccountSettingsController::class, 'saveDefaults'])  ->name('settings.payment-accounts.save');
+        Route::post('settings/payment-accounts/overrides', [PaymentAccountSettingsController::class, 'saveOverride'])->name('settings.payment-accounts.overrides.save');
+        Route::delete('settings/payment-accounts/overrides/{override}', [PaymentAccountSettingsController::class, 'deleteOverride'])->name('settings.payment-accounts.overrides.destroy');
 
         $registerResource('departments',           'department',            DepartmentController::class);
         $registerResource('roles',                 'role',                  RoleController::class);

@@ -172,15 +172,13 @@ class ApplyController extends Controller
         $feeQuote = $selectedProduct
             ? app(ApplicationFeePaymentService::class)->quote($customer, $selectedProduct)
             : null;
-        $bankAccounts = config('site.membership_bank_accounts', [
-            ['bank' => 'CRDB Bank', 'account_name' => 'Kopafasta Microfinance Ltd', 'account_number' => '0150-XXXXX-00', 'branch' => 'Dar es Salaam'],
-        ]);
         $referralService = app(ReferralService::class);
         $referralWallet = $referralService->wallet($customer);
         $referralSettings = $referralService->settings();
         $applicationFeePaymentRef = $request->session()->get('application_fee_payment_ref')
             ?? app(ApplicationFeePaymentService::class)->generatePaymentReference();
         $request->session()->put('application_fee_payment_ref', $applicationFeePaymentRef);
+        $bankAccounts = $this->paymentBankAccountsForProduct($selectedProduct, $applicationFeePaymentRef);
 
         return view('site.apply.wizard', compact(
             'products',
@@ -937,5 +935,28 @@ class ApplyController extends Controller
             'guarantorSmsUrl',
             'guarantorEmailUrl',
         ));
+    }
+
+    /** @return list<array{bank: string, account_name: string, account_number: string, reference: string}> */
+    private function paymentBankAccountsForProduct(?LoanProduct $product, ?string $reference): array
+    {
+        $accounts = app(\App\Services\PaymentAccountService::class);
+        $resolved = $accounts->resolve('application_fee', 'bank_transfer', $product);
+        $ref = $reference ?? app(\App\Services\CustomerPaymentService::class)->generateReference();
+
+        if ($resolved['bank_account']) {
+            $details = $accounts->bankTransferDetails($resolved['bank_account'], $ref);
+
+            return [[
+                'bank'           => $details['bank_name'],
+                'account_name'   => $details['account_name'],
+                'account_number' => $details['account_number'],
+                'reference'      => $details['reference'],
+            ]];
+        }
+
+        return config('site.membership_bank_accounts', [
+            ['bank' => 'CRDB Bank', 'account_name' => 'Kopafasta Microfinance Ltd', 'account_number' => '0150-XXXXX-00', 'branch' => 'Dar es Salaam', 'reference' => $ref],
+        ]);
     }
 }

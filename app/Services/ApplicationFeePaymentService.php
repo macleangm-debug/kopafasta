@@ -3,9 +3,9 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\CustomerPayment;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
-use Illuminate\Support\Str;
 
 class ApplicationFeePaymentService
 {
@@ -16,13 +16,7 @@ class ApplicationFeePaymentService
 
     public function generatePaymentReference(): string
     {
-        do {
-            $ref = 'APP-'.strtoupper(Str::random(10));
-        } while (
-            LoanApplication::where('application_fee_reference', $ref)->exists()
-        );
-
-        return $ref;
+        return app(CustomerPaymentService::class)->generateReference();
     }
 
     /** @return array<string, mixed> */
@@ -109,9 +103,19 @@ class ApplicationFeePaymentService
             );
         }
 
+        $payment = app(CustomerPaymentService::class)->create([
+            'customer'       => $customer,
+            'payment_type'   => 'application_fee',
+            'payment_method' => 'mobile_money',
+            'amount'         => $amount,
+            'loan_product'   => $product,
+            'reference'      => $paymentReference,
+            'auto_verify'    => true,
+        ]);
+
         return [
             'status'    => 'paid',
-            'reference' => $paymentReference,
+            'reference' => $payment->reference,
             'channel'   => $this->usesDummyGateway() ? 'dummy_mobile_money' : 'mobile_money',
             'amount'    => $amount,
             'paid_at'   => now()->toIso8601String(),
@@ -134,22 +138,24 @@ class ApplicationFeePaymentService
             ];
         }
 
-        if ($this->usesDummyGateway()) {
-            return [
-                'status'    => 'paid',
-                'reference' => $paymentReference,
-                'channel'   => 'dummy_bank',
-                'amount'    => $amount,
-                'paid_at'   => now()->toIso8601String(),
-            ];
-        }
+        $autoVerify = $this->usesDummyGateway();
+
+        $payment = app(CustomerPaymentService::class)->create([
+            'customer'       => $customer,
+            'payment_type'   => 'application_fee',
+            'payment_method' => 'bank_transfer',
+            'amount'         => $amount,
+            'loan_product'   => $product,
+            'reference'      => $paymentReference,
+            'auto_verify'    => $autoVerify,
+        ]);
 
         return [
-            'status'    => 'pending',
-            'reference' => $paymentReference,
-            'channel'   => 'bank',
+            'status'    => $autoVerify ? 'paid' : 'pending',
+            'reference' => $payment->reference,
+            'channel'   => $autoVerify ? 'dummy_bank' : 'bank',
             'amount'    => $amount,
-            'paid_at'   => null,
+            'paid_at'   => $autoVerify ? now()->toIso8601String() : null,
         ];
     }
 

@@ -229,13 +229,16 @@ class SettingsController extends Controller
     public function saveFinance(Request $request)
     {
         $data = $request->validate([
-            'cash_gl_account_id'             => ['nullable', 'exists:chart_of_accounts,id'],
-            'loan_receivable_gl_account_id'  => ['nullable', 'exists:chart_of_accounts,id'],
-            'fee_income_gl_account_id'       => ['nullable', 'exists:chart_of_accounts,id'],
-            'interest_income_gl_account_id'  => ['nullable', 'exists:chart_of_accounts,id'],
-            'penalty_income_gl_account_id'   => ['nullable', 'exists:chart_of_accounts,id'],
-            'bad_debt_expense_gl_account_id' => ['nullable', 'exists:chart_of_accounts,id'],
-            'default_expense_gl_account_id'  => ['nullable', 'exists:chart_of_accounts,id'],
+            'cash_gl_account_id'                      => ['nullable', 'exists:chart_of_accounts,id'],
+            'customer_gl_account_id'                  => ['nullable', 'exists:chart_of_accounts,id'],
+            'loan_receivable_gl_account_id'           => ['nullable', 'exists:chart_of_accounts,id'],
+            'fee_income_gl_account_id'                => ['nullable', 'exists:chart_of_accounts,id'],
+            'registration_fee_income_gl_account_id'   => ['nullable', 'exists:chart_of_accounts,id'],
+            'application_fee_income_gl_account_id'    => ['nullable', 'exists:chart_of_accounts,id'],
+            'interest_income_gl_account_id'           => ['nullable', 'exists:chart_of_accounts,id'],
+            'penalty_income_gl_account_id'            => ['nullable', 'exists:chart_of_accounts,id'],
+            'bad_debt_expense_gl_account_id'          => ['nullable', 'exists:chart_of_accounts,id'],
+            'default_expense_gl_account_id'           => ['nullable', 'exists:chart_of_accounts,id'],
         ]);
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["finance.$k" => $v])->all());
         return back()->with('status', 'Finance defaults saved.');
