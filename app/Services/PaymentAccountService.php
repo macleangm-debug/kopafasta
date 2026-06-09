@@ -7,6 +7,7 @@ use App\Models\LoanProduct;
 use App\Models\LoanProductPaymentAccountOverride;
 use App\Models\MobileMoneyAccount;
 use App\Models\PaymentAccountMapping;
+use App\Models\Setting;
 
 class PaymentAccountService
 {
@@ -21,9 +22,12 @@ class PaymentAccountService
                 ->first();
 
             if ($override) {
+                $mobileAccount = $override->mobileMoneyAccount
+                    ?? ($paymentMethod === 'mobile_money' ? $this->defaultCollectionAccount() : null);
+
                 return [
                     'bank_account'         => $override->bankAccount,
-                    'mobile_money_account' => $override->mobileMoneyAccount,
+                    'mobile_money_account' => $mobileAccount,
                     'instructions'         => $override->payment_instructions,
                 ];
             }
@@ -36,18 +40,42 @@ class PaymentAccountService
             ->first();
 
         if ($mapping) {
+            $account = $mapping->mobileMoneyAccount ?? $this->defaultCollectionAccount();
+
             return [
                 'bank_account'         => $mapping->bankAccount,
-                'mobile_money_account' => $mapping->mobileMoneyAccount,
+                'mobile_money_account' => $paymentMethod === 'mobile_money' ? $account : $mapping->mobileMoneyAccount,
                 'instructions'         => $mapping->payment_instructions,
             ];
         }
 
+        $defaultMobile = $paymentMethod === 'mobile_money' ? $this->defaultCollectionAccount() : null;
+
         return [
             'bank_account'         => null,
-            'mobile_money_account' => null,
+            'mobile_money_account' => $defaultMobile,
             'instructions'         => null,
         ];
+    }
+
+    public function defaultCollectionAccount(): ?MobileMoneyAccount
+    {
+        $id = (int) (Setting::get('payments.default_collection_mobile_money_account_id') ?? 0);
+        if ($id <= 0) {
+            return null;
+        }
+
+        return MobileMoneyAccount::query()
+            ->whereKey($id)
+            ->where('is_active', true)
+            ->first();
+    }
+
+    public function applyDefaultCollectionToAllMappings(int $accountId): int
+    {
+        return PaymentAccountMapping::query()
+            ->where('payment_method', 'mobile_money')
+            ->update(['mobile_money_account_id' => $accountId]);
     }
 
     /** @return array<string, string> */
@@ -106,23 +134,35 @@ class PaymentAccountService
         ]];
     }
 
-    /** @return array{number: ?string, provider: ?string, instructions: ?string} */
-    public function mobileMoneyDetails(?MobileMoneyAccount $account): array
+    /** @return array{number: ?string, provider: ?string, label: ?string, account_type: ?string, instructions: ?string} */
+    public function mobileMoneyDetails(?MobileMoneyAccount $account, ?string $reference = null): array
     {
         if (! $account) {
             return [
                 'number'       => null,
                 'provider'     => null,
+                'label'        => null,
+                'account_type' => null,
                 'instructions' => 'Enter your mobile number with country code (e.g. 255712345678).',
             ];
         }
 
         $number = $account->paybill_number ?: $account->till_number ?: $account->msisdn;
+        $accountType = $account->paybill_number ? 'paybill' : ($account->till_number ? 'till' : 'msisdn');
+        $instructions = "Pay to {$account->name}".($number ? " ({$number})" : '');
+
+        if ($reference) {
+            $instructions .= $accountType === 'paybill'
+                ? " Enter {$reference} as the account number."
+                : " Use reference {$reference}.";
+        }
 
         return [
             'number'       => $number,
             'provider'     => $account->provider,
-            'instructions' => "Pay to {$account->name}".($number ? " ({$number})" : ''),
+            'label'        => $account->name,
+            'account_type' => $accountType,
+            'instructions' => $instructions,
         ];
     }
 

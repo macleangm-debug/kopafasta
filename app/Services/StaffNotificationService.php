@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Setting;
 use App\Models\User;
+use Illuminate\Support\Str;
 
 class StaffNotificationService
 {
@@ -10,21 +12,24 @@ class StaffNotificationService
     {
         $url = url($adminPath);
         $message = trim($body."\n\nReview: ".$url);
+        $smsBody = Str::limit($body.' Review: '.$url, 160, '…');
+        $smsEnabled = (bool) Setting::get('gateway.staff_sms_alerts', true);
 
-        User::query()
+        $staff = User::query()
             ->where('is_active', true)
             ->whereIn('role', ['officer', 'manager', 'admin', 'super_admin'])
-            ->whereNotNull('email')
-            ->pluck('email')
-            ->unique()
-            ->each(function (string $email) use ($subject, $message, $type): void {
-                app(NotificationService::class)->sendEmail(
-                    $email,
-                    $subject,
-                    $message,
-                    null,
-                    'staff_'.$type,
-                );
+            ->get(['email', 'phone']);
+
+        $notify = app(NotificationService::class);
+
+        $staff->pluck('email')->filter()->unique()->each(function (string $email) use ($notify, $subject, $message, $type): void {
+            $notify->sendEmail($email, $subject, $message, null, 'staff_'.$type);
+        });
+
+        if ($smsEnabled) {
+            $staff->pluck('phone')->filter()->unique()->each(function (string $phone) use ($notify, $smsBody, $type): void {
+                $notify->sendSms($phone, $smsBody, null, 'staff_'.$type);
             });
+        }
     }
 }

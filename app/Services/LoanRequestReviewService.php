@@ -35,8 +35,12 @@ class LoanRequestReviewService
         $scheduler = app(RepaymentScheduleGenerator::class);
         if ($request->restructure_type === 'payment_holiday') {
             $holidayMonths = max(1, (int) ($request->new_tenure_months ?? 1));
-            $installments = $scheduler->applyPaymentHoliday($loan, $holidayMonths);
-            $borrowerMessage = 'Your payment holiday of '.$holidayMonths.' month(s) has been approved. '.$installments.' instalment(s) rescheduled.';
+            $accrueInterest = (bool) (app(LoanPolicyService::class)->settings()['payment_holiday_accrue_interest'] ?? true);
+            $result = $scheduler->applyPaymentHoliday($loan, $holidayMonths, $accrueInterest);
+            $borrowerMessage = 'Your payment holiday of '.$holidayMonths.' month(s) has been approved. '.$result['shifted'].' instalment(s) rescheduled.';
+            if ($result['interest_accrued'] > 0) {
+                $borrowerMessage .= ' Interest accrued during the holiday: '.format_money($result['interest_accrued']).'.';
+            }
         } else {
             $installments = $scheduler->regenerateRemaining($loan);
             $borrowerMessage = 'Your loan restructure request has been approved. '.$installments.' new instalment(s) scheduled.';

@@ -363,11 +363,15 @@ class BorrowerController extends Controller
         $policy = app(\App\Services\LoanPolicyService::class);
         $blocked = $policy->canSubmitRestructureRequest($loan);
 
+        $loanSettings = $policy->settings();
+
         return view('site.borrower.loan-restructure', [
-            'customer' => $customer,
-            'loan'     => $loan->loadMissing('product'),
-            'blocked'  => $blocked,
-            'types'    => [
+            'customer'              => $customer,
+            'loan'                  => $loan->loadMissing('product'),
+            'blocked'               => $blocked,
+            'holidayMaxMonths'      => $loanSettings['payment_holiday_max_months'],
+            'holidayAccrueInterest' => $loanSettings['payment_holiday_accrue_interest'],
+            'types'                 => [
                 'extend_term'         => __('borrower.loan_actions.restructure_types.extend_term'),
                 'reduce_installment'  => __('borrower.loan_actions.restructure_types.reduce_installment'),
                 'payment_holiday'     => __('borrower.loan_actions.restructure_types.payment_holiday'),
@@ -392,8 +396,15 @@ class BorrowerController extends Controller
             'new_tenure_months' => ['nullable', 'integer', 'min:1', 'max:120'],
         ]);
 
-        if ($data['restructure_type'] === 'payment_holiday' && empty($data['new_tenure_months'])) {
-            return back()->withErrors(['new_tenure_months' => __('borrower.loan_actions.holiday_months_required')]);
+        if ($data['restructure_type'] === 'payment_holiday') {
+            if (empty($data['new_tenure_months'])) {
+                return back()->withErrors(['new_tenure_months' => __('borrower.loan_actions.holiday_months_required')]);
+            }
+
+            $maxMonths = $policy->settings()['payment_holiday_max_months'];
+            if ((int) $data['new_tenure_months'] > $maxMonths) {
+                return back()->withErrors(['new_tenure_months' => __('borrower.loan_actions.holiday_months_max', ['max' => $maxMonths])]);
+            }
         }
 
         $record = RestructureRequest::create([

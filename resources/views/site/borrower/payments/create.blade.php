@@ -84,6 +84,7 @@
                         <div class="mt-3 rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-xs text-sky-900">
                             <p class="font-semibold">Pay to: {{ $mobileDetails['provider'] ?? 'Mobile Money' }}</p>
                             <p class="font-mono mt-1">{{ $mobileDetails['number'] }}</p>
+                            <p class="mt-2 text-sky-800">A unique reference (PAY-XXXXXX) will be generated when you submit. Use it as the account number on paybill payments.</p>
                         </div>
                     @endif
                 </div>

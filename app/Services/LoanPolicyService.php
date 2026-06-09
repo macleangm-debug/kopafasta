@@ -29,6 +29,8 @@ class LoanPolicyService
             'allow_restructure'                     => (bool) ($loan['allow_restructure'] ?? true),
             'max_restructures'                      => (int) ($loan['max_restructures'] ?? 2),
             'restructure_cooldown_days'             => (int) ($loan['restructure_cooldown_days'] ?? 30),
+            'payment_holiday_accrue_interest'       => (bool) ($loan['payment_holiday_accrue_interest'] ?? true),
+            'payment_holiday_max_months'            => (int) ($loan['payment_holiday_max_months'] ?? 3),
             'guarantor_required_above'              => (float) ($loan['guarantor_required_above'] ?? 0),
             'collateral_required_above'             => (float) ($loan['collateral_required_above'] ?? 0),
             'min_guarantors'                        => (int) ($loan['min_guarantors'] ?? 1),

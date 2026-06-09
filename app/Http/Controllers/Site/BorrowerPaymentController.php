@@ -128,12 +128,19 @@ class BorrowerPaymentController extends Controller
 
         $payment->load(['bankAccount', 'mobileMoneyAccount', 'loan']);
 
+        $accounts = app(PaymentAccountService::class);
         $bankDetails = null;
+        $mobileDetails = null;
+
         if ($payment->payment_method === 'bank_transfer' && $payment->bankAccount) {
-            $bankDetails = app(PaymentAccountService::class)->bankTransferDetails($payment->bankAccount, $payment->reference);
+            $bankDetails = $accounts->bankTransferDetails($payment->bankAccount, $payment->reference);
         }
 
-        return view('site.borrower.payments.show', compact('payment', 'bankDetails'));
+        if ($payment->payment_method === 'mobile_money' && $payment->mobileMoneyAccount) {
+            $mobileDetails = $accounts->mobileMoneyDetails($payment->mobileMoneyAccount, $payment->reference);
+        }
+
+        return view('site.borrower.payments.show', compact('payment', 'bankDetails', 'mobileDetails'));
     }
 
     public function uploadProof(Request $request, CustomerPayment $payment, CustomerPaymentService $service): RedirectResponse

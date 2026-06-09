@@ -73,12 +73,21 @@
                 </div>
             </div>
 
-            <div x-show="channel === 'mobile_money'" x-transition>
-                <label class="block text-xs uppercase tracking-wider text-gray-500 mb-1">Mobile money number</label>
-                <input type="tel" name="payment_phone" x-model="phone" required
-                       class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500 text-sm"
-                       placeholder="+255 7XX XXX XXX">
-                <p class="mt-2 text-xs text-gray-500">You will receive a USSD push. Confirm on your phone — membership activates instantly.</p>
+            <div x-show="channel === 'mobile_money'" x-transition class="space-y-3">
+                @if (! empty($mobileDetails['number']))
+                    <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-xs text-sky-900">
+                        <p class="font-semibold">Pay to: {{ $mobileDetails['provider'] ?? 'Mobile Money' }}</p>
+                        <p class="font-mono mt-1">{{ $mobileDetails['number'] }}</p>
+                        <p class="mt-2 text-sky-800">{{ $mobileDetails['instructions'] }}</p>
+                    </div>
+                @endif
+                <div>
+                    <label class="block text-xs uppercase tracking-wider text-gray-500 mb-1">Mobile money number</label>
+                    <input type="tel" name="payment_phone" x-model="phone" required
+                           class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500 text-sm"
+                           placeholder="+255 7XX XXX XXX">
+                    <p class="mt-2 text-xs text-gray-500">You will receive a USSD push. Confirm on your phone — membership activates instantly.</p>
+                </div>
             </div>
 
             <div x-show="channel === 'bank'" x-cloak x-transition class="rounded-xl bg-sky-50 border border-sky-200 p-4 text-sm">

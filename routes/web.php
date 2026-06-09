@@ -515,6 +515,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/finance',          [SettingsController::class, 'saveFinance'])   ->name('settings.finance.save');
         Route::get('settings/payment-accounts',   [PaymentAccountSettingsController::class, 'index'])         ->name('settings.payment-accounts');
         Route::put('settings/payment-accounts',   [PaymentAccountSettingsController::class, 'saveDefaults'])  ->name('settings.payment-accounts.save');
+        Route::put('settings/payment-accounts/default-collection', [PaymentAccountSettingsController::class, 'saveDefaultCollection'])->name('settings.payment-accounts.default-collection');
         Route::post('settings/payment-accounts/overrides', [PaymentAccountSettingsController::class, 'saveOverride'])->name('settings.payment-accounts.overrides.save');
         Route::delete('settings/payment-accounts/overrides/{override}', [PaymentAccountSettingsController::class, 'deleteOverride'])->name('settings.payment-accounts.overrides.destroy');
 

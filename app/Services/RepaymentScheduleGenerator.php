@@ -22,15 +22,30 @@ use Illuminate\Support\Facades\DB;
  */
 class RepaymentScheduleGenerator
 {
-    public function applyPaymentHoliday(Loan $loan, int $holidayMonths): int
+    /**
+     * @return array{shifted: int, interest_accrued: float}
+     */
+    public function applyPaymentHoliday(Loan $loan, int $holidayMonths, bool $accrueInterest = true): array
     {
         if ($holidayMonths <= 0) {
-            return 0;
+            return ['shifted' => 0, 'interest_accrued' => 0.0];
         }
 
-        return DB::transaction(function () use ($loan, $holidayMonths) {
+        return DB::transaction(function () use ($loan, $holidayMonths, $accrueInterest) {
             $loan->loadMissing('product');
             $cadence = $loan->product->repayment_cadence ?? 'weekly';
+
+            $interestAccrued = 0.0;
+            $balance = (float) $loan->outstanding_balance;
+            $monthlyRate = (float) ($loan->interest_rate ?? 0);
+
+            if ($accrueInterest && $monthlyRate > 0 && $balance > 0) {
+                for ($m = 0; $m < $holidayMonths; $m++) {
+                    $monthInterest = round($balance * $monthlyRate, 2);
+                    $interestAccrued += $monthInterest;
+                    $balance = round($balance + $monthInterest, 2);
+                }
+            }
 
             $schedules = RepaymentSchedule::query()
                 ->where('loan_id', $loan->id)
@@ -47,15 +62,27 @@ class RepaymentScheduleGenerator
                 $schedule->update(['due_date' => $shifted->toDateString()]);
             }
 
+            if ($interestAccrued > 0 && $schedules->isNotEmpty()) {
+                $first = $schedules->first();
+                $first->update([
+                    'interest_due' => round((float) $first->interest_due + $interestAccrued, 2),
+                    'total_due'    => round((float) $first->total_due + $interestAccrued, 2),
+                ]);
+            }
+
             $first = $schedules->first();
             $last = $schedules->last();
             $loan->update([
-                'next_due_date' => $first?->due_date ?? $loan->next_due_date,
-                'maturity_date' => $last?->due_date ?? $loan->maturity_date,
-                'status'        => 'active',
+                'outstanding_balance' => $balance,
+                'next_due_date'       => $first?->due_date ?? $loan->next_due_date,
+                'maturity_date'       => $last?->due_date ?? $loan->maturity_date,
+                'status'              => 'active',
             ]);
 
-            return $schedules->count();
+            return [
+                'shifted'          => $schedules->count(),
+                'interest_accrued' => $interestAccrued,
+            ];
         });
     }
 

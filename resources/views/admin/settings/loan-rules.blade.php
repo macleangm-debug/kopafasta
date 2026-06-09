@@ -59,6 +59,12 @@
                 </label>
                 <x-admin.input name="max_restructures"           label="Max restructures per loan" type="number" :value="$values['max_restructures'] ?? '2'" required />
                 <x-admin.input name="restructure_cooldown_days"  label="Cooldown (days)"            type="number" :value="$values['restructure_cooldown_days'] ?? '30'" required />
+                <x-admin.input name="payment_holiday_max_months"   label="Payment holiday max (months)" type="number" :value="$values['payment_holiday_max_months'] ?? '3'" required />
+                <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2 md:col-span-3">
+                    <input type="hidden" name="payment_holiday_accrue_interest" value="0">
+                    <input type="checkbox" name="payment_holiday_accrue_interest" value="1" @checked(! isset($values['payment_holiday_accrue_interest']) || ! empty($values['payment_holiday_accrue_interest'])) class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                    <span class="text-gray-800">Accrue interest during payment holidays (capitalized into outstanding balance)</span>
+                </label>
             </div>
         </div>
 

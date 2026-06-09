@@ -67,6 +67,7 @@ class SettingsController extends Controller
             'sms_api_key'   => ['nullable', 'string', 'max:255'],
             'sms_api_secret'=> ['nullable', 'string', 'max:255'],
             'sms_endpoint'  => ['nullable', 'url', 'max:255'],
+            'staff_sms_alerts' => ['nullable', 'boolean'],
 
             'email_provider' => ['nullable', 'string', 'max:50'],
             'email_from_address' => ['nullable', 'email', 'max:150'],
@@ -77,6 +78,8 @@ class SettingsController extends Controller
             'email_smtp_pass' => ['nullable', 'string', 'max:255'],
             'email_encryption'=> ['nullable', 'string', 'max:10'],
         ]);
+
+        $data['staff_sms_alerts'] = (bool) ($data['staff_sms_alerts'] ?? false);
 
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["gateway.$k" => $v])->all());
         return back()->with('status', 'Gateway settings saved.');
@@ -183,8 +186,12 @@ class SettingsController extends Controller
             'max_active_guarantees'                 => ['nullable', 'integer', 'min:1', 'max:20'],
             'allow_asset_reuse'                     => ['nullable', 'boolean'],
             'top_up_min_successful_repayments'      => ['nullable', 'integer', 'min:0', 'max:60'],
+            'payment_holiday_accrue_interest'       => ['nullable', 'boolean'],
+            'payment_holiday_max_months'            => ['nullable', 'integer', 'min:1', 'max:12'],
         ]);
         $data['allow_asset_reuse'] = (bool) ($data['allow_asset_reuse'] ?? false);
+        $data['payment_holiday_accrue_interest'] = (bool) ($data['payment_holiday_accrue_interest'] ?? false);
+        $data['payment_holiday_max_months'] = (int) ($data['payment_holiday_max_months'] ?? 3);
         $data['max_active_applications_per_product'] = (int) ($data['max_active_applications_per_product'] ?? 1);
         $data['max_active_guarantees'] = (int) ($data['max_active_guarantees'] ?? 5);
         $data['top_up_min_successful_repayments'] = (int) ($data['top_up_min_successful_repayments'] ?? 6);

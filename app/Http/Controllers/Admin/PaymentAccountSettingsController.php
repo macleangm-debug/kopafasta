@@ -8,6 +8,7 @@ use App\Models\LoanProduct;
 use App\Models\LoanProductPaymentAccountOverride;
 use App\Models\MobileMoneyAccount;
 use App\Models\PaymentAccountMapping;
+use App\Models\Setting;
 use App\Services\PaymentAccountService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,15 +20,44 @@ class PaymentAccountSettingsController extends Controller
     {
         $accounts->ensureDefaultMappings();
 
+        $defaultCollectionId = (int) (Setting::get('payments.default_collection_mobile_money_account_id') ?? 0);
+
         return view('admin.settings.payment-accounts', [
-            'mappings'      => PaymentAccountMapping::with(['bankAccount', 'mobileMoneyAccount'])->orderBy('payment_type')->orderBy('payment_method')->get(),
-            'bankAccounts'  => BankAccount::where('is_active', true)->orderBy('name')->get(),
-            'mobileAccounts'=> MobileMoneyAccount::where('is_active', true)->orderBy('name')->get(),
-            'types'         => config('payment_types.types', []),
-            'methods'       => config('payment_types.methods', []),
-            'products'      => LoanProduct::orderBy('name')->get(['id', 'name', 'code']),
-            'overrides'     => LoanProductPaymentAccountOverride::with(['loanProduct', 'bankAccount', 'mobileMoneyAccount'])->get(),
+            'mappings'              => PaymentAccountMapping::with(['bankAccount', 'mobileMoneyAccount'])->orderBy('payment_type')->orderBy('payment_method')->get(),
+            'bankAccounts'          => BankAccount::where('is_active', true)->orderBy('name')->get(),
+            'mobileAccounts'        => MobileMoneyAccount::where('is_active', true)->orderBy('name')->get(),
+            'defaultCollectionId'   => $defaultCollectionId,
+            'defaultCollection'   => $defaultCollectionId > 0
+                ? MobileMoneyAccount::find($defaultCollectionId)
+                : null,
+            'types'                 => config('payment_types.types', []),
+            'methods'               => config('payment_types.methods', []),
+            'products'              => LoanProduct::orderBy('name')->get(['id', 'name', 'code']),
+            'overrides'             => LoanProductPaymentAccountOverride::with(['loanProduct', 'bankAccount', 'mobileMoneyAccount'])->get(),
         ]);
+    }
+
+    public function saveDefaultCollection(Request $request, PaymentAccountService $accounts): RedirectResponse
+    {
+        $data = $request->validate([
+            'default_collection_mobile_money_account_id' => ['nullable', 'exists:mobile_money_accounts,id'],
+            'apply_to_all_mappings'                      => ['nullable', 'boolean'],
+        ]);
+
+        $accountId = (int) ($data['default_collection_mobile_money_account_id'] ?? 0);
+        Setting::set('payments.default_collection_mobile_money_account_id', $accountId > 0 ? $accountId : '');
+
+        $updated = 0;
+        if ($request->boolean('apply_to_all_mappings') && $accountId > 0) {
+            $updated = $accounts->applyDefaultCollectionToAllMappings($accountId);
+        }
+
+        $message = 'Default PSP collection account saved.';
+        if ($updated > 0) {
+            $message .= " Applied to {$updated} mobile money mapping(s).";
+        }
+
+        return back()->with('status', $message);
     }
 
     public function saveDefaults(Request $request, PaymentAccountService $accounts): RedirectResponse

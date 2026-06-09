@@ -13,6 +13,11 @@
                 <x-admin.input name="sms_api_key"    label="API key"    :value="$values['sms_api_key'] ?? ''" />
                 <x-admin.input name="sms_api_secret" label="API secret" :value="$values['sms_api_secret'] ?? ''" />
                 <div class="md:col-span-2"><x-admin.input name="sms_endpoint" label="Endpoint URL" :value="$values['sms_endpoint'] ?? ''" /></div>
+                <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2 md:col-span-2">
+                    <input type="hidden" name="staff_sms_alerts" value="0">
+                    <input type="checkbox" name="staff_sms_alerts" value="1" @checked(! isset($values['staff_sms_alerts']) || ! empty($values['staff_sms_alerts'])) class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                    <span class="text-gray-800">Send SMS alerts to staff on new restructure and top-up requests</span>
+                </label>
             </div>
         </div>
 

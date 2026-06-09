@@ -11,6 +11,52 @@
         <a href="{{ route('admin.settings.finance') }}" class="text-sm font-semibold text-amber-700 hover:text-amber-800">← Finance defaults</a>
     </div>
 
+    <form method="POST" action="{{ route('admin.settings.payment-accounts.default-collection') }}" class="bg-white rounded-xl ring-1 ring-gray-200 p-5 mb-8 space-y-4">
+        @csrf @method('PUT')
+
+        <div>
+            <h2 class="text-sm font-semibold text-gray-900">PSP collection account</h2>
+            <p class="text-xs text-gray-500 mt-1">
+                One paybill or till number for all mobile money collections. Used as fallback when a payment type mapping has no account, and can be applied to every mobile money row at once.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Default mobile money account</label>
+                <select name="default_collection_mobile_money_account_id" class="w-full rounded-lg border-gray-200 text-sm">
+                    <option value="">— Not set —</option>
+                    @foreach ($mobileAccounts as $account)
+                        <option value="{{ $account->id }}" @selected($defaultCollectionId === $account->id)>
+                            {{ $account->name }} · {{ $account->provider }}
+                            @if ($account->paybill_number) (Paybill {{ $account->paybill_number }})@elseif ($account->till_number) (Till {{ $account->till_number }})@endif
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2.5">
+                <input type="hidden" name="apply_to_all_mappings" value="0">
+                <input type="checkbox" name="apply_to_all_mappings" value="1" class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                <span class="text-gray-800">Apply to all mobile money mappings</span>
+            </label>
+        </div>
+
+        @if ($defaultCollection)
+            <p class="text-xs text-emerald-800 bg-emerald-50 ring-1 ring-emerald-100 rounded-lg px-3 py-2">
+                Active: <strong>{{ $defaultCollection->name }}</strong>
+                @if ($defaultCollection->paybill_number)
+                    · Paybill <span class="font-mono">{{ $defaultCollection->paybill_number }}</span>
+                @elseif ($defaultCollection->till_number)
+                    · Till <span class="font-mono">{{ $defaultCollection->till_number }}</span>
+                @endif
+            </p>
+        @endif
+
+        <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-4 py-2 rounded-lg">
+            Save PSP collection account
+        </button>
+    </form>
+
     <form method="POST" action="{{ route('admin.settings.payment-accounts.save') }}" class="bg-white rounded-xl ring-1 ring-gray-200 overflow-hidden mb-8">
         @csrf @method('PUT')
 

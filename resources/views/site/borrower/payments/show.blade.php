@@ -51,6 +51,16 @@
                     <p class="font-mono mt-0.5">{{ $payment->mobile_number }}</p>
                 </div>
             @endif
+            @if ($mobileDetails && $mobileDetails['number'])
+                <div class="sm:col-span-2 rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-4">
+                    <p class="text-xs uppercase tracking-widest text-sky-700 mb-2">Mobile money details</p>
+                    <dl class="grid sm:grid-cols-2 gap-2 text-xs">
+                        <div><dt class="text-sky-700">Provider</dt><dd class="font-medium">{{ $mobileDetails['provider'] }}</dd></div>
+                        <div><dt class="text-sky-700">Number</dt><dd class="font-mono font-medium">{{ $mobileDetails['number'] }}</dd></div>
+                        <div class="sm:col-span-2"><dt class="text-sky-700">Instructions</dt><dd class="font-medium">{{ $mobileDetails['instructions'] }}</dd></div>
+                    </dl>
+                </div>
+            @endif
             @if ($bankDetails)
                 <div class="sm:col-span-2 rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-4">
                     <p class="text-xs uppercase tracking-widest text-sky-700 mb-2">Bank details used</p>

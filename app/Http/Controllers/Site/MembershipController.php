@@ -66,8 +66,10 @@ class MembershipController extends Controller
         $referralWallet = $referrals->wallet($customer);
         $referralSettings = $referrals->settings();
 
-        $bankAccounts = app(PaymentAccountService::class)
-            ->bankAccountsForDisplay('registration_fee', $paymentReference);
+        $accounts = app(PaymentAccountService::class);
+        $bankAccounts = $accounts->bankAccountsForDisplay('registration_fee', $paymentReference);
+        $mobileResolved = $accounts->resolve('registration_fee', 'mobile_money');
+        $mobileDetails = $accounts->mobileMoneyDetails($mobileResolved['mobile_money_account'], $paymentReference);
 
         return view('site.borrower.membership-renew', [
             'customer'         => $customer,
@@ -79,6 +81,7 @@ class MembershipController extends Controller
             'referralWallet'   => $referralWallet,
             'referralSettings' => $referralSettings,
             'bankAccounts'     => $bankAccounts,
+            'mobileDetails'    => $mobileDetails,
         ]);
     }
 
