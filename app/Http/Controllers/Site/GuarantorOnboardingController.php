@@ -21,7 +21,7 @@ class GuarantorOnboardingController extends Controller
             return redirect()->route('site.borrower.dashboard');
         }
 
-        $invitation = $onboarding->invitationFromSession($request);
+        $invitation = $onboarding->resolveInvitation($request, $customer);
         if (! $invitation) {
             return redirect()->route('site.borrower.dashboard')
                 ->with('status', 'No pending guarantor invitation found.');
@@ -40,7 +40,7 @@ class GuarantorOnboardingController extends Controller
         $customer = $request->user()?->customer;
         abort_unless($customer, 403);
 
-        $invitation = $onboarding->invitationFromSession($request);
+        $invitation = $onboarding->resolveInvitation($request, $customer);
         abort_unless($invitation, 404);
 
         $data = $request->validate([

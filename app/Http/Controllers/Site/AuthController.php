@@ -405,10 +405,11 @@ class AuthController extends Controller
                 $data['affiliate_code'] ?? session('affiliate_code')
             );
 
+            $onboarding = app(\App\Services\GuarantorOnboardingService::class);
             if ($token = request()->session()->get('guarantor_invite_token')) {
-                $invitation = \App\Models\GuarantorInvitation::query()->where('token', $token)->first();
+                $invitation = $onboarding->findByToken($token);
                 if ($invitation) {
-                    app(\App\Services\GuarantorOnboardingService::class)->linkInvitee($invitation, $customer);
+                    $onboarding->linkInvitee($invitation, $customer, fromTrustedSession: true);
                 }
             }
 
@@ -417,6 +418,11 @@ class AuthController extends Controller
 
         Auth::login($user);
         $request->session()->regenerate();
+
+        $onboarding = app(\App\Services\GuarantorOnboardingService::class);
+        if ($user->customer && ($invitation = $onboarding->pendingInvitationForCustomer($user->customer))) {
+            $onboarding->rememberInvitation($request, $invitation);
+        }
 
         return redirect()->route('site.borrower.setup-pin')
             ->with('status', 'Welcome! Create your 4-digit PIN to secure your account.');

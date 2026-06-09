@@ -29,6 +29,7 @@ use App\Services\ApplicationRequirementsService;
 use App\Services\CrbService;
 use App\Services\FaceVerificationService;
 use App\Services\GuarantorInvitationService;
+use App\Services\GuarantorOnboardingService;
 use App\Services\GuarantorSignatureService;
 use App\Services\KycFreshnessService;
 use App\Services\LoanQualificationService;
@@ -1054,9 +1055,22 @@ class BorrowerController extends Controller
             return redirect($return)->with('status', __('borrower.profile.saved_return'));
         }
 
-        return redirect()
-            ->route('site.borrower.profile', array_filter(['section' => $section !== 'personal' ? $section : null]))
-            ->with('status', 'Profile updated.');
+        return $this->redirectWithGuarantorResume(
+            $request,
+            $customer,
+            redirect()
+                ->route('site.borrower.profile', array_filter(['section' => $section !== 'personal' ? $section : null]))
+                ->with('status', 'Profile updated.'),
+        );
+    }
+
+    private function redirectWithGuarantorResume(Request $request, Customer $customer, RedirectResponse $default): RedirectResponse
+    {
+        if ($redirect = app(GuarantorOnboardingService::class)->redirectIfPending($request, $customer)) {
+            return $redirect;
+        }
+
+        return $default;
     }
 
     private function validatedReturnUrl(Request $request): ?string
@@ -1095,9 +1109,13 @@ class BorrowerController extends Controller
         ]);
 
         if ($result->success) {
-            return redirect()
-                ->route('site.borrower.profile', ['section' => 'personal'])
-                ->with('nida_result', ['status' => 'verified']);
+            return $this->redirectWithGuarantorResume(
+                $request,
+                $customer->fresh(),
+                redirect()
+                    ->route('site.borrower.profile', ['section' => 'personal'])
+                    ->with('nida_result', ['status' => 'verified']),
+            );
         }
 
         if ($result->status === 'name_mismatch') {
@@ -1154,9 +1172,13 @@ class BorrowerController extends Controller
         ]);
 
         if ($result->success) {
-            return redirect()
-                ->route('site.borrower.profile', ['section' => 'personal'])
-                ->with('nida_result', ['status' => 'verified']);
+            return $this->redirectWithGuarantorResume(
+                $request,
+                $customer->fresh(),
+                redirect()
+                    ->route('site.borrower.profile', ['section' => 'personal'])
+                    ->with('nida_result', ['status' => 'verified']),
+            );
         }
 
         if ($result->status === 'name_mismatch') {
@@ -1261,6 +1283,14 @@ class BorrowerController extends Controller
                 'message'  => $message,
                 'complete' => $progress['complete'],
             ]);
+        }
+
+        if ($progress['complete']) {
+            return $this->redirectWithGuarantorResume(
+                $request,
+                $customer,
+                redirect()->route('site.borrower.face-verification')->with('status', $message),
+            );
         }
 
         return redirect()->route('site.borrower.face-verification')->with('status', $message);

@@ -27,6 +27,37 @@ class GuarantorOnboardingService
         return $this->findByToken($request->session()->get('guarantor_invite_token'));
     }
 
+    public function pendingInvitationForCustomer(Customer $customer): ?GuarantorInvitation
+    {
+        $portal = app(PortalContextService::class);
+
+        return $portal->pendingGuarantorInvitations($customer)
+            ->first(fn (GuarantorInvitation $invitation) => $invitation->type === 'external');
+    }
+
+    public function resolveInvitation(Request $request, Customer $customer): ?GuarantorInvitation
+    {
+        $portal = app(PortalContextService::class);
+
+        if ($sessionInvitation = $this->invitationFromSession($request)) {
+            if ($portal->isBorrowerForInvitation($sessionInvitation, $customer)) {
+                $this->forgetInvitation($request);
+            } elseif ($this->customerOwnsInvitation($sessionInvitation, $customer)) {
+                return $sessionInvitation;
+            } else {
+                $this->forgetInvitation($request);
+            }
+        }
+
+        if ($invitation = $this->pendingInvitationForCustomer($customer)) {
+            $this->rememberInvitation($request, $invitation);
+
+            return $invitation;
+        }
+
+        return null;
+    }
+
     public function rememberInvitation(Request $request, GuarantorInvitation $invitation): void
     {
         $request->session()->put('guarantor_invite_token', $invitation->token);
@@ -37,7 +68,7 @@ class GuarantorOnboardingService
         $request->session()->forget('guarantor_invite_token');
     }
 
-    public function linkInvitee(GuarantorInvitation $invitation, Customer $customer): void
+    public function linkInvitee(GuarantorInvitation $invitation, Customer $customer, bool $fromTrustedSession = false): void
     {
         if ($invitation->type !== 'external') {
             return;
@@ -53,7 +84,9 @@ class GuarantorOnboardingService
             throw new \InvalidArgumentException('This invitation is linked to another account.');
         }
 
-        if (! $invitation->guarantor_customer_id && ! $portal->canActAsGuarantorFor($invitation, $customer)) {
+        if (! $fromTrustedSession
+            && ! $invitation->guarantor_customer_id
+            && ! $portal->canActAsGuarantorFor($invitation, $customer)) {
             throw new \InvalidArgumentException('This invitation does not match your account details.');
         }
 
@@ -176,28 +209,8 @@ class GuarantorOnboardingService
 
     public function redirectIfPending(Request $request, Customer $customer): ?RedirectResponse
     {
-        $invitation = $this->invitationFromSession($request);
+        $invitation = $this->resolveInvitation($request, $customer);
         if (! $invitation) {
-            return null;
-        }
-
-        $portal = app(PortalContextService::class);
-
-        if ($portal->isBorrowerForInvitation($invitation, $customer)) {
-            $this->forgetInvitation($request);
-
-            return null;
-        }
-
-        if ($invitation->guarantor_customer_id && (int) $invitation->guarantor_customer_id !== (int) $customer->id) {
-            $this->forgetInvitation($request);
-
-            return null;
-        }
-
-        if (! $invitation->guarantor_customer_id && ! $portal->canActAsGuarantorFor($invitation, $customer)) {
-            $this->forgetInvitation($request);
-
             return null;
         }
 
@@ -208,5 +221,20 @@ class GuarantorOnboardingService
         }
 
         return $this->redirectToContinue($request, $customer, $invitation);
+    }
+
+    private function customerOwnsInvitation(GuarantorInvitation $invitation, Customer $customer): bool
+    {
+        $portal = app(PortalContextService::class);
+
+        if ($portal->isBorrowerForInvitation($invitation, $customer)) {
+            return false;
+        }
+
+        if ($invitation->guarantor_customer_id) {
+            return (int) $invitation->guarantor_customer_id === (int) $customer->id;
+        }
+
+        return $portal->canActAsGuarantorFor($invitation, $customer);
     }
 }
