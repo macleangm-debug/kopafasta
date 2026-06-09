@@ -18,8 +18,85 @@ class GuarantorOnboardingService
         return GuarantorInvitation::query()
             ->where('token', $token)
             ->where('type', 'external')
-            ->with(['borrower', 'application.product', 'customerGuarantor'])
+            ->with(['borrower', 'application.product', 'customerGuarantor.guarantor'])
             ->first();
+    }
+
+    public function registrationPrefill(?GuarantorInvitation $invitation): ?array
+    {
+        if (! $invitation || $invitation->type !== 'external') {
+            return null;
+        }
+
+        $invitation->loadMissing('customerGuarantor.guarantor', 'borrower');
+        $guarantor = $invitation->customerGuarantor?->guarantor;
+
+        $lastName = trim((string) ($guarantor?->last_name ?? ''));
+        $firstPart = trim((string) ($guarantor?->first_name ?? ''));
+
+        if ($firstPart === '' && $lastName === '') {
+            $parts = preg_split('/\s+/', trim((string) $invitation->invitee_name)) ?: [];
+            $firstName = array_shift($parts) ?? '';
+            $lastName = count($parts) > 0 ? (string) array_pop($parts) : '';
+            $middleName = trim(implode(' ', $parts));
+        } else {
+            $nameParts = preg_split('/\s+/', $firstPart, 2) ?: [];
+            $firstName = $nameParts[0] ?? '';
+            $middleName = trim($nameParts[1] ?? '');
+        }
+
+        $contact = trim((string) $invitation->contact);
+        $email = trim((string) ($guarantor?->email ?? ''));
+        $phone = trim((string) ($guarantor?->phone ?? ''));
+        $country = 'TZ';
+        $dialCode = '+255';
+        $localPhone = '';
+
+        if (str_contains($contact, '@')) {
+            $email = $email !== '' ? $email : $contact;
+        } elseif ($contact !== '') {
+            $phone = $phone !== '' ? $phone : $contact;
+        }
+
+        if ($phone !== '') {
+            $digits = preg_replace('/\D/', '', $phone);
+            if (str_starts_with($digits, '254')) {
+                $country = 'KE';
+                $dialCode = '+254';
+                $localPhone = ltrim(substr($digits, 3), '0');
+            } elseif (str_starts_with($digits, '256')) {
+                $country = 'UG';
+                $dialCode = '+256';
+                $localPhone = ltrim(substr($digits, 3), '0');
+            } else {
+                if (str_starts_with($digits, '255')) {
+                    $digits = substr($digits, 3);
+                }
+                $localPhone = ltrim($digits, '0');
+            }
+        }
+
+        $borrower = $invitation->borrower;
+
+        return [
+            'first_name'    => $firstName,
+            'middle_name'   => $middleName,
+            'last_name'     => $lastName,
+            'email'         => $email,
+            'phone'         => $phone !== '' ? app(GuarantorInvitationService::class)->normalizePhone($phone) : '',
+            'country'       => $country,
+            'dial_code'     => $dialCode,
+            'local_phone'   => $localPhone,
+            'borrower_name' => trim(($borrower->first_name ?? '').' '.($borrower->last_name ?? '')),
+        ];
+    }
+
+    public function phoneMatchesInvitation(GuarantorInvitation $invitation, string $phone): bool
+    {
+        return app(PortalContextService::class)->contactMatchesCustomer(
+            $invitation,
+            new Customer(['phone' => $phone]),
+        );
     }
 
     public function invitationFromSession(Request $request): ?GuarantorInvitation

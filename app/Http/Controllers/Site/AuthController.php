@@ -340,27 +340,57 @@ class AuthController extends Controller
             session(['affiliate_code' => strtoupper(trim($code))]);
         }
 
+        $onboarding = app(\App\Services\GuarantorOnboardingService::class);
+        $invitation = $onboarding->invitationFromSession($request);
+        $guarantorRegistration = $onboarding->registrationPrefill($invitation);
+
         return view('site.auth.register-borrower', [
-            'referralCode'  => $request->query('ref'),
-            'affiliateCode' => $request->query('aff') ?? session('affiliate_code'),
+            'referralCode'            => $request->query('ref'),
+            'affiliateCode'           => $request->query('aff') ?? session('affiliate_code'),
+            'guarantorRegistration'   => $guarantorRegistration,
+            'isGuarantorRegistration' => $guarantorRegistration !== null,
         ]);
     }
 
     public function registerBorrower(Request $request, ReferralService $referrals): RedirectResponse
     {
-        $data = $request->validate([
+        $onboarding = app(\App\Services\GuarantorOnboardingService::class);
+        $invitation = $onboarding->invitationFromSession($request);
+        $guarantorPrefill = $onboarding->registrationPrefill($invitation);
+        $isGuarantorRegistration = $guarantorPrefill !== null;
+
+        $rules = [
             'country'       => ['required', 'string', 'in:TZ,KE,UG'],
             'first_name'    => ['required', 'string', 'max:60'],
             'middle_name'   => ['nullable', 'string', 'max:60'],
             'last_name'     => ['required', 'string', 'max:60'],
-            'national_id'   => ['required', 'string', 'max:30', new \App\Rules\ValidNidaNumber],
             'date_of_birth' => ['required', 'date', 'before:today', new \App\Rules\MinimumAge],
             'email'         => ['nullable', 'email', 'max:255', 'unique:users,email'],
             'phone'         => ['required', 'string', 'max:20', 'unique:users,phone'],
             'password'      => ['required', 'string', 'min:8', 'confirmed'],
             'referral_code' => ['nullable', 'string', 'max:32'],
             'affiliate_code'=> ['nullable', 'string', 'max:32'],
-        ]);
+        ];
+
+        if ($isGuarantorRegistration) {
+            $rules['national_id'] = ['nullable', 'string', 'max:30'];
+        } else {
+            $rules['national_id'] = ['required', 'string', 'max:30', new \App\Rules\ValidNidaNumber];
+        }
+
+        $data = $request->validate($rules);
+
+        if ($isGuarantorRegistration && $invitation) {
+            $data['first_name'] = $guarantorPrefill['first_name'];
+            $data['middle_name'] = $guarantorPrefill['middle_name'] ?: null;
+            $data['last_name'] = $guarantorPrefill['last_name'];
+
+            if (! $onboarding->phoneMatchesInvitation($invitation, $data['phone'])) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['phone' => __('borrower.guarantor_invite.register_phone_mismatch')]);
+            }
+        }
 
         $email = $data['email'] ?? null;
         if (empty($email)) {
@@ -389,7 +419,9 @@ class AuthController extends Controller
                 'first_name'      => $data['first_name'],
                 'middle_name'     => $data['middle_name'] ?? null,
                 'last_name'       => $data['last_name'],
-                'national_id'     => \App\Support\NidaNumber::format($data['national_id']),
+                'national_id'     => filled($data['national_id'] ?? null)
+                    ? \App\Support\NidaNumber::format($data['national_id'])
+                    : null,
                 'date_of_birth'   => $data['date_of_birth'],
                 'email'           => $data['email'] ?? null,
                 'phone'           => $data['phone'],
@@ -424,8 +456,12 @@ class AuthController extends Controller
             $onboarding->rememberInvitation($request, $invitation);
         }
 
+        $welcome = $isGuarantorRegistration
+            ? __('borrower.guarantor_invite.continue_after_pin')
+            : 'Welcome! Create your 4-digit PIN to secure your account.';
+
         return redirect()->route('site.borrower.setup-pin')
-            ->with('status', 'Welcome! Create your 4-digit PIN to secure your account.');
+            ->with('status', $welcome);
     }
 
     public function storeWaitlistRequest(Request $request): RedirectResponse
