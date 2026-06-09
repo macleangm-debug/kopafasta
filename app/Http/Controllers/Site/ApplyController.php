@@ -310,6 +310,7 @@ class ApplyController extends Controller
                 $existingId ? (int) $existingId : null,
                 $requestedAmount,
                 $requestedTenure,
+                (int) $data['loan_product_id'],
             );
         } catch (\Throwable $e) {
             report($e);

@@ -10,6 +10,7 @@ class GuarantorInvitation extends Model
     protected $fillable = [
         'customer_id',
         'loan_application_id',
+        'loan_product_id',
         'customer_guarantor_id',
         'guarantor_customer_id',
         'type',
@@ -43,6 +44,11 @@ class GuarantorInvitation extends Model
     public function application(): BelongsTo
     {
         return $this->belongsTo(LoanApplication::class, 'loan_application_id');
+    }
+
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(LoanProduct::class, 'loan_product_id');
     }
 
     public function customerGuarantor(): BelongsTo

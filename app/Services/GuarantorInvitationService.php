@@ -7,6 +7,8 @@ use App\Models\CustomerGuarantor;
 use App\Models\Guarantor;
 use App\Models\GuarantorInvitation;
 use App\Models\LoanApplication;
+use App\Models\LoanApplicationDraft;
+use App\Models\LoanProduct;
 use App\Support\MemberNumberFormatter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -144,11 +146,11 @@ class GuarantorInvitationService
     /** @return array{amount: int, amount_label: string, tenure_months: int, duration_label: string, product_name: string, installment_label: string} */
     public function invitationLoanContext(GuarantorInvitation $invitation): array
     {
-        $invitation->loadMissing('application.product');
+        $invitation->loadMissing(['application.product', 'product']);
+        $product = $this->resolveInvitationProduct($invitation);
         $amount = (int) ($invitation->application?->requested_amount ?? $invitation->requested_amount ?? 0);
         $tenure = (int) ($invitation->application?->requested_tenure_months ?? $invitation->requested_tenure_months ?? 0);
-        $productName = trim((string) ($invitation->application?->product?->name ?? ''));
-        $product = $invitation->application?->product;
+        $productName = trim((string) ($product?->name ?? ''));
         $installmentLabel = __('borrower.guarantor_invite.installment_tbd');
 
         if ($amount > 0 && $tenure > 0 && $product) {
@@ -171,6 +173,44 @@ class GuarantorInvitationService
             'product_name'       => $productName !== '' ? $productName : __('borrower.guarantor_invite.product_tbd'),
             'installment_label'  => $installmentLabel,
         ];
+    }
+
+    public function resolveInvitationProduct(GuarantorInvitation $invitation): ?LoanProduct
+    {
+        if ($product = $invitation->application?->product) {
+            return $product;
+        }
+
+        if ($invitation->relationLoaded('product') && $invitation->product) {
+            return $invitation->product;
+        }
+
+        if ($invitation->loan_product_id) {
+            return LoanProduct::query()->find($invitation->loan_product_id);
+        }
+
+        return $this->productFromBorrowerDraft($invitation);
+    }
+
+    protected function productFromBorrowerDraft(GuarantorInvitation $invitation): ?LoanProduct
+    {
+        $drafts = LoanApplicationDraft::query()
+            ->where('customer_id', $invitation->customer_id)
+            ->with('product')
+            ->get();
+
+        foreach ($drafts as $draft) {
+            $invitationId = (int) (($draft->payload ?? [])['external_guarantor']['invitation_id'] ?? 0);
+            if ($invitationId !== (int) $invitation->id) {
+                continue;
+            }
+
+            return $draft->product ?? ($draft->loan_product_id
+                ? LoanProduct::query()->find($draft->loan_product_id)
+                : null);
+        }
+
+        return null;
     }
 
     /** @return array{code: string, label: string} */
@@ -396,6 +436,7 @@ class GuarantorInvitationService
         ?int $existingInvitationId = null,
         ?int $requestedAmount = null,
         ?int $requestedTenureMonths = null,
+        ?int $loanProductId = null,
     ): array {
         $phone = $this->normalizePhone($phone);
         $displayName = trim(collect([$firstName, $middleName, $lastName])->filter()->implode(' '));
@@ -420,6 +461,7 @@ class GuarantorInvitationService
             $existingInvitationId,
             $requestedAmount,
             $requestedTenureMonths,
+            $loanProductId,
         ): array {
             app(LoanPolicyService::class)->expireSupersededGuarantorLinks($borrower, $existingInvitationId);
 
@@ -455,6 +497,7 @@ class GuarantorInvitationService
                     'invitee_name'            => $displayName,
                     'requested_amount'        => $requestedAmount,
                     'requested_tenure_months' => $requestedTenureMonths,
+                    'loan_product_id'         => $loanProductId,
                     'expires_at'              => now()->addDays(14),
                     'status'                  => 'pending',
                 ];
@@ -485,6 +528,7 @@ class GuarantorInvitationService
                 $invitation = GuarantorInvitation::create([
                     'customer_id'             => $borrower->id,
                     'loan_application_id'     => null,
+                    'loan_product_id'         => $loanProductId,
                     'customer_guarantor_id'     => $link->id,
                     'type'                    => 'external',
                     'channel'                 => $channel,
@@ -531,6 +575,7 @@ class GuarantorInvitationService
         $link->update(['loan_application_id' => $application->id]);
         $invitation->update([
             'loan_application_id'     => $application->id,
+            'loan_product_id'         => $invitation->loan_product_id ?: $application->loan_product_id,
             'requested_amount'        => $invitation->requested_amount ?: (int) $application->requested_amount,
             'requested_tenure_months' => $invitation->requested_tenure_months ?: (int) $application->requested_tenure_months,
         ]);
@@ -610,6 +655,7 @@ class GuarantorInvitationService
             $invitation = GuarantorInvitation::create([
                 'customer_id'             => $borrower->id,
                 'loan_application_id'     => $application->id,
+                'loan_product_id'         => $application->loan_product_id,
                 'customer_guarantor_id'   => $link->id,
                 'guarantor_customer_id'   => $member->id,
                 'type'                    => 'internal',
@@ -689,6 +735,7 @@ class GuarantorInvitationService
             $invitation = GuarantorInvitation::create([
                 'customer_id'             => $borrower->id,
                 'loan_application_id'     => $application->id,
+                'loan_product_id'         => $application->loan_product_id,
                 'customer_guarantor_id'   => $link->id,
                 'type'                    => 'external',
                 'channel'                 => $channel,
