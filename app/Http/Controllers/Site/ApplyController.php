@@ -245,6 +245,13 @@ class ApplyController extends Controller
             ], 422);
         }
 
+        if ($message = app(\App\Services\LoanPolicyService::class)->canAcceptGuarantee($result['member'])) {
+            return response()->json([
+                'ok'      => false,
+                'message' => $message,
+            ], 422);
+        }
+
         return response()->json([
             'ok'    => true,
             'name'  => $result['name'],
@@ -485,7 +492,7 @@ class ApplyController extends Controller
             $balance = max(0, round($balance - $row['principal_due'], 2));
             $schedule[] = [
                 'installment_no'      => $row['installment_no'],
-                'due_date'            => $row['due_date'],
+                'due_date'            => null,
                 'principal_due'       => round($row['principal_due'], 2),
                 'interest_due'        => round($row['interest_due'], 2),
                 'total_due'           => round($row['total_due'], 2),
@@ -497,9 +504,10 @@ class ApplyController extends Controller
         $quote = $wizard->loanQuote($product, $amount, $tenure);
 
         return response()->json([
-            'ok'       => true,
-            'schedule' => $schedule,
-            'summary'  => [
+            'ok'            => true,
+            'dates_available' => false,
+            'schedule'      => $schedule,
+            'summary'       => [
                 'monthly_rate'        => $rate,
                 'monthly_rate_pct'    => round($rate * 100, 2),
                 'application_fee'     => quoted_application_fee($customer, $product),
@@ -545,6 +553,11 @@ class ApplyController extends Controller
         $loanProduct = LoanProduct::where('id', $request->input('loan_product_id'))
             ->where('is_active', true)
             ->firstOrFail();
+
+        if ($message = app(\App\Services\LoanPolicyService::class)->canSubmitApplication($customer, $loanProduct)) {
+            return back()->withInput()->with('error', $message);
+        }
+
         $isMarketplaceProduct = is_marketplace_loan_product($loanProduct->code);
 
         $draft = $drafts->find($customer, (int) $loanProduct->id);

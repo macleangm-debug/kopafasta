@@ -132,8 +132,10 @@ class SettingsController extends Controller
     {
         $data = $request->validate([
             'max_mismatch_attempts' => ['required', 'integer', 'min:1', 'max:10'],
-            'lock_hours'            => ['required', 'integer', 'min:1', 'max:168'],
+            'lock_days'             => ['required', 'integer', 'min:1', 'max:365'],
+            'require_dob'           => ['nullable', 'boolean'],
         ]);
+        $data['require_dob'] = (bool) ($data['require_dob'] ?? false);
 
         Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["identity_verification.$k" => $v])->all());
 
@@ -177,7 +179,15 @@ class SettingsController extends Controller
             'qualification_membership_inactive_factor'=> ['nullable', 'numeric', 'min:0', 'max:1'],
             'qualification_kyc_incomplete_factor'   => ['nullable', 'numeric', 'min:0', 'max:1'],
             'qualification_min_profile_percent'     => ['nullable', 'integer', 'min:0', 'max:100'],
+            'max_active_applications_per_product'   => ['nullable', 'integer', 'min:1', 'max:10'],
+            'max_active_guarantees'                 => ['nullable', 'integer', 'min:1', 'max:20'],
+            'allow_asset_reuse'                     => ['nullable', 'boolean'],
+            'top_up_min_successful_repayments'      => ['nullable', 'integer', 'min:0', 'max:60'],
         ]);
+        $data['allow_asset_reuse'] = (bool) ($data['allow_asset_reuse'] ?? false);
+        $data['max_active_applications_per_product'] = (int) ($data['max_active_applications_per_product'] ?? 1);
+        $data['max_active_guarantees'] = (int) ($data['max_active_guarantees'] ?? 5);
+        $data['top_up_min_successful_repayments'] = (int) ($data['top_up_min_successful_repayments'] ?? 6);
 
         $data['allow_restructure'] = (bool) ($data['allow_restructure'] ?? false);
         $data['qualification_income_multiplier'] = (float) ($data['qualification_income_multiplier'] ?? 4);

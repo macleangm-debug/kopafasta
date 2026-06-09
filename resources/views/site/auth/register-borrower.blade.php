@@ -186,6 +186,19 @@
                                         <input name="last_name" x-model="form.last_name" required class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition">
                                     </div>
                                 </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">National ID number <span class="text-red-500">*</span></label>
+                                        <input name="national_id" required maxlength="30" placeholder="20-digit NIDA"
+                                               class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition font-mono">
+                                        <p class="mt-1 text-xs text-gray-500">Used for NIDA identity verification.</p>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Date of birth <span class="text-red-500">*</span></label>
+                                        <input type="date" name="date_of_birth" required max="{{ now()->subYears(18)->format('Y-m-d') }}"
+                                               class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition">
+                                    </div>
+                                </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Email address <span class="text-gray-400 font-normal">(optional)</span></label>
                                     <input type="email" name="email" x-model="form.email" @input="validateEmail()"

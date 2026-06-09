@@ -82,4 +82,21 @@ class Customer extends Model
     {
         return trim(collect([$this->first_name, $this->middle_name, $this->last_name])->filter()->implode(' '));
     }
+
+    /** Name shown in navigation, profile, and underwriting once NIDA is verified. */
+    public function legalDisplayName(): string
+    {
+        $name = $this->full_name;
+
+        if ($name !== '') {
+            return $name;
+        }
+
+        return (string) ($this->user?->name ?? 'Account');
+    }
+
+    public function hasVerifiedIdentity(): bool
+    {
+        return $this->nida_verification_status === 'verified' && $this->identity_locked;
+    }
 }

@@ -339,15 +339,17 @@ class AuthController extends Controller
     public function registerBorrower(Request $request, ReferralService $referrals): RedirectResponse
     {
         $data = $request->validate([
-            'country'     => ['required', 'string', 'in:TZ,KE,UG'],
-            'first_name'  => ['required', 'string', 'max:60'],
-            'middle_name' => ['nullable', 'string', 'max:60'],
-            'last_name'   => ['required', 'string', 'max:60'],
-            'email'      => ['nullable', 'email', 'max:255', 'unique:users,email'],
-            'phone'      => ['required', 'string', 'max:20', 'unique:users,phone'],
-            'password'   => ['required', 'string', 'min:8', 'confirmed'],
+            'country'       => ['required', 'string', 'in:TZ,KE,UG'],
+            'first_name'    => ['required', 'string', 'max:60'],
+            'middle_name'   => ['nullable', 'string', 'max:60'],
+            'last_name'     => ['required', 'string', 'max:60'],
+            'national_id'   => ['required', 'string', 'max:30', new \App\Rules\ValidNidaNumber],
+            'date_of_birth' => ['required', 'date', 'before:today', new \App\Rules\MinimumAge],
+            'email'         => ['nullable', 'email', 'max:255', 'unique:users,email'],
+            'phone'         => ['required', 'string', 'max:20', 'unique:users,phone'],
+            'password'      => ['required', 'string', 'min:8', 'confirmed'],
             'referral_code' => ['nullable', 'string', 'max:32'],
-            'affiliate_code' => ['nullable', 'string', 'max:32'],
+            'affiliate_code'=> ['nullable', 'string', 'max:32'],
         ]);
 
         $email = $data['email'] ?? null;
@@ -377,6 +379,8 @@ class AuthController extends Controller
                 'first_name'      => $data['first_name'],
                 'middle_name'     => $data['middle_name'] ?? null,
                 'last_name'       => $data['last_name'],
+                'national_id'     => \App\Support\NidaNumber::format($data['national_id']),
+                'date_of_birth'   => $data['date_of_birth'],
                 'email'           => $data['email'] ?? null,
                 'phone'           => $data['phone'],
                 'onboarded_at'    => now(),

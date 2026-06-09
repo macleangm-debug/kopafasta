@@ -38,6 +38,14 @@
                 <x-admin.input name="guarantor_required_above"  label="Guarantor required above" type="number" step="0.01" :value="$values['guarantor_required_above'] ?? '1000000'" />
                 <x-admin.input name="collateral_required_above" label="Collateral required above" type="number" step="0.01" :value="$values['collateral_required_above'] ?? '5000000'" />
                 <x-admin.input name="min_guarantors" label="Minimum guarantors" type="number" :value="$values['min_guarantors'] ?? '1'" required />
+                <x-admin.input name="max_active_guarantees" label="Max active guarantees per guarantor" type="number" :value="$values['max_active_guarantees'] ?? '5'" required />
+                <x-admin.input name="max_active_applications_per_product" label="Max active applications per product" type="number" :value="$values['max_active_applications_per_product'] ?? '1'" required />
+                <x-admin.input name="top_up_min_successful_repayments" label="Top-up: min successful repayments" type="number" :value="$values['top_up_min_successful_repayments'] ?? '6'" required />
+                <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2 md:col-span-3">
+                    <input type="hidden" name="allow_asset_reuse" value="0">
+                    <input type="checkbox" name="allow_asset_reuse" value="1" @checked(!empty($values['allow_asset_reuse'])) class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                    <span class="text-gray-800">Allow asset reuse across multiple active loans</span>
+                </label>
             </div>
         </div>
 

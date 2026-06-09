@@ -146,6 +146,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/agreements/{agreement}/download',                     [\App\Http\Controllers\Site\LoanAgreementController::class, 'download']) ->name('borrower.agreement.download');
             Route::get('/borrower/loans',                          [\App\Http\Controllers\Site\BorrowerController::class, 'loans'])        ->name('borrower.loans');
             Route::get('/borrower/schedule/{loan?}',               [\App\Http\Controllers\Site\BorrowerController::class, 'schedule'])     ->name('borrower.schedule');
+            Route::get('/borrower/loans/{loan}/restructure',       [\App\Http\Controllers\Site\BorrowerController::class, 'restructureLoan'])->name('borrower.loans.restructure');
+            Route::get('/borrower/loans/{loan}/top-up',            [\App\Http\Controllers\Site\BorrowerController::class, 'topUpLoan'])->name('borrower.loans.top-up');
             Route::get('/borrower/payments',                       [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'index'])       ->name('borrower.payments');
             Route::get('/borrower/payments/new',                   [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'create'])      ->name('borrower.payments.create');
             Route::post('/borrower/payments',                      [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'store'])       ->name('borrower.payments.store');

@@ -614,7 +614,8 @@
                         </div>
                     </div>
 
-                    <h3 class="text-sm font-semibold text-gray-900 mb-2">{{ __('borrower.apply.review_step.schedule_section') }}</h3>
+                    <h3 class="text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.apply.review_step.schedule_section') }}</h3>
+                    <p class="text-xs text-gray-500 mb-2" x-show="!scheduleDatesAvailable">{{ __('borrower.apply.review_step.schedule_before_disbursement') }}</p>
                     <div class="rounded-xl border border-gray-200 overflow-hidden mb-5 text-sm">
                         <p x-show="scheduleLoading" class="px-4 py-6 text-center text-gray-500">{{ __('borrower.apply.review_step.schedule_loading') }}</p>
                         <p x-show="!scheduleLoading && !repaymentSchedule.length" class="px-4 py-6 text-center text-gray-500">{{ __('borrower.apply.review_step.schedule_empty') }}</p>
@@ -623,7 +624,7 @@
                                 <thead class="bg-gray-50 text-gray-600">
                                     <tr>
                                         <th class="px-3 py-2 text-left font-semibold">{{ __('borrower.apply.review_step.col_installment') }}</th>
-                                        <th class="px-3 py-2 text-left font-semibold">{{ __('borrower.apply.review_step.col_due_date') }}</th>
+                                        <th class="px-3 py-2 text-left font-semibold" x-show="scheduleDatesAvailable">{{ __('borrower.apply.review_step.col_due_date') }}</th>
                                         <th class="px-3 py-2 text-right font-semibold">{{ __('borrower.apply.review_step.col_principal') }}</th>
                                         <th class="px-3 py-2 text-right font-semibold">{{ __('borrower.apply.review_step.col_interest') }}</th>
                                         <th class="px-3 py-2 text-right font-semibold">{{ __('borrower.apply.review_step.col_total') }}</th>
@@ -633,8 +634,8 @@
                                 <tbody class="divide-y divide-gray-100">
                                     <template x-for="row in repaymentSchedule" :key="row.installment_no">
                                         <tr>
-                                            <td class="px-3 py-2" x-text="row.installment_no"></td>
-                                            <td class="px-3 py-2 whitespace-nowrap" x-text="row.due_date"></td>
+                                            <td class="px-3 py-2" x-text="row.label || row.installment_no"></td>
+                                            <td class="px-3 py-2 whitespace-nowrap" x-show="scheduleDatesAvailable" x-text="row.due_date"></td>
                                             <td class="px-3 py-2 text-right" x-text="formatTzs(row.principal_due)"></td>
                                             <td class="px-3 py-2 text-right" x-text="formatTzs(row.interest_due)"></td>
                                             <td class="px-3 py-2 text-right font-medium" x-text="formatTzs(row.total_due)"></td>
@@ -825,6 +826,7 @@
                 review: { personal: '', residence: '', employment: '', nok: '', activity: '', guarantor: '', guarantorType: '', guarantorName: '', guarantorStatus: '' },
                 reviewSummary: { monthly_rate_pct: 0, application_fee: 0, monthly_installment: 0 },
                 repaymentSchedule: [],
+                scheduleDatesAvailable: false,
                 scheduleLoading: false,
                 stepIcons: {
                     quote: '💰',
@@ -1470,6 +1472,7 @@
                         const data = await res.json().catch(() => ({}));
                         if (res.ok && data.ok) {
                             this.repaymentSchedule = data.schedule || [];
+                            this.scheduleDatesAvailable = !!data.dates_available;
                             this.reviewSummary = {
                                 monthly_rate_pct: data.summary?.monthly_rate_pct ?? 0,
                                 application_fee: data.summary?.application_fee ?? this.applicationFee,

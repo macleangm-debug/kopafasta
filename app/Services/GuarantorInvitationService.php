@@ -348,6 +348,8 @@ class GuarantorInvitationService
             $requestedAmount,
             $requestedTenureMonths,
         ): array {
+            app(LoanPolicyService::class)->expireSupersededGuarantorLinks($borrower, $existingInvitationId);
+
             $invitation = null;
             if ($existingInvitationId) {
                 $invitation = GuarantorInvitation::query()
@@ -371,14 +373,25 @@ class GuarantorInvitationService
                         'address'      => $address,
                     ]);
                 }
-                $invitation->update([
+                $identityChanged = $invitation->contact !== $contact
+                    || $invitation->invitee_name !== $displayName;
+
+                $updates = [
                     'channel'                 => $channel,
                     'contact'                 => $contact,
                     'invitee_name'            => $displayName,
                     'requested_amount'        => $requestedAmount,
                     'requested_tenure_months' => $requestedTenureMonths,
                     'expires_at'              => now()->addDays(14),
-                ]);
+                    'status'                  => 'pending',
+                ];
+
+                if ($identityChanged) {
+                    $updates['token'] = Str::random(48);
+                    $updates['short_code'] = $this->generateShortCode();
+                }
+
+                $invitation->update($updates);
             } else {
                 $guarantor = Guarantor::create([
                     'first_name'   => trim($firstName.' '.($middleName ?: '')),
@@ -497,6 +510,10 @@ class GuarantorInvitationService
         }
 
         $member = $verified['member'];
+
+        if ($message = app(LoanPolicyService::class)->canAcceptGuarantee($member)) {
+            throw new \InvalidArgumentException($message);
+        }
 
         return DB::transaction(function () use ($borrower, $application, $member, $membershipId): array {
             $guarantor = Guarantor::create([

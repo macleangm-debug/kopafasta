@@ -50,6 +50,8 @@
     </div>
 @endif
 
+@include('site.borrower.loan-profile._schedule_preview', ['profile' => $profile])
+
 @if (($application->product?->requires_guarantor ?? false) && ($guarantorInvitations->isNotEmpty() || ($application->customerGuarantors ?? collect())->isNotEmpty()))
     <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-6">
         <div class="px-5 py-4 border-b border-gray-200">

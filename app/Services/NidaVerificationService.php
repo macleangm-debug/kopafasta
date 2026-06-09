@@ -23,14 +23,19 @@ class NidaVerificationService
         return $customer->nida_verification_status === 'verified' && $customer->identity_locked;
     }
 
-    /** @return array{max_mismatch_attempts: int, lock_hours: int} */
+    /** @return array{max_mismatch_attempts: int, lock_days: int, require_dob: bool} */
     public function settings(): array
     {
         $group = Setting::group('identity_verification');
+        $lockDays = $group['lock_days'] ?? null;
+        if ($lockDays === null && isset($group['lock_hours'])) {
+            $lockDays = max(1, (int) ceil(((int) $group['lock_hours']) / 24));
+        }
 
         return [
             'max_mismatch_attempts' => (int) ($group['max_mismatch_attempts'] ?? config('identity_verification.max_mismatch_attempts', 3)),
-            'lock_hours'            => (int) ($group['lock_hours'] ?? config('identity_verification.lock_hours', 24)),
+            'lock_days'             => (int) ($lockDays ?? config('identity_verification.lock_days', 30)),
+            'require_dob'           => (bool) ($group['require_dob'] ?? config('identity_verification.require_dob', true)),
         ];
     }
 
@@ -146,6 +151,9 @@ class NidaVerificationService
 
         if (! $result->success) {
             $this->recordAttempt($customer, $formatted, $result);
+            if (in_array($result->status, ['no_hit', 'failed'], true)) {
+                $this->recordVerificationFailure($customer, $result->status ?? 'failed');
+            }
 
             return $result;
         }
@@ -198,6 +206,29 @@ class NidaVerificationService
         $parsed = $this->names->parse($result->fullName, $result->firstName, $result->lastName);
         $comparison = $this->names->compare($customer, $parsed);
 
+        if ($this->settings()['require_dob'] && filled($result->dateOfBirth) && filled($customer->date_of_birth)) {
+            $bureauDob = \Illuminate\Support\Carbon::parse($result->dateOfBirth)->toDateString();
+            $customerDob = $customer->date_of_birth->toDateString();
+            if ($bureauDob !== $customerDob) {
+                DB::transaction(function () use ($customer, $formatted, $result, $parsed, $bureauDob, $customerDob): void {
+                    $customer->update([
+                        'national_id'              => $formatted,
+                        'nida_verification_status' => 'dob_mismatch',
+                    ]);
+                    $this->recordVerificationFailure($customer, 'dob_mismatch', [
+                        'expected' => $customerDob,
+                        'bureau'   => $bureauDob,
+                    ]);
+                });
+
+                return CrbIdentityResult::failed(
+                    'Date of birth does not match NIDA records.',
+                    'dob_mismatch',
+                    $result->raw,
+                );
+            }
+        }
+
         if (! $comparison['matched']) {
             DB::transaction(function () use ($customer, $formatted, $result, $parsed, $comparison): void {
                 $customer->update([
@@ -205,7 +236,7 @@ class NidaVerificationService
                     'nida_verification_status' => 'name_mismatch',
                 ]);
 
-                $this->recordMismatchAttempt($customer);
+                $this->recordVerificationFailure($customer, 'name_mismatch', $comparison);
 
                 $kyc = $customer->kyc ?? CustomerKyc::firstOrCreate(
                     ['customer_id' => $customer->id],
@@ -318,6 +349,9 @@ class NidaVerificationService
 
         if (! $result->success) {
             $this->recordAttempt($customer, $formatted, $result);
+            if (in_array($result->status, ['no_hit', 'failed'], true)) {
+                $this->recordVerificationFailure($customer, $result->status ?? 'failed');
+            }
 
             return $result;
         }
@@ -358,21 +392,30 @@ class NidaVerificationService
         $kyc->update(['payload' => $payload]);
     }
 
-    private function recordMismatchAttempt(Customer $customer): void
+    /** @param  array<string, mixed>|null  $context */
+    private function recordVerificationFailure(Customer $customer, string $reason, ?array $context = null): void
     {
         $settings = $this->settings();
         $attempts = (int) $customer->nida_mismatch_attempts + 1;
-        $updates = ['nida_mismatch_attempts' => $attempts];
+        $updates = [
+            'nida_mismatch_attempts'   => $attempts,
+            'nida_verification_status' => $attempts >= $settings['max_mismatch_attempts']
+                ? 'identity_verification_failed'
+                : $customer->nida_verification_status,
+        ];
 
         if ($attempts >= $settings['max_mismatch_attempts']) {
-            $until = now()->addHours($settings['lock_hours']);
+            $until = now()->addDays($settings['lock_days']);
             $updates['nida_locked_until'] = $until;
+            $updates['nida_verification_status'] = 'identity_verification_failed';
             $customer->update($updates);
             $this->syncUserLock($customer->fresh(), $until);
 
             $this->audit->logBorrower(auth()->user(), 'nida.account_locked', $customer, [
                 'attempts'     => $attempts,
+                'reason'       => $reason,
                 'locked_until' => $until->toIso8601String(),
+                'context'      => $context,
             ]);
 
             return;
@@ -380,9 +423,11 @@ class NidaVerificationService
 
         $customer->update($updates);
 
-        $this->audit->logBorrower(auth()->user(), 'nida.mismatch_attempt', $customer, [
+        $this->audit->logBorrower(auth()->user(), 'nida.verification_failure', $customer, [
             'attempts' => $attempts,
+            'reason'   => $reason,
             'level'    => $attempts,
+            'context'  => $context,
         ]);
     }
 

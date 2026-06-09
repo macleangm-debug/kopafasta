@@ -1,6 +1,12 @@
 <div class="mb-6">
     <h2 class="text-lg font-semibold mb-1">{{ __('borrower.loans_page.tab_guarantor_requests') }}</h2>
     <p class="text-sm text-gray-500">{{ __('borrower.guarantor.pending_requests_hint') }}</p>
+    @if (! empty($guarantorExposure))
+        <div class="mt-3 rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3 text-xs text-gray-700 flex flex-wrap gap-4">
+            <span>{{ __('borrower.loan_actions.guarantee_exposure') }}: <strong>{{ $guarantorExposure['count'] }}/{{ $guarantorExposure['max'] }}</strong></span>
+            <span>{{ __('borrower.loan_actions.guarantee_total') }}: <strong>{{ format_money($guarantorExposure['exposure']) }}</strong></span>
+        </div>
+    @endif
 </div>
 
 @if (($pendingGuarantorRequests ?? collect())->isEmpty())

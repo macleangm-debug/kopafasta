@@ -20,6 +20,7 @@ class LoanApplicationProfileService
         private readonly DisplayedRateService $displayedRate,
         private readonly LoanApplicationNextActionService $nextAction,
         private readonly ApplicationBorrowerStatusService $borrowerStatus,
+        private readonly RepaymentScheduleGenerator $scheduleGenerator,
     ) {}
 
     /** @return array<string, mixed> */
@@ -162,6 +163,7 @@ class LoanApplicationProfileService
             'product_requirements' => $requirements,
             'requirement_uploads'  => $uploads,
             'offer'                => $offer,
+            'schedule_preview'     => $loan ? null : $this->schedulePreview($application),
         ];
     }
 
@@ -374,5 +376,34 @@ class LoanApplicationProfileService
             'group'         => __('borrower.applications_list.loan_type_group'),
             default         => ucfirst(str_replace('_', ' ', $category ?: $product->name)),
         };
+    }
+
+    /** @return array{term_months: int, installment_amount: float, installments: list<array{label: string, total_due: float}>}|null */
+    private function schedulePreview(LoanApplication $application): ?array
+    {
+        $product = $application->product;
+        if (! $product) {
+            return null;
+        }
+
+        $amount = (float) ($application->requested_amount ?? 0);
+        $tenure = (int) ($application->requested_tenure_months ?? 0);
+        if ($amount <= 0 || $tenure <= 0) {
+            return null;
+        }
+
+        $rate = $this->displayedRate->displayedMonthlyRate($product, $amount);
+        $cadence = $product->repayment_cadence ?? 'weekly';
+        $rows = $this->scheduleGenerator->preview($amount, $rate, $tenure, $cadence);
+        $installmentAmount = (float) ($rows[0]['total_due'] ?? 0);
+
+        return [
+            'term_months'         => $tenure,
+            'installment_amount'  => $installmentAmount,
+            'installments'        => array_map(fn (array $row) => [
+                'label'     => $row['label'] ?? ('Installment '.$row['installment_no']),
+                'total_due' => (float) $row['total_due'],
+            ], $rows),
+        ];
     }
 }

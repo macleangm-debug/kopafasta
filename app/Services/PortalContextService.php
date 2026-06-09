@@ -28,16 +28,7 @@ class PortalContextService
             return (string) (auth()->user()?->name ?? 'Account');
         }
 
-        $name = trim(collect([
-            $customer->first_name,
-            $customer->last_name,
-        ])->filter()->implode(' '));
-
-        if ($name !== '') {
-            return $name;
-        }
-
-        return (string) ($customer->user?->name ?? auth()->user()?->name ?? 'Account');
+        return $customer->legalDisplayName() ?: (string) (auth()->user()?->name ?? 'Account');
     }
 
     public function isBorrowerForInvitation(GuarantorInvitation $invitation, Customer $customer): bool

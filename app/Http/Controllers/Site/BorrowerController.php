@@ -308,6 +308,10 @@ class BorrowerController extends Controller
             $viewMode = $user->preferences['applications_view'] ?? 'table';
         }
 
+        $guarantorExposure = $portal->hasGuarantorWork($customer)
+            ? app(\App\Services\LoanPolicyService::class)->guarantorExposureSummary($customer)
+            : null;
+
         return view('site.borrower.loans', compact(
             'customer',
             'activeTab',
@@ -315,6 +319,7 @@ class BorrowerController extends Controller
             'viewMode',
             'loans',
             'pendingGuarantorRequests',
+            'guarantorExposure',
         ));
     }
 
@@ -341,6 +346,38 @@ class BorrowerController extends Controller
         $allLoans = Loan::where('customer_id', $customer->id)->get(['id','loan_number']);
 
         return view('site.borrower.schedule', compact('customer','loan','schedule','allLoans'));
+    }
+
+    public function restructureLoan(Loan $loan): View
+    {
+        $customer = $this->customer();
+        abort_unless($loan->customer_id === $customer->id, 404);
+
+        $policy = app(\App\Services\LoanPolicyService::class);
+        $blocked = $policy->canRestructureLoan($loan);
+
+        return view('site.borrower.loan-restructure', [
+            'customer' => $customer,
+            'loan'     => $loan->loadMissing('product'),
+            'blocked'  => $blocked,
+        ]);
+    }
+
+    public function topUpLoan(Loan $loan): View
+    {
+        $customer = $this->customer();
+        abort_unless($loan->customer_id === $customer->id, 404);
+
+        $policy = app(\App\Services\LoanPolicyService::class);
+        $blocked = $policy->canRequestTopUp($loan);
+        $available = $blocked ? 0 : $policy->topUpAvailableAmount($loan, $customer);
+
+        return view('site.borrower.loan-top-up', [
+            'customer'  => $customer,
+            'loan'      => $loan->loadMissing('product'),
+            'blocked'   => $blocked,
+            'available' => $available,
+        ]);
     }
 
     /* ---------------------------------------------------------------------
