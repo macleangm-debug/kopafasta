@@ -2,6 +2,7 @@
     'activeTab' => 'applications',
     'viewMode' => 'cards',
     'inline' => false,
+    'showGuarantorTab' => false,
 ])
 
 @php
@@ -9,6 +10,9 @@
         'applications' => __('borrower.loans_page.tab_applications'),
         'active' => __('borrower.loans_page.tab_active'),
     ];
+    if ($showGuarantorTab) {
+        $tabs['guarantor'] = __('borrower.loans_page.tab_guarantor_requests');
+    }
 @endphp
 
 <nav class="flex flex-wrap gap-2 {{ $inline ? '' : 'mb-6 border-b border-gray-200 pb-3' }}">

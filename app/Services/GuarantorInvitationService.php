@@ -537,14 +537,22 @@ class GuarantorInvitationService
             $context = $this->invitationLoanContext($invitation);
             app(NotificationService::class)->notifyInApp(
                 $member,
-                __('borrower.guarantor_invite.in_app_request', [
-                    'borrower' => $borrowerName,
-                    'product'  => $productName,
-                    'amount'   => $context['amount_label'],
-                    'duration' => $context['duration_label'],
+                __('borrower.guarantor_invite.guarantor_received', [
+                    'borrower'  => $borrowerName,
+                    'reference' => $application->application_number ?? $application->draft_reference ?? '—',
                 ]),
                 'guarantor',
                 'guarantor_request',
+            );
+
+            app(NotificationService::class)->notifyInApp(
+                $borrower,
+                __('borrower.guarantor_invite.borrower_sent', [
+                    'guarantor' => trim($member->first_name.' '.$member->last_name),
+                    'status'    => __('borrower.guarantor_invite.status_awaiting_response'),
+                ]),
+                'guarantor',
+                'guarantor_sent',
             );
 
             return [$link, $invitation];
@@ -604,6 +612,16 @@ class GuarantorInvitationService
             ]);
 
             $this->notifyExternalInvitation($borrower, $invitation, $displayName);
+
+            app(NotificationService::class)->notifyInApp(
+                $borrower,
+                __('borrower.guarantor_invite.borrower_sent', [
+                    'guarantor' => $displayName,
+                    'status'    => __('borrower.guarantor_invite.status_awaiting_registration'),
+                ]),
+                'guarantor',
+                'guarantor_sent',
+            );
 
             return [$link, $invitation];
         });

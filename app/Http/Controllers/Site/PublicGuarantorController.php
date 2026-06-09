@@ -56,9 +56,26 @@ class PublicGuarantorController extends Controller
             ]);
 
             if (auth()->check() && auth()->user()->customer) {
-                $onboarding->linkInvitee($invitation, auth()->user()->customer);
+                $customer = auth()->user()->customer;
+                $portal = app(\App\Services\PortalContextService::class);
 
-                if ($onboarding->canFinalize(auth()->user()->customer, $invitation)) {
+                if ($portal->isBorrowerForInvitation($invitation, $customer)) {
+                    $onboarding->forgetInvitation($request);
+
+                    return redirect()->route('site.borrower.loans', ['tab' => 'applications'])
+                        ->with('error', 'This guarantor link belongs to someone else. Share it with the invited guarantor only.');
+                }
+
+                try {
+                    $onboarding->linkInvitee($invitation, $customer);
+                } catch (\InvalidArgumentException $e) {
+                    $onboarding->forgetInvitation($request);
+
+                    return redirect()->route('site.borrower.dashboard')
+                        ->with('error', $e->getMessage());
+                }
+
+                if ($onboarding->canFinalize($customer, $invitation)) {
                     return redirect()->route('site.guarantor.onboarding')
                         ->with('status', 'Complete the final step to become a guarantor.');
                 }

@@ -68,7 +68,9 @@ class BorrowerApplicationsDashboardService
     public function formatDraft(Customer $customer, LoanApplicationDraft $draft): array
     {
         $product = $draft->product ?? LoanProduct::find($draft->loan_product_id);
-        $progress = $this->draftProgress($customer, $draft, $product);
+        $profileProgress = $this->draftProgress($customer, $draft, $product);
+        $applicationProgress = app(ApplicationProgressService::class)
+            ->applicationDraftProgress($customer, $draft, $product);
         $fee = ($draft->payload ?? [])['application_fee'] ?? null;
         $feePending = $product && quoted_application_fee($customer, $product) > 0
             && ! app(ApplicationFeePaymentService::class)->isFeeSatisfied($fee, quoted_application_fee($customer, $product));
@@ -86,9 +88,13 @@ class BorrowerApplicationsDashboardService
             'status'             => 'draft',
             'status_label'       => $this->borrowerStatus->forDraft($draft)['label'],
             'status_tone'        => 'gray',
-            'progress_percent'   => $progress['percent'],
-            'progress_steps'     => $progress['steps'],
-            'current_step'       => $this->draftCurrentStepLabel($customer, $draft, $product, $resumeTarget, $progress),
+            'profile_percent'    => $profileProgress['percent'],
+            'profile_complete'   => $profileProgress['percent'] >= 100,
+            'application_percent'=> $applicationProgress['percent'],
+            'application_status' => $applicationProgress['label'],
+            'progress_percent'   => $applicationProgress['percent'],
+            'progress_steps'     => $applicationProgress['steps'] ?: $profileProgress['steps'],
+            'current_step'       => $applicationProgress['label'],
             'created_at'         => $draft->created_at,
             'updated_at'         => $draft->saved_at ?? $draft->updated_at,
             'sort_at'            => ($draft->saved_at ?? $draft->updated_at)?->timestamp ?? 0,
@@ -104,7 +110,9 @@ class BorrowerApplicationsDashboardService
     /** @return array<string, mixed> */
     public function formatSubmitted(LoanApplication $application): array
     {
-        $progress = $this->submittedProgress($application);
+        $pipelineProgress = $this->submittedProgress($application);
+        $profileProgress = app(ApplicationProgressService::class)
+            ->profileProgress($application->customer, $application->product);
         $borrowerStatus = $this->borrowerStatus->forApplication($application);
         $statusCode = $borrowerStatus['code'];
         $needsDocuments = in_array($statusCode, ['documents_requested', 'documents_resubmitted'], true);
@@ -120,8 +128,12 @@ class BorrowerApplicationsDashboardService
             'status'             => $statusCode,
             'status_label'       => $borrowerStatus['label'],
             'status_tone'        => $borrowerStatus['tone'],
-            'progress_percent'   => $progress['percent'],
-            'progress_steps'     => $progress['steps'],
+            'profile_percent'    => $profileProgress['percent'],
+            'profile_complete'   => $profileProgress['percent'] >= 100,
+            'application_percent'=> $pipelineProgress['percent'],
+            'application_status' => $borrowerStatus['label'],
+            'progress_percent'   => $pipelineProgress['percent'],
+            'progress_steps'     => $pipelineProgress['steps'],
             'created_at'         => $application->created_at,
             'updated_at'         => $application->updated_at,
             'last_updated_human' => optional($application->updated_at)->diffForHumans(),

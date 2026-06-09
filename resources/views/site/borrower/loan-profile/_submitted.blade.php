@@ -68,8 +68,14 @@
                 @endphp
                 <li class="px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
                     <div>
-                        <p class="text-sm font-medium text-gray-900">{{ $invite->invitee_name ?? __('borrower.application.guarantor_external') }}</p>
-                        <p class="text-xs text-gray-500">{{ ucfirst($invite->type ?? 'guarantor') }} · {{ $invite->contact }}</p>
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ __('borrower.application.guarantor_request_sent') }}</p>
+                        <p class="text-sm text-gray-700 mt-1">
+                            <span class="text-gray-500">{{ __('borrower.application.guarantor_to') }}</span>
+                            <span class="font-medium text-gray-900">{{ $invite->invitee_name ?? __('borrower.application.guarantor_external') }}</span>
+                        </p>
+                        <p class="text-xs text-gray-500 mt-0.5">
+                            <span class="text-gray-400">{{ __('borrower.application.guarantor_status_label') }}</span> {{ $status }}
+                        </p>
                     </div>
                     <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $gBadge }}">{{ $status }}</span>
                 </li>

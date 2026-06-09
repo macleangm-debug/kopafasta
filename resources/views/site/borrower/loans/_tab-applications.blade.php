@@ -43,24 +43,26 @@
                     <tr>
                         <th class="px-4 py-3">{{ __('borrower.applications_list.reference') }}</th>
                         <th class="px-4 py-3">{{ __('borrower.applications_list.product') }}</th>
-                        <th class="px-4 py-3">{{ __('borrower.applications_list.status') }}</th>
-                        <th class="px-4 py-3">{{ __('borrower.applications_list.last_updated') }}</th>
+                        <th class="px-4 py-3">{{ __('borrower.applications_list.profile') }}</th>
+                        <th class="px-4 py-3">{{ __('borrower.applications_list.application') }}</th>
                         <th class="px-4 py-3 text-right">{{ __('borrower.applications_list.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @foreach ($rows as $row)
-                        @php $badge = $toneClasses[$row['status_tone']] ?? $toneClasses['sky']; @endphp
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3 font-mono text-xs font-semibold">{{ $row['application_number'] }}</td>
                             <td class="px-4 py-3">{{ $row['product_name'] }}</td>
                             <td class="px-4 py-3">
-                                <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $badge }}">{{ $row['status_label'] }}</span>
-                                @if (! empty($row['detail']) && ($row['status'] ?? '') === 'rejected')
-                                    <p class="text-[11px] text-red-600 mt-1">{{ $row['detail'] }}</p>
+                                @if ($row['profile_complete'] ?? false)
+                                    <span class="text-emerald-700 font-semibold text-xs">100%</span>
+                                @else
+                                    <span class="font-semibold text-xs">{{ $row['profile_percent'] ?? 0 }}%</span>
                                 @endif
                             </td>
-                            <td class="px-4 py-3 text-xs text-gray-600">{{ $row['last_updated_human'] ?? optional($row['updated_at'])->diffForHumans() ?? '—' }}</td>
+                            <td class="px-4 py-3">
+                                <span class="text-xs font-medium text-gray-800">{{ $row['application_status'] ?? $row['status_label'] }}</span>
+                            </td>
                             <td class="px-4 py-3 text-right">
                                 <a href="{{ $row['action_url'] }}" class="text-amber-600 font-semibold hover:underline text-xs">{{ $row['action_label'] }}</a>
                             </td>
@@ -81,60 +83,25 @@
                         <p class="font-mono font-semibold text-sm mt-0.5">{{ $row['application_number'] }}</p>
                         <p class="text-xs text-gray-500">{{ $row['product_name'] }}</p>
                     </div>
-                    <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $badge }}">{{ $row['status_label'] }}</span>
+                    <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $badge }}">{{ $row['application_status'] ?? $row['status_label'] }}</span>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3 text-sm mb-4">
-                    <div>
-                        <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.created') }}</p>
-                        <p class="font-semibold text-sm">{{ optional($row['created_at'])->format('d M Y') ?? '—' }}</p>
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="rounded-xl bg-gray-50 px-3 py-2.5">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.profile') }}</p>
+                        <p class="font-semibold text-sm mt-0.5">
+                            @if ($row['profile_complete'] ?? false)
+                                <span class="text-emerald-700">✓ 100%</span>
+                            @else
+                                {{ $row['profile_percent'] ?? 0 }}%
+                            @endif
+                        </p>
                     </div>
-                    <div>
-                        <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.last_updated') }}</p>
-                        <p class="font-semibold text-sm">{{ optional($row['updated_at'])->format('d M Y') ?? '—' }}</p>
+                    <div class="rounded-xl bg-gray-50 px-3 py-2.5">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.application') }}</p>
+                        <p class="font-semibold text-sm mt-0.5">{{ $row['application_status'] ?? $row['status_label'] }}</p>
                     </div>
                 </div>
-
-                @if (! empty($row['requested_amount']))
-                    <div class="grid grid-cols-2 gap-3 text-sm mb-4">
-                        <div>
-                            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.requested') }}</p>
-                            <p class="font-semibold">{{ format_money($row['requested_amount']) }}</p>
-                        </div>
-                        @if (! empty($row['requested_tenure_months']))
-                            <div>
-                                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.tenure') }}</p>
-                                <p class="font-semibold">{{ __('borrower.applications_list.tenure_months', ['count' => $row['requested_tenure_months']]) }}</p>
-                            </div>
-                        @endif
-                    </div>
-                @endif
-
-                <div class="mb-4">
-                    <div class="flex items-center justify-between text-xs text-gray-600 mb-1">
-                        <span>{{ __('borrower.applications_list.progress') }}</span>
-                        <span class="font-semibold">{{ $row['progress_percent'] }}%</span>
-                    </div>
-                    <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div class="h-full bg-amber-500" style="width: {{ $row['progress_percent'] }}%"></div>
-                    </div>
-                    @if (! empty($row['progress_steps']))
-                        <ul class="mt-2 space-y-0.5">
-                            @foreach (array_slice($row['progress_steps'], 0, 4) as $step)
-                                <li class="text-[11px] {{ ($step['complete'] ?? false) ? 'text-emerald-700' : 'text-gray-500' }}">
-                                    {{ ($step['complete'] ?? false) ? '✓' : '○' }} {{ $step['label'] }}
-                                </li>
-                            @endforeach
-                        </ul>
-                    @endif
-                </div>
-
-                @if (! empty($row['current_step']))
-                    <p class="text-xs text-gray-600 mb-3">
-                        <span class="font-medium text-gray-700">{{ __('borrower.applications_list.current_step') }}:</span>
-                        {{ $row['current_step'] }}
-                    </p>
-                @endif
 
                 @if (! empty($row['detail']))
                     <p class="text-xs {{ ($row['status'] ?? '') === 'rejected' ? 'text-red-600' : 'text-gray-600' }} mb-3">{{ $row['detail'] }}</p>

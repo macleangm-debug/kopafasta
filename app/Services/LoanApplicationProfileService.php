@@ -27,7 +27,8 @@ class LoanApplicationProfileService
     {
         $product = $draft->product ?? LoanProduct::find($draft->loan_product_id);
         $resumeTarget = $this->drafts->resumeTarget($customer, $draft);
-        $requirementSummary = $this->progress->profileProgress($customer, $product);
+        $profileSummary = $this->progress->profileProgress($customer, $product);
+        $applicationSummary = $this->progress->applicationDraftProgress($customer, $draft, $product);
         $profileUrl = route('site.borrower.loan-profile.draft', $draft);
         $missingRequirements = $this->missingProfileRequirements($customer, $product, $profileUrl);
         $next = $this->nextAction->forDraft($customer, $draft, $product);
@@ -40,10 +41,14 @@ class LoanApplicationProfileService
             'summary'              => $this->draftSummary($customer, $draft, $product),
             'status'               => $this->draftStatus($draft, $next),
             'progress'             => [
-                'percent'   => $requirementSummary['percent'],
-                'completed' => $requirementSummary['completed'],
-                'missing'   => $requirementSummary['missing'],
-                'timeline'  => $this->progress->wizardTimeline($customer, $draft, $product),
+                'profile_percent'            => $profileSummary['percent'],
+                'profile_complete'         => $profileSummary['percent'] >= 100,
+                'application_percent'        => $applicationSummary['percent'],
+                'application_status_label' => $applicationSummary['label'],
+                'percent'                    => $applicationSummary['percent'],
+                'completed'                  => $profileSummary['completed'],
+                'missing'                    => $profileSummary['missing'],
+                'timeline'                   => $applicationSummary['steps'],
             ],
             'missing_requirements' => $missingRequirements,
             'next_action'          => $next,
@@ -133,10 +138,14 @@ class LoanApplicationProfileService
                 'detail'  => $this->statusDetail($application),
             ],
             'progress'             => [
-                'percent'   => $pipelineProgress['percent'],
-                'completed' => $profileProgress['completed'],
-                'missing'   => $profileProgress['missing'],
-                'timeline'  => $pipelineSteps,
+                'profile_percent'            => $profileProgress['percent'],
+                'profile_complete'         => $profileProgress['percent'] >= 100,
+                'application_percent'        => $pipelineProgress['percent'],
+                'application_status_label'   => $borrowerStatus['label'],
+                'percent'                    => $pipelineProgress['percent'],
+                'completed'                  => $profileProgress['completed'],
+                'missing'                    => $profileProgress['missing'],
+                'timeline'                   => $pipelineSteps,
             ],
             'missing_requirements' => $missingRequirements,
             'next_action'          => $next,

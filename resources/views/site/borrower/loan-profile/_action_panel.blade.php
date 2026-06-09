@@ -15,27 +15,38 @@
     $btnClass = ($next['tone'] ?? 'primary') === 'primary'
         ? 'bg-amber-500 hover:bg-amber-400 text-gray-900'
         : 'bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-800';
+    $profilePercent = (int) ($progress['profile_percent'] ?? $progress['percent'] ?? 0);
+    $profileComplete = (bool) ($progress['profile_complete'] ?? $profilePercent >= 100);
+    $applicationLabel = $progress['application_status_label'] ?? ($status['label'] ?? '—');
+    $applicationPercent = (int) ($progress['application_percent'] ?? $progress['percent'] ?? 0);
 @endphp
 
-<div class="mb-6 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 sm:p-6">
-    <div class="grid lg:grid-cols-[1fr_auto] gap-5 items-start">
-        <div class="space-y-4">
-            <div class="flex flex-wrap items-center gap-3">
-                <div>
-                    <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_profile.current_status') }}</p>
-                    <p class="text-lg font-bold text-gray-900 mt-0.5">{{ $status['label'] ?? '—' }}</p>
-                </div>
-                <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1.5 {{ $statusBadge }}">{{ $status['label'] ?? '—' }}</span>
-            </div>
+<div class="mb-6 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-4 sm:p-5">
+    <div class="grid sm:grid-cols-2 gap-3 mb-4">
+        <div class="rounded-xl bg-white ring-1 ring-amber-100 px-4 py-3">
+            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_profile.profile_completion') }}</p>
+            <p class="text-lg font-bold text-gray-900 mt-1">
+                @if ($profileComplete)
+                    <span class="text-emerald-700">✓ {{ __('borrower.loan_profile.profile_complete') }}</span>
+                @else
+                    {{ $profilePercent }}%
+                @endif
+            </p>
+        </div>
+        <div class="rounded-xl bg-white ring-1 ring-amber-100 px-4 py-3">
+            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_profile.application_progress') }}</p>
+            <p class="text-lg font-bold text-gray-900 mt-1">{{ $applicationLabel }}</p>
+            @if (! ($profile['is_draft'] ?? false) && $applicationPercent > 0)
+                <p class="text-xs text-gray-500 mt-0.5">{{ $applicationPercent }}%</p>
+            @endif
+        </div>
+    </div>
 
-            <div>
-                <div class="flex items-center justify-between gap-3 mb-2">
-                    <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_profile.progress_title') }}</p>
-                    <span class="text-sm font-bold text-amber-700">{{ $progress['percent'] ?? 0 }}%</span>
-                </div>
-                <div class="h-2 bg-white rounded-full overflow-hidden ring-1 ring-amber-100">
-                    <div class="h-full bg-amber-500 transition-all" style="width: {{ $progress['percent'] ?? 0 }}%"></div>
-                </div>
+    <div class="grid lg:grid-cols-[1fr_auto] gap-4 items-start">
+        <div class="space-y-3">
+            <div class="flex flex-wrap items-center gap-2">
+                <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_profile.current_status') }}</p>
+                <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1 {{ $statusBadge }}">{{ $status['label'] ?? '—' }}</span>
             </div>
 
             <div>

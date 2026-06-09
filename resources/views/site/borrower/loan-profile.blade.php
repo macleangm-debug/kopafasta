@@ -96,14 +96,14 @@
         </div>
     </div>
 
-    {{-- Progress --}}
+    {{-- Profile completion --}}
     <div class="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
         <div class="flex items-center justify-between gap-3 mb-4">
-            <h2 class="font-semibold">{{ __('borrower.loan_profile.requirements_title') }}</h2>
-            <span class="text-sm font-bold text-amber-700">{{ $progress['percent'] }}%</span>
+            <h2 class="font-semibold">{{ __('borrower.loan_profile.profile_completion') }}</h2>
+            <span class="text-sm font-bold text-amber-700">{{ $progress['profile_percent'] ?? $progress['percent'] }}%</span>
         </div>
         <div class="h-2 bg-gray-100 rounded-full overflow-hidden mb-5">
-            <div class="h-full bg-amber-500 transition-all" style="width: {{ $progress['percent'] }}%"></div>
+            <div class="h-full bg-amber-500 transition-all" style="width: {{ $progress['profile_percent'] ?? $progress['percent'] }}%"></div>
         </div>
 
         <div class="grid md:grid-cols-2 gap-6">
@@ -138,7 +138,7 @@
 
     @if (! empty($progress['timeline']))
         <div class="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
-            <h2 class="font-semibold mb-4">{{ __('borrower.loan_profile.timeline_title') }}</h2>
+            <h2 class="font-semibold mb-4">{{ __('borrower.loan_profile.application_progress') }}</h2>
             <ul class="space-y-2">
                 @foreach ($progress['timeline'] as $step)
                     <li class="flex items-start gap-2 text-sm {{ ($step['complete'] ?? false) ? 'text-emerald-700' : (($step['current'] ?? false) ? 'text-amber-900 font-semibold' : 'text-gray-600') }}">

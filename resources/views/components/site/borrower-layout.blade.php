@@ -1,22 +1,30 @@
-@props(['title' => null, 'active' => 'dashboard'])
+@props(['title' => null, 'active' => 'dashboard', 'portalMode' => 'borrower'])
 
 @php
     $pageTitle = $title ?? brand_title('My account');
-$nav = [
-    ['key' => 'dashboard',     'label' => __('borrower.nav.dashboard'),     'route' => 'site.borrower.dashboard',     'icon' => 'home'],
-    ['key' => 'membership',    'label' => __('borrower.nav.membership'),    'route' => 'site.membership.show',        'icon' => 'shield'],
-    ['key' => 'referrals',     'label' => __('borrower.nav.referrals'),     'route' => 'site.borrower.referrals',     'icon' => 'users'],
-    ['key' => 'loans',         'label' => __('borrower.nav.loans'),         'route' => 'site.borrower.loans',         'icon' => 'wallet'],
-    ['key' => 'marketplace',   'label' => __('borrower.nav.marketplace'),   'route' => 'site.borrower.marketplace', 'icon' => 'folder'],
-    ['key' => 'payments',      'label' => __('borrower.nav.payments'),      'route' => 'site.borrower.payments',      'icon' => 'pay'],
-    ['key' => 'notifications', 'label' => __('borrower.nav.notifications'), 'route' => 'site.borrower.notifications', 'icon' => 'bell'],
-    ['key' => 'support',       'label' => __('borrower.nav.support'),       'route' => 'site.borrower.support',       'icon' => 'help'],
-    ['key' => 'profile',       'label' => __('borrower.nav.profile'),       'route' => 'site.borrower.profile',       'icon' => 'user'],
-];
+$nav = $portalMode === 'guarantor'
+    ? [
+        ['key' => 'loans', 'label' => __('borrower.loans_page.tab_guarantor_requests'), 'route' => 'site.borrower.loans', 'route_params' => ['tab' => 'guarantor'], 'icon' => 'users'],
+        ['key' => 'profile', 'label' => __('borrower.nav.profile'), 'route' => 'site.borrower.profile', 'icon' => 'user'],
+        ['key' => 'support', 'label' => __('borrower.nav.support'), 'route' => 'site.borrower.support', 'icon' => 'help'],
+    ]
+    : [
+        ['key' => 'dashboard',     'label' => __('borrower.nav.dashboard'),     'route' => 'site.borrower.dashboard',     'icon' => 'home'],
+        ['key' => 'membership',    'label' => __('borrower.nav.membership'),    'route' => 'site.membership.show',        'icon' => 'shield'],
+        ['key' => 'referrals',     'label' => __('borrower.nav.referrals'),     'route' => 'site.borrower.referrals',     'icon' => 'users'],
+        ['key' => 'loans',         'label' => __('borrower.nav.loans'),         'route' => 'site.borrower.loans',         'icon' => 'wallet'],
+        ['key' => 'marketplace',   'label' => __('borrower.nav.marketplace'),   'route' => 'site.borrower.marketplace', 'icon' => 'folder'],
+        ['key' => 'payments',      'label' => __('borrower.nav.payments'),      'route' => 'site.borrower.payments',      'icon' => 'pay'],
+        ['key' => 'notifications', 'label' => __('borrower.nav.notifications'), 'route' => 'site.borrower.notifications', 'icon' => 'bell'],
+        ['key' => 'support',       'label' => __('borrower.nav.support'),       'route' => 'site.borrower.support',       'icon' => 'help'],
+        ['key' => 'profile',       'label' => __('borrower.nav.profile'),       'route' => 'site.borrower.profile',       'icon' => 'user'],
+    ];
 
 $borrowerCustomer = auth()->user()?->customer;
+$portalContext = app(\App\Services\PortalContextService::class);
+$displayName = $portalContext->displayName($borrowerCustomer);
 $unreadNotifications = $borrowerCustomer
-    ? \App\Models\NotificationLog::where('customer_id', $borrowerCustomer->id)->whereNull('read_at')->count()
+    ? $portalContext->borrowerNotificationsQuery($borrowerCustomer)->whereNull('read_at')->count()
     : 0;
 
 $icon = function (string $name) {
@@ -62,7 +70,7 @@ $icon = function (string $name) {
         <nav class="flex-1 overflow-y-auto py-4">
             @foreach ($nav as $item)
                 @php $isActive = $active === $item['key']; @endphp
-                <a href="{{ route($item['route']) }}"
+                <a href="{{ route($item['route'], $item['route_params'] ?? []) }}"
                    class="flex items-center gap-3 mx-3 my-0.5 px-3 py-2.5 text-sm rounded-lg transition
                           {{ $isActive ? 'bg-white text-indigo-700 font-semibold shadow'
                                        : 'text-white/85 hover:bg-white/15 hover:text-white' }}">
@@ -74,7 +82,7 @@ $icon = function (string $name) {
             @endforeach
         </nav>
         <div class="p-4 border-t border-white/15 text-[11px] text-white/60">
-            {{ __('borrower.signed_in_as', ['name' => Auth::user()->name]) }}
+            {{ __('borrower.signed_in_as', ['name' => $displayName]) }}
         </div>
     </aside>
 
@@ -121,11 +129,11 @@ $icon = function (string $name) {
                 <button type="button" @click="profileOpen = !profileOpen"
                         class="flex items-center gap-3 rounded-xl hover:bg-gray-50 px-2 py-1.5 transition">
                     <div class="text-right leading-tight hidden sm:block">
-                        <p class="text-sm font-semibold text-gray-900">{{ Auth::user()->name }}</p>
+                        <p class="text-sm font-semibold text-gray-900">{{ $displayName }}</p>
                         <p class="text-xs text-gray-500">{{ Auth::user()->email }}</p>
                     </div>
                     <div class="size-9 rounded-full bg-amber-100 text-amber-700 grid place-items-center font-bold">
-                        {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
+                        {{ strtoupper(substr($displayName, 0, 1)) }}
                     </div>
                     <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
                 </button>
@@ -179,7 +187,7 @@ $icon = function (string $name) {
                 <nav class="flex-1 overflow-y-auto py-2">
                     @foreach ($nav as $item)
                         @php $isActive = $active === $item['key']; @endphp
-                        <a href="{{ route($item['route']) }}"
+                        <a href="{{ route($item['route'], $item['route_params'] ?? []) }}"
                            class="flex items-center gap-3 mx-3 my-0.5 px-3 py-3 text-sm rounded-lg
                                   {{ $isActive ? 'bg-white text-indigo-700 font-semibold' : 'text-white/90 hover:bg-white/15' }}">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">{!! $icon($item['icon']) !!}</svg>

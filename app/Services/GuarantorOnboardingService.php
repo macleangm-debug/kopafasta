@@ -43,6 +43,20 @@ class GuarantorOnboardingService
             return;
         }
 
+        $portal = app(PortalContextService::class);
+        if ($portal->isBorrowerForInvitation($invitation, $customer)) {
+            throw new \InvalidArgumentException('You cannot guarantee your own loan application.');
+        }
+
+        if ($invitation->guarantor_customer_id
+            && (int) $invitation->guarantor_customer_id !== (int) $customer->id) {
+            throw new \InvalidArgumentException('This invitation is linked to another account.');
+        }
+
+        if (! $invitation->guarantor_customer_id && ! $portal->canActAsGuarantorFor($invitation, $customer)) {
+            throw new \InvalidArgumentException('This invitation does not match your account details.');
+        }
+
         $invitation->update(['guarantor_customer_id' => $customer->id]);
 
         if ($guarantor = $invitation->customerGuarantor?->guarantor) {
@@ -117,14 +131,24 @@ class GuarantorOnboardingService
             return null;
         }
 
-        if ($invitation->guarantor_customer_id && $invitation->guarantor_customer_id !== $customer->id) {
+        $portal = app(PortalContextService::class);
+
+        if ($portal->isBorrowerForInvitation($invitation, $customer)) {
             $this->forgetInvitation($request);
 
             return null;
         }
 
-        if (! $invitation->guarantor_customer_id) {
-            $this->linkInvitee($invitation, $customer);
+        if ($invitation->guarantor_customer_id && (int) $invitation->guarantor_customer_id !== (int) $customer->id) {
+            $this->forgetInvitation($request);
+
+            return null;
+        }
+
+        if (! $invitation->guarantor_customer_id && ! $portal->canActAsGuarantorFor($invitation, $customer)) {
+            $this->forgetInvitation($request);
+
+            return null;
         }
 
         if ($invitation->customerGuarantor?->status === 'approved') {

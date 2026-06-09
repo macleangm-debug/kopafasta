@@ -15,6 +15,7 @@
             'activeTab' => $activeTab ?? 'applications',
             'viewMode' => $viewMode ?? 'cards',
             'inline' => true,
+            'showGuarantorTab' => ($pendingGuarantorRequests ?? collect())->isNotEmpty(),
         ])
         <a href="{{ route('site.borrower.apply') }}"
            class="inline-flex justify-center items-center bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-2.5 rounded-full text-sm shrink-0 self-start sm:self-auto">
@@ -24,6 +25,11 @@
 
     @if (($activeTab ?? 'applications') === 'active')
         @include('site.borrower.loans._tab-active', ['loans' => $loans ?? collect()])
+    @elseif (($activeTab ?? 'applications') === 'guarantor')
+        @include('site.borrower.loans._tab-guarantor-requests', [
+            'pendingGuarantorRequests' => $pendingGuarantorRequests ?? collect(),
+            'customer' => $customer,
+        ])
     @else
         @include('site.borrower.loans._tab-applications', [
             'rows' => $applicationRows ?? [],

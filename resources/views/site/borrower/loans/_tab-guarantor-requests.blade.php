@@ -12,12 +12,26 @@
         @foreach ($pendingGuarantorRequests as $invitation)
             @php $link = $invitation->customerGuarantor; @endphp
             <div class="bg-white rounded-2xl border border-gray-200 p-5">
-                <p class="font-semibold">{{ trim($invitation->borrower->first_name.' '.$invitation->borrower->last_name) }}</p>
-                <p class="text-sm text-gray-600 mt-1">
+                <div class="flex flex-wrap items-start justify-between gap-2 mb-3">
+                    <p class="font-semibold text-gray-900">{{ __('borrower.guarantor.request_received') }}</p>
+                    <span class="text-xs font-semibold rounded-full px-2.5 py-1 bg-amber-100 text-amber-800">{{ __('borrower.guarantor.action_required') }}</span>
+                </div>
+                <dl class="grid gap-2 text-sm">
+                    <div>
+                        <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.guarantor_invite.borrower_label') }}</dt>
+                        <dd class="font-medium text-gray-900">{{ trim($invitation->borrower->first_name.' '.$invitation->borrower->last_name) }}</dd>
+                    </div>
                     @if ($invitation->application)
-                        {{ $invitation->application->product->name ?? __('borrower.guarantor.loan') }} · {{ format_money((float) $invitation->application->requested_amount) }}
+                        <div>
+                            <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.loans_page.reference') }}</dt>
+                            <dd class="font-medium text-gray-900">{{ $invitation->application->application_number ?? $invitation->application->draft_reference ?? '—' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.guarantor_invite.product_label') }}</dt>
+                            <dd class="text-gray-700">{{ $invitation->application->product->name ?? __('borrower.guarantor.loan') }} · {{ format_money((float) $invitation->application->requested_amount) }}</dd>
+                        </div>
                     @endif
-                </p>
+                </dl>
                 @if ($link)
                     <form method="POST" action="{{ route('site.borrower.guarantor-requests.respond', $link) }}" class="mt-4 space-y-4"
                           @submit.prevent="

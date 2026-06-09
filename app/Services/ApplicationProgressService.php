@@ -107,6 +107,52 @@ class ApplicationProgressService
     }
 
     /**
+     * Wizard/application form progress for drafts (separate from profile completion).
+     *
+     * @return array{percent: int, label: string, steps: list<array{label: string, complete: bool, key?: string}>}
+     */
+    public function applicationDraftProgress(Customer $customer, LoanApplicationDraft $draft, ?LoanProduct $product): array
+    {
+        if (! $product) {
+            return ['percent' => 0, 'label' => __('borrower.applications_list.statuses.draft'), 'steps' => []];
+        }
+
+        $wizardSteps = collect($this->wizard->borrowerStepPlan($customer, $product))
+            ->reject(fn (array $step) => $step['key'] === 'product')
+            ->values();
+
+        if ($wizardSteps->isEmpty()) {
+            return ['percent' => 0, 'label' => __('borrower.applications_list.statuses.draft'), 'steps' => []];
+        }
+
+        $payload = $draft->payload ?? [];
+        if ($draft->phase !== 'application' && empty($payload['application_started'])) {
+            return [
+                'percent' => 0,
+                'label'   => __('borrower.applications_list.statuses.draft'),
+                'steps'   => [],
+            ];
+        }
+
+        $stepKey = $payload['step_key'] ?? null;
+        $currentIndex = $this->resolveWizardStepIndex($wizardSteps, $stepKey, (int) $draft->step);
+        $total = max(1, $wizardSteps->count());
+        $percent = (int) round((min($currentIndex, $total) / $total) * 100);
+
+        $currentLabel = (string) ($wizardSteps[$currentIndex]['label'] ?? __('borrower.applications_list.statuses.draft'));
+
+        return [
+            'percent' => min(100, $percent),
+            'label'   => $currentLabel,
+            'steps'   => $wizardSteps->map(fn (array $step, int $index) => [
+                'label'    => (string) $step['label'],
+                'complete' => $index < $currentIndex,
+                'key'      => $step['key'] ?? null,
+            ])->values()->all(),
+        ];
+    }
+
+    /**
      * @return list<array{key: string, label: string, complete: bool, action_url: string|null}>
      */
     public function requirements(Customer $customer, ?LoanProduct $product, ?LoanApplicationDraft $draft = null): array

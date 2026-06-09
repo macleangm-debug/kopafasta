@@ -106,9 +106,10 @@ class BorrowerController extends Controller
 
         $applicationsCount = LoanApplication::where('customer_id', $customer->id)->count();
 
-        $notifications = NotificationLog::where('customer_id', $customer->id)
+        $portal = app(\App\Services\PortalContextService::class);
+        $notifications = $portal->borrowerNotificationsQuery($customer)
             ->latest()->limit(4)->get();
-        $unreadNotificationCount = NotificationLog::where('customer_id', $customer->id)
+        $unreadNotificationCount = $portal->borrowerNotificationsQuery($customer)
             ->whereNull('read_at')->count();
 
         $eligibility = $qualification->calculate($customer);
@@ -276,8 +277,15 @@ class BorrowerController extends Controller
     {
         $customer = $this->customer();
 
+        $portal = app(\App\Services\PortalContextService::class);
+        $pendingGuarantorRequests = $portal->pendingGuarantorInvitations($customer);
+
         $activeTab = $request->query('tab', 'applications');
-        if (! in_array($activeTab, ['applications', 'active'], true)) {
+        $allowedTabs = ['applications', 'active'];
+        if ($pendingGuarantorRequests->isNotEmpty()) {
+            $allowedTabs[] = 'guarantor';
+        }
+        if (! in_array($activeTab, $allowedTabs, true)) {
             $activeTab = 'applications';
         }
 
@@ -306,6 +314,7 @@ class BorrowerController extends Controller
             'applicationRows',
             'viewMode',
             'loans',
+            'pendingGuarantorRequests',
         ));
     }
 
@@ -566,8 +575,10 @@ class BorrowerController extends Controller
     public function notifications(): View
     {
         $customer = $this->customer();
-        $items = NotificationLog::where('customer_id', $customer->id)
-            ->latest()->paginate(20);
+        $items = app(\App\Services\PortalContextService::class)
+            ->borrowerNotificationsQuery($customer)
+            ->latest()
+            ->paginate(20);
 
         return view('site.borrower.notifications', compact('customer','items'));
     }
@@ -575,7 +586,8 @@ class BorrowerController extends Controller
     public function notificationPreview(): \Illuminate\Http\JsonResponse
     {
         $customer = $this->customer();
-        $items = NotificationLog::where('customer_id', $customer->id)
+        $portal = app(\App\Services\PortalContextService::class);
+        $items = $portal->borrowerNotificationsQuery($customer)
             ->latest()
             ->limit(8)
             ->get()
@@ -588,7 +600,7 @@ class BorrowerController extends Controller
             ]);
 
         return response()->json([
-            'unread' => NotificationLog::where('customer_id', $customer->id)->whereNull('read_at')->count(),
+            'unread' => $portal->borrowerNotificationsQuery($customer)->whereNull('read_at')->count(),
             'items'  => $items,
         ]);
     }
@@ -614,7 +626,9 @@ class BorrowerController extends Controller
     public function clearAllNotifications(): RedirectResponse
     {
         $customer = $this->customer();
-        NotificationLog::where('customer_id', $customer->id)->delete();
+        app(\App\Services\PortalContextService::class)
+            ->borrowerNotificationsQuery($customer)
+            ->delete();
 
         return back()->with('status', 'All notifications cleared.');
     }
@@ -622,7 +636,8 @@ class BorrowerController extends Controller
     public function markNotificationsRead(Request $request): RedirectResponse|\Illuminate\Http\JsonResponse
     {
         $customer = $this->customer();
-        NotificationLog::where('customer_id', $customer->id)
+        app(\App\Services\PortalContextService::class)
+            ->borrowerNotificationsQuery($customer)
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 

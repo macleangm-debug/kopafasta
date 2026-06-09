@@ -45,7 +45,7 @@
         @endif
 
         <div class="mt-8 bg-white rounded-2xl border border-gray-200 p-6 text-left">
-            <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-4">Underwriting progress</p>
+            <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-4">{{ __('borrower.loan_profile.application_progress') }}</p>
             <ol class="space-y-3">
                 @foreach ($underwritingStages as $stage)
                     @php
