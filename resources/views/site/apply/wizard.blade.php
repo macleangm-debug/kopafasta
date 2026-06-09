@@ -129,7 +129,10 @@
                           'guarantor_invite_failed' => __('borrower.apply.alerts.guarantor_invite_failed'),
                           'guarantor_external_invite_required' => __('borrower.apply.alerts.guarantor_external_invite_required'),
                           'guarantorStatus' => [
-                              'pending' => __('borrower.apply.guarantor_status.invitation_sent'),
+                              'invitation_sent' => __('borrower.apply.guarantor_status.invitation_sent'),
+                              'registration_in_progress' => __('borrower.apply.guarantor_status.registration_in_progress'),
+                              'kyc_in_progress' => __('borrower.apply.guarantor_status.kyc_in_progress'),
+                              'guarantee_pending' => __('borrower.apply.guarantor_status.guarantee_pending'),
                               'accepted' => __('borrower.apply.guarantor_status.accepted'),
                               'rejected' => __('borrower.apply.guarantor_status.rejected'),
                               'expired' => __('borrower.apply.guarantor_status.expired'),
@@ -1536,8 +1539,11 @@
                             || @js(__('borrower.apply.guarantor_status.pending_acceptance'));
                     }
                     if (this.form.guarantor_mode === 'external') {
-                        const status = this.externalGuarantor?.status || 'pending';
-                        return this.i18n.alerts.guarantorStatus?.[status]
+                        if (this.externalGuarantor?.borrower_status_label) {
+                            return this.externalGuarantor.borrower_status_label;
+                        }
+                        const code = this.externalGuarantor?.borrower_status_code || 'invitation_sent';
+                        return this.i18n.alerts.guarantorStatus?.[code]
                             || @js(__('borrower.apply.guarantor_status.invitation_sent'));
                     }
 
@@ -1549,12 +1555,20 @@
                         return 'bg-amber-100 text-amber-900 ring-amber-200';
                     }
 
-                    const status = this.externalGuarantor?.status || 'pending';
-                    if (status === 'accepted') {
+                    const code = this.externalGuarantor?.borrower_status_code
+                        || (this.externalGuarantor?.status === 'accepted' ? 'registration_in_progress' : 'invitation_sent');
+
+                    if (code === 'accepted') {
                         return 'bg-emerald-100 text-emerald-900 ring-emerald-200';
                     }
-                    if (status === 'rejected' || status === 'expired') {
+                    if (code === 'rejected' || code === 'expired') {
                         return 'bg-rose-100 text-rose-900 ring-rose-200';
+                    }
+                    if (code === 'guarantee_pending') {
+                        return 'bg-violet-100 text-violet-900 ring-violet-200';
+                    }
+                    if (code === 'kyc_in_progress' || code === 'registration_in_progress') {
+                        return 'bg-amber-100 text-amber-900 ring-amber-200';
                     }
 
                     return 'bg-sky-100 text-sky-900 ring-sky-200';

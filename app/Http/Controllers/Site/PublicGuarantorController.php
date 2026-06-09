@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\GuarantorInvitation;
 use App\Services\GuarantorInvitationService;
 use App\Services\GuarantorOnboardingService;
+use App\Services\PortalContextService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -15,11 +16,11 @@ class PublicGuarantorController extends Controller
 {
     use AuditsActions;
 
-    public function show(string $token): View|RedirectResponse
+    public function show(string $token, Request $request, GuarantorOnboardingService $onboarding): View|RedirectResponse
     {
         $invitation = GuarantorInvitation::query()
             ->where('token', $token)
-            ->with(['borrower', 'application.product'])
+            ->with(['borrower', 'application.product', 'customerGuarantor'])
             ->firstOrFail();
 
         if ($invitation->isExpired() && $invitation->isPending()) {
@@ -28,79 +29,119 @@ class PublicGuarantorController extends Controller
             return view('site.guarantor.expired', compact('invitation'));
         }
 
-        if (! $invitation->isPending()) {
+        if ($invitation->status === 'rejected') {
+            return view('site.guarantor.declined', compact('invitation'));
+        }
+
+        if ($invitation->status === 'accepted') {
+            return $this->showAccepted($request, $invitation, $onboarding);
+        }
+
+        if ($invitation->status !== 'pending') {
             return view('site.guarantor.responded', compact('invitation'));
+        }
+
+        if ($invitation->type === 'internal' && ! auth()->check()) {
+            session(['login_redirect' => route('site.guarantor.show', $invitation->token)]);
+
+            return view('site.guarantor.member-login', compact('invitation'));
+        }
+
+        if ($invitation->type === 'internal' && auth()->user()?->customer) {
+            $customer = auth()->user()->customer;
+            if (app(PortalContextService::class)->canActAsGuarantorFor($invitation, $customer)) {
+                return redirect()->route('site.borrower.loans', ['tab' => 'guarantor'])
+                    ->with('status', __('borrower.guarantor_invite.member_view_request'));
+            }
         }
 
         return view('site.guarantor.show', compact('invitation'));
     }
 
-    public function accept(Request $request, string $token, GuarantorInvitationService $service, GuarantorOnboardingService $onboarding): RedirectResponse
+    public function declined(string $token): View
     {
-        $invitation = GuarantorInvitation::query()->where('token', $token)->firstOrFail();
+        $invitation = GuarantorInvitation::query()
+            ->where('token', $token)
+            ->with(['borrower'])
+            ->firstOrFail();
+
+        return view('site.guarantor.declined', compact('invitation'));
+    }
+
+    public function accept(
+        Request $request,
+        string $token,
+        GuarantorInvitationService $service,
+        GuarantorOnboardingService $onboarding,
+    ): RedirectResponse {
+        $invitation = GuarantorInvitation::query()
+            ->where('token', $token)
+            ->with(['customerGuarantor'])
+            ->firstOrFail();
 
         if (! $invitation->isPending() || $invitation->isExpired()) {
-            return back()->with('error', 'This invitation is no longer active.');
+            return back()->with('error', __('borrower.guarantor_invite.no_longer_active'));
         }
 
-        if ($invitation->type === 'internal' && $invitation->guarantor_customer_id) {
-            $link = $invitation->customerGuarantor;
-            if ($link) {
+        if ($invitation->type === 'internal') {
+            if (! auth()->check()) {
+                session(['login_redirect' => route('site.guarantor.show', $invitation->token)]);
+
+                return redirect()
+                    ->route('login')
+                    ->with('status', __('borrower.guarantor_invite.login_to_respond'));
+            }
+
+            $customer = auth()->user()->customer;
+            if (! $customer || ! app(PortalContextService::class)->canActAsGuarantorFor($invitation, $customer)) {
+                return back()->with('error', __('borrower.guarantor_invite.wrong_account'));
+            }
+
+            if ($link = $invitation->customerGuarantor) {
                 $service->approve($link);
             }
-        } elseif ($invitation->type === 'external') {
-            $onboarding->rememberInvitation($request, $invitation);
+
             $invitation->update([
                 'status'       => 'accepted',
                 'responded_at' => now(),
             ]);
 
-            if (auth()->check() && auth()->user()->customer) {
-                $customer = auth()->user()->customer;
-                $portal = app(\App\Services\PortalContextService::class);
-
-                if ($portal->isBorrowerForInvitation($invitation, $customer)) {
-                    $onboarding->forgetInvitation($request);
-
-                    return redirect()->route('site.borrower.loans', ['tab' => 'applications'])
-                        ->with('error', 'This guarantor link belongs to someone else. Share it with the invited guarantor only.');
-                }
-
-                try {
-                    $onboarding->linkInvitee($invitation, $customer);
-                } catch (\InvalidArgumentException $e) {
-                    $onboarding->forgetInvitation($request);
-
-                    return redirect()->route('site.borrower.dashboard')
-                        ->with('error', $e->getMessage());
-                }
-
-                if ($onboarding->canFinalize($customer, $invitation)) {
-                    return redirect()->route('site.guarantor.onboarding')
-                        ->with('status', 'Complete the final step to become a guarantor.');
-                }
-
-                return redirect()->route('site.borrower.dashboard')
-                    ->with('status', 'Invitation accepted. Pay your registration fee and complete your profile to finalize your guarantor role.');
-            }
-
-            return redirect()
-                ->route('site.register.borrower')
-                ->with('status', 'Invitation accepted. Create your KopaFasta account to complete guarantor onboarding.');
-        } else {
-            $invitation->update([
-                'status'       => 'accepted',
-                'responded_at' => now(),
+            $this->auditBorrower('guarantor_invitation.accepted', $invitation, [
+                'application_id' => $invitation->loan_application_id,
             ]);
+
+            return redirect()->route('site.borrower.loans', ['tab' => 'guarantor'])
+                ->with('status', __('borrower.guarantor_invite.member_accepted'));
         }
+
+        $onboarding->rememberInvitation($request, $invitation);
+        $invitation->update([
+            'status'       => 'accepted',
+            'responded_at' => now(),
+        ]);
 
         $this->auditBorrower('guarantor_invitation.accepted', $invitation, [
             'application_id' => $invitation->loan_application_id,
         ]);
 
-        return redirect()
-            ->route('site.guarantor.show', $token)
-            ->with('status', 'Thank you. Your acceptance has been recorded.');
+        if (! auth()->check()) {
+            return redirect()
+                ->route('site.register.borrower')
+                ->with('status', __('borrower.guarantor_invite.create_account_prompt'));
+        }
+
+        $customer = auth()->user()->customer;
+        if (! $customer) {
+            return redirect()->route('site.register.borrower')
+                ->with('status', __('borrower.guarantor_invite.create_account_prompt'));
+        }
+
+        if ($redirect = $onboarding->redirectToContinue($request, $customer, $invitation->fresh())) {
+            return $redirect;
+        }
+
+        return redirect()->route('site.guarantor.show', $token)
+            ->with('status', __('borrower.guarantor_invite.accept_recorded_continue'));
     }
 
     public function reject(Request $request, string $token, GuarantorInvitationService $service): RedirectResponse
@@ -108,7 +149,7 @@ class PublicGuarantorController extends Controller
         $invitation = GuarantorInvitation::query()->where('token', $token)->firstOrFail();
 
         if (! $invitation->isPending() || $invitation->isExpired()) {
-            return back()->with('error', 'This invitation is no longer active.');
+            return back()->with('error', __('borrower.guarantor_invite.no_longer_active'));
         }
 
         $notes = $request->validate(['notes' => ['nullable', 'string', 'max:500']])['notes'] ?? null;
@@ -129,8 +170,54 @@ class PublicGuarantorController extends Controller
             'application_id' => $invitation->loan_application_id,
         ]);
 
-        return redirect()
-            ->route('site.guarantor.show', $token)
-            ->with('status', 'Invitation declined.');
+        return redirect()->route('site.guarantor.declined', $token);
+    }
+
+    private function showAccepted(
+        Request $request,
+        GuarantorInvitation $invitation,
+        GuarantorOnboardingService $onboarding,
+    ): View|RedirectResponse {
+        $onboarding->rememberInvitation($request, $invitation);
+
+        if ($invitation->type === 'internal') {
+            if (! auth()->check()) {
+                session(['login_redirect' => route('site.guarantor.show', $invitation->token)]);
+
+                return view('site.guarantor.member-login', compact('invitation'));
+            }
+
+            $customer = auth()->user()->customer;
+            if ($customer && app(PortalContextService::class)->canActAsGuarantorFor($invitation, $customer)) {
+                return redirect()->route('site.borrower.loans', ['tab' => 'guarantor']);
+            }
+
+            return view('site.guarantor.member-login', compact('invitation'));
+        }
+
+        if (! auth()->check()) {
+            return view('site.guarantor.accepted-continue', [
+                'invitation' => $invitation,
+                'cta_url'    => route('site.register.borrower'),
+                'cta_label'  => __('borrower.guarantor_invite.create_account'),
+            ]);
+        }
+
+        $customer = auth()->user()?->customer;
+        if ($customer) {
+            if ($redirect = $onboarding->redirectToContinue($request, $customer, $invitation)) {
+                return $redirect;
+            }
+
+            if ($onboarding->canFinalize($customer, $invitation)) {
+                return redirect()->route('site.guarantor.onboarding');
+            }
+        }
+
+        return view('site.guarantor.accepted-continue', [
+            'invitation' => $invitation,
+            'cta_url'    => route('site.borrower.dashboard'),
+            'cta_label'  => __('borrower.guarantor_invite.continue_guarantee'),
+        ]);
     }
 }

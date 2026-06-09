@@ -22,7 +22,6 @@
 
         <div class="bg-white rounded-2xl border border-gray-200 p-6 sm:p-8">
             <h1 class="text-2xl font-bold mb-2">{{ __('borrower.guarantor_invite.heading') }}</h1>
-            <p class="text-sm text-gray-600 mb-2">{{ __('borrower.guarantor_invite.intro') }}</p>
             <p class="text-sm text-gray-600 mb-6">{{ __('borrower.guarantor_invite.request_explanation') }}</p>
 
             <dl class="rounded-xl bg-gray-50 ring-1 ring-gray-200 divide-y divide-gray-200 text-sm mb-6">
@@ -35,10 +34,6 @@
                     <dd class="font-semibold text-right">{{ $context['product_name'] }}</dd>
                 </div>
                 <div class="px-4 py-3 flex justify-between gap-3">
-                    <dt class="text-gray-500">{{ __('borrower.guarantor_invite.guarantor_label') }}</dt>
-                    <dd class="font-semibold text-right">{{ $guarantorName }}</dd>
-                </div>
-                <div class="px-4 py-3 flex justify-between gap-3">
                     <dt class="text-gray-500">{{ __('borrower.guarantor_invite.amount_label') }}</dt>
                     <dd class="font-semibold text-right">{{ $context['amount_label'] }}</dd>
                 </div>
@@ -46,7 +41,22 @@
                     <dt class="text-gray-500">{{ __('borrower.guarantor_invite.duration_label') }}</dt>
                     <dd class="font-semibold text-right">{{ $context['duration_label'] }}</dd>
                 </div>
+                <div class="px-4 py-3 flex justify-between gap-3">
+                    <dt class="text-gray-500">{{ __('borrower.guarantor_invite.installment_label') }}</dt>
+                    <dd class="font-semibold text-right">{{ $context['installment_label'] }}</dd>
+                </div>
+                @if ($invitation->type === 'external')
+                    <div class="px-4 py-3 flex justify-between gap-3">
+                        <dt class="text-gray-500">{{ __('borrower.guarantor_invite.guarantor_label') }}</dt>
+                        <dd class="font-semibold text-right">{{ $guarantorName }}</dd>
+                    </div>
+                @endif
             </dl>
+
+            <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-4 text-sm text-sky-900 mb-6">
+                <p class="font-semibold mb-1">{{ __('borrower.guarantor_invite.role_heading') }}</p>
+                <p>{{ __('borrower.guarantor_invite.role_body') }}</p>
+            </div>
 
             @if ($invitation->type === 'external')
                 <p class="text-sm text-gray-600 mb-6">{{ __('borrower.guarantor_invite.external_profile_note') }}</p>

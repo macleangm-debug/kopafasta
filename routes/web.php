@@ -72,6 +72,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
 
     // Public guarantor invitation (guest + logged-in users must both reach this page)
     Route::get('/guarantor-request/{token}', [\App\Http\Controllers\Site\PublicGuarantorController::class, 'show'])->name('guarantor.show');
+    Route::get('/guarantor-request/{token}/declined', [\App\Http\Controllers\Site\PublicGuarantorController::class, 'declined'])->name('guarantor.declined');
     Route::post('/guarantor-request/{token}/accept', [\App\Http\Controllers\Site\PublicGuarantorController::class, 'accept'])->name('guarantor.accept');
     Route::post('/guarantor-request/{token}/reject', [\App\Http\Controllers\Site\PublicGuarantorController::class, 'reject'])->name('guarantor.reject');
     Route::get('/guarantor/{token}', fn (string $token) => redirect("/guarantor-request/{$token}", 301));

@@ -149,6 +149,10 @@ class AuthController extends Controller
 
         $this->pins->setPin($user, $data['pin']);
 
+        if ($user->customer && ($guarantorRedirect = app(\App\Services\GuarantorOnboardingService::class)->redirectIfPending($request, $user->customer))) {
+            return $guarantorRedirect;
+        }
+
         return redirect()->route('site.membership.renew')
             ->with('status', 'PIN created. Pay your registration fee to unlock loans and services.');
     }
@@ -256,6 +260,12 @@ class AuthController extends Controller
         if ($user->role === 'borrower' && $user->customer) {
             if ($guarantorRedirect = app(\App\Services\GuarantorOnboardingService::class)->redirectIfPending($request, $user->customer)) {
                 return $guarantorRedirect;
+            }
+        }
+
+        if ($user->role === 'borrower' && ($returnUrl = $request->session()->pull('login_redirect'))) {
+            if (is_string($returnUrl) && str_starts_with($returnUrl, url('/'))) {
+                return redirect()->to($returnUrl);
             }
         }
 

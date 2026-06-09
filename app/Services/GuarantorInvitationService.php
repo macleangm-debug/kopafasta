@@ -141,23 +141,92 @@ class GuarantorInvitationService
         ]);
     }
 
-    /** @return array{amount: int, amount_label: string, tenure_months: int, duration_label: string, product_name: string} */
+    /** @return array{amount: int, amount_label: string, tenure_months: int, duration_label: string, product_name: string, installment_label: string} */
     public function invitationLoanContext(GuarantorInvitation $invitation): array
     {
         $invitation->loadMissing('application.product');
         $amount = (int) ($invitation->application?->requested_amount ?? $invitation->requested_amount ?? 0);
         $tenure = (int) ($invitation->application?->requested_tenure_months ?? $invitation->requested_tenure_months ?? 0);
         $productName = trim((string) ($invitation->application?->product?->name ?? ''));
+        $product = $invitation->application?->product;
+        $installmentLabel = __('borrower.guarantor_invite.installment_tbd');
+
+        if ($amount > 0 && $tenure > 0 && $product) {
+            $monthlyRate = app(DisplayedRateService::class)->displayedMonthlyRate($product, (float) $amount);
+            $cadence = $product->repayment_cadence ?? 'weekly';
+            $preview = app(RepaymentScheduleGenerator::class)->preview($amount, $monthlyRate, $tenure, $cadence);
+            $first = $preview[0] ?? null;
+            if ($first) {
+                $installmentLabel = 'TZS '.number_format((float) $first['total_due']);
+            }
+        }
 
         return [
-            'amount'          => $amount,
-            'amount_label'    => $amount > 0 ? 'TZS '.number_format($amount) : __('borrower.guarantor_invite.amount_tbd'),
-            'tenure_months'   => $tenure,
-            'duration_label'  => $tenure > 0
+            'amount'             => $amount,
+            'amount_label'       => $amount > 0 ? 'TZS '.number_format($amount) : __('borrower.guarantor_invite.amount_tbd'),
+            'tenure_months'      => $tenure,
+            'duration_label'     => $tenure > 0
                 ? __('borrower.guarantor_invite.duration_months', ['count' => $tenure])
                 : __('borrower.guarantor_invite.duration_tbd'),
-            'product_name'    => $productName !== '' ? $productName : __('borrower.guarantor_invite.product_tbd'),
+            'product_name'       => $productName !== '' ? $productName : __('borrower.guarantor_invite.product_tbd'),
+            'installment_label'  => $installmentLabel,
         ];
+    }
+
+    /** @return array{code: string, label: string} */
+    public function borrowerInvitationStatus(GuarantorInvitation $invitation): array
+    {
+        $invitation->loadMissing('customerGuarantor');
+
+        if ($invitation->status === 'rejected') {
+            return ['code' => 'rejected', 'label' => __('borrower.apply.guarantor_status.rejected')];
+        }
+
+        if ($invitation->status === 'expired') {
+            return ['code' => 'expired', 'label' => __('borrower.apply.guarantor_status.expired')];
+        }
+
+        if ($invitation->customerGuarantor?->status === 'approved') {
+            return ['code' => 'accepted', 'label' => __('borrower.apply.guarantor_status.accepted')];
+        }
+
+        if ($invitation->status === 'pending' && ! $invitation->guarantor_customer_id) {
+            return ['code' => 'invitation_sent', 'label' => __('borrower.apply.guarantor_status.invitation_sent')];
+        }
+
+        if ($invitation->status === 'accepted' && ! $invitation->guarantor_customer_id) {
+            return ['code' => 'registration_in_progress', 'label' => __('borrower.apply.guarantor_status.registration_in_progress')];
+        }
+
+        $guarantorCustomer = $invitation->guarantor_customer_id
+            ? Customer::find($invitation->guarantor_customer_id)
+            : null;
+
+        if ($guarantorCustomer) {
+            if (! $guarantorCustomer->hasMembership()) {
+                return ['code' => 'registration_in_progress', 'label' => __('borrower.apply.guarantor_status.registration_in_progress')];
+            }
+
+            $checklist = app(ApplicationRequirementsService::class)->checklist($guarantorCustomer);
+            if (! $checklist['can_apply']) {
+                $incomplete = collect($checklist['items'])->first(fn (array $item) => ! ($item['complete'] ?? false));
+                $key = $incomplete['key'] ?? 'profile';
+
+                if (in_array($key, ['nida', 'face_submitted', 'face_approval', 'profile', 'kyc_freshness', 'income_proof'], true)) {
+                    return ['code' => 'kyc_in_progress', 'label' => __('borrower.apply.guarantor_status.kyc_in_progress')];
+                }
+
+                return ['code' => 'registration_in_progress', 'label' => __('borrower.apply.guarantor_status.registration_in_progress')];
+            }
+
+            return ['code' => 'guarantee_pending', 'label' => __('borrower.apply.guarantor_status.guarantee_pending')];
+        }
+
+        if ($invitation->type === 'internal' && $invitation->status === 'pending') {
+            return ['code' => 'invitation_sent', 'label' => __('borrower.apply.guarantor_status.invitation_sent')];
+        }
+
+        return ['code' => 'invitation_sent', 'label' => __('borrower.apply.guarantor_status.invitation_sent')];
     }
 
     public function guarantorLinkStatusLabel(CustomerGuarantor $link): string
@@ -289,19 +358,22 @@ class GuarantorInvitationService
         return 'mailto:'.$email.'?subject='.rawurlencode($subject).'&body='.rawurlencode($body);
     }
 
-    /** @return array{invitation_id: int, invitation_url: string, short_url: string, whatsapp_url: string|null, sms_url: string|null, email_url: string|null, status: string} */
+    /** @return array{invitation_id: int, invitation_url: string, short_url: string, whatsapp_url: string|null, sms_url: string|null, email_url: string|null, status: string, borrower_status_code: string, borrower_status_label: string} */
     public function sharePayload(GuarantorInvitation $invitation, ?Customer $borrower = null): array
     {
         $borrower ??= $invitation->borrower;
+        $borrowerStatus = $this->borrowerInvitationStatus($invitation);
 
         return [
-            'invitation_id'  => $invitation->id,
-            'invitation_url' => $this->invitationUrl($invitation),
-            'short_url'      => $this->shortInvitationUrl($invitation),
-            'whatsapp_url'   => $this->whatsAppShareUrl($invitation, $borrower),
-            'sms_url'        => $this->smsShareUrl($invitation),
-            'email_url'      => $this->emailShareUrl($invitation),
-            'status'         => (string) ($invitation->status ?? 'pending'),
+            'invitation_id'          => $invitation->id,
+            'invitation_url'         => $this->invitationUrl($invitation),
+            'short_url'              => $this->shortInvitationUrl($invitation),
+            'whatsapp_url'           => $this->whatsAppShareUrl($invitation, $borrower),
+            'sms_url'                => $this->smsShareUrl($invitation),
+            'email_url'              => $this->emailShareUrl($invitation),
+            'status'                 => (string) ($invitation->status ?? 'pending'),
+            'borrower_status_code'   => $borrowerStatus['code'],
+            'borrower_status_label'  => $borrowerStatus['label'],
         ];
     }
 
