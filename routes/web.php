@@ -30,7 +30,9 @@ use App\Http\Controllers\Admin\LoanController;
 use App\Http\Controllers\Admin\LoanProductController;
 use App\Http\Controllers\Admin\MembershipPaymentController;
 use App\Http\Controllers\Admin\PaymentAccountSettingsController;
+use App\Http\Controllers\Admin\LoanTopUpRequestController;
 use App\Http\Controllers\Admin\PaymentVerificationController;
+use App\Http\Controllers\Admin\RestructureRequestController;
 use App\Http\Controllers\Admin\MobileMoneyAccountController;
 use App\Http\Controllers\Admin\NotificationTemplateController;
 use App\Http\Controllers\Admin\PepFlagController;
@@ -111,6 +113,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::get('/borrower/apply/product/{product}/readiness', [\App\Http\Controllers\Site\ApplyController::class, 'productReadiness'])->name('borrower.apply.product-readiness');
                 Route::post('/borrower/apply/guarantor-lookup', [\App\Http\Controllers\Site\ApplyController::class, 'lookupGuarantor'])->name('borrower.apply.guarantor-lookup');
                 Route::post('/borrower/apply/guarantor-invite', [\App\Http\Controllers\Site\ApplyController::class, 'prepareExternalGuarantor'])->name('borrower.apply.guarantor-invite');
+                Route::post('/borrower/apply/guarantor-expire', [\App\Http\Controllers\Site\ApplyController::class, 'expireGuarantorInvitation'])->name('borrower.apply.guarantor-expire');
                 Route::get('/borrower/apply/draft', [\App\Http\Controllers\Site\ApplyController::class, 'loadDraft'])->name('borrower.apply.draft');
                 Route::put('/borrower/apply/draft', [\App\Http\Controllers\Site\ApplyController::class, 'saveDraft'])->name('borrower.apply.draft.save');
                 Route::post('/borrower/apply/application-fee', [\App\Http\Controllers\Site\ApplyController::class, 'payApplicationFee'])->name('borrower.apply.application-fee.pay');
@@ -147,7 +150,9 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/loans',                          [\App\Http\Controllers\Site\BorrowerController::class, 'loans'])        ->name('borrower.loans');
             Route::get('/borrower/schedule/{loan?}',               [\App\Http\Controllers\Site\BorrowerController::class, 'schedule'])     ->name('borrower.schedule');
             Route::get('/borrower/loans/{loan}/restructure',       [\App\Http\Controllers\Site\BorrowerController::class, 'restructureLoan'])->name('borrower.loans.restructure');
+            Route::post('/borrower/loans/{loan}/restructure',      [\App\Http\Controllers\Site\BorrowerController::class, 'submitRestructure'])->name('borrower.loans.restructure.submit');
             Route::get('/borrower/loans/{loan}/top-up',            [\App\Http\Controllers\Site\BorrowerController::class, 'topUpLoan'])->name('borrower.loans.top-up');
+            Route::post('/borrower/loans/{loan}/top-up',           [\App\Http\Controllers\Site\BorrowerController::class, 'submitTopUp'])->name('borrower.loans.top-up.submit');
             Route::get('/borrower/payments',                       [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'index'])       ->name('borrower.payments');
             Route::get('/borrower/payments/new',                   [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'create'])      ->name('borrower.payments.create');
             Route::post('/borrower/payments',                      [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'store'])       ->name('borrower.payments.store');
@@ -170,6 +175,9 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/marketplace/request', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'storeRequest'])->name('borrower.marketplace.request');
             Route::get('/borrower/kyc-reconfirm',                  [\App\Http\Controllers\Site\BorrowerController::class, 'kycReconfirm'])->name('borrower.kyc-reconfirm');
             Route::put('/borrower/kyc-reconfirm',                  [\App\Http\Controllers\Site\BorrowerController::class, 'updateKycReconfirm'])->name('borrower.kyc-reconfirm.update');
+            Route::get('/borrower/guarantor-notifications',        [\App\Http\Controllers\Site\BorrowerController::class, 'guarantorNotifications'])->name('borrower.guarantor-notifications');
+            Route::post('/borrower/guarantor-notifications/read',  [\App\Http\Controllers\Site\BorrowerController::class, 'guarantorMarkNotificationsRead'])->name('borrower.guarantor-notifications.read');
+            Route::post('/borrower/guarantor-notifications/clear-all', [\App\Http\Controllers\Site\BorrowerController::class, 'guarantorClearAllNotifications'])->name('borrower.guarantor-notifications.clear-all');
             Route::get('/borrower/notifications',                  [\App\Http\Controllers\Site\BorrowerController::class, 'notifications'])->name('borrower.notifications');
             Route::get('/borrower/notifications/preview',          [\App\Http\Controllers\Site\BorrowerController::class, 'notificationPreview'])->name('borrower.notifications.preview');
             Route::post('/borrower/notifications/read',            [\App\Http\Controllers\Site\BorrowerController::class, 'markNotificationsRead'])->name('borrower.notifications.read');
@@ -404,6 +412,16 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         // Support
         $registerResource('support-tickets', 'support_ticket', SupportTicketController::class);
         $registerResource('complaints',      'complaint',      ComplaintController::class);
+
+        // Loan modification request queues
+        Route::get('restructure-requests', [RestructureRequestController::class, 'index'])->name('restructure-requests.index');
+        Route::get('restructure-requests/{restructureRequest}', [RestructureRequestController::class, 'show'])->name('restructure-requests.show');
+        Route::post('restructure-requests/{restructureRequest}/approve', [RestructureRequestController::class, 'approve'])->name('restructure-requests.approve');
+        Route::post('restructure-requests/{restructureRequest}/reject', [RestructureRequestController::class, 'reject'])->name('restructure-requests.reject');
+        Route::get('top-up-requests', [LoanTopUpRequestController::class, 'index'])->name('top-up-requests.index');
+        Route::get('top-up-requests/{topUpRequest}', [LoanTopUpRequestController::class, 'show'])->name('top-up-requests.show');
+        Route::post('top-up-requests/{topUpRequest}/approve', [LoanTopUpRequestController::class, 'approve'])->name('top-up-requests.approve');
+        Route::post('top-up-requests/{topUpRequest}/reject', [LoanTopUpRequestController::class, 'reject'])->name('top-up-requests.reject');
 
         // Payment verification queue
         Route::middleware('permission:finance.operations')->group(function (): void {

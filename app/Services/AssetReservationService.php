@@ -12,9 +12,14 @@ class AssetReservationService
 {
     public function createReservation(Customer $customer, MarketplaceAsset $asset, ?string $viewingDate = null, ?string $viewingTime = null): AssetReservation
     {
+        $blocked = app(LoanPolicyService::class)->canUseAsset($asset, $customer);
+        if ($blocked) {
+            throw new \InvalidArgumentException($blocked);
+        }
+
         $applicationFee = app(AssetMarketplaceFeeService::class)->applicationFeeAmount($customer);
 
-        return AssetReservation::create([
+        $reservation = AssetReservation::create([
             'customer_id'            => $customer->id,
             'marketplace_asset_id'   => $asset->id,
             'status'                 => ($viewingDate && $viewingTime) ? 'viewing_scheduled' : 'application_started',
@@ -25,6 +30,10 @@ class AssetReservationService
             'deposit_amount'         => $asset->customer_deposit ?: $asset->computeCustomerDeposit(),
             'deposit_status'         => 'pending',
         ]);
+
+        $asset->lock();
+
+        return $reservation;
     }
 
     public function startApplication(Customer $customer, MarketplaceAsset $asset): AssetReservation
@@ -142,6 +151,8 @@ class AssetReservationService
             'status'              => 'application_submitted',
         ]);
 
+        $reservation->asset?->lock();
+
         return $reservation->refresh();
     }
 
@@ -155,10 +166,17 @@ class AssetReservationService
             return;
         }
 
+        if (in_array($application->status, ['rejected', 'withdrawn'], true)) {
+            $reservation->update(['status' => 'cancelled']);
+            $this->unlockAssetIfIdle($reservation->fresh(['asset']));
+
+            return;
+        }
+
         $status = match ($application->status) {
-            'approved' => 'approved',
+            'approved'  => 'approved',
             'disbursed' => 'released',
-            default => $reservation->status,
+            default     => $reservation->status,
         };
 
         if ($status !== $reservation->status) {
@@ -170,6 +188,31 @@ class AssetReservationService
 
         if ($status === 'approved' && app(PostApprovalFeeService::class)->allPaid($application)) {
             $reservation->update(['status' => 'post_approval_fees_paid']);
+        }
+
+        if ($status === 'released') {
+            $policy = app(LoanPolicyService::class);
+            if ($policy->settings()['allow_asset_reuse']) {
+                $this->unlockAssetIfIdle($reservation->fresh(['asset']));
+            }
+        }
+    }
+
+    public function unlockAssetIfIdle(AssetReservation $reservation): void
+    {
+        $asset = $reservation->asset;
+        if (! $asset) {
+            return;
+        }
+
+        $otherActive = AssetReservation::query()
+            ->where('marketplace_asset_id', $asset->id)
+            ->where('id', '!=', $reservation->id)
+            ->whereNotIn('status', ['released', 'cancelled'])
+            ->exists();
+
+        if (! $otherActive) {
+            $asset->unlock();
         }
     }
 
@@ -184,7 +227,10 @@ class AssetReservationService
             'gps_installation' => $reservation->update(['status' => 'gps_installation']),
             'insurance_active' => $reservation->update(['status' => 'insurance_active']),
             'release' => $reservation->update(['status' => 'released', 'released_at' => now()]),
-            'cancel' => $reservation->update(['status' => 'cancelled']),
+            'cancel' => (function () use ($reservation): void {
+                $reservation->update(['status' => 'cancelled']);
+                $this->unlockAssetIfIdle($reservation->fresh(['asset']));
+            })(),
             default => null,
         };
 

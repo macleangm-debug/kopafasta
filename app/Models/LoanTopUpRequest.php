@@ -2,31 +2,27 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class RestructureRequest extends Model
+class LoanTopUpRequest extends Model
 {
     protected $fillable = [
         'loan_id',
         'customer_id',
+        'requested_amount',
         'reason',
-        'restructure_type',
-        'new_tenure_months',
-        'new_interest_rate',
         'status',
-        'approved_by',
-        'approved_at',
         'decision_notes',
-        'fee_amount',
-        'new_principal',
+        'reviewed_by',
+        'reviewed_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'new_interest_rate' => 'decimal:4',
-            'approved_at' => 'datetime',
+            'requested_amount' => 'decimal:2',
+            'reviewed_at'      => 'datetime',
         ];
     }
 
@@ -38,5 +34,10 @@ class RestructureRequest extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function reviewedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
     }
 }

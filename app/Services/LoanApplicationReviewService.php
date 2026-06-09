@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AssetReservation;
 use App\Models\Customer;
 use App\Models\CustomerDocument;
 use App\Models\CustomerGuarantor;
@@ -29,6 +30,7 @@ class LoanApplicationReviewService
             'customer.loans',
             'product.requirements',
             'customerGuarantors.guarantor',
+            'assetReservation.asset',
         ]);
 
         $customer = $application->customer;
@@ -83,6 +85,7 @@ class LoanApplicationReviewService
         $crb = $this->crbSummary($customer, $application);
 
         $guarantorRows = $this->guarantorRows($application);
+        $asset = $this->assetSummary($application);
 
         $checklist = $this->checklist(
             $customer,
@@ -117,6 +120,7 @@ class LoanApplicationReviewService
             'nida_photo_path'    => $nidaPhotoPath,
             'crb'                => $crb,
             'guarantors'         => $guarantorRows,
+            'asset'              => $asset,
             'checklist'          => $checklist,
             'kyc_documents'      => $kycDocuments,
             'activity_label'     => display_label($customer->activity_type, 'activity_type')
@@ -211,13 +215,40 @@ class LoanApplicationReviewService
     }
 
     /** @return Collection<int, array<string, mixed>> */
+    /** @return array<string, mixed>|null */
+    private function assetSummary(LoanApplication $application): ?array
+    {
+        $reservation = $application->assetReservation;
+        if (! $reservation) {
+            return null;
+        }
+
+        $asset = $reservation->asset;
+        if (! $asset) {
+            return null;
+        }
+
+        return [
+            'title'                => $asset->title,
+            'category'             => $asset->category,
+            'supplier'             => $asset->supplier_name,
+            'asset_value'          => (float) $asset->asset_value,
+            'customer_deposit'     => (float) ($reservation->deposit_amount ?: $asset->customer_deposit),
+            'reservation_status'   => $reservation->status,
+            'availability_status'  => $asset->availability_status ?? 'available',
+            'viewing_date'         => $reservation->viewing_date,
+            'deposit_status'       => $reservation->deposit_status,
+            'reservation_fee_status' => $reservation->reservation_fee_status,
+        ];
+    }
+
     private function guarantorRows(LoanApplication $application): Collection
     {
         return CustomerGuarantor::query()
             ->where('loan_application_id', $application->id)
             ->with(['guarantor'])
             ->get()
-            ->map(function (CustomerGuarantor $link) {
+            ->map(function (CustomerGuarantor $link) use ($application) {
                 $guarantor = $link->guarantor;
                 $invitation = GuarantorInvitation::query()
                     ->where('customer_guarantor_id', $link->id)
@@ -241,6 +272,15 @@ class LoanApplicationReviewService
 
                 $riskScore = max(0, 100 - ($activeLoans * 15) - ($guaranteedLoans * 10));
                 $riskBand = $riskScore >= 75 ? 'low' : ($riskScore >= 50 ? 'medium' : 'high');
+                $exposureSummary = $member
+                    ? app(LoanPolicyService::class)->guarantorExposureSummary($member)
+                    : ['count' => 0, 'exposure' => 0.0, 'max' => 0];
+                $affordability = $member
+                    ? app(AffordabilityService::class)->evaluateForGuarantor(
+                        $member,
+                        round((float) ($invitation?->requested_amount ?? $application->requested_amount ?? 0) / 12, 2),
+                    )
+                    : null;
 
                 return [
                     'name'             => trim(($guarantor?->first_name ?? '').' '.($guarantor?->last_name ?? '')),
@@ -251,6 +291,10 @@ class LoanApplicationReviewService
                     'relationship'     => $guarantor?->relationship,
                     'active_loans'     => $activeLoans,
                     'guaranteed_loans' => $guaranteedLoans,
+                    'guarantee_count'  => $exposureSummary['count'],
+                    'guarantee_exposure' => $exposureSummary['exposure'],
+                    'guarantee_max'    => $exposureSummary['max'],
+                    'affordability'    => $affordability,
                     'risk_band'        => $riskBand,
                     'risk_label'       => $this->riskBandLabel($riskBand),
                 ];

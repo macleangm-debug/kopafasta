@@ -38,8 +38,18 @@
                     </div>
                     <dl class="grid sm:grid-cols-3 gap-3 mt-4 text-sm">
                         <div><dt class="text-xs text-gray-500">Active loans</dt><dd class="font-semibold mt-0.5">{{ $guarantor['active_loans'] }}</dd></div>
+                        <div><dt class="text-xs text-gray-500">Guarantees</dt><dd class="font-semibold mt-0.5">{{ $guarantor['guarantee_count'] ?? 0 }} / {{ $guarantor['guarantee_max'] ?? '—' }}</dd></div>
+                        <div><dt class="text-xs text-gray-500">Exposure</dt><dd class="font-semibold mt-0.5">{{ format_money($guarantor['guarantee_exposure'] ?? 0) }}</dd></div>
                         <div><dt class="text-xs text-gray-500">Guaranteed loans</dt><dd class="font-semibold mt-0.5">{{ $guarantor['guaranteed_loans'] }}</dd></div>
                         <div><dt class="text-xs text-gray-500">Relationship</dt><dd class="font-semibold mt-0.5">{{ ucfirst($guarantor['relationship'] ?? '—') }}</dd></div>
+                        @if (! empty($guarantor['affordability']))
+                            <div>
+                                <dt class="text-xs text-gray-500">Capacity</dt>
+                                <dd class="font-semibold mt-0.5 {{ ($guarantor['affordability']['verdict'] ?? '') === 'fail' ? 'text-red-700' : (($guarantor['affordability']['verdict'] ?? '') === 'warn' ? 'text-amber-700' : 'text-emerald-700') }}">
+                                    {{ $guarantor['affordability']['status_label'] ?? '—' }}
+                                </dd>
+                            </div>
+                        @endif
                     </dl>
                 </div>
             @endforeach

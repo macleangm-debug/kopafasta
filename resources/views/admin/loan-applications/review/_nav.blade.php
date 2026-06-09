@@ -6,6 +6,7 @@
             ['#review-verification', 'Verification'],
             ['#review-documents', 'Documents'],
             ['#review-guarantors', 'Guarantors'],
+            ['#review-asset', 'Asset'],
             ['#review-crb', 'CRB'],
             ['#review-contract', 'Contract'],
             ['#review-history', 'History'],

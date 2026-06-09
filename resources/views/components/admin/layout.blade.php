@@ -53,6 +53,8 @@
             ['Active loans',        'admin.loans.active'],
             ['Repayments',          'admin.repayments.index'],
             ['Arrears',             'admin.loans.arrears'],
+            ['Restructure requests','admin.restructure-requests.index'],
+            ['Top-up requests',     'admin.top-up-requests.index'],
             ['Restructuring',       'admin.loans.restructuring'],
             ['Closed loans',        'admin.loans.closed'],
         ], ['loans.view']],

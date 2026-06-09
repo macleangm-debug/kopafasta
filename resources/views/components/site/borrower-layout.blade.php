@@ -5,6 +5,7 @@
 $nav = $portalMode === 'guarantor'
     ? [
         ['key' => 'loans', 'label' => __('borrower.loans_page.tab_guarantor_requests'), 'route' => 'site.borrower.loans', 'route_params' => ['tab' => 'guarantor'], 'icon' => 'users'],
+        ['key' => 'guarantor-notifications', 'label' => __('borrower.nav.guarantor_notifications'), 'route' => 'site.borrower.guarantor-notifications', 'icon' => 'bell'],
         ['key' => 'profile', 'label' => __('borrower.nav.profile'), 'route' => 'site.borrower.profile', 'icon' => 'user'],
         ['key' => 'support', 'label' => __('borrower.nav.support'), 'route' => 'site.borrower.support', 'icon' => 'help'],
     ]
@@ -23,8 +24,11 @@ $nav = $portalMode === 'guarantor'
 $borrowerCustomer = auth()->user()?->customer;
 $portalContext = app(\App\Services\PortalContextService::class);
 $displayName = $portalContext->displayName($borrowerCustomer);
-$unreadNotifications = $borrowerCustomer
-    ? $portalContext->borrowerNotificationsQuery($borrowerCustomer)->whereNull('read_at')->count()
+$notificationQuery = $portalMode === 'guarantor' && $borrowerCustomer
+    ? $portalContext->guarantorNotificationsQuery($borrowerCustomer)
+    : ($borrowerCustomer ? $portalContext->borrowerNotificationsQuery($borrowerCustomer) : null);
+$unreadNotifications = $notificationQuery
+    ? $notificationQuery->whereNull('read_at')->count()
     : 0;
 
 $icon = function (string $name) {

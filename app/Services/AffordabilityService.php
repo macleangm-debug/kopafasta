@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Customer;
 use App\Models\LoanApplication;
 use App\Models\RepaymentSchedule;
-use App\Models\Setting;
 use Illuminate\Support\Carbon;
 
 class AffordabilityService
@@ -97,6 +97,65 @@ class AffordabilityService
             'status_label'            => $statusLabel,
             'reason'                  => $reason,
             'evaluated_at'            => now()->toIso8601String(),
+        ];
+    }
+
+    /**
+     * Evaluate whether a member can absorb additional guarantee exposure.
+     *
+     * @return array<string, mixed>
+     */
+    public function evaluateForGuarantor(Customer $guarantor, float $additionalMonthlyExposure = 0): array
+    {
+        $netIncome = (float) ($guarantor->monthly_income ?? 0);
+
+        $ownObligations = (float) RepaymentSchedule::query()
+            ->whereHas('loan', fn ($q) => $q->where('customer_id', $guarantor->id))
+            ->whereIn('status', ['pending', 'partial', 'overdue'])
+            ->whereBetween('due_date', [Carbon::today(), Carbon::today()->addDays(30)])
+            ->sum('total_due');
+
+        $guaranteeExposure = app(LoanPolicyService::class)->activeGuaranteeExposure($guarantor);
+        $estimatedGuaranteeEmi = $guaranteeExposure > 0 ? round($guaranteeExposure / 12, 2) : 0.0;
+        $existing = round($ownObligations + $estimatedGuaranteeEmi, 2);
+        $newEmi = round($additionalMonthlyExposure, 2);
+
+        $ratio = $this->countryCredit->repaymentRatio();
+        $maxRepayment = round($netIncome * $ratio, 2);
+        $availableCapacity = max(0.0, round($maxRepayment - $existing, 2));
+        $total = $existing + $newEmi;
+        $dsr = $netIncome > 0 ? round($total / $netIncome, 4) : 1.0;
+
+        $verdict = 'pass';
+        $statusLabel = 'Capacity available';
+        $reason = 'Guarantor has capacity for this exposure.';
+
+        if ($netIncome <= 0) {
+            $verdict = 'fail';
+            $statusLabel = 'No income on file';
+            $reason = 'Guarantor has no declared monthly income.';
+        } elseif ($newEmi > $availableCapacity) {
+            $verdict = 'fail';
+            $statusLabel = 'Insufficient capacity';
+            $reason = 'Additional exposure exceeds available repayment capacity.';
+        } elseif ($newEmi > ($maxRepayment * 0.9)) {
+            $verdict = 'warn';
+            $reason = 'Guarantor is near maximum repayment capacity.';
+        }
+
+        return [
+            'net_income'             => round($netIncome, 2),
+            'existing_obligations'   => $existing,
+            'guarantee_exposure'     => round($guaranteeExposure, 2),
+            'estimated_guarantee_emi'=> $estimatedGuaranteeEmi,
+            'additional_exposure'    => $newEmi,
+            'max_repayment_capacity' => $maxRepayment,
+            'available_capacity'     => $availableCapacity,
+            'dsr'                    => $dsr,
+            'verdict'                => $verdict,
+            'pass'                   => $verdict === 'pass',
+            'status_label'           => $statusLabel,
+            'reason'                 => $reason,
         ];
     }
 

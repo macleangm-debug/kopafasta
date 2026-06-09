@@ -69,6 +69,7 @@
                   products: @js($wizardProducts->map($wizardProductPayload)->values()->all()),
                   guarantorLookupUrl: @js(route('site.borrower.apply.guarantor-lookup')),
                   guarantorInviteUrl: @js(route('site.borrower.apply.guarantor-invite')),
+                  guarantorExpireUrl: @js(route('site.borrower.apply.guarantor-expire')),
                   repaymentPreviewUrl: @js(route('site.borrower.apply.repayment-preview')),
                   borrowerSnapshot: @js($borrowerSnapshot),
                   incomeRangeLabels: @js($incomeRangeLabels),
@@ -340,7 +341,21 @@
                             </template>
                         </ul>
                     </div>
-                    <div class="space-y-4">
+                    <div x-show="isGuarantorLocked()" x-cloak class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-4 space-y-3 mb-4">
+                        <p class="text-sm font-semibold text-emerald-900">{{ __('borrower.apply.guarantor_locked_summary') }}</p>
+                        <p class="text-sm text-emerald-800">
+                            <span class="font-medium" x-text="form.guarantor_mode === 'internal' ? @js(__('borrower.apply.internal_guarantor')) : @js(__('borrower.apply.external_guarantor'))"></span>
+                            · <span x-text="guarantorSummaryText()"></span>
+                        </p>
+                        <p class="text-xs text-emerald-700" x-text="guarantorReviewStatus()"></p>
+                        <button type="button"
+                                @click="changeGuarantor()"
+                                :disabled="guarantorChanging"
+                                class="inline-flex bg-white ring-1 ring-emerald-300 text-emerald-900 font-semibold px-4 py-2 rounded-full text-sm disabled:opacity-60">
+                            {{ __('borrower.apply.change_guarantor') }}
+                        </button>
+                    </div>
+                    <div class="space-y-4" x-show="!isGuarantorLocked()">
                         <div class="flex flex-wrap gap-3">
                             <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="guarantor_mode" value="internal" x-model="form.guarantor_mode" class="text-amber-500"> {{ __('borrower.apply.internal_guarantor') }}</label>
                             <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="guarantor_mode" value="external" x-model="form.guarantor_mode" class="text-amber-500"> {{ __('borrower.apply.external_guarantor') }}</label>
@@ -495,6 +510,7 @@
                         </div>
                         <p class="text-xs text-amber-700 font-medium">{{ __('borrower.apply.guarantor_fields.status_waiting') }}</p>
                     </div>
+                    <p x-show="isGuarantorLocked()" x-cloak class="text-xs text-amber-700 font-medium mt-4">{{ __('borrower.apply.guarantor_fields.status_waiting') }}</p>
                 </div>
 
                 @php $membershipCfg = \App\Services\MembershipService::config(); @endphp
@@ -765,6 +781,7 @@
                 readinessUrl: config.readinessUrl,
                 guarantorLookupUrl: config.guarantorLookupUrl || '',
                 guarantorInviteUrl: config.guarantorInviteUrl || '',
+                guarantorExpireUrl: config.guarantorExpireUrl || '',
                 repaymentPreviewUrl: config.repaymentPreviewUrl || '',
                 borrowerSnapshot: config.borrowerSnapshot || {},
                 incomeRangeLabels: config.incomeRangeLabels || {},
@@ -778,6 +795,7 @@
                 borrowerSignature: config.savedDraft?.borrower_signature || null,
                 guarantorLookup: { ok: false, label: '', error: '', memberKey: '', phone: '', name: '' },
                 guarantorValidating: false,
+                guarantorChanging: false,
                 externalGuarantor: config.savedDraft?.external_guarantor || null,
                 guarantorInvitePreparing: false,
                 advancing: false,
@@ -1434,6 +1452,70 @@
                     if (i >= 0 && i <= this.step) this.step = i;
                 },
 
+                isGuarantorLocked() {
+                    if (this.form.guarantor_mode === 'internal') {
+                        return this.internalGuarantorValidated();
+                    }
+                    if (this.form.guarantor_mode === 'external') {
+                        return !! this.externalGuarantor?.invitation_url;
+                    }
+
+                    return false;
+                },
+
+                guarantorSummaryText() {
+                    if (this.form.guarantor_mode === 'internal') {
+                        return this.guarantorLookup.label || this.form.internal_guarantor_name || '—';
+                    }
+                    if (this.form.guarantor_mode === 'external') {
+                        return [this.form.external_first_name, this.form.external_last_name].filter(Boolean).join(' ') || '—';
+                    }
+
+                    return '—';
+                },
+
+                async changeGuarantor() {
+                    if (this.guarantorChanging || ! this.form.loan_product_id) {
+                        return;
+                    }
+                    this.guarantorChanging = true;
+                    try {
+                        const res = await fetch(this.guarantorExpireUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
+                            },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({ loan_product_id: this.form.loan_product_id }),
+                        });
+                        if (! res.ok) {
+                            throw new Error('expire failed');
+                        }
+                        this.guarantorLookup = { ok: false, label: '', error: '', memberKey: '', phone: '', name: '' };
+                        this.externalGuarantor = null;
+                        this.guarantorErrors = {};
+                        this.form.internal_member_no = '';
+                        this.form.internal_guarantor_phone = '';
+                        this.form.internal_guarantor_name = '';
+                        this.form.external_first_name = '';
+                        this.form.external_middle_name = '';
+                        this.form.external_last_name = '';
+                        this.form.external_phone = '';
+                        this.form.external_email = '';
+                        this.form.external_relationship = '';
+                        this.form.external_region = '';
+                        this.form.external_district = '';
+                        this.scheduleDraftSave();
+                    } catch {
+                        alert(this.i18n.alerts.guarantor_lookup_failed);
+                    } finally {
+                        this.guarantorChanging = false;
+                    }
+                },
+
                 guarantorReviewStatus() {
                     if (this.form.guarantor_mode === 'internal') {
                         return this.guarantorLookup.ok
@@ -1766,17 +1848,21 @@
                             return false;
                         }
                         if (this.form.guarantor_mode === 'internal') {
-                            if (! this.internalGuarantorFieldsFilled()) {
+                            if (! this.internalGuarantorValidated()) {
                                 alert(this.i18n.alerts.guarantor_validate_first);
                                 return false;
                             }
                             return true;
                         }
                         if (this.form.guarantor_mode === 'external') {
-                            const missing = this.externalGuarantorMissingFields();
-                            if (Object.keys(missing).length) {
-                                this.setGuarantorFieldErrors(missing);
-                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                            if (! this.externalGuarantor?.invitation_url) {
+                                const missing = this.externalGuarantorMissingFields();
+                                if (Object.keys(missing).length) {
+                                    this.setGuarantorFieldErrors(missing);
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    return false;
+                                }
+                                alert(this.i18n.alerts.guarantor_external_invite_required || this.i18n.alerts.guarantor_validate_first);
                                 return false;
                             }
                             this.guarantorErrors = {};

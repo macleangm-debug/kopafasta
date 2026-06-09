@@ -7,17 +7,40 @@
         @if ($blocked)
             <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 text-sm text-amber-900">{{ $blocked }}</div>
         @else
-            <div class="bg-white rounded-2xl border border-gray-200 p-6 space-y-4 text-sm">
-                <p class="text-gray-700">{{ __('borrower.loan_actions.restructure_hint') }}</p>
-                <ul class="list-disc ml-5 space-y-1 text-gray-600">
-                    <li>Extend term</li>
-                    <li>Reduce instalment</li>
-                    <li>Payment holiday</li>
-                    <li>Interest adjustment</li>
-                </ul>
-                <p class="text-xs text-gray-500">Submit a request and our team will review your loan before generating a new schedule.</p>
-                <a href="{{ route('site.borrower.support') }}" class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">Contact support to request</a>
-            </div>
+            <form method="post" action="{{ route('site.borrower.loans.restructure.submit', $loan) }}" class="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+                @csrf
+                <p class="text-sm text-gray-700">{{ __('borrower.loan_actions.restructure_hint') }}</p>
+
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.loan_actions.restructure_type_label') }}</label>
+                    <select name="restructure_type" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                        <option value="">{{ __('borrower.profile.select') }}</option>
+                        @foreach ($types as $value => $label)
+                            <option value="{{ $value }}" @selected(old('restructure_type') === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    @error('restructure_type')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.loan_actions.new_tenure_label') }} {{ __('borrower.profile.optional') }}</label>
+                    <input type="number" name="new_tenure_months" min="1" max="120" value="{{ old('new_tenure_months') }}"
+                           class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" placeholder="e.g. 12">
+                    @error('new_tenure_months')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.loan_actions.reason_label') }}</label>
+                    <textarea name="reason" rows="4" required maxlength="500"
+                              class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">{{ old('reason') }}</textarea>
+                    @error('reason')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+                    @error('restructure')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+                </div>
+
+                <button type="submit" class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                    {{ __('borrower.loan_actions.submit_restructure') }}
+                </button>
+            </form>
         @endif
     </div>
 </x-site.borrower-layout>

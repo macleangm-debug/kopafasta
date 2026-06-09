@@ -18,6 +18,8 @@ use App\Models\NotificationLog;
 use App\Models\Repayment;
 use App\Models\RepaymentSchedule;
 use App\Models\LoanProduct;
+use App\Models\LoanTopUpRequest;
+use App\Models\RestructureRequest;
 use App\Models\TrustedDevice;
 use App\Rules\FourDigitPin;
 use App\Rules\MinimumAge;
@@ -354,13 +356,49 @@ class BorrowerController extends Controller
         abort_unless($loan->customer_id === $customer->id, 404);
 
         $policy = app(\App\Services\LoanPolicyService::class);
-        $blocked = $policy->canRestructureLoan($loan);
+        $blocked = $policy->canSubmitRestructureRequest($loan);
 
         return view('site.borrower.loan-restructure', [
             'customer' => $customer,
             'loan'     => $loan->loadMissing('product'),
             'blocked'  => $blocked,
+            'types'    => [
+                'extend_term'         => __('borrower.loan_actions.restructure_types.extend_term'),
+                'reduce_installment'  => __('borrower.loan_actions.restructure_types.reduce_installment'),
+                'payment_holiday'     => __('borrower.loan_actions.restructure_types.payment_holiday'),
+                'interest_adjustment' => __('borrower.loan_actions.restructure_types.interest_adjustment'),
+            ],
         ]);
+    }
+
+    public function submitRestructure(Request $request, Loan $loan): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_unless($loan->customer_id === $customer->id, 404);
+
+        $policy = app(\App\Services\LoanPolicyService::class);
+        if ($message = $policy->canSubmitRestructureRequest($loan)) {
+            return back()->withErrors(['restructure' => $message]);
+        }
+
+        $data = $request->validate([
+            'restructure_type'  => ['required', 'in:extend_term,reduce_installment,payment_holiday,interest_adjustment'],
+            'reason'            => ['required', 'string', 'max:500'],
+            'new_tenure_months' => ['nullable', 'integer', 'min:1', 'max:120'],
+        ]);
+
+        RestructureRequest::create([
+            'loan_id'           => $loan->id,
+            'customer_id'       => $customer->id,
+            'restructure_type'  => $data['restructure_type'],
+            'reason'            => $data['reason'],
+            'new_tenure_months' => $data['new_tenure_months'] ?? null,
+            'status'            => 'pending',
+        ]);
+
+        return redirect()
+            ->route('site.borrower.loans', ['tab' => 'active'])
+            ->with('status', __('borrower.loan_actions.restructure_submitted'));
     }
 
     public function topUpLoan(Loan $loan): View
@@ -369,7 +407,7 @@ class BorrowerController extends Controller
         abort_unless($loan->customer_id === $customer->id, 404);
 
         $policy = app(\App\Services\LoanPolicyService::class);
-        $blocked = $policy->canRequestTopUp($loan);
+        $blocked = $policy->canSubmitTopUpRequest($loan);
         $available = $blocked ? 0 : $policy->topUpAvailableAmount($loan, $customer);
 
         return view('site.borrower.loan-top-up', [
@@ -378,6 +416,36 @@ class BorrowerController extends Controller
             'blocked'   => $blocked,
             'available' => $available,
         ]);
+    }
+
+    public function submitTopUp(Request $request, Loan $loan): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_unless($loan->customer_id === $customer->id, 404);
+
+        $policy = app(\App\Services\LoanPolicyService::class);
+        $available = $policy->topUpAvailableAmount($loan, $customer);
+
+        if ($message = $policy->canSubmitTopUpRequest($loan)) {
+            return back()->withErrors(['top_up' => $message]);
+        }
+
+        $data = $request->validate([
+            'requested_amount' => ['required', 'numeric', 'min:1000', 'max:'.$available],
+            'reason'           => ['required', 'string', 'max:500'],
+        ]);
+
+        LoanTopUpRequest::create([
+            'loan_id'          => $loan->id,
+            'customer_id'      => $customer->id,
+            'requested_amount' => $data['requested_amount'],
+            'reason'           => $data['reason'],
+            'status'           => 'pending',
+        ]);
+
+        return redirect()
+            ->route('site.borrower.loans', ['tab' => 'active'])
+            ->with('status', __('borrower.loan_actions.top_up_submitted'));
     }
 
     /* ---------------------------------------------------------------------
@@ -617,7 +685,39 @@ class BorrowerController extends Controller
             ->latest()
             ->paginate(20);
 
-        return view('site.borrower.notifications', compact('customer','items'));
+        return view('site.borrower.notifications', compact('customer', 'items'));
+    }
+
+    public function guarantorNotifications(): View
+    {
+        $customer = $this->customer();
+        $items = app(\App\Services\PortalContextService::class)
+            ->guarantorNotificationsQuery($customer)
+            ->latest()
+            ->paginate(20);
+
+        return view('site.borrower.guarantor-notifications', compact('customer', 'items'));
+    }
+
+    public function guarantorMarkNotificationsRead(Request $request): RedirectResponse
+    {
+        $customer = $this->customer();
+        app(\App\Services\PortalContextService::class)
+            ->guarantorNotificationsQuery($customer)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
+        return back();
+    }
+
+    public function guarantorClearAllNotifications(): RedirectResponse
+    {
+        $customer = $this->customer();
+        app(\App\Services\PortalContextService::class)
+            ->guarantorNotificationsQuery($customer)
+            ->delete();
+
+        return back()->with('status', 'All guarantor notifications cleared.');
     }
 
     public function notificationPreview(): \Illuminate\Http\JsonResponse

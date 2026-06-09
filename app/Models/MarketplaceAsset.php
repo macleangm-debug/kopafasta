@@ -10,7 +10,7 @@ class MarketplaceAsset extends Model
     protected $fillable = [
         'slug', 'category', 'title', 'description', 'supplier_name', 'vendor_id',
         'asset_value', 'supplier_deposit', 'deposit_markup_percent', 'customer_deposit',
-        'weekly_installment', 'max_tenure_months', 'photos', 'is_active',
+        'weekly_installment', 'max_tenure_months', 'photos', 'is_active', 'availability_status',
     ];
 
     protected function casts(): array
@@ -41,5 +41,20 @@ class MarketplaceAsset extends Model
     public function reservations(): HasMany
     {
         return $this->hasMany(AssetReservation::class);
+    }
+
+    public function isAvailable(): bool
+    {
+        return ($this->availability_status ?? 'available') === 'available';
+    }
+
+    public function lock(): void
+    {
+        $this->update(['availability_status' => 'locked']);
+    }
+
+    public function unlock(): void
+    {
+        $this->update(['availability_status' => 'available']);
     }
 }

@@ -24,6 +24,7 @@ use App\Services\ApplicationFeePaymentService;
 use App\Services\CrbCreditCheckService;
 use App\Services\DisplayedRateService;
 use App\Services\LoanApplicationDraftService;
+use App\Services\LoanPolicyService;
 use App\Services\LoanProductReadinessService;
 use App\Services\ReferenceNumberService;
 use App\Services\ReferralService;
@@ -226,9 +227,10 @@ class ApplyController extends Controller
         abort_unless($borrower, 403);
 
         $data = $request->validate([
-            'membership_no' => ['required', 'string', 'max:32'],
-            'phone'         => ['required', 'string', 'max:20'],
-            'name'          => ['required', 'string', 'max:120'],
+            'membership_no'   => ['required', 'string', 'max:32'],
+            'phone'           => ['required', 'string', 'max:20'],
+            'name'            => ['required', 'string', 'max:120'],
+            'loan_product_id' => ['nullable', 'integer', 'exists:loan_products,id'],
         ]);
 
         $result = $guarantors->verifyInternalMember(
@@ -245,7 +247,12 @@ class ApplyController extends Controller
             ], 422);
         }
 
-        if ($message = app(\App\Services\LoanPolicyService::class)->canAcceptGuarantee($result['member'])) {
+        $draft = ! empty($data['loan_product_id'])
+            ? app(LoanApplicationDraftService::class)->find($borrower, (int) $data['loan_product_id'])
+            : null;
+        $draftAmount = (float) ($draft?->payload['form']['requested_amount'] ?? 0);
+
+        if ($message = app(\App\Services\LoanPolicyService::class)->canAcceptGuarantee($result['member'], $draftAmount > 0 ? $draftAmount : null)) {
             return response()->json([
                 'ok'      => false,
                 'message' => $message,
@@ -323,6 +330,36 @@ class ApplyController extends Controller
         ]);
 
         return response()->json(['ok' => true, 'share' => $share]);
+    }
+
+    public function expireGuarantorInvitation(
+        Request $request,
+        LoanPolicyService $policy,
+        LoanApplicationDraftService $drafts,
+    ): \Illuminate\Http\JsonResponse {
+        $borrower = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($borrower, 403);
+
+        $data = $request->validate([
+            'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
+        ]);
+
+        $policy->expireSupersededGuarantorLinks($borrower);
+
+        $draft = $drafts->find($borrower, (int) $data['loan_product_id']);
+        if ($draft) {
+            $payload = $draft->payload ?? [];
+            $form = $payload['form'] ?? [];
+            unset($payload['external_guarantor'], $payload['guarantor_lookup']);
+            $form['guarantor_mode'] = null;
+            $form['internal_member_no'] = null;
+            $form['internal_guarantor_phone'] = null;
+            $form['internal_guarantor_name'] = null;
+            $payload['form'] = $form;
+            $draft->update(['payload' => $payload, 'saved_at' => now()]);
+        }
+
+        return response()->json(['ok' => true]);
     }
 
     public function loadDraft(LoanApplicationDraftService $drafts): \Illuminate\Http\JsonResponse
@@ -648,11 +685,14 @@ class ApplyController extends Controller
         }
 
         $submittingBorrower = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
-        if ($loanProduct->requires_guarantor && ! $submittingBorrower) {
+        $policy = app(LoanPolicyService::class);
+        $guarantorRequired = $policy->requiresGuarantorForApplication($loanProduct, $amount);
+
+        if ($guarantorRequired && ! $submittingBorrower) {
             return back()->withInput()->withErrors(['guarantor_mode' => __('borrower.apply.alerts.guarantor_lookup_failed')]);
         }
 
-        if ($loanProduct->requires_guarantor) {
+        if ($guarantorRequired) {
             $mode = $data['guarantor_mode'] ?? 'none';
             $draftForm = $draftPayload['form'] ?? [];
             if ($mode === 'none' && filled($draftForm['guarantor_mode'] ?? null)) {
@@ -850,7 +890,7 @@ class ApplyController extends Controller
             ]);
         }
 
-        if ($loanProduct->requires_guarantor && ($data['guarantor_mode'] ?? 'none') !== 'none') {
+        if ($guarantorRequired && ($data['guarantor_mode'] ?? 'none') !== 'none') {
             try {
                 if (($data['guarantor_mode'] ?? '') === 'internal') {
                     $memberKey = \App\Support\MemberNumberFormatter::lookupKey($data['internal_member_no'] ?? '');
@@ -892,7 +932,7 @@ class ApplyController extends Controller
             }
         }
 
-        $guarantorPending = $loanProduct->requires_guarantor
+        $guarantorPending = $guarantorRequired
             && ! $guarantors->hasApprovedGuarantor($app);
 
         $message = __('borrower.apply.success.submitted_message');

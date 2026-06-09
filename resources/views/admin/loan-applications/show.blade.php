@@ -33,6 +33,7 @@
         @include('admin.loan-applications.review._verification')
         @include('admin.loan-applications.review._documents')
         @include('admin.loan-applications.review._guarantors')
+        @include('admin.loan-applications.review._asset')
         @include('admin.loan-applications.review._crb')
         @include('admin.loan-applications.review._contract')
         @include('admin.loan-applications.review._document-requests')

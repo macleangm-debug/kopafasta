@@ -2,12 +2,16 @@
 
 namespace App\Services;
 
+use App\Models\AssetReservation;
 use App\Models\Customer;
 use App\Models\GuarantorInvitation;
 use App\Models\Loan;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
+use App\Models\LoanTopUpRequest;
+use App\Models\MarketplaceAsset;
 use App\Models\RepaymentSchedule;
+use App\Models\RestructureRequest;
 use App\Models\Setting;
 
 class LoanPolicyService
@@ -23,7 +27,34 @@ class LoanPolicyService
             'allow_asset_reuse'                     => (bool) ($loan['allow_asset_reuse'] ?? false),
             'top_up_min_successful_repayments'      => (int) ($loan['top_up_min_successful_repayments'] ?? 6),
             'allow_restructure'                     => (bool) ($loan['allow_restructure'] ?? true),
+            'max_restructures'                      => (int) ($loan['max_restructures'] ?? 2),
+            'restructure_cooldown_days'             => (int) ($loan['restructure_cooldown_days'] ?? 30),
+            'guarantor_required_above'              => (float) ($loan['guarantor_required_above'] ?? 0),
+            'collateral_required_above'             => (float) ($loan['collateral_required_above'] ?? 0),
+            'min_guarantors'                        => (int) ($loan['min_guarantors'] ?? 1),
         ];
+    }
+
+    public function requiresGuarantorForApplication(LoanProduct $product, float $requestedAmount): bool
+    {
+        if ($product->requires_guarantor) {
+            return true;
+        }
+
+        $threshold = $this->settings()['guarantor_required_above'];
+
+        return $threshold > 0 && $requestedAmount >= $threshold;
+    }
+
+    public function requiresCollateralForApplication(LoanProduct $product, float $requestedAmount): bool
+    {
+        if ($product->requires_collateral) {
+            return true;
+        }
+
+        $threshold = $this->settings()['collateral_required_above'];
+
+        return $threshold > 0 && $requestedAmount >= $threshold;
     }
 
     public function canSubmitApplication(Customer $customer, LoanProduct $product, ?LoanApplication $excluding = null): ?string
@@ -74,13 +105,21 @@ class LoanPolicyService
             ->sum('requested_amount');
     }
 
-    public function canAcceptGuarantee(Customer $guarantor): ?string
+    public function canAcceptGuarantee(Customer $guarantor, ?float $requestedAmount = null): ?string
     {
         $max = $this->settings()['max_active_guarantees'];
         $count = $this->activeGuaranteeCount($guarantor);
 
         if ($count >= $max) {
             return __('borrower.policy.max_active_guarantees', ['max' => $max]);
+        }
+
+        if ($requestedAmount !== null && $requestedAmount > 0) {
+            $estimatedEmi = round($requestedAmount / 12, 2);
+            $affordability = app(AffordabilityService::class)->evaluateForGuarantor($guarantor, $estimatedEmi);
+            if ($affordability['verdict'] === 'fail') {
+                return __('borrower.policy.guarantor_affordability_failed');
+            }
         }
 
         return null;
@@ -94,6 +133,46 @@ class LoanPolicyService
 
         if (! in_array($loan->status, ['active', 'disbursed', 'arrears'], true)) {
             return __('borrower.policy.restructure_after_disbursement');
+        }
+
+        return null;
+    }
+
+    public function canSubmitRestructureRequest(Loan $loan): ?string
+    {
+        $blocked = $this->canRestructureLoan($loan);
+        if ($blocked) {
+            return $blocked;
+        }
+
+        if (RestructureRequest::query()->where('loan_id', $loan->id)->where('status', 'pending')->exists()) {
+            return __('borrower.policy.restructure_pending');
+        }
+
+        $settings = $this->settings();
+        $approvedCount = RestructureRequest::query()
+            ->where('loan_id', $loan->id)
+            ->where('status', 'approved')
+            ->count();
+
+        if ($approvedCount >= $settings['max_restructures']) {
+            return __('borrower.policy.restructure_max_reached', ['max' => $settings['max_restructures']]);
+        }
+
+        $lastApproved = RestructureRequest::query()
+            ->where('loan_id', $loan->id)
+            ->where('status', 'approved')
+            ->whereNotNull('approved_at')
+            ->latest('approved_at')
+            ->first();
+
+        if ($lastApproved?->approved_at) {
+            $daysSince = $lastApproved->approved_at->diffInDays(now());
+            if ($daysSince < $settings['restructure_cooldown_days']) {
+                $remaining = $settings['restructure_cooldown_days'] - $daysSince;
+
+                return __('borrower.policy.restructure_cooldown', ['days' => $remaining]);
+            }
         }
 
         return null;
@@ -122,6 +201,52 @@ class LoanPolicyService
         return null;
     }
 
+    public function canSubmitTopUpRequest(Loan $loan): ?string
+    {
+        $blocked = $this->canRequestTopUp($loan);
+        if ($blocked) {
+            return $blocked;
+        }
+
+        if (LoanTopUpRequest::query()->where('loan_id', $loan->id)->where('status', 'pending')->exists()) {
+            return __('borrower.policy.top_up_pending');
+        }
+
+        return null;
+    }
+
+    public function canUseAsset(MarketplaceAsset $asset, ?Customer $customer = null): ?string
+    {
+        if (! $asset->is_active) {
+            return __('borrower.policy.asset_inactive');
+        }
+
+        if (! $asset->isAvailable()) {
+            $ownsActive = $customer && AssetReservation::query()
+                ->where('customer_id', $customer->id)
+                ->where('marketplace_asset_id', $asset->id)
+                ->whereNotIn('status', ['released', 'cancelled'])
+                ->exists();
+
+            if (! $ownsActive) {
+                return __('borrower.policy.asset_locked');
+            }
+        }
+
+        if (! $this->settings()['allow_asset_reuse']) {
+            $previouslyDisbursed = AssetReservation::query()
+                ->where('marketplace_asset_id', $asset->id)
+                ->whereHas('loanApplication', fn ($q) => $q->where('status', 'disbursed'))
+                ->exists();
+
+            if ($previouslyDisbursed) {
+                return __('borrower.policy.asset_no_reuse');
+            }
+        }
+
+        return null;
+    }
+
     public function topUpAvailableAmount(Loan $loan, Customer $customer): float
     {
         $limit = app(LoanQualificationService::class)->calculate($customer)['amount'] ?? 0;
@@ -141,13 +266,13 @@ class LoanPolicyService
         ];
     }
 
-    public function assertGuarantorNotOverLimit(?Customer $memberGuarantor): ?string
+    public function assertGuarantorNotOverLimit(?Customer $memberGuarantor, ?float $requestedAmount = null): ?string
     {
         if (! $memberGuarantor) {
             return null;
         }
 
-        return $this->canAcceptGuarantee($memberGuarantor);
+        return $this->canAcceptGuarantee($memberGuarantor, $requestedAmount);
     }
 
     public function expireSupersededGuarantorLinks(Customer $borrower, ?int $exceptInvitationId = null): void

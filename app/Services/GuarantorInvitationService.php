@@ -511,7 +511,8 @@ class GuarantorInvitationService
 
         $member = $verified['member'];
 
-        if ($message = app(LoanPolicyService::class)->canAcceptGuarantee($member)) {
+        $requestedAmount = (float) ($application->requested_amount ?? 0);
+        if ($message = app(LoanPolicyService::class)->canAcceptGuarantee($member, $requestedAmount > 0 ? $requestedAmount : null)) {
             throw new \InvalidArgumentException($message);
         }
 

@@ -72,4 +72,9 @@ class LoanApplication extends Model
     {
         return $this->hasMany(LoanApplicationPostApprovalFee::class);
     }
+
+    public function assetReservation(): HasOne
+    {
+        return $this->hasOne(AssetReservation::class);
+    }
 }

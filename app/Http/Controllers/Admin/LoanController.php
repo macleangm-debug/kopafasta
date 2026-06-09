@@ -11,6 +11,7 @@ use App\Models\LoanProduct;
 use App\Services\AuditService;
 use App\Services\CapitalPartnerAllocationService;
 use App\Services\CapitalPartnerMetricsService;
+use App\Services\AssetReservationService;
 use App\Services\LoanDisbursementService;
 use App\Services\LoanOriginationService;
 use App\Services\RepaymentScheduleGenerator;
@@ -194,11 +195,15 @@ class LoanController extends Controller
         $installments = $scheduler->generate($loan->fresh());
 
         if ($loan->loan_application_id) {
-            LoanApplication::whereKey($loan->loan_application_id)->update([
-                'status' => 'disbursed',
-                'current_stage' => 'disbursement',
-                'disbursed_at' => now(),
-            ]);
+            $application = LoanApplication::find($loan->loan_application_id);
+            if ($application) {
+                $application->update([
+                    'status' => 'disbursed',
+                    'current_stage' => 'disbursement',
+                    'disbursed_at' => now(),
+                ]);
+                app(AssetReservationService::class)->syncFromApplication($application->fresh());
+            }
         }
 
         $this->auditAdmin('admin.loans.disbursed', $loan->fresh(), [

@@ -61,7 +61,8 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3">
-                                <span class="text-xs font-medium text-gray-800">{{ $row['application_status'] ?? $row['status_label'] }}</span>
+                                <span class="font-semibold text-xs text-gray-900">{{ $row['application_percent'] ?? 0 }}%</span>
+                                <span class="block text-[11px] text-gray-500 mt-0.5">{{ $row['application_status'] ?? $row['status_label'] }}</span>
                             </td>
                             <td class="px-4 py-3 text-right">
                                 <a href="{{ $row['action_url'] }}" class="text-amber-600 font-semibold hover:underline text-xs">{{ $row['action_label'] }}</a>
@@ -99,7 +100,8 @@
                     </div>
                     <div class="rounded-xl bg-gray-50 px-3 py-2.5">
                         <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.application') }}</p>
-                        <p class="font-semibold text-sm mt-0.5">{{ $row['application_status'] ?? $row['status_label'] }}</p>
+                        <p class="font-semibold text-sm mt-0.5">{{ $row['application_percent'] ?? 0 }}%</p>
+                        <p class="text-[11px] text-gray-500 mt-0.5">{{ $row['application_status'] ?? $row['status_label'] }}</p>
                     </div>
                 </div>
 
