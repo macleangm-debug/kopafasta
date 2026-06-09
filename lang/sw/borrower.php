@@ -55,6 +55,7 @@ return [
         'member_guarantor' => 'Mwanachama',
         'non_member_guarantor' => 'Si mwanachama',
         'guarantor_locked_summary' => 'Muhtasari wa mdhamini',
+        'guarantor_locked_status' => 'Hali',
         'change_guarantor' => 'Badilisha mdhamini',
         'signature_title' => 'Saini ya kidijitali',
         'signature_subtitle' => 'Saini ili kuwasilisha ombi lako kwa ukaguzi.',

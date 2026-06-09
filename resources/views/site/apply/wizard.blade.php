@@ -128,6 +128,13 @@
                           'guarantor_external_incomplete' => __('borrower.apply.alerts.guarantor_external_incomplete'),
                           'guarantor_invite_failed' => __('borrower.apply.alerts.guarantor_invite_failed'),
                           'guarantor_external_invite_required' => __('borrower.apply.alerts.guarantor_external_invite_required'),
+                          'guarantorStatus' => [
+                              'pending' => __('borrower.apply.guarantor_status.invitation_sent'),
+                              'accepted' => __('borrower.apply.guarantor_status.accepted'),
+                              'rejected' => __('borrower.apply.guarantor_status.rejected'),
+                              'expired' => __('borrower.apply.guarantor_status.expired'),
+                              'internal_validated' => __('borrower.apply.guarantor_status.pending_acceptance'),
+                          ],
                           'acceptTerms' => __('borrower.apply.alerts.accept_terms'),
                           'drawSignature' => __('borrower.apply.alerts.draw_signature'),
                           'submitTitle' => __('borrower.apply.alerts.submit_title'),
@@ -341,13 +348,48 @@
                             </template>
                         </ul>
                     </div>
-                    <div x-show="isGuarantorLocked()" x-cloak class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-4 space-y-3 mb-4">
-                        <p class="text-sm font-semibold text-emerald-900">{{ __('borrower.apply.guarantor_locked_summary') }}</p>
+                    <div x-show="isGuarantorLocked()" x-cloak class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-4 space-y-4 mb-4">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <p class="text-sm font-semibold text-emerald-900">{{ __('borrower.apply.guarantor_locked_summary') }}</p>
+                            <div class="text-right">
+                                <p class="text-[10px] uppercase tracking-widest text-emerald-700">{{ __('borrower.apply.guarantor_locked_status') }}</p>
+                                <span class="inline-flex mt-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1"
+                                      :class="guarantorStatusBadgeClass()"
+                                      x-text="guarantorStatusLabel()"></span>
+                            </div>
+                        </div>
                         <p class="text-sm text-emerald-800">
                             <span class="font-medium" x-text="form.guarantor_mode === 'internal' ? @js(__('borrower.apply.internal_guarantor')) : @js(__('borrower.apply.external_guarantor'))"></span>
                             · <span x-text="guarantorSummaryText()"></span>
                         </p>
-                        <p class="text-xs text-emerald-700" x-text="guarantorReviewStatus()"></p>
+                        <div x-show="form.guarantor_mode === 'external' && externalGuarantor?.invitation_url" x-cloak x-data="{ copied: false }" class="rounded-xl bg-white/80 ring-1 ring-emerald-200 px-4 py-4 space-y-3">
+                            <p class="text-sm font-semibold text-emerald-900">{{ __('borrower.apply.guarantor_fields.share_via') }}</p>
+                            <p class="text-xs text-emerald-800">{{ __('borrower.apply.guarantor_fields.share_ready') }}</p>
+                            <p class="text-xs font-mono text-emerald-900 bg-emerald-100/80 rounded-lg px-3 py-2 break-all" x-text="externalGuarantor.short_url || externalGuarantor.invitation_url"></p>
+                            <div class="flex flex-wrap gap-2">
+                                <a :href="externalGuarantor.whatsapp_url || '#'" :class="!externalGuarantor.whatsapp_url && 'pointer-events-none opacity-50'" target="_blank" rel="noopener"
+                                   class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-full text-sm">
+                                    {{ __('borrower.apply.guarantor_fields.share_whatsapp') }}
+                                </a>
+                                <a :href="externalGuarantor.sms_url || '#'" :class="!externalGuarantor.sms_url && 'pointer-events-none opacity-50'"
+                                   class="inline-flex items-center gap-2 bg-white ring-1 ring-emerald-300 text-emerald-900 font-semibold px-4 py-2 rounded-full text-sm">
+                                    {{ __('borrower.apply.guarantor_fields.share_sms') }}
+                                </a>
+                                <a :href="externalGuarantor.email_url || '#'" :class="!externalGuarantor.email_url && 'pointer-events-none opacity-50'"
+                                   class="inline-flex items-center gap-2 bg-white ring-1 ring-emerald-300 text-emerald-900 font-semibold px-4 py-2 rounded-full text-sm">
+                                    {{ __('borrower.apply.guarantor_fields.share_email') }}
+                                </a>
+                                <button type="button"
+                                        @click="navigator.clipboard.writeText(externalGuarantor.short_url || externalGuarantor.invitation_url); copied = true; setTimeout(() => copied = false, 2000)"
+                                        class="inline-flex items-center gap-2 bg-white ring-1 ring-emerald-300 text-emerald-900 font-semibold px-4 py-2 rounded-full text-sm">
+                                    <span x-text="copied ? @js(__('borrower.apply.guarantor_fields.link_copied')) : @js(__('borrower.apply.guarantor_fields.share_copy'))"></span>
+                                </button>
+                            </div>
+                            <p class="text-xs text-amber-800">{{ __('borrower.apply.guarantor_fields.share_ready_continue') }}</p>
+                        </div>
+                        <p x-show="form.guarantor_mode === 'internal'" class="text-xs text-emerald-800">
+                            {{ __('borrower.apply.guarantor_fields.membership_hint_short') }}
+                        </p>
                         <button type="button"
                                 @click="changeGuarantor()"
                                 :disabled="guarantorChanging"
@@ -476,36 +518,8 @@
                                     <span x-text="guarantorInvitePreparing ? @js(__('borrower.apply.guarantor_fields.generating_link')) : @js(__('borrower.apply.guarantor_fields.generate_link'))"></span>
                                 </button>
                             </div>
-                            <div class="sm:col-span-2" x-show="externalGuarantor?.invitation_url" x-cloak>
-                                <p class="text-sm font-semibold text-emerald-900 mb-2">{{ __('borrower.apply.guarantor_fields.share_via') }}</p>
-                                <p class="text-xs text-emerald-800 mb-3">{{ __('borrower.apply.guarantor_fields.share_ready') }}</p>
-                                <p class="text-xs font-mono text-emerald-900 bg-emerald-100/80 rounded-lg px-3 py-2 mb-3 break-all" x-text="externalGuarantor.short_url || externalGuarantor.invitation_url"></p>
-                                <div class="flex flex-wrap gap-2" x-data="{ copied: false }">
-                                    <a x-show="externalGuarantor?.invitation_url" :href="externalGuarantor.whatsapp_url || '#'" :class="!externalGuarantor.whatsapp_url && 'pointer-events-none opacity-50'" target="_blank" rel="noopener"
-                                       class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-full text-sm">
-                                        {{ __('borrower.apply.guarantor_fields.share_whatsapp') }}
-                                    </a>
-                                    <a x-show="externalGuarantor?.invitation_url" :href="externalGuarantor.sms_url || '#'" :class="!externalGuarantor.sms_url && 'pointer-events-none opacity-50'"
-                                       class="inline-flex items-center gap-2 bg-white ring-1 ring-emerald-300 text-emerald-900 font-semibold px-4 py-2 rounded-full text-sm">
-                                        {{ __('borrower.apply.guarantor_fields.share_sms') }}
-                                    </a>
-                                    <a x-show="externalGuarantor?.invitation_url" :href="externalGuarantor.email_url || '#'" :class="!externalGuarantor.email_url && 'pointer-events-none opacity-50'"
-                                       class="inline-flex items-center gap-2 bg-white ring-1 ring-emerald-300 text-emerald-900 font-semibold px-4 py-2 rounded-full text-sm">
-                                        {{ __('borrower.apply.guarantor_fields.share_email') }}
-                                    </a>
-                                    <button type="button"
-                                            x-show="externalGuarantor?.invitation_url"
-                                            @click="navigator.clipboard.writeText(externalGuarantor.short_url || externalGuarantor.invitation_url); copied = true; setTimeout(() => copied = false, 2000)"
-                                            class="inline-flex items-center gap-2 bg-white ring-1 ring-emerald-300 text-emerald-900 font-semibold px-4 py-2 rounded-full text-sm">
-                                        <span x-text="copied ? @js(__('borrower.apply.guarantor_fields.link_copied')) : @js(__('borrower.apply.guarantor_fields.share_copy'))"></span>
-                                    </button>
-                                </div>
-                            </div>
                             <div class="sm:col-span-2 rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-sm text-sky-900" x-show="!isExternalGuarantorComplete()">
                                 {{ __('borrower.apply.guarantor_fields.share_generate') }}
-                            </div>
-                            <div class="sm:col-span-2 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900" x-show="externalGuarantor?.invitation_url" x-cloak>
-                                {{ __('borrower.apply.guarantor_fields.share_ready_continue') }}
                             </div>
                         </div>
                         <p class="text-xs text-amber-700 font-medium">{{ __('borrower.apply.guarantor_fields.status_waiting') }}</p>
@@ -1516,24 +1530,38 @@
                     }
                 },
 
-                guarantorReviewStatus() {
+                guarantorStatusLabel() {
                     if (this.form.guarantor_mode === 'internal') {
-                        return this.guarantorLookup.ok
-                            ? @js(__('borrower.apply.guarantor_status.internal_validated'))
-                            : @js(__('borrower.apply.guarantor_status.pending_acceptance'));
+                        return this.i18n.alerts.guarantorStatus?.internal_validated
+                            || @js(__('borrower.apply.guarantor_status.pending_acceptance'));
                     }
                     if (this.form.guarantor_mode === 'external') {
-                        if (this.externalGuarantor?.invitation_url) {
-                            return @js(__('borrower.apply.guarantor_status.external_invited'));
-                        }
-                        if (this.isExternalGuarantorComplete()) {
-                            return @js(__('borrower.apply.guarantor_status.pending_acceptance'));
-                        }
-
-                        return @js(__('borrower.apply.guarantor_status.external_incomplete'));
+                        const status = this.externalGuarantor?.status || 'pending';
+                        return this.i18n.alerts.guarantorStatus?.[status]
+                            || @js(__('borrower.apply.guarantor_status.invitation_sent'));
                     }
 
                     return '—';
+                },
+
+                guarantorStatusBadgeClass() {
+                    if (this.form.guarantor_mode === 'internal') {
+                        return 'bg-amber-100 text-amber-900 ring-amber-200';
+                    }
+
+                    const status = this.externalGuarantor?.status || 'pending';
+                    if (status === 'accepted') {
+                        return 'bg-emerald-100 text-emerald-900 ring-emerald-200';
+                    }
+                    if (status === 'rejected' || status === 'expired') {
+                        return 'bg-rose-100 text-rose-900 ring-rose-200';
+                    }
+
+                    return 'bg-sky-100 text-sky-900 ring-sky-200';
+                },
+
+                guarantorReviewStatus() {
+                    return this.guarantorStatusLabel();
                 },
 
                 async loadRepaymentSchedule() {
@@ -1824,6 +1852,7 @@
                             ...data.share,
                             _fingerprint: this.externalGuarantorFingerprint(),
                         };
+                        this.scheduleDraftSave();
                         return true;
                     } catch {
                         alert(this.i18n.alerts.guarantor_invite_failed);

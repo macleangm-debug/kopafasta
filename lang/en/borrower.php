@@ -59,6 +59,7 @@ return [
         'member_guarantor' => 'Member',
         'non_member_guarantor' => 'Non-member',
         'guarantor_locked_summary' => 'Guarantor summary',
+        'guarantor_locked_status' => 'Status',
         'change_guarantor' => 'Change guarantor',
         'signature_title' => 'Digital signature',
         'signature_subtitle' => 'Review the declaration below, then sign your application.',
@@ -131,6 +132,7 @@ return [
             'internal_validated' => 'Internal guarantor — validated',
             'external_invited' => 'External guarantor — invitation sent',
             'external_incomplete' => 'External guarantor — details incomplete',
+            'expired' => 'Invitation expired',
         ],
         'draft' => [
             'autosaved' => 'Progress saved automatically.',

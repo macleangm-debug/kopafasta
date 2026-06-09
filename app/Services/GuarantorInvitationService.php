@@ -289,7 +289,7 @@ class GuarantorInvitationService
         return 'mailto:'.$email.'?subject='.rawurlencode($subject).'&body='.rawurlencode($body);
     }
 
-    /** @return array{invitation_url: string, short_url: string, whatsapp_url: string|null, sms_url: string|null, email_url: string|null, invitation_id: int} */
+    /** @return array{invitation_id: int, invitation_url: string, short_url: string, whatsapp_url: string|null, sms_url: string|null, email_url: string|null, status: string} */
     public function sharePayload(GuarantorInvitation $invitation, ?Customer $borrower = null): array
     {
         $borrower ??= $invitation->borrower;
@@ -301,6 +301,7 @@ class GuarantorInvitationService
             'whatsapp_url'   => $this->whatsAppShareUrl($invitation, $borrower),
             'sms_url'        => $this->smsShareUrl($invitation),
             'email_url'      => $this->emailShareUrl($invitation),
+            'status'         => (string) ($invitation->status ?? 'pending'),
         ];
     }
 
