@@ -16,6 +16,8 @@ class LoanTopUpRequest extends Model
         'decision_notes',
         'reviewed_by',
         'reviewed_at',
+        'disbursed_at',
+        'disbursed_by',
     ];
 
     protected function casts(): array
@@ -23,6 +25,7 @@ class LoanTopUpRequest extends Model
         return [
             'requested_amount' => 'decimal:2',
             'reviewed_at'      => 'datetime',
+            'disbursed_at'     => 'datetime',
         ];
     }
 
@@ -39,5 +42,10 @@ class LoanTopUpRequest extends Model
     public function reviewedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function disbursedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'disbursed_by');
     }
 }

@@ -70,7 +70,7 @@
                 <form method="post" action="{{ route('admin.top-up-requests.approve', $record) }}" class="bg-white rounded-xl ring-1 ring-emerald-200 p-5 space-y-3">
                     @csrf
                     <h3 class="text-sm font-semibold text-emerald-900">Approve top-up</h3>
-                    <p class="text-xs text-gray-600">Approving adds {{ format_money($record->requested_amount) }} to the loan outstanding balance.</p>
+                    <p class="text-xs text-gray-600">Approval authorises {{ format_money($record->requested_amount) }}. Disburse separately to update the loan balance and schedule.</p>
                     <textarea name="notes" rows="3" placeholder="Optional notes for borrower"
                               class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 px-3 py-2"></textarea>
                     <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2.5 rounded-lg text-sm">Approve</button>
@@ -81,6 +81,17 @@
                     <textarea name="notes" rows="3" placeholder="Reason for rejection"
                               class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 px-3 py-2"></textarea>
                     <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2.5 rounded-lg text-sm">Reject</button>
+                </form>
+            </div>
+        @elseif ($record->status === 'approved' && ! $record->disbursed_at)
+            <div class="space-y-4">
+                <form method="post" action="{{ route('admin.top-up-requests.disburse', $record) }}" class="bg-white rounded-xl ring-1 ring-sky-200 p-5 space-y-3">
+                    @csrf
+                    <h3 class="text-sm font-semibold text-sky-900">Disburse top-up</h3>
+                    <p class="text-xs text-gray-600">Adds {{ format_money($record->requested_amount) }} to the loan and rebuilds remaining instalments.</p>
+                    <textarea name="notes" rows="3" placeholder="Optional disbursement notes"
+                              class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 px-3 py-2"></textarea>
+                    <button type="submit" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold px-4 py-2.5 rounded-lg text-sm">Disburse to loan</button>
                 </form>
             </div>
         @endif

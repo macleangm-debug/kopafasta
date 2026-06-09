@@ -392,6 +392,10 @@ class BorrowerController extends Controller
             'new_tenure_months' => ['nullable', 'integer', 'min:1', 'max:120'],
         ]);
 
+        if ($data['restructure_type'] === 'payment_holiday' && empty($data['new_tenure_months'])) {
+            return back()->withErrors(['new_tenure_months' => __('borrower.loan_actions.holiday_months_required')]);
+        }
+
         $record = RestructureRequest::create([
             'loan_id'           => $loan->id,
             'customer_id'       => $customer->id,
@@ -405,6 +409,13 @@ class BorrowerController extends Controller
             'loan_id' => $loan->id,
             'type'    => $data['restructure_type'],
         ]);
+
+        app(\App\Services\StaffNotificationService::class)->notifyLoanModificationRequest(
+            'restructure_request',
+            'New restructure request — '.$loan->loan_number,
+            trim($customer->full_name.' requested '.$data['restructure_type'].' for loan '.$loan->loan_number.'.'),
+            '/admin/restructure-requests/'.$record->id,
+        );
 
         return redirect()
             ->route('site.borrower.loans', ['tab' => 'active'])
@@ -457,6 +468,13 @@ class BorrowerController extends Controller
             'loan_id' => $loan->id,
             'amount'  => $data['requested_amount'],
         ]);
+
+        app(\App\Services\StaffNotificationService::class)->notifyLoanModificationRequest(
+            'top_up_request',
+            'New top-up request — '.$loan->loan_number,
+            trim($customer->full_name.' requested a top-up of '.format_money($data['requested_amount']).' on loan '.$loan->loan_number.'.'),
+            '/admin/top-up-requests/'.$record->id,
+        );
 
         return redirect()
             ->route('site.borrower.loans', ['tab' => 'active'])

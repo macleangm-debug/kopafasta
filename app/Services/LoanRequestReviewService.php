@@ -32,13 +32,21 @@ class LoanRequestReviewService
         ]);
 
         $loan = $loan->fresh();
-        $installments = app(RepaymentScheduleGenerator::class)->regenerateRemaining($loan);
+        $scheduler = app(RepaymentScheduleGenerator::class);
+        if ($request->restructure_type === 'payment_holiday') {
+            $holidayMonths = max(1, (int) ($request->new_tenure_months ?? 1));
+            $installments = $scheduler->applyPaymentHoliday($loan, $holidayMonths);
+            $borrowerMessage = 'Your payment holiday of '.$holidayMonths.' month(s) has been approved. '.$installments.' instalment(s) rescheduled.';
+        } else {
+            $installments = $scheduler->regenerateRemaining($loan);
+            $borrowerMessage = 'Your loan restructure request has been approved. '.$installments.' new instalment(s) scheduled.';
+        }
 
         $this->notifyBorrower(
             $request->customer_id ?? $loan->customer_id,
             'restructure_approved',
             'Restructure request approved',
-            'Your loan restructure request has been approved. '.$installments.' new instalment(s) scheduled.',
+            $borrowerMessage,
         );
 
         return $request->fresh(['loan']);
@@ -83,6 +91,29 @@ class LoanRequestReviewService
             'decision_notes' => $notes,
         ]);
 
+        $this->notifyBorrower(
+            $request->customer_id,
+            'top_up_approved',
+            'Top-up request approved',
+            'Your top-up of '.format_money($amount).' has been approved and is pending disbursement to your loan.',
+        );
+
+        return $request->fresh(['loan']);
+    }
+
+    public function disburseTopUp(LoanTopUpRequest $request, User $actor, ?string $notes = null): LoanTopUpRequest
+    {
+        if ($request->status !== 'approved') {
+            throw new \InvalidArgumentException('Only approved top-up requests can be disbursed.');
+        }
+
+        if ($request->disbursed_at) {
+            throw new \InvalidArgumentException('This top-up has already been disbursed.');
+        }
+
+        $loan = $request->loan ?? Loan::findOrFail($request->loan_id);
+        $amount = (float) $request->requested_amount;
+
         $loan->update([
             'approved_amount'     => (float) $loan->approved_amount + $amount,
             'outstanding_balance' => (float) $loan->outstanding_balance + $amount,
@@ -91,11 +122,18 @@ class LoanRequestReviewService
         $loan = $loan->fresh();
         $installments = app(RepaymentScheduleGenerator::class)->regenerateRemaining($loan);
 
+        $request->update([
+            'disbursed_at'   => now(),
+            'disbursed_by'   => $actor->id,
+            'decision_notes' => trim(($request->decision_notes ? $request->decision_notes."\n" : '').($notes ?? '')),
+            'status'         => 'disbursed',
+        ]);
+
         $this->notifyBorrower(
             $request->customer_id,
-            'top_up_approved',
-            'Top-up request approved',
-            'Your top-up of '.format_money($amount).' has been approved. '.$installments.' instalment(s) updated.',
+            'top_up_disbursed',
+            'Top-up disbursed',
+            'Your top-up of '.format_money($amount).' has been added to your loan. '.$installments.' instalment(s) updated.',
         );
 
         return $request->fresh(['loan']);

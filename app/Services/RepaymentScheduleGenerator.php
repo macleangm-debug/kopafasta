@@ -22,6 +22,43 @@ use Illuminate\Support\Facades\DB;
  */
 class RepaymentScheduleGenerator
 {
+    public function applyPaymentHoliday(Loan $loan, int $holidayMonths): int
+    {
+        if ($holidayMonths <= 0) {
+            return 0;
+        }
+
+        return DB::transaction(function () use ($loan, $holidayMonths) {
+            $loan->loadMissing('product');
+            $cadence = $loan->product->repayment_cadence ?? 'weekly';
+
+            $schedules = RepaymentSchedule::query()
+                ->where('loan_id', $loan->id)
+                ->whereNotIn('status', ['paid'])
+                ->orderBy('due_date')
+                ->get();
+
+            foreach ($schedules as $schedule) {
+                $due = Carbon::parse($schedule->due_date);
+                $shifted = $cadence === 'monthly'
+                    ? $due->addMonthsNoOverflow($holidayMonths)
+                    : $due->addWeeks($holidayMonths * 4);
+
+                $schedule->update(['due_date' => $shifted->toDateString()]);
+            }
+
+            $first = $schedules->first();
+            $last = $schedules->last();
+            $loan->update([
+                'next_due_date' => $first?->due_date ?? $loan->next_due_date,
+                'maturity_date' => $last?->due_date ?? $loan->maturity_date,
+                'status'        => 'active',
+            ]);
+
+            return $schedules->count();
+        });
+    }
+
     public function regenerateRemaining(Loan $loan, string $method = 'reducing'): int
     {
         return DB::transaction(function () use ($loan, $method) {

@@ -7,13 +7,13 @@
         @if ($blocked)
             <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 text-sm text-amber-900">{{ $blocked }}</div>
         @else
-            <form method="post" action="{{ route('site.borrower.loans.restructure.submit', $loan) }}" class="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+            <form method="post" action="{{ route('site.borrower.loans.restructure.submit', $loan) }}" class="bg-white rounded-2xl border border-gray-200 p-6 space-y-5" x-data="{ type: @js(old('restructure_type', '')) }">
                 @csrf
                 <p class="text-sm text-gray-700">{{ __('borrower.loan_actions.restructure_hint') }}</p>
 
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.loan_actions.restructure_type_label') }}</label>
-                    <select name="restructure_type" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                    <select name="restructure_type" required x-model="type" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                         <option value="">{{ __('borrower.profile.select') }}</option>
                         @foreach ($types as $value => $label)
                             <option value="{{ $value }}" @selected(old('restructure_type') === $value)>{{ $label }}</option>
@@ -23,9 +23,12 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.loan_actions.new_tenure_label') }} {{ __('borrower.profile.optional') }}</label>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">
+                        <span x-show="type === 'payment_holiday'">{{ __('borrower.loan_actions.holiday_months_label') }}</span>
+                        <span x-show="type !== 'payment_holiday'">{{ __('borrower.loan_actions.new_tenure_label') }} {{ __('borrower.profile.optional') }}</span>
+                    </label>
                     <input type="number" name="new_tenure_months" min="1" max="120" value="{{ old('new_tenure_months') }}"
-                           class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" placeholder="e.g. 12">
+                           class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" placeholder="e.g. 3">
                     @error('new_tenure_months')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                 </div>
 

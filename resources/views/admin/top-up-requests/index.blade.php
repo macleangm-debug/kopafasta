@@ -13,7 +13,8 @@
     <div class="mb-4 flex flex-wrap gap-2">
         @foreach ([
             'pending' => $counts['pending'].' pending',
-            'approved' => 'Approved',
+            'approved' => 'Approved (awaiting disbursement)',
+            'disbursed' => 'Disbursed',
             'rejected' => 'Rejected',
             'all' => 'All',
         ] as $key => $label)

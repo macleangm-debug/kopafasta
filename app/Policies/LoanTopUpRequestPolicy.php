@@ -32,4 +32,10 @@ class LoanTopUpRequestPolicy
         return in_array($user->role, ['manager', 'admin', 'super_admin'], true)
             && $this->sameBranch($user, $request->loan?->customer?->branch_id);
     }
+
+    public function disburse(User $user, LoanTopUpRequest $request): bool
+    {
+        return in_array($user->role, ['manager', 'admin', 'super_admin'], true)
+            && $this->sameBranch($user, $request->loan?->customer?->branch_id);
+    }
 }

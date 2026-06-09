@@ -12,6 +12,7 @@
                 ['Capital utilized', format_money($stats['capital_utilized']), 'bg-emerald-500', route('admin.capital-funding.index')],
                 ['Restructure queue', format_number($stats['pending_restructures'] ?? 0), 'bg-orange-500', route('admin.restructure-requests.index')],
                 ['Top-up queue', format_number($stats['pending_top_ups'] ?? 0), 'bg-rose-500', route('admin.top-up-requests.index')],
+                ['Top-ups to disburse', format_number($stats['approved_top_ups'] ?? 0), 'bg-sky-500', route('admin.top-up-requests.index', ['status' => 'approved'])],
             ];
         @endphp
 

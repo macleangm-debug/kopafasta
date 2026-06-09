@@ -23,6 +23,10 @@ class LoanTopUpRequestController extends Controller
 
         if ($status === 'pending') {
             $query->where('status', 'pending');
+        } elseif ($status === 'approved') {
+            $query->where('status', 'approved')->whereNull('disbursed_at');
+        } elseif ($status === 'disbursed') {
+            $query->where('status', 'disbursed');
         } elseif ($status !== 'all') {
             $query->where('status', $status);
         }
@@ -30,9 +34,10 @@ class LoanTopUpRequestController extends Controller
         $requests = $query->paginate(25)->withQueryString();
 
         $counts = [
-            'pending'  => LoanTopUpRequest::where('status', 'pending')->count(),
-            'approved' => LoanTopUpRequest::where('status', 'approved')->count(),
-            'rejected' => LoanTopUpRequest::where('status', 'rejected')->count(),
+            'pending'   => LoanTopUpRequest::where('status', 'pending')->count(),
+            'approved'  => LoanTopUpRequest::where('status', 'approved')->whereNull('disbursed_at')->count(),
+            'disbursed' => LoanTopUpRequest::where('status', 'disbursed')->count(),
+            'rejected'  => LoanTopUpRequest::where('status', 'rejected')->count(),
         ];
 
         return view('admin.top-up-requests.index', compact('requests', 'status', 'counts'));
@@ -74,6 +79,21 @@ class LoanTopUpRequestController extends Controller
             $service->rejectTopUp($topUpRequest, $request->user(), $data['notes'] ?? null);
 
             return back()->with('status', 'Top-up request rejected.');
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    public function disburse(Request $request, LoanTopUpRequest $topUpRequest, LoanRequestReviewService $service): RedirectResponse
+    {
+        $this->authorize('disburse', $topUpRequest);
+
+        $data = $request->validate(['notes' => ['nullable', 'string', 'max:1000']]);
+
+        try {
+            $service->disburseTopUp($topUpRequest, $request->user(), $data['notes'] ?? null);
+
+            return back()->with('status', 'Top-up disbursed to loan.');
         } catch (\InvalidArgumentException $e) {
             return back()->with('error', $e->getMessage());
         }

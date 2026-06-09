@@ -33,6 +33,7 @@ class DashboardController extends Controller
             'outstanding_exposure'   => $capital['outstanding_exposure'],
             'pending_restructures'   => RestructureRequest::where('status', 'pending')->count(),
             'pending_top_ups'        => LoanTopUpRequest::where('status', 'pending')->count(),
+            'approved_top_ups'       => LoanTopUpRequest::where('status', 'approved')->whereNull('disbursed_at')->count(),
         ];
 
         $recentApplications = LoanApplication::query()

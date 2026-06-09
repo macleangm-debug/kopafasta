@@ -1238,6 +1238,8 @@ return [
         'guarantee_total' => 'Total guaranteed',
         'restructure_type_label' => 'Type of restructuring',
         'new_tenure_label' => 'Preferred new term (months)',
+        'holiday_months_label' => 'Payment holiday duration (months)',
+        'holiday_months_required' => 'Enter how many months to pause repayments.',
         'requested_amount_label' => 'Top-up amount (TZS)',
         'reason_label' => 'Reason for request',
         'submit_restructure' => 'Submit restructure request',

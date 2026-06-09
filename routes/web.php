@@ -422,6 +422,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('top-up-requests/{topUpRequest}', [LoanTopUpRequestController::class, 'show'])->name('top-up-requests.show');
         Route::post('top-up-requests/{topUpRequest}/approve', [LoanTopUpRequestController::class, 'approve'])->name('top-up-requests.approve');
         Route::post('top-up-requests/{topUpRequest}/reject', [LoanTopUpRequestController::class, 'reject'])->name('top-up-requests.reject');
+        Route::post('top-up-requests/{topUpRequest}/disburse', [LoanTopUpRequestController::class, 'disburse'])->name('top-up-requests.disburse');
 
         // Payment verification queue
         Route::middleware('permission:finance.operations')->group(function (): void {
