@@ -236,8 +236,6 @@
             @endif
         @endif
 
-        @endif
-
             @if (! ($wizardMode ?? false) || ($wizardKey ?? 'nida') !== 'kin')
             <div>
             <h2 class="font-semibold mb-1">{{ __('borrower.profile.personal') }}</h2>
