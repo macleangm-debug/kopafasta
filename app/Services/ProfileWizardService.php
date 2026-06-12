@@ -16,8 +16,7 @@ class ProfileWizardService
 
         $nidaComplete = $nida->isVerified($customer)
             && $validation->nationalIdUploadsComplete($customer);
-        $faceComplete = ($customer->face_verification_status ?? '') === 'verified'
-            || in_array($customer->face_verification_status ?? '', ['pending', 'verified'], true);
+        $faceComplete = app(FaceVerificationService::class)->profileStepComplete($customer);
         $residenceComplete = (bool) ($sections['residence']['complete'] ?? false)
             && (! $validation->requiresResidenceLetter() || $validation->hasResidenceLetter($customer));
         $documentsComplete = $profile->isDocumentsComplete($customer);

@@ -21,7 +21,7 @@ use App\Models\LoanProduct;
 use App\Models\LoanTopUpRequest;
 use App\Models\RestructureRequest;
 use App\Models\TrustedDevice;
-use App\Rules\FourDigitPin;
+use App\Support\KinName;
 use App\Rules\MinimumAge;
 use App\Rules\ValidNidaNumber;
 use App\Services\ApplicationDocumentRequestService;
@@ -928,7 +928,9 @@ class BorrowerController extends Controller
             $data = $request->validate([
                 'phone' => ['nullable', 'string', 'max:20'],
                 'email' => ['nullable', 'email', 'max:120'],
-                'nok_name'         => [$kinRequired ? 'required' : 'nullable', 'string', 'max:120'],
+                'nok_first_name'   => [$kinRequired ? 'required' : 'nullable', 'string', 'max:80'],
+                'nok_middle_name'  => ['nullable', 'string', 'max:80'],
+                'nok_last_name'    => [$kinRequired ? 'required' : 'nullable', 'string', 'max:80'],
                 'nok_relationship' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:60'],
                 'nok_phone'        => [$kinRequired ? 'required' : 'nullable', 'string', 'max:30'],
                 'nok_region'       => [$kinRequired ? 'required' : 'nullable', 'string', 'max:100'],
@@ -941,7 +943,10 @@ class BorrowerController extends Controller
             $customer->fill(array_filter([
                 'phone'            => $data['phone'] ?? $customer->phone,
                 'email'            => $data['email'] ?? $customer->email,
-                'nok_name'         => $data['nok_name'] ?? null,
+                'nok_first_name'   => $data['nok_first_name'] ?? null,
+                'nok_middle_name'  => $data['nok_middle_name'] ?? null,
+                'nok_last_name'    => $data['nok_last_name'] ?? null,
+                'nok_name'         => KinName::full($data['nok_first_name'] ?? null, $data['nok_middle_name'] ?? null, $data['nok_last_name'] ?? null) ?: null,
                 'nok_relationship' => $data['nok_relationship'] ?? null,
                 'nok_phone'        => $data['nok_phone'] ?? null,
                 'nok_region'       => $data['nok_region'] ?? null,

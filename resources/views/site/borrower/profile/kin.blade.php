@@ -13,23 +13,9 @@
         @endif
 
         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'kin']) }}" class="bg-white rounded-2xl ring-1 ring-gray-200 p-6 sm:p-8 space-y-4">
-            @csrf
-            @method('PUT')
+            @csrf @method('PUT')
 
-            <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.full_name') }}</label>
-                <input name="nok_name" value="{{ old('nok_name', $customer->nok_name) }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-            </div>
-            <div class="grid sm:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.relationship') }}</label>
-                    <input name="nok_relationship" value="{{ old('nok_relationship', $customer->nok_relationship) }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.phone') }}</label>
-                    <input name="nok_phone" value="{{ old('nok_phone', $customer->nok_phone) }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                </div>
-            </div>
+            <x-site.kin-fields :customer="$customer" input-class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" />
 
             <div class="pt-2">
                 <p class="text-xs font-medium text-gray-600 mb-3">{{ __('borrower.profile.residence') }}</p>
@@ -37,6 +23,8 @@
                     prefix="nok"
                     :region="old('nok_region', $customer->nok_region)"
                     :district="old('nok_district', $customer->nok_district)"
+                    :ward="old('nok_ward', $customer->nok_ward)"
+                    :street="old('nok_street', $customer->nok_street)"
                 />
             </div>
 

@@ -277,7 +277,7 @@
                         $faceKey = $customer->face_verification_status ?? 'incomplete';
                         $faceStatus = match ($faceKey) {
                             'verified' => [__('borrower.nida.face_status.verified'), 'bg-emerald-100 text-emerald-800'],
-                            'pending'  => [__('borrower.nida.face_status.review_required'), 'bg-sky-100 text-sky-800'],
+                            'pending'  => [__('borrower.nida.face_status.submitted'), 'bg-sky-100 text-sky-800'],
                             'rejected' => [__('borrower.nida.face_status.failed'), 'bg-red-100 text-red-800'],
                             default    => [__('borrower.nida.face_status.incomplete'), 'bg-amber-100 text-amber-800'],
                         };
@@ -285,12 +285,12 @@
                     <div class="flex items-center justify-between gap-3 flex-wrap">
                         <div>
                             <p class="font-semibold text-gray-900">{{ __('borrower.nida.face_title') }}</p>
-                            <p class="text-xs text-gray-600 mt-0.5">{{ __('borrower.nida.face_compare_hint') }}</p>
+                            <p class="text-xs text-gray-600 mt-0.5">{{ __('borrower.nida.face_capture_hint') }}</p>
                         </div>
                         <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $faceStatus[1] }}">{{ $faceStatus[0] }}</span>
                     </div>
                     <a href="{{ route('site.borrower.face-verification') }}" class="inline-flex mt-3 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2 rounded-full text-sm">
-                        {{ ($customer->face_verification_status ?? 'incomplete') === 'verified' ? __('borrower.nida.face_view') : __('borrower.nida.face_complete') }}
+                        {{ in_array($faceKey, ['verified', 'pending'], true) ? __('borrower.nida.face_view') : __('borrower.nida.face_complete') }}
                     </a>
                 </div>
             </div>
@@ -303,20 +303,7 @@
                 <h3 class="font-semibold mb-1">{{ __('borrower.profile.kin_info') }}</h3>
                 <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.kin_subtitle') }}</p>
                 <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.full_name') }} <span class="text-red-500">*</span></label>
-                        <input name="nok_name" value="{{ old('nok_name', $customer->nok_name) }}" required class="{{ $editable }}">
-                    </div>
-                    <div class="grid sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.relationship') }} <span class="text-red-500">*</span></label>
-                            <input name="nok_relationship" value="{{ old('nok_relationship', $customer->nok_relationship) }}" required class="{{ $editable }}">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.phone') }} <span class="text-red-500">*</span></label>
-                            <input name="nok_phone" value="{{ old('nok_phone', $customer->nok_phone) }}" required class="{{ $editable }}">
-                        </div>
-                    </div>
+                    <x-site.kin-fields :customer="$customer" :input-class="$editable" />
                     <div>
                         <p class="text-xs font-medium text-gray-600 mb-3">{{ __('borrower.profile.residence') }}</p>
                         <x-site.address-fields

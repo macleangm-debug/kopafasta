@@ -119,7 +119,9 @@ class ApplicationRequirementsService
         $completed = collect($items)->where('complete', true)->count();
         $total = count($items);
 
-        $canApply = collect($items)->every(fn (array $item) => $item['complete']);
+        $canApply = collect($items)
+            ->reject(fn (array $item) => in_array($item['key'], ['face_approval'], true))
+            ->every(fn (array $item) => $item['complete']);
 
         return [
             'can_apply'            => $canApply,
@@ -182,12 +184,17 @@ class ApplicationRequirementsService
 
         $registrationComplete = $customer->hasMembership();
         $nidaComplete = $nida->isVerified($customer);
-        $faceComplete = $faceStatus === 'verified';
+        $faceComplete = in_array($faceStatus, ['pending', 'verified'], true);
         $facePending = in_array($faceStatus, ['pending'], true);
         $activityComplete = $profile->isActivityComplete($customer);
         $residenceComplete = $profile->isResidenceComplete($customer);
-        $kinComplete = filled($customer->nok_name) && filled($customer->nok_phone) && filled($customer->nok_relationship)
-            && filled($customer->nok_region) && filled($customer->nok_district) && filled($customer->nok_street);
+        $kinComplete = filled($customer->nok_first_name)
+            && filled($customer->nok_last_name)
+            && filled($customer->nok_phone)
+            && filled($customer->nok_relationship)
+            && filled($customer->nok_region)
+            && filled($customer->nok_district)
+            && filled($customer->nok_street);
         $documentsComplete = $profile->isDocumentsComplete($customer);
         $staleKeys = $freshness->sectionsDueForRefresh($customer);
 

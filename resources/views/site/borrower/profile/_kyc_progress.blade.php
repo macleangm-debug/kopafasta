@@ -28,7 +28,7 @@
         $sections = collect($profile['sections'] ?? [])->keyBy('key');
         $nidaVerified = app(\App\Services\NidaVerificationService::class)->isVerified($customer);
         $nidaUploaded = app(\App\Services\ProfileValidationService::class)->nationalIdUploadsComplete($customer);
-        $faceVerified = ($customer->face_verification_status ?? '') === 'verified';
+        $faceVerified = app(\App\Services\FaceVerificationService::class)->profileStepComplete($customer);
         $documentsComplete = app(\App\Services\ProfileCompletionService::class)->isDocumentsComplete($customer);
 
         $steps = [

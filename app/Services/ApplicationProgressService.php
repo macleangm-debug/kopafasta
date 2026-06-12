@@ -176,7 +176,7 @@ class ApplicationProgressService
         $items[] = [
             'key'        => 'face',
             'label'      => __('borrower.nida.face_title'),
-            'complete'   => $this->face->canApply($customer),
+            'complete'   => $this->face->profileStepComplete($customer),
             'action_url' => route('site.borrower.face-verification'),
         ];
 

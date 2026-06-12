@@ -74,7 +74,10 @@ class ProfileValidationService
 
     public function isKinComplete(Customer $customer): bool
     {
-        return filled($customer->nok_name)
+        $hasNames = (filled($customer->nok_first_name) && filled($customer->nok_last_name))
+            || filled($customer->nok_name);
+
+        return $hasNames
             && filled($customer->nok_phone)
             && filled($customer->nok_relationship)
             && filled($customer->nok_region)

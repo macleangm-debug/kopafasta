@@ -89,7 +89,7 @@ class ProfileCompletionService
             [
                 'key'        => 'face',
                 'label'      => __('borrower.nida.face_title'),
-                'status'     => $faceStatus === 'verified'
+                'status'     => in_array($faceStatus, ['verified', 'pending'], true)
                     ? 'complete'
                     : (in_array($faceStatus, ['pending'], true) ? 'pending' : 'missing'),
                 'action_url' => route('site.borrower.face-verification'),

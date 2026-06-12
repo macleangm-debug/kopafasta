@@ -27,6 +27,11 @@ class FaceVerificationService
         return $customer->face_verification_status === 'verified';
     }
 
+    public function profileStepComplete(Customer $customer): bool
+    {
+        return in_array($customer->face_verification_status ?? '', ['pending', 'verified'], true);
+    }
+
     public function canApply(Customer $customer): bool
     {
         return $this->isVerified($customer);
