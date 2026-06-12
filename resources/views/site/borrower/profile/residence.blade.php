@@ -1,18 +1,14 @@
 <x-site.borrower-layout :title="brand_title('Profile — Residence')" active="profile">
 
     <div>
-        @include('site.borrower.profile._heading', [
+        @include('site.borrower.profile._profile_shell', [
             'title' => __('borrower.profile.title'),
             'subtitle' => __('borrower.profile.residence_subtitle'),
+            'customer' => $customer,
+            'active' => 'residence',
+            'wizardMode' => $wizardMode ?? false,
+            'wizardKey' => $wizardKey ?? 'residence',
         ])
-
-        @if ($wizardMode ?? false)
-            @include('site.borrower.profile._wizard_nav', ['customer' => $customer, 'currentKey' => $wizardKey ?? 'residence', 'wizardMode' => true])
-        @else
-            @include('site.borrower.profile._tabs', ['active' => 'residence'])
-            @include('site.borrower.profile._kyc_progress', ['customer' => $customer, 'active' => 'residence'])
-            @include('site.borrower.profile._completion')
-        @endif
 
         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'residence']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
               enctype="multipart/form-data" class="bg-white rounded-2xl border border-gray-200 p-6"

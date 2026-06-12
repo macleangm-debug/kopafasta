@@ -11,7 +11,7 @@
             <span></span>
         @endif
         @if ($nav['next'] && $nav['next']['key'] !== $wizardKey)
-            <a href="{{ $nav['next']['url'] }}" class="text-sm font-semibold text-indigo-700 hover:underline">{{ __('borrower.profile_wizard.skip_to', ['step' => $nav['next']['label']]) }} →</a>
+            <a href="{{ $nav['next']['url'] }}" class="text-sm font-semibold text-amber-700 hover:underline">{{ __('borrower.profile_wizard.skip_to', ['step' => $nav['next']['label']]) }} →</a>
         @elseif (app(\App\Services\ProfileWizardService::class)->isComplete($customer))
             <a href="{{ route('site.borrower.dashboard') }}" class="inline-flex bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.profile_wizard.finish') }}</a>
         @endif

@@ -1,14 +1,12 @@
 <x-site.borrower-layout :title="brand_title(__('borrower.profile.kin_title'))" active="profile">
     <div class="max-w-3xl mx-auto">
-        @include('site.borrower.profile._heading', [
+        @include('site.borrower.profile._profile_shell', [
             'title' => __('borrower.profile.kin_title'),
             'subtitle' => __('borrower.profile.kin_subtitle'),
+            'customer' => $customer,
+            'active' => 'kin',
+            'wizardMode' => false,
         ])
-
-        @include('site.borrower.profile._tabs', ['active' => 'kin'])
-        @include('site.borrower.profile._kyc_progress', ['customer' => $customer, 'active' => 'kin'])
-
-        @include('site.borrower.profile._completion')
 
         @if (session('status'))
             <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>

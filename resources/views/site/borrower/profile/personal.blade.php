@@ -1,21 +1,14 @@
 <x-site.borrower-layout :title="brand_title('Profile')" active="profile">
 
     <div>
-        @include('site.borrower.profile._heading', [
+        @include('site.borrower.profile._profile_shell', [
             'title' => __('borrower.profile.title'),
             'subtitle' => __('borrower.profile.subtitle'),
+            'customer' => $customer,
+            'active' => 'personal',
+            'wizardMode' => $wizardMode ?? false,
+            'wizardKey' => $wizardKey ?? 'nida',
         ])
-
-        @if ($wizardMode ?? false)
-            @include('site.borrower.profile._wizard_nav', ['customer' => $customer, 'currentKey' => $wizardKey ?? 'nida', 'wizardMode' => true])
-        @else
-            @include('site.borrower.profile._tabs', ['active' => 'personal'])
-            @include('site.borrower.profile._kyc_progress', ['customer' => $customer, 'active' => 'personal'])
-        @endif
-
-        @if (! ($wizardMode ?? false))
-            @include('site.borrower.profile._completion')
-        @endif
 
         @php
             $locked = (bool) $customer->identity_locked;

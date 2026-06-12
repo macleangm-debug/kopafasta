@@ -1,30 +1,58 @@
-@props(['customer', 'active' => 'personal'])
+@props(['customer', 'active' => 'personal', 'wizardMode' => false, 'wizardKey' => null])
 
 @php
-    $profile = app(\App\Services\ProfileCompletionService::class)->calculate($customer);
-    $percent = (int) ($profile['percent'] ?? 0);
-    $sections = collect($profile['sections'] ?? [])->keyBy('key');
-    $nidaVerified = app(\App\Services\NidaVerificationService::class)->isVerified($customer);
-    $nidaUploaded = app(\App\Services\ProfileValidationService::class)->nationalIdUploadsComplete($customer);
-    $faceVerified = ($customer->face_verification_status ?? '') === 'verified';
-    $documentsComplete = app(\App\Services\ProfileCompletionService::class)->isDocumentsComplete($customer);
+    $wizardService = app(\App\Services\ProfileWizardService::class);
+    $stepHeading = null;
+    $currentKey = $wizardKey;
 
-    $steps = [
-        ['key' => 'nida', 'label' => __('borrower.kyc_progress.nida'), 'complete' => $nidaUploaded && $nidaVerified, 'route' => route('site.borrower.profile', ['section' => 'personal'])],
-        ['key' => 'face', 'label' => __('borrower.kyc_progress.face'), 'complete' => $faceVerified, 'route' => route('site.borrower.face-verification')],
-        ['key' => 'residence', 'label' => __('borrower.profile.residence'), 'complete' => (bool) ($sections['residence']['complete'] ?? false) && (! app(\App\Services\ProfileValidationService::class)->requiresResidenceLetter() || app(\App\Services\ProfileValidationService::class)->hasResidenceLetter($customer)), 'route' => route('site.borrower.profile', ['section' => 'residence'])],
-        ['key' => 'activity', 'label' => __('borrower.profile.activity'), 'complete' => (bool) ($sections['activity']['complete'] ?? false), 'route' => route('site.borrower.profile', ['section' => 'activity'])],
-        ['key' => 'documents', 'label' => __('borrower.profile.documents_proof'), 'complete' => $documentsComplete, 'route' => route('site.borrower.profile', ['section' => 'kyc'])],
-        ['key' => 'kin', 'label' => __('borrower.profile.kin'), 'complete' => app(\App\Services\ProfileValidationService::class)->isKinComplete($customer), 'route' => route('site.borrower.profile', ['section' => 'personal']).'#next-of-kin'],
-    ];
+    if ($wizardMode) {
+        $wizardNav = $wizardService->navigation($customer, $wizardKey ?? 'nida');
+        $progress = $wizardNav['progress'];
+        $percent = (int) ($progress['percent'] ?? 0);
+        $steps = collect($progress['steps'])->map(fn (array $step) => [
+            'key'      => $step['key'],
+            'label'    => $step['label'],
+            'complete' => $step['complete'],
+            'route'    => $step['url'],
+        ])->all();
+        $currentKey = $wizardKey ?? 'nida';
+        $stepHeading = __('borrower.profile_wizard.step_of', [
+            'current' => $wizardNav['index'] + 1,
+            'total'   => $wizardNav['total'],
+        ]).' — '.($wizardNav['current']['label'] ?? '');
+        $next = $wizardNav['next'];
+        $completedCount = (int) ($progress['completed'] ?? 0);
+    } else {
+        $profile = app(\App\Services\ProfileCompletionService::class)->calculate($customer);
+        $percent = (int) ($profile['percent'] ?? 0);
+        $sections = collect($profile['sections'] ?? [])->keyBy('key');
+        $nidaVerified = app(\App\Services\NidaVerificationService::class)->isVerified($customer);
+        $nidaUploaded = app(\App\Services\ProfileValidationService::class)->nationalIdUploadsComplete($customer);
+        $faceVerified = ($customer->face_verification_status ?? '') === 'verified';
+        $documentsComplete = app(\App\Services\ProfileCompletionService::class)->isDocumentsComplete($customer);
 
-    $next = collect($steps)->first(fn ($step) => ! $step['complete']);
-    $completedCount = collect($steps)->where('complete', true)->count();
+        $steps = [
+            ['key' => 'nida', 'label' => __('borrower.kyc_progress.nida'), 'complete' => $nidaUploaded && $nidaVerified, 'route' => route('site.borrower.profile', ['section' => 'personal'])],
+            ['key' => 'face', 'label' => __('borrower.kyc_progress.face'), 'complete' => $faceVerified, 'route' => route('site.borrower.face-verification')],
+            ['key' => 'residence', 'label' => __('borrower.profile.residence'), 'complete' => (bool) ($sections['residence']['complete'] ?? false) && (! app(\App\Services\ProfileValidationService::class)->requiresResidenceLetter() || app(\App\Services\ProfileValidationService::class)->hasResidenceLetter($customer)), 'route' => route('site.borrower.profile', ['section' => 'residence'])],
+            ['key' => 'activity', 'label' => __('borrower.profile.activity'), 'complete' => (bool) ($sections['activity']['complete'] ?? false), 'route' => route('site.borrower.profile', ['section' => 'activity'])],
+            ['key' => 'documents', 'label' => __('borrower.profile.documents_proof'), 'complete' => $documentsComplete, 'route' => route('site.borrower.profile', ['section' => 'kyc'])],
+            ['key' => 'kin', 'label' => __('borrower.profile.kin'), 'complete' => app(\App\Services\ProfileValidationService::class)->isKinComplete($customer), 'route' => route('site.borrower.profile', ['section' => 'personal']).'#next-of-kin'],
+        ];
+
+        $next = collect($steps)->first(fn (array $step) => ! $step['complete']);
+        $completedCount = collect($steps)->where('complete', true)->count();
+    }
 @endphp
 
 <div class="mb-6 rounded-2xl border border-gray-200 bg-white p-5">
     <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-        <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.kyc_progress.title') }}</p>
+        <div>
+            <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.kyc_progress.title') }}</p>
+            @if ($stepHeading)
+                <p class="text-sm text-gray-600 mt-0.5">{{ $stepHeading }}</p>
+            @endif
+        </div>
         <span class="text-xs font-semibold {{ $percent >= 100 ? 'text-emerald-700' : 'text-amber-700' }}">
             {{ __('borrower.kyc_progress.percent_complete', ['percent' => $percent]) }}
         </span>
@@ -35,10 +63,15 @@
     <ol class="flex flex-wrap items-center gap-2 text-sm">
         @foreach ($steps as $index => $step)
             @php
-                $isActive = ($active === 'personal' && in_array($step['key'], ['nida', 'face', 'kin'], true))
-                    || ($active === 'activity' && $step['key'] === 'activity')
-                    || ($active === 'residence' && $step['key'] === 'residence')
-                    || ($active === 'kyc' && $step['key'] === 'documents');
+                $isActive = $wizardMode
+                    ? ($step['key'] === $currentKey)
+                    : (
+                        ($active === 'personal' && in_array($step['key'], ['nida', 'face', 'kin'], true))
+                        || ($active === 'activity' && $step['key'] === 'activity')
+                        || ($active === 'residence' && $step['key'] === 'residence')
+                        || ($active === 'kyc' && $step['key'] === 'documents')
+                        || ($active === 'kin' && $step['key'] === 'kin')
+                    );
             @endphp
             <li class="flex items-center gap-2">
                 @if ($index > 0)
@@ -52,12 +85,17 @@
             </li>
         @endforeach
     </ol>
-    @if ($next)
+    @if ($wizardMode && $next && ($next['key'] ?? null) !== $currentKey)
+        <p class="text-xs text-gray-500 mt-3">
+            {{ __('borrower.profile_wizard.up_next') }}:
+            <a href="{{ $next['url'] }}" class="font-semibold text-amber-700 hover:underline">{{ $next['label'] }}</a>
+        </p>
+    @elseif (! $wizardMode && $next)
         <p class="text-xs text-gray-500 mt-3">
             {{ __('borrower.kyc_progress.next') }} ({{ $completedCount }}/{{ count($steps) }}):
             <a href="{{ $next['route'] }}" class="font-semibold text-amber-700 hover:underline">{{ $next['label'] }}</a>
         </p>
-    @else
+    @elseif ($percent >= 100)
         <p class="text-xs text-emerald-700 mt-3 font-medium">{{ __('borrower.kyc_progress.complete') }}</p>
     @endif
 </div>

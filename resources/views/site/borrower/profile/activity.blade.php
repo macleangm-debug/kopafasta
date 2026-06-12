@@ -1,18 +1,14 @@
 <x-site.borrower-layout :title="brand_title('Profile — Activity')" active="profile">
 
     <div>
-        @include('site.borrower.profile._heading', [
+        @include('site.borrower.profile._profile_shell', [
             'title' => __('borrower.profile.title'),
             'subtitle' => __('borrower.profile.activity_subtitle'),
+            'customer' => $customer,
+            'active' => 'activity',
+            'wizardMode' => $wizardMode ?? false,
+            'wizardKey' => $wizardKey ?? 'activity',
         ])
-
-        @if ($wizardMode ?? false)
-            @include('site.borrower.profile._wizard_nav', ['customer' => $customer, 'currentKey' => $wizardKey ?? 'activity', 'wizardMode' => true])
-        @else
-            @include('site.borrower.profile._tabs', ['active' => 'activity'])
-            @include('site.borrower.profile._kyc_progress', ['customer' => $customer, 'active' => 'activity'])
-            @include('site.borrower.profile._completion')
-        @endif
 
         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'activity']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data" class="bg-white rounded-2xl border border-gray-200 p-6"
               @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.save_confirm_title')), message: @js(__('borrower.profile.save_confirm_message')), confirmLabel: @js(__('borrower.profile.save')), confirmClass: 'bg-amber-500 hover:bg-amber-400 text-gray-900' })">

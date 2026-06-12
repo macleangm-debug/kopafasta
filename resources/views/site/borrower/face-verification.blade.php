@@ -1,15 +1,14 @@
 <x-site.borrower-layout :title="brand_title('Face verification')" active="kyc">
 
     <div>
-        <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">Identity verification</p>
-        <h1 class="text-2xl sm:text-3xl font-bold mb-1">Face verification</h1>
-        <p class="text-sm text-gray-500 mb-6">
-            Confirm you are the same person on your NIDA ID before applying for a loan.
-        </p>
-
-        @if ($wizardMode ?? false)
-            @include('site.borrower.profile._wizard_nav', ['customer' => $customer, 'currentKey' => $wizardKey ?? 'face', 'wizardMode' => true])
-        @endif
+        @include('site.borrower.profile._profile_shell', [
+            'title' => __('borrower.nida.face_title'),
+            'subtitle' => __('borrower.nida.face_compare_hint'),
+            'customer' => $customer,
+            'active' => 'personal',
+            'wizardMode' => $wizardMode ?? false,
+            'wizardKey' => $wizardKey ?? 'face',
+        ])
 
         @if (session('status'))
             <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
