@@ -88,6 +88,7 @@ class LoanApplicationWorkflowService
                 || $application->offer_status === 'pending_borrower'
             )))
             ->filter(fn (array $action, string $key) => ! ($key === 'approve' && ! app(ApplicationOfferService::class)->canFinalApprove($application)))
+            ->filter(fn (array $action, string $key) => ! ($key === 'disburse' && ! app(ApplicationDisbursementReadinessService::class)->canMarkDisbursement($application)))
             ->filter(fn (array $action) => $this->sameBranch($user, $application))
             ->map(fn (array $action, string $key) => [
                 'key'        => $key,
@@ -140,6 +141,15 @@ class LoanApplicationWorkflowService
             if (($dossier['document_progress'] ?? 0) < 100) {
                 throw ValidationException::withMessages([
                     'action' => 'All required documents must be uploaded and verified before completing screening.',
+                ]);
+            }
+        }
+
+        if ($actionKey === 'disburse') {
+            $blocking = app(ApplicationDisbursementReadinessService::class)->blockingMessages($application);
+            if ($blocking !== []) {
+                throw ValidationException::withMessages([
+                    'action' => implode(' ', $blocking),
                 ]);
             }
         }
@@ -217,6 +227,7 @@ class LoanApplicationWorkflowService
             app(AssetReservationService::class)->syncFromApplication($application->fresh());
             app(LoanOriginationService::class)->createFromApplication($application->fresh(['customer', 'product', 'loan']));
             app(GuarantorNotificationService::class)->notifyLoanApproved($application->fresh(['customer', 'product']));
+            $this->issueOfferLetterOnApproval($application->fresh(['customer', 'product']));
         }
 
         if ($to === 'disbursement') {
@@ -315,6 +326,7 @@ class LoanApplicationWorkflowService
             app(PostApprovalFeeService::class)->generateForApplication($application->fresh(['product']));
             app(AssetReservationService::class)->syncFromApplication($application->fresh());
             app(LoanOriginationService::class)->createFromApplication($application->fresh(['customer', 'product', 'loan']));
+            $this->issueOfferLetterOnApproval($application->fresh(['customer', 'product']));
         }
 
         if ($toStage === 'disbursement') {
@@ -356,6 +368,28 @@ class LoanApplicationWorkflowService
             'rejected'            => 'Rejected',
             default               => ucfirst(str_replace('_', ' ', $stage)),
         };
+    }
+
+    private function issueOfferLetterOnApproval(LoanApplication $application): void
+    {
+        app(LoanAgreementService::class)->generateOfferLetter($application);
+
+        $customer = $application->customer;
+        if (! $customer) {
+            return;
+        }
+
+        app(NotificationService::class)->notifyInApp(
+            $customer,
+            __('borrower.offer_letter.notify_message', [
+                'reference' => $application->application_number,
+            ]),
+            'application',
+            'offer_letter_ready',
+            __('borrower.offer_letter.notify_title'),
+            route('site.borrower.application.agreement', $application->id),
+            __('borrower.application.review_sign'),
+        );
     }
 
     private function notifyReturnForDocuments(LoanApplication $application, ?string $remarks): void

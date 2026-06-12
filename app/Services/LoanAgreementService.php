@@ -173,7 +173,7 @@ class LoanAgreementService
 
     private function snapshotFromApplication(LoanApplication $a): array
     {
-        $amount = app(ApplicationOfferService::class)->effectiveAmount($application);
+        $amount = app(ApplicationOfferService::class)->effectiveAmount($a);
         $product = $a->product;
         $rateBreakdown = app(DisplayedRateService::class)->breakdown($product, $amount);
         $monthlyRate = $rateBreakdown['displayed_monthly_rate'];
@@ -189,6 +189,11 @@ class LoanAgreementService
             ->with('asset')
             ->where('loan_application_id', $a->id)
             ->first();
+
+        $signaturePath = setting('company.signature_path');
+        $companySignaturePath = $signaturePath
+            ? storage_path('app/public/'.ltrim($signaturePath, '/'))
+            : null;
 
         return [
             'application_number'   => $a->application_number,
@@ -216,6 +221,9 @@ class LoanAgreementService
             'borrower_signature'   => $a->signatures->firstWhere('signer_type', 'borrower'),
             'guarantor_signature'  => $a->signatures->firstWhere('signer_type', 'guarantor'),
             'company_signatory'    => brand('legal_name'),
+            'company_signatory_name' => setting('company.signatory_name') ?: brand('legal_name'),
+            'company_signatory_title' => setting('company.signatory_title'),
+            'company_signature_path' => ($companySignaturePath && is_file($companySignaturePath)) ? $companySignaturePath : null,
             'is_asset_loan'        => $isAssetLoan,
             'asset_title'          => $reservation?->asset?->title,
             'asset_ownership_note' => $isAssetLoan ? config('asset_marketplace.ownership_note') : null,

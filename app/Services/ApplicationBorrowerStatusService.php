@@ -200,6 +200,16 @@ class ApplicationBorrowerStatusService
         }
 
         if (in_array($status, ['approved', 'pre_approved'], true) || in_array($stage, ['approval', 'disbursement', 'pre_approval'], true)) {
+            $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
+
+            if ($readiness->needsBorrowerSignature($application)) {
+                return 'awaiting_signature';
+            }
+
+            if ($readiness->needsPostApprovalFees($application)) {
+                return 'post_approval_fees';
+            }
+
             return 'approved';
         }
 
@@ -240,6 +250,8 @@ class ApplicationBorrowerStatusService
             'documents_resubmitted' => __('borrower.applications_list.statuses.documents_resubmitted'),
             'credit_review'         => __('borrower.applications_list.statuses.credit_review'),
             'awaiting_offer'        => __('borrower.applications_list.statuses.awaiting_offer'),
+            'awaiting_signature'    => __('borrower.applications_list.statuses.awaiting_signature'),
+            'post_approval_fees'    => __('borrower.applications_list.statuses.post_approval_fees'),
             'approved'              => __('borrower.applications_list.statuses.approved'),
             'rejected'              => __('borrower.applications_list.statuses.rejected'),
             'disbursed'             => __('borrower.applications_list.statuses.disbursed'),
@@ -253,6 +265,7 @@ class ApplicationBorrowerStatusService
         return match ($code) {
             'rejected' => 'red',
             'awaiting_offer' => 'amber',
+            'awaiting_signature', 'post_approval_fees' => 'sky',
             'approved', 'disbursed', 'closed' => 'emerald',
             'draft', 'submitted' => 'amber',
             'documents_requested', 'documents_resubmitted' => 'orange',

@@ -94,6 +94,22 @@ class LoanAgreementController extends Controller
                 'agreement_id' => $agreement->id,
                 'reference'    => $agreement->reference,
             ]);
+
+            $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
+            if ($readiness->needsPostApprovalFees($application->fresh())) {
+                $customer = $this->customerOrFail($application);
+                app(NotificationService::class)->notifyInApp(
+                    $customer,
+                    __('borrower.post_approval_fees.notify_message', [
+                        'reference' => $application->application_number,
+                    ]),
+                    'application',
+                    'post_approval_fees_due',
+                    __('borrower.post_approval_fees.notify_title'),
+                    route('site.borrower.application.post-approval-fees', $application->id),
+                    __('borrower.loan_profile.actions.pay_post_approval_fees'),
+                );
+            }
         }
 
         return back()->with($ok ? 'status' : 'error', $message);

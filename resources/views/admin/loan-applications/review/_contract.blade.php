@@ -1,4 +1,25 @@
-<x-admin.review-section id="review-contract" title="Loan contract & offer letter" subtitle="Generated agreement, signature status and PDF">
+@php
+    $effectiveAmount = app(\App\Services\ApplicationOfferService::class)->effectiveAmount($record);
+    $feesPaid = $disbursementReadiness->feesPaid($record);
+    $hasFees = $disbursementReadiness->hasPostApprovalFees($record);
+    $blocking = $disbursementReadiness->blockingMessages($record);
+@endphp
+
+<x-admin.review-section id="review-contract" title="Loan contract & offer letter" subtitle="Generated agreements, signatures, fees, and disbursement readiness">
+    @if ($blocking !== [] && in_array($record->current_stage, ['approval', 'disbursement'], true))
+        <div class="mb-4 rounded-lg bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">
+            <p class="font-semibold">Before disbursement</p>
+            <ul class="mt-1 list-disc list-inside space-y-0.5">
+                @foreach ($blocking as $message)
+                    <li>{{ $message }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @elseif (in_array($record->current_stage, ['approval', 'disbursement'], true))
+        <p class="mb-4 text-sm text-emerald-700 font-semibold">Ready for disbursement — offer signed@if ($hasFees) and fees paid@endif.</p>
+    @endif
+
+    <h4 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Offer letter</h4>
     @if ($offer)
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
             <div><div class="text-xs uppercase text-gray-500">Reference</div><div class="font-mono font-semibold">{{ $offer->reference }}</div></div>
@@ -15,11 +36,11 @@
         <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm mb-5">
             <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-3">
                 <p class="text-[10px] uppercase text-gray-500">Loan amount</p>
-                <p class="font-semibold mt-1">{{ format_money((float) ($record->recommended_amount ?? $record->requested_amount)) }}</p>
+                <p class="font-semibold mt-1">{{ format_money($effectiveAmount) }}</p>
             </div>
             <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-3">
                 <p class="text-[10px] uppercase text-gray-500">Tenure</p>
-                <p class="font-semibold mt-1">{{ $record->requested_tenure_months }} months</p>
+                <p class="font-semibold mt-1">{{ $record->offered_tenure_months ?? $record->requested_tenure_months }} months</p>
             </div>
             <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-3">
                 <p class="text-[10px] uppercase text-gray-500">Product rate</p>
@@ -30,8 +51,8 @@
                 <p class="font-semibold mt-1">{{ $offer->isSigned() ? 'Signed' : 'Pending' }}</p>
             </div>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
-            <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($offer->file_path) }}" target="_blank"
+        <div class="flex flex-wrap items-center gap-2 mb-6">
+            <a href="{{ route('site.borrower.agreement.download', $offer) }}" target="_blank"
                class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 px-4 py-2 rounded-lg">
                 View PDF
             </a>
@@ -39,17 +60,54 @@
                   onsubmit="return confirm('Regenerate the offer letter? The borrower will need to sign the new version.');">
                 @csrf
                 <button type="submit" class="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 px-4 py-2 rounded-lg">
-                    Regenerate
+                    Regenerate offer
                 </button>
             </form>
         </div>
     @else
-        <p class="text-sm text-gray-500 mb-4">No offer letter has been issued yet. Generate one when the application reaches approval stage.</p>
-        <form method="POST" action="{{ route('admin.loan-applications.agreement.generate', $record) }}">
+        <p class="text-sm text-gray-500 mb-4">No offer letter yet. One is generated automatically on final approval, or generate manually below.</p>
+        <form method="POST" action="{{ route('admin.loan-applications.agreement.generate', $record) }}" class="mb-6">
             @csrf
             <button type="submit" class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg">
                 Generate offer letter
             </button>
         </form>
+    @endif
+
+    <h4 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Loan contract</h4>
+    @if ($contract ?? null)
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
+            <div><div class="text-xs uppercase text-gray-500">Reference</div><div class="font-mono font-semibold">{{ $contract->reference }}</div></div>
+            <div><div class="text-xs uppercase text-gray-500">Generated</div><div>{{ optional($contract->sent_at)->format('d M Y, H:i') ?? '—' }}</div></div>
+            <div><div class="text-xs uppercase text-gray-500">Status</div><div class="font-semibold capitalize">{{ $contract->status }}</div></div>
+        </div>
+        @if ($contract->file_path)
+            <a href="{{ route('site.borrower.agreement.download', $contract) }}" target="_blank"
+               class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 px-4 py-2 rounded-lg mb-6">
+                View contract PDF
+            </a>
+        @endif
+    @else
+        <p class="text-sm text-gray-500 mb-6">Loan contract is generated after the borrower signs the offer letter.</p>
+    @endif
+
+    <h4 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Post-approval fees</h4>
+    @if ($hasFees)
+        @php $record->loadMissing('postApprovalFees'); @endphp
+        <ul class="divide-y divide-gray-100 rounded-lg ring-1 ring-gray-200 overflow-hidden mb-4">
+            @foreach ($record->postApprovalFees as $fee)
+                <li class="px-4 py-3 flex items-center justify-between text-sm">
+                    <span>{{ $fee->name }}</span>
+                    <span class="font-semibold {{ $fee->isPaid() ? 'text-emerald-700' : 'text-amber-700' }}">
+                        {{ format_money($fee->calculated_amount) }} · {{ ucfirst($fee->status) }}
+                    </span>
+                </li>
+            @endforeach
+        </ul>
+        <p class="text-sm {{ $feesPaid ? 'text-emerald-700 font-semibold' : 'text-amber-800' }}">
+            {{ $feesPaid ? 'All post-approval fees recorded as paid.' : 'Awaiting borrower payment confirmation.' }}
+        </p>
+    @else
+        <p class="text-sm text-gray-500">No post-approval fees configured for this product.</p>
     @endif
 </x-admin.review-section>

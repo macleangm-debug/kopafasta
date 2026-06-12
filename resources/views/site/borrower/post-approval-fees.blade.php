@@ -41,6 +41,33 @@
         </div>
     </div>
 
+    @if ($application->postApprovalFees->contains(fn ($f) => ! $f->isPaid()))
+        <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-5 py-4 mb-6 text-sm text-sky-900">
+            <p class="font-semibold mb-2">How to pay</p>
+            <p class="text-xs text-sky-800 mb-3">Use reference <span class="font-mono font-bold">{{ $paymentReference }}</span> on all transfers.</p>
+
+            @if (! empty($mobileDetails['number']))
+                <div class="mb-3">
+                    <p class="font-medium">Mobile money — {{ $mobileDetails['provider'] ?? 'M-Pesa' }}</p>
+                    <p class="font-mono">{{ $mobileDetails['number'] }}</p>
+                    @if (! empty($mobileDetails['instructions']))
+                        <p class="text-xs mt-1">{{ $mobileDetails['instructions'] }}</p>
+                    @endif
+                </div>
+            @endif
+
+            @foreach ($bankAccounts as $acct)
+                <div class="mb-2 last:mb-0">
+                    <p class="font-medium">{{ $acct['bank'] }}</p>
+                    <p class="text-xs">{{ $acct['account_name'] }} · {{ $acct['account_number'] }}@if (! empty($acct['branch'])) · {{ $acct['branch'] }}@endif</p>
+                    @if (! empty($acct['instructions']))
+                        <p class="text-xs mt-0.5">{{ $acct['instructions'] }}</p>
+                    @endif
+                </div>
+            @endforeach
+        </div>
+    @endif
+
     @if ($wallet->balance > 0 && $application->postApprovalFees->contains(fn ($f) => ! $f->isPaid()))
         <div class="mb-6 rounded-xl bg-indigo-50 ring-1 ring-indigo-200 px-4 py-4 text-sm text-indigo-900">
             <p>Referral wallet balance: <strong>{{ format_money($wallet->balance) }}</strong>.</p>

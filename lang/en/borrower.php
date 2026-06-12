@@ -868,6 +868,8 @@ return [
             'screening' => 'Screening',
             'credit_review' => 'Credit Review',
             'awaiting_offer' => 'Counter-offer pending',
+            'awaiting_signature' => 'Sign offer letter',
+            'post_approval_fees' => 'Post-approval fees due',
             'underwriting' => 'Under review',
             'pre_approved' => 'Pre-approved',
             'approved' => 'Approved',
@@ -952,6 +954,8 @@ return [
             'awaiting_guarantor' => 'Guarantor pending approval',
             'sign_offer' => 'Sign offer letter',
             'review_offer' => 'Review counter-offer from credit committee',
+            'pay_post_approval_fees' => 'Pay post-approval fees to proceed',
+            'contract_ready' => 'Loan contract ready — view your agreement',
             'submitted' => 'Application submitted',
             'disbursed' => 'Loan disbursed',
             'rejected' => 'Application declined',
@@ -974,6 +978,8 @@ return [
             'complete_guarantor' => 'Complete guarantor',
             'view_guarantor' => 'View guarantor status',
             'view_schedule' => 'View repayment schedule',
+            'pay_post_approval_fees' => 'Pay post-approval fees',
+            'view_contract' => 'View loan contract',
         ],
         'timeline_title' => 'Application progress',
     ],
@@ -1412,5 +1418,16 @@ return [
         'asset_alternative_title' => 'Alternative loan option',
         'asset_alternative_message' => 'Application :reference could not be approved at the requested amount. Consider :product instead.',
         'asset_alternative_cta' => 'View product',
+    ],
+
+    'offer_letter' => [
+        'notify_title' => 'Offer letter ready',
+        'notify_message' => 'Your loan application :reference is approved. Review and sign your offer letter.',
+    ],
+
+    'post_approval_fees' => [
+        'notify_title' => 'Post-approval fees due',
+        'notify_message' => 'Application :reference — pay post-approval fees to proceed toward disbursement.',
+        'payment_instructions' => 'Use your application reference when paying.',
     ],
 ];

@@ -150,6 +150,43 @@ class LoanApplicationNextActionService
             );
         }
 
+        $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
+        $isPostApproval = in_array($status, ['approved', 'pre_approved'], true)
+            || in_array((string) ($application->current_stage ?? ''), ['approval', 'disbursement'], true);
+
+        if ($isPostApproval) {
+            if ($readiness->needsBorrowerSignature($application)) {
+                return $this->action(
+                    'sign_offer',
+                    __('borrower.loan_profile.next_actions.sign_offer'),
+                    __('borrower.application.review_sign'),
+                    route('site.borrower.application.agreement', $application->id),
+                    tone: 'primary',
+                );
+            }
+
+            if ($readiness->needsPostApprovalFees($application)) {
+                return $this->action(
+                    'pay_post_approval_fees',
+                    __('borrower.loan_profile.next_actions.pay_post_approval_fees'),
+                    __('borrower.loan_profile.actions.pay_post_approval_fees'),
+                    route('site.borrower.application.post-approval-fees', $application->id),
+                    tone: 'primary',
+                );
+            }
+
+            $contract = $readiness->loanContract($application);
+            if ($contract && $contract->file_path) {
+                return $this->action(
+                    'view_contract',
+                    __('borrower.loan_profile.next_actions.contract_ready'),
+                    __('borrower.loan_profile.actions.view_contract'),
+                    route('site.borrower.agreement.download', $contract->id),
+                    tone: 'secondary',
+                );
+            }
+        }
+
         if ($missingRequirements !== []) {
             $first = $missingRequirements[0];
             $openRequests = $application->documentRequests()
@@ -171,22 +208,6 @@ class LoanApplicationNextActionService
                 __('borrower.loan_profile.next_actions.upload', ['item' => $first['label'] ?? __('borrower.loan_profile.missing_requirements_title')]),
                 __('borrower.loan_profile.upload'),
                 $first['upload_url'] ?? ($profileUrl.'#documents'),
-            );
-        }
-
-        $offer = \App\Models\LoanAgreement::query()
-            ->where('loan_application_id', $application->id)
-            ->where('document_type', 'offer_letter')
-            ->latest('id')
-            ->first();
-
-        if ($offer && ! $offer->isSigned()) {
-            return $this->action(
-                'sign_offer',
-                __('borrower.loan_profile.next_actions.sign_offer'),
-                __('borrower.application.review_sign'),
-                route('site.borrower.application.agreement', $application->id),
-                tone: 'primary',
             );
         }
 

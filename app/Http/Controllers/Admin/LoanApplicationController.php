@@ -200,6 +200,11 @@ class LoanApplicationController extends ResourceController
             ->groupedDocumentRequests($documentRequests);
         $counterOffer = app(ApplicationOfferService::class)->maxCounterOffer($record);
         $assetAlternativeProduct = \App\Models\LoanProduct::where('code', 'AB')->where('is_active', true)->first();
+        $contract = \App\Models\LoanAgreement::where('loan_application_id', $record->id)
+            ->where('document_type', 'loan_contract')
+            ->latest('id')
+            ->first();
+        $disbursementReadiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
 
         return view("admin.{$this->viewFolder}.show", compact(
             'record',
@@ -209,12 +214,14 @@ class LoanApplicationController extends ResourceController
             'auditLogs',
             'workflow',
             'offer',
+            'contract',
             'documentRequests',
             'affordability',
             'rejectionReasons',
             'groupedDocumentRequests',
             'counterOffer',
             'assetAlternativeProduct',
+            'disbursementReadiness',
         ));
     }
 

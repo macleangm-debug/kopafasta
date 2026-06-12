@@ -12,6 +12,11 @@ return [
             'credit_gl'   => 'application_fee_income_gl_account_id',
             'fallback_gl' => 'fee_income_gl_account_id',
         ],
+        'post_approval_fee' => [
+            'label'       => 'Post-approval Fee',
+            'credit_gl'   => 'application_fee_income_gl_account_id',
+            'fallback_gl' => 'fee_income_gl_account_id',
+        ],
         'loan_repayment' => [
             'label'       => 'Loan Repayment',
             'credit_gl'   => 'loan_receivable_gl_account_id',

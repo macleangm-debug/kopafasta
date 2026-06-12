@@ -1648,7 +1648,22 @@ class BorrowerController extends Controller
         $maxWalletQuote = $this->postApprovalFeeQuote($customer, $baseTotal, true, $referrals);
         $referralSettings = $referrals->settings();
 
-        return view('site.borrower.post-approval-fees', compact('application', 'wallet', 'feeQuote', 'maxWalletQuote', 'referralSettings'));
+        $paymentReference = $application->application_number ?? ('APP-'.$application->id);
+        $accounts = app(\App\Services\PaymentAccountService::class);
+        $bankAccounts = $accounts->bankAccountsForDisplay('post_approval_fee', $paymentReference, $application->product);
+        $mobileResolved = $accounts->resolve('post_approval_fee', 'mobile_money', $application->product);
+        $mobileDetails = $accounts->mobileMoneyDetails($mobileResolved['mobile_money_account'], $paymentReference);
+
+        return view('site.borrower.post-approval-fees', compact(
+            'application',
+            'wallet',
+            'feeQuote',
+            'maxWalletQuote',
+            'referralSettings',
+            'paymentReference',
+            'bankAccounts',
+            'mobileDetails',
+        ));
     }
 
     public function payPostApprovalFees(Request $request, LoanApplication $application, PostApprovalFeeService $fees): RedirectResponse

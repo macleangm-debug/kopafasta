@@ -186,6 +186,16 @@ class LoanController extends Controller
 
     public function disburse(Loan $loan, LoanDisbursementService $service, RepaymentScheduleGenerator $scheduler)
     {
+        if ($loan->loan_application_id) {
+            $application = LoanApplication::find($loan->loan_application_id);
+            if ($application) {
+                $blocking = app(\App\Services\ApplicationDisbursementReadinessService::class)->blockingMessages($application);
+                if ($blocking !== []) {
+                    return back()->withErrors(['disburse' => implode(' ', $blocking)]);
+                }
+            }
+        }
+
         $loan->update([
             'status' => 'active',
             'disbursement_date' => $loan->disbursement_date ?? now()->toDateString(),

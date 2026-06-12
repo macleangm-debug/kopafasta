@@ -122,7 +122,13 @@
     </div>
     <div class="sign-col">
         <strong>Company</strong>
-        <div class="muted" style="margin-top:8px">{{ $snapshot['company_signatory'] ?? brand('legal_name') }}</div>
+        @if (! empty($snapshot['company_signature_path']))
+            <div style="margin-top:6px"><img src="{{ $snapshot['company_signature_path'] }}" alt="Company signature" style="max-height:50px"></div>
+        @endif
+        <div class="muted" style="margin-top:8px">{{ $snapshot['company_signatory_name'] ?? brand('legal_name') }}</div>
+        @if (! empty($snapshot['company_signatory_title']))
+            <div class="muted">{{ $snapshot['company_signatory_title'] }}</div>
+        @endif
         @if ($agreement->isSigned())
             <div class="muted">Authorised: {{ $agreement->signed_at->format('d M Y') }}</div>
         @endif
