@@ -51,7 +51,8 @@ class CustomerPaymentService
     {
         return DB::transaction(function () use ($data) {
             $customer = $data['customer'];
-            $product = $data['loan_product'] ?? $data['loan']?->product ?? null;
+            $loan = $data['loan'] ?? null;
+            $product = $data['loan_product'] ?? $loan?->product ?? null;
             $method = $data['payment_method'];
             $type = $data['payment_type'];
             $amount = round((float) $data['amount'], 2);
@@ -94,7 +95,7 @@ class CustomerPaymentService
                 'payment_date'            => $data['payment_date'] ?? ($isBank ? now()->toDateString() : null),
                 'source_type'             => isset($data['source']) ? $data['source']::class : null,
                 'source_id'               => ($data['source'] ?? null)?->getKey(),
-                'loan_id'                 => $data['loan']?->id,
+                'loan_id'                 => $loan?->id,
                 'loan_product_id'         => $product?->id,
                 'created_by'              => auth()->id(),
             ]);
