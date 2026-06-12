@@ -15,7 +15,32 @@ class PostApprovalFeePaymentService
 
     public function generatePaymentReference(LoanApplication $application): string
     {
-        return $application->application_number ?? app(CustomerPaymentService::class)->generateReference();
+        $applicationNumber = $application->application_number;
+
+        if ($applicationNumber) {
+            $suffix = 1;
+            do {
+                $candidate = $suffix === 1
+                    ? $applicationNumber.'-PAF'
+                    : $applicationNumber.'-PAF-'.$suffix;
+                $suffix++;
+            } while (CustomerPayment::where('reference', $candidate)->exists());
+
+            return $candidate;
+        }
+
+        return app(CustomerPaymentService::class)->generateReference();
+    }
+
+    public function existingPayment(LoanApplication $application): ?CustomerPayment
+    {
+        return CustomerPayment::query()
+            ->where('payment_type', 'post_approval_fee')
+            ->where('source_type', LoanApplication::class)
+            ->where('source_id', $application->id)
+            ->whereIn('status', ['pending_verification', 'paid', 'verified'])
+            ->latest('id')
+            ->first();
     }
 
     /** @return array<string, mixed> */
@@ -69,6 +94,7 @@ class PostApprovalFeePaymentService
         LoanApplication $application,
         string $paymentReference,
         bool $useWallet = false,
+        ?string $mobileNumber = null,
     ): array {
         $quote = $this->quote($customer, $application, $useWallet);
         $amount = (int) $quote['after_discount'];
@@ -82,6 +108,10 @@ class PostApprovalFeePaymentService
             ];
         }
 
+        if ($existing = $this->existingPayment($application)) {
+            return ['payment' => $existing, 'quote' => $quote];
+        }
+
         $this->settleDiscounts($customer, $application, $quote, $useWallet);
 
         $payment = app(CustomerPaymentService::class)->create([
@@ -92,6 +122,7 @@ class PostApprovalFeePaymentService
             'loan_product'   => $application->product,
             'reference'      => $paymentReference,
             'source'         => $application,
+            'mobile_number'  => $mobileNumber,
             'auto_verify'    => true,
         ]);
 
@@ -106,6 +137,7 @@ class PostApprovalFeePaymentService
         LoanApplication $application,
         string $paymentReference,
         bool $useWallet = false,
+        ?string $paymentDate = null,
     ): array {
         $quote = $this->quote($customer, $application, $useWallet);
         $amount = (int) $quote['after_discount'];
@@ -119,6 +151,10 @@ class PostApprovalFeePaymentService
             ];
         }
 
+        if ($existing = $this->existingPayment($application)) {
+            return ['payment' => $existing, 'quote' => $quote];
+        }
+
         $this->settleDiscounts($customer, $application, $quote, $useWallet);
 
         $payment = app(CustomerPaymentService::class)->create([
@@ -129,6 +165,7 @@ class PostApprovalFeePaymentService
             'loan_product'   => $application->product,
             'reference'      => $paymentReference,
             'source'         => $application,
+            'payment_date'   => $paymentDate,
             'auto_verify'    => $this->usesDummyGateway(),
         ]);
 

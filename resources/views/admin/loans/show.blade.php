@@ -9,7 +9,26 @@
         </div>
     @endif
 
-    <div class="flex flex-wrap items-center gap-3 mb-4">
+        @if (! empty($disbursementBlocking) && $loan->status === 'pending')
+            <div class="mb-4 rounded-lg bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">
+                <p class="font-semibold">Disbursement blocked</p>
+                <ul class="mt-1 list-disc list-inside text-amber-800">
+                    @foreach ($disbursementBlocking as $message)
+                        <li>{{ $message }}</li>
+                    @endforeach
+                </ul>
+                @if ($disbursementReadiness && $loan->application && $disbursementReadiness->hasPostApprovalFees($loan->application))
+                    <p class="mt-2 text-xs">
+                        Post-approval fee:
+                        <strong class="{{ $disbursementReadiness->feesPaid($loan->application) ? 'text-emerald-700' : 'text-red-700' }}">
+                            {{ $disbursementReadiness->feesPaid($loan->application) ? 'Paid' : 'Not paid' }}
+                        </strong>
+                    </p>
+                @endif
+            </div>
+        @endif
+
+        <div class="flex flex-wrap items-center gap-3 mb-4">
         <a href="{{ route('admin.loans.index') }}"
            class="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-800">
             <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -19,17 +38,24 @@
         </a>
         <div class="ml-auto flex items-center gap-2">
             @if (in_array($loan->status, ['pending']))
-                <form method="POST" action="{{ route('admin.loans.disburse', $loan) }}"
-                      onsubmit="return confirm('Disburse this loan? Fees will be auto-charged from charges_fees config.');">
-                    @csrf
-                    <button type="submit"
-                            class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg shadow-sm transition">
-                        <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-                        </svg>
-                        Disburse
-                    </button>
-                </form>
+                @if ($canDisburse ?? true)
+                    <form method="POST" action="{{ route('admin.loans.disburse', $loan) }}"
+                          onsubmit="return confirm('Disburse this loan? Fees will be auto-charged from charges_fees config.');">
+                        @csrf
+                        <button type="submit"
+                                class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg shadow-sm transition">
+                            <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            Disburse
+                        </button>
+                    </form>
+                @else
+                    <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-500 bg-gray-100 px-4 py-2 rounded-lg cursor-not-allowed"
+                          title="{{ implode(' ', $disbursementBlocking ?? []) }}">
+                        Disburse locked
+                    </span>
+                @endif
             @endif
             @if (in_array($loan->status, ['active', 'arrears', 'defaulted']) && (float) $loan->outstanding_balance > 0)
                 <a href="{{ route('admin.loans.write-off-form', $loan) }}"

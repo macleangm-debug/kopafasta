@@ -60,7 +60,7 @@ class LoansTable extends Component
     public function render()
     {
         $loans = Loan::query()
-            ->with('customer', 'product')
+            ->with(['customer', 'product', 'application.postApprovalFees'])
             ->when($this->search !== '', function ($q) {
                 $term = '%'.$this->search.'%';
                 $q->where(function ($q) use ($term) {

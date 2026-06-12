@@ -3,21 +3,35 @@
         <div class="mb-6">
             <a href="{{ route('site.borrower.application', $application) }}" class="text-sm text-amber-700 hover:text-amber-800">&larr; {{ __('borrower.post_approval_fees.back') }}</a>
             <h1 class="text-2xl font-bold mt-2">{{ __('borrower.post_approval_fees.page_title') }}</h1>
-            <p class="text-sm text-gray-500 mt-1">{{ $application->product?->name }} · {{ $application->application_number ?? $application->id }}</p>
+            <p class="text-sm text-gray-500 mt-1">{{ $application->product?->name }}</p>
         </div>
 
         <div class="rounded-xl bg-white shadow-sm ring-1 ring-gray-200 overflow-hidden mb-6">
+            <div class="px-5 py-4 border-b border-gray-100 bg-gray-50">
+                <dl class="grid sm:grid-cols-2 gap-3 text-sm">
+                    <div>
+                        <dt class="text-gray-500">{{ __('borrower.post_approval_fees.loan_amount') }}</dt>
+                        <dd class="font-semibold mt-0.5">{{ format_money($loanAmount) }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-gray-500">{{ __('borrower.post_approval_fees.application_ref') }}</dt>
+                        <dd class="font-mono text-xs mt-0.5">{{ $application->application_number }}</dd>
+                    </div>
+                </dl>
+            </div>
             <ul class="divide-y divide-gray-100">
-                @foreach ($application->postApprovalFees as $fee)
+                @foreach ($feeLines as $line)
                     <li class="px-5 py-4 flex items-center justify-between gap-3">
                         <div>
-                            <p class="font-medium text-gray-900">{{ $fee->name }}</p>
-                            <p class="text-xs text-gray-500">{{ ucfirst($fee->fee_type) }} · {{ $fee->code }}</p>
+                            <p class="font-medium text-gray-900">{{ $line['name'] }}</p>
+                            @if ($line['rate_label'])
+                                <p class="text-xs text-gray-500">{{ __('borrower.post_approval_fees.fee_rate') }}: {{ $line['rate_label'] }}</p>
+                            @endif
                         </div>
                         <div class="text-right">
-                            <p class="font-semibold">{{ format_money($fee->calculated_amount) }}</p>
-                            <span class="text-xs font-semibold rounded-full px-2 py-0.5 {{ $fee->isPaid() ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700' }}">
-                                {{ ucfirst($fee->status) }}
+                            <p class="font-semibold">{{ format_money($line['amount']) }}</p>
+                            <span class="text-xs font-semibold rounded-full px-2 py-0.5 {{ $line['paid'] ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700' }}">
+                                {{ $line['paid'] ? __('borrower.post_approval_fees.paid') : __('borrower.post_approval_fees.due') }}
                             </span>
                         </div>
                     </li>

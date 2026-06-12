@@ -1478,6 +1478,11 @@ return [
     'post_approval_fees' => [
         'page_title' => 'Post-approval fees',
         'back' => 'Back to application',
+        'loan_amount' => 'Loan amount',
+        'application_ref' => 'Application reference',
+        'fee_rate' => 'Fee rate',
+        'paid' => 'Paid',
+        'due' => 'Due',
         'subtotal' => 'Subtotal',
         'referral_discount' => 'Referral discount',
         'total_due' => 'Total due',

@@ -155,8 +155,23 @@ class LoanController extends Controller
         $metrics = app(CapitalPartnerMetricsService::class);
         $capitalTotals = $metrics->loanTotals($loan);
         $capitalAllocations = $metrics->allocationsForLoan($loan);
+        $disbursementReadiness = $loan->application
+            ? app(\App\Services\ApplicationDisbursementReadinessService::class)
+            : null;
+        $canDisburse = $loan->status === 'pending'
+            && (! $loan->application || ($disbursementReadiness?->canMarkDisbursement($loan->application) ?? true));
+        $disbursementBlocking = $loan->application
+            ? ($disbursementReadiness?->blockingMessages($loan->application) ?? [])
+            : [];
 
-        return view('admin.loans.show', compact('loan', 'capitalTotals', 'capitalAllocations'));
+        return view('admin.loans.show', compact(
+            'loan',
+            'capitalTotals',
+            'capitalAllocations',
+            'disbursementReadiness',
+            'canDisburse',
+            'disbursementBlocking',
+        ));
     }
 
     public function edit(Loan $loan)

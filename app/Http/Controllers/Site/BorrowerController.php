@@ -1830,6 +1830,16 @@ class BorrowerController extends Controller
         $mobileResolved = $accounts->resolve('post_approval_fee', 'mobile_money', $application->product);
         $mobileDetails = $accounts->mobileMoneyDetails($mobileResolved['mobile_money_account'], $paymentReference);
         $channelOptions = payment_channels_for_amount($feeQuote['after_discount']);
+        $loanAmount = app(\App\Services\ApplicationOfferService::class)->effectiveAmount($application);
+        $feeLines = $application->postApprovalFees->map(fn ($fee) => [
+            'name'       => $fee->name,
+            'fee_type'   => $fee->fee_type,
+            'rate_label' => $fee->fee_type === 'percent'
+                ? rtrim(rtrim(format_number($fee->configured_amount, 2), '0'), '.').'%'
+                : null,
+            'amount'     => (float) $fee->calculated_amount,
+            'paid'       => $fee->isPaid(),
+        ])->values()->all();
 
         return view('site.borrower.post-approval-fees', compact(
             'customer',
@@ -1842,6 +1852,8 @@ class BorrowerController extends Controller
             'bankAccounts',
             'mobileDetails',
             'channelOptions',
+            'loanAmount',
+            'feeLines',
         ));
     }
 
@@ -1863,7 +1875,13 @@ class BorrowerController extends Controller
         $useWallet = $request->boolean('use_wallet');
 
         if ($data['channel'] === 'mobile_money') {
-            $result = $paymentService->processMobileMoney($customer, $application, $reference, $useWallet);
+            $result = $paymentService->processMobileMoney(
+                $customer,
+                $application,
+                $reference,
+                $useWallet,
+                $data['mobile_number'] ?? null,
+            );
             $payment = $result['payment'];
 
             $this->auditBorrower('post_approval_fees.paid', $application, [
@@ -1884,7 +1902,13 @@ class BorrowerController extends Controller
                     : __('borrower.post_approval_fees.paid_mobile'));
         }
 
-        $result = $paymentService->processBankPending($customer, $application, $reference, $useWallet);
+        $result = $paymentService->processBankPending(
+            $customer,
+            $application,
+            $reference,
+            $useWallet,
+            $data['payment_date'] ?? null,
+        );
         $payment = $result['payment'];
 
         if (! $payment) {
