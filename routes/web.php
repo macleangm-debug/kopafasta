@@ -145,6 +145,9 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/applications/{application}',     [\App\Http\Controllers\Site\BorrowerController::class, 'application'])  ->name('borrower.application');
             Route::get('/borrower/applications/{application}/offer', [\App\Http\Controllers\Site\BorrowerController::class, 'applicationOffer'])->name('borrower.application.offer');
             Route::post('/borrower/applications/{application}/offer', [\App\Http\Controllers\Site\BorrowerController::class, 'respondToOffer'])->name('borrower.application.offer.respond');
+            Route::get('/borrower/applications/{application}/asset-conversion', [\App\Http\Controllers\Site\BorrowerController::class, 'assetConversion'])->name('borrower.application.asset-conversion');
+            Route::post('/borrower/applications/{application}/asset-conversion', [\App\Http\Controllers\Site\BorrowerController::class, 'respondToAssetConversion'])->name('borrower.application.asset-conversion.respond');
+            Route::post('/borrower/applications/{application}/asset-conversion/pay', [\App\Http\Controllers\Site\BorrowerController::class, 'payAssetConversionFee'])->name('borrower.application.asset-conversion.pay');
             Route::get('/borrower/loan-profile/draft/{draft}',     [\App\Http\Controllers\Site\BorrowerController::class, 'loanProfileDraft'])->name('borrower.loan-profile.draft');
             Route::post('/borrower/applications/{application}/documents', [\App\Http\Controllers\Site\BorrowerController::class, 'uploadApplicationDocument'])->name('borrower.application.documents.store');
             Route::post('/borrower/applications/{application}/document-requests/{documentRequest}', [\App\Http\Controllers\Site\BorrowerController::class, 'uploadDocumentRequest'])->name('borrower.application.document-requests.store');
@@ -312,6 +315,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         $registerResource('loan-applications', 'loan_application', LoanApplicationController::class);
         Route::post('loan-applications/{loan_application}/agreement', [\App\Http\Controllers\Admin\LoanAgreementController::class, 'generate'])
             ->name('loan-applications.agreement.generate');
+        Route::get('loan-agreements/{agreement}/download', [\App\Http\Controllers\Site\LoanAgreementController::class, 'download'])
+            ->name('loan-agreements.download');
         Route::post('loan-applications/{loan_application}/document-requests', [LoanApplicationDocumentRequestController::class, 'store'])
             ->name('loan-applications.document-requests.store');
         Route::post('loan-applications/{loan_application}/workflow', [LoanApplicationController::class, 'runWorkflow'])

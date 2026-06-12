@@ -62,6 +62,16 @@ class ApplyController extends Controller
         $preselect = $request->query('product');
         $preselectedProduct = null;
 
+        if ($request->filled('from_application') && $customer) {
+            $sourceApplication = LoanApplication::query()
+                ->where('customer_id', $customer->id)
+                ->find($request->query('from_application'));
+
+            if ($sourceApplication && app(\App\Services\ApplicationOfferService::class)->pendingAssetConversion($sourceApplication)) {
+                return redirect()->route('site.borrower.application.asset-conversion', $sourceApplication);
+            }
+        }
+
         if ($preselect) {
             $preselectedProduct = LoanProduct::where('is_active', true)
                 ->where(function ($query) use ($preselect) {

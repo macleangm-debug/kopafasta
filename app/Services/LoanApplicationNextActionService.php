@@ -150,6 +150,17 @@ class LoanApplicationNextActionService
             );
         }
 
+        $offers = app(ApplicationOfferService::class);
+        if ($offers->pendingAssetConversion($application) || $offers->needsConversionFee($application)) {
+            return $this->action(
+                'asset_conversion',
+                __('borrower.offer.asset_conversion_next_action'),
+                __('borrower.offer.asset_conversion_cta'),
+                route('site.borrower.application.asset-conversion', $application->id),
+                tone: 'primary',
+            );
+        }
+
         $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
         $isPostApproval = in_array($status, ['approved', 'pre_approved'], true)
             || in_array((string) ($application->current_stage ?? ''), ['approval', 'disbursement'], true);

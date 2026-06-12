@@ -9,7 +9,6 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -32,6 +31,25 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return route('admin.login');
+        });
+
+        $middleware->redirectUsersTo(function ($request) {
+            if ($request->is('admin', 'admin/*')) {
+                return route('admin.dashboard');
+            }
+
+            $user = Auth::guard('web')->user();
+
+            if ($user) {
+                return match ($user->role) {
+                    'borrower' => route('site.borrower.dashboard'),
+                    'vendor'   => route('site.vendor.dashboard'),
+                    'investor' => route('site.investor.dashboard'),
+                    default    => route('admin.dashboard'),
+                };
+            }
+
+            return route('site.home');
         });
     })
     ->withExceptions(function (Exceptions $exceptions): void {

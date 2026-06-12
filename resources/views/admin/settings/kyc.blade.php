@@ -29,8 +29,34 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <x-admin.input name="min_age" label="Minimum age" type="number" :value="$values['min_age'] ?? '18'" required />
             <x-admin.input name="max_age" label="Maximum age" type="number" :value="$values['max_age'] ?? '75'" required />
-            <x-admin.input name="freshness_days" label="KYC freshness (days)" type="number" :value="$values['freshness_days'] ?? '90'" required />
             <x-admin.input name="crb_freshness_days" label="CRB freshness (days)" type="number" :value="$values['crb_freshness_days'] ?? '90'" required />
+        </div>
+
+        @php
+            $sectionDays = $values['freshness_section_days'] ?? [];
+            $freshnessSections = [
+                'residence' => 'Residence information',
+                'activity'  => 'Activity information',
+                'documents' => 'Proof of income',
+                'kin'       => 'Next of kin',
+                'face'      => 'Face verification',
+                'nida'      => 'NIDA verification',
+            ];
+        @endphp
+        <div class="border-t border-gray-100 pt-6">
+            <h3 class="text-sm font-semibold text-gray-900 mb-1">KYC freshness (per section)</h3>
+            <p class="text-xs text-gray-500 mb-4">Set days until refresh is required. Use <code class="text-[11px]">never</code> for sections that do not expire.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                @foreach ($freshnessSections as $key => $label)
+                    <x-admin.input
+                        name="freshness_section_days[{{ $key }}]"
+                        :label="$label"
+                        type="text"
+                        :value="$sectionDays[$key] ?? (in_array($key, ['face', 'nida'], true) ? 'never' : ($key === 'kin' ? '365' : '90'))"
+                        placeholder="90 or never"
+                    />
+                @endforeach
+            </div>
         </div>
 
         <div class="border-t border-gray-100 pt-6">

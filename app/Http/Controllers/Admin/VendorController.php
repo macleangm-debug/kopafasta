@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Models\Vendor;
 use App\Services\AffiliateService;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class VendorController extends ResourceController

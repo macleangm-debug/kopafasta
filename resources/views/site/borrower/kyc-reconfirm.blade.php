@@ -11,6 +11,7 @@
         <form method="POST" action="{{ route('site.borrower.kyc-reconfirm.update') }}" class="space-y-6" enctype="multipart/form-data">
             @csrf @method('PUT')
 
+            @if (in_array('residence', $staleSections ?? [], true))
             <div class="bg-white rounded-2xl border border-gray-200 p-6">
                 <h2 class="font-semibold mb-4">{{ __('borrower.kyc.residence') }}</h2>
                 <label class="flex items-start gap-3 mb-4 cursor-pointer">
@@ -41,7 +42,9 @@
                     </div>
                 @endif
             </div>
+            @endif
 
+            @if (in_array('activity', $staleSections ?? [], true))
             <div class="bg-white rounded-2xl border border-gray-200 p-6">
                 <h2 class="font-semibold mb-4">{{ __('borrower.kyc.activity') }}</h2>
                 <x-site.activity-fields
@@ -51,6 +54,29 @@
                     :grouped-sections="true"
                 />
             </div>
+            @endif
+
+            @if (in_array('documents', $staleSections ?? [], true))
+            <div class="bg-white rounded-2xl border border-gray-200 p-6">
+                <h2 class="font-semibold mb-2">{{ __('borrower.profile.proof_of_income_title') }}</h2>
+                <p class="text-sm text-gray-600 mb-4">{{ __('borrower.kyc.documents_refresh_hint') }}</p>
+                <a href="{{ route('site.borrower.profile', ['section' => 'kyc', 'edit' => 1]) }}"
+                   class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                    {{ __('borrower.profile.edit_section') }}
+                </a>
+            </div>
+            @endif
+
+            @if (in_array('kin', $staleSections ?? [], true))
+            <div class="bg-white rounded-2xl border border-gray-200 p-6">
+                <h2 class="font-semibold mb-2">{{ __('borrower.profile.kin_info') }}</h2>
+                <p class="text-sm text-gray-600 mb-4">{{ __('borrower.kyc.kin_refresh_hint') }}</p>
+                <a href="{{ route('site.borrower.profile', ['section' => 'personal', 'edit' => 1, 'focus' => 'kin']).'#next-of-kin' }}"
+                   class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                    {{ __('borrower.profile.edit_section') }}
+                </a>
+            </div>
+            @endif
 
             <button class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
                 {{ __('borrower.kyc.save') }}

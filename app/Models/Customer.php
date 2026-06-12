@@ -28,6 +28,7 @@ class Customer extends Model
             'identity_locked' => 'boolean',
             'face_verified_at' => 'datetime',
             'kyc_reconfirmed_at' => 'datetime',
+            'profile_section_confirmed_at' => 'array',
             'nida_locked_until' => 'datetime',
             'reminders_sent' => 'array',
         ];

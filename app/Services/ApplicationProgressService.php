@@ -162,7 +162,7 @@ class ApplicationProgressService
         $items[] = [
             'key'        => 'personal',
             'label'      => __('borrower.loan_profile.sections.personal'),
-            'complete'   => $this->profileValidation->isPersonalInfoComplete($customer),
+            'complete'   => $this->profileValidation->isCorePersonalComplete($customer),
             'action_url' => route('site.borrower.profile', ['section' => 'personal']),
         ];
 

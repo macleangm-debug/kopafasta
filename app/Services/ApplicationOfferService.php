@@ -72,6 +72,7 @@ class ApplicationOfferService
             $application->update([
                 'recommendation_type'         => self::RECOMMEND_ASSET,
                 'alternative_loan_product_id' => $product->id,
+                'offer_status'                => 'pending_asset_conversion',
                 'committee_recommendation'    => $remarks,
                 'recommended_by'              => $user->id,
                 'recommended_at'              => now(),
@@ -203,6 +204,10 @@ class ApplicationOfferService
             return false;
         }
 
+        if ($this->pendingAssetConversion($application) || $application->offer_status === 'asset_conversion_fee_due') {
+            return false;
+        }
+
         if ($application->recommendation_type === self::RECOMMEND_COUNTER && $application->offer_status !== 'accepted') {
             return false;
         }
@@ -212,6 +217,85 @@ class ApplicationOfferService
         }
 
         return ($application->current_stage ?? '') === 'pre_approval';
+    }
+
+    public function pendingAssetConversion(LoanApplication $application): bool
+    {
+        return $application->recommendation_type === self::RECOMMEND_ASSET
+            && $application->alternative_loan_product_id
+            && in_array($application->offer_status, [null, 'pending_asset_conversion'], true);
+    }
+
+    public function needsConversionFee(LoanApplication $application): bool
+    {
+        return $application->offer_status === 'asset_conversion_fee_due'
+            && $application->alternative_loan_product_id;
+    }
+
+    /** @return array{status: string, quote: array<string, mixed>} */
+    public function acceptAssetConversion(LoanApplication $application, Customer $customer): array
+    {
+        abort_unless((int) $application->customer_id === (int) $customer->id, 403);
+        abort_unless($this->pendingAssetConversion($application), 422);
+
+        $application->loadMissing(['alternativeProduct', 'product']);
+        $quote = app(ApplicationFeeCreditService::class)->conversionQuote(
+            $application,
+            $application->alternativeProduct,
+        );
+
+        if (($quote['due'] ?? 0) > 0) {
+            $application->update(['offer_status' => 'asset_conversion_fee_due']);
+
+            return ['status' => 'fee_due', 'quote' => $quote];
+        }
+
+        $this->completeAssetConversion($application);
+
+        return ['status' => 'converted', 'quote' => $quote];
+    }
+
+    public function completeAssetConversion(LoanApplication $application): LoanApplication
+    {
+        $application->loadMissing(['customer', 'alternativeProduct']);
+        $newProduct = $application->alternativeProduct;
+        abort_unless($newProduct, 422, 'Asset-backed product not configured.');
+
+        $newFee = app(ApplicationFeeCreditService::class)->quotedFee($application->customer, $newProduct);
+        $credit = app(ApplicationFeeCreditService::class)->paidCredit($application->customer, $application);
+        $feeStatus = $credit >= $newFee ? 'paid' : ($application->application_fee_status ?? 'unpaid');
+
+        $application->update([
+            'loan_product_id'             => $newProduct->id,
+            'application_fee_amount'      => $newFee,
+            'application_fee_status'      => $feeStatus,
+            'recommendation_type'       => null,
+            'alternative_loan_product_id' => null,
+            'offer_status'                => 'asset_conversion_accepted',
+            'offer_responded_at'          => now(),
+        ]);
+
+        return $application->fresh(['product']);
+    }
+
+    public function declineAssetConversion(LoanApplication $application, Customer $customer): LoanApplication
+    {
+        abort_unless((int) $application->customer_id === (int) $customer->id, 403);
+        abort_unless(
+            $this->pendingAssetConversion($application) || $this->needsConversionFee($application),
+            422,
+        );
+
+        $application->update([
+            'recommendation_type'       => null,
+            'alternative_loan_product_id' => null,
+            'offer_status'              => 'declined',
+            'offer_responded_at'        => now(),
+            'status'                    => 'withdrawn',
+            'current_stage'             => 'rejected',
+        ]);
+
+        return $application->fresh();
     }
 
     private function notifyOfferIssued(LoanApplication $application): void
@@ -243,7 +327,7 @@ class ApplicationOfferService
             return;
         }
 
-        $applyUrl = route('site.borrower.apply', ['product' => $product->id, 'from_application' => $application->id]);
+        $applyUrl = route('site.borrower.application.asset-conversion', $application->id);
 
         $this->notifications->notifyInApp(
             $customer,

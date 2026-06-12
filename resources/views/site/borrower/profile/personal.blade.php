@@ -12,6 +12,7 @@
 
         @php
             $locked = (bool) $customer->identity_locked;
+            $editing = ($wizardMode ?? false) || ($editing ?? false);
             $nidaService = app(\App\Services\NidaVerificationService::class);
             $nidaLocked = $nidaService->isLocked($customer);
             $nidaLockMessage = $nidaService->lockMessage($customer);
@@ -224,6 +225,53 @@
                 @csrf @method('PUT')
                 <input type="hidden" name="wizard" value="1">
                 <input type="hidden" name="focus" value="kin">
+                <div id="next-of-kin" class="scroll-mt-24">
+                    <h3 class="font-semibold mb-1">{{ __('borrower.profile.kin_info') }}</h3>
+                    <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.kin_subtitle') }}</p>
+                    <div class="space-y-4">
+                        <x-site.kin-fields :customer="$customer" :input-class="$editable" />
+                        <div>
+                            <p class="text-xs font-medium text-gray-600 mb-3">{{ __('borrower.profile.residence') }}</p>
+                            <x-site.address-fields
+                                prefix="nok"
+                                :region="old('nok_region', $customer->nok_region)"
+                                :district="old('nok_district', $customer->nok_district)"
+                                :ward="old('nok_ward', $customer->nok_ward)"
+                                :street="old('nok_street', $customer->nok_street)"
+                            />
+                        </div>
+                    </div>
+                </div>
+                <button class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                    {{ __('borrower.profile_wizard.save_continue') }}
+                </button>
+            </form>
+        @elseif (! $editing && ! ($wizardMode ?? false))
+            <x-site.profile-section-card
+                :title="__('borrower.profile.contact_details')"
+                :editing="false"
+                :edit-url="route('site.borrower.profile', ['section' => 'personal', 'edit' => 1])"
+                :complete="filled($customer->phone) || filled($customer->email)">
+                <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+                    <div><dt class="text-gray-500">{{ __('borrower.profile.fields.phone') }}</dt><dd class="font-medium mt-0.5">{{ $customer->phone ?: '—' }}</dd></div>
+                    <div><dt class="text-gray-500">{{ __('borrower.profile.fields.email') }}</dt><dd class="font-medium mt-0.5">{{ $customer->email ?: '—' }}</dd></div>
+                </dl>
+            </x-site.profile-section-card>
+
+            <div class="mt-6">
+            <x-site.profile-section-card
+                :title="__('borrower.profile.kin_info')"
+                :editing="false"
+                :edit-url="route('site.borrower.profile', ['section' => 'personal', 'edit' => 1, 'focus' => 'kin']).'#next-of-kin'"
+                :complete="app(\App\Services\ProfileValidationService::class)->isKinComplete($customer)">
+                <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+                    <div><dt class="text-gray-500">{{ __('borrower.profile.fields.full_name') }}</dt><dd class="font-medium mt-0.5">{{ $customer->nok_name ?: trim(($customer->nok_first_name ?? '').' '.($customer->nok_last_name ?? '')) ?: '—' }}</dd></div>
+                    <div><dt class="text-gray-500">{{ __('borrower.profile.fields.phone') }}</dt><dd class="font-medium mt-0.5">{{ $customer->nok_phone ?: '—' }}</dd></div>
+                    <div><dt class="text-gray-500">{{ __('borrower.profile.region') }}</dt><dd class="font-medium mt-0.5">{{ $customer->nok_region ?: '—' }}</dd></div>
+                    <div><dt class="text-gray-500">{{ __('borrower.profile.district') }}</dt><dd class="font-medium mt-0.5">{{ $customer->nok_district ?: '—' }}</dd></div>
+                </dl>
+            </x-site.profile-section-card>
+            </div>
         @else
         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data" class="bg-white rounded-2xl border border-gray-200 p-6 space-y-8"
               @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.save_confirm_title')), message: @js(__('borrower.profile.save_confirm_message')), confirmLabel: @js(__('borrower.profile.save')), confirmClass: 'bg-amber-500 hover:bg-amber-400 text-gray-900' })">
@@ -232,7 +280,6 @@
                 <input type="hidden" name="wizard" value="1">
                 <input type="hidden" name="focus" value="{{ $wizardKey ?? 'nida' }}">
             @endif
-        @endif
 
             @if (! ($wizardMode ?? false) || ($wizardKey ?? 'nida') !== 'kin')
             <div>
@@ -322,6 +369,7 @@
                 {{ ($wizardMode ?? false) ? __('borrower.profile_wizard.save_continue') : __('borrower.profile.save_personal') }}
             </button>
         </form>
+        @endif
 
         @include('site.borrower.profile._wizard_footer', ['customer' => $customer, 'wizardMode' => $wizardMode ?? false, 'wizardKey' => $wizardKey ?? 'nida'])
     </div>

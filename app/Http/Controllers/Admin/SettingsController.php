@@ -108,15 +108,28 @@ class SettingsController extends Controller
             'crb_sandbox'           => ['nullable', 'boolean'],
             'crb_endpoint'          => ['nullable', 'url', 'max:255'],
             'crb_email'             => ['nullable', 'string', 'max:150'],
-            'freshness_days'        => ['nullable', 'integer', 'min:30', 'max:365'],
             'crb_freshness_days'    => ['nullable', 'integer', 'min:30', 'max:365'],
+            'freshness_section_days' => ['nullable', 'array'],
+            'freshness_section_days.*' => ['nullable'],
         ]);
 
         foreach (['require_nida','require_tin','require_selfie','require_address_proof','require_income_proof','auto_approve_low_risk','crb_check_required','crb_sandbox'] as $k) {
             $data[$k] = (bool) ($data[$k] ?? false);
         }
 
-        $data['freshness_days'] = (int) ($data['freshness_days'] ?? 90);
+        $sectionDays = [];
+        foreach ($data['freshness_section_days'] ?? [] as $section => $value) {
+            if ($value === null || $value === '' || strtolower((string) $value) === 'never') {
+                $sectionDays[$section] = 'never';
+
+                continue;
+            }
+
+            $sectionDays[$section] = max(30, min(3650, (int) $value));
+        }
+
+        $data['freshness_section_days'] = $sectionDays;
+        $data['freshness_days'] = (int) ($sectionDays['activity'] ?? $sectionDays['residence'] ?? 90);
         $data['crb_freshness_days'] = (int) ($data['crb_freshness_days'] ?? 90);
         $data['require_residence_letter'] = (bool) ($data['require_address_proof'] ?? false);
 

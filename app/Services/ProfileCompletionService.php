@@ -53,7 +53,7 @@ class ProfileCompletionService
         $freshness = app(KycFreshnessService::class);
         $staleKeys = $freshness->sectionsDueForRefresh($customer);
 
-        $personalComplete = app(ProfileValidationService::class)->isPersonalInfoComplete($customer);
+        $personalComplete = app(ProfileValidationService::class)->isCorePersonalComplete($customer);
 
         $sections = [
             [
@@ -97,8 +97,12 @@ class ProfileCompletionService
         ];
 
         foreach ($sections as &$section) {
-            if (in_array($section['key'], $staleKeys, true) && $section['status'] === 'complete') {
-                $section['status'] = 'missing';
+            $staleKey = match ($section['key']) {
+                'personal' => 'kin',
+                default    => $section['key'],
+            };
+            if (in_array($staleKey, $staleKeys, true) && $section['status'] === 'complete') {
+                $section['status'] = 'stale';
                 $section['label'] .= ' '.__('borrower.profile.refresh_required');
             }
         }
@@ -147,10 +151,10 @@ class ProfileCompletionService
 
         $completed = $requirements->where('complete', true)->pluck('label')->values()->all();
         $remaining = $requirements->where('complete', false)->pluck('label')->values()->all();
-        $percent = (int) (app(ApplicationRequirementsService::class)->onboardingBanner($customer)['percent'] ?? 0);
+        $calculated = $this->calculate($customer);
 
         return [
-            'percent'   => $percent,
+            'percent'   => $calculated['percent'],
             'remaining' => $remaining,
             'completed' => $completed,
         ];

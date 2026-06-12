@@ -60,7 +60,7 @@
             @endif
         </div>
         <div class="flex flex-wrap items-center gap-2 mb-6">
-            <a href="{{ route('site.borrower.agreement.download', $offer) }}" target="_blank"
+            <a href="{{ route('admin.loan-agreements.download', $offer) }}" target="_blank"
                class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 px-4 py-2 rounded-lg">
                 View PDF
             </a>
@@ -90,7 +90,7 @@
             <div><div class="text-xs uppercase text-gray-500">Status</div><div class="font-semibold capitalize">{{ $contract->status }}</div></div>
         </div>
         @if ($contract->file_path)
-            <a href="{{ route('site.borrower.agreement.download', $contract) }}" target="_blank"
+            <a href="{{ route('admin.loan-agreements.download', $contract) }}" target="_blank"
                class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 px-4 py-2 rounded-lg mb-6">
                 View contract PDF
             </a>

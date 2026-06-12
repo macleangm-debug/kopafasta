@@ -173,6 +173,7 @@ class ApplicationRequirementsService
     {
         $nida = app(NidaVerificationService::class);
         $profile = app(ProfileCompletionService::class);
+        $validation = app(ProfileValidationService::class);
         $freshness = app(KycFreshnessService::class);
         $faceStatus = $customer->face_verification_status ?? 'incomplete';
 
@@ -182,15 +183,10 @@ class ApplicationRequirementsService
         $facePending = in_array($faceStatus, ['pending'], true);
         $activityComplete = $profile->isActivityComplete($customer);
         $residenceComplete = $profile->isResidenceComplete($customer);
-        $kinComplete = filled($customer->nok_first_name)
-            && filled($customer->nok_last_name)
-            && filled($customer->nok_phone)
-            && filled($customer->nok_relationship)
-            && filled($customer->nok_region)
-            && filled($customer->nok_district)
-            && filled($customer->nok_street);
+        $kinComplete = $validation->isKinComplete($customer);
         $documentsComplete = $profile->isDocumentsComplete($customer);
         $staleKeys = $freshness->sectionsDueForRefresh($customer);
+        $profilePercent = $profile->calculate($customer)['percent'];
 
         $items = [
             [
@@ -214,25 +210,24 @@ class ApplicationRequirementsService
             [
                 'key'        => 'activity',
                 'label'      => 'Activity information',
-                'status'     => ($activityComplete && ! in_array('activity', $staleKeys, true)) ? 'complete' : 'missing',
+                'status'     => $activityComplete ? (in_array('activity', $staleKeys, true) ? 'stale' : 'complete') : 'missing',
                 'action_url' => route('site.borrower.profile', ['section' => 'activity']),
             ],
             [
                 'key'        => 'residence',
                 'label'      => 'Residence information',
-                'status'     => ($residenceComplete && ! in_array('residence', $staleKeys, true)) ? 'complete' : 'missing',
+                'status'     => $residenceComplete ? (in_array('residence', $staleKeys, true) ? 'stale' : 'complete') : 'missing',
                 'action_url' => route('site.borrower.profile', ['section' => 'residence']),
             ],
             [
                 'key'        => 'kin',
                 'label'      => 'Next of kin',
-                'status'     => $kinComplete ? 'complete' : 'missing',
-                'action_url' => $kinComplete ? null : route('site.borrower.profile', ['section' => 'kin']),
+                'status'     => $kinComplete ? (in_array('kin', $staleKeys, true) ? 'stale' : 'complete') : 'missing',
+                'action_url' => $kinComplete ? null : route('site.borrower.profile', ['section' => 'personal', 'focus' => 'kin']).'#next-of-kin',
             ],
         ];
 
-        if (! $documentsComplete || in_array('documents', $staleKeys, true)) {
-            $validation = app(ProfileValidationService::class);
+        if (! $documentsComplete) {
             $income = app(IncomeProofService::class);
             $needsLetter = $validation->requiresResidenceLetter() && ! $validation->hasResidenceLetter($customer);
             $needsIncome = $income->isRequired() && ! $income->satisfiesRequirement($customer);
@@ -251,33 +246,36 @@ class ApplicationRequirementsService
 
             $items[] = [
                 'key'        => 'documents',
-                'label'      => in_array('documents', $staleKeys, true)
-                    ? $documentsLabel.' '.__('borrower.profile.refresh_required')
-                    : $documentsLabel,
+                'label'      => $documentsLabel,
                 'status'     => 'missing',
                 'action_url' => $documentsUrl,
             ];
+        } elseif (in_array('documents', $staleKeys, true)) {
+            $items[] = [
+                'key'        => 'documents',
+                'label'      => __('borrower.profile.documents_proof').' '.__('borrower.profile.refresh_required'),
+                'status'     => 'stale',
+                'action_url' => route('site.borrower.profile', ['section' => 'kyc']),
+            ];
         }
 
-        if ($freshness->isStale($customer)) {
+        if ($staleKeys !== []) {
             $items[] = [
                 'key'        => 'kyc_freshness',
-                'label'      => 'Confirm activity & residence details',
-                'status'     => 'missing',
+                'label'      => 'Confirm activity and residence details',
+                'status'     => 'stale',
                 'action_url' => route('site.borrower.kyc-reconfirm'),
             ];
         }
 
-        $actionable = collect($items)->filter(fn (array $item) => $item['status'] !== 'complete')->values();
+        $actionable = collect($items)->filter(fn (array $item) => ! in_array($item['status'], ['complete'], true))->values();
         $allComplete = $actionable->isEmpty();
-        $completed = collect($items)->where('status', 'complete')->count();
-        $total = count($items);
         $firstIncomplete = $actionable->first();
 
         return [
             'show'     => ! $allComplete,
-            'title'    => $freshness->isStale($customer) ? 'Profile review due' : 'Complete your profile',
-            'percent'  => $total > 0 ? (int) round(($completed / $total) * 100) : 100,
+            'title'    => $staleKeys !== [] ? 'Profile review due' : 'Complete your profile',
+            'percent'  => $profilePercent,
             'cta_url'  => $firstIncomplete['action_url'] ?? route('site.borrower.profile'),
             'items'    => $actionable->all(),
         ];

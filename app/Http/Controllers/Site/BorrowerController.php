@@ -225,6 +225,134 @@ class BorrowerController extends Controller
             ->with('status', $message);
     }
 
+    public function assetConversion(LoanApplication $application): View
+    {
+        $customer = $this->customer();
+        abort_if($application->customer_id !== $customer->id, 404);
+
+        $offers = app(\App\Services\ApplicationOfferService::class);
+        abort_unless(
+            $offers->pendingAssetConversion($application) || $offers->needsConversionFee($application),
+            404,
+        );
+
+        $application->loadMissing(['product', 'alternativeProduct']);
+        $quote = app(\App\Services\ApplicationFeeCreditService::class)->conversionQuote(
+            $application,
+            $application->alternativeProduct,
+        );
+        $feeQuote = app(\App\Services\ApplicationConversionFeePaymentService::class)->quote($application);
+        $paymentReference = $application->application_number ?? app(\App\Services\CustomerPaymentService::class)->generateReference();
+        $accounts = app(\App\Services\PaymentAccountService::class);
+        $bankAccounts = $accounts->bankAccountsForDisplay('application_fee', $paymentReference, $application->alternativeProduct);
+        $mobileResolved = $accounts->resolve('application_fee', 'mobile_money', $application->alternativeProduct);
+        $mobileDetails = $accounts->mobileMoneyDetails($mobileResolved['mobile_money_account'], $paymentReference);
+        $needsFee = $offers->needsConversionFee($application) || ($quote['due'] ?? 0) > 0;
+        $wallet = app(ReferralService::class)->wallet($customer);
+        $referralSettings = app(ReferralService::class)->settings();
+
+        return view('site.borrower.asset-conversion', compact(
+            'customer',
+            'application',
+            'quote',
+            'feeQuote',
+            'paymentReference',
+            'bankAccounts',
+            'mobileDetails',
+            'needsFee',
+            'wallet',
+            'referralSettings',
+        ));
+    }
+
+    public function respondToAssetConversion(Request $request, LoanApplication $application): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_if($application->customer_id !== $customer->id, 404);
+
+        $data = $request->validate(['decision' => ['required', 'in:accept,decline']]);
+        $offers = app(\App\Services\ApplicationOfferService::class);
+
+        if ($data['decision'] === 'accept') {
+            $result = $offers->acceptAssetConversion($application, $customer);
+            $this->auditBorrower('application.asset_conversion_accept', $application, ['due' => $result['quote']['due'] ?? 0]);
+
+            if ($result['status'] === 'fee_due') {
+                return redirect()
+                    ->route('site.borrower.application.asset-conversion', $application->id)
+                    ->with('status', __('borrower.offer.asset_conversion_fee_due'));
+            }
+
+            return redirect()
+                ->route('site.borrower.application', $application->id)
+                ->with('status', __('borrower.offer.asset_conversion_accepted'));
+        }
+
+        $offers->declineAssetConversion($application, $customer);
+        $this->auditBorrower('application.asset_conversion_decline', $application);
+
+        return redirect()
+            ->route('site.borrower.application', $application->id)
+            ->with('status', __('borrower.offer.asset_conversion_declined'));
+    }
+
+    public function payAssetConversionFee(Request $request, LoanApplication $application): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_if($application->customer_id !== $customer->id, 404);
+
+        $offers = app(\App\Services\ApplicationOfferService::class);
+        abort_unless($offers->needsConversionFee($application), 422);
+
+        $data = $request->validate([
+            'channel'       => ['required', 'in:mobile_money,bank'],
+            'mobile_number' => ['required_if:channel,mobile_money', 'nullable', 'string', 'max:20'],
+            'payment_date'  => ['nullable', 'date'],
+            'proof'         => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'use_wallet'    => ['nullable', 'boolean'],
+        ]);
+
+        $paymentService = app(\App\Services\ApplicationConversionFeePaymentService::class);
+        $reference = $application->application_number ?? app(\App\Services\CustomerPaymentService::class)->generateReference();
+        $useWallet = $request->boolean('use_wallet');
+
+        if ($data['channel'] === 'mobile_money') {
+            $result = $paymentService->processMobileMoney($customer, $application, $reference, $useWallet);
+            $payment = $result['payment'];
+
+            if (! $payment) {
+                return redirect()
+                    ->route('site.borrower.application', $application->id)
+                    ->with('status', __('borrower.offer.asset_conversion_accepted'));
+            }
+
+            return redirect()
+                ->route('site.borrower.application', $application->id)
+                ->with('status', payment_gateway_is_dummy()
+                    ? __('borrower.apply.application_fee.dummy_paid')
+                    : __('borrower.apply.application_fee.paid'));
+        }
+
+        $result = $paymentService->processBankPending($customer, $application, $reference, $useWallet);
+        $payment = $result['payment'];
+
+        if (! $payment) {
+            return redirect()
+                ->route('site.borrower.application', $application->id)
+                ->with('status', __('borrower.offer.asset_conversion_accepted'));
+        }
+
+        if ($request->hasFile('proof')) {
+            app(\App\Services\CustomerPaymentService::class)->uploadProof($payment, $request->file('proof'));
+        }
+
+        return redirect()
+            ->route('site.borrower.payments.show', $payment)
+            ->with('status', payment_gateway_is_dummy()
+                ? __('borrower.apply.application_fee.dummy_paid')
+                : __('borrower.apply.application_fee.bank_submitted', ['ref' => $reference]));
+    }
+
     public function uploadDocumentRequest(
         Request $request,
         LoanApplication $application,
@@ -1017,6 +1145,7 @@ class BorrowerController extends Controller
         };
 
         return view($view, compact('customer', 'kyc', 'trustedDevices', 'nidaDocuments', 'employmentContract', 'residenceLetter', 'incomeProofChecklist', 'incomeProofEmployed', 'incomeProofMethod', 'incomePrimaryOptions', 'completionSummary', 'returnUrl', 'wizardMode', 'wizardKey'))
+            ->with('editing', $wizardMode || $request->boolean('edit'))
             ->with('crbUsesStub', app(CrbService::class)->usesStub())
             ->with('crbSamples', config('crb_samples.scenarios', []))
             ->with('profileSections', app(ProfileCompletionService::class)->displaySections($customer));
@@ -1116,6 +1245,8 @@ class BorrowerController extends Controller
                     ->withErrors(['employment_contract' => __('borrower.profile.employment_contract_required')])
                     ->withInput();
             }
+
+            app(KycFreshnessService::class)->markSectionConfirmed($customer->fresh(), 'activity');
         }
 
         if ($section === 'residence') {
@@ -1156,6 +1287,8 @@ class BorrowerController extends Controller
                     ->withErrors(['residence_letter' => __('borrower.profile.residence_letter_required')])
                     ->withInput();
             }
+
+            app(KycFreshnessService::class)->markSectionConfirmed($customer->fresh(), 'residence');
         }
 
         if ($section === 'kyc') {
@@ -1196,6 +1329,12 @@ class BorrowerController extends Controller
                     $request->file($code.'_pages', []) ?? [],
                 );
             }
+
+            app(KycFreshnessService::class)->markSectionConfirmed($customer->fresh(), 'documents');
+        }
+
+        if ($section === 'personal') {
+            app(KycFreshnessService::class)->markSectionConfirmed($customer->fresh(), 'kin');
         }
 
         $this->auditBorrower('profile.updated', $customer, ['section' => $section]);
@@ -1478,61 +1617,72 @@ class BorrowerController extends Controller
     {
         $customer = $this->customer();
 
-        if (! $freshness->isStale($customer)) {
+        if (! $freshness->sectionsDueForRefresh($customer)) {
             return redirect()->route('site.borrower.dashboard')
                 ->with('status', 'Your KYC information is up to date.');
         }
 
-        return view('site.borrower.kyc-reconfirm', compact('customer'));
+        return view('site.borrower.kyc-reconfirm', [
+            'customer' => $customer,
+            'staleSections' => $freshness->sectionsDueForRefresh($customer),
+        ]);
     }
 
     public function updateKycReconfirm(Request $request, KycFreshnessService $freshness): RedirectResponse
     {
         $customer = $this->customer();
 
+        $staleBefore = $freshness->sectionsDueForRefresh($customer);
+
         $data = $request->validate([
             'residence_unchanged' => ['nullable', 'boolean'],
-            'region'           => ['required', 'string', 'max:100'],
-            'district'         => ['required', 'string', 'max:100'],
+            'region'           => [in_array('residence', $staleBefore, true) ? 'required' : 'nullable', 'string', 'max:100'],
+            'district'         => [in_array('residence', $staleBefore, true) ? 'required' : 'nullable', 'string', 'max:100'],
             'ward'             => ['nullable', 'string', 'max:100'],
-            'street'           => ['required', 'string', 'max:255'],
-            'activity_type'    => ['required', 'string', 'max:40'],
+            'street'           => [in_array('residence', $staleBefore, true) ? 'required' : 'nullable', 'string', 'max:255'],
+            'activity_type'    => [in_array('activity', $staleBefore, true) ? 'required' : 'nullable', 'string', 'max:40'],
             'activity_details' => ['nullable', 'array'],
-            'income_range'     => ['required', 'string', 'in:'.implode(',', array_keys(config('income_ranges')))],
+            'income_range'     => [in_array('activity', $staleBefore, true) ? 'required' : 'nullable', 'string', 'in:'.implode(',', array_keys(config('income_ranges')))],
             'residence_letter' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'residence_letter_pages' => ['nullable', 'array'],
             'residence_letter_pages.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
-        $unchanged = (bool) ($data['residence_unchanged'] ?? false);
-        $addressMatches = $customer->region === $data['region']
-            && $customer->district === $data['district']
-            && ($customer->ward ?? '') === ($data['ward'] ?? '')
-            && $customer->street === $data['street'];
+        if (in_array('residence', $staleBefore, true)) {
+            $unchanged = (bool) ($data['residence_unchanged'] ?? false);
+            $addressMatches = $customer->region === ($data['region'] ?? $customer->region)
+                && $customer->district === ($data['district'] ?? $customer->district)
+                && ($customer->ward ?? '') === ($data['ward'] ?? '')
+                && $customer->street === ($data['street'] ?? $customer->street);
 
-        if ($unchanged && ! $addressMatches) {
-            return back()->withErrors(['region' => __('borrower.kyc.residence_unchanged_mismatch')])->withInput();
+            if ($unchanged && ! $addressMatches) {
+                return back()->withErrors(['region' => __('borrower.kyc.residence_unchanged_mismatch')])->withInput();
+            }
+
+            if (! $unchanged) {
+                $customer->fill([
+                    'region'   => $data['region'],
+                    'district' => $data['district'],
+                    'ward'     => $data['ward'] ?? null,
+                    'street'   => $data['street'],
+                    'address'  => trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', ')),
+                ]);
+            }
         }
 
-        if (! $unchanged) {
+        if (in_array('activity', $staleBefore, true)) {
             $customer->fill([
-                'region'   => $data['region'],
-                'district' => $data['district'],
-                'ward'     => $data['ward'] ?? null,
-                'street'   => $data['street'],
-                'address'  => trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', ')),
+                'activity_type'   => $data['activity_type'],
+                'activity_details'=> $data['activity_details'] ?? [],
+                'employment_type' => $data['activity_type'],
+                'income_range'    => $data['income_range'],
+                'monthly_income'  => config('income_ranges.'.$data['income_range'].'.midpoint'),
             ]);
         }
 
-        $customer->fill([
-            'activity_type'   => $data['activity_type'],
-            'activity_details'=> $data['activity_details'] ?? [],
-            'employment_type' => $data['activity_type'],
-            'income_range'    => $data['income_range'],
-            'monthly_income'  => config('income_ranges.'.$data['income_range'].'.midpoint'),
-        ])->save();
+        $customer->save();
 
-        if (! $unchanged) {
+        if (in_array('residence', $staleBefore, true) && ! (bool) ($data['residence_unchanged'] ?? false)) {
             $pageFiles = array_values(array_filter($request->file('residence_letter_pages', []) ?? []));
             $this->persistProfileDocumentUpload(
                 $customer,
@@ -1542,7 +1692,7 @@ class BorrowerController extends Controller
             );
         }
 
-        $freshness->markReconfirmed($customer);
+        $freshness->markReconfirmed($customer->fresh(), $staleBefore);
 
         $this->auditBorrower('kyc.reconfirmed', $customer);
 
@@ -1672,12 +1822,14 @@ class BorrowerController extends Controller
         $feeQuote = $this->postApprovalFeeQuote($customer, $baseTotal, false, $referrals);
         $maxWalletQuote = $this->postApprovalFeeQuote($customer, $baseTotal, true, $referrals);
         $referralSettings = $referrals->settings();
+        $paymentService = app(\App\Services\PostApprovalFeePaymentService::class);
 
-        $paymentReference = $application->application_number ?? ('APP-'.$application->id);
+        $paymentReference = $paymentService->generatePaymentReference($application);
         $accounts = app(\App\Services\PaymentAccountService::class);
         $bankAccounts = $accounts->bankAccountsForDisplay('post_approval_fee', $paymentReference, $application->product);
         $mobileResolved = $accounts->resolve('post_approval_fee', 'mobile_money', $application->product);
         $mobileDetails = $accounts->mobileMoneyDetails($mobileResolved['mobile_money_account'], $paymentReference);
+        $channelOptions = payment_channels_for_amount($feeQuote['after_discount']);
 
         return view('site.borrower.post-approval-fees', compact(
             'application',
@@ -1688,6 +1840,7 @@ class BorrowerController extends Controller
             'paymentReference',
             'bankAccounts',
             'mobileDetails',
+            'channelOptions',
         ));
     }
 
@@ -1696,20 +1849,63 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         abort_if($application->customer_id !== $customer->id, 404);
 
-        $request->validate([
-            'use_wallet' => ['nullable', 'boolean'],
+        $data = $request->validate([
+            'channel'        => ['required', 'in:mobile_money,bank'],
+            'mobile_number'  => ['required_if:channel,mobile_money', 'nullable', 'string', 'max:20'],
+            'payment_date'   => ['nullable', 'date'],
+            'proof'          => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'use_wallet'     => ['nullable', 'boolean'],
         ]);
 
-        $result = $fees->markAllPaid($application, $customer, $request->boolean('use_wallet'));
+        $paymentService = app(\App\Services\PostApprovalFeePaymentService::class);
+        $reference = $paymentService->generatePaymentReference($application);
+        $useWallet = $request->boolean('use_wallet');
 
-        $this->auditBorrower('post_approval_fees.paid', $application, [
-            'total'      => $fees->totalDue($application),
-            'settlement' => $result['settlement'],
+        if ($data['channel'] === 'mobile_money') {
+            $result = $paymentService->processMobileMoney($customer, $application, $reference, $useWallet);
+            $payment = $result['payment'];
+
+            $this->auditBorrower('post_approval_fees.paid', $application, [
+                'channel' => 'mobile_money',
+                'amount'  => $result['quote']['after_discount'] ?? 0,
+            ]);
+
+            if (! $payment) {
+                return redirect()
+                    ->route('site.borrower.application', $application)
+                    ->with('status', __('borrower.post_approval_fees.waived'));
+            }
+
+            return redirect()
+                ->route('site.borrower.application', $application)
+                ->with('status', payment_gateway_is_dummy()
+                    ? __('borrower.post_approval_fees.paid_dummy')
+                    : __('borrower.post_approval_fees.paid_mobile'));
+        }
+
+        $result = $paymentService->processBankPending($customer, $application, $reference, $useWallet);
+        $payment = $result['payment'];
+
+        if (! $payment) {
+            return redirect()
+                ->route('site.borrower.application', $application)
+                ->with('status', __('borrower.post_approval_fees.waived'));
+        }
+
+        if ($request->hasFile('proof')) {
+            app(\App\Services\CustomerPaymentService::class)->uploadProof($payment, $request->file('proof'));
+        }
+
+        $this->auditBorrower('post_approval_fees.submitted', $application, [
+            'channel' => 'bank',
+            'amount'  => $result['quote']['after_discount'] ?? 0,
         ]);
 
         return redirect()
-            ->route('site.borrower.application', $application)
-            ->with('status', 'Post-approval fees recorded. Our team will proceed with disbursement preparation.');
+            ->route('site.borrower.payments.show', $payment)
+            ->with('status', payment_gateway_is_dummy()
+                ? __('borrower.post_approval_fees.paid_dummy')
+                : __('borrower.post_approval_fees.bank_submitted'));
     }
 
     public function updatePin(Request $request, PinService $pins): RedirectResponse

@@ -245,6 +245,18 @@ class CustomerPaymentService
             app(AssetReservationPaymentService::class)->applyVerifiedPayment($payment);
         }
 
+        if ($payment->payment_type === 'post_approval_fee' && $payment->source instanceof LoanApplication) {
+            app(PostApprovalFeeService::class)->markAllPaid($payment->source->fresh(), $payment->customer);
+        }
+
+        if ($payment->payment_type === 'application_fee' && $payment->source instanceof LoanApplication) {
+            $application = $payment->source->fresh();
+            if (in_array($application->offer_status, ['asset_conversion_fee_due', 'pending_asset_conversion'], true)
+                && $application->alternative_loan_product_id) {
+                app(ApplicationOfferService::class)->completeAssetConversion($application);
+            }
+        }
+
         $this->postLedger($payment);
     }
 

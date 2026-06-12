@@ -101,15 +101,16 @@ class ProfileValidationService
 
     public function isPersonalInfoComplete(Customer $customer): bool
     {
+        return $this->isCorePersonalComplete($customer) && $this->isKinComplete($customer);
+    }
+
+    public function isCorePersonalComplete(Customer $customer): bool
+    {
         if (! filled($customer->first_name) || ! filled($customer->last_name) || ! $customer->date_of_birth) {
             return false;
         }
 
         if (! $this->dateOfBirthValid($customer->date_of_birth)) {
-            return false;
-        }
-
-        if ($this->requiresNationalIdUploads() && ! $this->nationalIdUploadsComplete($customer)) {
             return false;
         }
 
@@ -119,6 +120,6 @@ class ProfileValidationService
             }
         }
 
-        return $this->isKinComplete($customer);
+        return true;
     }
 }
