@@ -1832,6 +1832,7 @@ class BorrowerController extends Controller
         $channelOptions = payment_channels_for_amount($feeQuote['after_discount']);
 
         return view('site.borrower.post-approval-fees', compact(
+            'customer',
             'application',
             'wallet',
             'feeQuote',
