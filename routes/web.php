@@ -140,6 +140,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/marketplace/{assetId}/apply', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'startApply'])->name('borrower.marketplace.apply');
             Route::post('/borrower/marketplace/{assetId}/reserve', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'reserve'])->name('borrower.marketplace.reserve.post');
             Route::post('/borrower/marketplace/{assetId}/reservation', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'advanceReservation'])->name('borrower.marketplace.reservation.advance');
+            Route::post('/borrower/marketplace/{assetId}/reservation/pay', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'payReservation'])->name('borrower.marketplace.reservation.pay');
             Route::get('/borrower/marketplace/{assetId}/reserve', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'reserveFlow'])->name('borrower.marketplace.reserve');
             Route::get('/borrower/applications/{application}',     [\App\Http\Controllers\Site\BorrowerController::class, 'application'])  ->name('borrower.application');
             Route::get('/borrower/applications/{application}/offer', [\App\Http\Controllers\Site\BorrowerController::class, 'applicationOffer'])->name('borrower.application.offer');
@@ -231,6 +232,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::put('/assets/{asset}', [\App\Http\Controllers\Site\SupplierController::class, 'updateAsset'])->name('assets.update');
             Route::get('/requests', [\App\Http\Controllers\Site\SupplierController::class, 'requests'])->name('requests');
             Route::get('/reservations', [\App\Http\Controllers\Site\SupplierController::class, 'reservations'])->name('reservations');
+            Route::post('/reservations/{reservation}', [\App\Http\Controllers\Site\SupplierController::class, 'updateReservation'])->name('reservations.update');
+            Route::post('/requests/{assetRequest}', [\App\Http\Controllers\Site\SupplierController::class, 'updateRequest'])->name('requests.update');
             Route::get('/settlements', [\App\Http\Controllers\Site\SupplierController::class, 'settlements'])->name('settlements');
         });
 

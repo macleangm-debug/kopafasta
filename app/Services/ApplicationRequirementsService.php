@@ -105,14 +105,17 @@ class ApplicationRequirementsService
             ];
         }
 
-        if ($this->requiresIncomeProof($customer)) {
+        if (app(IncomeProofService::class)->isRequired()) {
+            $satisfied = app(IncomeProofService::class)->satisfiesRequirement($customer);
             $items[] = [
                 'key'        => 'income_proof',
                 'label'      => __('borrower.loan_profile.sections.proof_of_income'),
-                'complete'   => false,
-                'pending'    => true,
-                'detail'     => __('borrower.profile.income_proof_required'),
-                'action_url' => route('site.borrower.profile', ['section' => 'kyc']),
+                'complete'   => $satisfied,
+                'pending'    => ! $satisfied,
+                'detail'     => $satisfied
+                    ? __('borrower.profile.income_proof_complete')
+                    : __('borrower.profile.income_proof_required'),
+                'action_url' => $satisfied ? null : route('site.borrower.profile', ['section' => 'kyc']),
             ];
         }
 
@@ -142,15 +145,6 @@ class ApplicationRequirementsService
         }
 
         return null;
-    }
-
-    private function requiresIncomeProof(Customer $customer): bool
-    {
-        if (! app(IncomeProofService::class)->isRequired()) {
-            return false;
-        }
-
-        return ! app(IncomeProofService::class)->satisfiesRequirement($customer);
     }
 
     /** @deprecated Use onboardingBanner() — single source of truth for onboarding progress. */

@@ -140,20 +140,28 @@
         @elseif ($reservation->status === 'interest_confirmed')
             @if ($applyRequirements['can_apply'] ?? false)
                 <p class="text-sm text-gray-600">{{ __('borrower.marketplace.pay_application_fee_hint', ['amount' => format_number($reservation->reservation_fee_amount)]) }}</p>
-                <form method="POST" action="{{ route('site.borrower.marketplace.reservation.advance', $asset['id']) }}">
-                    @csrf
-                    <input type="hidden" name="action" value="pay_reservation_fee">
-                    <button class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.marketplace.confirm_application_fee') }}</button>
-                </form>
+                @include('site.borrower.marketplace._reservation-payment-form', [
+                    'step' => 'reservation_fee',
+                    'amount' => $reservation->reservation_fee_amount,
+                    'assetId' => $asset['id'],
+                    'paymentGatewayDummy' => $paymentGatewayDummy ?? payment_gateway_is_dummy(),
+                    'paymentReference' => $reservationRef ?? ('RES-'.$reservation->id),
+                    'bankAccounts' => $bankAccounts ?? [],
+                    'mobileDetails' => $mobileDetails ?? null,
+                ])
             @endif
         @elseif ($reservation->status === 'reservation_fee_paid')
             @if ($applyRequirements['can_apply'] ?? false)
                 <p class="text-sm text-gray-600">{{ __('borrower.marketplace.pay_deposit_hint', ['amount' => format_number($reservation->deposit_amount)]) }}</p>
-                <form method="POST" action="{{ route('site.borrower.marketplace.reservation.advance', $asset['id']) }}">
-                    @csrf
-                    <input type="hidden" name="action" value="pay_deposit">
-                    <button class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.marketplace.confirm_deposit') }}</button>
-                </form>
+                @include('site.borrower.marketplace._reservation-payment-form', [
+                    'step' => 'deposit',
+                    'amount' => $reservation->deposit_amount,
+                    'assetId' => $asset['id'],
+                    'paymentGatewayDummy' => $paymentGatewayDummy ?? payment_gateway_is_dummy(),
+                    'paymentReference' => $reservationRef ?? ('RES-'.$reservation->id),
+                    'bankAccounts' => $depositBankAccounts ?? ($bankAccounts ?? []),
+                    'mobileDetails' => $depositMobileDetails ?? ($mobileDetails ?? null),
+                ])
             @endif
         @elseif ($reservation->status === 'deposit_paid')
             <p class="text-sm text-emerald-800 font-medium mb-3">{{ __('borrower.marketplace.deposit_ready') }}</p>

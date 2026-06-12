@@ -19,6 +19,7 @@ class ApplicationOfferService
     public function __construct(
         private readonly AffordabilityService $affordability,
         private readonly NotificationService $notifications,
+        private readonly DisplayedRateService $rates,
     ) {}
 
     /** @return array{amount: float, tenure_months: int, installment: float} */
@@ -26,7 +27,6 @@ class ApplicationOfferService
     {
         $application->loadMissing(['customer', 'product']);
         $tenure = (int) ($application->requested_tenure_months ?? 12);
-        $rate = (float) ($application->product?->interest_rate ?? 0);
         $amount = $this->affordability->maxAffordablePrincipal($application, $tenure);
 
         $product = $application->product;
@@ -36,6 +36,9 @@ class ApplicationOfferService
         }
 
         $amount = floor(max(0, $amount) / 1000) * 1000;
+        $rate = $product
+            ? $this->rates->displayedMonthlyRate($product, $amount)
+            : 0.0;
 
         return [
             'amount'          => $amount,

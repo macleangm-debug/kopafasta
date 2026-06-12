@@ -34,6 +34,7 @@
                                         <option value="{{ $id }}" @selected($requestRow->vendor_id == $id)>{{ $name }}</option>
                                     @endforeach
                                 </select>
+                                <input type="text" name="admin_notes" value="{{ $requestRow->admin_notes }}" placeholder="Admin notes" class="rounded border-gray-300 text-xs min-w-[8rem]">
                                 <button class="text-xs font-semibold text-amber-700">Save</button>
                             </form>
                         </td>

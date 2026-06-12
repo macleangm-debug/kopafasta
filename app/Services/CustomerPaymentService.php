@@ -241,6 +241,10 @@ class CustomerPaymentService
             return;
         }
 
+        if (in_array($payment->payment_type, ['asset_reservation_fee', 'asset_deposit'], true)) {
+            app(AssetReservationPaymentService::class)->applyVerifiedPayment($payment);
+        }
+
         $this->postLedger($payment);
     }
 

@@ -35,6 +35,19 @@ class AssetRequestController extends Controller
 
         $assetRequest->update($data);
 
+        if ($assetRequest->wasChanged('status') && $assetRequest->status === 'matched') {
+            $customer = $assetRequest->customer;
+            if ($customer?->user?->email ?? $customer?->email) {
+                app(NotificationService::class)->sendEmail(
+                    $customer->user?->email ?? $customer->email,
+                    'Asset request matched',
+                    "Good news — we found a match for your request: {$assetRequest->asset_name}. Log in to browse the asset marketplace or contact support for next steps.",
+                    $customer,
+                    'asset_request_matched',
+                );
+            }
+        }
+
         if ($assetRequest->vendor_id && $assetRequest->wasChanged('vendor_id')) {
             $vendor = Vendor::find($assetRequest->vendor_id);
             if ($vendor?->email) {

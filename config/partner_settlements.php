@@ -1,6 +1,9 @@
 <?php
 
 return [
-    'weekly_queue_day' => env('PARTNER_SETTLEMENT_DAY', 'friday'),
-    'weekly_queue_time' => env('PARTNER_SETTLEMENT_TIME', '08:00'),
+    'auto_approve_max_amount' => (int) env('PARTNER_AUTO_APPROVE_MAX_AMOUNT', 500_000),
+
+    'auto_approve_source_types' => [
+        'supplier_deposit',
+    ],
 ];

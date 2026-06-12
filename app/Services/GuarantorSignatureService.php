@@ -16,7 +16,7 @@ class GuarantorSignatureService
         ?CustomerGuarantor $link = null,
         ?GuarantorInvitation $invitation = null,
     ): ApplicationSignature {
-        return ApplicationSignature::updateOrCreate(
+        $signature = ApplicationSignature::updateOrCreate(
             [
                 'loan_application_id' => $application->id,
                 'signer_type'         => 'guarantor',
@@ -28,6 +28,10 @@ class GuarantorSignatureService
                 'guarantor_invitation_id' => $invitation?->id,
             ],
         );
+
+        app(LoanAgreementService::class)->refreshGuarantorOnDocuments($application->fresh());
+
+        return $signature;
     }
 
     public function hasSignature(LoanApplication $application): bool

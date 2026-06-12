@@ -6,11 +6,13 @@ use App\Http\Controllers\Concerns\AuditsActions;
 use App\Http\Controllers\Controller;
 use App\Models\AssetRequest;
 use App\Models\AssetReservation;
-use App\Models\LoanProduct;
 use App\Models\MarketplaceAsset;
 use App\Services\ApplicationRequirementsService;
 use App\Services\AssetMarketplaceFeeService;
+use App\Services\AssetReservationPaymentService;
 use App\Services\AssetReservationService;
+use App\Services\CustomerPaymentService;
+use App\Services\PaymentAccountService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -93,7 +95,7 @@ class AssetMarketplaceController extends Controller
             ->with('status', 'Viewing scheduled. Complete the viewing step to continue your asset application.');
     }
 
-    public function reserveFlow(string $assetId, AssetReservationService $reservations, ApplicationRequirementsService $requirements): View|RedirectResponse
+    public function reserveFlow(string $assetId, AssetReservationService $reservations, ApplicationRequirementsService $requirements, PaymentAccountService $accounts): View|RedirectResponse
     {
         $asset = $this->findAsset($assetId);
         abort_if(! $asset, 404);
@@ -113,8 +115,91 @@ class AssetMarketplaceController extends Controller
         $steps = $reservations->steps($reservation);
         $applyRequirements = $requirements->checklist($customer);
         $feeBreakdown = app(AssetMarketplaceFeeService::class)->breakdown($customer, $model);
+        $paymentGatewayDummy = payment_gateway_is_dummy();
+        $reservationRef = 'RES-'.$reservation->id;
+        $bankAccounts = $accounts->bankAccountsForDisplay('asset_reservation_fee', $reservationRef);
+        $mobileResolved = $accounts->resolve('asset_reservation_fee', 'mobile_money');
+        $mobileDetails = $accounts->mobileMoneyDetails($mobileResolved['mobile_money_account'], $reservationRef);
+        $depositBankAccounts = $accounts->bankAccountsForDisplay('asset_deposit', $reservationRef);
+        $depositMobileResolved = $accounts->resolve('asset_deposit', 'mobile_money');
+        $depositMobileDetails = $accounts->mobileMoneyDetails($depositMobileResolved['mobile_money_account'], $reservationRef);
 
-        return view('site.borrower.marketplace.reserve', compact('asset', 'reservation', 'steps', 'applyRequirements', 'feeBreakdown'));
+        return view('site.borrower.marketplace.reserve', compact(
+            'asset',
+            'reservation',
+            'steps',
+            'applyRequirements',
+            'feeBreakdown',
+            'paymentGatewayDummy',
+            'reservationRef',
+            'bankAccounts',
+            'mobileDetails',
+            'depositBankAccounts',
+            'depositMobileDetails',
+        ));
+    }
+
+    public function payReservation(Request $request, string $assetId, AssetReservationService $reservations, AssetReservationPaymentService $payments): RedirectResponse
+    {
+        $customer = auth()->user()?->customer;
+        abort_unless($customer, 403);
+
+        $model = $this->findModel($assetId);
+        abort_if(! $model, 404);
+
+        $reservation = $reservations->activeForCustomer($customer, $model);
+        abort_unless($reservation, 404);
+
+        $data = $request->validate([
+            'step'           => ['required', 'in:reservation_fee,deposit'],
+            'payment_method' => ['required', 'in:bank_transfer,mobile_money'],
+            'mobile_number'  => [payment_gateway_is_dummy() ? 'nullable' : 'required_if:payment_method,mobile_money', 'nullable', 'string', 'max:20'],
+            'payment_date'   => ['nullable', 'date'],
+            'proof'          => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+        ]);
+
+        $checklist = app(ApplicationRequirementsService::class)->checklist($customer);
+        if (! $checklist['can_apply']) {
+            return back()->with('error', __('borrower.marketplace.requirements_before_payment'));
+        }
+
+        if ($data['payment_method'] === 'mobile_money' && ! empty($data['mobile_number'])) {
+            if (! CustomerPaymentService::validateMobileNumber($data['mobile_number'])) {
+                return back()->withInput()->withErrors([
+                    'mobile_number' => 'Enter your number with country code, without a leading zero (e.g. 255712345678).',
+                ]);
+            }
+        }
+
+        try {
+            $payment = $payments->submit($customer, $reservation, $data['step'], [
+                'payment_method' => $data['payment_method'],
+                'mobile_number'  => $data['mobile_number'] ?? null,
+                'payment_date'   => $data['payment_date'] ?? null,
+                'proof'          => $request->file('proof'),
+                'reference'      => 'RES-'.$reservation->id,
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors());
+        }
+
+        $this->auditBorrower('marketplace.reservation_payment', $reservation, [
+            'step'      => $data['step'],
+            'reference' => $payment->reference,
+            'amount'    => $payment->amount,
+        ]);
+
+        $message = $data['payment_method'] === 'bank_transfer' && ! $payment->isVerified()
+            ? __('borrower.marketplace.payment_bank_pending', ['ref' => $payment->reference])
+            : ($data['step'] === 'deposit'
+                ? __('borrower.marketplace.deposit_recorded')
+                : __('borrower.marketplace.application_fee_recorded'));
+
+        if ($payment->isVerified()) {
+            return back()->with('status', $message);
+        }
+
+        return redirect()->route('site.borrower.payments.show', $payment)->with('status', $message);
     }
 
     public function advanceReservation(Request $request, string $assetId, AssetReservationService $reservations): RedirectResponse
@@ -129,25 +214,16 @@ class AssetMarketplaceController extends Controller
         abort_unless($reservation, 404);
 
         $action = $request->validate([
-            'action' => ['required', 'in:skip_viewing,complete_viewing,confirm_interest,pay_reservation_fee,pay_deposit'],
+            'action' => ['required', 'in:skip_viewing,complete_viewing,confirm_interest'],
         ])['action'];
-
-        if (in_array($action, ['pay_reservation_fee', 'pay_deposit'], true)) {
-            $checklist = app(ApplicationRequirementsService::class)->checklist($customer);
-            if (! $checklist['can_apply']) {
-                return back()->with('error', __('borrower.marketplace.requirements_before_payment'));
-            }
-        }
 
         $reservations->advance($reservation, $action);
 
         $message = match ($action) {
-            'skip_viewing'          => __('borrower.marketplace.viewing_skipped'),
-            'complete_viewing'      => __('borrower.marketplace.viewing_completed'),
-            'confirm_interest'      => __('borrower.marketplace.interest_confirmed'),
-            'pay_reservation_fee'   => __('borrower.marketplace.application_fee_recorded'),
-            'pay_deposit'           => __('borrower.marketplace.deposit_recorded'),
-            default                 => __('borrower.marketplace.progress_updated'),
+            'skip_viewing'     => __('borrower.marketplace.viewing_skipped'),
+            'complete_viewing' => __('borrower.marketplace.viewing_completed'),
+            'confirm_interest' => __('borrower.marketplace.interest_confirmed'),
+            default            => __('borrower.marketplace.progress_updated'),
         };
 
         return back()->with('status', $message);

@@ -10,6 +10,9 @@ class ApplicationDisbursementReadinessService
 {
     public function __construct(
         private readonly PostApprovalFeeService $fees,
+        private readonly LoanPolicyService $policy,
+        private readonly ApplicationOfferService $offers,
+        private readonly GuarantorSignatureService $guarantorSignatures,
     ) {}
 
     public function offerLetter(LoanApplication $application): ?LoanAgreement
@@ -49,9 +52,36 @@ class ApplicationDisbursementReadinessService
         return $this->fees->allPaid($application);
     }
 
+    public function requiresGuarantorSignature(LoanApplication $application): bool
+    {
+        $application->loadMissing(['product', 'customerGuarantors']);
+        $product = $application->product;
+
+        if (! $product) {
+            return false;
+        }
+
+        $amount = $this->offers->effectiveAmount($application);
+        if (! $this->policy->requiresGuarantorForApplication($product, $amount)) {
+            return false;
+        }
+
+        return $application->customerGuarantors
+            ->contains(fn ($link) => $link->status === 'approved');
+    }
+
+    public function guarantorSigned(LoanApplication $application): bool
+    {
+        return $this->guarantorSignatures->hasSignature($application);
+    }
+
     public function canMarkDisbursement(LoanApplication $application): bool
     {
         if (! $this->offerSigned($application)) {
+            return false;
+        }
+
+        if ($this->requiresGuarantorSignature($application) && ! $this->guarantorSigned($application)) {
             return false;
         }
 
@@ -71,6 +101,10 @@ class ApplicationDisbursementReadinessService
 
         if ($this->hasPostApprovalFees($application) && ! $this->feesPaid($application)) {
             $messages[] = 'Post-approval fees must be paid.';
+        }
+
+        if ($this->requiresGuarantorSignature($application) && ! $this->guarantorSigned($application)) {
+            $messages[] = 'Guarantor must sign before disbursement.';
         }
 
         return $messages;

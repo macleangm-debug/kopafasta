@@ -33,7 +33,29 @@ class PartnerSettlementService
             'source_type'     => $sourceType,
             'source_id'       => $sourceId,
             'description'     => $description,
-        ]);
+        ])->tap(function (VendorPayment $payment) use ($vendor, $sourceType, $amount): void {
+            if ($this->shouldAutoApprove($vendor, $sourceType, $amount)) {
+                $this->approvePayment($payment, $this->systemUser());
+            }
+        });
+    }
+
+    private function shouldAutoApprove(Vendor $vendor, string $sourceType, int $amount): bool
+    {
+        if ($vendor->status !== 'active') {
+            return false;
+        }
+
+        $max = (int) config('partner_settlements.auto_approve_max_amount', 500_000);
+        $types = config('partner_settlements.auto_approve_source_types', ['supplier_deposit']);
+
+        return in_array($sourceType, $types, true) && $amount > 0 && $amount <= $max;
+    }
+
+    private function systemUser(): User
+    {
+        return User::query()->where('role', 'admin')->orderBy('id')->first()
+            ?? User::query()->orderBy('id')->firstOrFail();
     }
 
     public function approvePayment(VendorPayment $payment, User $user): VendorPayment

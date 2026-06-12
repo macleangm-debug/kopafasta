@@ -8,6 +8,7 @@ use App\Models\AssetReservation;
 use App\Models\MarketplaceAsset;
 use App\Models\Vendor;
 use App\Models\VendorPayment;
+use App\Services\AssetReservationService;
 use App\Services\MarketplaceAssetService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -147,5 +148,55 @@ class SupplierController extends Controller
             ->paginate(20);
 
         return view('site.supplier.settlements', compact('vendor', 'payments'));
+    }
+
+    public function updateReservation(Request $request, AssetReservation $reservation): RedirectResponse
+    {
+        $vendor = $this->supplier();
+        abort_unless($reservation->asset?->vendor_id === $vendor->id, 404);
+
+        $action = $request->validate([
+            'action' => ['required', 'in:confirm_viewing,complete_viewing'],
+        ])['action'];
+
+        if ($action === 'confirm_viewing' && $reservation->status === 'viewing_scheduled') {
+            // Supplier acknowledges the scheduled viewing — no status change required.
+            return back()->with('status', 'Viewing appointment acknowledged.');
+        }
+
+        if ($action === 'complete_viewing' && in_array($reservation->status, ['viewing_scheduled', 'viewing_completed'], true)) {
+            app(AssetReservationService::class)->markViewingCompleted($reservation);
+
+            return back()->with('status', 'Viewing marked complete by supplier.');
+        }
+
+        return back()->with('error', 'This reservation cannot be updated at its current stage.');
+    }
+
+    public function updateRequest(Request $request, AssetRequest $assetRequest): RedirectResponse
+    {
+        $vendor = $this->supplier();
+        abort_unless($assetRequest->vendor_id === $vendor->id, 404);
+
+        $data = $request->validate([
+            'action'       => ['required', 'in:accept,decline'],
+            'vendor_notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        if ($data['action'] === 'accept') {
+            $assetRequest->update([
+                'status'      => 'reviewing',
+                'admin_notes' => trim(($assetRequest->admin_notes ?? '')."\nSupplier accepted: ".($data['vendor_notes'] ?? '')),
+            ]);
+
+            return back()->with('status', 'Request accepted. Our team will follow up with the borrower.');
+        }
+
+        $assetRequest->update([
+            'status'      => 'closed',
+            'admin_notes' => trim(($assetRequest->admin_notes ?? '')."\nSupplier declined: ".($data['vendor_notes'] ?? '')),
+        ]);
+
+        return back()->with('status', 'Request declined.');
     }
 }

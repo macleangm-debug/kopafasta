@@ -12,6 +12,16 @@ return [
             'credit_gl'   => 'application_fee_income_gl_account_id',
             'fallback_gl' => 'fee_income_gl_account_id',
         ],
+        'asset_reservation_fee' => [
+            'label'       => 'Asset Reservation Fee',
+            'credit_gl'   => 'application_fee_income_gl_account_id',
+            'fallback_gl' => 'fee_income_gl_account_id',
+        ],
+        'asset_deposit' => [
+            'label'       => 'Asset Deposit',
+            'credit_gl'   => 'customer_gl_account_id',
+            'fallback_gl' => 'cash_gl_account_id',
+        ],
         'post_approval_fee' => [
             'label'       => 'Post-approval Fee',
             'credit_gl'   => 'application_fee_income_gl_account_id',

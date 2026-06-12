@@ -3,6 +3,8 @@
     $feesPaid = $disbursementReadiness->feesPaid($record);
     $hasFees = $disbursementReadiness->hasPostApprovalFees($record);
     $blocking = $disbursementReadiness->blockingMessages($record);
+    $needsGuarantor = $disbursementReadiness->requiresGuarantorSignature($record);
+    $guarantorSigned = $disbursementReadiness->guarantorSigned($record);
 @endphp
 
 <x-admin.review-section id="review-contract" title="Loan contract & offer letter" subtitle="Generated agreements, signatures, fees, and disbursement readiness">
@@ -16,7 +18,7 @@
             </ul>
         </div>
     @elseif (in_array($record->current_stage, ['approval', 'disbursement'], true))
-        <p class="mb-4 text-sm text-emerald-700 font-semibold">Ready for disbursement — offer signed@if ($hasFees) and fees paid@endif.</p>
+        <p class="mb-4 text-sm text-emerald-700 font-semibold">Ready for disbursement — offer signed@if ($needsGuarantor) and guarantor signed@endif@if ($hasFees) and fees paid@endif.</p>
     @endif
 
     <h4 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Offer letter</h4>
@@ -50,6 +52,12 @@
                 <p class="text-[10px] uppercase text-gray-500">Borrower signature</p>
                 <p class="font-semibold mt-1">{{ $offer->isSigned() ? 'Signed' : 'Pending' }}</p>
             </div>
+            @if ($needsGuarantor)
+                <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-3 sm:col-span-2 lg:col-span-4">
+                    <p class="text-[10px] uppercase text-gray-500">Guarantor signature</p>
+                    <p class="font-semibold mt-1 {{ $guarantorSigned ? 'text-emerald-700' : 'text-amber-700' }}">{{ $guarantorSigned ? 'Signed' : 'Pending — blocks disbursement' }}</p>
+                </div>
+            @endif
         </div>
         <div class="flex flex-wrap items-center gap-2 mb-6">
             <a href="{{ route('site.borrower.agreement.download', $offer) }}" target="_blank"

@@ -115,6 +115,53 @@ class LoanAgreementService
         return $agreement;
     }
 
+    /** Re-render agreement PDFs after guarantor signature without clearing borrower signatures. */
+    public function refreshGuarantorOnDocuments(LoanApplication $application): void
+    {
+        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors']);
+        $snapshot = $this->snapshotFromApplication($application);
+
+        foreach (['offer_letter', 'loan_contract'] as $documentType) {
+            $agreement = LoanAgreement::query()
+                ->where('loan_application_id', $application->id)
+                ->where('document_type', $documentType)
+                ->latest('id')
+                ->first();
+
+            if (! $agreement) {
+                continue;
+            }
+
+            $wasSigned = $agreement->isSigned();
+            $agreement->snapshot = $snapshot;
+
+            $viewData = [
+                'application' => $application,
+                'snapshot'    => $snapshot,
+                'agreement'   => $agreement,
+            ];
+
+            $template = $documentType === 'offer_letter'
+                ? $application->product?->offerLetterTemplate
+                : (($application->product?->code ?? '') === config('asset_marketplace.asset_loan_product_code', 'AL')
+                    ? ($application->product?->assetLendingAgreementTemplate ?? $application->product?->loanContractTemplate)
+                    : $application->product?->loanContractTemplate);
+
+            $fallbackView = $documentType === 'offer_letter' ? 'pdf.offer-letter' : 'pdf.loan-contract';
+            $pdf = $this->renderAgreementPdf($template, $fallbackView, $viewData);
+
+            $path = $agreement->file_path ?: "agreements/{$agreement->reference}.pdf";
+            Storage::disk('public')->put($path, $pdf->output());
+            $agreement->file_path = $path;
+
+            if (! $wasSigned) {
+                $agreement->status = 'sent';
+            }
+
+            $agreement->save();
+        }
+    }
+
     /**
      * Issue a fresh OTP for signing. Returns the agreement after persisting code + expiry.
      */
