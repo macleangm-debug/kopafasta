@@ -21,6 +21,8 @@
             @if ($record->rejection_reason)
                 <span class="text-xs text-red-700">Reason: {{ $record->rejection_reason }}</span>
             @endif
+        @elseif ($record->status === 'pending_documents')
+            <span class="text-xs font-semibold rounded-full px-3 py-1 bg-sky-100 text-sky-800">Awaiting borrower documents</span>
         @elseif ($currentStage === 'disbursement')
             <span class="text-xs font-semibold rounded-full px-3 py-1 bg-emerald-100 text-emerald-800">Ready for disbursement</span>
         @endif
@@ -107,6 +109,33 @@
                                     <button type="submit"
                                             class="bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-4 py-2 rounded-lg">
                                         Confirm reject
+                                    </button>
+                                </div>
+                            </form>
+                        </dialog>
+                    @elseif ($action['key'] === 'return_for_documents')
+                        <button type="button"
+                                data-open-dialog="return-docs-{{ $record->id }}"
+                                class="inline-flex items-center gap-2 text-sm font-semibold text-sky-800 bg-sky-100 hover:bg-sky-200 px-4 py-2.5 rounded-lg ring-1 ring-sky-200 transition">
+                            {{ $action['label'] }}
+                        </button>
+                        <dialog id="return-docs-{{ $record->id }}"
+                                class="rounded-xl shadow-xl ring-1 ring-gray-200 w-full max-w-md p-0 backdrop:bg-black/40 open:flex open:flex-col">
+                            <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="p-6 space-y-4">
+                                @csrf
+                                <input type="hidden" name="action" value="return_for_documents">
+                                <h4 class="font-semibold text-gray-900">Return for documents</h4>
+                                <p class="text-sm text-gray-600">The borrower will be notified to upload or update documents. You can also create specific document requests below.</p>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Instructions for borrower</label>
+                                    <textarea name="remarks" rows="4" maxlength="1000" required placeholder="e.g. Upload a bank statement covering the last 6 months."
+                                              class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500"></textarea>
+                                </div>
+                                <div class="flex justify-end gap-2 pt-1">
+                                    <button type="button" data-close-dialog="return-docs-{{ $record->id }}"
+                                            class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">Cancel</button>
+                                    <button type="submit" class="bg-sky-700 hover:bg-sky-800 text-white font-semibold text-sm px-4 py-2 rounded-lg">
+                                        Return to borrower
                                     </button>
                                 </div>
                             </form>

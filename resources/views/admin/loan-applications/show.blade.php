@@ -12,6 +12,11 @@
         <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 ring-1 ring-amber-200">
             {{ $workflow->stageLabel($record->current_stage ?? 'submitted') }}
         </span>
+        @if ($record->status === 'pending_documents')
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 ring-1 ring-sky-200">
+                Awaiting documents
+            </span>
+        @endif
         <a href="{{ route('admin.loan-applications.edit', $record) }}"
            class="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-gray-900 hover:bg-gray-800 px-3 py-1.5 rounded-lg">
             Edit application

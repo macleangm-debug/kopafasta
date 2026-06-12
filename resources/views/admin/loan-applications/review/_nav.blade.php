@@ -5,6 +5,7 @@
             ['#review-borrower', 'Borrower'],
             ['#review-verification', 'Verification'],
             ['#review-documents', 'Documents'],
+            ['#review-document-requests', 'Doc requests'],
             ['#review-guarantors', 'Guarantors'],
             ['#review-asset', 'Asset'],
             ['#review-crb', 'CRB'],

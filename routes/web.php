@@ -310,6 +310,10 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('loan-applications.document-requests.store');
         Route::post('loan-applications/{loan_application}/workflow', [LoanApplicationController::class, 'runWorkflow'])
             ->name('loan-applications.workflow');
+        Route::post('loan-applications/{loan_application}/documents/{document}/verify', [LoanApplicationController::class, 'verifyDocument'])
+            ->name('loan-applications.documents.verify');
+        Route::post('loan-applications/{loan_application}/documents/{document}/reject', [LoanApplicationController::class, 'rejectDocument'])
+            ->name('loan-applications.documents.reject');
         Route::post('loan-applications/{loan_application}/refresh-crb', [LoanApplicationController::class, 'refreshCrb'])
             ->name('loan-applications.refresh-crb');
         Route::post('loan-applications/{loan_application}/create-loan', [LoanApplicationController::class, 'createLoan'])

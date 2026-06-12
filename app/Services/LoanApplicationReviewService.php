@@ -38,13 +38,22 @@ class LoanApplicationReviewService
 
         $profile = $this->profile->calculate($customer);
         $requirements = $application->product?->requirements ?? collect();
-        $uploads = CustomerDocument::query()
+        $allUploads = CustomerDocument::query()
             ->where('loan_application_id', $application->id)
             ->whereNotNull('loan_product_requirement_id')
+            ->with('documentType')
             ->latest()
-            ->get()
+            ->get();
+
+        $uploadHistories = $allUploads->groupBy('loan_product_requirement_id');
+        $uploads = $allUploads
             ->unique('loan_product_requirement_id')
             ->keyBy('loan_product_requirement_id');
+
+        $docReview = app(ApplicationDocumentReviewService::class);
+        $requirementGuidance = $requirements->mapWithKeys(
+            fn ($req) => [$req->id => $docReview->guidanceForRequirement($req)]
+        );
 
         $requiredCount = $requirements->where('is_required', true)->count();
         $satisfiedCount = $requirements
@@ -102,12 +111,24 @@ class LoanApplicationReviewService
             ->get()
             ->unique(fn (CustomerDocument $doc) => $doc->document_type_id ?: $doc->id);
 
+        $profileDocuments = CustomerDocument::query()
+            ->where('customer_id', $customer->id)
+            ->where(function ($query) use ($application) {
+                $query->whereNull('loan_application_id')
+                    ->orWhere('loan_application_id', $application->id);
+            })
+            ->with('documentType')
+            ->latest()
+            ->get();
+
         return [
             'customer'           => $customer,
             'product'            => $application->product,
             'profile'            => $profile,
             'requirements'       => $requirements,
             'uploads'            => $uploads,
+            'upload_histories'   => $uploadHistories,
+            'requirement_guidance' => $requirementGuidance,
             'document_progress'  => $documentProgress,
             'required_docs'      => $requiredCount,
             'satisfied_docs'     => $satisfiedCount,
@@ -123,6 +144,7 @@ class LoanApplicationReviewService
             'asset'              => $asset,
             'checklist'          => $checklist,
             'kyc_documents'      => $kycDocuments,
+            'profile_documents'  => $profileDocuments,
             'activity_label'     => display_label($customer->activity_type, 'activity_type')
                 ?: activity_type_label($customer->activity_type) ?? $customer->activity_type,
             'income_label'       => income_range_label($customer->income_range) ?? $customer->income_range,

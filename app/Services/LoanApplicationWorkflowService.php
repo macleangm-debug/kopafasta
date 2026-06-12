@@ -49,6 +49,12 @@ class LoanApplicationWorkflowService
             'permission' => 'applications.reject',
             'from'       => ['submitted', 'screening', 'credit_appraisal', 'pre_approval', 'approval'],
         ],
+        'return_for_documents' => [
+            'label'      => 'Return for documents',
+            'to_stage'   => 'screening',
+            'permission' => 'applications.review',
+            'from'       => ['screening', 'credit_appraisal', 'pre_approval'],
+        ],
     ];
 
     public function __construct(
@@ -108,6 +114,19 @@ class LoanApplicationWorkflowService
             throw ValidationException::withMessages(['action' => 'Underwriting cannot start until the guarantor accepts and completes their profile.']);
         }
 
+        if ($actionKey === 'return_for_documents' && blank(trim((string) $remarks))) {
+            throw ValidationException::withMessages(['remarks' => 'Explain which documents the borrower must provide or update.']);
+        }
+
+        if ($actionKey === 'complete_screening') {
+            $dossier = app(LoanApplicationReviewService::class)->dossier($application);
+            if (($dossier['document_progress'] ?? 0) < 100) {
+                throw ValidationException::withMessages([
+                    'action' => 'All required documents must be uploaded and verified before completing screening.',
+                ]);
+            }
+        }
+
         $to = $action['to_stage'];
 
         $appraisal = $application->credit_appraisal_payload ?? [];
@@ -150,7 +169,9 @@ class LoanApplicationWorkflowService
 
         $application->update([
             'current_stage'             => $to,
-            'status'                    => $this->statusForStage($to, $oldStatus),
+            'status'                    => $actionKey === 'return_for_documents'
+                ? 'pending_documents'
+                : $this->statusForStage($to, $oldStatus),
             'pre_approved_at'           => $to === 'pre_approval' ? now() : $application->pre_approved_at,
             'approved_at'               => $to === 'approval' ? now() : $application->approved_at,
             'rejection_reason_code'     => $to === 'rejected' ? $rejectionReasonCode : $application->rejection_reason_code,
@@ -158,6 +179,10 @@ class LoanApplicationWorkflowService
             'rejection_internal_notes'  => $to === 'rejected' ? $rejectionInternalNotes : $application->rejection_internal_notes,
             'credit_appraisal_payload'  => $appraisal,
         ]);
+
+        if ($actionKey === 'return_for_documents') {
+            $this->notifyReturnForDocuments($application->fresh(['customer']), $remarks);
+        }
 
         if ($to === 'rejected') {
             $this->notifyRejection($application->fresh(['customer']));
@@ -295,15 +320,38 @@ class LoanApplicationWorkflowService
     public function stageLabel(string $stage): string
     {
         return match ($stage) {
-            'submitted'         => 'Submitted',
-            'screening'         => 'Screening',
-            'credit_appraisal'  => 'Credit review',
-            'pre_approval'      => 'Pre-approval',
-            'approval'          => 'Final approval',
-            'disbursement'      => 'Disbursement',
-            'rejected'          => 'Rejected',
-            default             => ucfirst(str_replace('_', ' ', $stage)),
+            'submitted'           => 'Submitted',
+            'screening'           => 'Screening',
+            'credit_appraisal'    => 'Credit review',
+            'pre_approval'        => 'Pre-approval',
+            'approval'            => 'Final approval',
+            'disbursement'        => 'Disbursement',
+            'awaiting_guarantor'  => 'Awaiting guarantor',
+            'post_approval_fees'  => 'Post-approval fees',
+            'contract_generation' => 'Contract generation',
+            'rejected'            => 'Rejected',
+            default               => ucfirst(str_replace('_', ' ', $stage)),
         };
+    }
+
+    private function notifyReturnForDocuments(LoanApplication $application, ?string $remarks): void
+    {
+        $customer = $application->customer;
+        if (! $customer) {
+            return;
+        }
+
+        $message = trim((string) $remarks) ?: 'Additional documents are required for your application.';
+
+        app(NotificationService::class)->notifyInApp(
+            $customer,
+            __('borrower.loan_profile.underwriter_feedback', ['items' => $message]),
+            'application',
+            'application_document_request',
+            __('borrower.dashboard.document_requests_title'),
+            route('site.borrower.application', $application->id),
+            __('borrower.dashboard.document_requests_cta'),
+        );
     }
 
     private function notifyRejection(LoanApplication $application): void

@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Models\Branch;
 use App\Models\Customer;
+use App\Models\CustomerDocument;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
 use App\Services\CrbCreditCheckService;
+use App\Services\ApplicationDocumentReviewService;
 use App\Services\LoanApplicationReviewService;
 use App\Services\LoanApplicationWorkflowService;
 use App\Services\LoanOriginationService;
@@ -226,6 +228,10 @@ class LoanApplicationController extends ResourceController
             return back()->withErrors(['rejection_reason_code' => 'Select a rejection reason.'])->withInput();
         }
 
+        if ($data['action'] === 'return_for_documents' && empty(trim($data['remarks'] ?? ''))) {
+            return back()->withErrors(['remarks' => 'Explain which documents the borrower must provide or update.'])->withInput();
+        }
+
         try {
             $workflow->transition(
                 $loan_application,
@@ -265,6 +271,31 @@ class LoanApplicationController extends ResourceController
             'status',
             $history ? 'CRB report refreshed and attached to this application.' : 'CRB refresh could not be completed.',
         );
+    }
+
+    public function verifyDocument(LoanApplication $loan_application, CustomerDocument $document, ApplicationDocumentReviewService $review): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+
+        $review->verify($document, $loan_application, auth()->user());
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $loan_application)
+            ->with('status', 'Document marked as verified.')
+            ->withFragment('review-documents');
+    }
+
+    public function rejectDocument(Request $request, LoanApplication $loan_application, CustomerDocument $document, ApplicationDocumentReviewService $review): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+
+        $data = $request->validate(['notes' => ['nullable', 'string', 'max:500']]);
+        $review->reject($document, $loan_application, auth()->user(), $data['notes'] ?? null);
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $loan_application)
+            ->with('status', 'Document rejected.')
+            ->withFragment('review-documents');
     }
 
     public function createLoan(LoanApplication $loan_application, LoanOriginationService $origination): RedirectResponse

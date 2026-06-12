@@ -14,7 +14,7 @@
         'rejected'  => 'Rejected documents',
     ];
 @endphp
-<x-admin.review-section title="Request additional documents" subtitle="Request one or more documents from the borrower">
+<x-admin.review-section id="review-document-requests" title="Request additional documents" subtitle="Request one or more documents from the borrower">
     @if ($documentRequests->isNotEmpty())
         <div class="mb-6 space-y-5">
             @foreach ($groupLabels as $groupKey => $groupLabel)

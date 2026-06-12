@@ -178,16 +178,18 @@ class SmartLoanApplicationWizardService
     /** @return list<array{key: string, label: string, status: string}> */
     public function underwritingStages(?string $currentStage = 'submitted'): array
     {
+        $labels = app(LoanApplicationWorkflowService::class);
+
         $stages = [
-            'submitted'           => 'Submitted',
-            'screening'           => 'Document review',
-            'credit_appraisal'    => 'CRB review',
-            'pre_approval'        => 'Loan officer review',
-            'approval'            => 'Approval / rejection',
-            'awaiting_guarantor'  => 'Guarantor approval',
-            'post_approval_fees'  => 'Post-approval fees',
-            'contract_generation' => 'Contract generation',
-            'disbursement'        => 'Disbursement',
+            'submitted'           => $labels->stageLabel('submitted'),
+            'awaiting_guarantor'  => $labels->stageLabel('awaiting_guarantor'),
+            'screening'           => $labels->stageLabel('screening'),
+            'credit_appraisal'    => $labels->stageLabel('credit_appraisal'),
+            'pre_approval'        => $labels->stageLabel('pre_approval'),
+            'approval'            => $labels->stageLabel('approval'),
+            'post_approval_fees'  => $labels->stageLabel('post_approval_fees'),
+            'contract_generation' => $labels->stageLabel('contract_generation'),
+            'disbursement'        => $labels->stageLabel('disbursement'),
         ];
 
         $order = array_keys($stages);
