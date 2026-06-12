@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Model;
 
 class LoanApplication extends Model
 {
@@ -24,13 +24,32 @@ class LoanApplication extends Model
         return [
             'requested_amount' => 'decimal:2',
             'recommended_amount' => 'decimal:2',
+            'offered_amount' => 'decimal:2',
             'screening_payload' => 'array',
             'credit_appraisal_payload' => 'array',
             'submitted_at' => 'datetime',
             'pre_approved_at' => 'datetime',
             'approved_at' => 'datetime',
             'disbursed_at' => 'datetime',
+            'offer_issued_at' => 'datetime',
+            'offer_responded_at' => 'datetime',
+            'recommended_at' => 'datetime',
         ];
+    }
+
+    public function alternativeProduct(): BelongsTo
+    {
+        return $this->belongsTo(LoanProduct::class, 'alternative_loan_product_id');
+    }
+
+    public function recommendedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'recommended_by');
+    }
+
+    public function hasPendingOffer(): bool
+    {
+        return $this->offer_status === 'pending_borrower';
     }
 
     public function customer(): BelongsTo

@@ -9,6 +9,7 @@ use App\Models\LoanApplication;
 use App\Models\LoanProduct;
 use App\Services\CrbCreditCheckService;
 use App\Services\ApplicationDocumentReviewService;
+use App\Services\ApplicationOfferService;
 use App\Services\LoanApplicationReviewService;
 use App\Services\LoanApplicationWorkflowService;
 use App\Services\LoanOriginationService;
@@ -166,7 +167,7 @@ class LoanApplicationController extends ResourceController
     public function show($id): View
     {
         $record = LoanApplication::query()
-            ->with(['customer', 'product', 'loan', 'stageHistory.changedByUser'])
+            ->with(['customer', 'product', 'loan', 'stageHistory.changedByUser', 'alternativeProduct', 'recommendedByUser'])
             ->findOrFail($id);
 
         $workflow = app(LoanApplicationWorkflowService::class);
@@ -197,6 +198,8 @@ class LoanApplicationController extends ResourceController
         $rejectionReasons = app(\App\Services\LoanRejectionReasonService::class)->grouped();
         $groupedDocumentRequests = app(\App\Services\ApplicationBorrowerStatusService::class)
             ->groupedDocumentRequests($documentRequests);
+        $counterOffer = app(ApplicationOfferService::class)->maxCounterOffer($record);
+        $assetAlternativeProduct = \App\Models\LoanProduct::where('code', 'AB')->where('is_active', true)->first();
 
         return view("admin.{$this->viewFolder}.show", compact(
             'record',
@@ -210,6 +213,8 @@ class LoanApplicationController extends ResourceController
             'affordability',
             'rejectionReasons',
             'groupedDocumentRequests',
+            'counterOffer',
+            'assetAlternativeProduct',
         ));
     }
 
@@ -222,6 +227,11 @@ class LoanApplicationController extends ResourceController
             'remarks'                  => ['nullable', 'string', 'max:1000'],
             'rejection_reason_code'    => ['nullable', 'string', 'max:80'],
             'rejection_internal_notes' => ['nullable', 'string', 'max:2000'],
+            'recommendation_type'      => ['nullable', 'in:approve,counter,asset_alternative'],
+            'recommended_amount'       => ['nullable', 'numeric', 'min:0'],
+            'offered_amount'           => ['nullable', 'numeric', 'min:0'],
+            'offered_tenure_months'    => ['nullable', 'integer', 'min:1', 'max:120'],
+            'alternative_product_id'   => ['nullable', 'integer', 'exists:loan_products,id'],
         ]);
 
         if ($data['action'] === 'reject' && empty(trim($data['rejection_reason_code'] ?? ''))) {
@@ -232,16 +242,70 @@ class LoanApplicationController extends ResourceController
             return back()->withErrors(['remarks' => 'Explain which documents the borrower must provide or update.'])->withInput();
         }
 
+        if ($data['action'] === 'submit_recommendation' && empty($data['recommendation_type'])) {
+            return back()->withErrors(['recommendation_type' => 'Select a recommendation type.'])->withInput();
+        }
+
+        if ($data['action'] === 'issue_offer' && empty($data['offered_amount'])) {
+            return back()->withErrors(['offered_amount' => 'Enter the offer amount.'])->withInput();
+        }
+
+        $offerService = app(ApplicationOfferService::class);
+
         try {
-            $workflow->transition(
-                $loan_application,
-                auth()->user(),
-                $data['action'],
-                $data['remarks'] ?? null,
-                false,
-                $data['rejection_reason_code'] ?? null,
-                $data['rejection_internal_notes'] ?? null,
-            );
+            if ($data['action'] === 'submit_recommendation') {
+                $offerService->submitRecommendation(
+                    $loan_application,
+                    auth()->user(),
+                    (string) $data['recommendation_type'],
+                    isset($data['recommended_amount']) ? (float) $data['recommended_amount'] : null,
+                    isset($data['offered_tenure_months']) ? (int) $data['offered_tenure_months'] : null,
+                    $data['remarks'] ?? null,
+                );
+                $loan_application->refresh();
+            }
+
+            if ($data['action'] === 'suggest_asset_alternative') {
+                $offerService->submitRecommendation(
+                    $loan_application,
+                    auth()->user(),
+                    ApplicationOfferService::RECOMMEND_ASSET,
+                    null,
+                    null,
+                    $data['remarks'] ?? null,
+                    isset($data['alternative_product_id']) ? (int) $data['alternative_product_id'] : null,
+                );
+
+                return redirect()
+                    ->route("{$this->routePrefix}.show", $loan_application)
+                    ->with('status', 'Asset-backed alternative suggested to borrower.');
+            }
+
+            if ($data['action'] === 'issue_offer') {
+                $offerService->issueOffer(
+                    $loan_application,
+                    auth()->user(),
+                    (float) $data['offered_amount'],
+                    (int) ($data['offered_tenure_months'] ?? $loan_application->requested_tenure_months),
+                    $data['remarks'] ?? null,
+                );
+
+                return redirect()
+                    ->route("{$this->routePrefix}.show", $loan_application)
+                    ->with('status', 'Counter-offer issued to borrower.');
+            }
+
+            if (! in_array($data['action'], ['suggest_asset_alternative', 'issue_offer'], true)) {
+                $workflow->transition(
+                    $loan_application->fresh(),
+                    auth()->user(),
+                    $data['action'],
+                    $data['remarks'] ?? null,
+                    false,
+                    $data['rejection_reason_code'] ?? null,
+                    $data['rejection_internal_notes'] ?? null,
+                );
+            }
         } catch (\Illuminate\Validation\ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
         }

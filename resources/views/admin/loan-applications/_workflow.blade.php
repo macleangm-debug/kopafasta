@@ -140,6 +140,135 @@
                                 </div>
                             </form>
                         </dialog>
+                    @elseif ($action['key'] === 'submit_recommendation')
+                        @php
+                            $affordPass = (bool) ($affordability['pass'] ?? false);
+                            $maxCounter = (float) ($counterOffer['amount'] ?? 0);
+                        @endphp
+                        <button type="button"
+                                data-open-dialog="recommend-{{ $record->id }}"
+                                class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-5 py-2.5 rounded-lg shadow-sm ring-1 ring-amber-700/20 transition">
+                            {{ $action['label'] }}
+                        </button>
+                        <dialog id="recommend-{{ $record->id }}"
+                                class="rounded-xl shadow-xl ring-1 ring-gray-200 w-full max-w-lg p-0 backdrop:bg-black/40 open:flex open:flex-col">
+                            <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="p-6 space-y-4">
+                                @csrf
+                                <input type="hidden" name="action" value="submit_recommendation">
+                                <h4 class="font-semibold text-gray-900">Credit recommendation</h4>
+                                <p class="text-sm text-gray-600">Move to committee pre-approval with your recommendation.</p>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Recommendation</label>
+                                    <select name="recommendation_type" required
+                                            class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500">
+                                        <option value="">Select…</option>
+                                        @if ($affordPass)
+                                            <option value="approve">Approve at requested amount ({{ format_money((float) $record->requested_amount) }})</option>
+                                        @endif
+                                        @if ($maxCounter > 0)
+                                            <option value="counter">Counter-offer (max {{ format_money($maxCounter) }})</option>
+                                        @endif
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Recommended amount (counter only)</label>
+                                    <input type="number" name="recommended_amount" min="0" step="1000"
+                                           value="{{ $maxCounter > 0 ? (int) $maxCounter : '' }}"
+                                           placeholder="{{ $maxCounter > 0 ? (int) $maxCounter : 'Amount' }}"
+                                           class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Notes for committee</label>
+                                    <textarea name="remarks" rows="3" maxlength="1000" placeholder="Optional rationale"
+                                              class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500"></textarea>
+                                </div>
+                                <div class="flex justify-end gap-2 pt-1">
+                                    <button type="button" data-close-dialog="recommend-{{ $record->id }}"
+                                            class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">Cancel</button>
+                                    <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-4 py-2 rounded-lg">
+                                        Submit recommendation
+                                    </button>
+                                </div>
+                            </form>
+                        </dialog>
+                    @elseif ($action['key'] === 'issue_offer')
+                        <button type="button"
+                                data-open-dialog="issue-offer-{{ $record->id }}"
+                                class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-5 py-2.5 rounded-lg shadow-sm ring-1 ring-amber-700/20 transition">
+                            {{ $action['label'] }}
+                        </button>
+                        <dialog id="issue-offer-{{ $record->id }}"
+                                class="rounded-xl shadow-xl ring-1 ring-gray-200 w-full max-w-lg p-0 backdrop:bg-black/40 open:flex open:flex-col">
+                            <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="p-6 space-y-4">
+                                @csrf
+                                <input type="hidden" name="action" value="issue_offer">
+                                <h4 class="font-semibold text-gray-900">Issue offer to borrower</h4>
+                                <p class="text-sm text-gray-600">
+                                    Requested {{ format_money((float) $record->requested_amount) }} ·
+                                    Recommended {{ format_money((float) ($record->recommended_amount ?? 0)) }}
+                                </p>
+                                <div class="grid sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-600 mb-1">Offer amount</label>
+                                        <input type="number" name="offered_amount" required min="0" step="1000"
+                                               value="{{ (int) ($record->recommended_amount ?? $counterOffer['amount'] ?? 0) }}"
+                                               class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-600 mb-1">Tenure (months)</label>
+                                        <input type="number" name="offered_tenure_months" required min="1" max="120"
+                                               value="{{ $record->requested_tenure_months }}"
+                                               class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Message to borrower (optional)</label>
+                                    <textarea name="remarks" rows="2" maxlength="1000"
+                                              class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500"></textarea>
+                                </div>
+                                <div class="flex justify-end gap-2 pt-1">
+                                    <button type="button" data-close-dialog="issue-offer-{{ $record->id }}"
+                                            class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">Cancel</button>
+                                    <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-4 py-2 rounded-lg">
+                                        Send offer
+                                    </button>
+                                </div>
+                            </form>
+                        </dialog>
+                    @elseif ($action['key'] === 'suggest_asset_alternative')
+                        <button type="button"
+                                data-open-dialog="asset-alt-{{ $record->id }}"
+                                class="inline-flex items-center gap-2 text-sm font-semibold text-sky-800 bg-sky-100 hover:bg-sky-200 px-4 py-2.5 rounded-lg ring-1 ring-sky-200 transition">
+                            {{ $action['label'] }}
+                        </button>
+                        <dialog id="asset-alt-{{ $record->id }}"
+                                class="rounded-xl shadow-xl ring-1 ring-gray-200 w-full max-w-lg p-0 backdrop:bg-black/40 open:flex open:flex-col">
+                            <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="p-6 space-y-4">
+                                @csrf
+                                <input type="hidden" name="action" value="suggest_asset_alternative">
+                                <h4 class="font-semibold text-gray-900">Suggest asset-backed alternative</h4>
+                                <p class="text-sm text-gray-600">Notify the borrower to apply for an asset-backed product instead.</p>
+                                @if (! empty($assetAlternativeProduct))
+                                    <input type="hidden" name="alternative_product_id" value="{{ $assetAlternativeProduct->id }}">
+                                    <p class="text-sm font-medium text-gray-800">{{ $assetAlternativeProduct->name }}</p>
+                                @else
+                                    <p class="text-sm text-red-700">No active asset-backed product (code AB) configured.</p>
+                                @endif
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Message to borrower</label>
+                                    <textarea name="remarks" rows="3" maxlength="1000" placeholder="Explain why asset-backed may be a better fit"
+                                              class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500"></textarea>
+                                </div>
+                                <div class="flex justify-end gap-2 pt-1">
+                                    <button type="button" data-close-dialog="asset-alt-{{ $record->id }}"
+                                            class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">Cancel</button>
+                                    <button type="submit" @disabled(empty($assetAlternativeProduct))
+                                            class="bg-sky-700 hover:bg-sky-800 disabled:opacity-50 text-white font-semibold text-sm px-4 py-2 rounded-lg">
+                                        Notify borrower
+                                    </button>
+                                </div>
+                            </form>
+                        </dialog>
                     @else
                         <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}">
                             @csrf

@@ -142,6 +142,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/marketplace/{assetId}/reservation', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'advanceReservation'])->name('borrower.marketplace.reservation.advance');
             Route::get('/borrower/marketplace/{assetId}/reserve', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'reserveFlow'])->name('borrower.marketplace.reserve');
             Route::get('/borrower/applications/{application}',     [\App\Http\Controllers\Site\BorrowerController::class, 'application'])  ->name('borrower.application');
+            Route::get('/borrower/applications/{application}/offer', [\App\Http\Controllers\Site\BorrowerController::class, 'applicationOffer'])->name('borrower.application.offer');
+            Route::post('/borrower/applications/{application}/offer', [\App\Http\Controllers\Site\BorrowerController::class, 'respondToOffer'])->name('borrower.application.offer.respond');
             Route::get('/borrower/loan-profile/draft/{draft}',     [\App\Http\Controllers\Site\BorrowerController::class, 'loanProfileDraft'])->name('borrower.loan-profile.draft');
             Route::post('/borrower/applications/{application}/documents', [\App\Http\Controllers\Site\BorrowerController::class, 'uploadApplicationDocument'])->name('borrower.application.documents.store');
             Route::post('/borrower/applications/{application}/document-requests/{documentRequest}', [\App\Http\Controllers\Site\BorrowerController::class, 'uploadDocumentRequest'])->name('borrower.application.document-requests.store');

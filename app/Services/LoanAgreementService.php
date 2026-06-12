@@ -173,11 +173,11 @@ class LoanAgreementService
 
     private function snapshotFromApplication(LoanApplication $a): array
     {
-        $amount = (float) ($a->approved_amount ?? $a->requested_amount ?? 0);
+        $amount = app(ApplicationOfferService::class)->effectiveAmount($application);
         $product = $a->product;
         $rateBreakdown = app(DisplayedRateService::class)->breakdown($product, $amount);
         $monthlyRate = $rateBreakdown['displayed_monthly_rate'];
-        $tenure = (int) ($a->approved_tenure_months ?? $a->requested_tenure_months ?? $product->default_tenure_months ?? 0);
+        $tenure = (int) ($a->offered_tenure_months ?? $a->approved_tenure_months ?? $a->requested_tenure_months ?? $product->default_tenure_months ?? 0);
         $cadence = $a->product->repayment_cadence ?? 'weekly';
 
         $schedule = app(RepaymentScheduleGenerator::class)->preview($amount, $monthlyRate, $tenure, $cadence);

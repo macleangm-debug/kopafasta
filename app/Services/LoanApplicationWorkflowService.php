@@ -25,11 +25,23 @@ class LoanApplicationWorkflowService
             'permission' => 'applications.review',
             'from'       => ['screening'],
         ],
-        'pre_approve' => [
-            'label'      => 'Send to pre-approval',
+        'submit_recommendation' => [
+            'label'      => 'Submit credit recommendation',
             'to_stage'   => 'pre_approval',
-            'permission' => 'applications.pre_approve',
+            'permission' => 'applications.review',
             'from'       => ['credit_appraisal'],
+        ],
+        'suggest_asset_alternative' => [
+            'label'      => 'Suggest asset-backed alternative',
+            'to_stage'   => 'credit_appraisal',
+            'permission' => 'applications.review',
+            'from'       => ['credit_appraisal'],
+        ],
+        'issue_offer' => [
+            'label'      => 'Issue offer to borrower',
+            'to_stage'   => 'pre_approval',
+            'permission' => 'applications.approve',
+            'from'       => ['pre_approval'],
         ],
         'approve' => [
             'label'      => 'Final approve',
@@ -71,6 +83,11 @@ class LoanApplicationWorkflowService
             ->filter(fn (array $action) => in_array($stage, $action['from'], true))
             ->filter(fn (array $action, string $key) => $this->permissions->has($user, $action['permission']))
             ->filter(fn (array $action, string $key) => ! ($key === 'acknowledge' && $application->status === 'awaiting_guarantor'))
+            ->filter(fn (array $action, string $key) => ! ($key === 'issue_offer' && (
+                $application->recommendation_type !== ApplicationOfferService::RECOMMEND_COUNTER
+                || $application->offer_status === 'pending_borrower'
+            )))
+            ->filter(fn (array $action, string $key) => ! ($key === 'approve' && ! app(ApplicationOfferService::class)->canFinalApprove($application)))
             ->filter(fn (array $action) => $this->sameBranch($user, $application))
             ->map(fn (array $action, string $key) => [
                 'key'        => $key,
@@ -127,6 +144,12 @@ class LoanApplicationWorkflowService
             }
         }
 
+        if ($actionKey === 'approve' && ! app(ApplicationOfferService::class)->canFinalApprove($application)) {
+            throw ValidationException::withMessages([
+                'action' => 'Counter-offers must be accepted by the borrower before final approval.',
+            ]);
+        }
+
         $to = $action['to_stage'];
 
         $appraisal = $application->credit_appraisal_payload ?? [];
@@ -136,7 +159,8 @@ class LoanApplicationWorkflowService
             $appraisal['affordability'] = $result;
 
             if ($result['verdict'] === 'fail' && ! $overrideAffordability
-                && in_array($to, ['pre_approval', 'approval', 'disbursement'], true)) {
+                && in_array($to, ['pre_approval', 'approval', 'disbursement'], true)
+                && ! ($actionKey === 'submit_recommendation' && $application->recommendation_type === ApplicationOfferService::RECOMMEND_COUNTER)) {
                 throw ValidationException::withMessages([
                     'affordability' => 'Affordability check failed: '.($result['reason'] ?? 'DSR too high'),
                 ]);
@@ -145,7 +169,7 @@ class LoanApplicationWorkflowService
 
         if (in_array($to, ['pre_approval', 'approval', 'disbursement'], true) && ! in_array($user->role, ['admin', 'super_admin'], true)) {
             $limit = (float) ($user->approval_limit ?? 0);
-            $amount = (float) ($application->recommended_amount ?? $application->requested_amount);
+            $amount = app(ApplicationOfferService::class)->effectiveAmount($application);
 
             if ($amount > $limit) {
                 throw ValidationException::withMessages([
@@ -269,7 +293,7 @@ class LoanApplicationWorkflowService
 
         if (in_array($toStage, ['pre_approval', 'approval', 'disbursement'], true) && ! in_array($user->role, ['admin', 'super_admin'], true)) {
             $limit = (float) ($user->approval_limit ?? 0);
-            $amount = (float) ($application->recommended_amount ?? $application->requested_amount);
+            $amount = app(ApplicationOfferService::class)->effectiveAmount($application);
 
             if ($amount > $limit) {
                 throw ValidationException::withMessages(['approval_limit' => 'Approval limit exceeded.']);

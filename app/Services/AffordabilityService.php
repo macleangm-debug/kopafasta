@@ -100,6 +100,47 @@ class AffordabilityService
         ];
     }
 
+    public function estimateInstallment(float $principal, float $monthlyRate, int $months): float
+    {
+        return $this->computeEmi($principal, $monthlyRate, $months);
+    }
+
+    public function maxAffordablePrincipal(LoanApplication $application, ?int $tenureMonths = null): float
+    {
+        $application->loadMissing(['customer', 'product']);
+        $evaluation = $this->evaluate($application);
+        $capacity = (float) ($evaluation['available_capacity'] ?? 0);
+
+        if ($capacity <= 0) {
+            return 0.0;
+        }
+
+        $tenure = $tenureMonths ?: (int) ($application->requested_tenure_months ?? 12);
+        $rate = (float) ($application->product?->interest_rate ?? 0);
+
+        if ($rate <= 0) {
+            return round($capacity * $tenure, 2);
+        }
+
+        $low = 0.0;
+        $high = (float) ($application->product?->max_amount ?? $application->requested_amount ?? $capacity * $tenure);
+        $best = 0.0;
+
+        for ($i = 0; $i < 32; $i++) {
+            $mid = ($low + $high) / 2;
+            $emi = $this->computeEmi($mid, $rate, $tenure);
+
+            if ($emi <= $capacity) {
+                $best = $mid;
+                $low = $mid;
+            } else {
+                $high = $mid;
+            }
+        }
+
+        return round($best, 2);
+    }
+
     /**
      * Evaluate whether a member can absorb additional guarantee exposure.
      *

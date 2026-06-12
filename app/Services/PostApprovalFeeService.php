@@ -21,7 +21,7 @@ class PostApprovalFeeService
                 return LoanApplicationPostApprovalFee::where('loan_application_id', $application->id)->count();
             }
 
-            $principal = (float) ($application->approved_amount ?? $application->requested_amount ?? 0);
+            $principal = app(ApplicationOfferService::class)->effectiveAmount($application);
             $templates = LoanProductPostApprovalFee::query()
                 ->where('loan_product_id', $application->loan_product_id)
                 ->where('is_active', true)

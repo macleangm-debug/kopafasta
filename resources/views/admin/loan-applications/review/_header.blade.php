@@ -11,14 +11,26 @@
 
 <div class="grid lg:grid-cols-3 gap-4 mb-6">
     <div class="lg:col-span-2 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5">
-        <div class="grid sm:grid-cols-4 gap-3">
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
             <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 px-3 py-3">
                 <p class="text-[10px] uppercase tracking-widest text-gray-500">Amount requested</p>
                 <p class="text-sm font-bold text-gray-900 mt-1">{{ format_money((float) $record->requested_amount) }}</p>
             </div>
+            @if ($record->recommended_amount && (float) $record->recommended_amount !== (float) $record->requested_amount)
+                <div class="rounded-lg bg-sky-50 ring-1 ring-sky-100 px-3 py-3">
+                    <p class="text-[10px] uppercase tracking-widest text-sky-700">Recommended</p>
+                    <p class="text-sm font-bold text-sky-900 mt-1">{{ format_money((float) $record->recommended_amount) }}</p>
+                </div>
+            @endif
+            @if ($record->offered_amount)
+                <div class="rounded-lg bg-amber-50 ring-1 ring-amber-100 px-3 py-3">
+                    <p class="text-[10px] uppercase tracking-widest text-amber-700">Offered</p>
+                    <p class="text-sm font-bold text-amber-900 mt-1">{{ format_money((float) $record->offered_amount) }}</p>
+                </div>
+            @endif
             <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 px-3 py-3">
                 <p class="text-[10px] uppercase tracking-widest text-gray-500">Tenure</p>
-                <p class="text-sm font-bold text-gray-900 mt-1">{{ $record->requested_tenure_months }} months</p>
+                <p class="text-sm font-bold text-gray-900 mt-1">{{ $record->offered_tenure_months ?? $record->requested_tenure_months }} months</p>
             </div>
             <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 px-3 py-3">
                 <p class="text-[10px] uppercase tracking-widest text-gray-500">Submitted</p>

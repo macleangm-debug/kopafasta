@@ -186,6 +186,45 @@ class BorrowerController extends Controller
         return view('site.borrower.loan-profile', compact('customer', 'profile'));
     }
 
+    public function applicationOffer(LoanApplication $application): View
+    {
+        $customer = $this->customer();
+        abort_if($application->customer_id !== $customer->id, 404);
+        abort_unless($application->offer_status === 'pending_borrower', 404);
+
+        $application->loadMissing(['product']);
+        $installment = app(\App\Services\AffordabilityService::class)->estimateInstallment(
+            (float) $application->offered_amount,
+            (float) ($application->product?->interest_rate ?? 0),
+            (int) ($application->offered_tenure_months ?? $application->requested_tenure_months),
+        );
+
+        return view('site.borrower.offer', compact('customer', 'application', 'installment'));
+    }
+
+    public function respondToOffer(Request $request, LoanApplication $application): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_if($application->customer_id !== $customer->id, 404);
+
+        $data = $request->validate(['decision' => ['required', 'in:accept,decline']]);
+        $offers = app(\App\Services\ApplicationOfferService::class);
+
+        if ($data['decision'] === 'accept') {
+            $offers->acceptOffer($application, $customer);
+            $message = __('borrower.offer.accepted');
+        } else {
+            $offers->declineOffer($application, $customer);
+            $message = __('borrower.offer.declined');
+        }
+
+        $this->auditBorrower('application.offer_'.$data['decision'], $application);
+
+        return redirect()
+            ->route('site.borrower.application', $application->id)
+            ->with('status', $message);
+    }
+
     public function uploadDocumentRequest(
         Request $request,
         LoanApplication $application,

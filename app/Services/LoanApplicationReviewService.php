@@ -31,6 +31,7 @@ class LoanApplicationReviewService
             'product.requirements',
             'customerGuarantors.guarantor',
             'assetReservation.asset',
+            'recommendedByUser',
         ]);
 
         $customer = $application->customer;
@@ -134,6 +135,16 @@ class LoanApplicationReviewService
             'satisfied_docs'     => $satisfiedCount,
             'uploaded_docs'      => $uploadedCount,
             'affordability'      => $affordability,
+            'counter_offer'      => app(ApplicationOfferService::class)->maxCounterOffer($application),
+            'recommendation'     => [
+                'type'        => $application->recommendation_type,
+                'amount'      => $application->recommended_amount,
+                'offered'     => $application->offered_amount,
+                'offer_status'=> $application->offer_status,
+                'remarks'     => $application->committee_recommendation,
+                'recommended_by' => $application->recommendedByUser,
+                'recommended_at' => $application->recommended_at,
+            ],
             'risk'               => $risk,
             'face_photos'        => $facePhotos,
             'face_progress'      => $faceProgress,

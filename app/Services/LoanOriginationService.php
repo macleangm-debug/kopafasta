@@ -30,8 +30,8 @@ class LoanOriginationService
             ]);
         }
 
-        $amount = (float) ($application->approved_amount ?: $application->recommended_amount ?: $application->requested_amount);
-        $tenure = (int) ($application->requested_tenure_months ?: $application->product->tenure_min_months);
+        $amount = app(ApplicationOfferService::class)->effectiveAmount($application);
+        $tenure = (int) ($application->offered_tenure_months ?? $application->requested_tenure_months ?: $application->product->tenure_min_months);
         $product = $application->product;
         $monthlyRate = app(DisplayedRateService::class)->displayedMonthlyRate($product, $amount);
         $penaltyDefaults = LoanPenaltyPolicy::defaultsForProduct($product);

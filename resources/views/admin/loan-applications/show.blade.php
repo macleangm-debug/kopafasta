@@ -16,6 +16,10 @@
             <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 ring-1 ring-sky-200">
                 Awaiting documents
             </span>
+        @elseif ($record->status === 'awaiting_offer' || $record->offer_status === 'pending_borrower')
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-900 ring-1 ring-amber-200">
+                Awaiting borrower on offer
+            </span>
         @endif
         <a href="{{ route('admin.loan-applications.edit', $record) }}"
            class="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-gray-900 hover:bg-gray-800 px-3 py-1.5 rounded-lg">
@@ -26,6 +30,8 @@
     @include('admin.loan-applications.review._header')
 
     @include('admin.loan-applications.review._affordability-summary')
+
+    @include('admin.loan-applications.review._recommendation')
 
     @include('admin.loan-applications.review._nav')
 

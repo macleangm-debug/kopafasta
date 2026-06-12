@@ -140,6 +140,16 @@ class LoanApplicationNextActionService
             );
         }
 
+        if ($status === 'awaiting_offer' || $application->offer_status === 'pending_borrower') {
+            return $this->action(
+                'review_offer',
+                __('borrower.loan_profile.next_actions.review_offer'),
+                __('borrower.offer.review_cta'),
+                route('site.borrower.application.offer', $application->id),
+                tone: 'primary',
+            );
+        }
+
         if ($missingRequirements !== []) {
             $first = $missingRequirements[0];
             $openRequests = $application->documentRequests()

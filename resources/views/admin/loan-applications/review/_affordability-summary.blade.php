@@ -57,5 +57,14 @@
             Status: <span class="font-semibold">{{ $affordability['status_label'] ?? ($affordability['pass'] ? 'Affordability Passed' : 'Affordability Failed') }}</span>
             · {{ $affordability['reason'] ?? '' }}
         </p>
+
+        @if (! empty($counterOffer['amount']) && ($counterOffer['amount'] ?? 0) > 0 && ! ($affordability['pass'] ?? false))
+            <p class="text-xs mt-2 text-violet-800 bg-violet-50 ring-1 ring-violet-100 rounded-lg px-3 py-2">
+                Suggested counter-offer ceiling:
+                <span class="font-bold">{{ format_money((float) $counterOffer['amount']) }}</span>
+                over {{ $counterOffer['tenure_months'] ?? $record->requested_tenure_months }} months
+                (est. {{ format_money((float) ($counterOffer['installment'] ?? 0)) }}/month)
+            </p>
+        @endif
     </div>
 @endif
