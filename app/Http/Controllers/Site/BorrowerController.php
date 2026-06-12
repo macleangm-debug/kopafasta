@@ -299,7 +299,7 @@ class BorrowerController extends Controller
 
         $activeTab = $request->query('tab');
         if (! $activeTab) {
-            $activeTab = ($portal->hasGuarantorWork($customer) && $applicationRows->isEmpty())
+            $activeTab = ($portal->hasGuarantorWork($customer) && empty($applicationRows))
                 ? 'guarantor'
                 : 'applications';
         }
@@ -328,7 +328,7 @@ class BorrowerController extends Controller
             : null;
 
         $isGuarantorPortal = $portal->hasGuarantorWork($customer)
-            && $applicationRows->isEmpty()
+            && empty($applicationRows)
             && $loans->isEmpty();
 
         return view('site.borrower.loans', compact(
