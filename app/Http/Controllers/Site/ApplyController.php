@@ -312,6 +312,11 @@ class ApplyController extends Controller
                 $requestedTenure,
                 (int) $data['loan_product_id'],
             );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'ok'      => false,
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Throwable $e) {
             report($e);
 
@@ -331,6 +336,32 @@ class ApplyController extends Controller
         ]);
 
         return response()->json(['ok' => true, 'share' => $share]);
+    }
+
+    public function guarantorInvitationStatus(
+        Request $request,
+        GuarantorInvitationService $guarantors,
+    ): \Illuminate\Http\JsonResponse {
+        $borrower = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($borrower, 403);
+
+        $data = $request->validate([
+            'invitation_id' => ['required', 'integer'],
+        ]);
+
+        $invitation = \App\Models\GuarantorInvitation::query()
+            ->where('id', (int) $data['invitation_id'])
+            ->where('customer_id', $borrower->id)
+            ->first();
+
+        if (! $invitation) {
+            return response()->json(['ok' => false, 'message' => 'Invitation not found.'], 404);
+        }
+
+        return response()->json([
+            'ok'    => true,
+            'share' => $guarantors->sharePayload($invitation, $borrower),
+        ]);
     }
 
     public function expireGuarantorInvitation(

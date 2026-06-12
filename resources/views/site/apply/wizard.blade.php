@@ -69,6 +69,7 @@
                   products: @js($wizardProducts->map($wizardProductPayload)->values()->all()),
                   guarantorLookupUrl: @js(route('site.borrower.apply.guarantor-lookup')),
                   guarantorInviteUrl: @js(route('site.borrower.apply.guarantor-invite')),
+                  guarantorStatusUrl: @js(route('site.borrower.apply.guarantor-status')),
                   guarantorExpireUrl: @js(route('site.borrower.apply.guarantor-expire')),
                   repaymentPreviewUrl: @js(route('site.borrower.apply.repayment-preview')),
                   borrowerSnapshot: @js($borrowerSnapshot),
@@ -351,17 +352,18 @@
                             </template>
                         </ul>
                     </div>
-                    <div x-show="isGuarantorLocked()" x-cloak class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-4 space-y-4 mb-4">
+                    <div x-show="isGuarantorLocked()" x-cloak class="rounded-xl px-4 py-4 space-y-4 mb-4 ring-1"
+                         :class="guarantorLockedCardClass()">
                         <div class="flex flex-wrap items-start justify-between gap-3">
-                            <p class="text-sm font-semibold text-emerald-900">{{ __('borrower.apply.guarantor_locked_summary') }}</p>
+                            <p class="text-sm font-semibold" :class="guarantorLockedCardTextClass()" x-text="guarantorLockedSummaryText()"></p>
                             <div class="text-right">
-                                <p class="text-[10px] uppercase tracking-widest text-emerald-700">{{ __('borrower.apply.guarantor_locked_status') }}</p>
+                                <p class="text-[10px] uppercase tracking-widest" :class="guarantorLockedCardMutedClass()">{{ __('borrower.apply.guarantor_locked_status') }}</p>
                                 <span class="inline-flex mt-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1"
                                       :class="guarantorStatusBadgeClass()"
                                       x-text="guarantorStatusLabel()"></span>
                             </div>
                         </div>
-                        <p class="text-sm text-emerald-800">
+                        <p class="text-sm" :class="guarantorLockedCardBodyClass()">
                             <span class="font-medium" x-text="form.guarantor_mode === 'internal' ? @js(__('borrower.apply.internal_guarantor')) : @js(__('borrower.apply.external_guarantor'))"></span>
                             · <span x-text="guarantorSummaryText()"></span>
                         </p>
@@ -798,6 +800,7 @@
                 readinessUrl: config.readinessUrl,
                 guarantorLookupUrl: config.guarantorLookupUrl || '',
                 guarantorInviteUrl: config.guarantorInviteUrl || '',
+                guarantorStatusUrl: config.guarantorStatusUrl || '',
                 guarantorExpireUrl: config.guarantorExpireUrl || '',
                 repaymentPreviewUrl: config.repaymentPreviewUrl || '',
                 borrowerSnapshot: config.borrowerSnapshot || {},
@@ -907,6 +910,9 @@
                     this.$watch('stepKey', (key) => {
                         if (key === 'application_fee') {
                             this.enterApplicationFeeStep();
+                        }
+                        if (key === 'guarantor' && this.externalGuarantor?.invitation_id) {
+                            this.refreshExternalGuarantorStatus();
                         }
                     });
                     this.$watch('steps', () => this.syncStepKey());
@@ -1550,13 +1556,78 @@
                     return '—';
                 },
 
+                guarantorStatusCode() {
+                    if (this.form.guarantor_mode === 'external') {
+                        return this.externalGuarantor?.borrower_status_code
+                            || (this.externalGuarantor?.status === 'accepted' ? 'registration_in_progress' : 'invitation_sent');
+                    }
+
+                    return 'pending_acceptance';
+                },
+
+                guarantorLockedSummaryText() {
+                    const code = this.guarantorStatusCode();
+                    if (code === 'rejected') {
+                        return @js(__('borrower.apply.guarantor_locked_declined'));
+                    }
+
+                    return @js(__('borrower.apply.guarantor_locked_summary'));
+                },
+
+                guarantorLockedCardClass() {
+                    const code = this.guarantorStatusCode();
+                    if (code === 'rejected' || code === 'expired') {
+                        return 'bg-rose-50 ring-rose-200';
+                    }
+                    if (code === 'accepted' || code === 'guarantee_pending') {
+                        return 'bg-emerald-50 ring-emerald-200';
+                    }
+
+                    return 'bg-amber-50 ring-amber-200';
+                },
+
+                guarantorLockedCardTextClass() {
+                    const code = this.guarantorStatusCode();
+                    if (code === 'rejected' || code === 'expired') {
+                        return 'text-rose-900';
+                    }
+                    if (code === 'accepted' || code === 'guarantee_pending') {
+                        return 'text-emerald-900';
+                    }
+
+                    return 'text-amber-900';
+                },
+
+                guarantorLockedCardMutedClass() {
+                    const code = this.guarantorStatusCode();
+                    if (code === 'rejected' || code === 'expired') {
+                        return 'text-rose-700';
+                    }
+                    if (code === 'accepted' || code === 'guarantee_pending') {
+                        return 'text-emerald-700';
+                    }
+
+                    return 'text-amber-700';
+                },
+
+                guarantorLockedCardBodyClass() {
+                    const code = this.guarantorStatusCode();
+                    if (code === 'rejected' || code === 'expired') {
+                        return 'text-rose-800';
+                    }
+                    if (code === 'accepted' || code === 'guarantee_pending') {
+                        return 'text-emerald-800';
+                    }
+
+                    return 'text-amber-800';
+                },
+
                 guarantorStatusBadgeClass() {
                     if (this.form.guarantor_mode === 'internal') {
                         return 'bg-amber-100 text-amber-900 ring-amber-200';
                     }
 
-                    const code = this.externalGuarantor?.borrower_status_code
-                        || (this.externalGuarantor?.status === 'accepted' ? 'registration_in_progress' : 'invitation_sent');
+                    const code = this.guarantorStatusCode();
 
                     if (code === 'accepted') {
                         return 'bg-emerald-100 text-emerald-900 ring-emerald-200';
@@ -1820,6 +1891,30 @@
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                     } finally {
                         this.advancing = false;
+                    }
+                },
+
+                async refreshExternalGuarantorStatus() {
+                    if (! this.guarantorStatusUrl || ! this.externalGuarantor?.invitation_id) {
+                        return;
+                    }
+                    try {
+                        const params = new URLSearchParams({
+                            invitation_id: String(this.externalGuarantor.invitation_id),
+                        });
+                        const res = await fetch(`${this.guarantorStatusUrl}?${params}`, {
+                            headers: { Accept: 'application/json' },
+                            credentials: 'same-origin',
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (res.ok && data.ok && data.share) {
+                            this.externalGuarantor = {
+                                ...this.externalGuarantor,
+                                ...data.share,
+                            };
+                        }
+                    } catch {
+                        // Non-blocking refresh.
                     }
                 },
 

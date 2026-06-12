@@ -39,6 +39,31 @@ class GuarantorInvitationService
         return $customer;
     }
 
+    public function findMemberCustomerByPhone(string $phone): ?Customer
+    {
+        $normalized = $this->normalizePhone($phone);
+        if ($normalized === '') {
+            return null;
+        }
+
+        $digits = preg_replace('/\D/', '', $normalized) ?? '';
+        $suffix = strlen($digits) >= 9 ? substr($digits, -9) : $digits;
+
+        $customer = Customer::query()
+            ->where(function ($query) use ($normalized, $digits, $suffix) {
+                $query->where('phone', $normalized)
+                    ->orWhere('phone', $digits)
+                    ->orWhere('phone', 'like', '%'.$suffix);
+            })
+            ->first();
+
+        if (! $customer || ! $customer->hasMembership()) {
+            return null;
+        }
+
+        return $customer;
+    }
+
     public function isEligibleInternalGuarantor(Customer $customer): bool
     {
         return $customer->hasMembership()
@@ -439,6 +464,12 @@ class GuarantorInvitationService
         ?int $loanProductId = null,
     ): array {
         $phone = $this->normalizePhone($phone);
+        if ($member = $this->findMemberCustomerByPhone($phone)) {
+            throw new \InvalidArgumentException(__('borrower.apply.alerts.guarantor_phone_is_member', [
+                'name' => trim(($member->first_name ?? '').' '.($member->last_name ?? '')),
+            ]));
+        }
+
         $displayName = trim(collect([$firstName, $middleName, $lastName])->filter()->implode(' '));
         $address = trim(collect([$region, $district])->filter()->implode(', '));
         $channel = in_array($preferredChannel, ['whatsapp', 'sms', 'email'], true) ? $preferredChannel : 'whatsapp';

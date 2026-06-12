@@ -43,7 +43,12 @@
                 </template>
             </ol>
 
-            <p class="relative mt-auto text-xs text-white/40">Already registered? <a href="{{ route('site.login') }}" class="text-amber-300 hover:underline">Log in</a></p>
+            <p class="relative mt-auto text-xs text-white/40">
+                Already registered? <a href="{{ route('site.login') }}" class="text-amber-300 hover:underline">Log in</a>
+                @if ($isGuarantorRegistration)
+                    · <a href="{{ route('site.login', ['clear_guarantor' => 1]) }}" class="text-amber-300 hover:underline">{{ __('borrower.guarantor_invite.login_different_account') }}</a>
+                @endif
+            </p>
         </aside>
 
         {{-- Wizard --}}
@@ -51,13 +56,13 @@
             first_name:  @js(old('first_name', $prefill['first_name'] ?? '')),
             middle_name: @js(old('middle_name', $prefill['middle_name'] ?? '')),
             last_name:   @js(old('last_name', $prefill['last_name'] ?? '')),
-            email:       @js(old('email', $prefill['email'] ?? '')),
+            email:       @js(old('email', '')),
             country:     @js(old('country', $prefill['country'] ?? 'TZ')),
             dial_code:   @js(old('dial_code', $prefill['dial_code'] ?? '+255')),
             local_phone: @js(old('local_phone', $prefill['local_phone'] ?? '')),
             step:        @js($initialStep),
             isGuarantor: @js($isGuarantorRegistration),
-            lockIdentity: @js($isGuarantorRegistration),
+            lockIdentity: false,
             borrowerName: @js($prefill['borrower_name'] ?? ''),
             waitlist_email: @js(old('waitlist_email', '')),
             waitlist_phone: @js(old('waitlist_phone', '')),
@@ -202,34 +207,25 @@
                                 </template>
                                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">
-                                            <span x-show="!lockIdentity">First name <span class="text-red-500">*</span></span>
-                                            <span x-show="lockIdentity" x-cloak>{{ __('borrower.guarantor_invite.register_names_locked') }}</span>
-                                        </label>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">First name <span class="text-red-500">*</span></label>
                                         <input name="first_name" x-model="form.first_name" required
-                                               :readonly="lockIdentity"
-                                               :class="lockIdentity ? 'bg-gray-50 text-gray-700 cursor-not-allowed' : 'bg-white'"
-                                               class="w-full px-3.5 py-3 rounded-xl border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition">
+                                               class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition">
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Middle name</label>
                                         <input name="middle_name" x-model="form.middle_name"
-                                               :readonly="lockIdentity"
-                                               :class="lockIdentity ? 'bg-gray-50 text-gray-700 cursor-not-allowed' : 'bg-white'"
-                                               class="w-full px-3.5 py-3 rounded-xl border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition">
+                                               class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition">
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Last name <span class="text-red-500" x-show="!lockIdentity">*</span></label>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Last name <span class="text-red-500">*</span></label>
                                         <input name="last_name" x-model="form.last_name" required
-                                               :readonly="lockIdentity"
-                                               :class="lockIdentity ? 'bg-gray-50 text-gray-700 cursor-not-allowed' : 'bg-white'"
-                                               class="w-full px-3.5 py-3 rounded-xl border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition">
+                                               class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition">
                                     </div>
                                 </div>
-                                <div class="grid grid-cols-1 gap-3" :class="lockIdentity ? '' : 'sm:grid-cols-2'">
-                                    <div x-show="!lockIdentity" x-cloak>
+                                <div class="grid grid-cols-1 gap-3" :class="isGuarantor ? '' : 'sm:grid-cols-2'">
+                                    <div x-show="!isGuarantor" x-cloak>
                                         <label class="block text-sm font-medium text-gray-700 mb-1.5">National ID number <span class="text-red-500">*</span></label>
-                                        <input name="national_id" :required="!lockIdentity" maxlength="30" placeholder="20-digit NIDA"
+                                        <input name="national_id" :required="!isGuarantor" maxlength="30" placeholder="20-digit NIDA"
                                                class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition font-mono">
                                         <p class="mt-1 text-xs text-gray-500">Used for NIDA identity verification.</p>
                                     </div>
@@ -240,8 +236,8 @@
                                                class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition">
                                     </div>
                                 </div>
-                                <p x-show="lockIdentity" x-cloak class="text-xs text-gray-500">{{ __('borrower.guarantor_invite.register_nida_later') }}</p>
-                                <div>
+                                <p x-show="isGuarantor" x-cloak class="text-xs text-gray-500">{{ __('borrower.guarantor_invite.register_nida_later') }}</p>
+                                <div x-show="!isGuarantor" x-cloak>
                                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Email address <span class="text-gray-400 font-normal">(optional)</span></label>
                                     <input type="email" name="email" x-model="form.email" @input="validateEmail()"
                                            class="w-full px-3.5 py-3 rounded-xl bg-white border text-sm outline-none transition"
@@ -310,6 +306,11 @@
                 <p class="mt-6 text-center text-sm text-gray-600 lg:hidden">
                     Already registered? <a href="{{ route('site.login') }}" class="text-amber-600 font-semibold hover:underline">Log in</a>
                 </p>
+                @if ($isGuarantorRegistration)
+                    <p class="mt-3 text-center text-sm text-gray-600 lg:hidden">
+                        <a href="{{ route('site.login', ['clear_guarantor' => 1]) }}" class="text-gray-700 hover:underline">{{ __('borrower.guarantor_invite.login_different_account') }}</a>
+                    </p>
+                @endif
             </div>
         </div>
     </section>
@@ -380,8 +381,7 @@
                     }
                     if (this.step === 2) {
                         this.validateEmail();
-                        if (!this.lockIdentity && (!this.form.first_name || !this.form.last_name)) {
-                            this.errors.email = this.errors.email || '';
+                        if (!this.form.first_name || !this.form.last_name) {
                             return alert('Please enter your first and last name.');
                         }
                         if (this.errors.email) return;

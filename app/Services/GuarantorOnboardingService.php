@@ -31,31 +31,20 @@ class GuarantorOnboardingService
         $invitation->loadMissing('customerGuarantor.guarantor', 'borrower');
         $guarantor = $invitation->customerGuarantor?->guarantor;
 
-        $lastName = trim((string) ($guarantor?->last_name ?? ''));
         $firstPart = trim((string) ($guarantor?->first_name ?? ''));
-
-        if ($firstPart === '' && $lastName === '') {
-            $parts = preg_split('/\s+/', trim((string) $invitation->invitee_name)) ?: [];
-            $firstName = array_shift($parts) ?? '';
-            $lastName = count($parts) > 0 ? (string) array_pop($parts) : '';
-            $middleName = trim(implode(' ', $parts));
-        } else {
-            $nameParts = preg_split('/\s+/', $firstPart, 2) ?: [];
-            $firstName = $nameParts[0] ?? '';
-            $middleName = trim($nameParts[1] ?? '');
-        }
+        $nameParts = preg_split('/\s+/', $firstPart, 2) ?: [];
+        $firstName = $nameParts[0] ?? '';
+        $middleName = trim($nameParts[1] ?? '');
+        $lastName = trim((string) ($guarantor?->last_name ?? ''));
 
         $contact = trim((string) $invitation->contact);
-        $email = trim((string) ($guarantor?->email ?? ''));
         $phone = trim((string) ($guarantor?->phone ?? ''));
         $country = 'TZ';
         $dialCode = '+255';
         $localPhone = '';
 
-        if (str_contains($contact, '@')) {
-            $email = $email !== '' ? $email : $contact;
-        } elseif ($contact !== '') {
-            $phone = $phone !== '' ? $phone : $contact;
+        if ($phone === '' && $contact !== '' && ! str_contains($contact, '@')) {
+            $phone = $contact;
         }
 
         if ($phone !== '') {
@@ -82,7 +71,6 @@ class GuarantorOnboardingService
             'first_name'    => $firstName,
             'middle_name'   => $middleName,
             'last_name'     => $lastName,
-            'email'         => $email,
             'phone'         => $phone !== '' ? app(GuarantorInvitationService::class)->normalizePhone($phone) : '',
             'country'       => $country,
             'dial_code'     => $dialCode,
@@ -171,10 +159,10 @@ class GuarantorOnboardingService
 
         if ($guarantor = $invitation->customerGuarantor?->guarantor) {
             $guarantor->update([
-                'first_name' => $customer->first_name ?? $guarantor->first_name,
+                'first_name' => trim(collect([$customer->first_name, $customer->middle_name])->filter()->implode(' ')),
                 'last_name'  => $customer->last_name ?? $guarantor->last_name,
                 'phone'      => $customer->phone ?? $guarantor->phone,
-                'email'      => $customer->email ?? $guarantor->email,
+                'email'      => $customer->email ?: null,
                 'national_id'=> $customer->national_id ?? $guarantor->national_id,
             ]);
         }
@@ -236,6 +224,10 @@ class GuarantorOnboardingService
         }
 
         if (! $customer->hasMembership()) {
+            if ($request->routeIs('site.membership.*', 'site.borrower.setup-pin', 'site.borrower.setup-pin.post')) {
+                return null;
+            }
+
             return redirect()->route('site.membership.renew')
                 ->with('status', __('borrower.guarantor_invite.continue_after_membership'));
         }

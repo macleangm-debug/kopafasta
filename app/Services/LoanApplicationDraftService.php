@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\GuarantorInvitation;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationDraft;
 use App\Models\LoanProduct;
@@ -89,7 +90,7 @@ class LoanApplicationDraftService
             'inputs'               => $payload['inputs'] ?? [],
             'guarantor_lookup'     => $payload['guarantor_lookup'] ?? null,
             'application_fee'      => $payload['application_fee'] ?? null,
-            'external_guarantor'   => $payload['external_guarantor'] ?? null,
+            'external_guarantor'   => $this->refreshExternalGuarantorPayload($customer, $payload['external_guarantor'] ?? null),
             'borrower_signature'   => $payload['borrower_signature'] ?? null,
             'declaration_accepted' => (bool) ($payload['declaration_accepted'] ?? false),
             'draft_reference'      => $draft->draft_reference,
@@ -102,6 +103,27 @@ class LoanApplicationDraftService
         $latest = $this->listForCustomer($customer)->first();
 
         return $latest ? $this->summarizeDraft($latest, $customer) : null;
+    }
+
+    /** @param  array<string, mixed>|null  $external */
+    private function refreshExternalGuarantorPayload(Customer $customer, ?array $external): ?array
+    {
+        if (! is_array($external) || empty($external['invitation_id'])) {
+            return $external;
+        }
+
+        $invitation = GuarantorInvitation::query()
+            ->where('id', (int) $external['invitation_id'])
+            ->where('customer_id', $customer->id)
+            ->first();
+
+        if (! $invitation) {
+            return $external;
+        }
+
+        $fresh = app(GuarantorInvitationService::class)->sharePayload($invitation, $customer);
+
+        return array_merge($external, $fresh);
     }
 
     /** @return array{url: string, product_name: string, phase: string, step: int, saved_at: string|null} */

@@ -27,6 +27,12 @@
                class="inline-flex w-full justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-3 rounded-full text-sm">
                 {{ $cta_label }}
             </a>
+
+            <p class="mt-4 text-center">
+                <a href="{{ route('site.login', ['clear_guarantor' => 1]) }}" class="text-sm text-gray-600 hover:underline">
+                    {{ __('borrower.guarantor_invite.login_different_account') }}
+                </a>
+            </p>
         </div>
     </div>
 </x-site.layout>

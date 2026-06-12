@@ -30,11 +30,16 @@ class AuthController extends Controller
         private readonly TrustedDeviceService $trustedDevices,
     ) {}
 
-    public function showLogin(): View
+    public function showLogin(Request $request): View
     {
+        if ($request->boolean('clear_guarantor')) {
+            $request->session()->forget(['guarantor_invite_token', 'login_redirect']);
+        }
+
         return view('site.auth.login', [
             'defaultMethod' => 'pin',
             'biometricEnabled' => (bool) config('auth_portal.biometric_enabled', false),
+            'clearedGuarantorContext' => $request->boolean('clear_guarantor'),
         ]);
     }
 
@@ -378,13 +383,13 @@ class AuthController extends Controller
             $rules['national_id'] = ['required', 'string', 'max:30', new \App\Rules\ValidNidaNumber];
         }
 
-        $data = $request->validate($rules);
+        $data = $request->validate($rules, [
+            'phone.unique' => $isGuarantorRegistration
+                ? __('borrower.guarantor_invite.register_phone_taken')
+                : 'This phone number is already registered.',
+        ]);
 
         if ($isGuarantorRegistration && $invitation) {
-            $data['first_name'] = $guarantorPrefill['first_name'];
-            $data['middle_name'] = $guarantorPrefill['middle_name'] ?: null;
-            $data['last_name'] = $guarantorPrefill['last_name'];
-
             if (! $onboarding->phoneMatchesInvitation($invitation, $data['phone'])) {
                 return back()
                     ->withInput()
