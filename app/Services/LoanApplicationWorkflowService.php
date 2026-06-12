@@ -167,6 +167,7 @@ class LoanApplicationWorkflowService
             app(PostApprovalFeeService::class)->generateForApplication($application->fresh(['product']));
             app(AssetReservationService::class)->syncFromApplication($application->fresh());
             app(LoanOriginationService::class)->createFromApplication($application->fresh(['customer', 'product', 'loan']));
+            app(GuarantorNotificationService::class)->notifyLoanApproved($application->fresh(['customer', 'product']));
         }
 
         if ($to === 'disbursement') {

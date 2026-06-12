@@ -171,6 +171,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/guarantor-requests', fn () => redirect()->route('site.borrower.loans', ['tab' => 'guarantor']))->name('borrower.guarantor-requests');
             Route::get('/borrower/guarantor-requests/{customerGuarantor}', [\App\Http\Controllers\Site\BorrowerController::class, 'showGuarantorRequest'])->name('borrower.guarantor-requests.show');
             Route::post('/borrower/guarantor-requests/{customerGuarantor}', [\App\Http\Controllers\Site\BorrowerController::class, 'respondGuarantorRequest'])->name('borrower.guarantor-requests.respond');
+            Route::get('/borrower/guaranteed/{customerGuarantor}', [\App\Http\Controllers\Site\BorrowerController::class, 'showGuaranteedLoan'])->name('borrower.guaranteed.show');
             Route::get('/borrower/guarantor/onboarding', [\App\Http\Controllers\Site\GuarantorOnboardingController::class, 'show'])->name('guarantor.onboarding');
             Route::post('/borrower/guarantor/onboarding', [\App\Http\Controllers\Site\GuarantorOnboardingController::class, 'complete'])->name('guarantor.onboarding.complete');
             Route::get('/borrower/applications/{application}/post-approval-fees', [\App\Http\Controllers\Site\BorrowerController::class, 'postApprovalFees'])->name('borrower.application.post-approval-fees');

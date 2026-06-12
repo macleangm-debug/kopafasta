@@ -13,6 +13,7 @@ use App\Services\CapitalPartnerAllocationService;
 use App\Services\CapitalPartnerMetricsService;
 use App\Services\AssetReservationService;
 use App\Services\LoanDisbursementService;
+use App\Services\GuarantorNotificationService;
 use App\Services\LoanOriginationService;
 use App\Services\RepaymentScheduleGenerator;
 use App\Services\LoanWriteOffService;
@@ -211,6 +212,8 @@ class LoanController extends Controller
             'installments' => $installments,
         ]);
 
+        app(GuarantorNotificationService::class)->notifyLoanDisbursed($loan->fresh(['application.customer']));
+
         return redirect()
             ->route('admin.loans.show', $loan)
             ->with('status', 'Loan disbursed. '.count($applied).' fee(s) applied · '.$installments.' installment(s) scheduled.');
@@ -239,6 +242,8 @@ class LoanController extends Controller
             'amount' => $data['amount'] ?? null,
             'journal' => $entry?->entry_number,
         ]);
+
+        app(GuarantorNotificationService::class)->notifyLoanClosed($loan->fresh(['application.customer']));
 
         return redirect()
             ->route('admin.loans.show', $loan)

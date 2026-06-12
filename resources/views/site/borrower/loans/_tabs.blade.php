@@ -3,6 +3,7 @@
     'viewMode' => 'cards',
     'inline' => false,
     'showGuarantorTab' => false,
+    'showGuaranteedTab' => false,
 ])
 
 @php
@@ -12,6 +13,9 @@
     ];
     if ($showGuarantorTab) {
         $tabs['guarantor'] = __('borrower.loans_page.tab_guarantor_requests');
+    }
+    if ($showGuaranteedTab) {
+        $tabs['guaranteed'] = __('borrower.loans_page.tab_guaranteed');
     }
 @endphp
 

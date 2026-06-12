@@ -288,30 +288,44 @@ class BorrowerController extends Controller
 
         $portal = app(\App\Services\PortalContextService::class);
         $pendingGuarantorRequests = $portal->pendingGuarantorLinks($customer);
+        $guaranteedLinks = app(\App\Services\GuaranteedLoanService::class)->linksForGuarantor($customer);
 
         $applicationsDashboard = app(\App\Services\BorrowerApplicationsDashboardService::class);
         $applicationRows = $applicationsDashboard->applicationsForCustomer($customer);
-
-        $allowedTabs = ['applications', 'active'];
-        if ($portal->hasGuarantorWork($customer) || $pendingGuarantorRequests->isNotEmpty()) {
-            $allowedTabs[] = 'guarantor';
-        }
-
-        $activeTab = $request->query('tab');
-        if (! $activeTab) {
-            $activeTab = ($portal->hasGuarantorWork($customer) && empty($applicationRows))
-                ? 'guarantor'
-                : 'applications';
-        }
-        if (! in_array($activeTab, $allowedTabs, true)) {
-            $activeTab = $pendingGuarantorRequests->isNotEmpty() ? 'guarantor' : 'applications';
-        }
 
         $loans = Loan::with('product')
             ->where('customer_id', $customer->id)
             ->whereIn('status', ['active', 'disbursed', 'arrears'])
             ->latest()
             ->get();
+
+        $allowedTabs = ['applications', 'active'];
+        if ($portal->hasGuarantorWork($customer) || $pendingGuarantorRequests->isNotEmpty()) {
+            $allowedTabs[] = 'guarantor';
+        }
+        if ($guaranteedLinks->isNotEmpty()) {
+            $allowedTabs[] = 'guaranteed';
+        }
+
+        $activeTab = $request->query('tab');
+        if (! $activeTab) {
+            if ($pendingGuarantorRequests->isNotEmpty() && empty($applicationRows)) {
+                $activeTab = 'guarantor';
+            } elseif ($guaranteedLinks->isNotEmpty() && empty($applicationRows) && $loans->isEmpty() && $pendingGuarantorRequests->isEmpty()) {
+                $activeTab = 'guaranteed';
+            } else {
+                $activeTab = 'applications';
+            }
+        }
+        if (! in_array($activeTab, $allowedTabs, true)) {
+            if ($pendingGuarantorRequests->isNotEmpty()) {
+                $activeTab = 'guarantor';
+            } elseif ($guaranteedLinks->isNotEmpty()) {
+                $activeTab = 'guaranteed';
+            } else {
+                $activeTab = 'applications';
+            }
+        }
 
         $user = Auth::user();
         $viewMode = $request->query('view');
@@ -323,13 +337,14 @@ class BorrowerController extends Controller
             $viewMode = $user->preferences['applications_view'] ?? 'table';
         }
 
-        $guarantorExposure = $portal->hasGuarantorWork($customer)
+        $guarantorExposure = ($portal->hasGuarantorWork($customer) || $guaranteedLinks->isNotEmpty())
             ? app(\App\Services\LoanPolicyService::class)->guarantorExposureSummary($customer)
             : null;
 
-        $isGuarantorPortal = $portal->hasGuarantorWork($customer)
+        $isGuarantorPortal = $pendingGuarantorRequests->isNotEmpty()
             && empty($applicationRows)
-            && $loans->isEmpty();
+            && $loans->isEmpty()
+            && $guaranteedLinks->isEmpty();
 
         return view('site.borrower.loans', compact(
             'customer',
@@ -338,9 +353,35 @@ class BorrowerController extends Controller
             'viewMode',
             'loans',
             'pendingGuarantorRequests',
+            'guaranteedLinks',
             'guarantorExposure',
             'isGuarantorPortal',
-        ))->with('showGuarantorTab', in_array('guarantor', $allowedTabs, true));
+        ))->with([
+            'showGuarantorTab'   => in_array('guarantor', $allowedTabs, true),
+            'showGuaranteedTab'  => in_array('guaranteed', $allowedTabs, true),
+        ]);
+    }
+
+    public function showGuaranteedLoan(CustomerGuarantor $customerGuarantor): View
+    {
+        $customer = $this->customer();
+        abort_unless(app(\App\Services\GuarantorAccessService::class)->canViewGuarantee($customer, $customerGuarantor), 404);
+
+        $row = app(\App\Services\GuaranteedLoanService::class)->formatLink(
+            $customerGuarantor->load([
+                'customer',
+                'application.product',
+                'application.loan.repaymentSchedules',
+                'invitation.borrower',
+                'invitation.product',
+            ])
+        );
+
+        $timeline = $row->application
+            ? app(\App\Services\ApplicationBorrowerStatusService::class)->timeline($row->application)
+            : ['percent' => 0, 'steps' => []];
+
+        return view('site.borrower.guaranteed-show', compact('customer', 'row', 'timeline'));
     }
 
     /* ---------------------------------------------------------------------
@@ -441,6 +482,8 @@ class BorrowerController extends Controller
             '/admin/restructure-requests/'.$record->id,
         );
 
+        app(\App\Services\GuarantorNotificationService::class)->notifyRestructureRequested($loan, $data['restructure_type']);
+
         return redirect()
             ->route('site.borrower.loans', ['tab' => 'active'])
             ->with('status', __('borrower.loan_actions.restructure_submitted'));
@@ -499,6 +542,8 @@ class BorrowerController extends Controller
             trim($customer->full_name.' requested a top-up of '.format_money($data['requested_amount']).' on loan '.$loan->loan_number.'.'),
             '/admin/top-up-requests/'.$record->id,
         );
+
+        app(\App\Services\GuarantorNotificationService::class)->notifyTopUpRequested($loan, (float) $data['requested_amount']);
 
         return redirect()
             ->route('site.borrower.loans', ['tab' => 'active'])
@@ -1513,8 +1558,10 @@ class BorrowerController extends Controller
         ]);
 
         return redirect()
-            ->route('site.borrower.loans', ['tab' => 'guarantor'])
-            ->with('status', $msg);
+            ->route('site.borrower.loans', ['tab' => $data['action'] === 'approve' ? 'guaranteed' : 'guarantor'])
+            ->with('status', $data['action'] === 'approve'
+                ? __('borrower.guaranteed.approved_track_message')
+                : $msg);
     }
 
     public function showGuarantorRequest(CustomerGuarantor $customerGuarantor, GuarantorOnboardingService $guarantorOnboarding): View

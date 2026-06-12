@@ -12,6 +12,12 @@ class PortalContextService
     /** Templates intended for guarantor inbox only — hidden from borrower notification views. */
     private const GUARANTOR_INBOX_TEMPLATES = [
         'guarantor_request',
+        'guarantor_loan_approved',
+        'guarantor_loan_disbursed',
+        'guarantor_loan_arrears',
+        'guarantor_loan_closed',
+        'guarantor_restructure_requested',
+        'guarantor_top_up_requested',
     ];
 
     /** Templates about guarantor activity shown to borrowers. */
@@ -133,6 +139,11 @@ class PortalContextService
     public function hasGuarantorWork(Customer $customer): bool
     {
         return $this->pendingGuarantorInvitations($customer)->isNotEmpty();
+    }
+
+    public function hasGuaranteedLoans(Customer $customer): bool
+    {
+        return app(GuaranteedLoanService::class)->linksForGuarantor($customer)->isNotEmpty();
     }
 
     public function borrowerNotificationsQuery(Customer $customer): Builder

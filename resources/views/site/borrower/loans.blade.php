@@ -1,7 +1,15 @@
 <x-site.borrower-layout :title="brand_title(__('borrower.loans_page.title'))" active="loans" :portalMode="($isGuarantorPortal ?? false) ? 'guarantor' : 'borrower'">
 
     <h1 class="text-2xl font-bold mb-1">{{ __('borrower.loans_page.title') }}</h1>
-    <p class="text-sm text-gray-500 mb-5">{{ __('borrower.loans_page.subtitle') }}</p>
+    <p class="text-sm text-gray-500 mb-5">
+        @if (($showGuaranteedTab ?? false) && ($activeTab ?? '') === 'guaranteed')
+            {{ __('borrower.loans_page.guaranteed_hint') }}
+        @elseif (($showGuarantorTab ?? false) && ($activeTab ?? '') === 'guarantor')
+            {{ __('borrower.guarantor.pending_requests_hint') }}
+        @else
+            {{ __('borrower.loans_page.subtitle') }}
+        @endif
+    </p>
 
     @if (session('status'))
         <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
@@ -16,6 +24,7 @@
             'viewMode' => $viewMode ?? 'cards',
             'inline' => true,
             'showGuarantorTab' => $showGuarantorTab ?? false,
+            'showGuaranteedTab' => $showGuaranteedTab ?? false,
         ])
         <a href="{{ route('site.borrower.apply') }}"
            class="inline-flex justify-center items-center bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-2.5 rounded-full text-sm shrink-0 self-start sm:self-auto">
@@ -30,6 +39,10 @@
             'pendingGuarantorRequests' => $pendingGuarantorRequests ?? collect(),
             'customer' => $customer,
             'guarantorExposure' => $guarantorExposure ?? null,
+        ])
+    @elseif (($activeTab ?? 'applications') === 'guaranteed')
+        @include('site.borrower.loans._tab-guaranteed', [
+            'guaranteedLinks' => $guaranteedLinks ?? collect(),
         ])
     @else
         @include('site.borrower.loans._tab-applications', [
