@@ -11,6 +11,19 @@
             </p>
         </div>
 
+        @if (session('error'))
+            <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ session('error') }}</div>
+        @endif
+        @if (session('status'))
+            <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
+        @endif
+        @if ($errors->any())
+            <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">
+                <p class="font-semibold mb-1">{{ __('borrower.apply.errors_fix') }}</p>
+                <ul class="list-disc ml-5 space-y-1">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
+            </div>
+        @endif
+
         @if (! ($applyRequirements['can_apply'] ?? false))
             <div class="mb-6 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 text-sm text-amber-900">
                 <p class="font-semibold">{{ __('borrower.apply.kyc_incomplete_title') }}</p>
@@ -219,8 +232,15 @@
                       action="{{ route('site.borrower.apply.submit') }}"
                       enctype="multipart/form-data"
                       novalidate
-                      @submit="onSubmit($event)">
+                      @submit.prevent="onSubmit($event)"
+                      @sync-before-submit.window="if ($event.target === $el) syncSubmitPayload($el)">
                     @csrf
+                    {{-- Authoritative POST fields — synced from Alpine before submit --}}
+                    <input type="hidden" name="loan_product_id" data-submit-product>
+                    <input type="hidden" name="requested_amount" data-submit-amount>
+                    <input type="hidden" name="requested_tenure_months" data-submit-tenure>
+                    <input type="hidden" name="purpose" data-submit-purpose>
+                    <input type="hidden" name="guarantor_mode" data-submit-guarantor-mode>
                     @if ($reservation ?? null)
                         <input type="hidden" name="asset_reservation_id" value="{{ $reservation->id }}">
                     @endif
@@ -279,8 +299,6 @@
 
             <div class="bg-white rounded-2xl border border-gray-200 shadow-sm">
 
-                    <input type="hidden" name="loan_product_id" :value="form.loan_product_id">
-
                 {{-- Quote --}}
                 <div x-show="stepKey === 'quote'" class="p-6 sm:p-8">
                     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.quote.title') }}</h2>
@@ -290,10 +308,8 @@
                             <div class="bg-gray-50 rounded-xl p-5">
                                 <div class="flex justify-between text-sm mb-2"><span class="text-gray-600">{{ __('borrower.apply.quote.loan_amount') }}</span><span class="font-bold" x-text="formatTzs(form.requested_amount)"></span></div>
                                 <input type="range" :min="current.min" :max="current.max" step="50000" x-model.number="form.requested_amount" @input="updateQuote()" class="w-full accent-amber-500">
-                                <input type="hidden" name="requested_amount" :value="form.requested_amount">
                                 <div class="flex justify-between text-sm mb-2 mt-4"><span class="text-gray-600">{{ __('borrower.apply.quote.tenure') }}</span><span class="font-bold"><span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.quote.months') }}</span></div>
                                 <input type="range" :min="current.tmin" :max="current.tmax" step="1" x-model.number="form.requested_tenure_months" @input="updateQuote()" class="w-full accent-amber-500">
-                                <input type="hidden" name="requested_tenure_months" :value="form.requested_tenure_months">
                                 <div class="flex justify-between text-sm mt-4"><span class="text-gray-600">{{ __('borrower.apply.quote.repayment_frequency') }}</span><span class="font-medium capitalize" x-text="current.frequency || 'monthly'"></span></div>
                             </div>
                             <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -304,7 +320,7 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.quote.purpose') }}</label>
-                                <select name="purpose" x-model="form.purpose" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                <select x-model="form.purpose" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                                     <option value="">{{ __('borrower.apply.quote.select_purpose') }}</option>
                                     @foreach ($loanPurposes as $key => $label)
                                         <option value="{{ $key }}">{{ $label }}</option>
@@ -332,8 +348,6 @@
                             <div>
                                 <div class="flex justify-between text-sm mb-2"><span class="text-gray-600">{{ __('borrower.apply.quote.tenure') }}</span><span class="font-bold"><span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.quote.months') }}</span></div>
                                 <input type="range" min="1" :max="assetApplication.max_tenure_months" step="1" x-model.number="form.requested_tenure_months" class="w-full accent-amber-500">
-                                <input type="hidden" name="requested_tenure_months" :value="form.requested_tenure_months">
-                                <input type="hidden" name="requested_amount" :value="assetApplication.remaining_loan">
                                 <p class="text-xs text-gray-500 mt-2">{{ __('borrower.apply.asset_tenure.max_hint', ['months' => '']) }} <span x-text="assetApplication.max_tenure_months"></span> {{ __('borrower.apply.quote.months') }}</p>
                             </div>
                         </div>
@@ -703,7 +717,8 @@
                     <x-site.signature-pad
                         :default-name="$verifiedLegalName"
                         :readonly-name="true"
-                        :verified="$identityVerified" />
+                        :verified="$identityVerified"
+                        :include-in-form="false" />
                 </div>
 
                 {{-- Submit --}}
@@ -714,12 +729,17 @@
                         <p class="text-sm font-semibold text-emerald-900">{{ __('borrower.apply.submit_step.signed_title') }}</p>
                         <p class="text-sm text-emerald-800 mt-1">{{ __('borrower.apply.submit_step.signed_hint') }}</p>
                     </div>
+                    <div x-show="borrowerSignature?.signature_data" x-cloak class="mb-5 rounded-xl ring-1 ring-gray-200 bg-white p-4">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold mb-2">{{ __('borrower.apply.signature_draw_label') }}</p>
+                        <p class="text-sm font-semibold text-gray-900 mb-2" x-text="borrowerSignature?.signer_name || verifiedLegalName"></p>
+                        <img :src="borrowerSignature?.signature_data" alt="" class="max-h-28 border border-gray-200 rounded-lg bg-white">
+                    </div>
                     <p x-show="draftReference" class="text-sm text-gray-600 mb-5">
                         {{ __('borrower.apply.submit_step.reference') }}:
                         <span class="font-mono font-semibold text-gray-900" x-text="draftReference"></span>
                     </p>
-                    <input type="hidden" name="signer_name" :value="borrowerSignature?.signer_name || verifiedLegalName">
-                    <input type="hidden" name="signature_data" :value="borrowerSignature?.signature_data || ''">
+                    <input type="hidden" name="signature_data" data-submit-signature>
+                    <input type="hidden" name="signer_name" data-submit-signer>
                     <input type="hidden" name="consent" value="1">
                 </div>
 
@@ -731,7 +751,9 @@
                             <span x-text="(guarantorInvitePreparing && stepKey === 'guarantor') ? @js(__('borrower.apply.application_fee.processing')) : @js(__('borrower.apply.continue'))"></span>
                         </button>
                         <button type="button" @click.prevent="signApplication()" :disabled="advancing || !declarationAccepted" x-show="stepKey === 'signature'" class="bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.sign_application') }}</button>
-                        <button type="submit" x-show="stepKey === 'submit'" class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.submit') }}</button>
+                        <button type="button" @click="submitApplication()" :disabled="submitting || advancing" x-show="stepKey === 'submit'" class="bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
+                            <span x-text="submitting ? @js(__('borrower.apply.submitting')) : @js(__('borrower.apply.submit'))"></span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -819,6 +841,7 @@
                 externalGuarantor: config.savedDraft?.external_guarantor || null,
                 guarantorInvitePreparing: false,
                 advancing: false,
+                submitting: false,
                 resumeLoading: false,
                 isResume: !! config.isResume,
                 guarantorErrors: {},
@@ -914,6 +937,12 @@
                         if (key === 'guarantor' && this.externalGuarantor?.invitation_id) {
                             this.refreshExternalGuarantorStatus();
                         }
+                        if (key === 'signature') {
+                            this.$nextTick(() => this.restoreSignaturePad());
+                        }
+                        if (key === 'submit') {
+                            this.$nextTick(() => this.syncSubmitPayload(this.formRoot()));
+                        }
                     });
                     this.$watch('steps', () => this.syncStepKey());
                     this.$watch('form.guarantor_mode', (mode) => {
@@ -960,6 +989,7 @@
                             const fd = new FormData(form);
                             for (const [key, value] of fd.entries()) {
                                 if (value instanceof File) continue;
+                                if (key === 'signature_data' || key === 'signer_name') continue;
                                 inputs[key] = value;
                             }
                         }
@@ -1265,6 +1295,12 @@
                         this.enforceStepRequirements(this.isResume);
                         if (this.stepKey === 'review' || this.stepKey === 'signature' || this.stepKey === 'submit') {
                             this.refreshReview(this.formRoot());
+                        }
+                        if (this.stepKey === 'signature') {
+                            this.$nextTick(() => this.restoreSignaturePad());
+                        }
+                        if (this.stepKey === 'submit') {
+                            this.$nextTick(() => this.syncSubmitPayload(this.formRoot()));
                         }
                         return true;
                     }).finally(() => {
@@ -1869,8 +1905,8 @@
                         return;
                     }
                     const form = this.formRoot();
-                    const sig = form?.querySelector('[data-signature-step] [name="signature_data"]');
-                    if (! sig?.value) {
+                    const sigData = this.readSignatureFromPad(form);
+                    if (! sigData) {
                         alert(this.i18n.alerts.drawSignature);
                         return;
                     }
@@ -1878,16 +1914,21 @@
                     try {
                         this.borrowerSignature = {
                             signer_name: this.verifiedLegalName,
-                            signature_data: sig.value,
+                            signature_data: sigData,
                             consent_accepted: true,
                             signed_at: new Date().toISOString(),
                         };
                         this.declarationAccepted = true;
                         await this.persistDraft(true);
-                        if (this.step < this.steps.length - 1) {
+                        const submitIndex = this.steps.findIndex(s => s.key === 'submit');
+                        if (submitIndex >= 0) {
+                            this.step = submitIndex;
+                        } else if (this.step < this.steps.length - 1) {
                             this.step++;
-                            this.syncStepKey();
                         }
+                        this.syncStepKey();
+                        await this.persistDraft(true);
+                        this.$nextTick(() => this.syncSubmitPayload(form));
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                     } finally {
                         this.advancing = false;
@@ -2144,6 +2185,9 @@
                     if (this.step > 0) {
                         this.step--;
                         this.syncStepKey();
+                        if (this.stepKey === 'signature') {
+                            this.$nextTick(() => this.restoreSignaturePad());
+                        }
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                     }
                 },
@@ -2152,16 +2196,74 @@
                     if (i <= this.step) {
                         this.step = i;
                         this.syncStepKey();
+                        if (this.stepKey === 'signature') {
+                            this.$nextTick(() => this.restoreSignaturePad());
+                        }
+                        if (this.stepKey === 'submit') {
+                            this.$nextTick(() => this.syncSubmitPayload(this.formRoot()));
+                        }
                     }
                 },
 
+                restoreSignaturePad() {
+                    const sig = this.borrowerSignature?.signature_data;
+                    if (! sig) return;
+                    const form = this.formRoot();
+                    const pad = form?.querySelector('[data-signature-pad]');
+                    const alpineData = pad?._x_dataStack?.[0];
+                    alpineData?.loadFromDataUrl?.(sig);
+                },
+
+                readSignatureFromPad(form) {
+                    const pad = form?.querySelector('[data-signature-pad]');
+                    const alpineData = pad?._x_dataStack?.[0];
+                    if (alpineData?.dataUrl) {
+                        return alpineData.dataUrl;
+                    }
+                    return form?.querySelector('[data-submit-signature]')?.value || '';
+                },
+
+                syncSubmitPayload(form) {
+                    if (! form) return;
+                    const set = (selector, value) => {
+                        const el = form.querySelector(selector);
+                        if (el != null && value !== undefined && value !== null && value !== '') {
+                            el.value = String(value);
+                        }
+                    };
+                    const sigData = this.borrowerSignature?.signature_data || this.readSignatureFromPad(form) || '';
+                    const signerName = (this.borrowerSignature?.signer_name || this.verifiedLegalName || '').trim();
+                    set('[data-submit-signature]', sigData);
+                    set('[data-submit-signer]', signerName);
+                    set('[data-submit-product]', this.form.loan_product_id);
+                    set('[data-submit-amount]', this.form.requested_amount);
+                    set('[data-submit-tenure]', this.form.requested_tenure_months);
+                    set('[data-submit-purpose]', this.form.purpose);
+                    set('[data-submit-guarantor-mode]', this.form.guarantor_mode);
+                    [
+                        'external_first_name', 'external_middle_name', 'external_last_name',
+                        'external_phone', 'external_email', 'external_relationship',
+                        'external_region', 'external_district', 'external_invitation_id',
+                        'internal_member_no', 'internal_guarantor_phone', 'internal_guarantor_name',
+                    ].forEach((key) => {
+                        if (this.form[key] != null && this.form[key] !== '') {
+                            set(`[name="${key}"]`, this.form[key]);
+                        }
+                    });
+                },
+
+                submitApplication() {
+                    const form = this.formRoot();
+                    if (! form) return;
+                    this.onSubmit({ target: form, preventDefault() {} });
+                },
+
                 onSubmit(e) {
+                    e.preventDefault();
                     if (this.stepKey !== 'submit') {
-                        e.preventDefault();
                         return;
                     }
                     if (! this.canApply) {
-                        e.preventDefault();
                         const url = @js($applyRequirements['first_action_url'] ?? null);
                         if (url && confirm(@js(__('borrower.apply.kyc_incomplete_submit')))) {
                             window.location.href = url;
@@ -2170,24 +2272,24 @@
                         }
                         return;
                     }
-                    const sigData = this.borrowerSignature?.signature_data || e.target.elements['signature_data']?.value;
-                    const signerName = this.borrowerSignature?.signer_name || e.target.elements['signer_name']?.value;
-                    if (! signerName?.trim()) {
-                        e.preventDefault();
+                    const sigData = this.borrowerSignature?.signature_data || this.readSignatureFromPad(e.target);
+                    const signerName = (this.borrowerSignature?.signer_name || this.verifiedLegalName || e.target.elements['signer_name']?.value || '').trim();
+                    if (! signerName) {
                         alert(this.i18n.alerts.drawSignature);
                         return;
                     }
                     if (! sigData) {
-                        e.preventDefault();
                         alert(this.i18n.alerts.drawSignature);
                         return;
                     }
-                    e.preventDefault();
+                    this.syncSubmitPayload(e.target);
+                    this.submitting = true;
                     window.confirmForm(e.target, {
                         title: this.i18n.alerts.submitTitle,
                         message: this.i18n.alerts.submitMessage,
                         confirmLabel: @js(__('borrower.apply.submit')),
                         confirmClass: 'bg-gray-900 hover:bg-gray-800 text-white',
+                        onCancel: () => { this.submitting = false; },
                     });
                 },
 

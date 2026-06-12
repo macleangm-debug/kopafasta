@@ -37,4 +37,36 @@ class GuarantorSignatureService
             ->where('signer_type', 'guarantor')
             ->exists();
     }
+
+    public function recordForInvitation(
+        GuarantorInvitation $invitation,
+        string $signerName,
+        string $signatureData,
+    ): GuarantorInvitation {
+        $invitation->update([
+            'guarantor_signer_name'    => $signerName,
+            'guarantor_signature_data' => $signatureData,
+            'guarantor_signed_at'      => now(),
+        ]);
+
+        return $invitation->fresh();
+    }
+
+    public function attachToApplication(
+        GuarantorInvitation $invitation,
+        LoanApplication $application,
+        ?CustomerGuarantor $link = null,
+    ): ?ApplicationSignature {
+        if (! filled($invitation->guarantor_signature_data)) {
+            return null;
+        }
+
+        return $this->record(
+            $application,
+            trim($invitation->guarantor_signer_name ?? ''),
+            $invitation->guarantor_signature_data,
+            $link ?? $invitation->customerGuarantor,
+            $invitation,
+        );
+    }
 }

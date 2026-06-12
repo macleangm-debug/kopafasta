@@ -62,6 +62,19 @@ class LoanApplicationDraftService
             ->reject(fn (array $step) => $step['key'] === 'product')
             ->values();
 
+        $hasSignature = filled($payload['borrower_signature']['signature_data'] ?? null);
+        if ($hasSignature) {
+            $submitIndex = $wizardSteps->search(fn (array $step) => $step['key'] === 'submit');
+            if ($submitIndex !== false) {
+                return [
+                    'phase'    => 'application',
+                    'step_key' => 'submit',
+                    'step'     => (int) $submitIndex,
+                    'reason'   => null,
+                ];
+            }
+        }
+
         $resumeIndex = $this->resolveWizardStepIndex($wizardSteps, $stepKey, $step);
         $resumeStep = $wizardSteps[$resumeIndex] ?? null;
 

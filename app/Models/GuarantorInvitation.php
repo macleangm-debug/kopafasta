@@ -26,13 +26,17 @@ class GuarantorInvitation extends Model
         'expires_at',
         'responded_at',
         'response_notes',
+        'guarantor_signer_name',
+        'guarantor_signature_data',
+        'guarantor_signed_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'expires_at'    => 'datetime',
-            'responded_at'  => 'datetime',
+            'expires_at'         => 'datetime',
+            'responded_at'       => 'datetime',
+            'guarantor_signed_at'=> 'datetime',
         ];
     }
 

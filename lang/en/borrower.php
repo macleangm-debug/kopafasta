@@ -48,6 +48,7 @@ return [
         'back_dashboard' => '← Back to dashboard',
         'cancel' => 'Cancel',
         'submit' => 'Submit application',
+        'submitting' => 'Submitting…',
         'sign_application' => 'Sign application',
         'review' => 'Review',
         'sign' => 'Sign',

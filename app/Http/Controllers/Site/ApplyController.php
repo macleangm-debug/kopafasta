@@ -34,6 +34,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ApplyController extends Controller
@@ -607,10 +608,10 @@ class ApplyController extends Controller
             }
         }
 
-        if ($customer && ! $faces->canApply($customer)) {
+        if ($customer && ! $faces->profileStepComplete($customer)) {
             return redirect()
                 ->route('site.borrower.face-verification')
-                ->with('error', 'Face verification must be approved before you can submit an application.');
+                ->with('error', 'Face verification photos must be submitted before you can submit an application.');
         }
 
         if ($customer && ! $freshness->canApply($customer)) {
@@ -621,15 +622,37 @@ class ApplyController extends Controller
 
         $loanProduct = LoanProduct::where('id', $request->input('loan_product_id'))
             ->where('is_active', true)
-            ->firstOrFail();
+            ->first();
+
+        $draft = $drafts->find($customer, (int) $request->input('loan_product_id'));
+        if (! $draft && $customer) {
+            $draft = $drafts->find($customer);
+        }
+
+        if (! $loanProduct && $draft?->loan_product_id) {
+            $loanProduct = LoanProduct::where('id', $draft->loan_product_id)
+                ->where('is_active', true)
+                ->first();
+        }
+
+        abort_unless($loanProduct, 404);
+
+        $this->mergeDraftIntoSubmitRequest($request, $draft);
+
+        if ($existing = $this->findExistingSubmittedApplication($customer, $loanProduct, $draft)) {
+            $drafts->clear($customer, (int) $loanProduct->id);
+
+            return redirect()
+                ->route('site.borrower.apply.success', $existing)
+                ->with('status', __('borrower.apply.success.already_submitted_message'));
+        }
 
         if ($message = app(\App\Services\LoanPolicyService::class)->canSubmitApplication($customer, $loanProduct)) {
-            return back()->withInput()->with('error', $message);
+            return $this->wizardSubmitRedirect($request, $draft)->withInput()->with('error', $message);
         }
 
         $isMarketplaceProduct = is_marketplace_loan_product($loanProduct->code);
 
-        $draft = $drafts->find($customer, (int) $loanProduct->id);
         $draftPayload = $draft?->payload ?? [];
         $storedSignature = $draftPayload['borrower_signature'] ?? null;
         $declarationAccepted = (bool) ($draftPayload['declaration_accepted'] ?? false);
@@ -648,14 +671,15 @@ class ApplyController extends Controller
         $requirements->mergeSubmitProfileFromCustomer($request, $customer);
 
         if (! $requirements->hasCompleteResidence($customer)) {
-            return back()
+            return $this->wizardSubmitRedirect($request, $draft)
                 ->withInput()
                 ->withErrors([
                     'region' => __('borrower.apply.errors_residence_incomplete'),
                 ]);
         }
 
-        $data = $request->validate([
+        try {
+            $data = $request->validate([
             'loan_product_id'         => ['required', 'exists:loan_products,id'],
             'requested_amount'        => ['required', 'numeric', 'min:1000'],
             'requested_tenure_months' => ['required', 'integer', 'min:1', 'max:60'],
@@ -699,7 +723,12 @@ class ApplyController extends Controller
             'income_document'         => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'income_document_type'    => ['nullable', 'in:bank,mobile_money'],
             'asset_reservation_id'    => ['nullable', 'integer', 'exists:asset_reservations,id'],
-        ]);
+            ]);
+        } catch (ValidationException $e) {
+            return $this->wizardSubmitRedirect($request, $draft)
+                ->withInput()
+                ->withErrors($e->errors());
+        }
 
         if ($isMarketplaceProduct && blank($data['purpose'] ?? null)) {
             $data['purpose'] = 'asset_financing';
@@ -709,11 +738,11 @@ class ApplyController extends Controller
         $tenure = (int) $data['requested_tenure_months'];
 
         if ($amount < $loanProduct->min_amount || $amount > $loanProduct->max_amount) {
-            return back()->withInput()->withErrors(['requested_amount' => 'Requested amount must be between '.format_number($loanProduct->min_amount).' and '.format_number($loanProduct->max_amount).'.']);
+            return $this->wizardSubmitRedirect($request, $draft)->withInput()->withErrors(['requested_amount' => 'Requested amount must be between '.format_number($loanProduct->min_amount).' and '.format_number($loanProduct->max_amount).'.']);
         }
 
         if ($tenure < $loanProduct->tenure_min_months || $tenure > $loanProduct->tenure_max_months) {
-            return back()->withInput()->withErrors(['requested_tenure_months' => 'Tenure must be between '.$loanProduct->tenure_min_months.' and '.$loanProduct->tenure_max_months.' months.']);
+            return $this->wizardSubmitRedirect($request, $draft)->withInput()->withErrors(['requested_tenure_months' => 'Tenure must be between '.$loanProduct->tenure_min_months.' and '.$loanProduct->tenure_max_months.' months.']);
         }
 
         $submittingBorrower = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
@@ -721,7 +750,7 @@ class ApplyController extends Controller
         $guarantorRequired = $policy->requiresGuarantorForApplication($loanProduct, $amount);
 
         if ($guarantorRequired && ! $submittingBorrower) {
-            return back()->withInput()->withErrors(['guarantor_mode' => __('borrower.apply.alerts.guarantor_lookup_failed')]);
+            return $this->wizardSubmitRedirect($request, $draft)->withInput()->withErrors(['guarantor_mode' => __('borrower.apply.alerts.guarantor_lookup_failed')]);
         }
 
         if ($guarantorRequired) {
@@ -818,7 +847,7 @@ class ApplyController extends Controller
         $feeService = app(ApplicationFeePaymentService::class);
 
         if (! $feeService->isFeeSatisfied($feeState, $appFee)) {
-            return back()->withInput()->withErrors([
+            return $this->wizardSubmitRedirect($request, $draft)->withInput()->withErrors([
                 'application_fee' => __('borrower.apply.application_fee.required_before_submit'),
             ]);
         }
@@ -1029,5 +1058,97 @@ class ApplyController extends Controller
 
         return app(\App\Services\PaymentAccountService::class)
             ->bankAccountsForDisplay('application_fee', $ref, $product);
+    }
+
+    private function mergeDraftIntoSubmitRequest(Request $request, ?\App\Models\LoanApplicationDraft $draft): void
+    {
+        if (! $draft) {
+            return;
+        }
+
+        $payload = $draft->payload ?? [];
+        $form = $payload['form'] ?? [];
+
+        if (! $request->filled('loan_product_id') && $draft->loan_product_id) {
+            $request->merge(['loan_product_id' => $draft->loan_product_id]);
+        }
+
+        foreach ([
+            'requested_amount',
+            'requested_tenure_months',
+            'purpose',
+            'guarantor_mode',
+            'internal_member_no',
+            'internal_guarantor_phone',
+            'internal_guarantor_name',
+            'external_first_name',
+            'external_middle_name',
+            'external_last_name',
+            'external_phone',
+            'external_email',
+            'external_relationship',
+            'external_region',
+            'external_district',
+            'external_invitation_id',
+        ] as $field) {
+            if (! $request->filled($field) && filled($form[$field] ?? null)) {
+                $request->merge([$field => $form[$field]]);
+            }
+        }
+
+        $externalDraft = $payload['external_guarantor'] ?? [];
+        if (! $request->filled('external_invitation_id') && filled($externalDraft['invitation_id'] ?? null)) {
+            $request->merge(['external_invitation_id' => $externalDraft['invitation_id']]);
+        }
+
+        $storedSignature = $payload['borrower_signature'] ?? null;
+        if ($storedSignature && ! $request->filled('signature_data')) {
+            $request->merge([
+                'signer_name'    => $storedSignature['signer_name'] ?? '',
+                'signature_data' => $storedSignature['signature_data'] ?? '',
+            ]);
+        }
+
+        if (! $request->boolean('consent') && ($payload['declaration_accepted'] ?? false)) {
+            $request->merge(['consent' => '1']);
+        }
+    }
+
+    private function wizardSubmitRedirect(Request $request, ?\App\Models\LoanApplicationDraft $draft): RedirectResponse
+    {
+        $productId = (int) ($request->input('loan_product_id') ?: $draft?->loan_product_id ?: 0);
+
+        return redirect()->route('site.borrower.apply', array_filter([
+            'product'  => $productId ?: null,
+            'resume'   => 1,
+            'step_key' => 'submit',
+        ]));
+    }
+
+    private function findExistingSubmittedApplication(
+        Customer $customer,
+        LoanProduct $loanProduct,
+        ?\App\Models\LoanApplicationDraft $draft,
+    ): ?LoanApplication {
+        $draftReference = $draft?->draft_reference;
+
+        if ($draftReference) {
+            $byReference = LoanApplication::query()
+                ->where('customer_id', $customer->id)
+                ->where('application_number', $draftReference)
+                ->first();
+
+            if ($byReference) {
+                return $byReference;
+            }
+        }
+
+        return LoanApplication::query()
+            ->where('customer_id', $customer->id)
+            ->where('loan_product_id', $loanProduct->id)
+            ->whereNotIn('status', ['rejected', 'withdrawn', 'disbursed'])
+            ->whereNotNull('submitted_at')
+            ->latest('submitted_at')
+            ->first();
     }
 }

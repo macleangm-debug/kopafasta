@@ -611,7 +611,10 @@ class GuarantorInvitationService
             'requested_tenure_months' => $invitation->requested_tenure_months ?: (int) $application->requested_tenure_months,
         ]);
 
-        return $invitation->fresh();
+        $invitation = $invitation->fresh();
+        app(GuarantorSignatureService::class)->attachToApplication($invitation, $application, $link);
+
+        return $invitation;
     }
 
     protected function sharePhoneDigits(?string $contact): string
@@ -823,10 +826,10 @@ class GuarantorInvitationService
 
             GuarantorInvitation::query()
                 ->where('customer_guarantor_id', $link->id)
-                ->where('status', 'pending')
+                ->whereIn('status', ['pending', 'accepted'])
                 ->update([
-                    'status'        => 'accepted',
-                    'responded_at'  => now(),
+                    'status'       => 'accepted',
+                    'responded_at' => now(),
                 ]);
 
             $application = $link->application;

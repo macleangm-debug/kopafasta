@@ -1482,18 +1482,25 @@ class BorrowerController extends Controller
                     ]));
             }
 
-            $application = $customerGuarantor->application;
-            abort_unless($application, 422);
+            $application = $customerGuarantor->application ?? $invitation->application;
 
             $signerName = trim($data['signer_name'] ?? '') ?: trim($customer->first_name.' '.$customer->last_name);
 
-            $signatures->record(
-                $application,
-                $signerName,
-                $data['signature_data'],
-                $customerGuarantor,
-                $invitation,
-            );
+            if ($application) {
+                $signatures->record(
+                    $application,
+                    $signerName,
+                    $data['signature_data'],
+                    $customerGuarantor,
+                    $invitation,
+                );
+            } else {
+                $signatures->recordForInvitation(
+                    $invitation,
+                    $signerName,
+                    $data['signature_data'],
+                );
+            }
             $guarantors->approve($customerGuarantor);
             $msg = __('borrower.guarantor.approved_success');
         } else {
@@ -1515,7 +1522,7 @@ class BorrowerController extends Controller
         $customer = $this->customer();
 
         $invitation = \App\Models\GuarantorInvitation::query()
-            ->with(['borrower', 'application.product'])
+            ->with(['borrower', 'application.product', 'product'])
             ->where('customer_guarantor_id', $customerGuarantor->id)
             ->where('guarantor_customer_id', $customer->id)
             ->first();

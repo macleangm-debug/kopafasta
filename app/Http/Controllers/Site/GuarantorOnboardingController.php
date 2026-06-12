@@ -49,17 +49,24 @@ class GuarantorOnboardingController extends Controller
             'consent'        => ['accepted'],
         ]);
 
-        $application = $invitation->application;
-        abort_unless($application, 422);
+        $application = $invitation->application ?? $invitation->customerGuarantor?->application;
 
         try {
-            $signatures->record(
-                $application,
-                $data['signer_name'],
-                $data['signature_data'],
-                $invitation->customerGuarantor,
-                $invitation,
-            );
+            if ($application) {
+                $signatures->record(
+                    $application,
+                    $data['signer_name'],
+                    $data['signature_data'],
+                    $invitation->customerGuarantor,
+                    $invitation,
+                );
+            } else {
+                $signatures->recordForInvitation(
+                    $invitation,
+                    $data['signer_name'],
+                    $data['signature_data'],
+                );
+            }
             $onboarding->finalize($invitation, $customer, $request);
         } catch (\InvalidArgumentException $e) {
             return redirect()->route('site.borrower.dashboard')->with('error', $e->getMessage());

@@ -43,15 +43,17 @@
                 @if ($invitation->application)
                     <div>
                         <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.loans_page.reference') }}</dt>
-                        <dd class="font-medium text-gray-900 mt-0.5">{{ $invitation->application->application_number ?? $invitation->application->draft_reference ?? '—' }}</dd>
+                        <dd class="font-medium text-gray-900 mt-0.5">{{ $invitation->application->application_number ?? '—' }}</dd>
                     </div>
+                @endif
+                @if ($invitation->application || $invitation->product || $invitation->requested_amount)
                     <div>
                         <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.guarantor_invite.product_label') }}</dt>
-                        <dd class="text-gray-700 mt-0.5">{{ $invitation->application->product->name ?? __('borrower.guarantor.loan') }}</dd>
+                        <dd class="text-gray-700 mt-0.5">{{ $invitation->application?->product?->name ?? $invitation->product?->name ?? __('borrower.guarantor.loan') }}</dd>
                     </div>
                     <div>
                         <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.guarantor_invite.amount_label') }}</dt>
-                        <dd class="font-semibold text-gray-900 mt-0.5">{{ format_money((float) $invitation->application->requested_amount) }}</dd>
+                        <dd class="font-semibold text-gray-900 mt-0.5">{{ format_money((float) ($invitation->application?->requested_amount ?? $invitation->requested_amount ?? 0)) }}</dd>
                     </div>
                 @endif
             </dl>
@@ -71,8 +73,11 @@
             @if ($profileStatus['met'] ?? false)
                 <form method="POST" action="{{ route('site.borrower.guarantor-requests.respond', $customerGuarantor) }}" class="space-y-4"
                       @submit.prevent="
-                        const sig = $el.elements['signature_data'];
-                        if (! sig?.value) { alert(@js(__('borrower.guarantor.draw_signature'))); return; }
+                        const pad = $el.querySelector('[data-signature-pad]');
+                        const dataUrl = pad?._x_dataStack?.[0]?.dataUrl || '';
+                        const sig = $el.querySelector('[name=signature_data]');
+                        if (dataUrl && sig) sig.value = dataUrl;
+                        if (! (dataUrl || sig?.value)) { alert(@js(__('borrower.guarantor.draw_signature'))); return; }
                         window.confirmForm($el, { title: @js(__('borrower.guarantor.approve_title')), message: @js(__('borrower.guarantor.approve_message')), confirmLabel: @js(__('borrower.guarantor.approve_sign')), confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white' });
                       ">
                     @csrf

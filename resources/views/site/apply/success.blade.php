@@ -6,6 +6,10 @@
         <h1 class="text-3xl font-bold tracking-tight animate-[fadeIn_0.5s_ease-out]">{{ __('borrower.apply.success.submitted_title') }}</h1>
         <p class="mt-2 text-gray-600">Reference <span class="font-mono font-bold text-gray-900">{{ $application->application_number }}</span></p>
 
+        @if (session('status'))
+            <p class="mt-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</p>
+        @endif
+
         @if ($guarantorInvitation ?? null)
             <p class="mt-3 text-sm text-amber-800">{{ __('borrower.apply.success.submitted_guarantor_pending_message') }}</p>
         @endif
