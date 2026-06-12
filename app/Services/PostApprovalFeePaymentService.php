@@ -34,13 +34,41 @@ class PostApprovalFeePaymentService
 
     public function existingPayment(LoanApplication $application): ?CustomerPayment
     {
-        return CustomerPayment::query()
+        $payment = CustomerPayment::query()
             ->where('payment_type', 'post_approval_fee')
             ->where('source_type', LoanApplication::class)
             ->where('source_id', $application->id)
             ->whereIn('status', ['pending_verification', 'paid', 'verified'])
             ->latest('id')
             ->first();
+
+        if ($payment?->isVerified()) {
+            $this->reconcileVerifiedPayment($application);
+        }
+
+        return $payment;
+    }
+
+    /** Mark fee rows paid when a verified payment exists but fees were not updated. */
+    public function reconcileVerifiedPayment(LoanApplication $application): void
+    {
+        if (app(PostApprovalFeeService::class)->allPaid($application)) {
+            app(LoanAgreementService::class)->ensureLoanContractAfterFees($application->fresh());
+
+            return;
+        }
+
+        $payment = CustomerPayment::query()
+            ->where('payment_type', 'post_approval_fee')
+            ->where('source_type', LoanApplication::class)
+            ->where('source_id', $application->id)
+            ->whereIn('status', ['paid', 'verified'])
+            ->latest('id')
+            ->first();
+
+        if ($payment) {
+            app(PostApprovalFeeService::class)->markAllPaid($application->fresh(), $payment->customer);
+        }
     }
 
     /** @return array<string, mixed> */

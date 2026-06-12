@@ -375,6 +375,7 @@ class ApiAuthAndAccessTest extends TestCase
             'max_amount' => 10000000,
             'requires_collateral' => false,
             'requires_guarantor' => false,
+            'uses_capital_partner' => false,
             'is_active' => true,
         ]);
 
@@ -387,7 +388,7 @@ class ApiAuthAndAccessTest extends TestCase
             'tenure_months' => 12,
             'approved_amount' => 500000,
             'outstanding_balance' => 500000,
-            'status' => 'approved',
+            'status' => 'pending',
         ]);
 
         $disbursement = Disbursement::create([

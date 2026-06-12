@@ -7,6 +7,7 @@
         'residence' => [__('borrower.profile.residence'), 'site.borrower.profile', ['section' => 'residence']],
         'kyc'       => [__('borrower.profile.kyc'), 'site.borrower.profile', ['section' => 'kyc']],
         'security'  => [__('borrower.profile.security'), 'site.borrower.profile', ['section' => 'security']],
+        'payment'   => [__('borrower.payment_details.tab'), 'site.borrower.profile', ['section' => 'payment']],
     ];
 @endphp
 

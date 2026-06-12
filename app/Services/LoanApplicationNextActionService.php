@@ -125,8 +125,18 @@ class LoanApplicationNextActionService
             return $this->action(
                 'view_loan',
                 __('borrower.loan_profile.next_actions.disbursed'),
-                __('borrower.loan_profile.actions.view_schedule'),
-                $loan ? route('site.borrower.schedule', $loan->id) : $profileUrl,
+                __('borrower.loan_profile.actions.view_active_loan'),
+                $loan ? route('site.borrower.loans.show', $loan->id) : $profileUrl,
+            );
+        }
+
+        $loan = \App\Models\Loan::query()->where('loan_application_id', $application->id)->first();
+        if ($loan && in_array((string) $loan->status, ['active', 'disbursed', 'arrears'], true)) {
+            return $this->action(
+                'view_loan',
+                __('borrower.loan_profile.next_actions.disbursed'),
+                __('borrower.loan_profile.actions.view_active_loan'),
+                route('site.borrower.loans.show', $loan->id),
             );
         }
 
@@ -183,6 +193,36 @@ class LoanApplicationNextActionService
                     __('borrower.loan_profile.actions.pay_post_approval_fees'),
                     route('site.borrower.application.post-approval-fees', $application->id),
                     tone: 'primary',
+                );
+            }
+
+            if ($readiness->needsDisbursementDetailsConfirmation($application)) {
+                return $this->action(
+                    'confirm_disbursement_details',
+                    __('borrower.loan_profile.next_actions.confirm_disbursement_details'),
+                    __('borrower.loan_profile.actions.confirm_disbursement_details'),
+                    route('site.borrower.application.disbursement-details', $application->id),
+                    tone: 'primary',
+                );
+            }
+
+            if ($readiness->needsContractSignature($application)) {
+                return $this->action(
+                    'sign_contract',
+                    __('borrower.loan_profile.next_actions.sign_contract'),
+                    __('borrower.loan_profile.actions.view_contract'),
+                    route('site.borrower.application.contract', $application->id),
+                    tone: 'primary',
+                );
+            }
+
+            if ($readiness->isReadyForDisbursement($application)) {
+                return $this->action(
+                    'ready_for_disbursement',
+                    __('borrower.loan_profile.next_actions.ready_for_disbursement'),
+                    __('borrower.applications_list.view'),
+                    $profileUrl,
+                    tone: 'secondary',
                 );
             }
 

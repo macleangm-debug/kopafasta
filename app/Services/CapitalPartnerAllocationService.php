@@ -26,7 +26,202 @@ class CapitalPartnerAllocationService
     public const COMPANY_INTEREST_SHARE = 40.0;
 
     /**
-     * Proportionally allocate approved principal across active capital partners.
+     * Dry-run capital availability for a loan (no writes).
+     *
+     * @return array{ok: bool, required: float, available: float, uses_capital: bool, message: ?string}
+     */
+    public function capitalReadinessForLoan(Loan $loan): array
+    {
+        $loan->loadMissing(['product']);
+
+        if (! $loan->product || ! $this->productUsesCapitalPartner($loan->product)) {
+            return [
+                'ok'            => true,
+                'required'      => 0,
+                'available'     => 0,
+                'uses_capital'  => false,
+                'message'       => null,
+            ];
+        }
+
+        $amount = (float) $loan->principal_amount;
+        if ($amount <= 0) {
+            return [
+                'ok'            => true,
+                'required'      => 0,
+                'available'     => 0,
+                'uses_capital'  => true,
+                'message'       => null,
+            ];
+        }
+
+        if ($loan->capitalAllocations()->exists()) {
+            return [
+                'ok'            => true,
+                'required'      => $amount,
+                'available'     => $amount,
+                'uses_capital'  => true,
+                'message'       => null,
+            ];
+        }
+
+        $partners = $this->availablePartners();
+        if ($partners->isEmpty()) {
+            return [
+                'ok'            => false,
+                'required'      => $amount,
+                'available'     => 0,
+                'uses_capital'  => true,
+                'message'       => 'No capital partner pool has available funds for this loan.',
+            ];
+        }
+
+        $totalAvailable = (float) $partners->sum('available');
+
+        return [
+            'ok'            => $totalAvailable >= $amount,
+            'required'      => $amount,
+            'available'     => $totalAvailable,
+            'uses_capital'  => true,
+            'message'       => $totalAvailable >= $amount
+                ? null
+                : 'Insufficient capital partner funds. Available: '.format_money($totalAvailable).', required: '.format_money($amount),
+        ];
+    }
+
+    /**
+     * Release capital reserved for a pending loan (e.g. legacy approval-time allocation or cancelled approval).
+     */
+    public function releaseAllocationForLoan(Loan $loan): void
+    {
+        if (! $loan->capitalAllocations()->exists()) {
+            return;
+        }
+
+        if ($loan->status !== 'pending') {
+            throw ValidationException::withMessages([
+                'loan' => 'Capital can only be released for pending loans. Use reverse allocation for disbursed loans.',
+            ]);
+        }
+
+        DB::transaction(function () use ($loan): void {
+            $allocations = $loan->capitalAllocations()->with(['pool', 'lender', 'investment'])->get();
+
+            foreach ($allocations as $allocation) {
+                $share = (float) $allocation->allocated_principal;
+
+                if ($allocation->pool) {
+                    $allocation->pool->amount_deployed = max(0, (float) $allocation->pool->amount_deployed - $share);
+                    $allocation->pool->save();
+                }
+
+                if ($allocation->lender) {
+                    $allocation->lender->available_balance = (float) $allocation->lender->available_balance + $share;
+                    $allocation->lender->save();
+                }
+
+                if ($allocation->investment) {
+                    $allocation->investment->update(['status' => 'cancelled']);
+                }
+
+                LenderTransaction::create([
+                    'lender_id'            => $allocation->lender_id,
+                    'funding_pool_id'      => $allocation->funding_pool_id,
+                    'lender_investment_id' => $allocation->lender_investment_id,
+                    'loan_id'              => $loan->id,
+                    'reference'            => 'TXN-'.Str::upper(Str::random(10)),
+                    'type'                 => 'return',
+                    'direction'            => 'credit',
+                    'amount'               => $share,
+                    'status'               => 'completed',
+                    'channel'              => 'system',
+                    'notes'                => 'Capital allocation released — loan '.$loan->loan_number,
+                    'processed_at'         => now(),
+                    'created_by'           => $this->actorId(),
+                ]);
+
+                $allocation->delete();
+            }
+
+            $this->audit->log(
+                $this->actor(),
+                'capital_partner.allocation_released',
+                $loan,
+                [],
+                ['loan_number' => $loan->loan_number],
+            );
+        });
+    }
+
+    /**
+     * Reverse capital exposure when a disbursed loan is cancelled or written off.
+     * Returns remaining outstanding exposure to partner pools.
+     */
+    public function reverseAllocationForLoan(Loan $loan, string $reason = 'Loan reversed'): void
+    {
+        if (! $loan->capitalAllocations()->exists()) {
+            return;
+        }
+
+        DB::transaction(function () use ($loan, $reason): void {
+            $allocations = $loan->capitalAllocations()->with(['pool', 'lender', 'investment'])->get();
+
+            foreach ($allocations as $allocation) {
+                $exposure = (float) $allocation->outstanding_exposure;
+                if ($exposure <= 0) {
+                    if ($allocation->investment) {
+                        $allocation->investment->update(['status' => 'closed']);
+                    }
+
+                    continue;
+                }
+
+                if ($allocation->pool) {
+                    $allocation->pool->amount_deployed = max(0, (float) $allocation->pool->amount_deployed - $exposure);
+                    $allocation->pool->save();
+                }
+
+                if ($allocation->lender) {
+                    $allocation->lender->available_balance = (float) $allocation->lender->available_balance + $exposure;
+                    $allocation->lender->save();
+                }
+
+                LenderTransaction::create([
+                    'lender_id'            => $allocation->lender_id,
+                    'funding_pool_id'      => $allocation->funding_pool_id,
+                    'lender_investment_id' => $allocation->lender_investment_id,
+                    'loan_id'              => $loan->id,
+                    'reference'            => 'TXN-'.Str::upper(Str::random(10)),
+                    'type'                 => 'return',
+                    'direction'            => 'credit',
+                    'amount'               => $exposure,
+                    'status'               => 'completed',
+                    'channel'              => 'system',
+                    'notes'                => $reason.' — loan '.$loan->loan_number,
+                    'processed_at'         => now(),
+                    'created_by'           => $this->actorId(),
+                ]);
+
+                $allocation->outstanding_exposure = 0;
+                $allocation->save();
+
+                if ($allocation->investment) {
+                    $allocation->investment->update(['status' => 'closed']);
+                }
+            }
+
+            $this->audit->log(
+                $this->actor(),
+                'capital_partner.allocation_reversed',
+                $loan,
+                [],
+                ['loan_number' => $loan->loan_number, 'reason' => $reason],
+            );
+        });
+    }
+
+    /**
+     * Proportionally allocate approved principal across active capital partners at disbursement.
      * Example: Partner A 50M + Partner B 100M → A funds 33.33%, B funds 66.67% of each loan.
      */
     public function allocateForLoan(Loan $loan): void

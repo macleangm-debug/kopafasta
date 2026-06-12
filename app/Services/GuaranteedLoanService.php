@@ -48,6 +48,9 @@ class GuaranteedLoanService
 
         $amount = (float) ($application?->requested_amount ?? $invitation?->requested_amount ?? 0);
         $progress = $this->repaymentProgress($loan);
+        $servicing = $loan
+            ? app(ActiveLoanServicingService::class)->forLoan($loan)
+            : null;
         $appStatus = $application
             ? $this->borrowerStatus->forApplication($application)
             : ['code' => 'pending_submission', 'label' => __('borrower.guaranteed.awaiting_submission'), 'tone' => 'amber'];
@@ -73,7 +76,10 @@ class GuaranteedLoanService
             'outstanding'         => $loan ? (float) $loan->outstanding_balance : null,
             'repaid_percent'      => $progress['percent'],
             'next_due_date'       => $loan?->next_due_date,
-            'in_arrears'          => $loan && $loan->status === 'arrears',
+            'in_arrears'          => $servicing['in_arrears'] ?? ($loan && $loan->status === 'arrears'),
+            'amount_in_arrears'   => $servicing['amount_in_arrears'] ?? 0,
+            'days_remaining'      => $servicing['days_remaining'] ?? null,
+            'servicing'           => $servicing,
             'restructure'         => $restructure,
             'top_up'              => $topUp,
             'schedule'            => $loan

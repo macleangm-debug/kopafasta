@@ -210,12 +210,48 @@ class LoanAgreementService
             'otp_code'          => null,
         ]);
 
-        $application = $agreement->loanApplication;
-        if ($application && $agreement->document_type === 'offer_letter') {
-            $this->generateLoanContract($application, regenerate: true);
+        return [true, 'Signed successfully.'];
+    }
+
+    /** Generate the loan contract once post-approval fees are settled. */
+    public function ensureLoanContractAfterFees(LoanApplication $application): ?LoanAgreement
+    {
+        $readiness = app(ApplicationDisbursementReadinessService::class);
+
+        if (! $readiness->offerSigned($application)) {
+            return null;
         }
 
-        return [true, 'Signed successfully.'];
+        if ($readiness->hasPostApprovalFees($application) && ! $readiness->feesPaid($application)) {
+            return null;
+        }
+
+        if (! $readiness->disbursementDetailsConfirmed($application)) {
+            return null;
+        }
+
+        $existing = LoanAgreement::where('loan_application_id', $application->id)
+            ->where('document_type', 'loan_contract')
+            ->first();
+
+        $contract = $this->generateLoanContract($application);
+
+        if ($contract && ! $existing) {
+            $application->loadMissing('customer');
+            if ($application->customer) {
+                app(NotificationService::class)->notifyInApp(
+                    $application->customer,
+                    __('borrower.contract.notify_message', ['reference' => $application->application_number]),
+                    'application',
+                    'contract_ready',
+                    __('borrower.contract.notify_title'),
+                    route('site.borrower.application.contract', $application->id),
+                    __('borrower.loan_profile.actions.view_contract'),
+                );
+            }
+        }
+
+        return $contract;
     }
 
     private function snapshotFromApplication(LoanApplication $a): array

@@ -22,6 +22,11 @@ class ArrearCase extends Model
         return $this->belongsTo(Loan::class);
     }
 
+    public function assignee(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
+    }
+
     public function actions(): HasMany
     {
         return $this->hasMany(CollectionAction::class);

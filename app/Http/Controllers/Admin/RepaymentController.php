@@ -41,6 +41,16 @@ class RepaymentController extends ResourceController
         ];
     }
 
+    public function create()
+    {
+        $record = null;
+        if (request()->filled('loan_id')) {
+            $record = new Repayment(['loan_id' => (int) request('loan_id')]);
+        }
+
+        return view("admin.{$this->viewFolder}.create", $this->formData($record) + compact('record'));
+    }
+
     protected function transform(array $data, ?Model $existing = null): array
     {
         if (empty($data['reference'])) {

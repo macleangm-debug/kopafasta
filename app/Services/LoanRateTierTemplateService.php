@@ -18,7 +18,7 @@ class LoanRateTierTemplateService
 
         $code = strtoupper((string) $product->code);
         $overrides = config("loan_product_rate_tiers.products.{$code}", []);
-        $tierCount = (int) ($overrides['tier_count'] ?? config('loan_product_rate_tiers.tier_count', 4));
+        $tierCount = (int) ($overrides['tier_count'] ?? app(UnderwritingSettingsService::class)->defaultRateTierCount());
         $tierCount = $this->resolveTierCount($minAmount, $maxAmount, $tierCount);
 
         $maxRate = (float) ($product->interest_rate ?? 0);
@@ -27,7 +27,7 @@ class LoanRateTierTemplateService
         }
 
         $discount = (float) ($overrides['rate_discount_fraction']
-            ?? config('loan_product_rate_tiers.rate_discount_fraction', 0.30));
+            ?? app(UnderwritingSettingsService::class)->defaultRateDiscountFraction());
         $discount = max(0, min(0.85, $discount));
 
         $bands = $this->buildAmountBands($minAmount, $maxAmount, $tierCount);

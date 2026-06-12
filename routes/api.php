@@ -53,6 +53,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('vendor-tasks/{vendorTask}/complete', [VendorTaskController::class, 'complete']);
         Route::apiResource('loans', LoanController::class);
         Route::post('loans/{loan}/disburse', [LoanController::class, 'disburse']);
+        Route::post('loans/{loan}/reverse-disbursement', [LoanController::class, 'reverseDisbursement']);
         Route::apiResource('disbursements', DisbursementController::class);
         Route::post('disbursements/{disbursement}/release', [DisbursementController::class, 'release']);
         Route::apiResource('restructures', RestructureController::class)->parameters(['restructures' => 'restructureRequest']);

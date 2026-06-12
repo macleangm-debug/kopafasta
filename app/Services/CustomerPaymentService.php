@@ -6,6 +6,7 @@ use App\Models\ChartOfAccount;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
 use App\Models\Loan;
+use App\Models\LoanApplication;
 use App\Models\LoanProduct;
 use App\Models\Repayment;
 use App\Models\Setting;
@@ -245,12 +246,13 @@ class CustomerPaymentService
             app(AssetReservationPaymentService::class)->applyVerifiedPayment($payment);
         }
 
-        if ($payment->payment_type === 'post_approval_fee' && $payment->source instanceof LoanApplication) {
-            app(PostApprovalFeeService::class)->markAllPaid($payment->source->fresh(), $payment->customer);
+        $application = $this->resolveLoanApplicationSource($payment);
+
+        if ($payment->payment_type === 'post_approval_fee' && $application) {
+            app(PostApprovalFeeService::class)->markAllPaid($application, $payment->customer);
         }
 
-        if ($payment->payment_type === 'application_fee' && $payment->source instanceof LoanApplication) {
-            $application = $payment->source->fresh();
+        if ($payment->payment_type === 'application_fee' && $application) {
             if (in_array($application->offer_status, ['asset_conversion_fee_due', 'pending_asset_conversion'], true)
                 && $application->alternative_loan_product_id) {
                 app(ApplicationOfferService::class)->completeAssetConversion($application);
@@ -258,6 +260,17 @@ class CustomerPaymentService
         }
 
         $this->postLedger($payment);
+    }
+
+    private function resolveLoanApplicationSource(CustomerPayment $payment): ?LoanApplication
+    {
+        if ($payment->source_type === LoanApplication::class && $payment->source_id) {
+            return LoanApplication::find($payment->source_id);
+        }
+
+        $source = $payment->source;
+
+        return $source instanceof LoanApplication ? $source : null;
     }
 
     private function finalizeLoanRepayment(CustomerPayment $payment): void

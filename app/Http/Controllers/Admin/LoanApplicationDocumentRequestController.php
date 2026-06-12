@@ -43,7 +43,9 @@ class LoanApplicationDocumentRequestController extends Controller
             return back()->withErrors(['label' => 'Select or enter at least one document to request.'])->withInput();
         }
 
-        $dueAt = isset($data['due_at']) ? new \DateTimeImmutable($data['due_at']) : null;
+        $dueAt = isset($data['due_at'])
+            ? new \DateTimeImmutable($data['due_at'])
+            : now()->addDays(app(\App\Services\UnderwritingSettingsService::class)->documentRequestDefaultDueDays());
 
         if (count($labels) === 1) {
             $docRequest = $service->create(

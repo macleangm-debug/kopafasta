@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AmlRuleController;
 use App\Http\Controllers\Admin\ApprovalLimitController;
+use App\Http\Controllers\Admin\ArrearCaseController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\BankAccountController;
@@ -154,6 +155,10 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/applications/{application}/agreement',                [\App\Http\Controllers\Site\LoanAgreementController::class, 'show'])      ->name('borrower.application.agreement');
             Route::post('/borrower/applications/{application}/agreement/otp',           [\App\Http\Controllers\Site\LoanAgreementController::class, 'requestOtp'])->name('borrower.application.agreement.otp');
             Route::post('/borrower/applications/{application}/agreement/sign',          [\App\Http\Controllers\Site\LoanAgreementController::class, 'sign'])      ->name('borrower.application.agreement.sign');
+            Route::get('/borrower/applications/{application}/contract',                [\App\Http\Controllers\Site\LoanAgreementController::class, 'showContract'])->name('borrower.application.contract');
+            Route::post('/borrower/applications/{application}/contract/otp',            [\App\Http\Controllers\Site\LoanAgreementController::class, 'requestContractOtp'])->name('borrower.application.contract.otp');
+            Route::post('/borrower/applications/{application}/contract/sign',           [\App\Http\Controllers\Site\LoanAgreementController::class, 'signContract'])->name('borrower.application.contract.sign');
+            Route::post('/borrower/applications/{application}/contract/decline',        [\App\Http\Controllers\Site\LoanAgreementController::class, 'declineContract'])->name('borrower.application.contract.decline');
             Route::get('/borrower/agreements/{agreement}/download',                     [\App\Http\Controllers\Site\LoanAgreementController::class, 'download']) ->name('borrower.agreement.download');
             Route::get('/borrower/loans',                          [\App\Http\Controllers\Site\BorrowerController::class, 'loans'])        ->name('borrower.loans');
             Route::get('/borrower/loans/{loan}',                   [\App\Http\Controllers\Site\BorrowerController::class, 'showLoan'])   ->name('borrower.loans.show');
@@ -183,6 +188,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/guarantor/onboarding', [\App\Http\Controllers\Site\GuarantorOnboardingController::class, 'complete'])->name('guarantor.onboarding.complete');
             Route::get('/borrower/applications/{application}/post-approval-fees', [\App\Http\Controllers\Site\BorrowerController::class, 'postApprovalFees'])->name('borrower.application.post-approval-fees');
             Route::post('/borrower/applications/{application}/post-approval-fees', [\App\Http\Controllers\Site\BorrowerController::class, 'payPostApprovalFees'])->name('borrower.application.post-approval-fees.pay');
+            Route::get('/borrower/applications/{application}/disbursement-details', [\App\Http\Controllers\Site\BorrowerController::class, 'disbursementDetails'])->name('borrower.application.disbursement-details');
+            Route::post('/borrower/applications/{application}/disbursement-details/confirm', [\App\Http\Controllers\Site\BorrowerController::class, 'confirmDisbursementDetails'])->name('borrower.application.disbursement-details.confirm');
             Route::post('/borrower/marketplace/request', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'storeRequest'])->name('borrower.marketplace.request');
             Route::get('/borrower/kyc-reconfirm',                  [\App\Http\Controllers\Site\BorrowerController::class, 'kycReconfirm'])->name('borrower.kyc-reconfirm');
             Route::put('/borrower/kyc-reconfirm',                  [\App\Http\Controllers\Site\BorrowerController::class, 'updateKycReconfirm'])->name('borrower.kyc-reconfirm.update');
@@ -196,8 +203,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::delete('/borrower/notifications/{notification}', [\App\Http\Controllers\Site\BorrowerController::class, 'clearNotification'])->name('borrower.notifications.item.clear');
             Route::post('/borrower/notifications/clear-all',       [\App\Http\Controllers\Site\BorrowerController::class, 'clearAllNotifications'])->name('borrower.notifications.clear-all');
             Route::get('/borrower/profile/wizard',              [\App\Http\Controllers\Site\BorrowerController::class, 'profileWizard'])->name('borrower.profile.wizard');
-            Route::get('/borrower/profile/{section?}',             [\App\Http\Controllers\Site\BorrowerController::class, 'profile'])->name('borrower.profile')->where('section', 'personal|activity|residence|kin|kyc|security');
-            Route::put('/borrower/profile/{section}',              [\App\Http\Controllers\Site\BorrowerController::class, 'updateProfile'])->name('borrower.profile.update')->where('section', 'personal|activity|residence|kin|kyc');
+            Route::get('/borrower/profile/{section?}',             [\App\Http\Controllers\Site\BorrowerController::class, 'profile'])->name('borrower.profile')->where('section', 'personal|activity|residence|kin|kyc|security|payment');
+            Route::put('/borrower/profile/{section}',              [\App\Http\Controllers\Site\BorrowerController::class, 'updateProfile'])->name('borrower.profile.update')->where('section', 'personal|activity|residence|kin|kyc|payment');
             Route::post('/borrower/profile/nida/verify',           [\App\Http\Controllers\Site\BorrowerController::class, 'verifyNida'])->name('borrower.profile.nida.verify');
             Route::post('/borrower/profile/nida/accept-names',    [\App\Http\Controllers\Site\BorrowerController::class, 'acceptNidaNames'])->name('borrower.profile.nida.accept-names');
             Route::post('/borrower/profile/nida/confirm',          [\App\Http\Controllers\Site\BorrowerController::class, 'confirmNidaCandidate'])->name('borrower.profile.nida.confirm');
@@ -249,6 +256,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         Route::get('/investor/pools/{pool}',                    [\App\Http\Controllers\Site\InvestorController::class, 'pool'])         ->name('investor.pool');
         Route::post('/investor/pools/{pool}/invest',            [\App\Http\Controllers\Site\InvestorController::class, 'invest'])       ->name('investor.pool.invest');
         Route::get('/investor/investments',                     [\App\Http\Controllers\Site\InvestorController::class, 'investments'])  ->name('investor.investments');
+        Route::get('/investor/funded-loans',                    [\App\Http\Controllers\Site\InvestorController::class, 'fundedLoans'])->name('investor.funded-loans');
         Route::get('/investor/investments/{investment}',        [\App\Http\Controllers\Site\InvestorController::class, 'investment'])   ->name('investor.investment');
         Route::get('/investor/returns',                         [\App\Http\Controllers\Site\InvestorController::class, 'returns'])      ->name('investor.returns');
         Route::get('/investor/analytics',                       [\App\Http\Controllers\Site\InvestorController::class, 'analytics'])    ->name('investor.analytics');
@@ -363,6 +371,12 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('loans/wizard-data/{customer}', [LoanController::class, 'wizardCustomerData'])->name('loans.wizard-data');
         $registerResource('loans',      'loan',      LoanController::class);
         Route::post('loans/{loan}/disburse', [LoanController::class, 'disburse'])->name('loans.disburse');
+        Route::post('loans/{loan}/reverse-disbursement', [LoanController::class, 'reverseDisbursement'])->name('loans.reverse-disbursement');
+        Route::post('loans/{loan}/collection-actions', [LoanController::class, 'addCollectionAction'])->name('loans.collection-actions');
+        Route::get('arrear-cases', [ArrearCaseController::class, 'index'])->name('arrear-cases.index');
+        Route::get('arrear-cases/{arrearCase}', [ArrearCaseController::class, 'show'])->name('arrear-cases.show');
+        Route::put('arrear-cases/{arrearCase}', [ArrearCaseController::class, 'update'])->name('arrear-cases.update');
+        Route::post('arrear-cases/{arrearCase}/actions', [ArrearCaseController::class, 'addAction'])->name('arrear-cases.actions');
         Route::get('loans/{loan}/write-off',  [LoanController::class, 'writeOffForm'])->name('loans.write-off-form');
         Route::post('loans/{loan}/write-off', [LoanController::class, 'writeOff'])->name('loans.write-off');
         $registerResource('repayments', 'repayment', RepaymentController::class);
@@ -522,6 +536,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/identity-verification', [SettingsController::class, 'saveIdentityVerification'])->name('settings.identity.save');
         Route::get('settings/loan-rules',       [SettingsController::class, 'loanRules'])     ->name('settings.loan-rules');
         Route::put('settings/loan-rules',       [SettingsController::class, 'saveLoanRules']) ->name('settings.loan-rules.save');
+        Route::get('settings/underwriting',    [SettingsController::class, 'underwriting'])  ->name('settings.underwriting');
+        Route::put('settings/underwriting',    [SettingsController::class, 'saveUnderwriting'])->name('settings.underwriting.save');
         Route::get('settings/credit-policy',    [SettingsController::class, 'creditPolicy'])  ->name('settings.credit-policy');
         Route::put('settings/credit-policy',    [SettingsController::class, 'saveCreditPolicy'])->name('settings.credit-policy.save');
         Route::get('settings/loan-products',    [SettingsController::class, 'loanProducts']) ->name('settings.loan-products');

@@ -13,10 +13,10 @@
     $docProgress = $requiredCount > 0 ? round(($satisfiedCount / $requiredCount) * 100) : 100;
 @endphp
 
-@if ($loan && ($application->status ?? '') === 'disbursed')
+@if ($loan && in_array((string) $loan->status, ['active', 'disbursed', 'arrears'], true))
     <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 mb-6">
         <h2 class="font-semibold text-emerald-900 mb-2">{{ __('borrower.loan_profile.disbursed_title') }}</h2>
-        <div class="grid sm:grid-cols-3 gap-4 text-sm">
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
             <div>
                 <p class="text-[10px] uppercase tracking-widest text-emerald-700">{{ __('borrower.loan_profile.loan_number') }}</p>
                 <p class="font-mono font-semibold text-emerald-900">{{ $loan->loan_number }}</p>
@@ -25,6 +25,25 @@
                 <p class="text-[10px] uppercase tracking-widest text-emerald-700">{{ __('borrower.loan_profile.outstanding') }}</p>
                 <p class="font-semibold text-emerald-900">{{ format_money($loan->outstanding_balance ?? $loan->principal_amount) }}</p>
             </div>
+            @php $repayment = $profile['repayment_summary'] ?? null; @endphp
+            @if (! empty($repayment['disbursed_at']))
+                <div>
+                    <p class="text-[10px] uppercase tracking-widest text-emerald-700">{{ __('borrower.loan_progress.disbursed_on') }}</p>
+                    <p class="font-semibold text-emerald-900">{{ optional($repayment['disbursed_at'])->format('d M Y') }}</p>
+                </div>
+            @endif
+            @if (! empty($repayment['first_repayment_at']))
+                <div>
+                    <p class="text-[10px] uppercase tracking-widest text-emerald-700">{{ __('borrower.loan_progress.first_repayment') }}</p>
+                    <p class="font-semibold text-emerald-900">{{ optional($repayment['first_repayment_at'])->format('d M Y') }}</p>
+                </div>
+            @endif
+            @if (! empty($repayment['frequency']))
+                <div>
+                    <p class="text-[10px] uppercase tracking-widest text-emerald-700">{{ __('borrower.loan_progress.repayment_frequency') }}</p>
+                    <p class="font-semibold text-emerald-900">{{ __('borrower.loan_progress.frequencies.'.$repayment['frequency']) }}</p>
+                </div>
+            @endif
             @if ($nextDue)
                 <div>
                     <p class="text-[10px] uppercase tracking-widest text-emerald-700">{{ __('borrower.loans_page.next_payment') }}</p>
@@ -32,6 +51,14 @@
                 </div>
             @endif
         </div>
+        @if ($loan)
+            <div class="mt-4">
+                <a href="{{ route('site.borrower.loans.show', $loan->id) }}"
+                   class="inline-flex items-center text-sm font-semibold text-emerald-800 hover:text-emerald-900">
+                    {{ __('borrower.loan_profile.actions.view_active_loan') }} &rarr;
+                </a>
+            </div>
+        @endif
     </div>
 @endif
 

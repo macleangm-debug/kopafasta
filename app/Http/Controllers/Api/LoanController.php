@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Loan;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
+use App\Services\LoanDisbursementOrchestrator;
 use App\Services\ReferenceNumberService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class LoanController extends Controller
 {
@@ -36,7 +38,7 @@ class LoanController extends Controller
 
         $loan = Loan::create(array_merge($data, [
             'loan_number' => app(ReferenceNumberService::class)->loanReference($product),
-            'status' => 'approved',
+            'status' => 'pending',
             'outstanding_balance' => $data['approved_amount'],
         ]));
 
@@ -84,25 +86,47 @@ class LoanController extends Controller
         return response()->json(status: 204);
     }
 
-    public function disburse(Loan $loan)
+    public function disburse(Request $request, Loan $loan, LoanDisbursementOrchestrator $orchestrator)
     {
         $this->authorize('disburse', $loan);
 
-        $loan->update([
-            'status' => 'active',
-            'disbursement_date' => now()->toDateString(),
+        $data = $request->validate([
+            'channel' => ['sometimes', 'string', 'max:60'],
         ]);
 
-        app(\App\Services\LoanDisbursementService::class)->applyFees($loan->fresh());
-
-        if ($loan->loan_application_id) {
-            LoanApplication::whereKey($loan->loan_application_id)->update([
-                'status' => 'disbursed',
-                'current_stage' => 'disbursement',
-                'disbursed_at' => now(),
-            ]);
+        try {
+            $loan = $orchestrator->disburse(
+                $loan,
+                $request->user(),
+                $data['channel'] ?? 'bank_transfer',
+            );
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Disbursement failed.',
+                'errors' => $e->errors(),
+            ], 422);
         }
 
-        return response()->json($loan->fresh()->load('fees'));
+        return response()->json($loan->load(['fees', 'disbursements', 'repaymentSchedules']));
+    }
+
+    public function reverseDisbursement(Request $request, Loan $loan, LoanDisbursementOrchestrator $orchestrator)
+    {
+        $this->authorize('reverseDisbursement', $loan);
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        try {
+            $loan = $orchestrator->reverseDisbursement($loan, $request->user(), $data['reason']);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Disbursement reversal failed.',
+                'errors' => $e->errors(),
+            ], 422);
+        }
+
+        return response()->json($loan->load(['customer', 'product', 'application', 'disbursements']));
     }
 }

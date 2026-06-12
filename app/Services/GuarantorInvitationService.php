@@ -529,7 +529,7 @@ class GuarantorInvitationService
                     'requested_amount'        => $requestedAmount,
                     'requested_tenure_months' => $requestedTenureMonths,
                     'loan_product_id'         => $loanProductId,
-                    'expires_at'              => now()->addDays(14),
+                    'expires_at'              => now()->addDays($this->invitationExpiryDays()),
                     'status'                  => 'pending',
                 ];
 
@@ -570,7 +570,7 @@ class GuarantorInvitationService
                     'token'                   => Str::random(48),
                     'short_code'              => $this->generateShortCode(),
                     'status'                  => 'pending',
-                    'expires_at'              => now()->addDays(14),
+                    'expires_at'              => now()->addDays($this->invitationExpiryDays()),
                 ]);
             }
 
@@ -700,7 +700,7 @@ class GuarantorInvitationService
                 'token'                   => Str::random(48),
                 'short_code'              => $this->generateShortCode(),
                 'status'                  => 'pending',
-                'expires_at'              => now()->addDays(14),
+                'expires_at'              => now()->addDays($this->invitationExpiryDays()),
             ]);
 
             $borrowerName = trim($borrower->first_name.' '.$borrower->last_name);
@@ -780,7 +780,7 @@ class GuarantorInvitationService
                 'token'                   => Str::random(48),
                 'short_code'              => $this->generateShortCode(),
                 'status'                  => 'pending',
-                'expires_at'              => now()->addDays(14),
+                'expires_at'              => now()->addDays($this->invitationExpiryDays()),
             ]);
 
             $this->notifyExternalInvitation($borrower, $invitation, $displayName);
@@ -934,5 +934,10 @@ class GuarantorInvitationService
         $name = preg_replace('/\s+/', ' ', $name) ?? '';
 
         return $name;
+    }
+
+    protected function invitationExpiryDays(): int
+    {
+        return app(UnderwritingSettingsService::class)->guarantorInvitationExpiryDays();
     }
 }

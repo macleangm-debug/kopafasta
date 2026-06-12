@@ -10,8 +10,9 @@
 
     <div class="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
-            <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">{{ $loan->product?->name ?? '—' }}</p>
-            <h1 class="text-2xl font-bold font-mono">{{ $loan->loan_number }}</h1>
+            <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">{{ $servicing['product_name'] ?? '—' }}</p>
+            <h1 class="text-2xl font-bold font-mono">{{ $servicing['loan_reference'] }}</h1>
+            <p class="text-xs text-gray-500 mt-1">{{ __('borrower.loans_page.active_loan') }}</p>
         </div>
         @php
             $statusBadge = match ($loan->status) {
@@ -21,41 +22,62 @@
                 default => 'bg-amber-100 text-amber-700',
             };
         @endphp
-        <span class="text-xs font-semibold rounded-full px-3 py-1.5 {{ $statusBadge }}">{{ ucfirst($loan->status) }}</span>
+        <span class="text-xs font-semibold rounded-full px-3 py-1.5 {{ $statusBadge }}">{{ $servicing['status_label'] ?? ucfirst($loan->status) }}</span>
     </div>
 
-    @if ($loan->status === 'arrears')
+    @if ($servicing['in_arrears'])
         <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">
-            {{ __('borrower.loans_page.arrears_alert') }}
+            <p class="font-semibold">{{ __('borrower.loans_page.arrears_alert') }}</p>
+            @if (($servicing['amount_in_arrears'] ?? 0) > 0)
+                <p class="mt-1">{{ __('borrower.loans_page.arrears_amount', ['amount' => format_money($servicing['amount_in_arrears']), 'count' => $servicing['overdue_installments']]) }}</p>
+            @endif
         </div>
     @endif
 
-    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
         <div class="bg-white rounded-xl border border-gray-200 p-4">
             <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.outstanding') }}</p>
-            <p class="text-lg font-bold mt-1">{{ format_money($loan->outstanding_balance) }}</p>
+            <p class="text-lg font-bold mt-1">{{ format_money($servicing['outstanding_balance']) }}</p>
         </div>
         <div class="bg-white rounded-xl border border-gray-200 p-4">
             <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.loan_amount') }}</p>
-            <p class="text-lg font-bold mt-1">{{ format_money($loan->principal_amount) }}</p>
+            <p class="text-lg font-bold mt-1">{{ format_money($servicing['principal']) }}</p>
         </div>
         <div class="bg-white rounded-xl border border-gray-200 p-4">
             <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.next_due') }}</p>
             <p class="text-lg font-bold mt-1">
-                @if ($nextInstallment)
-                    {{ $nextInstallment->due_date?->format('d M Y') }}
+                @if ($servicing['next_due_date'])
+                    {{ $servicing['next_due_date']->format('d M Y') }}
                 @else
                     —
                 @endif
             </p>
-            @if ($nextInstallment)
-                <p class="text-xs text-gray-500 mt-0.5">{{ format_money($nextInstallment->total_due) }}</p>
+            @if ($servicing['next_due_amount'])
+                <p class="text-xs text-gray-500 mt-0.5">{{ format_money($servicing['next_due_amount']) }}</p>
             @endif
         </div>
         <div class="bg-white rounded-xl border border-gray-200 p-4">
-            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.repaid_pct', ['pct' => format_number($progressPct, 0)]) }}</p>
+            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.days_remaining') }}</p>
+            <p class="text-lg font-bold mt-1 {{ ($servicing['days_remaining'] ?? 0) < 0 ? 'text-red-700' : '' }}">
+                @if ($servicing['days_remaining'] !== null)
+                    {{ $servicing['days_remaining'] < 0
+                        ? __('borrower.loans_page.days_overdue', ['days' => abs($servicing['days_remaining'])])
+                        : __('borrower.loans_page.days_left', ['days' => $servicing['days_remaining']]) }}
+                @else
+                    —
+                @endif
+            </p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-4">
+            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.maturity') }}</p>
+            <p class="text-lg font-bold mt-1">
+                {{ $servicing['maturity_date'] ? \Illuminate\Support\Carbon::parse($servicing['maturity_date'])->format('d M Y') : '—' }}
+            </p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-4">
+            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.repaid_pct', ['pct' => format_number($servicing['progress_pct'], 0)]) }}</p>
             <div class="h-2 bg-gray-100 rounded-full overflow-hidden mt-3">
-                <div class="h-full bg-emerald-500" style="width: {{ $progressPct }}%"></div>
+                <div class="h-full {{ $servicing['in_arrears'] ? 'bg-red-500' : 'bg-emerald-500' }}" style="width: {{ $servicing['progress_pct'] }}%"></div>
             </div>
         </div>
     </div>

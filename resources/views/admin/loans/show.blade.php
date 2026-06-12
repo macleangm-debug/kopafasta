@@ -17,14 +17,80 @@
                         <li>{{ $message }}</li>
                     @endforeach
                 </ul>
-                @if ($disbursementReadiness && $loan->application && $disbursementReadiness->hasPostApprovalFees($loan->application))
-                    <p class="mt-2 text-xs">
-                        Post-approval fee:
-                        <strong class="{{ $disbursementReadiness->feesPaid($loan->application) ? 'text-emerald-700' : 'text-red-700' }}">
-                            {{ $disbursementReadiness->feesPaid($loan->application) ? 'Paid' : 'Not paid' }}
-                        </strong>
+            </div>
+        @endif
+
+        @if (! empty($disbursementChecklist) && $loan->status === 'pending')
+            <div class="mb-4 rounded-lg ring-1 ring-gray-200 overflow-hidden bg-white">
+                <div class="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                    <p class="text-xs font-semibold uppercase tracking-widest text-gray-600">
+                        {{ $loan->application?->application_number ?? $loan->loan_number }} — Disbursement prerequisites
                     </p>
-                @endif
+                </div>
+                <div class="px-4 py-4 grid lg:grid-cols-2 gap-4 border-b border-gray-100">
+                    <dl class="grid sm:grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <dt class="text-xs text-gray-500">Loan reference</dt>
+                            <dd class="font-mono font-semibold text-gray-900">{{ $loan->loan_number }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs text-gray-500">Approved amount</dt>
+                            <dd class="font-semibold text-gray-900">{{ format_money((float) $loan->approved_amount) }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs text-gray-500">Post-approval fee</dt>
+                            <dd class="font-semibold {{ ($disbursementChecklist['post_approval_fee']['complete'] ?? false) ? 'text-emerald-700' : 'text-amber-700' }}">
+                                {{ ($disbursementChecklist['post_approval_fee']['complete'] ?? false) ? 'Paid' : 'Pending' }}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs text-gray-500">Contract</dt>
+                            <dd class="font-semibold {{ ($disbursementChecklist['contract']['complete'] ?? false) ? 'text-emerald-700' : 'text-amber-700' }}">
+                                {{ ($disbursementChecklist['contract']['complete'] ?? false) ? 'Accepted' : 'Pending' }}
+                            </dd>
+                        </div>
+                    </dl>
+                    @if (! empty($disbursementDestination['method'] ?? null))
+                        <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-4 text-sm">
+                            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Disbursement details</p>
+                            <dl class="space-y-2">
+                                <div class="flex justify-between gap-3">
+                                    <dt class="text-gray-500">Method</dt>
+                                    <dd class="font-semibold text-gray-900">{{ $disbursementDetailsService->methodLabel($disbursementDestination['method'] ?? null) }}</dd>
+                                </div>
+                                @foreach ($disbursementDetailsService->displayLines($disbursementDestination) as $label => $value)
+                                    <div class="flex justify-between gap-3">
+                                        <dt class="text-gray-500">{{ $label }}</dt>
+                                        <dd class="font-semibold text-gray-900 text-right">{{ $value }}</dd>
+                                    </div>
+                                @endforeach
+                            </dl>
+                        </div>
+                    @endif
+                </div>
+                <ul class="divide-y divide-gray-100">
+                    @foreach ($disbursementChecklist as $item)
+                        @php
+                            $statusText = match ($item['status']) {
+                                'paid' => '✓ Paid',
+                                'accepted' => '✓ Accepted',
+                                'complete' => '✓ Complete',
+                                'not_required' => '✓ N/A',
+                                'available' => '✓ Available',
+                                'insufficient' => 'Insufficient',
+                                'pending' => 'Pending',
+                                'locked' => 'Locked',
+                                'not_generated' => 'Not generated',
+                                default => ucfirst($item['status']),
+                            };
+                            $tone = ($item['complete'] ?? false) ? 'text-emerald-700' : (($item['status'] ?? '') === 'locked' ? 'text-gray-500' : 'text-amber-700');
+                        @endphp
+                        <li class="px-4 py-3 flex items-center justify-between text-sm">
+                            <span class="font-medium text-gray-900">{{ $item['label'] }}</span>
+                            <span class="font-semibold {{ $tone }}">{{ $statusText }}</span>
+                        </li>
+                    @endforeach
+                </ul>
             </div>
         @endif
 
@@ -47,13 +113,41 @@
                             <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
                             </svg>
-                            Disburse
+                            Disburse Loan
                         </button>
                     </form>
                 @else
                     <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-500 bg-gray-100 px-4 py-2 rounded-lg cursor-not-allowed"
                           title="{{ implode(' ', $disbursementBlocking ?? []) }}">
                         Disburse locked
+                    </span>
+                @endif
+            @endif
+            @if ($loan->status === 'active')
+                @if ($canReverseDisbursement ?? false)
+                    <details class="relative">
+                        <summary class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg shadow-sm transition cursor-pointer list-none">
+                            Reverse disbursement
+                        </summary>
+                        <form method="POST" action="{{ route('admin.loans.reverse-disbursement', $loan) }}"
+                              class="absolute right-0 z-10 mt-2 w-80 rounded-xl border border-gray-200 bg-white p-4 shadow-lg"
+                              onsubmit="return confirm('Reverse this disbursement? Capital returns to partner pools and the loan goes back to pending.');">
+                            @csrf
+                            <p class="text-sm text-gray-600 mb-3">Capital allocation and schedules will be rolled back. The application returns to the disbursement queue.</p>
+                            <label for="reverse-reason" class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Reason</label>
+                            <textarea id="reverse-reason" name="reason" rows="3" required maxlength="500"
+                                      class="w-full rounded-lg border-gray-300 text-sm mb-3"
+                                      placeholder="e.g. Disbursed in error — borrower not ready"></textarea>
+                            <button type="submit"
+                                    class="w-full inline-flex justify-center items-center gap-1.5 text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition">
+                                Confirm reversal
+                            </button>
+                        </form>
+                    </details>
+                @elseif (! empty($reverseBlocking))
+                    <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-500 bg-gray-100 px-4 py-2 rounded-lg cursor-not-allowed"
+                          title="{{ implode(' ', $reverseBlocking) }}">
+                        Cannot reverse
                     </span>
                 @endif
             @endif
@@ -183,10 +277,14 @@
         </div>
     </div>
 
+    @if (in_array($loan->status, ['active', 'arrears', 'defaulted', 'closed'], true))
+        @include('admin.loans._servicing')
+    @endif
+
     @if ($loan->capitalAllocations->isNotEmpty())
         <div class="mt-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <h3 class="text-sm font-semibold text-gray-700 mb-1">Capital partner funding</h3>
-            <p class="text-xs text-gray-500 mb-4">Proportional allocation at approval · interest split {{ \App\Services\CapitalPartnerAllocationService::PARTNER_INTEREST_SHARE }}% partner / {{ \App\Services\CapitalPartnerAllocationService::COMPANY_INTEREST_SHARE }}% company</p>
+            <p class="text-xs text-gray-500 mb-4">Capital allocated at disbursement · interest split {{ \App\Services\CapitalPartnerAllocationService::PARTNER_INTEREST_SHARE }}% partner / {{ \App\Services\CapitalPartnerAllocationService::COMPANY_INTEREST_SHARE }}% company</p>
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 text-sm">
                 <div class="rounded-lg bg-gray-50 px-3 py-2"><span class="text-xs text-gray-500 block">Allocated</span><span class="font-semibold">{{ format_money($capitalTotals['allocated_principal']) }}</span></div>
                 <div class="rounded-lg bg-gray-50 px-3 py-2"><span class="text-xs text-gray-500 block">Outstanding exposure</span><span class="font-semibold">{{ format_money($capitalTotals['outstanding_exposure']) }}</span></div>
@@ -224,7 +322,7 @@
         </div>
     @elseif ($loan->product && ($loan->product->uses_capital_partner ?? true))
         <div class="mt-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">
-            This product uses capital partner funding, but no allocation has been recorded for this loan yet.
+            This product uses capital partner funding. Capital will be allocated from partner pools when this loan is disbursed.
         </div>
     @endif
 

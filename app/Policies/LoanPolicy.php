@@ -42,4 +42,10 @@ class LoanPolicy
         return in_array($user->role, ['manager', 'admin', 'super_admin'], true)
             && $this->sameBranch($user, $loan->customer?->branch_id);
     }
+
+    public function reverseDisbursement(User $user, Loan $loan): bool
+    {
+        return in_array($user->role, ['manager', 'admin', 'super_admin'], true)
+            && $this->sameBranch($user, $loan->customer?->branch_id);
+    }
 }

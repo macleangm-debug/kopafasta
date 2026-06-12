@@ -47,10 +47,21 @@
                 <p class="text-lg font-bold">{{ $row->loan ? format_money($row->outstanding) : '—' }}</p>
             </div>
             <div class="bg-white rounded-2xl border border-gray-200 p-4">
-                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.loan_status') }}</p>
-                <p class="text-lg font-bold capitalize">{{ $row->loan ? ucfirst($row->loan_status) : __('borrower.loans_page.not_disbursed') }}</p>
+                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.next_due') }}</p>
+                <p class="text-lg font-bold">{{ $row->next_due_date ? \Illuminate\Support\Carbon::parse($row->next_due_date)->format('d M Y') : '—' }}</p>
+                @if (($row->days_remaining ?? null) !== null)
+                    <p class="text-xs mt-1 {{ $row->days_remaining < 0 ? 'text-red-600' : 'text-gray-500' }}">
+                        {{ $row->days_remaining < 0
+                            ? __('borrower.loans_page.days_overdue', ['days' => abs($row->days_remaining)])
+                            : __('borrower.loans_page.days_left', ['days' => $row->days_remaining]) }}
+                    </p>
+                @endif
             </div>
         </div>
+
+        @if ($row->loan && ($row->amount_in_arrears ?? 0) > 0)
+            <p class="text-sm text-red-700 mb-6">{{ __('borrower.loans_page.arrears_amount', ['amount' => format_money($row->amount_in_arrears), 'count' => $row->servicing['overdue_installments'] ?? 1]) }}</p>
+        @endif
 
         @if (! empty($timeline['steps']))
             <div class="bg-white rounded-2xl border border-gray-200 p-6 mb-6">

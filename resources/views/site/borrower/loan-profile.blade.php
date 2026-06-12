@@ -59,6 +59,10 @@
 
     @include('site.borrower.loan-profile._action_panel', ['profile' => $profile])
 
+    @if (! ($profile['is_draft'] ?? false) && ! empty($profile['disbursement_checklist']))
+        @include('site.borrower.loan-profile._disbursement_checklist', ['checklist' => $profile['disbursement_checklist']])
+    @endif
+
     {{-- Application summary --}}
     <div class="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
         <h2 class="font-semibold mb-4">{{ __('borrower.loan_profile.summary_title') }}</h2>
@@ -138,15 +142,25 @@
 
     @if (! empty($progress['timeline']))
         <div class="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
-            <h2 class="font-semibold mb-4">{{ __('borrower.loan_profile.application_progress') }}</h2>
+            <h2 class="font-semibold mb-4">{{ $progress['timeline_title'] ?? __('borrower.loan_profile.application_progress') }}</h2>
             <ul class="space-y-2">
                 @foreach ($progress['timeline'] as $step)
-                    <li class="flex items-start gap-2 text-sm {{ ($step['complete'] ?? false) ? 'text-emerald-700' : (($step['current'] ?? false) ? 'text-amber-900 font-semibold' : 'text-gray-600') }}">
-                        <span class="mt-0.5">{{ ($step['complete'] ?? false) ? '✓' : (($step['current'] ?? false) ? '→' : '○') }}</span>
+                    @php
+                        $isLoanProgress = (bool) ($progress['is_loan_progress'] ?? false);
+                        $complete = (bool) ($step['complete'] ?? false);
+                        $current = (bool) ($step['current'] ?? false);
+                        $icon = $complete ? '✓' : ($current ? '⏳' : ($isLoanProgress ? '○' : (($step['current'] ?? false) ? '→' : '○')));
+                        $tone = $complete ? 'text-emerald-700' : ($current ? 'text-amber-900 font-semibold' : 'text-gray-600');
+                    @endphp
+                    <li class="flex items-start gap-2 text-sm {{ $tone }}">
+                        <span class="mt-0.5">{{ $icon }}</span>
                         <span>{{ $step['label'] }}</span>
                     </li>
                 @endforeach
             </ul>
+            @if (($progress['is_loan_progress'] ?? false) && in_array($status['code'] ?? '', ['disbursed', 'closed'], true))
+                <p class="mt-4 text-sm font-semibold text-emerald-700">{{ __('borrower.loan_progress.status_active') }}</p>
+            @endif
         </div>
     @endif
 

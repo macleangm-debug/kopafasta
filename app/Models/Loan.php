@@ -65,4 +65,19 @@ class Loan extends Model
     {
         return $this->hasMany(LoanFee::class);
     }
+
+    public function arrearCases(): HasMany
+    {
+        return $this->hasMany(ArrearCase::class);
+    }
+
+    public function restructureRequests(): HasMany
+    {
+        return $this->hasMany(RestructureRequest::class);
+    }
+
+    public function topUpRequests(): HasMany
+    {
+        return $this->hasMany(LoanTopUpRequest::class);
+    }
 }

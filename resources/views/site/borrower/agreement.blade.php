@@ -85,8 +85,8 @@
                     </div>
                 @else
                     <div class="mt-6 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 p-4 text-sm text-emerald-800">
-                        <strong>Signed on {{ $agreement->signed_at->format('d M Y H:i') }}.</strong>
-                        Thank you — your acceptance has been recorded. The loan will move to disbursement once final checks are complete.
+                        <strong>{{ __('borrower.agreement.signed_on', ['date' => $agreement->signed_at->format('d M Y H:i')]) }}</strong>
+                        <p class="mt-1">{{ __('borrower.agreement.signed_next_fees') }}</p>
                     </div>
                 @endif
             @endif

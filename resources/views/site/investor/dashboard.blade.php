@@ -40,6 +40,30 @@
         </div>
     </div>
 
+    {{-- Capital deployment (loan allocations at disbursement) --}}
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+            <p class="text-xs uppercase tracking-wider text-emerald-800 font-semibold">Deployed exposure</p>
+            <p class="text-xl font-bold text-emerald-900 mt-1">TZS {{ number_format($capitalMetrics['outstanding_exposure'] ?? 0, 0) }}</p>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Capital available</p>
+            <p class="text-xl font-bold text-slate-900 mt-1">TZS {{ number_format($capitalMetrics['capital_available'] ?? 0, 0) }}</p>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Partner interest earned</p>
+            <p class="text-xl font-bold text-emerald-700 mt-1">TZS {{ number_format($capitalMetrics['interest_earned_partner'] ?? 0, 0) }}</p>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Funded loans</p>
+            <p class="text-xl font-bold text-slate-900 mt-1">{{ $capitalMetrics['active_loans'] ?? 0 }}</p>
+        </div>
+    </div>
+
+    <div class="flex flex-wrap gap-3 mb-6">
+        <a href="{{ route('site.investor.funded-loans') }}" class="inline-flex items-center gap-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold px-4 py-2 text-sm">View funded loans</a>
+    </div>
+
     {{-- Summary tiles --}}
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         @php

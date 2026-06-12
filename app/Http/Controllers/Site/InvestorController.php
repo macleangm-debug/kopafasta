@@ -78,6 +78,7 @@ class InvestorController extends Controller
     {
         $lender = $this->lender();
         $stats  = $this->stats($lender);
+        $capitalMetrics = app(\App\Services\CapitalPartnerMetricsService::class)->forLender($lender);
 
         $recentInvestments = $lender->investments()
             ->with('pool')->latest()->limit(5)->get();
@@ -95,8 +96,33 @@ class InvestorController extends Controller
             ->latest()->limit(4)->get();
 
         return view('site.investor.dashboard', compact(
-            'lender', 'stats', 'recentInvestments', 'recentTx', 'monthlyEarnings', 'notifications'
+            'lender', 'stats', 'capitalMetrics', 'recentInvestments', 'recentTx', 'monthlyEarnings', 'notifications'
         ));
+    }
+
+    public function fundedLoans()
+    {
+        $lender = $this->lender();
+        $metrics = app(\App\Services\CapitalPartnerMetricsService::class);
+        $capitalMetrics = $metrics->forLender($lender);
+        $allocations = $metrics->allocationsForLender($lender, 100)
+            ->map(function ($row) {
+                $loan = $row->loan;
+
+                return [
+                    'loan_number'           => $loan?->loan_number ?? '—',
+                    'borrower'              => trim(($loan?->customer?->first_name ?? '').' '.($loan?->customer?->last_name ?? '')) ?: '—',
+                    'allocated_principal'   => (float) $row->allocated_principal,
+                    'outstanding_exposure'  => (float) $row->outstanding_exposure,
+                    'interest_earned_partner' => (float) $row->interest_earned_partner,
+                    'interest_earned_company' => (float) $row->interest_earned_company,
+                    'partner_share_pct'     => (float) $row->partner_interest_share_percent,
+                    'status'                => $loan?->status ?? '—',
+                    'disbursement_date'     => $loan?->disbursement_date,
+                ];
+            });
+
+        return view('site.investor.funded-loans', compact('lender', 'capitalMetrics', 'allocations'));
     }
 
     /* ------------------------------------------------------------------ */

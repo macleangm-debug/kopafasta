@@ -190,4 +190,77 @@ class LoanDisbursementService
         if ($max !== null && $max > 0 && $amount > (float) $max) $amount = (float) $max;
         return round($amount, 2);
     }
+
+    /** Reverse disbursement-time fees and journal entry. */
+    public function reverseFees(Loan $loan): void
+    {
+        DB::transaction(function () use ($loan) {
+            $fees = \App\Models\LoanFee::where('loan_id', $loan->id)
+                ->where('charge_when', 'disbursement')
+                ->get();
+
+            if ($fees->isEmpty()) {
+                return;
+            }
+
+            $base = (float) ($loan->approved_amount ?? $loan->principal_amount ?? 0);
+            $this->postDisbursementReversalJournal($loan, $fees->all(), $base);
+
+            \App\Models\LoanFee::where('loan_id', $loan->id)
+                ->where('charge_when', 'disbursement')
+                ->delete();
+
+            if ($loan->loan_application_id) {
+                $app = LoanApplication::find($loan->loan_application_id);
+                if ($app && ($app->application_fee_status ?? '') === 'charged') {
+                    $app->update(['application_fee_status' => 'paid']);
+                }
+            }
+        });
+    }
+
+    /** Mirror of disbursement journal with debits/credits swapped. */
+    protected function postDisbursementReversalJournal(Loan $loan, array $applied, float $base): void
+    {
+        $ledger = app(LedgerService::class);
+        $receivableId = $ledger->loanReceivableAccountId();
+        $cashId = $ledger->cashAccountId();
+        if (! $receivableId || ! $cashId) {
+            return;
+        }
+
+        $lines = [];
+        $lines[] = ['account_id' => $receivableId, 'debit' => 0, 'credit' => $base, 'description' => 'Reversal principal '.$loan->loan_number];
+
+        $feeCreditTotal = 0.0;
+        foreach ($applied as $fee) {
+            if (! $fee->gl_account_id) {
+                continue;
+            }
+            $amt = (float) $fee->computed_amount;
+            if ($amt <= 0) {
+                continue;
+            }
+            $lines[] = ['account_id' => $fee->gl_account_id, 'debit' => $amt, 'credit' => 0, 'description' => 'Reversal '.$fee->code.' '.$loan->loan_number];
+            $feeCreditTotal += $amt;
+        }
+
+        $cashDebit = $base - $feeCreditTotal;
+        if ($cashDebit < 0) {
+            return;
+        }
+        $lines[] = ['account_id' => $cashId, 'debit' => $cashDebit, 'credit' => 0, 'description' => 'Reversal disbursement '.$loan->loan_number];
+
+        try {
+            $ledger->post(
+                $lines,
+                'Disbursement reversal '.$loan->loan_number,
+                $loan,
+                now()->toDateString(),
+                'Auto-posted on disbursement reversal.',
+            );
+        } catch (\Throwable $e) {
+            logger()->warning('Disbursement reversal journal not posted: '.$e->getMessage());
+        }
+    }
 }

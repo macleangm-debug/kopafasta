@@ -34,6 +34,8 @@ class LoanApplication extends Model
             'offer_issued_at' => 'datetime',
             'offer_responded_at' => 'datetime',
             'recommended_at' => 'datetime',
+            'disbursement_details_confirmed_at' => 'datetime',
+            'disbursement_details_snapshot' => 'array',
         ];
     }
 

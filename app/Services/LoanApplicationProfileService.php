@@ -123,7 +123,23 @@ class LoanApplicationProfileService
             ->values()
             ->all();
 
+        $repaymentSummary = null;
+        if ($loan && $this->isDisbursedApplication($application, $loan)) {
+            $firstSchedule = RepaymentSchedule::query()
+                ->where('loan_id', $loan->id)
+                ->orderBy('installment_no')
+                ->first();
+
+            $repaymentSummary = [
+                'disbursed_at'        => $loan->disbursement_date,
+                'first_repayment_at'  => $firstSchedule?->due_date ?? $nextDue?->due_date,
+                'frequency'           => $loan->product?->repayment_cadence ?? 'weekly',
+            ];
+        }
+
         $borrowerStatus = $this->borrowerStatus->forApplication($application);
+        $disbursementChecklist = app(ApplicationDisbursementReadinessService::class)
+            ->disbursementChecklist($application);
 
         return [
             'is_draft'             => false,
@@ -147,6 +163,10 @@ class LoanApplicationProfileService
                 'completed'                  => $profileProgress['completed'],
                 'missing'                    => $profileProgress['missing'],
                 'timeline'                   => $pipelineSteps,
+                'is_loan_progress'           => (bool) ($pipelineProgress['is_loan_progress'] ?? false),
+                'timeline_title'             => ($pipelineProgress['is_loan_progress'] ?? false)
+                    ? __('borrower.loan_progress.title')
+                    : __('borrower.loan_profile.application_progress'),
             ],
             'missing_requirements' => $missingRequirements,
             'next_action'          => $next,
@@ -163,7 +183,13 @@ class LoanApplicationProfileService
             'product_requirements' => $requirements,
             'requirement_uploads'  => $uploads,
             'offer'                => $offer,
-            'schedule_preview'     => $loan ? null : $this->schedulePreview($application),
+            'schedule_preview'     => $this->shouldShowSchedulePreview($application, $loan)
+                ? $this->schedulePreview($application)
+                : null,
+            'repayment_summary'    => $repaymentSummary,
+            'disbursement_details' => app(CustomerDisbursementDetailsService::class)
+                ->snapshotForApplication($application),
+            'disbursement_checklist' => $disbursementChecklist,
         ];
     }
 
@@ -376,6 +402,28 @@ class LoanApplicationProfileService
             'group'         => __('borrower.applications_list.loan_type_group'),
             default         => ucfirst(str_replace('_', ' ', $category ?: $product->name)),
         };
+    }
+
+    private function shouldShowSchedulePreview(LoanApplication $application, ?Loan $loan): bool
+    {
+        if ($loan || $this->isDisbursedApplication($application, $loan)) {
+            return false;
+        }
+
+        if (in_array((string) $application->status, ['approved', 'pre_approved', 'disbursed'], true)) {
+            return false;
+        }
+
+        return ! in_array((string) ($application->current_stage ?? ''), ['approval', 'disbursement'], true);
+    }
+
+    private function isDisbursedApplication(LoanApplication $application, ?Loan $loan): bool
+    {
+        if ((string) $application->status === 'disbursed') {
+            return true;
+        }
+
+        return $loan && in_array((string) $loan->status, ['active', 'disbursed'], true);
     }
 
     /** @return array{term_months: int, installment_amount: float, installments: list<array{label: string, total_due: float}>}|null */

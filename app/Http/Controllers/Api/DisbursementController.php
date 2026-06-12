@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Disbursement;
 use App\Models\Loan;
+use App\Services\LoanDisbursementOrchestrator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class DisbursementController extends Controller
 {
@@ -64,7 +66,7 @@ class DisbursementController extends Controller
         return response()->json(status: 204);
     }
 
-    public function release(Disbursement $disbursement)
+    public function release(Disbursement $disbursement, LoanDisbursementOrchestrator $orchestrator)
     {
         $this->authorize('release', $disbursement);
 
@@ -82,20 +84,33 @@ class DisbursementController extends Controller
             }
         }
 
-        $disbursement->update([
-            'status' => 'released',
-            'released_at' => now(),
-        ]);
-
-        Loan::whereKey($disbursement->loan_id)->update([
-            'status' => 'active',
-            'disbursement_date' => now()->toDateString(),
-        ]);
-
-        if ($loan = Loan::find($disbursement->loan_id)) {
-            app(\App\Services\LoanDisbursementService::class)->applyFees($loan);
+        if ($disbursement->status === 'released') {
+            return response()->json([
+                'message' => 'Disbursement already released.',
+            ], 422);
         }
 
-        return response()->json($disbursement->fresh());
+        $loan = $disbursement->loan;
+        if (! $loan) {
+            return response()->json([
+                'message' => 'Linked loan not found.',
+            ], 404);
+        }
+
+        try {
+            $loan = $orchestrator->disburse(
+                $loan,
+                $actor,
+                $disbursement->channel ?? 'bank_transfer',
+                $disbursement,
+            );
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Release failed.',
+                'errors' => $e->errors(),
+            ], 422);
+        }
+
+        return response()->json($disbursement->fresh()->load('loan'));
     }
 }

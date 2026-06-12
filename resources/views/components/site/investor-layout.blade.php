@@ -5,6 +5,7 @@ $nav = [
     ['key' => 'dashboard',     'label' => 'Dashboard',         'route' => 'site.investor.dashboard',     'icon' => 'home'],
     ['key' => 'pools',         'label' => 'Funding Pools',     'route' => 'site.investor.pools',         'icon' => 'layers'],
     ['key' => 'investments',   'label' => 'My Investments',    'route' => 'site.investor.investments',   'icon' => 'chart'],
+    ['key' => 'funded',        'label' => 'Funded Loans',      'route' => 'site.investor.funded-loans',  'icon' => 'chart'],
     ['key' => 'returns',       'label' => 'Returns & Earnings','route' => 'site.investor.returns',       'icon' => 'trend'],
     ['key' => 'analytics',     'label' => 'Portfolio Analytics','route' => 'site.investor.analytics',    'icon' => 'pie'],
     ['key' => 'transactions',  'label' => 'Transactions',      'route' => 'site.investor.transactions',  'icon' => 'list'],

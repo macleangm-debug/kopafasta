@@ -7,11 +7,14 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\LoanAgreement;
 use App\Models\LoanApplication;
+use App\Services\ApplicationDisbursementReadinessService;
 use App\Services\LoanAgreementService;
 use App\Services\NotificationService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class LoanAgreementController extends Controller
@@ -21,12 +24,13 @@ class LoanAgreementController extends Controller
     public function __construct(
         private readonly LoanAgreementService $service,
         private readonly NotificationService $notifier,
+        private readonly ApplicationDisbursementReadinessService $readiness,
     ) {}
 
     /**
-     * Borrower-facing agreement page: shows status, OTP request and signing form.
+     * Borrower-facing offer letter page: shows status, OTP request and signing form.
      */
-    public function show(LoanApplication $application)
+    public function show(LoanApplication $application): View
     {
         $customer = $this->customerOrFail($application);
 
@@ -38,7 +42,58 @@ class LoanAgreementController extends Controller
         return view('site.borrower.agreement', compact('application', 'agreement', 'customer'));
     }
 
-    public function requestOtp(LoanApplication $application)
+    public function showContract(LoanApplication $application): View|RedirectResponse
+    {
+        $customer = $this->customerOrFail($application);
+
+        if ($this->readiness->needsBorrowerSignature($application)) {
+            return redirect()
+                ->route('site.borrower.application.agreement', $application)
+                ->with('status', __('borrower.contract.sign_offer_first'));
+        }
+
+        if ($this->readiness->needsPostApprovalFees($application)) {
+            return redirect()
+                ->route('site.borrower.application.post-approval-fees', $application)
+                ->with('status', __('borrower.contract.pay_fees_first'));
+        }
+
+        if ($this->readiness->needsDisbursementDetailsConfirmation($application)) {
+            return redirect()
+                ->route('site.borrower.application.disbursement-details', $application)
+                ->with('status', __('borrower.disbursement_details.required_before_contract'));
+        }
+
+        $contract = $this->readiness->loanContract($application);
+        if (! $contract) {
+            $contract = $this->service->ensureLoanContractAfterFees($application->fresh());
+        }
+
+        abort_unless($contract, 404, __('borrower.contract.not_ready'));
+
+        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors.guarantor']);
+        $checklist = $this->readiness->disbursementChecklist($application);
+        $disbursementDetails = app(\App\Services\CustomerDisbursementDetailsService::class)
+            ->snapshotForApplication($application);
+        $detailsService = app(\App\Services\CustomerDisbursementDetailsService::class);
+        $snap = $contract->snapshot ?? [];
+        $needsGuarantor = $this->readiness->requiresGuarantorSignature($application);
+        $guarantorSigned = $this->readiness->guarantorSigned($application);
+
+        return view('site.borrower.contract', compact(
+            'application',
+            'contract',
+            'customer',
+            'checklist',
+            'disbursementDetails',
+            'detailsService',
+            'snap',
+            'needsGuarantor',
+            'guarantorSigned',
+        ));
+    }
+
+    public function requestOtp(LoanApplication $application): RedirectResponse
     {
         $this->customerOrFail($application);
 
@@ -71,7 +126,40 @@ class LoanAgreementController extends Controller
         return back()->with('otp_sent', $flash);
     }
 
-    public function sign(Request $request, LoanApplication $application)
+    public function requestContractOtp(LoanApplication $application): RedirectResponse
+    {
+        $this->customerOrFail($application);
+        $contract = $this->contractOrFail($application);
+
+        if ($contract->isSigned()) {
+            return back()->with('status', __('borrower.contract.already_signed'));
+        }
+
+        $code = $this->service->issueSigningOtp($contract);
+
+        $customer = $this->customerOrFail($application);
+        if ($customer->phone) {
+            $this->notifier->sendSms(
+                $customer->phone,
+                "Your Kopa Fasta loan contract signing code is {$code}. It expires in 10 minutes. Do not share.",
+                $customer,
+                'contract_otp'
+            );
+        }
+
+        $flash = __('borrower.contract.otp_sent');
+        if (app()->environment('local', 'testing')) {
+            $flash .= " (Dev code: {$code})";
+        }
+
+        $this->auditBorrower('contract.otp_requested', $application, [
+            'agreement_id' => $contract->id,
+        ]);
+
+        return back()->with('otp_sent', $flash);
+    }
+
+    public function sign(Request $request, LoanApplication $application): RedirectResponse
     {
         $this->customerOrFail($application);
         $agreement = $this->offerOrFail($application);
@@ -87,7 +175,6 @@ class LoanAgreementController extends Controller
             (string) $request->userAgent()
         );
 
-        // Regenerate PDF so the "signed" stamp is baked into the file.
         if ($ok) {
             $this->service->generateOfferLetter($application, regenerate: true);
             $this->auditBorrower('agreement.signed', $application, [
@@ -95,8 +182,7 @@ class LoanAgreementController extends Controller
                 'reference'    => $agreement->reference,
             ]);
 
-            $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
-            if ($readiness->needsPostApprovalFees($application->fresh())) {
+            if ($this->readiness->needsPostApprovalFees($application->fresh())) {
                 $customer = $this->customerOrFail($application);
                 app(NotificationService::class)->notifyInApp(
                     $customer,
@@ -115,12 +201,65 @@ class LoanAgreementController extends Controller
         return back()->with($ok ? 'status' : 'error', $message);
     }
 
-    public function download(LoanAgreement $agreement)
+    public function signContract(Request $request, LoanApplication $application): RedirectResponse
+    {
+        $this->customerOrFail($application);
+        $contract = $this->contractOrFail($application);
+
+        $data = $request->validate([
+            'otp' => ['required', 'string', 'size:6'],
+        ]);
+
+        [$ok, $message] = $this->service->signWithOtp(
+            $contract,
+            $data['otp'],
+            $request->ip(),
+            (string) $request->userAgent()
+        );
+
+        if ($ok) {
+            $this->service->generateLoanContract($application, regenerate: true);
+            $this->auditBorrower('contract.signed', $application, [
+                'agreement_id' => $contract->id,
+                'reference'    => $contract->reference,
+            ]);
+        }
+
+        return redirect()
+            ->route('site.borrower.application.contract', $application)
+            ->with($ok ? 'status' : 'error', $ok ? __('borrower.contract.signed_success') : $message);
+    }
+
+    public function declineContract(Request $request, LoanApplication $application): RedirectResponse
+    {
+        $this->customerOrFail($application);
+        $contract = $this->contractOrFail($application);
+
+        abort_if($contract->isSigned(), 422, __('borrower.contract.already_signed'));
+
+        $request->validate([
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $contract->update([
+            'status' => 'cancelled',
+        ]);
+
+        $this->auditBorrower('contract.declined', $application, [
+            'agreement_id' => $contract->id,
+            'reason'       => $request->input('reason'),
+        ]);
+
+        return redirect()
+            ->route('site.borrower.application', $application)
+            ->with('status', __('borrower.contract.declined'));
+    }
+
+    public function download(LoanAgreement $agreement): BinaryFileResponse
     {
         $user = Auth::user();
         $customer = Customer::where('user_id', $user->id ?? 0)->first();
 
-        // Borrowers may only download their own; admins (any user with admin guard) may download all.
         $isOwner = $customer && $agreement->customer_id === $customer->id;
         $isAdmin = Auth::guard('admin')->check();
 
@@ -137,6 +276,7 @@ class LoanAgreementController extends Controller
     {
         $customer = Customer::where('user_id', Auth::id())->firstOrFail();
         abort_unless($application->customer_id === $customer->id, 403);
+
         return $customer;
     }
 
@@ -148,6 +288,15 @@ class LoanAgreementController extends Controller
             ->first();
 
         abort_unless($agreement, 404, 'No offer letter has been issued yet.');
+
         return $agreement;
+    }
+
+    private function contractOrFail(LoanApplication $application): LoanAgreement
+    {
+        $contract = $this->readiness->loanContract($application);
+        abort_unless($contract, 404, __('borrower.contract.not_ready'));
+
+        return $contract;
     }
 }

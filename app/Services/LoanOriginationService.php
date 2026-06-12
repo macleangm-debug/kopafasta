@@ -14,7 +14,10 @@ class LoanOriginationService
         $application->loadMissing(['customer', 'product', 'loan']);
 
         if ($application->loan) {
-            return $application->loan;
+            $loan = $application->loan;
+            $this->releasePendingCapitalIfAllocated($loan);
+
+            return $loan;
         }
 
         if (! in_array($application->current_stage, ['approval', 'disbursement'], true)
@@ -52,8 +55,16 @@ class LoanOriginationService
             'status'                => 'pending',
         ]);
 
-        app(CapitalPartnerAllocationService::class)->allocateForLoan($loan);
-
         return $loan;
+    }
+
+    /** Release legacy approval-time capital reservations on pending loans. */
+    public function releasePendingCapitalIfAllocated(Loan $loan): void
+    {
+        if ($loan->status !== 'pending' || ! $loan->capitalAllocations()->exists()) {
+            return;
+        }
+
+        app(CapitalPartnerAllocationService::class)->releaseAllocationForLoan($loan);
     }
 }

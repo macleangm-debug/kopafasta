@@ -1006,6 +1006,10 @@ class ApplyController extends Controller
         $guarantorPending = $guarantorRequired
             && ! $guarantors->hasApprovedGuarantor($app);
 
+        if ($guarantorPending && app(\App\Services\UnderwritingSettingsService::class)->holdApplicationsUntilGuarantorApproved()) {
+            $app->update(['status' => 'awaiting_guarantor']);
+        }
+
         $message = __('borrower.apply.success.submitted_message');
         if ($guarantorPending) {
             $message = __('borrower.apply.success.submitted_guarantor_pending_message');

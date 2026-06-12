@@ -582,22 +582,14 @@ class BorrowerController extends Controller
         abort_if($loan->customer_id !== $customer->id, 404);
 
         $loan->loadMissing(['product', 'repaymentSchedules', 'repayments']);
-        $nextInstallment = $loan->repaymentSchedules
-            ->whereNotIn('status', ['paid'])
-            ->sortBy('installment_no')
-            ->first();
+        $servicing = app(\App\Services\ActiveLoanServicingService::class)->forLoan($loan);
         $recentRepayments = $loan->repayments()->latest('paid_at')->limit(5)->get();
-        $paid = max(0, (float) $loan->principal_amount - (float) $loan->outstanding_balance);
-        $progressPct = (float) $loan->principal_amount > 0
-            ? min(100, ($paid / (float) $loan->principal_amount) * 100)
-            : 0;
 
         return view('site.borrower.loan-show', compact(
             'customer',
             'loan',
-            'nextInstallment',
+            'servicing',
             'recentRepayments',
-            'progressPct',
         ));
     }
 
@@ -1104,7 +1096,7 @@ class BorrowerController extends Controller
             return redirect()->to(route('site.borrower.profile', ['section' => 'personal', 'wizard' => $wizardMode ? 1 : null, 'focus' => 'kin']).'#next-of-kin');
         }
 
-        $section = in_array($section, ['personal', 'activity', 'residence', 'kyc', 'security'], true)
+        $section = in_array($section, ['personal', 'activity', 'residence', 'kyc', 'security', 'payment'], true)
             ? $section
             : 'personal';
 
@@ -1113,6 +1105,7 @@ class BorrowerController extends Controller
             'residence' => 'site.borrower.profile.residence',
             'kyc'       => 'site.borrower.profile.kyc',
             'security'  => 'site.borrower.profile.security',
+            'payment'   => 'site.borrower.profile.payment',
             default     => 'site.borrower.profile.personal',
         };
 
@@ -1158,7 +1151,7 @@ class BorrowerController extends Controller
             $section = 'personal';
         }
 
-        $section = in_array($section, ['personal', 'activity', 'residence', 'kyc'], true) ? $section : 'personal';
+        $section = in_array($section, ['personal', 'activity', 'residence', 'kyc', 'payment'], true) ? $section : 'personal';
         $validation = app(ProfileValidationService::class);
 
         if ($section === 'personal') {
@@ -1331,6 +1324,25 @@ class BorrowerController extends Controller
             }
 
             app(KycFreshnessService::class)->markSectionConfirmed($customer->fresh(), 'documents');
+        }
+
+        if ($section === 'payment') {
+            $method = $request->input('preferred_disbursement_method');
+            $detailsService = app(\App\Services\CustomerDisbursementDetailsService::class);
+            $data = $request->validate($detailsService->validationRules($method));
+
+            $customer->fill([
+                'preferred_disbursement_method'      => $data['preferred_disbursement_method'],
+                'disbursement_mobile_provider'       => $data['disbursement_mobile_provider'] ?? null,
+                'disbursement_mobile_number'         => $data['disbursement_mobile_number'] ?? null,
+                'disbursement_mobile_account_name'   => $data['disbursement_mobile_account_name'] ?? null,
+                'disbursement_bank_name'             => $data['disbursement_bank_name'] ?? null,
+                'disbursement_bank_account_name'     => $data['disbursement_bank_account_name'] ?? null,
+                'disbursement_bank_account_number'   => $data['disbursement_bank_account_number'] ?? null,
+                'disbursement_bank_branch'           => $data['disbursement_bank_branch'] ?? null,
+            ])->save();
+
+            $detailsService->clearConfirmationForCustomerApplications($customer->fresh());
         }
 
         if ($section === 'personal') {
@@ -1805,15 +1817,103 @@ class BorrowerController extends Controller
         ));
     }
 
-    public function postApprovalFees(LoanApplication $application, PostApprovalFeeService $fees): View
+    public function disbursementDetails(LoanApplication $application): View|RedirectResponse
     {
         $customer = $this->customer();
         abort_if($application->customer_id !== $customer->id, 404);
+
+        $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
+
+        if ($readiness->needsBorrowerSignature($application)) {
+            return redirect()
+                ->route('site.borrower.application.agreement', $application)
+                ->with('status', __('borrower.contract.sign_offer_first'));
+        }
+
+        if ($readiness->needsPostApprovalFees($application)) {
+            return redirect()
+                ->route('site.borrower.application.post-approval-fees', $application)
+                ->with('status', __('borrower.contract.pay_fees_first'));
+        }
+
+        if ($readiness->disbursementDetailsConfirmed($application)) {
+            return redirect()
+                ->route('site.borrower.application.contract', $application)
+                ->with('status', __('borrower.disbursement_details.already_confirmed'));
+        }
+
+        $detailsService = app(\App\Services\CustomerDisbursementDetailsService::class);
+        $loanAmount = app(\App\Services\ApplicationOfferService::class)->effectiveAmount($application);
+        $snapshot = $detailsService->snapshotFromCustomer($customer);
+        $paymentComplete = $detailsService->isComplete($customer);
+
+        return view('site.borrower.disbursement-details', compact(
+            'customer',
+            'application',
+            'detailsService',
+            'loanAmount',
+            'snapshot',
+            'paymentComplete',
+        ));
+    }
+
+    public function confirmDisbursementDetails(LoanApplication $application): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_if($application->customer_id !== $customer->id, 404);
+
+        $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
+        abort_unless($readiness->needsDisbursementDetailsConfirmation($application), 422);
+
+        $detailsService = app(\App\Services\CustomerDisbursementDetailsService::class);
+        abort_unless($detailsService->isComplete($customer), 422, __('borrower.payment_details.incomplete'));
+
+        $detailsService->confirmForApplication($application, $customer);
+
+        $this->auditBorrower('disbursement_details.confirmed', $application, [
+            'method' => $customer->preferred_disbursement_method,
+        ]);
+
+        app(\App\Services\LoanAgreementService::class)->ensureLoanContractAfterFees($application->fresh());
+
+        return redirect()
+            ->route('site.borrower.application.contract', $application)
+            ->with('status', __('borrower.disbursement_details.confirmed'));
+    }
+
+    public function postApprovalFees(LoanApplication $application, PostApprovalFeeService $fees): View|RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_if($application->customer_id !== $customer->id, 404);
+
+        $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
+        if ($readiness->needsBorrowerSignature($application)) {
+            return redirect()
+                ->route('site.borrower.application.agreement', $application)
+                ->with('status', __('borrower.contract.sign_offer_first'));
+        }
 
         $application->load('product', 'postApprovalFees');
         if ($application->postApprovalFees->isEmpty()) {
             $fees->generateForApplication($application);
             $application->load('postApprovalFees');
+        }
+
+        app(\App\Services\PostApprovalFeePaymentService::class)->reconcileVerifiedPayment($application);
+        $application->refresh();
+
+        if ($readiness->feesPaid($application) || ! $readiness->hasPostApprovalFees($application)) {
+            if ($readiness->needsDisbursementDetailsConfirmation($application)) {
+                return redirect()
+                    ->route('site.borrower.application.disbursement-details', $application)
+                    ->with('status', __('borrower.post_approval_fees.already_paid'));
+            }
+
+            if ($readiness->needsContractSignature($application)) {
+                return redirect()
+                    ->route('site.borrower.application.contract', $application)
+                    ->with('status', __('borrower.post_approval_fees.already_paid'));
+            }
         }
 
         $wallet = app(ReferralService::class)->wallet($customer);
@@ -1896,7 +1996,7 @@ class BorrowerController extends Controller
             }
 
             return redirect()
-                ->route('site.borrower.application', $application)
+                ->route('site.borrower.application.disbursement-details', $application)
                 ->with('status', payment_gateway_is_dummy()
                     ? __('borrower.post_approval_fees.paid_dummy')
                     : __('borrower.post_approval_fees.paid_mobile'));

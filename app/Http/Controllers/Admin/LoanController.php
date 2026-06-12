@@ -5,12 +5,15 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Concerns\AuditsActions;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Models\ArrearCase;
+use App\Services\LoanCollectionActionService;
 use App\Models\Loan;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
 use App\Services\AuditService;
 use App\Services\CapitalPartnerAllocationService;
 use App\Services\CapitalPartnerMetricsService;
+use App\Services\ActiveLoanServicingService;
 use App\Services\AssetReservationService;
 use App\Services\LoanDisbursementOrchestrator;
 use App\Services\LoanDisbursementService;
@@ -125,18 +128,11 @@ class LoanController extends Controller
 
         $loan = Loan::create($data);
         $loan->load('product');
-        try {
-            app(CapitalPartnerAllocationService::class)->allocateForLoan($loan);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            $loan->delete();
-
-            return back()->withErrors($e->errors())->withInput();
-        }
         $this->auditAdminCreated($loan);
 
         return redirect()
             ->route('admin.loans.show', $loan)
-            ->with('status', 'Pending loan '.$loan->loan_number.' created. Disburse from the queue when ready.');
+            ->with('status', 'Pending loan '.$loan->loan_number.' created. Capital is allocated at disbursement.');
     }
 
     public function show(Loan $loan)
@@ -163,6 +159,37 @@ class LoanController extends Controller
         $disbursementBlocking = $loan->application
             ? ($disbursementReadiness?->blockingMessages($loan->application) ?? [])
             : [];
+        $disbursementChecklist = $loan->application
+            ? ($disbursementReadiness?->disbursementChecklist($loan->application) ?? [])
+            : [];
+        $disbursementDestination = $loan->application
+            ? app(\App\Services\CustomerDisbursementDetailsService::class)->snapshotForApplication($loan->application)
+            : [];
+        $disbursementDetailsService = app(\App\Services\CustomerDisbursementDetailsService::class);
+        $orchestrator = app(LoanDisbursementOrchestrator::class);
+        $canReverseDisbursement = $orchestrator->canReverseDisbursement($loan);
+        $reverseBlocking = $orchestrator->reverseBlockingMessages($loan);
+
+        $servicing = null;
+        $arrearCase = null;
+        $collectionActions = collect();
+        $recentRepayments = collect();
+        $restructureRequests = collect();
+        $topUpRequests = collect();
+
+        if (in_array($loan->status, ['active', 'arrears', 'defaulted', 'closed'], true)) {
+            $servicing = app(ActiveLoanServicingService::class)->forLoan($loan);
+            $arrearCase = ArrearCase::query()
+                ->where('loan_id', $loan->id)
+                ->where('status', 'open')
+                ->with(['actions' => fn ($q) => $q->with('performer')->latest('performed_at')->limit(10)])
+                ->latest('id')
+                ->first();
+            $collectionActions = $arrearCase?->actions ?? collect();
+            $recentRepayments = $loan->repayments()->latest('paid_at')->limit(8)->get();
+            $restructureRequests = $loan->restructureRequests()->latest()->limit(5)->get();
+            $topUpRequests = $loan->topUpRequests()->latest()->limit(5)->get();
+        }
 
         return view('admin.loans.show', compact(
             'loan',
@@ -171,6 +198,17 @@ class LoanController extends Controller
             'disbursementReadiness',
             'canDisburse',
             'disbursementBlocking',
+            'disbursementChecklist',
+            'disbursementDestination',
+            'disbursementDetailsService',
+            'canReverseDisbursement',
+            'reverseBlocking',
+            'servicing',
+            'arrearCase',
+            'collectionActions',
+            'recentRepayments',
+            'restructureRequests',
+            'topUpRequests',
         ));
     }
 
@@ -193,6 +231,10 @@ class LoanController extends Controller
 
     public function destroy(Loan $loan)
     {
+        if ($loan->status === 'pending' && $loan->capitalAllocations()->exists()) {
+            app(CapitalPartnerAllocationService::class)->releaseAllocationForLoan($loan);
+        }
+
         $this->auditAdminDeleted($loan);
         $loan->delete();
 
@@ -220,6 +262,53 @@ class LoanController extends Controller
         return redirect()
             ->route('admin.loans.show', $loan)
             ->with('status', 'Loan disbursed. '.$feesCount.' fee(s) applied · '.$installments.' installment(s) scheduled.');
+    }
+
+    public function reverseDisbursement(Request $request, Loan $loan, LoanDisbursementOrchestrator $orchestrator)
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        try {
+            $loan = $orchestrator->reverseDisbursement($loan, auth()->user(), $data['reason']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors());
+        }
+
+        $this->auditAdmin('admin.loans.disbursement_reversed', $loan, [
+            'reason' => $data['reason'],
+        ]);
+
+        return redirect()
+            ->route('admin.loans.show', $loan)
+            ->with('status', 'Disbursement reversed. Loan returned to pending — ready for disbursement queue.');
+    }
+
+    public function addCollectionAction(Request $request, Loan $loan, LoanCollectionActionService $service): RedirectResponse
+    {
+        abort_unless(in_array($loan->status, ['active', 'arrears', 'defaulted'], true), 422);
+        $this->authorize('viewAny', ArrearCase::class);
+
+        $data = $request->validate([
+            'action_type' => ['required', 'string', 'max:100'],
+            'notes'       => ['nullable', 'string', 'max:2000'],
+            'result'      => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $service->logForLoan(
+            $loan,
+            $request->user(),
+            $data['action_type'],
+            $data['notes'] ?? null,
+            $data['result'] ?? null,
+        );
+
+        $this->auditAdmin('admin.loans.collection_action', $loan, [
+            'action_type' => $data['action_type'],
+        ]);
+
+        return back()->with('status', 'Collection action logged.');
     }
 
     public function writeOffForm(Loan $loan)

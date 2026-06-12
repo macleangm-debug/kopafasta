@@ -5,20 +5,50 @@
     $blocking = $disbursementReadiness->blockingMessages($record);
     $needsGuarantor = $disbursementReadiness->requiresGuarantorSignature($record);
     $guarantorSigned = $disbursementReadiness->guarantorSigned($record);
+    $contractSigned = $disbursementReadiness->contractSigned($record);
+    $checklist = $disbursementReadiness->disbursementChecklist($record);
+    $canDisburse = $disbursementReadiness->canMarkDisbursement($record);
 @endphp
 
-<x-admin.review-section id="review-contract" title="Loan contract & offer letter" subtitle="Generated agreements, signatures, fees, and disbursement readiness">
-    @if ($blocking !== [] && in_array($record->current_stage, ['approval', 'disbursement'], true))
-        <div class="mb-4 rounded-lg bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">
-            <p class="font-semibold">Before disbursement</p>
-            <ul class="mt-1 list-disc list-inside space-y-0.5">
-                @foreach ($blocking as $message)
-                    <li>{{ $message }}</li>
+<x-admin.review-section id="review-contract" title="Loan contract & disbursement readiness" subtitle="Post-approval fees, contract acceptance, and disbursement gates">
+    @if (in_array($record->current_stage, ['approval', 'disbursement'], true))
+        <div class="mb-5 rounded-lg ring-1 ring-gray-200 overflow-hidden">
+            <div class="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                <p class="text-xs font-semibold uppercase tracking-widest text-gray-600">{{ $record->application_number }} — Disbursement prerequisites</p>
+            </div>
+            <ul class="divide-y divide-gray-100">
+                @foreach ($checklist as $key => $item)
+                    @php
+                        $statusText = match ($item['status']) {
+                            'paid', 'accepted', 'complete', 'not_required', 'available' => '✓ '.ucfirst($item['status'] === 'not_required' ? 'N/A' : ($item['status'] === 'paid' ? 'Paid' : ($item['status'] === 'accepted' ? 'Accepted' : ($item['status'] === 'available' ? 'Available' : 'Complete')))),
+                            'pending' => 'Pending',
+                            'insufficient' => 'Insufficient',
+                            'locked' => 'Locked',
+                            'not_generated' => 'Not generated',
+                            default => ucfirst($item['status']),
+                        };
+                        $tone = ($item['complete'] ?? false) ? 'text-emerald-700' : (($item['status'] ?? '') === 'locked' ? 'text-gray-500' : 'text-amber-700');
+                    @endphp
+                    <li class="px-4 py-3 flex items-center justify-between text-sm">
+                        <span class="font-medium text-gray-900">{{ $item['label'] }}</span>
+                        <span class="font-semibold {{ $tone }}">{{ $statusText }}</span>
+                    </li>
                 @endforeach
             </ul>
         </div>
-    @elseif (in_array($record->current_stage, ['approval', 'disbursement'], true))
-        <p class="mb-4 text-sm text-emerald-700 font-semibold">Ready for disbursement — offer signed@if ($needsGuarantor) and guarantor signed@endif@if ($hasFees) and fees paid@endif.</p>
+
+        @if ($blocking !== [])
+            <div class="mb-4 rounded-lg bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">
+                <p class="font-semibold">Before disbursement</p>
+                <ul class="mt-1 list-disc list-inside space-y-0.5">
+                    @foreach ($blocking as $message)
+                        <li>{{ $message }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @elseif ($canDisburse)
+            <p class="mb-4 text-sm text-emerald-700 font-semibold">Ready for disbursement — all prerequisites complete.</p>
+        @endif
     @endif
 
     <h4 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Offer letter</h4>
@@ -87,7 +117,14 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
             <div><div class="text-xs uppercase text-gray-500">Reference</div><div class="font-mono font-semibold">{{ $contract->reference }}</div></div>
             <div><div class="text-xs uppercase text-gray-500">Generated</div><div>{{ optional($contract->sent_at)->format('d M Y, H:i') ?? '—' }}</div></div>
-            <div><div class="text-xs uppercase text-gray-500">Status</div><div class="font-semibold capitalize">{{ $contract->status }}</div></div>
+            <div><div class="text-xs uppercase text-gray-500">Status</div>
+                <span @class([
+                    'inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold uppercase mt-1',
+                    'bg-emerald-100 text-emerald-800' => $contractSigned,
+                    'bg-amber-100 text-amber-800'     => ! $contractSigned && $contract->status === 'sent',
+                    'bg-gray-100 text-gray-700'       => in_array($contract->status, ['draft','expired','cancelled']),
+                ])>{{ $contractSigned ? 'Accepted' : ucfirst($contract->status) }}</span>
+            </div>
         </div>
         @if ($contract->file_path)
             <a href="{{ route('admin.loan-agreements.download', $contract) }}" target="_blank"
@@ -96,7 +133,7 @@
             </a>
         @endif
     @else
-        <p class="text-sm text-gray-500 mb-6">Loan contract is generated after the borrower signs the offer letter.</p>
+        <p class="text-sm text-gray-500 mb-6">Loan contract is generated after post-approval fees are paid.</p>
     @endif
 
     <h4 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Post-approval fees</h4>

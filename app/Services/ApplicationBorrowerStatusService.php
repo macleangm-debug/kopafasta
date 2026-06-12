@@ -66,11 +66,15 @@ class ApplicationBorrowerStatusService
     }
 
     /**
-     * @return array{percent: int, steps: list<array{key: string, label: string, complete: bool, current: bool}>}
+     * @return array{percent: int, steps: list<array{key: string, label: string, complete: bool, current: bool}>, is_loan_progress?: bool}
      */
     public function timeline(LoanApplication $application): array
     {
         $application->loadMissing(['documentRequests', 'loan']);
+
+        if ($this->isPostApprovalPhase($application)) {
+            return $this->postApprovalTimeline($application);
+        }
 
         if ((string) $application->status === 'rejected') {
             return ['percent' => 0, 'steps' => []];
@@ -88,7 +92,7 @@ class ApplicationBorrowerStatusService
             ['key' => 'screening', 'label' => __('borrower.applications_list.pipeline.screening'), 'complete' => false, 'current' => false],
             ['key' => 'documents_submitted', 'label' => __('borrower.applications_list.pipeline.documents_submitted'), 'complete' => false, 'current' => false],
             ['key' => 'credit_review', 'label' => __('borrower.applications_list.pipeline.credit_review'), 'complete' => false, 'current' => false],
-            ['key' => 'approved', 'label' => __('borrower.applications_list.pipeline.approved'), 'complete' => false, 'current' => false],
+            ['key' => 'approved', 'label' => __('borrower.applications_list.pipeline.approval'), 'complete' => false, 'current' => false],
             ['key' => 'disbursed', 'label' => __('borrower.applications_list.pipeline.disbursed'), 'complete' => false, 'current' => false],
         ];
 
@@ -167,6 +171,98 @@ class ApplicationBorrowerStatusService
         return ['percent' => min(100, $percent), 'steps' => $steps];
     }
 
+    /**
+     * @return array{percent: int, steps: list<array{key: string, label: string, complete: bool, current: bool}>, is_loan_progress: bool}
+     */
+    public function postApprovalTimeline(LoanApplication $application): array
+    {
+        $readiness = app(ApplicationDisbursementReadinessService::class);
+        $hasFees = $readiness->hasPostApprovalFees($application);
+        $feesPaid = $readiness->feesPaid($application);
+        $contractSigned = $readiness->contractSigned($application);
+        $disbursed = $this->isDisbursed($application);
+        $activeLoan = $disbursed && ! $this->isClosed($application);
+
+        $steps = [
+            ['key' => 'submitted', 'label' => __('borrower.loan_progress.submitted'), 'complete' => true, 'current' => false],
+            ['key' => 'screening', 'label' => __('borrower.loan_progress.screening'), 'complete' => true, 'current' => false],
+            ['key' => 'credit_review', 'label' => __('borrower.loan_progress.credit_review'), 'complete' => true, 'current' => false],
+            ['key' => 'approval', 'label' => __('borrower.loan_progress.approval'), 'complete' => true, 'current' => false],
+            [
+                'key'      => 'post_approval_fee',
+                'label'    => __('borrower.loan_progress.post_approval_fee'),
+                'complete' => ! $hasFees || $feesPaid,
+                'current'  => false,
+            ],
+            [
+                'key'      => 'contract',
+                'label'    => __('borrower.loan_progress.contract'),
+                'complete' => $contractSigned,
+                'current'  => false,
+            ],
+            [
+                'key'      => 'disbursement',
+                'label'    => __('borrower.loan_progress.disbursement'),
+                'complete' => $disbursed,
+                'current'  => false,
+            ],
+            [
+                'key'      => 'active_loan',
+                'label'    => __('borrower.loan_progress.active_loan'),
+                'complete' => $activeLoan,
+                'current'  => false,
+            ],
+        ];
+
+        $currentKey = match (true) {
+            $activeLoan => 'active_loan',
+            $disbursed => 'active_loan',
+            $readiness->isReadyForDisbursement($application) => 'disbursement',
+            $readiness->needsContractSignature($application) => 'contract',
+            $readiness->needsDisbursementDetailsConfirmation($application) => 'contract',
+            $readiness->needsPostApprovalFees($application) => 'post_approval_fee',
+            default => 'post_approval_fee',
+        };
+
+        foreach ($steps as &$step) {
+            if (($step['complete'] ?? false) || $step['key'] === 'active_loan') {
+                $step['current'] = false;
+
+                continue;
+            }
+
+            $step['current'] = $step['key'] === $currentKey;
+        }
+        unset($step);
+
+        if ($activeLoan) {
+            foreach ($steps as &$step) {
+                $step['current'] = $step['key'] === 'active_loan' && ! ($step['complete'] ?? false);
+            }
+            unset($step);
+        }
+
+        $completedCount = collect($steps)->where('complete', true)->count();
+        $currentIndex = collect($steps)->search(fn (array $s) => $s['current'] ?? false);
+        $percent = (int) round((($completedCount + ($currentIndex !== false ? 0.5 : 0)) / max(1, count($steps))) * 100);
+
+        return [
+            'percent'           => min(100, $percent),
+            'steps'             => $steps,
+            'is_loan_progress'  => true,
+        ];
+    }
+
+    private function isPostApprovalPhase(LoanApplication $application): bool
+    {
+        if ($this->isDisbursed($application) || $this->isClosed($application)) {
+            return true;
+        }
+
+        return in_array((string) $application->status, ['approved', 'pre_approved', 'disbursed'], true)
+            || in_array((string) ($application->current_stage ?? ''), ['approval', 'disbursement'], true);
+    }
+
     /** @return array{pending: Collection, uploaded: Collection, completed: Collection, rejected: Collection} */
     public function groupedDocumentRequests(Collection $requests): array
     {
@@ -208,6 +304,18 @@ class ApplicationBorrowerStatusService
 
             if ($readiness->needsPostApprovalFees($application)) {
                 return 'post_approval_fees';
+            }
+
+            if ($readiness->needsDisbursementDetailsConfirmation($application)) {
+                return 'awaiting_disbursement_details';
+            }
+
+            if ($readiness->needsContractSignature($application)) {
+                return 'awaiting_contract';
+            }
+
+            if ($readiness->isReadyForDisbursement($application)) {
+                return 'ready_for_disbursement';
             }
 
             return 'approved';
@@ -252,6 +360,9 @@ class ApplicationBorrowerStatusService
             'awaiting_offer'        => __('borrower.applications_list.statuses.awaiting_offer'),
             'awaiting_signature'    => __('borrower.applications_list.statuses.awaiting_signature'),
             'post_approval_fees'    => __('borrower.applications_list.statuses.post_approval_fees'),
+            'awaiting_disbursement_details' => __('borrower.applications_list.statuses.awaiting_disbursement_details'),
+            'awaiting_contract'     => __('borrower.applications_list.statuses.awaiting_contract'),
+            'ready_for_disbursement'=> __('borrower.applications_list.statuses.ready_for_disbursement'),
             'approved'              => __('borrower.applications_list.statuses.approved'),
             'rejected'              => __('borrower.applications_list.statuses.rejected'),
             'disbursed'             => __('borrower.applications_list.statuses.disbursed'),
@@ -265,8 +376,8 @@ class ApplicationBorrowerStatusService
         return match ($code) {
             'rejected' => 'red',
             'awaiting_offer' => 'amber',
-            'awaiting_signature', 'post_approval_fees' => 'sky',
-            'approved', 'disbursed', 'closed' => 'emerald',
+            'awaiting_signature', 'post_approval_fees', 'awaiting_disbursement_details', 'awaiting_contract' => 'sky',
+            'approved', 'ready_for_disbursement', 'disbursed', 'closed' => 'emerald',
             'draft', 'submitted' => 'amber',
             'documents_requested', 'documents_resubmitted' => 'orange',
             default => 'sky',

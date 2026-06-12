@@ -161,7 +161,12 @@ class PostApprovalFeeService
             ]);
         });
 
-        app(AssetReservationService::class)->syncFromApplication($application->fresh());
+        $application = $application->fresh();
+        app(AssetReservationService::class)->syncFromApplication($application);
+
+        if ($this->allPaid($application)) {
+            app(LoanAgreementService::class)->ensureLoanContractAfterFees($application);
+        }
 
         return [
             'base_total' => $baseTotal,

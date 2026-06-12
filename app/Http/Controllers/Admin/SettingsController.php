@@ -222,6 +222,34 @@ class SettingsController extends Controller
         return back()->with('status', 'Loan rules saved.');
     }
 
+    public function underwriting()
+    {
+        return view('admin.settings.underwriting', [
+            'values' => Setting::group('underwriting'),
+        ]);
+    }
+
+    public function saveUnderwriting(Request $request)
+    {
+        $data = $request->validate([
+            'guarantor_invitation_expiry_days'       => ['required', 'integer', 'min:1', 'max:90'],
+            'document_request_default_due_days'      => ['required', 'integer', 'min:1', 'max:60'],
+            'stage_sla_days'                         => ['required', 'integer', 'min:1', 'max:60'],
+            'default_rate_tier_count'                => ['required', 'integer', 'min:2', 'max:8'],
+            'default_rate_discount_fraction'         => ['required', 'numeric', 'min:0', 'max:0.85'],
+            'hold_applications_until_guarantor_approved' => ['nullable', 'boolean'],
+            'block_acknowledge_without_guarantor'    => ['nullable', 'boolean'],
+        ]);
+
+        foreach (['hold_applications_until_guarantor_approved', 'block_acknowledge_without_guarantor'] as $key) {
+            $data[$key] = (bool) ($data[$key] ?? false);
+        }
+
+        Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["underwriting.$k" => $v])->all());
+
+        return back()->with('status', 'Underwriting settings saved.');
+    }
+
     // ---------------- AML thresholds ----------------
     public function amlSettings()
     {

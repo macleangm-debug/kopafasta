@@ -31,6 +31,11 @@ class LoanWriteOffService
                 'outstanding_balance'=> max(0, (float) $loan->outstanding_balance - $writeOffAmount),
             ]);
 
+            app(CapitalPartnerAllocationService::class)->reverseAllocationForLoan(
+                $loan->fresh(),
+                'Loan written off: '.$reason,
+            );
+
             return $this->postJournal($loan->fresh(), $writeOffAmount);
         });
     }

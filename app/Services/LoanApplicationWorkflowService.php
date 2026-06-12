@@ -82,7 +82,11 @@ class LoanApplicationWorkflowService
         return collect(self::ACTIONS)
             ->filter(fn (array $action) => in_array($stage, $action['from'], true))
             ->filter(fn (array $action, string $key) => $this->permissions->has($user, $action['permission']))
-            ->filter(fn (array $action, string $key) => ! ($key === 'acknowledge' && $application->status === 'awaiting_guarantor'))
+            ->filter(fn (array $action, string $key) => ! (
+                $key === 'acknowledge'
+                && $application->status === 'awaiting_guarantor'
+                && app(UnderwritingSettingsService::class)->blockAcknowledgeWithoutGuarantor()
+            ))
             ->filter(fn (array $action, string $key) => ! ($key === 'issue_offer' && (
                 $application->recommendation_type !== ApplicationOfferService::RECOMMEND_COUNTER
                 || $application->offer_status === 'pending_borrower'
@@ -128,7 +132,9 @@ class LoanApplicationWorkflowService
             throw ValidationException::withMessages(['action' => 'This action is not available at the current stage.']);
         }
 
-        if ($actionKey === 'acknowledge' && $application->status === 'awaiting_guarantor') {
+        if ($actionKey === 'acknowledge'
+            && $application->status === 'awaiting_guarantor'
+            && app(UnderwritingSettingsService::class)->blockAcknowledgeWithoutGuarantor()) {
             throw ValidationException::withMessages(['action' => 'Underwriting cannot start until the guarantor accepts and completes their profile.']);
         }
 
@@ -220,6 +226,10 @@ class LoanApplicationWorkflowService
 
         if ($to === 'rejected') {
             $this->notifyRejection($application->fresh(['customer']));
+            $loan = $application->fresh(['loan'])->loan;
+            if ($loan && $loan->status === 'pending') {
+                app(CapitalPartnerAllocationService::class)->releaseAllocationForLoan($loan);
+            }
         }
 
         if ($to === 'approval') {
