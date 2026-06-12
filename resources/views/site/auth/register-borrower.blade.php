@@ -225,8 +225,12 @@
                                 <div class="grid grid-cols-1 gap-3" :class="isGuarantor ? '' : 'sm:grid-cols-2'">
                                     <div x-show="!isGuarantor" x-cloak>
                                         <label class="block text-sm font-medium text-gray-700 mb-1.5">National ID number <span class="text-red-500">*</span></label>
-                                        <input name="national_id" :required="!isGuarantor" maxlength="30" placeholder="20-digit NIDA"
-                                               class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition font-mono">
+                                        <x-site.nida-input
+                                            name="national_id"
+                                            :value="old('national_id')"
+                                            :required="false"
+                                            class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition"
+                                        />
                                         <p class="mt-1 text-xs text-gray-500">Used for NIDA identity verification.</p>
                                     </div>
                                     <div>
