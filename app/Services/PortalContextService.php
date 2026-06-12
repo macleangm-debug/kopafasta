@@ -74,6 +74,7 @@ class PortalContextService
     public function pendingGuarantorInvitations(Customer $customer)
     {
         return GuarantorInvitation::query()
+            ->with(['borrower', 'application.product', 'customerGuarantor'])
             ->where(function ($query) use ($customer) {
                 $query->where('guarantor_customer_id', $customer->id)
                     ->orWhere(function ($inner) use ($customer) {
@@ -93,7 +94,40 @@ class PortalContextService
             ->whereHas('customerGuarantor', fn ($q) => $q->where('status', 'pending'))
             ->latest()
             ->get()
-            ->filter(fn (GuarantorInvitation $invitation) => $this->canActAsGuarantorFor($invitation, $customer));
+            ->filter(fn (GuarantorInvitation $invitation) => $this->canActAsGuarantorFor($invitation, $customer))
+            ->values();
+    }
+
+    /** Pending guarantee links for the signed-in guarantor (reliable list rows). */
+    public function pendingGuarantorLinks(Customer $customer)
+    {
+        $invitations = $this->pendingGuarantorInvitations($customer);
+        $linkIds = $invitations->pluck('customer_guarantor_id')->filter()->unique()->values();
+
+        if ($linkIds->isEmpty()) {
+            return collect();
+        }
+
+        $links = \App\Models\CustomerGuarantor::query()
+            ->with(['customer', 'application.product', 'invitation.borrower', 'invitation.application.product'])
+            ->whereIn('id', $linkIds)
+            ->where('status', 'pending')
+            ->latest()
+            ->get();
+
+        return $links->map(function (\App\Models\CustomerGuarantor $link) use ($invitations) {
+            $invitation = $link->invitation
+                ?? $invitations->firstWhere('customer_guarantor_id', $link->id);
+            $borrower = $invitation?->borrower ?? $link->customer;
+            $application = $invitation?->application ?? $link->application;
+
+            return (object) [
+                'link'        => $link,
+                'invitation'  => $invitation,
+                'borrower'    => $borrower,
+                'application' => $application,
+            ];
+        })->filter(fn ($row) => $row->invitation !== null)->values();
     }
 
     public function hasGuarantorWork(Customer $customer): bool

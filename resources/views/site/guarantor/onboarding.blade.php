@@ -27,7 +27,11 @@
                 window.confirmForm($el, { title: @js(__('borrower.guarantor.confirm_title')), message: @js(__('borrower.guarantor.confirm_message')), confirmLabel: @js(__('borrower.guarantor.confirm_button')), confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white' });
               ">
             @csrf
-            <x-site.signature-pad :default-name="trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''))" />
+            <x-site.signature-pad
+                :default-name="trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''))"
+                :readonly-name="true"
+                :verified="true"
+            />
             <label class="flex items-start gap-3 text-sm text-gray-700">
                 <input type="checkbox" name="consent" value="1" required class="mt-1 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500">
                 <span>{{ __('borrower.guarantor.consent') }}</span>

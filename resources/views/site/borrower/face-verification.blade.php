@@ -7,6 +7,10 @@
             Confirm you are the same person on your NIDA ID before applying for a loan.
         </p>
 
+        @if ($wizardMode ?? false)
+            @include('site.borrower.profile._wizard_nav', ['customer' => $customer, 'currentKey' => $wizardKey ?? 'face', 'wizardMode' => true])
+        @endif
+
         @if (session('status'))
             <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
         @endif
@@ -56,6 +60,10 @@
             />
         @endif
     </div>
+
+    @if ($wizardMode ?? false)
+        @include('site.borrower.profile._wizard_footer', ['customer' => $customer, 'wizardMode' => true, 'wizardKey' => $wizardKey ?? 'face'])
+    @endif
 
     @stack('scripts')
 </x-site.borrower-layout>

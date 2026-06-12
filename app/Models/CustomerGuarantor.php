@@ -34,4 +34,9 @@ class CustomerGuarantor extends Model
     {
         return $this->belongsTo(LoanApplication::class, 'loan_application_id');
     }
+
+    public function invitation(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(GuarantorInvitation::class);
+    }
 }

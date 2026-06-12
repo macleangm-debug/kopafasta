@@ -186,4 +186,9 @@ class ProfileCompletionService
 
         return $result['percent'] >= $result['threshold'];
     }
+
+    public function isFullyComplete(Customer $customer): bool
+    {
+        return ($this->calculate($customer)['percent'] ?? 0) >= 100;
+    }
 }

@@ -6,10 +6,16 @@
             'subtitle' => __('borrower.profile.subtitle'),
         ])
 
-        @include('site.borrower.profile._tabs', ['active' => 'personal'])
-        @include('site.borrower.profile._kyc_progress', ['customer' => $customer, 'active' => 'personal'])
+        @if ($wizardMode ?? false)
+            @include('site.borrower.profile._wizard_nav', ['customer' => $customer, 'currentKey' => $wizardKey ?? 'nida', 'wizardMode' => true])
+        @else
+            @include('site.borrower.profile._tabs', ['active' => 'personal'])
+            @include('site.borrower.profile._kyc_progress', ['customer' => $customer, 'active' => 'personal'])
+        @endif
 
-        @include('site.borrower.profile._completion')
+        @if (! ($wizardMode ?? false))
+            @include('site.borrower.profile._completion')
+        @endif
 
         @php
             $locked = (bool) $customer->identity_locked;
@@ -27,11 +33,13 @@
                 default          => [__('borrower.nida.status.unverified'), 'bg-amber-100 text-amber-800'],
             };
             $crbCandidates = session('crb_candidates') ?? ($kyc->payload['crb_candidates'] ?? []);
-            $searchRequestId = $kyc->payload['crb_search_request_id'] ?? null;
+            $searchRequestId = session('crb_search_request_id') ?? ($kyc->payload['crb_search_request_id'] ?? null);
+            $confirmNationalId = old('national_id', $customer->national_id ?: ($kyc->payload['nida_verification_attempt']['national_id'] ?? ''));
             $readonly = 'w-full rounded-lg border-gray-200 bg-gray-50 ring-1 ring-gray-200 px-3 py-2 text-sm';
             $editable = 'w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2 text-sm';
         @endphp
 
+        @if (! ($wizardMode ?? false) || ($wizardKey ?? 'nida') !== 'kin')
         {{-- NIDA verification card --}}
         <div class="bg-white rounded-2xl border border-gray-200 p-6 mb-6" x-data="{ submitting: false }">
             <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
@@ -77,17 +85,52 @@
             @endif
 
             @if ($nameMismatch && ! $nidaLocked)
+                @php
+                    $remainingAttempts = app(\App\Services\NidaVerificationService::class)->remainingMismatchAttempts($customer);
+                    $maxAttempts = app(\App\Services\NidaVerificationService::class)->settings()['max_mismatch_attempts'];
+                    $usedAttempts = min($maxAttempts, (int) $customer->nida_mismatch_attempts);
+                    $verifiedNames = $customer->kyc?->payload['nida_verified_names'] ?? [];
+                @endphp
                 <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 p-4">
                     <p class="text-sm font-semibold text-amber-900">{{ __('borrower.nida.mismatch_title') }}</p>
-                    <p class="text-sm text-amber-900 mt-2">{{ __('borrower.nida.mismatch_hidden_bureau') }}</p>
+                    <p class="text-sm text-amber-900 mt-2">{{ __('borrower.nida.mismatch_body') }}</p>
+                    <div class="mt-3 rounded-lg bg-white/80 ring-1 ring-amber-200 px-3 py-2 text-xs text-amber-900">
+                        <p>{{ __('borrower.nida.mismatch_attempts_summary', ['used' => $usedAttempts, 'max' => $maxAttempts, 'remaining' => $remainingAttempts]) }}</p>
+                    </div>
                     @if (($nameMismatch['mismatches'] ?? []) !== [])
-                        <ul class="mt-3 space-y-1 text-xs text-amber-800">
-                            @foreach ($nameMismatch['mismatches'] as $row)
-                                <li>{{ $row['label'] }}: {{ $row['registered'] }}</li>
-                            @endforeach
-                        </ul>
+                        <div class="mt-4 overflow-x-auto">
+                            <table class="w-full text-xs text-left">
+                                <thead>
+                                    <tr class="text-amber-800 border-b border-amber-200">
+                                        <th class="py-2 pr-3 font-semibold">{{ __('borrower.nida.mismatch_field') }}</th>
+                                        <th class="py-2 pr-3 font-semibold">{{ __('borrower.nida.mismatch_registration') }}</th>
+                                        <th class="py-2 font-semibold">{{ __('borrower.nida.mismatch_nida') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($nameMismatch['mismatches'] as $row)
+                                        <tr class="border-b border-amber-100">
+                                            <td class="py-2 pr-3 font-medium">{{ $row['label'] }}</td>
+                                            <td class="py-2 pr-3">{{ $row['registered'] ?? '—' }}</td>
+                                            <td class="py-2 font-semibold text-red-800">{{ $row['verified'] ?? '—' }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
                     @endif
-                    <p class="text-sm text-amber-900 mt-4">{{ __('borrower.nida.mismatch_no_override') }}</p>
+                    @if (filled($verifiedNames['full_name'] ?? null))
+                        <p class="text-xs text-amber-800 mt-3">{{ __('borrower.nida.mismatch_bureau_name', ['name' => $verifiedNames['full_name']]) }}</p>
+                    @endif
+                    @if ($customer->nida_verification_status === 'dob_mismatch' || ($nidaStatus ?? '') === 'dob_mismatch')
+                        <p class="text-xs text-red-800 mt-2 font-medium">{{ __('borrower.nida.dob_mismatch_hint') }}</p>
+                    @endif
+                    @if ($remainingAttempts > 0)
+                        <p class="text-sm text-amber-900 mt-4 font-medium">{{ __('borrower.nida.mismatch_retry_hint', ['remaining' => $remainingAttempts]) }}</p>
+                    @else
+                        <p class="text-sm text-red-800 mt-4 font-medium">{{ __('borrower.nida.mismatch_locked_hint') }}</p>
+                    @endif
+                    <p class="text-xs text-amber-800 mt-3">{{ __('borrower.nida.mismatch_no_override') }}</p>
                 </div>
             @endif
 
@@ -106,15 +149,14 @@
                 </div>
             @endif
 
-            @if (! $locked && ! $nidaLocked && $nidaStatus !== 'name_mismatch')
+            @if (! $locked && ! $nidaLocked && ! in_array($nidaStatus, ['name_mismatch', 'multihit'], true))
                 <form method="POST" action="{{ route('site.borrower.profile.nida.verify') }}" class="space-y-4"
                       @submit="submitting = true">
                     @csrf
                     <div>
                         <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.nida.number') }}</label>
-                        <input name="national_id" value="{{ old('national_id', $customer->national_id) }}" required
-                               placeholder="XXXXXXXX-XXXXX-XXXXX-XX"
-                               class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm font-mono">
+                        <x-site.nida-input name="national_id" :value="old('national_id', $customer->national_id)" />
+                        <p class="text-[11px] text-gray-500 mt-1">{{ __('borrower.nida.format_hint') }}</p>
                         @error('national_id')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                     </div>
                     <button type="submit" :disabled="submitting"
@@ -134,14 +176,17 @@
                 </div>
             @endif
 
-            @if ($nidaStatus === 'multihit' && count($crbCandidates) > 0 && $searchRequestId)
-                <div class="mt-6 border-t border-gray-100 pt-5">
-                    <h3 class="text-sm font-semibold mb-3">{{ __('borrower.nida.multihit_title') }}</h3>
+            @if ($nidaStatus === 'multihit' && count($crbCandidates) > 0 && $searchRequestId && filled($confirmNationalId))
+                <div class="mt-6 border-t border-gray-100 pt-5" x-data="{ confirming: null }">
+                    <h3 class="text-sm font-semibold mb-1">{{ __('borrower.nida.multihit_title') }}</h3>
+                    <p class="text-xs text-gray-500 mb-3">{{ __('borrower.nida.multihit_hint') }}</p>
                     <div class="space-y-3">
                         @foreach ($crbCandidates as $candidate)
-                            <form method="POST" action="{{ route('site.borrower.profile.nida.confirm') }}" class="rounded-xl ring-1 ring-gray-200 p-4 flex flex-wrap items-center justify-between gap-3">
+                            <form method="POST" action="{{ route('site.borrower.profile.nida.confirm') }}"
+                                  class="rounded-xl ring-1 ring-gray-200 p-4 flex flex-wrap items-center justify-between gap-3"
+                                  @submit="confirming = @js($candidate['entity_key'] ?? '')">
                                 @csrf
-                                <input type="hidden" name="national_id" value="{{ $customer->national_id }}">
+                                <input type="hidden" name="national_id" value="{{ $confirmNationalId }}">
                                 <input type="hidden" name="search_request_id" value="{{ $searchRequestId }}">
                                 <input type="hidden" name="entity_key" value="{{ $candidate['entity_key'] ?? '' }}">
                                 <div class="text-sm">
@@ -150,23 +195,50 @@
                                         {{ __('borrower.nida.dob_score', ['dob' => $candidate['dob'] ?? '—', 'score' => $candidate['score'] ?? '—']) }}
                                     </p>
                                 </div>
-                                <button class="text-sm font-semibold bg-amber-500 hover:bg-amber-400 text-gray-900 px-4 py-2 rounded-full">{{ __('borrower.nida.this_is_me') }}</button>
+                                <button type="submit" :disabled="confirming !== null"
+                                        class="inline-flex items-center gap-2 text-sm font-semibold bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-gray-900 px-4 py-2 rounded-full">
+                                    <svg x-show="confirming === @js($candidate['entity_key'] ?? '')" x-cloak class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                    </svg>
+                                    <span>{{ __('borrower.nida.this_is_me') }}</span>
+                                </button>
                             </form>
                         @endforeach
                     </div>
                 </div>
+            @elseif ($nidaStatus === 'multihit' && (! $searchRequestId || ! filled($confirmNationalId)))
+                <div class="mt-6 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">
+                    <p>{{ __('borrower.nida.multihit_retry') }}</p>
+                </div>
             @endif
         </div>
+        @endif
 
         @php
             $nidaDocs = $nidaDocuments ?? collect();
             $nidaFront = $nidaDocs->get('national_id_front');
         @endphp
 
-        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}" enctype="multipart/form-data" class="bg-white rounded-2xl border border-gray-200 p-6 space-y-8"
+        @if (($wizardMode ?? false) && ($wizardKey ?? 'nida') === 'kin')
+            <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal', 'wizard' => 1]) }}" class="bg-white rounded-2xl border border-gray-200 p-6 space-y-8"
+                  @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.save_confirm_title')), message: @js(__('borrower.profile.save_confirm_message')), confirmLabel: @js(__('borrower.profile.save')), confirmClass: 'bg-amber-500 hover:bg-amber-400 text-gray-900' })">
+                @csrf @method('PUT')
+                <input type="hidden" name="wizard" value="1">
+                <input type="hidden" name="focus" value="kin">
+        @else
+        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data" class="bg-white rounded-2xl border border-gray-200 p-6 space-y-8"
               @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.save_confirm_title')), message: @js(__('borrower.profile.save_confirm_message')), confirmLabel: @js(__('borrower.profile.save')), confirmClass: 'bg-amber-500 hover:bg-amber-400 text-gray-900' })">
             @csrf @method('PUT')
+            @if ($wizardMode ?? false)
+                <input type="hidden" name="wizard" value="1">
+                <input type="hidden" name="focus" value="{{ $wizardKey ?? 'nida' }}">
+            @endif
+        @endif
 
+        @endif
+
+            @if (! ($wizardMode ?? false) || ($wizardKey ?? 'nida') !== 'kin')
             <div>
             <h2 class="font-semibold mb-1">{{ __('borrower.profile.personal') }}</h2>
             <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.personal_sections_hint') }}</p>
@@ -228,7 +300,9 @@
             </div>
 
             </div>
+            @endif
 
+            @if (! ($wizardMode ?? false) || ($wizardKey ?? 'nida') === 'kin')
             <div id="next-of-kin" class="border-t border-gray-100 pt-6 scroll-mt-24">
                 <h3 class="font-semibold mb-1">{{ __('borrower.profile.kin_info') }}</h3>
                 <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.kin_subtitle') }}</p>
@@ -259,11 +333,14 @@
                     </div>
                 </div>
             </div>
+            @endif
 
             <button class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                {{ __('borrower.profile.save_personal') }}
+                {{ ($wizardMode ?? false) ? __('borrower.profile_wizard.save_continue') : __('borrower.profile.save_personal') }}
             </button>
         </form>
+
+        @include('site.borrower.profile._wizard_footer', ['customer' => $customer, 'wizardMode' => $wizardMode ?? false, 'wizardKey' => $wizardKey ?? 'nida'])
     </div>
 
     @stack('scripts')

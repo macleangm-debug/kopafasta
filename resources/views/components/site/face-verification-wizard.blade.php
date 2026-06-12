@@ -54,17 +54,25 @@
         </div>
     </div>
 
-    {{-- Scanner — visible only while capturing so desktop browsers receive a sized video element --}}
+    {{-- Scanner — live camera preview while capturing --}}
     <div
         x-show="phase === 'scanning' || phase === 'saving'"
         x-cloak
         class="relative rounded-3xl overflow-hidden bg-black w-full min-h-[70vh] max-h-[80vh] shadow-2xl ring-1 ring-gray-800"
     >
-        <video x-ref="video" autoplay playsinline webkit-playsinline muted class="absolute inset-0 w-full h-full object-cover mirror"></video>
-        <canvas x-ref="overlay" class="absolute inset-0 w-full h-full pointer-events-none mirror"></canvas>
+        <video x-ref="video" autoplay playsinline webkit-playsinline muted class="absolute inset-0 z-[1] w-full h-full object-cover mirror bg-gray-900"></video>
+        <canvas x-ref="overlay" class="absolute inset-0 z-[2] w-full h-full pointer-events-none mirror"></canvas>
+
+        {{-- Live preview label --}}
+        <div class="absolute top-12 left-1/2 -translate-x-1/2 z-[3] pointer-events-none">
+            <span class="inline-flex items-center gap-2 text-xs font-semibold text-white bg-red-600/90 px-3 py-1.5 rounded-full shadow-lg">
+                <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+                Live camera preview
+            </span>
+        </div>
 
         {{-- Step illustration --}}
-        <div class="absolute top-20 left-0 right-0 flex justify-center z-10 pointer-events-none">
+        <div class="absolute top-20 left-0 right-0 flex justify-center z-[3] pointer-events-none">
             <div class="rounded-2xl bg-black/45 px-4 py-3 text-white text-center max-w-xs">
                 <p class="text-[11px] uppercase tracking-widest text-white/70" x-text="'Step ' + (stepIndex + 1) + ' of ' + steps.length"></p>
                 <div class="mt-2 text-3xl" x-show="currentStep?.pose === 'left'">← 👤</div>
@@ -75,8 +83,8 @@
             </div>
         </div>
 
-        {{-- Progress ring + large oval --}}
-        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+        {{-- Progress ring + large oval — semi-transparent so you can see yourself --}}
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-[3]">
             <svg class="w-[92%] max-w-[380px] aspect-square" viewBox="0 0 120 120">
                 <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2.5"/>
                 <circle cx="60" cy="60" r="54" fill="none" stroke="#34d399" stroke-width="3.5" stroke-linecap="round"
@@ -86,12 +94,12 @@
             </svg>
             <div class="absolute w-[78%] max-w-[300px] aspect-[4/5] rounded-[50%] border-[3px] transition-all duration-300"
                  :class="poseOk
-                    ? 'border-emerald-400 shadow-[0_0_32px_rgba(52,211,153,0.55)] bg-emerald-400/5'
-                    : (faceVisible ? 'border-amber-300 shadow-[0_0_20px_rgba(251,191,36,0.35)]' : 'border-white/50')"></div>
+                    ? 'border-emerald-400 shadow-[0_0_32px_rgba(52,211,153,0.55)] bg-emerald-400/10'
+                    : (faceVisible ? 'border-amber-300/90 shadow-[0_0_20px_rgba(251,191,36,0.35)] bg-transparent' : 'border-white/60 bg-transparent')"></div>
         </div>
 
         {{-- Detection status --}}
-        <div class="absolute top-16 left-0 right-0 flex flex-col items-center gap-2 px-4 z-10">
+        <div class="absolute top-16 left-0 right-0 flex flex-col items-center gap-2 px-4 z-[4]">
             <span class="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-full backdrop-blur-sm"
                   :class="faceVisible
                     ? (poseOk ? 'bg-emerald-500/90 text-white' : 'bg-amber-500/90 text-gray-900')
@@ -106,16 +114,17 @@
         </div>
 
         {{-- Step badge --}}
-        <div class="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
+        <div class="absolute top-4 left-4 right-4 flex justify-between items-center z-[4]">
             <span class="text-xs font-semibold text-white/90 bg-black/40 px-3 py-1 rounded-full"
                   x-text="'Step ' + (stepIndex + 1) + ' of ' + steps.length"></span>
             <button type="button" @click="cancelScan()" class="text-xs font-semibold text-white/80 bg-black/40 px-3 py-1 rounded-full">Cancel</button>
         </div>
 
         {{-- Status --}}
-        <div class="absolute bottom-0 inset-x-0 px-6 pb-24 pt-16 bg-gradient-to-t from-black via-black/80 to-transparent text-center z-10">
+        <div class="absolute bottom-0 inset-x-0 px-6 pb-24 pt-12 bg-gradient-to-t from-black/90 via-black/50 to-transparent text-center z-[4]">
             <p class="text-lg font-semibold text-white" x-text="statusTitle"></p>
             <p class="text-sm text-white/70 mt-1" x-text="statusSubtitle"></p>
+            <p class="text-xs text-white/60 mt-2">Position your face in the oval, then tap Capture to review the photo.</p>
             <button type="button" @click="manualCapture()" :disabled="isUploading || phase === 'saving'"
                     class="mt-4 inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-3 rounded-2xl text-sm border-0">
                 Capture
@@ -628,6 +637,10 @@
                     captureBlob() {
                         return new Promise((resolve) => {
                             const video = this.$refs.video;
+                            if (!video?.videoWidth || !video?.videoHeight) {
+                                resolve(null);
+                                return;
+                            }
                             const canvas = document.createElement('canvas');
                             canvas.width = video.videoWidth;
                             canvas.height = video.videoHeight;

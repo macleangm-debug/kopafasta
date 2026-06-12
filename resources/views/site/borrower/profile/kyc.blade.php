@@ -6,18 +6,25 @@
             'subtitle' => __('borrower.profile.kyc_subtitle'),
         ])
 
-        @include('site.borrower.profile._tabs', ['active' => 'kyc'])
-        @include('site.borrower.profile._kyc_progress', ['customer' => $customer, 'active' => 'kyc'])
-        @include('site.borrower.profile._completion')
+        @if ($wizardMode ?? false)
+            @include('site.borrower.profile._wizard_nav', ['customer' => $customer, 'currentKey' => $wizardKey ?? 'documents', 'wizardMode' => true])
+        @else
+            @include('site.borrower.profile._tabs', ['active' => 'kyc'])
+            @include('site.borrower.profile._kyc_progress', ['customer' => $customer, 'active' => 'kyc'])
+            @include('site.borrower.profile._completion')
+        @endif
 
         @if (session('status'))
             <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
         @endif
 
-        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'kyc']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}"
+        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'kyc']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
               enctype="multipart/form-data" class="bg-white rounded-2xl border border-gray-200 p-6 mb-6"
               x-data="{ incomeMethod: @js(old('income_proof_method', $incomeProofMethod ?? '')) }">
             @csrf @method('PUT')
+            @if ($wizardMode ?? false)
+                <input type="hidden" name="wizard" value="1">
+            @endif
             @if (! empty($returnUrl))
                 <input type="hidden" name="return" value="{{ $returnUrl }}">
             @endif
@@ -152,9 +159,10 @@
             </p>
 
             <button class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                {{ __('borrower.profile.save_documents') }}
+                {{ ($wizardMode ?? false) ? __('borrower.profile_wizard.save_continue') : __('borrower.profile.save_documents') }}
             </button>
         </form>
+        @include('site.borrower.profile._wizard_footer', ['customer' => $customer, 'wizardMode' => $wizardMode ?? false, 'wizardKey' => $wizardKey ?? 'documents'])
     </div>
 
     @stack('scripts')

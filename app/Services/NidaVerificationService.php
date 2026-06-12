@@ -71,11 +71,18 @@ class NidaVerificationService
             return $this->lockMessage($customer) ?? __('borrower.nida.result.locked_default');
         }
 
+        $remaining = $this->remainingMismatchAttempts($customer);
+
         return match ($level) {
-            1       => __('borrower.nida.mismatch_warning_1'),
-            2       => __('borrower.nida.mismatch_warning_2'),
+            1       => __('borrower.nida.mismatch_warning_1', ['remaining' => $remaining]),
+            2       => __('borrower.nida.mismatch_warning_2', ['remaining' => $remaining]),
             default => __('borrower.nida.result.mismatch_default'),
         };
+    }
+
+    public function remainingMismatchAttempts(Customer $customer): int
+    {
+        return max(0, $this->settings()['max_mismatch_attempts'] - (int) $customer->nida_mismatch_attempts);
     }
 
     public function unlockIdentityVerification(Customer $customer, ?User $admin = null): void
@@ -310,7 +317,7 @@ class NidaVerificationService
         );
 
         $payload = $kyc->payload ?? [];
-        unset($payload['nida_name_mismatch'], $payload['nida_verified_names']);
+        unset($payload['nida_name_mismatch'], $payload['nida_verified_names'], $payload['crb_candidates'], $payload['crb_search_request_id']);
         $payload['nida_verification'] = [
             'national_id'  => $data['national_id'],
             'verified_at'  => now()->toIso8601String(),
@@ -379,14 +386,17 @@ class NidaVerificationService
 
         $payload = $kyc->payload ?? [];
         $payload['nida_verification_attempt'] = [
-            'at'      => now()->toIso8601String(),
-            'status'  => $result->status,
-            'message' => $result->message,
+            'at'           => now()->toIso8601String(),
+            'status'       => $result->status,
+            'message'      => $result->message,
+            'national_id'  => $formatted,
         ];
 
         if ($result->isMultihit()) {
             $payload['crb_candidates'] = $result->candidates;
             $payload['crb_search_request_id'] = $result->raw['search_request_id'] ?? null;
+        } else {
+            unset($payload['crb_candidates'], $payload['crb_search_request_id']);
         }
 
         $kyc->update(['payload' => $payload]);

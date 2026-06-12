@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.loans_page.title'))" active="loans">
+<x-site.borrower-layout :title="brand_title(__('borrower.loans_page.title'))" active="loans" :portalMode="($isGuarantorPortal ?? false) ? 'guarantor' : 'borrower'">
 
     <h1 class="text-2xl font-bold mb-1">{{ __('borrower.loans_page.title') }}</h1>
     <p class="text-sm text-gray-500 mb-5">{{ __('borrower.loans_page.subtitle') }}</p>
@@ -15,7 +15,7 @@
             'activeTab' => $activeTab ?? 'applications',
             'viewMode' => $viewMode ?? 'cards',
             'inline' => true,
-            'showGuarantorTab' => ($pendingGuarantorRequests ?? collect())->isNotEmpty(),
+            'showGuarantorTab' => $showGuarantorTab ?? false,
         ])
         <a href="{{ route('site.borrower.apply') }}"
            class="inline-flex justify-center items-center bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-2.5 rounded-full text-sm shrink-0 self-start sm:self-auto">
@@ -29,6 +29,7 @@
         @include('site.borrower.loans._tab-guarantor-requests', [
             'pendingGuarantorRequests' => $pendingGuarantorRequests ?? collect(),
             'customer' => $customer,
+            'guarantorExposure' => $guarantorExposure ?? null,
         ])
     @else
         @include('site.borrower.loans._tab-applications', [

@@ -173,6 +173,29 @@ class GuarantorOnboardingService
         return app(ApplicationRequirementsService::class)->checklist($customer)['can_apply'];
     }
 
+    public function guarantorRequirementsMet(Customer $customer): bool
+    {
+        if (! $this->coreRequirementsMet($customer)) {
+            return false;
+        }
+
+        return app(ProfileCompletionService::class)->isFullyComplete($customer);
+    }
+
+    /** @return array{met: bool, percent: int, checklist: array<string, mixed>, next_url: string|null} */
+    public function guarantorProfileStatus(Customer $customer): array
+    {
+        $checklist = app(ApplicationRequirementsService::class)->checklist($customer);
+        $percent = app(ProfileCompletionService::class)->calculate($customer)['percent'] ?? 0;
+
+        return [
+            'met'        => $checklist['can_apply'] && $percent >= 100,
+            'percent'    => $percent,
+            'checklist'  => $checklist,
+            'next_url'   => app(ProfileWizardService::class)->resumeUrl($customer),
+        ];
+    }
+
     public function canFinalize(Customer $customer, GuarantorInvitation $invitation): bool
     {
         if ($invitation->type !== 'external') {
@@ -192,7 +215,7 @@ class GuarantorOnboardingService
             return false;
         }
 
-        return $this->coreRequirementsMet($customer);
+        return $this->guarantorRequirementsMet($customer);
     }
 
     public function redirectToContinue(Request $request, Customer $customer, GuarantorInvitation $invitation): ?RedirectResponse
@@ -232,12 +255,12 @@ class GuarantorOnboardingService
                 ->with('status', __('borrower.guarantor_invite.continue_after_membership'));
         }
 
-        if (! $this->coreRequirementsMet($customer)) {
-            $checklist = app(ApplicationRequirementsService::class)->checklist($customer);
-            $url = $checklist['first_action_url'] ?? route('site.borrower.profile');
+        if (! $this->guarantorRequirementsMet($customer)) {
+            $status = app(ProfileCompletionService::class)->calculate($customer);
+            $url = app(ProfileWizardService::class)->resumeUrl($customer);
 
             return redirect()->to($url)
-                ->with('status', __('borrower.guarantor_invite.continue_after_profile'));
+                ->with('status', __('borrower.guarantor_invite.continue_after_profile', ['percent' => $status['percent'] ?? 0]));
         }
 
         if ($this->canFinalize($customer, $invitation->fresh())) {

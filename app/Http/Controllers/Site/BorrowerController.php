@@ -38,6 +38,7 @@ use App\Services\PinService;
 use App\Services\PostApprovalFeeService;
 use App\Services\DocumentPageMerger;
 use App\Services\ProfileCompletionService;
+use App\Services\ProfileWizardService;
 use App\Services\ProfileValidationService;
 use App\Services\AffiliateService;
 use App\Services\ReferralService;
@@ -286,19 +287,25 @@ class BorrowerController extends Controller
         $customer = $this->customer();
 
         $portal = app(\App\Services\PortalContextService::class);
-        $pendingGuarantorRequests = $portal->pendingGuarantorInvitations($customer);
-
-        $activeTab = $request->query('tab', 'applications');
-        $allowedTabs = ['applications', 'active'];
-        if ($pendingGuarantorRequests->isNotEmpty()) {
-            $allowedTabs[] = 'guarantor';
-        }
-        if (! in_array($activeTab, $allowedTabs, true)) {
-            $activeTab = 'applications';
-        }
+        $pendingGuarantorRequests = $portal->pendingGuarantorLinks($customer);
 
         $applicationsDashboard = app(\App\Services\BorrowerApplicationsDashboardService::class);
         $applicationRows = $applicationsDashboard->applicationsForCustomer($customer);
+
+        $allowedTabs = ['applications', 'active'];
+        if ($portal->hasGuarantorWork($customer) || $pendingGuarantorRequests->isNotEmpty()) {
+            $allowedTabs[] = 'guarantor';
+        }
+
+        $activeTab = $request->query('tab');
+        if (! $activeTab) {
+            $activeTab = ($portal->hasGuarantorWork($customer) && $applicationRows->isEmpty())
+                ? 'guarantor'
+                : 'applications';
+        }
+        if (! in_array($activeTab, $allowedTabs, true)) {
+            $activeTab = $pendingGuarantorRequests->isNotEmpty() ? 'guarantor' : 'applications';
+        }
 
         $loans = Loan::with('product')
             ->where('customer_id', $customer->id)
@@ -320,6 +327,10 @@ class BorrowerController extends Controller
             ? app(\App\Services\LoanPolicyService::class)->guarantorExposureSummary($customer)
             : null;
 
+        $isGuarantorPortal = $portal->hasGuarantorWork($customer)
+            && $applicationRows->isEmpty()
+            && $loans->isEmpty();
+
         return view('site.borrower.loans', compact(
             'customer',
             'activeTab',
@@ -328,7 +339,8 @@ class BorrowerController extends Controller
             'loans',
             'pendingGuarantorRequests',
             'guarantorExposure',
-        ));
+            'isGuarantorPortal',
+        ))->with('showGuarantorTab', in_array('guarantor', $allowedTabs, true));
     }
 
     /* ---------------------------------------------------------------------
@@ -833,6 +845,14 @@ class BorrowerController extends Controller
     /* ---------------------------------------------------------------------
      | 9. Profile & KYC
      |---------------------------------------------------------------------*/
+    public function profileWizard(): RedirectResponse
+    {
+        $customer = $this->customer();
+        $url = app(ProfileWizardService::class)->resumeUrl($customer);
+
+        return redirect()->to($url);
+    }
+
     public function profile(Request $request, string $section = 'personal'): View|RedirectResponse
     {
         $customer = $this->customer();
@@ -841,8 +861,10 @@ class BorrowerController extends Controller
             ['status' => 'pending', 'payload' => []]
         );
 
+        $wizardMode = $request->boolean('wizard');
+
         if ($section === 'kin') {
-            return redirect()->to(route('site.borrower.profile', ['section' => 'personal']).'#next-of-kin');
+            return redirect()->to(route('site.borrower.profile', ['section' => 'personal', 'wizard' => $wizardMode ? 1 : null, 'focus' => 'kin']).'#next-of-kin');
         }
 
         $section = in_array($section, ['personal', 'activity', 'residence', 'kyc', 'security'], true)
@@ -878,8 +900,14 @@ class BorrowerController extends Controller
         $incomePrimaryOptions = app(\App\Services\IncomeProofService::class)->informalPrimaryOptions();
         $completionSummary = app(\App\Services\ProfileCompletionService::class)->completionSummary($customer);
         $returnUrl = $request->query('return');
+        $wizardKey = match ($section) {
+            'activity'  => 'activity',
+            'residence' => 'residence',
+            'kyc'       => 'documents',
+            default     => $request->query('focus') === 'kin' ? 'kin' : 'nida',
+        };
 
-        return view($view, compact('customer', 'kyc', 'trustedDevices', 'nidaDocuments', 'employmentContract', 'residenceLetter', 'incomeProofChecklist', 'incomeProofEmployed', 'incomeProofMethod', 'incomePrimaryOptions', 'completionSummary', 'returnUrl'))
+        return view($view, compact('customer', 'kyc', 'trustedDevices', 'nidaDocuments', 'employmentContract', 'residenceLetter', 'incomeProofChecklist', 'incomeProofEmployed', 'incomeProofMethod', 'incomePrimaryOptions', 'completionSummary', 'returnUrl', 'wizardMode', 'wizardKey'))
             ->with('crbUsesStub', app(CrbService::class)->usesStub())
             ->with('crbSamples', config('crb_samples.scenarios', []))
             ->with('profileSections', app(ProfileCompletionService::class)->displaySections($customer));
@@ -896,30 +924,31 @@ class BorrowerController extends Controller
         $validation = app(ProfileValidationService::class);
 
         if ($section === 'personal') {
+            $kinRequired = ! $request->boolean('wizard') || $request->input('focus') === 'kin';
             $data = $request->validate([
                 'phone' => ['nullable', 'string', 'max:20'],
                 'email' => ['nullable', 'email', 'max:120'],
-                'nok_name'         => ['required', 'string', 'max:120'],
-                'nok_relationship' => ['required', 'string', 'max:60'],
-                'nok_phone'        => ['required', 'string', 'max:30'],
-                'nok_region'       => ['required', 'string', 'max:100'],
-                'nok_district'     => ['required', 'string', 'max:100'],
+                'nok_name'         => [$kinRequired ? 'required' : 'nullable', 'string', 'max:120'],
+                'nok_relationship' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:60'],
+                'nok_phone'        => [$kinRequired ? 'required' : 'nullable', 'string', 'max:30'],
+                'nok_region'       => [$kinRequired ? 'required' : 'nullable', 'string', 'max:100'],
+                'nok_district'     => [$kinRequired ? 'required' : 'nullable', 'string', 'max:100'],
                 'nok_ward'         => ['nullable', 'string', 'max:100'],
-                'nok_street'       => ['required', 'string', 'max:255'],
+                'nok_street'       => [$kinRequired ? 'required' : 'nullable', 'string', 'max:255'],
                 'national_id_front' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             ]);
 
-            $customer->fill([
+            $customer->fill(array_filter([
                 'phone'            => $data['phone'] ?? $customer->phone,
                 'email'            => $data['email'] ?? $customer->email,
-                'nok_name'         => $data['nok_name'],
-                'nok_relationship' => $data['nok_relationship'],
-                'nok_phone'        => $data['nok_phone'],
-                'nok_region'       => $data['nok_region'],
-                'nok_district'     => $data['nok_district'],
+                'nok_name'         => $data['nok_name'] ?? null,
+                'nok_relationship' => $data['nok_relationship'] ?? null,
+                'nok_phone'        => $data['nok_phone'] ?? null,
+                'nok_region'       => $data['nok_region'] ?? null,
+                'nok_district'     => $data['nok_district'] ?? null,
                 'nok_ward'         => $data['nok_ward'] ?? null,
-                'nok_street'       => $data['nok_street'],
-            ])->save();
+                'nok_street'       => $data['nok_street'] ?? null,
+            ], fn ($value) => $value !== null))->save();
 
             $this->persistProfileDocumentUpload($customer, 'national_id_front', $request->file('national_id_front'), []);
 
@@ -1055,12 +1084,39 @@ class BorrowerController extends Controller
             return redirect($return)->with('status', __('borrower.profile.saved_return'));
         }
 
+        if ($request->boolean('wizard')) {
+            return $this->redirectWizardStep($request, $customer, $section);
+        }
+
         return $this->redirectWithGuarantorResume(
             $request,
             $customer,
             redirect()
                 ->route('site.borrower.profile', array_filter(['section' => $section !== 'personal' ? $section : null]))
                 ->with('status', 'Profile updated.'),
+        );
+    }
+
+    private function redirectWizardStep(Request $request, Customer $customer, string $section): RedirectResponse
+    {
+        $wizard = app(ProfileWizardService::class);
+        $currentKey = match ($section) {
+            'activity'  => 'activity',
+            'residence' => 'residence',
+            'kyc'       => 'documents',
+            default     => $request->input('focus') === 'kin' ? 'kin' : 'nida',
+        };
+
+        $next = $wizard->navigation($customer->fresh(), $currentKey)['next'];
+
+        if ($next) {
+            return redirect()->to($next['url'])->with('status', __('borrower.profile_wizard.saved_continue'));
+        }
+
+        return $this->redirectWithGuarantorResume(
+            $request,
+            $customer,
+            redirect()->route('site.borrower.dashboard')->with('status', __('borrower.profile_wizard.complete')),
         );
     }
 
@@ -1126,7 +1182,8 @@ class BorrowerController extends Controller
             return redirect()
                 ->route('site.borrower.profile', ['section' => 'personal'])
                 ->with('nida_result', ['status' => 'multihit', 'message' => $result->message])
-                ->with('crb_candidates', $result->candidates);
+                ->with('crb_candidates', $result->candidates)
+                ->with('crb_search_request_id', $result->raw['search_request_id'] ?? null);
         }
 
         return redirect()
@@ -1150,8 +1207,8 @@ class BorrowerController extends Controller
 
         $data = $request->validate([
             'national_id'       => ['required', 'string', 'max:30', new ValidNidaNumber],
-            'search_request_id' => ['required', 'string', 'max:40'],
-            'entity_key'        => ['required', 'string', 'max:40'],
+            'search_request_id' => ['required', 'string', 'max:120'],
+            'entity_key'        => ['required', 'string', 'max:80'],
         ]);
 
         if ($message = $nida->assertCanVerify($customer)) {
@@ -1190,9 +1247,10 @@ class BorrowerController extends Controller
             ->with('nida_result', ['status' => 'failed', 'message' => $result->message ?? 'Could not confirm the selected match.']);
     }
 
-    public function faceVerification(FaceVerificationService $faces): View
+    public function faceVerification(Request $request, FaceVerificationService $faces): View
     {
         $customer = $this->customer();
+        $wizardMode = $request->boolean('wizard');
         $photos = $faces->latestByAngle($customer);
         $progress = $faces->progress($customer);
         $status = $faces->statusLabel($customer);
@@ -1221,8 +1279,8 @@ class BorrowerController extends Controller
         })->values()->all();
 
         return view('site.borrower.face-verification', compact(
-            'customer', 'photos', 'progress', 'status', 'angles', 'wizard', 'uploadUrls', 'steps'
-        ));
+            'customer', 'photos', 'progress', 'status', 'angles', 'wizard', 'uploadUrls', 'steps', 'wizardMode'
+        ))->with('wizardKey', 'face');
     }
 
     public function uploadFaceVerification(Request $request, string $angle, FaceVerificationService $faces): RedirectResponse|JsonResponse
@@ -1384,7 +1442,7 @@ class BorrowerController extends Controller
         return view('site.borrower.guarantor-requests', compact('customer', 'requests'));
     }
 
-    public function respondGuarantorRequest(Request $request, CustomerGuarantor $customerGuarantor, GuarantorInvitationService $guarantors, GuarantorSignatureService $signatures): RedirectResponse
+    public function respondGuarantorRequest(Request $request, CustomerGuarantor $customerGuarantor, GuarantorInvitationService $guarantors, GuarantorSignatureService $signatures, GuarantorOnboardingService $guarantorOnboarding): RedirectResponse
     {
         $customer = $this->customer();
 
@@ -1399,33 +1457,73 @@ class BorrowerController extends Controller
         $data = $request->validate([
             'action'         => ['required', 'in:approve,reject'],
             'notes'          => ['nullable', 'string', 'max:500'],
-            'signer_name'    => ['required_if:action,approve', 'nullable', 'string', 'max:120'],
+            'signer_name'    => ['nullable', 'string', 'max:120'],
             'signature_data' => ['required_if:action,approve', 'nullable', 'string', 'starts_with:data:image/png;base64,'],
         ]);
 
         if ($data['action'] === 'approve') {
+            $profileStatus = $guarantorOnboarding->guarantorProfileStatus($customer);
+            if (! $profileStatus['met']) {
+                return redirect()
+                    ->route('site.borrower.guarantor-requests.show', $customerGuarantor)
+                    ->with('error', __('borrower.guarantor.profile_incomplete', [
+                        'percent' => $profileStatus['percent'],
+                    ]));
+            }
+
             $application = $customerGuarantor->application;
             abort_unless($application, 422);
 
+            $signerName = trim($data['signer_name'] ?? '') ?: trim($customer->first_name.' '.$customer->last_name);
+
             $signatures->record(
                 $application,
-                $data['signer_name'],
+                $signerName,
                 $data['signature_data'],
                 $customerGuarantor,
                 $invitation,
             );
             $guarantors->approve($customerGuarantor);
-            $msg = 'Guarantor request approved and signed.';
+            $msg = __('borrower.guarantor.approved_success');
         } else {
             $guarantors->reject($customerGuarantor, $data['notes'] ?? null);
-            $msg = 'Guarantor request declined.';
+            $msg = __('borrower.guarantor.declined_success');
         }
 
         $this->auditBorrower('guarantor_request.'.$data['action'], $customerGuarantor, [
             'invitation_id' => $invitation?->id,
         ]);
 
-        return back()->with('status', $msg);
+        return redirect()
+            ->route('site.borrower.loans', ['tab' => 'guarantor'])
+            ->with('status', $msg);
+    }
+
+    public function showGuarantorRequest(CustomerGuarantor $customerGuarantor, GuarantorOnboardingService $guarantorOnboarding): View
+    {
+        $customer = $this->customer();
+
+        $invitation = \App\Models\GuarantorInvitation::query()
+            ->with(['borrower', 'application.product'])
+            ->where('customer_guarantor_id', $customerGuarantor->id)
+            ->where('guarantor_customer_id', $customer->id)
+            ->first();
+
+        abort_unless($invitation, 403);
+        abort_unless($customerGuarantor->status === 'pending', 404);
+
+        $profileStatus = $guarantorOnboarding->guarantorProfileStatus($customer);
+        $guarantorExposure = app(\App\Services\PortalContextService::class)->hasGuarantorWork($customer)
+            ? app(\App\Services\LoanPolicyService::class)->guarantorExposureSummary($customer)
+            : null;
+
+        return view('site.borrower.guarantor-request-show', compact(
+            'customer',
+            'invitation',
+            'customerGuarantor',
+            'profileStatus',
+            'guarantorExposure',
+        ));
     }
 
     public function postApprovalFees(LoanApplication $application, PostApprovalFeeService $fees): View

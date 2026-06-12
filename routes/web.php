@@ -168,7 +168,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/face-verification/{angle}',     [\App\Http\Controllers\Site\BorrowerController::class, 'uploadFaceVerification'])->name('borrower.face-verification.store')->where('angle', 'front|left|right|holding_nida');
             Route::get('/borrower/guarantors',                     [\App\Http\Controllers\Site\BorrowerController::class, 'guarantors'])   ->name('borrower.guarantors');
             Route::post('/borrower/guarantors',                    [\App\Http\Controllers\Site\BorrowerController::class, 'addGuarantor']) ->name('borrower.guarantors.store');
-            Route::get('/borrower/guarantor-requests', fn () => redirect()->route('site.borrower.loans'))->name('borrower.guarantor-requests');
+            Route::get('/borrower/guarantor-requests', fn () => redirect()->route('site.borrower.loans', ['tab' => 'guarantor']))->name('borrower.guarantor-requests');
+            Route::get('/borrower/guarantor-requests/{customerGuarantor}', [\App\Http\Controllers\Site\BorrowerController::class, 'showGuarantorRequest'])->name('borrower.guarantor-requests.show');
             Route::post('/borrower/guarantor-requests/{customerGuarantor}', [\App\Http\Controllers\Site\BorrowerController::class, 'respondGuarantorRequest'])->name('borrower.guarantor-requests.respond');
             Route::get('/borrower/guarantor/onboarding', [\App\Http\Controllers\Site\GuarantorOnboardingController::class, 'show'])->name('guarantor.onboarding');
             Route::post('/borrower/guarantor/onboarding', [\App\Http\Controllers\Site\GuarantorOnboardingController::class, 'complete'])->name('guarantor.onboarding.complete');
@@ -186,6 +187,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/notifications/{notification}/read', [\App\Http\Controllers\Site\BorrowerController::class, 'markNotificationRead'])->name('borrower.notifications.item.read');
             Route::delete('/borrower/notifications/{notification}', [\App\Http\Controllers\Site\BorrowerController::class, 'clearNotification'])->name('borrower.notifications.item.clear');
             Route::post('/borrower/notifications/clear-all',       [\App\Http\Controllers\Site\BorrowerController::class, 'clearAllNotifications'])->name('borrower.notifications.clear-all');
+            Route::get('/borrower/profile/wizard',              [\App\Http\Controllers\Site\BorrowerController::class, 'profileWizard'])->name('borrower.profile.wizard');
             Route::get('/borrower/profile/{section?}',             [\App\Http\Controllers\Site\BorrowerController::class, 'profile'])->name('borrower.profile')->where('section', 'personal|activity|residence|kin|kyc|security');
             Route::put('/borrower/profile/{section}',              [\App\Http\Controllers\Site\BorrowerController::class, 'updateProfile'])->name('borrower.profile.update')->where('section', 'personal|activity|residence|kin|kyc');
             Route::post('/borrower/profile/nida/verify',           [\App\Http\Controllers\Site\BorrowerController::class, 'verifyNida'])->name('borrower.profile.nida.verify');
