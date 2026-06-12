@@ -1030,9 +1030,15 @@ class BorrowerController extends Controller
                 $pageFiles,
             );
 
+            $residenceParams = array_filter([
+                'section' => 'residence',
+                'wizard'  => $request->boolean('wizard') ? 1 : null,
+            ]);
+
             if ($validation->requiresResidenceLetter() && ! $validation->hasResidenceLetter($customer->fresh())) {
                 return redirect()
-                    ->route('site.borrower.profile', ['section' => 'residence'])
+                    ->route('site.borrower.profile', $residenceParams)
+                    ->with('status', __('borrower.profile.residence_address_saved'))
                     ->withErrors(['residence_letter' => __('borrower.profile.residence_letter_required')])
                     ->withInput();
             }

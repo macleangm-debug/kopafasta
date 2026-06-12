@@ -419,9 +419,8 @@ class NidaVerificationService
             $updates['nida_locked_until'] = $until;
             $updates['nida_verification_status'] = 'identity_verification_failed';
             $customer->update($updates);
-            $this->syncUserLock($customer->fresh(), $until);
 
-            $this->audit->logBorrower(auth()->user(), 'nida.account_locked', $customer, [
+            $this->audit->logBorrower(auth()->user(), 'nida.verification_suspended', $customer, [
                 'attempts'     => $attempts,
                 'reason'       => $reason,
                 'locked_until' => $until->toIso8601String(),

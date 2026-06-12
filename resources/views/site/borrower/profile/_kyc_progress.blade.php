@@ -2,13 +2,14 @@
 
 @php
     $wizardService = app(\App\Services\ProfileWizardService::class);
+    $onboarding = app(\App\Services\ApplicationRequirementsService::class)->onboardingBanner($customer);
+    $percent = (int) ($onboarding['percent'] ?? 0);
     $stepHeading = null;
     $currentKey = $wizardKey;
 
     if ($wizardMode) {
         $wizardNav = $wizardService->navigation($customer, $wizardKey ?? 'nida');
         $progress = $wizardNav['progress'];
-        $percent = (int) ($progress['percent'] ?? 0);
         $steps = collect($progress['steps'])->map(fn (array $step) => [
             'key'      => $step['key'],
             'label'    => $step['label'],
@@ -24,7 +25,6 @@
         $completedCount = (int) ($progress['completed'] ?? 0);
     } else {
         $profile = app(\App\Services\ProfileCompletionService::class)->calculate($customer);
-        $percent = (int) ($profile['percent'] ?? 0);
         $sections = collect($profile['sections'] ?? [])->keyBy('key');
         $nidaVerified = app(\App\Services\NidaVerificationService::class)->isVerified($customer);
         $nidaUploaded = app(\App\Services\ProfileValidationService::class)->nationalIdUploadsComplete($customer);

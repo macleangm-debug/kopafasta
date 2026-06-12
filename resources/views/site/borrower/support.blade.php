@@ -3,6 +3,41 @@
     <h1 class="text-2xl font-bold mb-1">Support center</h1>
     <p class="text-sm text-gray-500 mb-6">FAQ, AI assistant, and human support.</p>
 
+    @if ($customer->nida_locked_until && now()->lt($customer->nida_locked_until))
+        <div id="identity-appeal" class="mb-8 rounded-2xl border border-amber-200 bg-amber-50 p-6">
+            <p class="text-xs uppercase tracking-widest text-amber-700 font-semibold">{{ __('borrower.nida.title') }}</p>
+            <h2 class="text-lg font-bold text-amber-950 mt-1">Identity verification appeal</h2>
+            <p class="text-sm text-amber-900 mt-2">{{ __('borrower.nida.verification_locked_appeal') }}</p>
+            <p class="text-sm text-amber-900 mt-2">
+                {{ __('borrower.nida.account_locked_until', ['time' => $customer->nida_locked_until->format('d M Y H:i')]) }}
+            </p>
+            <p class="text-sm text-amber-900 mt-3">
+                When you contact us, include your registered phone number and a brief explanation (for example: legal name change, typo at registration, or bureau error). Our team will review and respond during business hours.
+            </p>
+            <div class="mt-4 flex flex-wrap gap-3">
+                <a href="tel:{{ preg_replace('/\s+/', '', config('branding.support_phone')) }}"
+                   class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                    Call {{ config('branding.support_phone') }}
+                </a>
+                <a href="mailto:{{ config('branding.support_email') }}?subject=Identity%20verification%20appeal"
+                   class="inline-flex bg-white ring-1 ring-amber-200 hover:bg-amber-100 text-amber-950 font-semibold px-5 py-2.5 rounded-full text-sm">
+                    Email {{ config('branding.support_email') }}
+                </a>
+            </div>
+        </div>
+    @else
+        <div id="identity-appeal" class="mb-8 rounded-2xl border border-gray-200 bg-white p-6">
+            <h2 class="font-semibold">Identity verification help</h2>
+            <p class="text-sm text-gray-600 mt-2">
+                If your NIDA name does not match your registration, or verification was paused, contact us with your phone number and NIDA details. We review appeals case by case — for example legal name changes or bureau errors.
+            </p>
+            <a href="mailto:{{ config('branding.support_email') }}?subject=Identity%20verification%20help"
+               class="inline-flex mt-4 text-sm font-semibold text-amber-700 hover:underline">
+                {{ config('branding.support_email') }}
+            </a>
+        </div>
+    @endif
+
     {{-- AI Assistant --}}
     <div class="mb-8 bg-white rounded-2xl border border-gray-200 p-5" x-data="supportChat()">
         <div class="flex items-center gap-3 mb-4">

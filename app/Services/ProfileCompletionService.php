@@ -147,10 +147,10 @@ class ProfileCompletionService
 
         $completed = $requirements->where('complete', true)->pluck('label')->values()->all();
         $remaining = $requirements->where('complete', false)->pluck('label')->values()->all();
-        $total = max(1, $requirements->count());
+        $percent = (int) (app(ApplicationRequirementsService::class)->onboardingBanner($customer)['percent'] ?? 0);
 
         return [
-            'percent'   => (int) round(($requirements->where('complete', true)->count() / $total) * 100),
+            'percent'   => $percent,
             'remaining' => $remaining,
             'completed' => $completed,
         ];

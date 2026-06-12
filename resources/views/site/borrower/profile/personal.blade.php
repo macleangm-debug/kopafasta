@@ -47,6 +47,11 @@
                 <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-4 text-sm text-red-900">
                     <p class="font-semibold">{{ __('borrower.nida.result.locked_title') }}</p>
                     <p class="mt-1">{{ $nidaLockMessage ?? __('borrower.nida.result.locked_default') }}</p>
+                    <p class="mt-3 text-red-800">{{ __('borrower.nida.verification_locked_appeal') }}</p>
+                    <a href="{{ route('site.borrower.support') }}#identity-appeal"
+                       class="inline-flex mt-3 bg-white ring-1 ring-red-200 hover:bg-red-50 text-red-900 font-semibold px-4 py-2 rounded-full text-sm">
+                        {{ __('borrower.nida.verification_locked_support') }}
+                    </a>
                 </div>
             @endif
 

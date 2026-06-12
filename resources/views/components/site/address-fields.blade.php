@@ -14,9 +14,11 @@
     $districtName = $p.'district';
     $wardName = $p.'ward';
     $streetName = $p.'street';
+    $initialRegion = old($regionName, $region);
+    $initialDistrict = old($districtName, $district);
 @endphp
 
-<div class="grid sm:grid-cols-2 gap-4" x-data="tzAddress(@js($locations), @js(old($regionName, $region)), @js(old($districtName, $district)), @js([
+<div class="grid sm:grid-cols-2 gap-4" x-data="tzAddress(@js($locations), @js($initialRegion), @js($initialDistrict), @js([
     'selectRegion' => __('borrower.profile.select_region'),
     'selectDistrict' => __('borrower.profile.select_district'),
 ]))">
@@ -24,10 +26,10 @@
         <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.region') }} @if($required)<span class="text-red-500">*</span>@endif</label>
         <select name="{{ $regionName }}" x-model="region" @change="onRegionChange()" @if($required) required @endif
                 class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm">
-            <option value="" x-text="labels.selectRegion"></option>
-            <template x-for="(districts, name) in locations" :key="name">
-                <option :value="name" x-text="name" :selected="name === region"></option>
-            </template>
+            <option value="">{{ __('borrower.profile.select_region') }}</option>
+            @foreach ($locations as $regionLabel => $districts)
+                <option value="{{ $regionLabel }}" @selected($initialRegion === $regionLabel)>{{ $regionLabel }}</option>
+            @endforeach
         </select>
     </div>
     <div>
@@ -35,9 +37,9 @@
         <select name="{{ $districtName }}" x-model="district" @if($required) required @endif
                 class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm"
                 :key="'district-' + region">
-            <option value="" x-text="labels.selectDistrict"></option>
+            <option value="">{{ __('borrower.profile.select_district') }}</option>
             <template x-for="d in districtOptions" :key="d">
-                <option :value="d" x-text="d" :selected="d === district"></option>
+                <option :value="d" x-text="d"></option>
             </template>
         </select>
     </div>
@@ -68,7 +70,11 @@
                 districtOptions: [],
                 init() {
                     this.refreshDistricts();
-                    this.syncDistrictSelection();
+                    this.$nextTick(() => {
+                        if (this.savedDistrict) {
+                            this.district = this.savedDistrict;
+                        }
+                    });
                 },
                 onRegionChange() {
                     this.district = '';
@@ -86,13 +92,6 @@
                     }
 
                     this.districtOptions = districts;
-                },
-                syncDistrictSelection() {
-                    this.$nextTick(() => {
-                        if (this.savedDistrict) {
-                            this.district = this.savedDistrict;
-                        }
-                    });
                 },
             };
         }
