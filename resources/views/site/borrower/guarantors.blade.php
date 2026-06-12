@@ -29,7 +29,7 @@
             <input type="email" name="email" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2 text-sm">
 
             <label class="block text-xs text-gray-600 mb-1 mt-3">National ID (NIDA)</label>
-            <input name="national_id" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2 text-sm">
+            <x-site.nida-input name="national_id" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2 text-sm" />
 
             <label class="block text-xs text-gray-600 mb-1 mt-3">Address (optional)</label>
             <input name="address" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2 text-sm">
