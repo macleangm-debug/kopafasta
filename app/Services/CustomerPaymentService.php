@@ -93,7 +93,7 @@ class CustomerPaymentService
                 'paid_at'                 => $autoVerify || ! $isBank ? now() : null,
                 'payment_date'            => $data['payment_date'] ?? ($isBank ? now()->toDateString() : null),
                 'source_type'             => isset($data['source']) ? $data['source']::class : null,
-                'source_id'               => $data['source']?->getKey(),
+                'source_id'               => ($data['source'] ?? null)?->getKey(),
                 'loan_id'                 => $data['loan']?->id,
                 'loan_product_id'         => $product?->id,
                 'created_by'              => auth()->id(),
