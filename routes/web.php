@@ -152,6 +152,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/applications/{application}/agreement/sign',          [\App\Http\Controllers\Site\LoanAgreementController::class, 'sign'])      ->name('borrower.application.agreement.sign');
             Route::get('/borrower/agreements/{agreement}/download',                     [\App\Http\Controllers\Site\LoanAgreementController::class, 'download']) ->name('borrower.agreement.download');
             Route::get('/borrower/loans',                          [\App\Http\Controllers\Site\BorrowerController::class, 'loans'])        ->name('borrower.loans');
+            Route::get('/borrower/loans/{loan}',                   [\App\Http\Controllers\Site\BorrowerController::class, 'showLoan'])   ->name('borrower.loans.show');
             Route::get('/borrower/schedule/{loan?}',               [\App\Http\Controllers\Site\BorrowerController::class, 'schedule'])     ->name('borrower.schedule');
             Route::get('/borrower/loans/{loan}/restructure',       [\App\Http\Controllers\Site\BorrowerController::class, 'restructureLoan'])->name('borrower.loans.restructure');
             Route::post('/borrower/loans/{loan}/restructure',      [\App\Http\Controllers\Site\BorrowerController::class, 'submitRestructure'])->name('borrower.loans.restructure.submit');

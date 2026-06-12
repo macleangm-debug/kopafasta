@@ -12,6 +12,7 @@ use App\Services\AuditService;
 use App\Services\CapitalPartnerAllocationService;
 use App\Services\CapitalPartnerMetricsService;
 use App\Services\AssetReservationService;
+use App\Services\LoanDisbursementOrchestrator;
 use App\Services\LoanDisbursementService;
 use App\Services\GuarantorNotificationService;
 use App\Services\LoanOriginationService;
@@ -145,6 +146,7 @@ class LoanController extends Controller
             'product',
             'application',
             'fees',
+            'disbursements',
             'capitalAllocations.lender',
             'capitalAllocations.pool',
             'repaymentSchedules' => fn ($q) => $q->orderBy('installment_no'),
@@ -184,49 +186,25 @@ class LoanController extends Controller
             ->with('status', 'Loan deleted.');
     }
 
-    public function disburse(Loan $loan, LoanDisbursementService $service, RepaymentScheduleGenerator $scheduler)
+    public function disburse(Loan $loan, LoanDisbursementOrchestrator $orchestrator)
     {
-        if ($loan->loan_application_id) {
-            $application = LoanApplication::find($loan->loan_application_id);
-            if ($application) {
-                $blocking = app(\App\Services\ApplicationDisbursementReadinessService::class)->blockingMessages($application);
-                if ($blocking !== []) {
-                    return back()->withErrors(['disburse' => implode(' ', $blocking)]);
-                }
-            }
+        try {
+            $loan = $orchestrator->disburse($loan, auth()->user());
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors());
         }
 
-        $loan->update([
-            'status' => 'active',
-            'disbursement_date' => $loan->disbursement_date ?? now()->toDateString(),
-        ]);
+        $installments = $loan->repaymentSchedules()->count();
+        $feesCount = \App\Models\LoanFee::where('loan_id', $loan->id)->where('charge_when', 'disbursement')->count();
 
-        $applied = $service->applyFees($loan->fresh());
-
-        $installments = $scheduler->generate($loan->fresh());
-
-        if ($loan->loan_application_id) {
-            $application = LoanApplication::find($loan->loan_application_id);
-            if ($application) {
-                $application->update([
-                    'status' => 'disbursed',
-                    'current_stage' => 'disbursement',
-                    'disbursed_at' => now(),
-                ]);
-                app(AssetReservationService::class)->syncFromApplication($application->fresh());
-            }
-        }
-
-        $this->auditAdmin('admin.loans.disbursed', $loan->fresh(), [
-            'fees_applied' => count($applied),
+        $this->auditAdmin('admin.loans.disbursed', $loan, [
+            'fees_applied' => $feesCount,
             'installments' => $installments,
         ]);
 
-        app(GuarantorNotificationService::class)->notifyLoanDisbursed($loan->fresh(['application.customer']));
-
         return redirect()
             ->route('admin.loans.show', $loan)
-            ->with('status', 'Loan disbursed. '.count($applied).' fee(s) applied · '.$installments.' installment(s) scheduled.');
+            ->with('status', 'Loan disbursed. '.$feesCount.' fee(s) applied · '.$installments.' installment(s) scheduled.');
     }
 
     public function writeOffForm(Loan $loan)

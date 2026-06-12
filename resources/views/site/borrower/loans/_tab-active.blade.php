@@ -69,6 +69,7 @@
                     $canTopUp = $policy->canRequestTopUp($loan) === null;
                 @endphp
                 <div class="flex items-center gap-2 flex-wrap">
+                    <a href="{{ route('site.borrower.loans.show', $loan) }}" class="bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-800 text-xs font-semibold px-4 py-2 rounded-full">{{ __('borrower.loans_page.view_loan') }}</a>
                     <a href="{{ route('site.borrower.schedule', $loan->id) }}" class="bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold px-4 py-2 rounded-full">{{ __('borrower.loans_page.view_schedule') }}</a>
                     <a href="{{ route('site.borrower.payments') }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 text-xs font-semibold px-4 py-2 rounded-full">{{ __('borrower.loans_page.make_payment') }}</a>
                     @if ($canRestructure)

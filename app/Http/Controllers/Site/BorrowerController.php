@@ -448,6 +448,31 @@ class BorrowerController extends Controller
         return view('site.borrower.schedule', compact('customer','loan','schedule','allLoans'));
     }
 
+    public function showLoan(Loan $loan): View
+    {
+        $customer = $this->customer();
+        abort_if($loan->customer_id !== $customer->id, 404);
+
+        $loan->loadMissing(['product', 'repaymentSchedules', 'repayments']);
+        $nextInstallment = $loan->repaymentSchedules
+            ->whereNotIn('status', ['paid'])
+            ->sortBy('installment_no')
+            ->first();
+        $recentRepayments = $loan->repayments()->latest('paid_at')->limit(5)->get();
+        $paid = max(0, (float) $loan->principal_amount - (float) $loan->outstanding_balance);
+        $progressPct = (float) $loan->principal_amount > 0
+            ? min(100, ($paid / (float) $loan->principal_amount) * 100)
+            : 0;
+
+        return view('site.borrower.loan-show', compact(
+            'customer',
+            'loan',
+            'nextInstallment',
+            'recentRepayments',
+            'progressPct',
+        ));
+    }
+
     public function restructureLoan(Loan $loan): View
     {
         $customer = $this->customer();

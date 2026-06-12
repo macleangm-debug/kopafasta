@@ -32,6 +32,7 @@ return [
             'approved'     => 'Approved',
             'active'       => 'Active',
             'disbursed'    => 'Disbursed',
+            'arrears'      => 'In arrears',
             'closed'       => 'Closed',
             'written_off'  => 'Written off',
             'restructured' => 'Restructured',

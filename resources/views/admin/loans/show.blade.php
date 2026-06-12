@@ -31,7 +31,7 @@
                     </button>
                 </form>
             @endif
-            @if (in_array($loan->status, ['active', 'defaulted']) && (float) $loan->outstanding_balance > 0)
+            @if (in_array($loan->status, ['active', 'arrears', 'defaulted']) && (float) $loan->outstanding_balance > 0)
                 <a href="{{ route('admin.loans.write-off-form', $loan) }}"
                    class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg shadow-sm transition">
                     Write off
@@ -61,7 +61,7 @@
                 <span @class([
                     'inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold uppercase tracking-wider',
                     'bg-emerald-100 text-emerald-800' => $loan->status === 'active',
-                    'bg-red-100 text-red-800'         => in_array($loan->status, ['defaulted', 'written_off']),
+                    'bg-red-100 text-red-800'         => in_array($loan->status, ['defaulted', 'written_off', 'arrears']),
                     'bg-amber-100 text-amber-800'     => $loan->status === 'pending',
                     'bg-gray-100 text-gray-700'       => $loan->status === 'closed',
                 ])>
@@ -119,6 +119,13 @@
                     <dt class="text-xs text-gray-500">Disbursement date</dt>
                     <dd class="text-gray-900">{{ optional($loan->disbursement_date)->format('Y-m-d') ?? '—' }}</dd>
                 </div>
+                @if ($loan->disbursements->isNotEmpty())
+                    @php $payout = $loan->disbursements->sortByDesc('released_at')->first(); @endphp
+                    <div>
+                        <dt class="text-xs text-gray-500">Payout record</dt>
+                        <dd class="text-gray-900 font-mono text-xs">{{ $payout->reference }} · {{ format_money($payout->amount) }}</dd>
+                    </div>
+                @endif
                 <div>
                     <dt class="text-xs text-gray-500">Maturity date</dt>
                     <dd class="text-gray-900">{{ optional($loan->maturity_date)->format('Y-m-d') ?? '—' }}</dd>

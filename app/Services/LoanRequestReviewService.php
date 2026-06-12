@@ -53,6 +53,8 @@ class LoanRequestReviewService
             $borrowerMessage,
         );
 
+        app(GuarantorNotificationService::class)->notifyRestructureApproved($loan->fresh(['application']), $request->restructure_type);
+
         return $request->fresh(['loan']);
     }
 
@@ -139,6 +141,8 @@ class LoanRequestReviewService
             'Top-up disbursed',
             'Your top-up of '.format_money($amount).' has been added to your loan. '.$installments.' instalment(s) updated.',
         );
+
+        app(GuarantorNotificationService::class)->notifyTopUpDisbursed($loan->fresh(['application']), $amount);
 
         return $request->fresh(['loan']);
     }

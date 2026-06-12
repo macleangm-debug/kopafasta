@@ -117,6 +117,42 @@ class GuarantorNotificationService
         ]);
     }
 
+    public function notifyRestructureApproved(Loan $loan, string $type): void
+    {
+        $application = $loan->application ?? LoanApplication::find($loan->loan_application_id);
+        if (! $application) {
+            return;
+        }
+
+        $application->loadMissing(['customer']);
+        $this->notifyGuarantors($application, 'guarantor_restructure_approved', [
+            'title'   => __('borrower.guaranteed.notify.restructure_approved_title'),
+            'message' => __('borrower.guaranteed.notify.restructure_approved_message', [
+                'borrower'  => $application->customer?->legalDisplayName() ?? 'Borrower',
+                'reference' => $loan->loan_number,
+                'type'      => str_replace('_', ' ', $type),
+            ]),
+        ]);
+    }
+
+    public function notifyTopUpDisbursed(Loan $loan, float $amount): void
+    {
+        $application = $loan->application ?? LoanApplication::find($loan->loan_application_id);
+        if (! $application) {
+            return;
+        }
+
+        $application->loadMissing(['customer']);
+        $this->notifyGuarantors($application, 'guarantor_top_up_disbursed', [
+            'title'   => __('borrower.guaranteed.notify.top_up_disbursed_title'),
+            'message' => __('borrower.guaranteed.notify.top_up_disbursed_message', [
+                'borrower'  => $application->customer?->legalDisplayName() ?? 'Borrower',
+                'reference' => $loan->loan_number,
+                'amount'    => format_money($amount),
+            ]),
+        ]);
+    }
+
     /** @param array{title: string, message: string} $copy */
     private function notifyGuarantors(LoanApplication $application, string $template, array $copy): void
     {

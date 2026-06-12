@@ -17,7 +17,9 @@ class PortalContextService
         'guarantor_loan_arrears',
         'guarantor_loan_closed',
         'guarantor_restructure_requested',
+        'guarantor_restructure_approved',
         'guarantor_top_up_requested',
+        'guarantor_top_up_disbursed',
     ];
 
     /** Templates about guarantor activity shown to borrowers. */

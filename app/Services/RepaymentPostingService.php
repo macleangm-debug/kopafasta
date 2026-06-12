@@ -101,26 +101,17 @@ class RepaymentPostingService
                 }
             }
 
-            // 2) Update schedule row(s) — apply total amount including all components
-            if ($repayment->repayment_schedule_id) {
-                $schedule = RepaymentSchedule::find($repayment->repayment_schedule_id);
-                if ($schedule) {
-                    $schedule->amount_paid = (float) $schedule->amount_paid + (float) $repayment->amount;
-                    if ($schedule->amount_paid >= (float) $schedule->total_due) {
-                        $schedule->status = 'paid';
-                        $schedule->paid_at = now();
-                    } else {
-                        $schedule->status = 'partial';
-                    }
-                    $schedule->save();
-                }
-            }
+            // 2) Apply payment across schedule rows (interest + principal components)
+            $this->applyToSchedules($loan, $repayment);
 
             // 3) Update loan outstanding (principal only reduces it)
             $loan->outstanding_balance = max(0, (float) $loan->outstanding_balance - (float) $repayment->principal_component);
             if ($loan->outstanding_balance <= 0) {
                 $loan->status = 'closed';
                 $loan->closed_at = now();
+                app(GuarantorNotificationService::class)->notifyLoanClosed($loan->fresh(['application']));
+            } elseif ($loan->status === 'arrears' && ! RepaymentSchedule::where('loan_id', $loan->id)->where('status', 'overdue')->exists()) {
+                $loan->status = 'active';
             }
             $loan->save();
 
@@ -136,6 +127,63 @@ class RepaymentPostingService
             // 5) Post journal entry
             return $this->postJournal($repayment->fresh(), $loan);
         });
+    }
+
+    /** Walk unpaid installments and apply interest + principal components in order. */
+    private function applyToSchedules(Loan $loan, Repayment $repayment): void
+    {
+        $remaining = round((float) $repayment->interest_component + (float) $repayment->principal_component, 2);
+        if ($remaining <= 0) {
+            return;
+        }
+
+        $schedules = RepaymentSchedule::query()
+            ->where('loan_id', $loan->id)
+            ->whereIn('status', ['pending', 'partial', 'overdue'])
+            ->orderBy('installment_no')
+            ->get();
+
+        $firstTouchedId = null;
+
+        foreach ($schedules as $schedule) {
+            if ($remaining <= 0) {
+                break;
+            }
+
+            $rowRemaining = max(0, round((float) $schedule->total_due - (float) $schedule->amount_paid, 2));
+            if ($rowRemaining <= 0) {
+                continue;
+            }
+
+            $apply = min($remaining, $rowRemaining);
+            $schedule->amount_paid = round((float) $schedule->amount_paid + $apply, 2);
+
+            if ($schedule->amount_paid >= (float) $schedule->total_due - 0.01) {
+                $schedule->status = 'paid';
+                $schedule->paid_at = now();
+            } else {
+                $schedule->status = 'partial';
+            }
+
+            $schedule->save();
+            $remaining = round($remaining - $apply, 2);
+            $firstTouchedId ??= $schedule->id;
+        }
+
+        if ($firstTouchedId && ! $repayment->repayment_schedule_id) {
+            $repayment->repayment_schedule_id = $firstTouchedId;
+            $repayment->save();
+        }
+
+        $nextDue = RepaymentSchedule::query()
+            ->where('loan_id', $loan->id)
+            ->whereNotIn('status', ['paid'])
+            ->orderBy('installment_no')
+            ->value('due_date');
+
+        if ($nextDue) {
+            $loan->next_due_date = $nextDue;
+        }
     }
 
     /**

@@ -77,7 +77,7 @@ class LoansTable extends Component
             ->orderBy($this->sort, $this->direction)
             ->paginate($this->perPage);
 
-        $statuses = ['pending', 'active', 'restructuring', 'closed', 'defaulted', 'written_off'];
+        $statuses = ['pending', 'active', 'disbursed', 'arrears', 'restructuring', 'closed', 'defaulted', 'written_off'];
 
         return view('livewire.admin.loans-table', compact('loans', 'statuses'));
     }
