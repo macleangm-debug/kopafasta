@@ -38,7 +38,7 @@ class AdminAlertService
                 'key'      => 'under_review',
                 'label'    => 'Applications under review',
                 'count'    => LoanApplication::where('status', 'under_review')->count(),
-                'url'      => route('admin.loan-applications.under-review'),
+                'url'      => route('admin.loan-applications.pipeline.under-review'),
                 'category' => 'loans',
             ],
             [

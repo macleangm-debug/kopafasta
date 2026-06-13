@@ -43,7 +43,10 @@ class LoanAgreementController extends Controller
             $agreement = app(\App\Services\OfferLetterExpiryService::class)->expireIfStale($agreement);
         }
 
-        return view('site.borrower.agreement', compact('application', 'agreement', 'customer'));
+        return view('site.borrower.agreement', compact('application', 'agreement', 'customer'))
+            ->with([
+                'requireAcceptanceCode' => app(\App\Services\OfferSettingsService::class)->requireOfferAcceptanceCode(),
+            ]);
     }
 
     public function showContract(LoanApplication $application): View|RedirectResponse
@@ -94,7 +97,9 @@ class LoanAgreementController extends Controller
             'snap',
             'needsGuarantor',
             'guarantorSigned',
-        ));
+        ))->with([
+            'requireAcceptanceCode' => app(\App\Services\OfferSettingsService::class)->requireContractAcceptanceCode(),
+        ]);
     }
 
     public function requestOtp(LoanApplication $application): RedirectResponse
@@ -216,6 +221,52 @@ class LoanAgreementController extends Controller
         return back()->with($ok ? 'status' : 'error', $message);
     }
 
+    public function acceptOffer(Request $request, LoanApplication $application): RedirectResponse
+    {
+        $this->customerOrFail($application);
+        $agreement = $this->offerOrFail($application);
+        app(\App\Services\OfferLetterExpiryService::class)->expireIfStale($agreement);
+
+        if ($agreement->fresh()->isOfferExpired()) {
+            return back()->with('error', 'This offer has expired. Please contact the lender for a new offer letter.');
+        }
+
+        if (app(\App\Services\OfferSettingsService::class)->requireOfferAcceptanceCode()) {
+            return back()->with('error', 'Acceptance code is required. Request a code and enter it to accept.');
+        }
+
+        [$ok, $message] = $this->service->acceptDirectly(
+            $agreement,
+            $request->ip(),
+            (string) $request->userAgent()
+        );
+
+        if ($ok) {
+            $this->service->generateOfferLetter($application, regenerate: true);
+            $this->auditBorrower('agreement.accepted', $application, [
+                'agreement_id' => $agreement->id,
+                'reference'    => $agreement->reference,
+            ]);
+
+            if ($this->readiness->needsPostApprovalFees($application->fresh())) {
+                $customer = $this->customerOrFail($application);
+                app(NotificationService::class)->notifyInApp(
+                    $customer,
+                    __('borrower.post_approval_fees.notify_message', [
+                        'reference' => $application->application_number,
+                    ]),
+                    'application',
+                    'post_approval_fees_due',
+                    __('borrower.post_approval_fees.notify_title'),
+                    route('site.borrower.application.post-approval-fees', $application->id),
+                    __('borrower.loan_profile.actions.pay_post_approval_fees'),
+                );
+            }
+        }
+
+        return back()->with($ok ? 'status' : 'error', $message);
+    }
+
     public function signContract(Request $request, LoanApplication $application): RedirectResponse
     {
         $this->customerOrFail($application);
@@ -235,6 +286,34 @@ class LoanAgreementController extends Controller
         if ($ok) {
             $this->service->generateLoanContract($application, regenerate: true);
             $this->auditBorrower('contract.signed', $application, [
+                'agreement_id' => $contract->id,
+                'reference'    => $contract->reference,
+            ]);
+        }
+
+        return redirect()
+            ->route('site.borrower.application.contract', $application)
+            ->with($ok ? 'status' : 'error', $ok ? __('borrower.contract.signed_success') : $message);
+    }
+
+    public function acceptContract(Request $request, LoanApplication $application): RedirectResponse
+    {
+        $this->customerOrFail($application);
+        $contract = $this->contractOrFail($application);
+
+        if (app(\App\Services\OfferSettingsService::class)->requireContractAcceptanceCode()) {
+            return back()->with('error', __('borrower.contract.code_required'));
+        }
+
+        [$ok, $message] = $this->service->acceptDirectly(
+            $contract,
+            $request->ip(),
+            (string) $request->userAgent()
+        );
+
+        if ($ok) {
+            $this->service->generateLoanContract($application, regenerate: true);
+            $this->auditBorrower('contract.accepted', $application, [
                 'agreement_id' => $contract->id,
                 'reference'    => $contract->reference,
             ]);

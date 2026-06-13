@@ -66,12 +66,17 @@
     <tr><td class="label">Offer expires</td><td class="value">{{ \Illuminate\Support\Carbon::parse($expiresAt)->format('d M Y') }} ({{ $validityDays }} days)</td></tr>
 </table>
 
-<h2>Repayment schedule</h2>
+<h2>Estimated repayment schedule</h2>
+<p class="muted" style="margin-bottom:8px;">
+    Indicative instalments only — actual due dates are set after loan disbursement.
+    {{ ucfirst($snapshot['repayment_cadence'] ?? 'weekly') }} ·
+    {{ $snapshot['installment_count'] }} instalments ·
+    {{ format_money($snapshot['estimated_emi'] ?? 0) }} per instalment
+</p>
 <table class="schedule">
     <thead>
         <tr>
             <th>Period</th>
-            <th>Due date</th>
             <th>Principal</th>
             <th>Interest</th>
             <th>Total</th>
@@ -81,7 +86,6 @@
         @foreach (($snapshot['repayment_schedule'] ?? []) as $row)
             <tr>
                 <td>{{ $row['label'] ?? ('#'.$row['installment_no']) }}</td>
-                <td>{{ \Illuminate\Support\Carbon::parse($row['due_date'])->format('d M Y') }}</td>
                 <td>{{ format_money($row['principal_due']) }}</td>
                 <td>{{ format_money($row['interest_due']) }}</td>
                 <td>{{ format_money($row['total_due']) }}</td>

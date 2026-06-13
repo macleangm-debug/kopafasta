@@ -155,9 +155,11 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/applications/{application}/agreement',                [\App\Http\Controllers\Site\LoanAgreementController::class, 'show'])      ->name('borrower.application.agreement');
             Route::post('/borrower/applications/{application}/agreement/otp',           [\App\Http\Controllers\Site\LoanAgreementController::class, 'requestOtp'])->name('borrower.application.agreement.otp');
             Route::post('/borrower/applications/{application}/agreement/sign',          [\App\Http\Controllers\Site\LoanAgreementController::class, 'sign'])      ->name('borrower.application.agreement.sign');
+            Route::post('/borrower/applications/{application}/agreement/accept',        [\App\Http\Controllers\Site\LoanAgreementController::class, 'acceptOffer'])->name('borrower.application.agreement.accept');
             Route::get('/borrower/applications/{application}/contract',                [\App\Http\Controllers\Site\LoanAgreementController::class, 'showContract'])->name('borrower.application.contract');
             Route::post('/borrower/applications/{application}/contract/otp',            [\App\Http\Controllers\Site\LoanAgreementController::class, 'requestContractOtp'])->name('borrower.application.contract.otp');
             Route::post('/borrower/applications/{application}/contract/sign',           [\App\Http\Controllers\Site\LoanAgreementController::class, 'signContract'])->name('borrower.application.contract.sign');
+            Route::post('/borrower/applications/{application}/contract/accept',       [\App\Http\Controllers\Site\LoanAgreementController::class, 'acceptContract'])->name('borrower.application.contract.accept');
             Route::post('/borrower/applications/{application}/contract/decline',        [\App\Http\Controllers\Site\LoanAgreementController::class, 'declineContract'])->name('borrower.application.contract.decline');
             Route::get('/borrower/agreements/{agreement}/download',                     [\App\Http\Controllers\Site\LoanAgreementController::class, 'download']) ->name('borrower.agreement.download');
             Route::get('/borrower/loans',                          [\App\Http\Controllers\Site\BorrowerController::class, 'loans'])        ->name('borrower.loans');
@@ -311,6 +313,9 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('/', DashboardController::class)->name('dashboard');
 
         // Applications
+        Route::view('loan-applications/pipeline/under-review',  'admin.loan-applications.pipeline-under-review') ->name('loan-applications.pipeline.under-review');
+        Route::view('loan-applications/pipeline/approved',      'admin.loan-applications.pipeline-approved')     ->name('loan-applications.pipeline.approved');
+        Route::view('loan-applications/pipeline/disbursement',  'admin.loan-applications.pipeline-disbursement') ->name('loan-applications.pipeline.disbursement');
         Route::view('loan-applications/new',              'admin.loan-applications.new')              ->name('loan-applications.new');
         Route::view('loan-applications/pending-documents','admin.loan-applications.pending-documents')->name('loan-applications.pending-documents');
         Route::view('loan-applications/under-review',     'admin.loan-applications.under-review')     ->name('loan-applications.under-review');
@@ -538,6 +543,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/identity-verification', [SettingsController::class, 'saveIdentityVerification'])->name('settings.identity.save');
         Route::get('settings/loan-rules',       [SettingsController::class, 'loanRules'])     ->name('settings.loan-rules');
         Route::put('settings/loan-rules',       [SettingsController::class, 'saveLoanRules']) ->name('settings.loan-rules.save');
+        Route::get('settings/offer',            [SettingsController::class, 'offer'])          ->name('settings.offer');
+        Route::put('settings/offer',            [SettingsController::class, 'saveOffer'])      ->name('settings.offer.save');
         Route::get('settings/underwriting',    [SettingsController::class, 'underwriting'])  ->name('settings.underwriting');
         Route::put('settings/underwriting',    [SettingsController::class, 'saveUnderwriting'])->name('settings.underwriting.save');
         Route::get('settings/legal',           [SettingsController::class, 'legal'])         ->name('settings.legal');

@@ -37,6 +37,16 @@ return [
             'credit_gl'   => 'penalty_income_gl_account_id',
             'fallback_gl' => 'penalty_income_gl_account_id',
         ],
+        'restructure_fee' => [
+            'label'       => 'Restructure Fee',
+            'credit_gl'   => 'fee_income_gl_account_id',
+            'fallback_gl' => 'fee_income_gl_account_id',
+        ],
+        'top_up_fee' => [
+            'label'       => 'Top-Up Fee',
+            'credit_gl'   => 'fee_income_gl_account_id',
+            'fallback_gl' => 'fee_income_gl_account_id',
+        ],
     ],
 
     'methods' => [

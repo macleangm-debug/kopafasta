@@ -163,15 +163,16 @@ class RepaymentScheduleGenerator
             $tenureMonths = (int) ($loan->tenure_months ?? 0);
             $monthlyRate = (float) ($loan->interest_rate ?? 0);
             $cadence = $loan->product->repayment_cadence ?? 'weekly';
-            $start = $loan->disbursement_date
+            $disbursement = $loan->disbursement_date
                 ? Carbon::parse($loan->disbursement_date)
                 : Carbon::now();
+            $commencementDays = app(OfferSettingsService::class)->repaymentCommencementDays();
 
             if ($principal <= 0 || $tenureMonths <= 0) {
                 return 0;
             }
 
-            $rows = $this->buildSchedule($principal, $monthlyRate, $tenureMonths, $cadence, $start, $method);
+            $rows = $this->buildSchedule($principal, $monthlyRate, $tenureMonths, $cadence, $disbursement, $method, $commencementDays);
 
             foreach ($rows as $row) {
                 RepaymentSchedule::create([
@@ -199,6 +200,39 @@ class RepaymentScheduleGenerator
     }
 
     /**
+     * Estimated schedule for offers and pre-disbursement contracts — no calendar dates.
+     *
+     * @return list<array{installment_no: int, label: string, principal_due: float, interest_due: float, total_due: float}>
+     */
+    public function previewEstimate(
+        float $principal,
+        float $monthlyRate,
+        int $tenureMonths,
+        string $cadence = 'weekly',
+        string $method = 'reducing',
+    ): array {
+        $periods = $this->periodCount($tenureMonths, $cadence);
+        $periodRate = $cadence === 'weekly' ? ($monthlyRate / 4) : $monthlyRate;
+        $start = Carbon::today();
+
+        $rows = $method === 'flat'
+            ? $this->flat($principal, $periodRate, $periods, $start, $cadence, 0)
+            : $this->reducing($principal, $periodRate, $periods, $start, $cadence, 0);
+
+        return array_map(function (array $row) use ($cadence) {
+            return [
+                'installment_no' => $row['installment_no'],
+                'label'          => $cadence === 'weekly'
+                    ? 'Week '.$row['installment_no']
+                    : 'Month '.$row['installment_no'],
+                'principal_due'  => $row['principal_due'],
+                'interest_due'   => $row['interest_due'],
+                'total_due'      => $row['total_due'],
+            ];
+        }, $rows);
+    }
+
+    /**
      * Build a preview schedule for offer letters and contracts.
      *
      * @return list<array{installment_no: int, due_date: string, principal_due: float, interest_due: float, total_due: float, label: string}>
@@ -211,9 +245,7 @@ class RepaymentScheduleGenerator
         ?Carbon $start = null,
         string $method = 'reducing',
     ): array {
-        $start ??= Carbon::now();
-
-        return $this->buildSchedule($principal, $monthlyRate, $tenureMonths, $cadence, $start, $method);
+        return $this->previewEstimate($principal, $monthlyRate, $tenureMonths, $cadence, $method);
     }
 
     /**
@@ -224,15 +256,16 @@ class RepaymentScheduleGenerator
         float $monthlyRate,
         int $tenureMonths,
         string $cadence,
-        Carbon $start,
+        Carbon $disbursementDate,
         string $method,
+        int $commencementDays = 0,
     ): array {
         $periods = $this->periodCount($tenureMonths, $cadence);
         $periodRate = $cadence === 'weekly' ? ($monthlyRate / 4) : $monthlyRate;
 
         $rows = $method === 'flat'
-            ? $this->flat($principal, $periodRate, $periods, $start, $cadence)
-            : $this->reducing($principal, $periodRate, $periods, $start, $cadence);
+            ? $this->flat($principal, $periodRate, $periods, $disbursementDate, $cadence, $commencementDays)
+            : $this->reducing($principal, $periodRate, $periods, $disbursementDate, $cadence, $commencementDays);
 
         return array_map(function (array $row) use ($cadence) {
             $row['label'] = $cadence === 'weekly'
@@ -253,11 +286,11 @@ class RepaymentScheduleGenerator
         return $cadence === 'monthly' ? 'Monthly instalment' : 'Weekly instalment';
     }
 
-    private function reducing(float $principal, float $rate, int $tenure, Carbon $start, string $cadence): array
+    private function reducing(float $principal, float $rate, int $tenure, Carbon $disbursementDate, string $cadence, int $commencementDays = 0): array
     {
         $rows = [];
         if ($rate <= 0) {
-            return $this->flat($principal, 0.0, $tenure, $start, $cadence);
+            return $this->flat($principal, 0.0, $tenure, $disbursementDate, $cadence, $commencementDays);
         }
 
         $pow = pow(1 + $rate, $tenure);
@@ -278,7 +311,7 @@ class RepaymentScheduleGenerator
 
             $rows[] = [
                 'installment_no' => $i,
-                'due_date'       => $this->dueDate($start, $i, $cadence)->toDateString(),
+                'due_date'       => $this->dueDate($disbursementDate, $i, $cadence, $commencementDays)->toDateString(),
                 'principal_due'  => $principalPart,
                 'interest_due'   => $interest,
                 'total_due'      => $instalment,
@@ -288,7 +321,7 @@ class RepaymentScheduleGenerator
         return $rows;
     }
 
-    private function flat(float $principal, float $rate, int $tenure, Carbon $start, string $cadence): array
+    private function flat(float $principal, float $rate, int $tenure, Carbon $disbursementDate, string $cadence, int $commencementDays = 0): array
     {
         $rows = [];
         $periodPrincipal = round($principal / $tenure, 2);
@@ -303,7 +336,7 @@ class RepaymentScheduleGenerator
             $accPrincipal += $p;
             $rows[] = [
                 'installment_no' => $i,
-                'due_date'       => $this->dueDate($start, $i, $cadence)->toDateString(),
+                'due_date'       => $this->dueDate($disbursementDate, $i, $cadence, $commencementDays)->toDateString(),
                 'principal_due'  => $p,
                 'interest_due'   => $periodInterest,
                 'total_due'      => round($p + $periodInterest, 2),
@@ -313,10 +346,16 @@ class RepaymentScheduleGenerator
         return $rows;
     }
 
-    private function dueDate(Carbon $start, int $installmentNo, string $cadence): Carbon
+    private function dueDate(Carbon $disbursementDate, int $installmentNo, string $cadence, int $commencementDays = 0): Carbon
     {
+        $firstDue = $disbursementDate->copy()->addDays($commencementDays);
+
+        if ($installmentNo <= 1) {
+            return $firstDue;
+        }
+
         return $cadence === 'monthly'
-            ? $start->copy()->addMonthsNoOverflow($installmentNo)
-            : $start->copy()->addWeeks($installmentNo);
+            ? $firstDue->copy()->addMonthsNoOverflow($installmentNo - 1)
+            : $firstDue->copy()->addWeeks($installmentNo - 1);
     }
 }

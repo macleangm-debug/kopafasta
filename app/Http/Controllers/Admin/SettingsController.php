@@ -197,6 +197,30 @@ class SettingsController extends Controller
         ]);
     }
 
+    public function offer()
+    {
+        return view('admin.settings.offer', [
+            'values' => Setting::group('offer'),
+        ]);
+    }
+
+    public function saveOffer(Request $request)
+    {
+        $data = $request->validate([
+            'require_offer_acceptance_code'    => ['nullable', 'boolean'],
+            'require_contract_acceptance_code' => ['nullable', 'boolean'],
+            'repayment_commencement_days'      => ['required', 'integer', 'min:0', 'max:90'],
+        ]);
+
+        foreach (['require_offer_acceptance_code', 'require_contract_acceptance_code'] as $key) {
+            $data[$key] = (bool) ($data[$key] ?? false);
+        }
+
+        Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["offer.$k" => $v])->all());
+
+        return back()->with('status', 'Offer settings saved.');
+    }
+
     public function loanProducts()
     {
         return redirect()->route('admin.loan-products.index');

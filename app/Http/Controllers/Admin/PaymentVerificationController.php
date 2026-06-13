@@ -18,7 +18,7 @@ class PaymentVerificationController extends Controller
         $status = $request->query('status', 'pending');
 
         $query = CustomerPayment::query()
-            ->with(['customer', 'bankAccount', 'verifier'])
+            ->with(['customer', 'bankAccount', 'verifier', 'loan'])
             ->latest();
 
         if ($status === 'pending') {

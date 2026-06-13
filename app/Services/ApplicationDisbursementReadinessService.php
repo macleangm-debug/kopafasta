@@ -288,4 +288,45 @@ class ApplicationDisbursementReadinessService
 
         return $checklist;
     }
+
+    /** Post-approval pipeline stage label for admin underwriting tabs. */
+    public function approvedPipelineStage(LoanApplication $application): string
+    {
+        if (! $this->offerLetter($application)) {
+            return 'Offer';
+        }
+        if (! $this->offerSigned($application)) {
+            return 'Offer';
+        }
+        if ($this->needsPostApprovalFees($application)) {
+            return 'Post Approval Fee';
+        }
+        if ($this->needsDisbursementDetailsConfirmation($application)) {
+            return 'Disbursement Details';
+        }
+        if ($this->needsContractSignature($application)) {
+            return 'Contract';
+        }
+        if ($this->isReadyForDisbursement($application)) {
+            return 'Ready For Disbursement';
+        }
+
+        return 'Offer Accepted';
+    }
+
+    /** Disbursement pipeline stage label for admin underwriting tabs. */
+    public function disbursementPipelineStage(LoanApplication $application): string
+    {
+        if ((string) $application->status === 'disbursed'
+            || in_array((string) ($application->loan?->status ?? ''), ['active', 'closed', 'written_off'], true)) {
+            return 'Disbursed';
+        }
+
+        $loan = $application->loan;
+        if ($loan && $loan->disbursements()->where('status', 'processing')->exists()) {
+            return 'Processing';
+        }
+
+        return 'Pending';
+    }
 }

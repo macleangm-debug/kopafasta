@@ -27,7 +27,13 @@
                         'under_review'   => 'bg-blue-100 text-blue-800',
                         'awaiting_guarantor' => 'bg-purple-100 text-purple-800',
                     ]" />
-                    <div class="text-[10px] text-gray-400 mt-0.5">{{ display_label($r->current_stage, 'application_stage') }}</div>
+                    <div class="text-[10px] text-gray-400 mt-0.5">
+                        @if (! empty($pipelineStages[$r->id] ?? null))
+                            {{ $pipelineStages[$r->id] }}
+                        @else
+                            {{ display_label($r->current_stage, 'application_stage') }}
+                        @endif
+                    </div>
                 </td>
                 <td class="px-5 py-3 text-gray-500">{{ $r->created_at?->format('Y-m-d') }}</td>
                 <td class="px-5 py-3 text-right">

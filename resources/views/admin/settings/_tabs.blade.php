@@ -6,6 +6,7 @@
         'kyc'        => ['KYC Rules',       'admin.settings.kyc'],
         'identity'   => ['Identity Verification', 'admin.settings.identity'],
         'loan-rules' => ['Loan Rules',      'admin.settings.loan-rules'],
+        'offer'      => ['Offer Settings',  'admin.settings.offer'],
         'underwriting' => ['Underwriting',  'admin.settings.underwriting'],
         'legal'        => ['Legal',         'admin.settings.legal'],
         'credit-policy' => ['Credit Policy', 'admin.settings.credit-policy'],

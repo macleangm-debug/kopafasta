@@ -1,7 +1,7 @@
 <x-admin.layout
     title="Payments"
-    heading="Payment verification"
-    subheading="Review, verify and reconcile borrower payments">
+    heading="Payments"
+    subheading="Registration, application, post-approval, repayment, and fee payments">
 
     @if (session('status'))
         <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
@@ -34,10 +34,11 @@
                 <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                     <tr>
                         <th class="px-5 py-3">Reference</th>
-                        <th class="px-5 py-3">Customer</th>
-                        <th class="px-5 py-3">Type</th>
-                        <th class="px-5 py-3">Amount</th>
+                        <th class="px-5 py-3">Borrower</th>
+                        <th class="px-5 py-3">Loan</th>
+                        <th class="px-5 py-3">Payment type</th>
                         <th class="px-5 py-3">Method</th>
+                        <th class="px-5 py-3">Amount</th>
                         <th class="px-5 py-3">Status</th>
                         <th class="px-5 py-3">Date</th>
                         <th class="px-5 py-3 text-right">Actions</th>
@@ -59,9 +60,18 @@
                                 <div class="font-medium">{{ $name ?: '—' }}</div>
                                 <div class="text-xs text-gray-500">{{ $customer->customer_number ?? '' }}</div>
                             </td>
+                            <td class="px-5 py-3 font-mono text-xs">
+                                @if ($payment->loan)
+                                    <a href="{{ route('admin.loans.show', $payment->loan) }}" class="text-amber-700 hover:text-amber-800">
+                                        {{ $payment->loan->loan_number ?? $payment->loan->id }}
+                                    </a>
+                                @else
+                                    <span class="text-gray-400">—</span>
+                                @endif
+                            </td>
                             <td class="px-5 py-3">{{ $payment->typeLabel() }}</td>
-                            <td class="px-5 py-3 font-medium whitespace-nowrap">{{ format_money($payment->amount) }}</td>
                             <td class="px-5 py-3">{{ $payment->methodShortLabel() }}</td>
+                            <td class="px-5 py-3 font-medium whitespace-nowrap">{{ format_money($payment->amount) }}</td>
                             <td class="px-5 py-3">
                                 @php
                                     $badge = match ($payment->status) {
@@ -76,7 +86,7 @@
                                 </span>
                             </td>
                             <td class="px-5 py-3 text-xs text-gray-500 whitespace-nowrap">
-                                {{ $payment->created_at?->format('d-M-Y') }}
+                                {{ ($payment->payment_date ?? $payment->created_at)?->format('d-M-Y') }}
                             </td>
                             <td class="px-5 py-3 text-right">
                                 <a href="{{ route('admin.payments.show', $payment) }}"
@@ -87,7 +97,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-5 py-12 text-center text-gray-500">
+                            <td colspan="9" class="px-5 py-12 text-center text-gray-500">
                                 No payments in this view.
                             </td>
                         </tr>

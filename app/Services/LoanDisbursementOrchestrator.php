@@ -55,6 +55,10 @@ class LoanDisbursementOrchestrator
             $fees = $this->disbursement->applyFees($loan->fresh());
             $installments = $this->scheduler->generate($loan->fresh());
 
+            if ($loan->loan_application_id) {
+                app(LoanAgreementService::class)->generateRepaymentScheduleAnnex($loan->fresh());
+            }
+
             $netAmount = (float) ($loan->fresh()->net_disbursed_amount ?? $loan->principal_amount);
 
             if (! $loan->disbursements()->where('status', 'released')->exists()) {

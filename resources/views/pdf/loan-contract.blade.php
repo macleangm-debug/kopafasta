@@ -74,19 +74,18 @@
     <tr><td class="label">Total repayable</td><td class="value">{{ format_money($snapshot['total_repayable'] ?? 0) }}</td></tr>
 </table>
 
-<h2>Repayment schedule</h2>
-<table class="schedule">
-    <thead><tr><th>Period</th><th>Due</th><th>Total</th></tr></thead>
-    <tbody>
-        @foreach (($snapshot['repayment_schedule'] ?? []) as $row)
-            <tr>
-                <td>{{ $row['label'] ?? $row['installment_no'] }}</td>
-                <td>{{ \Illuminate\Support\Carbon::parse($row['due_date'])->format('d M Y') }}</td>
-                <td>{{ format_money($row['total_due']) }}</td>
-            </tr>
-        @endforeach
-    </tbody>
-</table>
+<h2>Repayment terms</h2>
+<p>
+    Repayments shall commence
+    <strong>{{ (int) ($snapshot['repayment_commencement_days'] ?? 7) }} days</strong>
+    after disbursement of the loan amount, then continue at
+    {{ ucfirst($snapshot['repayment_cadence'] ?? 'weekly') }} intervals for
+    {{ $snapshot['installment_count'] ?? count($snapshot['repayment_schedule'] ?? []) }} instalments of
+    approximately <strong>{{ format_money($snapshot['estimated_emi'] ?? 0) }}</strong> each.
+</p>
+<p class="muted">
+    A dated repayment schedule will be issued as an annex after disbursement.
+</p>
 
 @if (!empty($snapshot['is_asset_loan']))
 <h2>Asset ownership</h2>

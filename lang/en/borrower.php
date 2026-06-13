@@ -1551,6 +1551,8 @@ return [
         'view_pdf' => 'View contract PDF',
         'accept_title' => 'Accept contract',
         'accept_help' => 'Confirm acceptance by entering the 6-digit code we send to your phone.',
+        'accept_direct_help' => 'Review the contract above, then confirm acceptance. No SMS code is required for this pilot.',
+        'code_required' => 'Acceptance code is required. Request a code and enter it to accept.',
         'send_code' => 'Send code',
         'resend_code' => 'Resend code',
         'last_sent' => 'Last sent :time',

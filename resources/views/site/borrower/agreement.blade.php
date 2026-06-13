@@ -45,6 +45,7 @@
                     <div><div class="text-xs uppercase text-gray-500">Tenure</div><div class="text-gray-900">{{ $snap['tenure_months'] ?? '—' }} months</div></div>
                     <div><div class="text-xs uppercase text-gray-500">Interest rate</div><div class="text-gray-900">{{ format_number(($snap['interest_rate'] ?? 0) * 100, 2) }}% / month</div></div>
                     <div><div class="text-xs uppercase text-gray-500">Estimated EMI</div><div class="text-gray-900">{{ format_money($snap['estimated_emi'] ?? 0) }}</div></div>
+                    <div><div class="text-xs uppercase text-gray-500">Repayment frequency</div><div class="text-gray-900">{{ ucfirst($snap['repayment_cadence'] ?? 'weekly') }} · {{ $snap['installment_count'] ?? count($snap['repayment_schedule'] ?? []) }} instalments</div></div>
                     @if ($agreement->expires_at)
                         <div class="sm:col-span-2"><div class="text-xs uppercase text-gray-500">Offer expires</div><div class="text-gray-900">{{ $agreement->expires_at->format('d M Y, H:i') }}</div></div>
                     @endif
@@ -65,32 +66,43 @@
 
                 @if (! $agreement->isSigned() && ! $agreement->isOfferExpired())
                     <div class="mt-6 border-t border-gray-200 pt-5">
-                        <h2 class="text-sm font-semibold text-gray-900">Accept &amp; sign</h2>
-                        <p class="text-xs text-gray-600 mt-1">Confirm acceptance by entering the 6-digit code we send to your phone.</p>
+                        <h2 class="text-sm font-semibold text-gray-900">Accept offer</h2>
+                        @if ($requireAcceptanceCode ?? false)
+                            <p class="text-xs text-gray-600 mt-1">Confirm acceptance by entering the 6-digit code we send to your phone.</p>
 
-                        <form method="POST" action="{{ route('site.borrower.application.agreement.otp', $application) }}" class="mt-3">
-                            @csrf
-                            <button type="submit" class="inline-flex items-center gap-2 text-sm font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 px-4 py-2 rounded-lg">
-                                @if ($agreement->otp_sent_at) Resend code @else Send code @endif
-                            </button>
-                            @if ($agreement->otp_sent_at)
-                                <span class="ml-2 text-xs text-gray-500">last sent {{ $agreement->otp_sent_at->diffForHumans() }}</span>
-                            @endif
-                        </form>
+                            <form method="POST" action="{{ route('site.borrower.application.agreement.otp', $application) }}" class="mt-3">
+                                @csrf
+                                <button type="submit" class="inline-flex items-center gap-2 text-sm font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 px-4 py-2 rounded-lg">
+                                    @if ($agreement->otp_sent_at) Resend code @else Send code @endif
+                                </button>
+                                @if ($agreement->otp_sent_at)
+                                    <span class="ml-2 text-xs text-gray-500">last sent {{ $agreement->otp_sent_at->diffForHumans() }}</span>
+                                @endif
+                            </form>
 
-                        <form method="POST" action="{{ route('site.borrower.application.agreement.sign', $application) }}" class="mt-4 flex flex-wrap items-end gap-3"
-                              @submit.prevent="window.confirmForm($el, { title: 'Sign this offer letter?', message: 'You are accepting the loan terms. This action is legally binding.', confirmLabel: 'Confirm & sign', confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white' })">
-                            @csrf
-                            <div>
-                                <label class="block text-xs uppercase tracking-wider text-gray-500 mb-1">6-digit code</label>
-                                <input type="text" name="otp" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required
-                                       class="font-mono text-lg tracking-[0.4em] w-44 rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500">
-                            </div>
-                            <button type="submit" class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 rounded-lg">
-                                Confirm &amp; sign
-                            </button>
-                            @error('otp') <p class="text-xs text-red-600 w-full">{{ $message }}</p> @enderror
-                        </form>
+                            <form method="POST" action="{{ route('site.borrower.application.agreement.sign', $application) }}" class="mt-4 flex flex-wrap items-end gap-3"
+                                  @submit.prevent="window.confirmForm($el, { title: 'Sign this offer letter?', message: 'You are accepting the loan terms. This action is legally binding.', confirmLabel: 'Confirm & sign', confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white' })">
+                                @csrf
+                                <div>
+                                    <label class="block text-xs uppercase tracking-wider text-gray-500 mb-1">6-digit code</label>
+                                    <input type="text" name="otp" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required
+                                           class="font-mono text-lg tracking-[0.4em] w-44 rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                                </div>
+                                <button type="submit" class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 rounded-lg">
+                                    Confirm &amp; sign
+                                </button>
+                                @error('otp') <p class="text-xs text-red-600 w-full">{{ $message }}</p> @enderror
+                            </form>
+                        @else
+                            <p class="text-xs text-gray-600 mt-1">Review the offer above, then confirm acceptance. No SMS code is required for this pilot.</p>
+                            <form method="POST" action="{{ route('site.borrower.application.agreement.accept', $application) }}" class="mt-4"
+                                  @submit.prevent="window.confirmForm($el, { title: 'Accept this offer?', message: 'You are accepting the loan terms shown in this offer letter.', confirmLabel: 'Accept offer', confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white' })">
+                                @csrf
+                                <button type="submit" class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 rounded-lg">
+                                    Accept offer
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 @else
                     <div class="mt-6 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 p-4 text-sm text-emerald-800">

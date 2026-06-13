@@ -208,25 +208,120 @@ class LoanAgreementService
         }
         if (! hash_equals((string) $agreement->otp_code, trim($code))) {
             $agreement->increment('otp_attempts');
+
             return [false, 'Incorrect code.'];
         }
 
+        $this->markSigned($agreement, 'otp', $ip, $ua);
+
+        return [true, 'Signed successfully.'];
+    }
+
+    /**
+     * Accept without OTP when acceptance codes are disabled in settings.
+     *
+     * @return array{0:bool,1:string}
+     */
+    public function acceptDirectly(LoanAgreement $agreement, ?string $ip = null, ?string $ua = null): array
+    {
+        if ($agreement->isSigned()) {
+            return [true, 'Already signed.'];
+        }
+        if ($agreement->document_type === 'offer_letter' && $agreement->isOfferExpired()) {
+            return [false, 'This offer has expired. Please contact the lender for a new offer letter.'];
+        }
+
+        $this->markSigned($agreement, 'direct', $ip, $ua);
+
+        return [true, 'Accepted successfully.'];
+    }
+
+    /**
+     * Generate repayment schedule annex PDF after disbursement.
+     */
+    public function generateRepaymentScheduleAnnex(Loan $loan, bool $regenerate = false): ?LoanAgreement
+    {
+        $application = $loan->application;
+        if (! $application) {
+            return null;
+        }
+
+        $existing = LoanAgreement::where('loan_application_id', $application->id)
+            ->where('document_type', 'repayment_schedule')
+            ->first();
+
+        if ($existing && ! $regenerate && $existing->file_path) {
+            return $existing;
+        }
+
+        $loan->loadMissing(['product', 'repaymentSchedules']);
+        $schedules = $loan->repaymentSchedules()->orderBy('installment_no')->get();
+        if ($schedules->isEmpty()) {
+            return null;
+        }
+
+        $application->loadMissing(['customer', 'product']);
+        $snapshot = $this->snapshotFromApplication($application);
+        $snapshot['disbursement_date'] = $loan->disbursement_date?->toDateString();
+        $snapshot['first_due_date'] = $schedules->first()?->due_date?->toDateString();
+        $snapshot['last_due_date'] = $schedules->last()?->due_date?->toDateString();
+        $snapshot['repayment_schedule'] = $schedules->map(fn ($row) => [
+            'installment_no' => $row->installment_no,
+            'label'          => ($loan->product->repayment_cadence ?? 'weekly') === 'monthly'
+                ? 'Month '.$row->installment_no
+                : 'Week '.$row->installment_no,
+            'due_date'       => $row->due_date?->toDateString(),
+            'principal_due'  => (float) $row->principal_due,
+            'interest_due'   => (float) $row->interest_due,
+            'total_due'      => (float) $row->total_due,
+        ])->all();
+
+        $agreement = $existing ?: new LoanAgreement([
+            'loan_application_id' => $application->id,
+            'customer_id'         => $application->customer_id,
+            'document_type'       => 'repayment_schedule',
+            'reference'           => 'RS-'.strtoupper(Str::random(8)),
+        ]);
+
+        $agreement->fill([
+            'snapshot'             => $snapshot,
+            'status'               => 'sent',
+            'sent_at'              => now(),
+            'generated_by_user_id' => Auth::id(),
+        ]);
+
+        $viewData = [
+            'application' => $application,
+            'snapshot'    => $snapshot,
+            'agreement'   => $agreement,
+            'loan'        => $loan,
+        ];
+
+        $pdf = Pdf::loadView('pdf.repayment-schedule', $viewData)->setPaper('a4');
+        $path = "agreements/{$agreement->reference}.pdf";
+        Storage::disk('public')->put($path, $pdf->output());
+        $agreement->file_path = $path;
+        $agreement->save();
+
+        return $agreement;
+    }
+
+    private function markSigned(LoanAgreement $agreement, string $method, ?string $ip = null, ?string $ua = null): void
+    {
         $agreement->loadMissing('loanApplication.customer');
         $customer = $agreement->loanApplication?->customer;
-        $signerName = trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: ($customer->legalDisplayName() ?? 'Borrower');
+        $signerName = trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: ($customer?->legalDisplayName() ?? 'Borrower');
         $acceptanceSignature = app(OtpSignatureImageService::class)->generateDataUri($signerName);
 
         $agreement->update([
-            'status'                     => 'signed',
-            'signed_at'                  => now(),
-            'signed_ip'                  => $ip,
-            'signed_user_agent'          => $ua ? substr($ua, 0, 255) : null,
-            'signature_method'           => 'otp',
-            'acceptance_signature_data'  => $acceptanceSignature,
-            'otp_code'                   => null,
+            'status'                    => 'signed',
+            'signed_at'                 => now(),
+            'signed_ip'                 => $ip,
+            'signed_user_agent'         => $ua ? substr($ua, 0, 255) : null,
+            'signature_method'          => $method,
+            'acceptance_signature_data' => $acceptanceSignature,
+            'otp_code'                  => null,
         ]);
-
-        return [true, 'Signed successfully.'];
     }
 
     /** Generate the loan contract once post-approval fees are settled. */
@@ -279,11 +374,12 @@ class LoanAgreementService
         $tenure = (int) ($a->offered_tenure_months ?? $a->approved_tenure_months ?? $a->requested_tenure_months ?? $product->default_tenure_months ?? 0);
         $cadence = $a->product->repayment_cadence ?? 'weekly';
 
-        $schedule = app(RepaymentScheduleGenerator::class)->preview($amount, $monthlyRate, $tenure, $cadence);
+        $schedule = app(RepaymentScheduleGenerator::class)->previewEstimate($amount, $monthlyRate, $tenure, $cadence);
         $instalment = $schedule[0]['total_due'] ?? 0.0;
         $totalInterest = round(collect($schedule)->sum('interest_due'), 2);
         $totalFees = (float) ($a->processing_fee ?? 0);
         $totalRepayable = round(collect($schedule)->sum('total_due') + $totalFees, 2);
+        $offerSettings = app(OfferSettingsService::class);
         $isAssetLoan = ($a->product->code ?? '') === config('asset_marketplace.asset_loan_product_code', 'AL');
         $reservation = AssetReservation::query()
             ->with('asset')
@@ -328,6 +424,8 @@ class LoanAgreementService
             'total_fees'           => $totalFees,
             'total_repayable'      => $totalRepayable,
             'repayment_schedule'   => $schedule,
+            'schedule_is_estimate' => true,
+            'repayment_commencement_days' => $offerSettings->repaymentCommencementDays(),
             'customer_name'        => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
             'customer_id'          => $customer->national_id ?? null,
             'customer_phone'       => $customer->phone ?? null,
