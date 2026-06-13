@@ -177,16 +177,16 @@ class ApplicationDisbursementReadinessService
             $messages[] = 'Post-approval fees must be paid.';
         }
 
-        if (($this->feesPaid($application) || ! $this->hasPostApprovalFees($application)) && ! $this->disbursementDetailsConfirmed($application)) {
-            $messages[] = 'Borrower must confirm disbursement destination.';
-        }
-
-        if ($this->disbursementDetailsConfirmed($application)) {
+        if (($this->feesPaid($application) || ! $this->hasPostApprovalFees($application)) && ! $this->contractSigned($application)) {
             if (! $this->loanContract($application)) {
-                $messages[] = 'Loan contract must be generated after fees are paid.';
-            } elseif (! $this->contractSigned($application)) {
+                $messages[] = 'Loan contract must be generated after post-approval fees are paid.';
+            } else {
                 $messages[] = 'Borrower must accept the loan contract.';
             }
+        }
+
+        if ($this->contractSigned($application) && ! $this->disbursementDetailsConfirmed($application)) {
+            $messages[] = 'Borrower must confirm disbursement destination.';
         }
 
         if ($this->requiresGuarantorSignature($application) && ! $this->guarantorSigned($application)) {
@@ -224,10 +224,6 @@ class ApplicationDisbursementReadinessService
         }
 
         if ($this->hasPostApprovalFees($application) && ! $this->feesPaid($application)) {
-            return false;
-        }
-
-        if (! $this->disbursementDetailsConfirmed($application)) {
             return false;
         }
 
@@ -292,21 +288,28 @@ class ApplicationDisbursementReadinessService
     /** Post-approval pipeline stage label for admin underwriting tabs. */
     public function approvedPipelineStage(LoanApplication $application): string
     {
-        if (! $this->offerLetter($application)) {
-            return 'Offer';
+        $offer = $this->offerLetter($application);
+
+        if (! $offer || (! $offer->isSigned() && $offer->status !== 'cancelled')) {
+            return 'Offer Sent';
         }
+
         if (! $this->offerSigned($application)) {
-            return 'Offer';
+            return 'Offer Sent';
         }
+
         if ($this->needsPostApprovalFees($application)) {
             return 'Post Approval Fee';
         }
-        if ($this->needsDisbursementDetailsConfirmation($application)) {
-            return 'Disbursement Details';
-        }
+
         if ($this->needsContractSignature($application)) {
             return 'Contract';
         }
+
+        if ($this->needsDisbursementDetailsConfirmation($application)) {
+            return 'Awaiting Disbursement Details';
+        }
+
         if ($this->isReadyForDisbursement($application)) {
             return 'Ready For Disbursement';
         }

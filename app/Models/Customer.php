@@ -69,6 +69,21 @@ class Customer extends Model
         return $this->hasMany(Loan::class);
     }
 
+    public function payments(): HasMany
+    {
+        return $this->hasMany(CustomerPayment::class);
+    }
+
+    public function notificationLogs(): HasMany
+    {
+        return $this->hasMany(NotificationLog::class);
+    }
+
+    public function guarantorInvitations(): HasMany
+    {
+        return $this->hasMany(GuarantorInvitation::class);
+    }
+
     public function affiliateVendor(): BelongsTo
     {
         return $this->belongsTo(Vendor::class, 'affiliate_vendor_id');

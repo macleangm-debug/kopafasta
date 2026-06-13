@@ -104,6 +104,7 @@ class LegalSettingsService
             'penalty_clause'      => (string) $this->get('penalty_clause', 'Penalty interest and late fees apply as stated in the schedule of charges.'),
             'legal_cost_clause'   => (string) $this->get('legal_cost_clause', 'The borrower shall bear all reasonable legal costs incurred in recovering overdue amounts.'),
             'guarantor_clause'    => (string) $this->get('guarantor_clause', 'Where a guarantor has signed, they become jointly and severally liable for repayment.'),
+            'asset_recovery_clause' => (string) $this->get('asset_recovery_clause', 'The lender may recover financed assets or collateral in accordance with applicable law and the asset lending terms.'),
         ];
     }
 }

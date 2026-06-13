@@ -156,6 +156,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/applications/{application}/agreement/otp',           [\App\Http\Controllers\Site\LoanAgreementController::class, 'requestOtp'])->name('borrower.application.agreement.otp');
             Route::post('/borrower/applications/{application}/agreement/sign',          [\App\Http\Controllers\Site\LoanAgreementController::class, 'sign'])      ->name('borrower.application.agreement.sign');
             Route::post('/borrower/applications/{application}/agreement/accept',        [\App\Http\Controllers\Site\LoanAgreementController::class, 'acceptOffer'])->name('borrower.application.agreement.accept');
+            Route::post('/borrower/applications/{application}/agreement/decline',       [\App\Http\Controllers\Site\LoanAgreementController::class, 'declineOffer'])->name('borrower.application.agreement.decline');
             Route::get('/borrower/applications/{application}/contract',                [\App\Http\Controllers\Site\LoanAgreementController::class, 'showContract'])->name('borrower.application.contract');
             Route::post('/borrower/applications/{application}/contract/otp',            [\App\Http\Controllers\Site\LoanAgreementController::class, 'requestContractOtp'])->name('borrower.application.contract.otp');
             Route::post('/borrower/applications/{application}/contract/sign',           [\App\Http\Controllers\Site\LoanAgreementController::class, 'signContract'])->name('borrower.application.contract.sign');
@@ -320,7 +321,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::view('loan-applications/pending-documents','admin.loan-applications.pending-documents')->name('loan-applications.pending-documents');
         Route::view('loan-applications/under-review',     'admin.loan-applications.under-review')     ->name('loan-applications.under-review');
         Route::view('loan-applications/pre-approvals',    'admin.loan-applications.pre-approvals')    ->name('loan-applications.pre-approvals');
-        Route::view('loan-applications/final-approvals',  'admin.loan-applications.final-approvals')  ->name('loan-applications.final-approvals');
+        Route::redirect('loan-applications/final-approvals', '/admin/loan-applications/pipeline/approved')->name('loan-applications.final-approvals');
         Route::view('loan-applications/rejected',         'admin.loan-applications.rejected')         ->name('loan-applications.rejected');
         Route::view('loan-applications/incomplete',      'admin.loan-applications.incomplete')      ->name('loan-applications.incomplete');
         Route::get('loan-applications/wizard-data/{customer}', [LoanApplicationController::class, 'wizardCustomerData'])

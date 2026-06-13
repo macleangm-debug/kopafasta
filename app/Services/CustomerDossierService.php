@@ -25,6 +25,9 @@ class CustomerDossierService
             'documents.verifier',
             'applications.product',
             'loans.product',
+            'payments.loan',
+            'notificationLogs',
+            'guarantorInvitations.application',
         ]);
 
         $profile = $this->profile->calculate($customer);
@@ -72,6 +75,9 @@ class CustomerDossierService
                 ->orderByDesc('saved_at')
                 ->get(),
             'loans'            => $customer->loans->sortByDesc('created_at')->values(),
+            'payments'         => $customer->payments()->with('loan')->latest()->limit(20)->get(),
+            'notifications'    => $customer->notificationLogs()->latest()->limit(20)->get(),
+            'guarantor_invitations' => $customer->guarantorInvitations()->with('application')->latest()->limit(20)->get(),
             'activity_label'   => activity_type_label($customer->activity_type) ?? $customer->activity_type,
             'income_label'     => income_range_label($customer->income_range) ?? $customer->income_range,
             'pending_documents'=> $documents->whereIn('status', ['pending', 'pending_review'])->count(),

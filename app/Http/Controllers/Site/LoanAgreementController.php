@@ -65,12 +65,6 @@ class LoanAgreementController extends Controller
                 ->with('status', __('borrower.contract.pay_fees_first'));
         }
 
-        if ($this->readiness->needsDisbursementDetailsConfirmation($application)) {
-            return redirect()
-                ->route('site.borrower.application.disbursement-details', $application)
-                ->with('status', __('borrower.disbursement_details.required_before_contract'));
-        }
-
         $contract = $this->readiness->loanContract($application);
         if (! $contract) {
             $contract = $this->service->ensureLoanContractAfterFees($application->fresh());
@@ -202,23 +196,10 @@ class LoanAgreementController extends Controller
                 'reference'    => $agreement->reference,
             ]);
 
-            if ($this->readiness->needsPostApprovalFees($application->fresh())) {
-                $customer = $this->customerOrFail($application);
-                app(NotificationService::class)->notifyInApp(
-                    $customer,
-                    __('borrower.post_approval_fees.notify_message', [
-                        'reference' => $application->application_number,
-                    ]),
-                    'application',
-                    'post_approval_fees_due',
-                    __('borrower.post_approval_fees.notify_title'),
-                    route('site.borrower.application.post-approval-fees', $application->id),
-                    __('borrower.loan_profile.actions.pay_post_approval_fees'),
-                );
-            }
+            return $this->redirectAfterOfferAccepted($application, $message);
         }
 
-        return back()->with($ok ? 'status' : 'error', $message);
+        return back()->with('error', $message);
     }
 
     public function acceptOffer(Request $request, LoanApplication $application): RedirectResponse
@@ -248,23 +229,37 @@ class LoanAgreementController extends Controller
                 'reference'    => $agreement->reference,
             ]);
 
-            if ($this->readiness->needsPostApprovalFees($application->fresh())) {
-                $customer = $this->customerOrFail($application);
-                app(NotificationService::class)->notifyInApp(
-                    $customer,
-                    __('borrower.post_approval_fees.notify_message', [
-                        'reference' => $application->application_number,
-                    ]),
-                    'application',
-                    'post_approval_fees_due',
-                    __('borrower.post_approval_fees.notify_title'),
-                    route('site.borrower.application.post-approval-fees', $application->id),
-                    __('borrower.loan_profile.actions.pay_post_approval_fees'),
-                );
-            }
+            return $this->redirectAfterOfferAccepted($application, $message);
         }
 
-        return back()->with($ok ? 'status' : 'error', $message);
+        return back()->with('error', $message);
+    }
+
+    public function declineOffer(Request $request, LoanApplication $application): RedirectResponse
+    {
+        $this->customerOrFail($application);
+        $agreement = $this->offerOrFail($application);
+
+        abort_if($agreement->isSigned(), 422, 'This offer has already been accepted.');
+
+        $request->validate([
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $this->service->declineOfferLetter($agreement);
+        $application->update([
+            'status'        => 'withdrawn',
+            'current_stage' => 'rejected',
+        ]);
+
+        $this->auditBorrower('agreement.declined', $application, [
+            'agreement_id' => $agreement->id,
+            'reason'       => $request->input('reason'),
+        ]);
+
+        return redirect()
+            ->route('site.borrower.application', $application)
+            ->with('status', __('borrower.agreement.declined'));
     }
 
     public function signContract(Request $request, LoanApplication $application): RedirectResponse
@@ -364,6 +359,42 @@ class LoanAgreementController extends Controller
             'Content-Type'        => 'application/pdf',
             'Content-Disposition' => 'inline; filename="'.$agreement->reference.'.pdf"',
         ]);
+    }
+
+    private function redirectAfterOfferAccepted(LoanApplication $application, string $message): RedirectResponse
+    {
+        $application = $application->fresh();
+        $customer = $this->customerOrFail($application);
+
+        if ($this->readiness->needsPostApprovalFees($application)) {
+            app(NotificationService::class)->notifyInApp(
+                $customer,
+                __('borrower.post_approval_fees.notify_message', [
+                    'reference' => $application->application_number,
+                ]),
+                'application',
+                'post_approval_fees_due',
+                __('borrower.post_approval_fees.notify_title'),
+                route('site.borrower.application.post-approval-fees', $application->id),
+                __('borrower.loan_profile.actions.pay_post_approval_fees'),
+            );
+
+            return redirect()
+                ->route('site.borrower.application.post-approval-fees', $application)
+                ->with('status', $message);
+        }
+
+        $this->service->ensureLoanContractAfterFees($application);
+
+        if ($this->readiness->needsContractSignature($application)) {
+            return redirect()
+                ->route('site.borrower.application.contract', $application)
+                ->with('status', $message);
+        }
+
+        return redirect()
+            ->route('site.borrower.application.agreement', $application)
+            ->with('status', $message);
     }
 
     private function customerOrFail(LoanApplication $application): Customer

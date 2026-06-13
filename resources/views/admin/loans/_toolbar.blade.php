@@ -8,7 +8,7 @@
 </div>
 
 <div class="flex flex-wrap items-center justify-end gap-2 mb-4">
-    <a href="{{ route('admin.loan-applications.final-approvals') }}"
+    <a href="{{ route('admin.loan-applications.pipeline.approved') }}"
        class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 px-4 py-2 rounded-lg ring-1 ring-gray-300 transition">
         Review applications
     </a>

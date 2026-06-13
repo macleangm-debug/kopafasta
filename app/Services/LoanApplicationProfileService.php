@@ -448,10 +448,9 @@ class LoanApplicationProfileService
         return [
             'term_months'         => $tenure,
             'installment_amount'  => $installmentAmount,
-            'installments'        => array_map(fn (array $row) => [
-                'label'     => $row['label'] ?? ('Installment '.$row['installment_no']),
-                'total_due' => (float) $row['total_due'],
-            ], $rows),
+            'frequency'           => $cadence,
+            'installment_count'   => count($rows),
+            'total_repayable'     => round(collect($rows)->sum('total_due'), 2),
         ];
     }
 }

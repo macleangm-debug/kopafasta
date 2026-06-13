@@ -57,6 +57,7 @@ class LoanDisbursementOrchestrator
 
             if ($loan->loan_application_id) {
                 app(LoanAgreementService::class)->generateRepaymentScheduleAnnex($loan->fresh());
+                app(LoanAgreementService::class)->generateFinalLoanContract($loan->fresh());
             }
 
             $netAmount = (float) ($loan->fresh()->net_disbursed_amount ?? $loan->principal_amount);

@@ -103,5 +103,8 @@
         @include('admin.customers.dossier._documents')
         @include('admin.customers.dossier._applications')
         @include('admin.customers.dossier._loans')
+        @include('admin.customers.dossier._payments')
+        @include('admin.customers.dossier._notifications')
+        @include('admin.customers.dossier._guarantor_requests')
     </div>
 </x-admin.layout>

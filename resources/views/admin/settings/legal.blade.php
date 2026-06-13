@@ -84,6 +84,10 @@
                     <x-admin.textarea name="guarantor_clause" label="Guarantor liability clause" rows="2"
                                       :value="$values['guarantor_clause'] ?? 'Where a guarantor has signed, they become jointly and severally liable for repayment.'" />
                 </div>
+                <div class="md:col-span-2">
+                    <x-admin.textarea name="asset_recovery_clause" label="Asset recovery clause" rows="2"
+                                      :value="$values['asset_recovery_clause'] ?? 'The lender may recover financed assets or collateral in accordance with applicable law and the asset lending terms.'" />
+                </div>
             </div>
         </div>
 

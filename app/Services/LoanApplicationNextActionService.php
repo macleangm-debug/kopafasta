@@ -180,7 +180,7 @@ class LoanApplicationNextActionService
                 return $this->action(
                     'sign_offer',
                     __('borrower.loan_profile.next_actions.sign_offer'),
-                    __('borrower.application.review_sign'),
+                    __('borrower.application.view_offer'),
                     route('site.borrower.application.agreement', $application->id),
                     tone: 'primary',
                 );
@@ -196,22 +196,22 @@ class LoanApplicationNextActionService
                 );
             }
 
-            if ($readiness->needsDisbursementDetailsConfirmation($application)) {
-                return $this->action(
-                    'confirm_disbursement_details',
-                    __('borrower.loan_profile.next_actions.confirm_disbursement_details'),
-                    __('borrower.loan_profile.actions.confirm_disbursement_details'),
-                    route('site.borrower.application.disbursement-details', $application->id),
-                    tone: 'primary',
-                );
-            }
-
             if ($readiness->needsContractSignature($application)) {
                 return $this->action(
                     'sign_contract',
                     __('borrower.loan_profile.next_actions.sign_contract'),
                     __('borrower.loan_profile.actions.view_contract'),
                     route('site.borrower.application.contract', $application->id),
+                    tone: 'primary',
+                );
+            }
+
+            if ($readiness->needsDisbursementDetailsConfirmation($application)) {
+                return $this->action(
+                    'confirm_disbursement_details',
+                    __('borrower.loan_profile.next_actions.confirm_disbursement_details'),
+                    __('borrower.loan_profile.actions.confirm_disbursement_details'),
+                    route('site.borrower.application.disbursement-details', $application->id),
                     tone: 'primary',
                 );
             }

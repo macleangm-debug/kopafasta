@@ -1,7 +1,7 @@
 <x-admin.layout
     :title="'Payment '.$payment->reference"
     :heading="$payment->reference"
-    subheading="Bank reconciliation and verification">
+    subheading="Who paid, what it was for, related loan, and ledger entry">
 
     @if (session('status'))
         <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
@@ -18,14 +18,31 @@
         <div class="lg:col-span-2 space-y-6">
             <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6">
                 <h2 class="text-sm font-semibold text-gray-900 mb-4">Payment details</h2>
-                <dl class="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <dt class="text-xs text-gray-500 uppercase">Customer</dt>
-                        <dd class="font-medium">{{ trim(($payment->customer->first_name ?? '').' '.($payment->customer->last_name ?? '')) }}</dd>
+                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                    <div class="sm:col-span-2">
+                        <dt class="text-xs text-gray-500 uppercase">Who paid</dt>
+                        <dd class="font-medium">
+                            {{ trim(($payment->customer->first_name ?? '').' '.($payment->customer->last_name ?? '')) }}
+                            <span class="text-gray-500 font-normal">· {{ $payment->customer->phone ?? '—' }}</span>
+                        </dd>
                     </div>
                     <div>
-                        <dt class="text-xs text-gray-500 uppercase">Type</dt>
+                        <dt class="text-xs text-gray-500 uppercase">Payment type</dt>
                         <dd>{{ $payment->typeLabel() }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-gray-500 uppercase">What it was for</dt>
+                        <dd>{{ $payment->typeLabel() }}@if ($payment->loan) · Loan {{ $payment->loan->loan_number ?? $payment->loan->id }}@endif</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-gray-500 uppercase">Related loan</dt>
+                        <dd>
+                            @if ($payment->loan)
+                                <a href="{{ route('admin.loans.show', $payment->loan) }}" class="text-amber-700 hover:text-amber-800 font-mono text-xs">{{ $payment->loan->loan_number ?? $payment->loan->id }}</a>
+                            @else
+                                —
+                            @endif
+                        </dd>
                     </div>
                     <div>
                         <dt class="text-xs text-gray-500 uppercase">Method</dt>
@@ -36,12 +53,12 @@
                         <dd class="font-semibold">{{ format_money($payment->amount) }}</dd>
                     </div>
                     <div>
-                        <dt class="text-xs text-gray-500 uppercase">Status</dt>
+                        <dt class="text-xs text-gray-500 uppercase">Verification status</dt>
                         <dd>{{ $payment->statusLabel() }}</dd>
                     </div>
                     <div>
                         <dt class="text-xs text-gray-500 uppercase">Payment date</dt>
-                        <dd>{{ $payment->payment_date?->format('d M Y') ?? '—' }}</dd>
+                        <dd>{{ $payment->payment_date?->format('d M Y') ?? $payment->created_at?->format('d M Y') ?? '—' }}</dd>
                     </div>
                     @if ($payment->mobile_number)
                         <div>

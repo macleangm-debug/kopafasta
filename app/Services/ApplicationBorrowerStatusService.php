@@ -218,8 +218,8 @@ class ApplicationBorrowerStatusService
             $activeLoan => 'active_loan',
             $disbursed => 'active_loan',
             $readiness->isReadyForDisbursement($application) => 'disbursement',
-            $readiness->needsContractSignature($application) => 'contract',
             $readiness->needsDisbursementDetailsConfirmation($application) => 'contract',
+            $readiness->needsContractSignature($application) => 'contract',
             $readiness->needsPostApprovalFees($application) => 'post_approval_fee',
             default => 'post_approval_fee',
         };

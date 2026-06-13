@@ -67,6 +67,7 @@ class SettingsController extends Controller
             'penalty_clause'      => ['nullable', 'string', 'max:2000'],
             'legal_cost_clause'   => ['nullable', 'string', 'max:2000'],
             'guarantor_clause'    => ['nullable', 'string', 'max:2000'],
+            'asset_recovery_clause' => ['nullable', 'string', 'max:2000'],
         ]);
 
         if ($request->hasFile('signature_image')) {

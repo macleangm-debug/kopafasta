@@ -27,6 +27,7 @@ class CustomersTable extends Component
     {
         $customers = Customer::query()
             ->with('branch')
+            ->withCount(['loans', 'applications'])
             ->when($this->search !== '', function ($q) {
                 $term = '%'.$this->search.'%';
                 $q->where(function ($q) use ($term) {

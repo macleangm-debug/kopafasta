@@ -72,7 +72,7 @@
         </div>
         <a href="{{ route('site.borrower.application.agreement', $application) }}"
            class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-4 py-2 rounded-lg">
-            {{ $offer->isSigned() ? __('borrower.application.view_agreement') : __('borrower.application.review_sign') }} →
+            {{ $offer->isSigned() ? __('borrower.application.view_offer') : __('borrower.application.view_offer') }} →
         </a>
     </div>
 @endif

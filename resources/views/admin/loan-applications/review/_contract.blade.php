@@ -51,7 +51,7 @@
         @endif
     @endif
 
-    <h4 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Offer letter</h4>
+    <h4 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Offer summary</h4>
     @if ($offer)
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
             <div><div class="text-xs uppercase text-gray-500">Reference</div><div class="font-mono font-semibold">{{ $offer->reference }}</div></div>
@@ -61,9 +61,9 @@
                     'bg-emerald-100 text-emerald-800' => $offer->status === 'signed',
                     'bg-amber-100 text-amber-800'     => $offer->status === 'sent',
                     'bg-gray-100 text-gray-700'       => in_array($offer->status, ['draft','expired','cancelled']),
-                ])>{{ $offer->status }}</span>
+                ])>{{ $offer->status === 'signed' ? 'Accepted' : ucfirst($offer->status) }}</span>
             </div>
-            <div><div class="text-xs uppercase text-gray-500">Signed at</div><div>{{ optional($offer->signed_at)->format('d M Y, H:i') ?? '—' }}</div></div>
+            <div><div class="text-xs uppercase text-gray-500">Accepted at</div><div>{{ optional($offer->signed_at)->format('d M Y, H:i') ?? '—' }}</div></div>
         </div>
         <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm mb-5">
             <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-3">
@@ -79,8 +79,8 @@
                 <p class="font-semibold mt-1">{{ format_number((float) ($review['product']?->interest_rate ?? 0) * 100, 2) }}% / month</p>
             </div>
             <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-3">
-                <p class="text-[10px] uppercase text-gray-500">Borrower signature</p>
-                <p class="font-semibold mt-1">{{ $offer->isSigned() ? 'Signed' : 'Pending' }}</p>
+                <p class="text-[10px] uppercase text-gray-500">Borrower acceptance</p>
+                <p class="font-semibold mt-1">{{ $offer->isSigned() ? 'Accepted' : 'Pending' }}</p>
             </div>
             @if ($needsGuarantor)
                 <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-3 sm:col-span-2 lg:col-span-4">
@@ -90,9 +90,11 @@
             @endif
         </div>
         <div class="flex flex-wrap items-center gap-2 mb-6">
-            <x-admin.document-preview
-                :url="route('admin.loan-agreements.download', $offer)"
-                label="Preview offer PDF" />
+            @if ($offer->file_path)
+                <x-admin.document-preview
+                    :url="route('admin.loan-agreements.download', $offer)"
+                    label="View offer summary" />
+            @endif
             <form method="POST" action="{{ route('admin.loan-applications.agreement.generate', $record) }}"
                   onsubmit="return confirm('Regenerate the offer letter? The borrower will need to sign the new version.');">
                 @csrf
@@ -102,13 +104,29 @@
             </form>
         </div>
     @else
-        <p class="text-sm text-gray-500 mb-4">No offer letter yet. One is generated automatically on final approval, or generate manually below.</p>
+        <p class="text-sm text-gray-500 mb-4">No offer summary yet. One is generated automatically on approval, or generate manually below.</p>
         <form method="POST" action="{{ route('admin.loan-applications.agreement.generate', $record) }}" class="mb-6">
             @csrf
             <button type="submit" class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg">
-                Generate offer letter
+                Generate offer summary
             </button>
         </form>
+    @endif
+
+    @php
+        $finalContract = \App\Models\LoanAgreement::query()
+            ->where('loan_application_id', $record->id)
+            ->where('document_type', 'final_loan_contract')
+            ->latest('id')
+            ->first();
+    @endphp
+    @if ($finalContract?->file_path)
+        <h4 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3 mt-6">Final loan contract (post-disbursement)</h4>
+        <div class="flex flex-wrap items-center gap-2 mb-6">
+            <x-admin.document-preview
+                :url="route('admin.loan-agreements.download', $finalContract)"
+                label="Final contract + schedule" />
+        </div>
     @endif
 
     <h4 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Loan contract</h4>

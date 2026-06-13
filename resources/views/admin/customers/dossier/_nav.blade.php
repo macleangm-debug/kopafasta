@@ -2,13 +2,15 @@
     <div class="flex gap-1 overflow-x-auto">
         @foreach ([
             ['#customer-overview', 'Overview'],
-            ['#customer-personal', 'Personal'],
+            ['#customer-personal', 'Personal information'],
             ['#customer-residence', 'Residence'],
             ['#customer-activity', 'Activity'],
-            ['#customer-kin', 'Next of kin'],
             ['#customer-documents', 'Documents'],
-            ['#customer-applications', 'Applications'],
-            ['#customer-loans', 'Loans'],
+            ['#customer-applications', 'Loans'],
+            ['#customer-loans', 'Active loans'],
+            ['#customer-payments', 'Payments'],
+            ['#customer-notifications', 'Notifications'],
+            ['#customer-guarantor-requests', 'Guarantor requests'],
         ] as [$href, $label])
             <a href="{{ $href }}"
                class="shrink-0 px-3 py-2 text-xs font-semibold rounded-lg text-gray-600 hover:text-gray-900 hover:bg-white ring-1 ring-transparent hover:ring-gray-200 transition">

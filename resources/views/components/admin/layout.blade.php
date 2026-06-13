@@ -32,7 +32,7 @@
             ['Dashboard', 'admin.dashboard'],
         ], null],
         ['Applications', 'M9 12h6m-6 4h6M5 7h14M5 4h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z', [
-            ['Under Review',          'admin.loan-applications.pipeline.under-review'],
+            ['Applications',          'admin.loan-applications.pipeline.under-review'],
             ['Approved Loans',        'admin.loan-applications.pipeline.approved'],
             ['Disbursement',          'admin.loan-applications.pipeline.disbursement'],
             ['All Applications',      'admin.loan-applications.index'],

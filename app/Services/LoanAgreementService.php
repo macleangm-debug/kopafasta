@@ -306,6 +306,105 @@ class LoanAgreementService
         return $agreement;
     }
 
+    /**
+     * Generate the executed final contract with dated repayment schedule annex after disbursement.
+     */
+    public function generateFinalLoanContract(Loan $loan, bool $regenerate = false): ?LoanAgreement
+    {
+        $application = $loan->application;
+        if (! $application) {
+            return null;
+        }
+
+        $existing = LoanAgreement::where('loan_application_id', $application->id)
+            ->where('document_type', 'final_loan_contract')
+            ->first();
+
+        if ($existing && ! $regenerate && $existing->file_path) {
+            return $existing;
+        }
+
+        $loan->loadMissing(['product', 'repaymentSchedules']);
+        $schedules = $loan->repaymentSchedules()->orderBy('installment_no')->get();
+        if ($schedules->isEmpty()) {
+            return null;
+        }
+
+        $signedContract = LoanAgreement::query()
+            ->where('loan_application_id', $application->id)
+            ->where('document_type', 'loan_contract')
+            ->where('status', 'signed')
+            ->latest('id')
+            ->first();
+
+        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors']);
+        $snapshot = $this->snapshotFromApplication($application);
+        $snapshot['disbursement_date'] = $loan->disbursement_date?->toDateString();
+        $snapshot['first_due_date'] = $schedules->first()?->due_date?->toDateString();
+        $snapshot['last_due_date'] = $schedules->last()?->due_date?->toDateString();
+        $snapshot['schedule_is_estimate'] = false;
+        $snapshot['repayment_schedule'] = $schedules->map(fn ($row) => [
+            'installment_no' => $row->installment_no,
+            'label'          => ($loan->product->repayment_cadence ?? 'weekly') === 'monthly'
+                ? 'Month '.$row->installment_no
+                : 'Week '.$row->installment_no,
+            'due_date'       => $row->due_date?->toDateString(),
+            'principal_due'  => (float) $row->principal_due,
+            'interest_due'   => (float) $row->interest_due,
+            'total_due'      => (float) $row->total_due,
+        ])->all();
+
+        if ($signedContract?->acceptance_signature_data) {
+            $customer = $application->customer;
+            $snapshot['borrower_signature'] = (object) [
+                'signature_data' => $signedContract->acceptance_signature_data,
+                'signer_name'    => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: 'Borrower',
+                'signed_at'      => $signedContract->signed_at,
+            ];
+        }
+
+        $agreement = $existing ?: new LoanAgreement([
+            'loan_application_id' => $application->id,
+            'customer_id'         => $application->customer_id,
+            'document_type'       => 'final_loan_contract',
+            'reference'           => 'FLC-'.strtoupper(Str::random(8)),
+        ]);
+
+        $agreement->fill([
+            'snapshot'             => $snapshot,
+            'status'               => 'signed',
+            'sent_at'              => now(),
+            'signed_at'            => now(),
+            'generated_by_user_id' => Auth::id(),
+        ]);
+
+        $viewData = [
+            'application'    => $application,
+            'snapshot'       => $snapshot,
+            'agreement'      => $agreement,
+            'loan'           => $loan,
+            'signedContract' => $signedContract,
+        ];
+
+        $pdf = Pdf::loadView('pdf.final-loan-contract', $viewData)->setPaper('a4');
+        $path = "agreements/{$agreement->reference}.pdf";
+        Storage::disk('public')->put($path, $pdf->output());
+        $agreement->file_path = $path;
+        $agreement->save();
+
+        return $agreement;
+    }
+
+    /** Cancel an unsigned offer letter when the borrower declines. */
+    public function declineOfferLetter(LoanAgreement $agreement): void
+    {
+        if ($agreement->isSigned()) {
+            return;
+        }
+
+        $agreement->update(['status' => 'cancelled']);
+    }
+
     private function markSigned(LoanAgreement $agreement, string $method, ?string $ip = null, ?string $ua = null): void
     {
         $agreement->loadMissing('loanApplication.customer');
@@ -334,10 +433,6 @@ class LoanAgreementService
         }
 
         if ($readiness->hasPostApprovalFees($application) && ! $readiness->feesPaid($application)) {
-            return null;
-        }
-
-        if (! $readiness->disbursementDetailsConfirmed($application)) {
             return null;
         }
 
