@@ -15,13 +15,38 @@
         @endif
     </x-slot:actions>
 
+    <div class="mb-5 rounded-lg bg-sky-50/80 ring-1 ring-sky-100 px-4 py-3">
+        <p class="text-[10px] uppercase tracking-widest font-semibold text-sky-800 mb-2">What to verify</p>
+        <div class="grid md:grid-cols-2 gap-4">
+            <div>
+                <p class="text-xs font-semibold text-sky-900 mb-1">Signature check</p>
+                <ul class="space-y-1">
+                    @foreach (config('underwriting_document_guidance.signature_check.items', []) as $item)
+                        <li class="text-xs text-sky-900 flex items-start gap-2"><span class="text-sky-600 shrink-0">✓</span><span>{{ $item }}</span></li>
+                    @endforeach
+                </ul>
+            </div>
+            <div>
+                <p class="text-xs font-semibold text-sky-900 mb-1">Face verification</p>
+                <ul class="space-y-1">
+                    @foreach (config('underwriting_document_guidance.face_verification.items', []) as $item)
+                        <li class="text-xs text-sky-900 flex items-start gap-2"><span class="text-sky-600 shrink-0">✓</span><span>{{ $item }}</span></li>
+                    @endforeach
+                </ul>
+            </div>
+        </div>
+    </div>
+
     <div class="mb-6 grid sm:grid-cols-2 gap-4">
         <div class="rounded-lg ring-1 ring-gray-200 p-4">
             <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest">NIDA reference</p>
             @if ($nidaPhotoPath)
-                <a href="{{ asset('storage/'.$nidaPhotoPath) }}" target="_blank" class="block mt-3">
-                    <img src="{{ asset('storage/'.$nidaPhotoPath) }}" alt="NIDA photo" class="max-h-48 rounded-lg object-cover ring-1 ring-gray-200">
-                </a>
+                <div class="mt-3">
+                    <x-admin.document-preview
+                        :url="asset('storage/'.$nidaPhotoPath)"
+                        label="Preview NIDA photo" />
+                    <img src="{{ asset('storage/'.$nidaPhotoPath) }}" alt="NIDA photo" class="max-h-48 rounded-lg object-cover ring-1 ring-gray-200 mt-3">
+                </div>
             @else
                 <p class="text-sm text-gray-500 mt-3">NIDA database photo not stored yet.</p>
             @endif
@@ -51,9 +76,13 @@
                 </div>
                 <div class="p-3">
                     @if ($photo)
-                        <a href="{{ asset('storage/'.$photo->file_path) }}" target="_blank">
-                            <img src="{{ asset('storage/'.$photo->file_path) }}" alt="{{ $meta['label'] }}" class="w-full rounded-lg object-cover max-h-40">
-                        </a>
+                        <div>
+                            <x-admin.document-preview
+                                :url="asset('storage/'.$photo->file_path)"
+                                :label="'Preview '.$meta['label']"
+                                variant="link" />
+                            <img src="{{ asset('storage/'.$photo->file_path) }}" alt="{{ $meta['label'] }}" class="w-full rounded-lg object-cover max-h-40 mt-2">
+                        </div>
                     @else
                         <div class="h-32 grid place-items-center text-xs text-gray-400 bg-gray-50 rounded-lg">Not uploaded</div>
                     @endif

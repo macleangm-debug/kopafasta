@@ -364,8 +364,79 @@
     </main>
 </div>
 
+{{-- Embedded document preview drawer (underwriting) --}}
+<div id="kf-doc-drawer" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+    <div class="absolute inset-0 bg-black/40" onclick="window.kfCloseDocumentPreview()"></div>
+    <aside class="absolute top-0 right-0 h-full w-full max-w-3xl bg-white shadow-2xl flex flex-col">
+        <div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-200 bg-gray-50">
+            <div class="min-w-0">
+                <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">Document preview</p>
+                <p id="kf-doc-drawer-title" class="text-sm font-semibold text-gray-900 truncate"></p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <a id="kf-doc-drawer-open-tab" href="#" target="_blank" rel="noopener"
+                   class="text-xs font-semibold text-amber-700 hover:text-amber-800 px-3 py-1.5 rounded-lg ring-1 ring-gray-200 bg-white">
+                    Open in tab
+                </a>
+                <button type="button" onclick="window.kfCloseDocumentPreview()"
+                        class="text-gray-500 hover:text-gray-800 p-2 rounded-lg hover:bg-gray-100" aria-label="Close">
+                    <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        </div>
+        <div class="flex-1 min-h-0 bg-gray-100 p-2">
+            <iframe id="kf-doc-drawer-frame" class="hidden w-full h-full rounded-lg bg-white ring-1 ring-gray-200" title="Document preview"></iframe>
+            <div id="kf-doc-drawer-image-wrap" class="hidden h-full overflow-auto flex items-start justify-center p-2">
+                <img id="kf-doc-drawer-image" alt="" class="max-w-full rounded-lg shadow-sm ring-1 ring-gray-200">
+            </div>
+        </div>
+    </aside>
+</div>
+
 @livewireScripts
 <script>
+window.kfOpenDocumentPreview = function (url, title, type) {
+    var drawer = document.getElementById('kf-doc-drawer');
+    var frame = document.getElementById('kf-doc-drawer-frame');
+    var imageWrap = document.getElementById('kf-doc-drawer-image-wrap');
+    var image = document.getElementById('kf-doc-drawer-image');
+    var titleEl = document.getElementById('kf-doc-drawer-title');
+    var openTab = document.getElementById('kf-doc-drawer-open-tab');
+
+    if (! drawer) return;
+
+    titleEl.textContent = title || 'Document';
+    openTab.href = url;
+
+    if (type === 'pdf' || url.toLowerCase().indexOf('.pdf') !== -1) {
+        frame.classList.remove('hidden');
+        imageWrap.classList.add('hidden');
+        frame.src = url;
+    } else {
+        frame.classList.add('hidden');
+        frame.removeAttribute('src');
+        imageWrap.classList.remove('hidden');
+        image.src = url;
+        image.alt = title || 'Document';
+    }
+
+    drawer.classList.remove('hidden');
+    drawer.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('overflow-hidden');
+};
+
+window.kfCloseDocumentPreview = function () {
+    var drawer = document.getElementById('kf-doc-drawer');
+    var frame = document.getElementById('kf-doc-drawer-frame');
+    if (! drawer) return;
+    drawer.classList.add('hidden');
+    drawer.setAttribute('aria-hidden', 'true');
+    if (frame) {
+        frame.removeAttribute('src');
+    }
+    document.body.classList.remove('overflow-hidden');
+};
+
 document.addEventListener('click', function (event) {
     var openBtn = event.target.closest('[data-open-dialog]');
     if (openBtn) {
@@ -391,6 +462,7 @@ document.addEventListener('click', function (event) {
 });
 document.addEventListener('keydown', function (event) {
     if (event.key === 'Escape') {
+        window.kfCloseDocumentPreview();
         document.querySelectorAll('.admin-menu details[open]').forEach(function (details) {
             details.removeAttribute('open');
         });

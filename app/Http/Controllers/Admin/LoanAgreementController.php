@@ -18,4 +18,13 @@ class LoanAgreementController extends Controller
             ->route('admin.loan-applications.show', $loan_application)
             ->with('status', "Offer letter generated ({$agreement->reference}).");
     }
+
+    public function generateContract(LoanApplication $loan_application)
+    {
+        $agreement = $this->service->generateLoanContract($loan_application, regenerate: true);
+
+        return redirect()
+            ->route('admin.loan-applications.show', $loan_application)
+            ->with('status', "Loan contract regenerated ({$agreement->reference}).");
+    }
 }

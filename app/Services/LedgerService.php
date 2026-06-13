@@ -83,4 +83,21 @@ class LedgerService
         return ChartOfAccount::where('type', 'asset')->where('name', 'like', '%loan%')->orderBy('id')->value('id')
             ?? $this->cashAccountId();
     }
+
+    public function capitalPartnerPoolAccountId(): ?int
+    {
+        $id = (int) (Setting::get('finance.capital_partner_pool_gl_account_id') ?? 0);
+        if ($id > 0 && ChartOfAccount::whereKey($id)->exists()) {
+            return $id;
+        }
+
+        return ChartOfAccount::query()
+            ->where(function ($q) {
+                $q->where('name', 'like', '%capital%partner%')
+                    ->orWhere('name', 'like', '%partner%pool%')
+                    ->orWhere('name', 'like', '%due to%partner%');
+            })
+            ->orderBy('id')
+            ->value('id');
+    }
 }

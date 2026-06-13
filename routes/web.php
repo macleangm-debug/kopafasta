@@ -323,6 +323,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         $registerResource('loan-applications', 'loan_application', LoanApplicationController::class);
         Route::post('loan-applications/{loan_application}/agreement', [\App\Http\Controllers\Admin\LoanAgreementController::class, 'generate'])
             ->name('loan-applications.agreement.generate');
+        Route::post('loan-applications/{loan_application}/contract', [\App\Http\Controllers\Admin\LoanAgreementController::class, 'generateContract'])
+            ->name('loan-applications.contract.generate');
         Route::get('loan-agreements/{agreement}/download', [\App\Http\Controllers\Site\LoanAgreementController::class, 'download'])
             ->name('loan-agreements.download');
         Route::post('loan-applications/{loan_application}/document-requests', [LoanApplicationDocumentRequestController::class, 'store'])
@@ -538,6 +540,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/loan-rules',       [SettingsController::class, 'saveLoanRules']) ->name('settings.loan-rules.save');
         Route::get('settings/underwriting',    [SettingsController::class, 'underwriting'])  ->name('settings.underwriting');
         Route::put('settings/underwriting',    [SettingsController::class, 'saveUnderwriting'])->name('settings.underwriting.save');
+        Route::get('settings/legal',           [SettingsController::class, 'legal'])         ->name('settings.legal');
+        Route::put('settings/legal',           [SettingsController::class, 'saveLegal'])     ->name('settings.legal.save');
         Route::get('settings/credit-policy',    [SettingsController::class, 'creditPolicy'])  ->name('settings.credit-policy');
         Route::put('settings/credit-policy',    [SettingsController::class, 'saveCreditPolicy'])->name('settings.credit-policy.save');
         Route::get('settings/loan-products',    [SettingsController::class, 'loanProducts']) ->name('settings.loan-products');

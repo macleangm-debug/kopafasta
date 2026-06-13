@@ -16,11 +16,11 @@
         <div class="mt-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
             <div class="bg-gradient-to-r from-gray-900 to-amber-900 text-white px-6 py-4 flex items-center justify-between gap-3">
                 <x-site.brand-mark size="sm" variant="light" />
-                <span class="text-xs uppercase tracking-widest text-white/80">Official loan contract</span>
+                <span class="text-xs uppercase tracking-widest text-white/80">Commercial offer letter</span>
             </div>
             <div class="p-6">
-            <h1 class="text-xl font-bold text-gray-900">Loan offer letter</h1>
-            <p class="text-sm text-gray-600 mt-1">Application <span class="font-mono">{{ $application->application_number }}</span></p>
+            <h1 class="text-xl font-bold text-gray-900">Loan offer</h1>
+            <p class="text-sm text-gray-600 mt-1">Commercial offer — not a legal agreement. Application <span class="font-mono">{{ $application->application_number }}</span></p>
 
             @if (! $agreement)
                 <div class="mt-6 rounded-lg bg-gray-50 ring-1 ring-gray-200 p-5 text-sm text-gray-700">
@@ -45,7 +45,16 @@
                     <div><div class="text-xs uppercase text-gray-500">Tenure</div><div class="text-gray-900">{{ $snap['tenure_months'] ?? '—' }} months</div></div>
                     <div><div class="text-xs uppercase text-gray-500">Interest rate</div><div class="text-gray-900">{{ format_number(($snap['interest_rate'] ?? 0) * 100, 2) }}% / month</div></div>
                     <div><div class="text-xs uppercase text-gray-500">Estimated EMI</div><div class="text-gray-900">{{ format_money($snap['estimated_emi'] ?? 0) }}</div></div>
+                    @if ($agreement->expires_at)
+                        <div class="sm:col-span-2"><div class="text-xs uppercase text-gray-500">Offer expires</div><div class="text-gray-900">{{ $agreement->expires_at->format('d M Y, H:i') }}</div></div>
+                    @endif
                 </div>
+
+                @if ($agreement->isOfferExpired())
+                    <div class="mt-5 rounded-lg bg-red-50 ring-1 ring-red-200 p-4 text-sm text-red-800">
+                        This offer has expired. Contact the lender to request a new offer letter before you can accept.
+                    </div>
+                @endif
 
                 <div class="mt-5 flex flex-wrap items-center gap-3">
                     <a href="{{ route('site.borrower.agreement.download', $agreement) }}" target="_blank"
@@ -54,7 +63,7 @@
                     </a>
                 </div>
 
-                @if (! $agreement->isSigned())
+                @if (! $agreement->isSigned() && ! $agreement->isOfferExpired())
                     <div class="mt-6 border-t border-gray-200 pt-5">
                         <h2 class="text-sm font-semibold text-gray-900">Accept &amp; sign</h2>
                         <p class="text-xs text-gray-600 mt-1">Confirm acceptance by entering the 6-digit code we send to your phone.</p>

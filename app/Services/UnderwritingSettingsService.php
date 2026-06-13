@@ -53,4 +53,19 @@ class UnderwritingSettingsService
     {
         return max(1, (int) $this->get('stage_sla_days', 5));
     }
+
+    public function counterOffersEnabled(): bool
+    {
+        return (bool) $this->get('enable_counter_offers', false);
+    }
+
+    public function assetBackedAlternativeEnabled(): bool
+    {
+        return (bool) $this->get('enable_asset_backed_alternative', false);
+    }
+
+    public function automaticRejectionEnabled(): bool
+    {
+        return (bool) $this->get('enable_automatic_rejection', true);
+    }
 }

@@ -57,6 +57,34 @@
             </p>
         </div>
 
+        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+            <h3 class="text-sm font-semibold text-gray-700 mb-1">Offer workflow (pilot)</h3>
+            <p class="text-xs text-gray-500 mb-4">Keep the workflow simple initially. Enable advanced options when ready.</p>
+            <div class="space-y-3">
+                <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
+                    <input type="hidden" name="enable_counter_offers" value="0">
+                    <input type="checkbox" name="enable_counter_offers" value="1"
+                           @checked(! empty($values['enable_counter_offers']))
+                           class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                    <span class="text-gray-800">Enable counter-offers (underwriter can recommend reduced amount)</span>
+                </label>
+                <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
+                    <input type="hidden" name="enable_asset_backed_alternative" value="0">
+                    <input type="checkbox" name="enable_asset_backed_alternative" value="1"
+                           @checked(! empty($values['enable_asset_backed_alternative']))
+                           class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                    <span class="text-gray-800">Enable asset-backed alternative (continuation on same application)</span>
+                </label>
+                <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
+                    <input type="hidden" name="enable_automatic_rejection" value="0">
+                    <input type="checkbox" name="enable_automatic_rejection" value="1"
+                           @checked(! isset($values['enable_automatic_rejection']) || ! empty($values['enable_automatic_rejection']))
+                           class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                    <span class="text-gray-800">Enable automatic rejection guidance when affordability fails</span>
+                </label>
+            </div>
+        </div>
+
         <div class="flex justify-end">
             <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">
                 Save underwriting settings

@@ -71,8 +71,13 @@
             @endif
         </div>
     @elseif ($affordFail && ($record->current_stage ?? '') === 'credit_appraisal')
+        @php $autoReject = app(\App\Services\UnderwritingSettingsService::class)->automaticRejectionEnabled(); @endphp
         <p class="text-sm text-red-700 bg-red-50 ring-1 ring-red-100 rounded-lg px-4 py-3">
-            Affordability failed at requested amount — recommend a counter-offer or suggest the asset-backed product.
+            @if ($autoReject)
+                Affordability failed at requested amount — reject the application or return for documents.
+            @else
+                Affordability failed at requested amount — recommend a counter-offer or suggest the asset-backed product.
+            @endif
         </p>
     @else
         <p class="text-sm text-gray-500">No credit recommendation recorded yet.</p>

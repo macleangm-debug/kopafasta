@@ -144,6 +144,9 @@
                         @php
                             $affordPass = (bool) ($affordability['pass'] ?? false);
                             $maxCounter = (float) ($counterOffer['amount'] ?? 0);
+                            $uwSettings = app(\App\Services\UnderwritingSettingsService::class);
+                            $counterEnabled = $uwSettings->counterOffersEnabled();
+                            $autoReject = $uwSettings->automaticRejectionEnabled();
                         @endphp
                         <button type="button"
                                 data-open-dialog="recommend-{{ $record->id }}"
@@ -157,6 +160,15 @@
                                 <input type="hidden" name="action" value="submit_recommendation">
                                 <h4 class="font-semibold text-gray-900">Credit recommendation</h4>
                                 <p class="text-sm text-gray-600">Move to committee pre-approval with your recommendation.</p>
+                                @if (! $affordPass && $autoReject)
+                                    <p class="text-sm text-red-700 bg-red-50 ring-1 ring-red-100 rounded-lg px-3 py-2">
+                                        Affordability failed — reject the application or return for documents.
+                                    </p>
+                                @elseif (! $affordPass && ! $counterEnabled)
+                                    <p class="text-sm text-amber-800 bg-amber-50 ring-1 ring-amber-100 rounded-lg px-3 py-2">
+                                        Counter-offers are disabled. Reject or return for documents.
+                                    </p>
+                                @endif
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1">Recommendation</label>
                                     <select name="recommendation_type" required
@@ -165,7 +177,7 @@
                                         @if ($affordPass)
                                             <option value="approve">Approve at requested amount ({{ format_money((float) $record->requested_amount) }})</option>
                                         @endif
-                                        @if ($maxCounter > 0)
+                                        @if ($counterEnabled && $maxCounter > 0)
                                             <option value="counter">Counter-offer (max {{ format_money($maxCounter) }})</option>
                                         @endif
                                     </select>

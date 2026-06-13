@@ -88,9 +88,11 @@ class LoanApplicationWorkflowService
                 && app(UnderwritingSettingsService::class)->blockAcknowledgeWithoutGuarantor()
             ))
             ->filter(fn (array $action, string $key) => ! ($key === 'issue_offer' && (
-                $application->recommendation_type !== ApplicationOfferService::RECOMMEND_COUNTER
+                ! app(UnderwritingSettingsService::class)->counterOffersEnabled()
+                || $application->recommendation_type !== ApplicationOfferService::RECOMMEND_COUNTER
                 || $application->offer_status === 'pending_borrower'
             )))
+            ->filter(fn (array $action, string $key) => ! ($key === 'suggest_asset_alternative' && ! app(UnderwritingSettingsService::class)->assetBackedAlternativeEnabled()))
             ->filter(fn (array $action, string $key) => ! ($key === 'approve' && ! app(ApplicationOfferService::class)->canFinalApprove($application)))
             ->filter(fn (array $action, string $key) => ! ($key === 'disburse' && ! app(ApplicationDisbursementReadinessService::class)->canMarkDisbursement($application)))
             ->filter(fn (array $action) => $this->sameBranch($user, $application))

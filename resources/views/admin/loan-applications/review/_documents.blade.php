@@ -47,10 +47,9 @@
                             @endif
                         </div>
                         @if ($upload?->file_path)
-                            <a href="{{ asset('storage/'.$upload->file_path) }}" target="_blank"
-                               class="text-xs font-semibold text-amber-700 hover:text-amber-800 bg-white ring-1 ring-gray-200 px-3 py-1.5 rounded-lg shrink-0">
-                                View latest file
-                            </a>
+                            <x-admin.document-preview
+                                :url="asset('storage/'.$upload->file_path)"
+                                label="Preview file" />
                         @endif
                     </div>
 
@@ -103,7 +102,10 @@
                                             <span>{{ $version->created_at?->format('d M Y, H:i') }}</span>
                                             <span class="font-medium">{{ display_label($version->status, 'document_status') }}</span>
                                             @if ($version->file_path)
-                                                <a href="{{ asset('storage/'.$version->file_path) }}" target="_blank" class="text-amber-700 hover:underline">View</a>
+                                                <x-admin.document-preview
+                                                    :url="asset('storage/'.$version->file_path)"
+                                                    label="Preview"
+                                                    variant="link" />
                                             @endif
                                         </li>
                                     @endforeach
@@ -153,10 +155,9 @@
                     @endif
                     <div class="px-4 pb-4 flex flex-wrap gap-2">
                         @if ($doc->file_path)
-                            <a href="{{ asset('storage/'.$doc->file_path) }}" target="_blank"
-                               class="text-xs font-semibold text-amber-700 hover:text-amber-800 bg-white ring-1 ring-gray-200 px-3 py-1.5 rounded-lg">
-                                View file
-                            </a>
+                            <x-admin.document-preview
+                                :url="asset('storage/'.$doc->file_path)"
+                                label="Preview file" />
                         @endif
                         @if (! in_array($doc->status, ['verified', 'approved'], true))
                             <form method="POST" action="{{ route('admin.loan-applications.documents.verify', [$record, $doc]) }}" class="inline">

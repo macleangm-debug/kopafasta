@@ -39,6 +39,10 @@ class LoanAgreementController extends Controller
             ->latest('id')
             ->first();
 
+        if ($agreement) {
+            $agreement = app(\App\Services\OfferLetterExpiryService::class)->expireIfStale($agreement);
+        }
+
         return view('site.borrower.agreement', compact('application', 'agreement', 'customer'));
     }
 
@@ -98,6 +102,12 @@ class LoanAgreementController extends Controller
         $this->customerOrFail($application);
 
         $agreement = $this->offerOrFail($application);
+        app(\App\Services\OfferLetterExpiryService::class)->expireIfStale($agreement);
+
+        if ($agreement->fresh()->isOfferExpired()) {
+            return back()->with('error', 'This offer has expired. Please contact the lender for a new offer letter.');
+        }
+
         if ($agreement->isSigned()) {
             return back()->with('status', 'This agreement is already signed.');
         }
@@ -163,6 +173,11 @@ class LoanAgreementController extends Controller
     {
         $this->customerOrFail($application);
         $agreement = $this->offerOrFail($application);
+        app(\App\Services\OfferLetterExpiryService::class)->expireIfStale($agreement);
+
+        if ($agreement->fresh()->isOfferExpired()) {
+            return back()->with('error', 'This offer has expired. Please contact the lender for a new offer letter.');
+        }
 
         $data = $request->validate([
             'otp' => ['required', 'string', 'size:6'],

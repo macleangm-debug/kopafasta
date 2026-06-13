@@ -142,37 +142,74 @@ class LoanDisbursementService
     {
         $ledger = app(LedgerService::class);
         $receivableId = $ledger->loanReceivableAccountId();
+        if (! $receivableId) {
+            return;
+        }
+
+        $loan->loadMissing('capitalAllocations');
+        $usesCapital = $loan->capitalAllocations()->exists();
+        $capitalPoolId = $ledger->capitalPartnerPoolAccountId();
         $cashId = $ledger->cashAccountId();
-        if (!$receivableId || !$cashId) return; // chart of accounts not configured yet
+
+        if (! $usesCapital && ! $cashId) {
+            return;
+        }
+
+        if ($usesCapital && ! $capitalPoolId) {
+            return;
+        }
 
         $lines = [];
-        $lines[] = ['account_id' => $receivableId, 'debit' => $base, 'credit' => 0, 'description' => 'Loan principal ' . $loan->loan_number];
+        $lines[] = ['account_id' => $receivableId, 'debit' => $base, 'credit' => 0, 'description' => 'Loan receivable '.$loan->loan_number];
 
         $feeCreditTotal = 0.0;
         foreach ($applied as $fee) {
-            if (!$fee->gl_account_id) continue;
+            if (! $fee->gl_account_id) {
+                continue;
+            }
             $amt = (float) $fee->computed_amount;
-            if ($amt <= 0) continue;
-            $lines[] = ['account_id' => $fee->gl_account_id, 'debit' => 0, 'credit' => $amt, 'description' => $fee->code . ' ' . $loan->loan_number];
+            if ($amt <= 0) {
+                continue;
+            }
+            $lines[] = ['account_id' => $fee->gl_account_id, 'debit' => 0, 'credit' => $amt, 'description' => $fee->code.' '.$loan->loan_number];
             $feeCreditTotal += $amt;
         }
 
-        // Cash credit makes the entry balance with whatever fee income lines we managed to create
-        $cashCredit = $base - $feeCreditTotal;
-        if ($cashCredit < 0) return; // wouldn't balance
-        $lines[] = ['account_id' => $cashId, 'debit' => 0, 'credit' => $cashCredit, 'description' => 'Net disbursement ' . $loan->loan_number];
+        $fundingCredit = round($base - $feeCreditTotal, 2);
+        if ($fundingCredit < 0) {
+            return;
+        }
+
+        if ($usesCapital && $capitalPoolId) {
+            $lines[] = [
+                'account_id'  => $capitalPoolId,
+                'debit'       => 0,
+                'credit'      => $fundingCredit,
+                'description' => 'Capital partner pool — net deployment '.$loan->loan_number,
+            ];
+        } else {
+            $lines[] = [
+                'account_id'  => $cashId,
+                'debit'       => 0,
+                'credit'      => $fundingCredit,
+                'description' => 'Net disbursement '.$loan->loan_number,
+            ];
+        }
 
         try {
+            $memo = $usesCapital
+                ? 'Auto-posted on disbursement (capital partner funded). Net: '.format_money($net)
+                : 'Auto-posted on disbursement. Net cash: '.format_money($net);
+
             $ledger->post(
                 $lines,
-                'Loan disbursement ' . $loan->loan_number,
+                'Loan disbursement '.$loan->loan_number,
                 $loan,
                 $loan->disbursement_date?->toDateString() ?? now()->toDateString(),
-                'Auto-posted on disbursement. Net cash: ' . format_money($net),
+                $memo,
             );
         } catch (\Throwable $e) {
-            // swallow — disbursement should not fail because GL is mis-configured
-            logger()->warning('Disbursement journal not posted: ' . $e->getMessage());
+            logger()->warning('Disbursement journal not posted: '.$e->getMessage());
         }
     }
 
@@ -224,13 +261,25 @@ class LoanDisbursementService
     {
         $ledger = app(LedgerService::class);
         $receivableId = $ledger->loanReceivableAccountId();
+        if (! $receivableId) {
+            return;
+        }
+
+        $loan->loadMissing('capitalAllocations');
+        $usesCapital = $loan->capitalAllocations()->exists();
+        $capitalPoolId = $ledger->capitalPartnerPoolAccountId();
         $cashId = $ledger->cashAccountId();
-        if (! $receivableId || ! $cashId) {
+
+        if (! $usesCapital && ! $cashId) {
+            return;
+        }
+
+        if ($usesCapital && ! $capitalPoolId) {
             return;
         }
 
         $lines = [];
-        $lines[] = ['account_id' => $receivableId, 'debit' => 0, 'credit' => $base, 'description' => 'Reversal principal '.$loan->loan_number];
+        $lines[] = ['account_id' => $receivableId, 'debit' => 0, 'credit' => $base, 'description' => 'Reversal receivable '.$loan->loan_number];
 
         $feeCreditTotal = 0.0;
         foreach ($applied as $fee) {
@@ -245,11 +294,26 @@ class LoanDisbursementService
             $feeCreditTotal += $amt;
         }
 
-        $cashDebit = $base - $feeCreditTotal;
-        if ($cashDebit < 0) {
+        $fundingDebit = round($base - $feeCreditTotal, 2);
+        if ($fundingDebit < 0) {
             return;
         }
-        $lines[] = ['account_id' => $cashId, 'debit' => $cashDebit, 'credit' => 0, 'description' => 'Reversal disbursement '.$loan->loan_number];
+
+        if ($usesCapital && $capitalPoolId) {
+            $lines[] = [
+                'account_id'  => $capitalPoolId,
+                'debit'       => $fundingDebit,
+                'credit'      => 0,
+                'description' => 'Reversal capital partner pool '.$loan->loan_number,
+            ];
+        } else {
+            $lines[] = [
+                'account_id'  => $cashId,
+                'debit'       => $fundingDebit,
+                'credit'      => 0,
+                'description' => 'Reversal disbursement '.$loan->loan_number,
+            ];
+        }
 
         try {
             $ledger->post(

@@ -38,17 +38,48 @@ class SettingsController extends Controller
             'currency'    => ['required', 'string', 'size:3'],
             'timezone'    => ['required', 'string', 'max:50'],
             'fiscal_year_start' => ['nullable', 'string', 'max:5'],   // MM-DD
-            'signatory_name'    => ['nullable', 'string', 'max:120'],
-            'signatory_title'   => ['nullable', 'string', 'max:120'],
-            'signature_path'    => ['nullable', 'string', 'max:255'],
         ]);
-
-        if ($request->hasFile('signature_image')) {
-            $data['signature_path'] = $request->file('signature_image')->store('company', 'public');
-        }
 
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["company.$k" => $v])->all());
         return back()->with('status', 'Company profile saved.');
+    }
+
+    public function legal()
+    {
+        return view('admin.settings.legal', [
+            'values' => Setting::group('legal'),
+        ]);
+    }
+
+    public function saveLegal(Request $request)
+    {
+        $data = $request->validate([
+            'signatory_name'      => ['nullable', 'string', 'max:120'],
+            'signatory_title'     => ['nullable', 'string', 'max:120'],
+            'offer_validity_days' => ['required', 'integer', 'min:1', 'max:90'],
+            'late_fee_amount'     => ['required', 'numeric', 'min:0'],
+            'jurisdiction'        => ['required', 'string', 'max:200'],
+            'collection_fee_text' => ['nullable', 'string', 'max:500'],
+            'legal_recovery_text' => ['nullable', 'string', 'max:500'],
+            'default_clause'      => ['nullable', 'string', 'max:2000'],
+            'collection_clause'   => ['nullable', 'string', 'max:2000'],
+            'recovery_clause'     => ['nullable', 'string', 'max:2000'],
+            'penalty_clause'      => ['nullable', 'string', 'max:2000'],
+            'legal_cost_clause'   => ['nullable', 'string', 'max:2000'],
+            'guarantor_clause'    => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        if ($request->hasFile('signature_image')) {
+            $data['signature_path'] = $request->file('signature_image')->store('legal', 'public');
+        }
+
+        if ($request->hasFile('stamp_image')) {
+            $data['stamp_path'] = $request->file('stamp_image')->store('legal', 'public');
+        }
+
+        Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["legal.$k" => $v])->all());
+
+        return back()->with('status', 'Legal settings saved.');
     }
 
     // ---------------- SMS / Email gateway ----------------
@@ -239,9 +270,18 @@ class SettingsController extends Controller
             'default_rate_discount_fraction'         => ['required', 'numeric', 'min:0', 'max:0.85'],
             'hold_applications_until_guarantor_approved' => ['nullable', 'boolean'],
             'block_acknowledge_without_guarantor'    => ['nullable', 'boolean'],
+            'enable_counter_offers'                  => ['nullable', 'boolean'],
+            'enable_asset_backed_alternative'        => ['nullable', 'boolean'],
+            'enable_automatic_rejection'             => ['nullable', 'boolean'],
         ]);
 
-        foreach (['hold_applications_until_guarantor_approved', 'block_acknowledge_without_guarantor'] as $key) {
+        foreach ([
+            'hold_applications_until_guarantor_approved',
+            'block_acknowledge_without_guarantor',
+            'enable_counter_offers',
+            'enable_asset_backed_alternative',
+            'enable_automatic_rejection',
+        ] as $key) {
             $data[$key] = (bool) ($data[$key] ?? false);
         }
 
@@ -297,6 +337,7 @@ class SettingsController extends Controller
             'penalty_income_gl_account_id'            => ['nullable', 'exists:chart_of_accounts,id'],
             'bad_debt_expense_gl_account_id'          => ['nullable', 'exists:chart_of_accounts,id'],
             'default_expense_gl_account_id'           => ['nullable', 'exists:chart_of_accounts,id'],
+            'capital_partner_pool_gl_account_id'      => ['nullable', 'exists:chart_of_accounts,id'],
         ]);
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["finance.$k" => $v])->all());
         return back()->with('status', 'Finance defaults saved.');

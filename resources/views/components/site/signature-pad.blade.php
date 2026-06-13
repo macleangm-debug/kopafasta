@@ -29,7 +29,7 @@
     <div>
         <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.signature_draw_label') }}</label>
         <div class="rounded-xl ring-1 ring-gray-200 bg-white overflow-hidden">
-            <canvas x-ref="canvas" width="600" height="180" class="w-full touch-none cursor-crosshair bg-white"
+            <canvas x-ref="canvas" width="900" height="270" class="w-full touch-none cursor-crosshair bg-white"
                     @mousedown="startDraw($event)" @mousemove="draw($event)" @mouseup="endDraw()" @mouseleave="endDraw()"
                     @touchstart.prevent="startDraw($event)" @touchmove.prevent="draw($event)" @touchend.prevent="endDraw()"></canvas>
         </div>
@@ -51,13 +51,18 @@
                     dataUrl: initialDataUrl || '',
                     drawing: false,
                     ctx: null,
+                    lastPoint: null,
+                    initCanvas() {
+                        const canvas = this.$refs.canvas;
+                        this.ctx = canvas.getContext('2d');
+                        this.ctx.strokeStyle = '#1d4ed8';
+                        this.ctx.lineWidth = 2.25;
+                        this.ctx.lineCap = 'round';
+                        this.ctx.lineJoin = 'round';
+                    },
                     init() {
                         this.$nextTick(() => {
-                            const canvas = this.$refs.canvas;
-                            this.ctx = canvas.getContext('2d');
-                            this.ctx.strokeStyle = '#111827';
-                            this.ctx.lineWidth = 2;
-                            this.ctx.lineCap = 'round';
+                            this.initCanvas();
                             if (this.dataUrl) {
                                 this.loadFromDataUrl(this.dataUrl);
                             }
@@ -74,10 +79,7 @@
                         const img = new Image();
                         img.onload = () => {
                             if (! this.ctx) {
-                                this.ctx = canvas.getContext('2d');
-                                this.ctx.strokeStyle = '#111827';
-                                this.ctx.lineWidth = 2;
-                                this.ctx.lineCap = 'round';
+                                this.initCanvas();
                             }
                             this.ctx.clearRect(0, 0, canvas.width, canvas.height);
                             this.ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -95,9 +97,9 @@
                     },
                     startDraw(e) {
                         this.drawing = true;
-                        const p = this.pos(e);
+                        this.lastPoint = this.pos(e);
                         this.ctx.beginPath();
-                        this.ctx.moveTo(p.x, p.y);
+                        this.ctx.moveTo(this.lastPoint.x, this.lastPoint.y);
                     },
                     syncInput() {
                         if (this.$refs.hidden) {
@@ -107,13 +109,23 @@
                     draw(e) {
                         if (!this.drawing) return;
                         const p = this.pos(e);
-                        this.ctx.lineTo(p.x, p.y);
+                        const mid = {
+                            x: (this.lastPoint.x + p.x) / 2,
+                            y: (this.lastPoint.y + p.y) / 2,
+                        };
+                        this.ctx.quadraticCurveTo(this.lastPoint.x, this.lastPoint.y, mid.x, mid.y);
                         this.ctx.stroke();
+                        this.lastPoint = p;
                         this.dataUrl = this.$refs.canvas.toDataURL('image/png');
                         this.syncInput();
                     },
                     endDraw() {
+                        if (this.drawing && this.lastPoint) {
+                            this.ctx.lineTo(this.lastPoint.x, this.lastPoint.y);
+                            this.ctx.stroke();
+                        }
                         this.drawing = false;
+                        this.lastPoint = null;
                         this.dataUrl = this.$refs.canvas.toDataURL('image/png');
                         this.syncInput();
                     },

@@ -43,6 +43,7 @@ class LoanAgreementService
             'snapshot'             => $snapshot,
             'status'               => 'sent',
             'sent_at'              => now(),
+            'expires_at'           => now()->addDays(app(LegalSettingsService::class)->offerValidityDays()),
             'generated_by_user_id' => Auth::id(),
         ]);
 
@@ -167,6 +168,12 @@ class LoanAgreementService
      */
     public function issueSigningOtp(LoanAgreement $agreement): string
     {
+        if ($agreement->document_type === 'offer_letter' && $agreement->isOfferExpired()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'otp' => 'This offer has expired. Please contact the lender for a new offer letter.',
+            ]);
+        }
+
         $code = (string) random_int(100000, 999999);
         $agreement->update([
             'otp_code'        => $code,
@@ -187,6 +194,9 @@ class LoanAgreementService
         if ($agreement->isSigned()) {
             return [true, 'Already signed.'];
         }
+        if ($agreement->document_type === 'offer_letter' && $agreement->isOfferExpired()) {
+            return [false, 'This offer has expired. Please contact the lender for a new offer letter.'];
+        }
         if (! $agreement->otp_code || ! $agreement->otp_expires_at) {
             return [false, 'No OTP issued. Please request a new code.'];
         }
@@ -201,13 +211,19 @@ class LoanAgreementService
             return [false, 'Incorrect code.'];
         }
 
+        $agreement->loadMissing('loanApplication.customer');
+        $customer = $agreement->loanApplication?->customer;
+        $signerName = trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: ($customer->legalDisplayName() ?? 'Borrower');
+        $acceptanceSignature = app(OtpSignatureImageService::class)->generateDataUri($signerName);
+
         $agreement->update([
-            'status'            => 'signed',
-            'signed_at'         => now(),
-            'signed_ip'         => $ip,
-            'signed_user_agent' => $ua ? substr($ua, 0, 255) : null,
-            'signature_method'  => 'otp',
-            'otp_code'          => null,
+            'status'                     => 'signed',
+            'signed_at'                  => now(),
+            'signed_ip'                  => $ip,
+            'signed_user_agent'          => $ua ? substr($ua, 0, 255) : null,
+            'signature_method'           => 'otp',
+            'acceptance_signature_data'  => $acceptanceSignature,
+            'otp_code'                   => null,
         ]);
 
         return [true, 'Signed successfully.'];
@@ -267,16 +283,31 @@ class LoanAgreementService
         $instalment = $schedule[0]['total_due'] ?? 0.0;
         $totalInterest = round(collect($schedule)->sum('interest_due'), 2);
         $totalFees = (float) ($a->processing_fee ?? 0);
+        $totalRepayable = round(collect($schedule)->sum('total_due') + $totalFees, 2);
         $isAssetLoan = ($a->product->code ?? '') === config('asset_marketplace.asset_loan_product_code', 'AL');
         $reservation = AssetReservation::query()
             ->with('asset')
             ->where('loan_application_id', $a->id)
             ->first();
 
-        $signaturePath = setting('company.signature_path');
-        $companySignaturePath = $signaturePath
-            ? storage_path('app/public/'.ltrim($signaturePath, '/'))
-            : null;
+        $legal = app(LegalSettingsService::class);
+        $customer = $a->customer;
+        $guarantorLink = $a->customerGuarantors()->with('guarantor')->first();
+        $guarantor = $guarantorLink?->guarantor;
+
+        $borrowerAddress = collect([
+            $customer?->street,
+            $customer?->ward,
+            $customer?->district,
+            $customer?->region,
+        ])->filter()->implode(', ');
+
+        if ($borrowerAddress === '' && $customer?->address) {
+            $borrowerAddress = (string) $customer->address;
+        }
+
+        $activityLabel = display_label($customer?->activity_type, 'activity_type')
+            ?: ($customer?->business_name ?? $customer?->employment_type);
 
         return [
             'application_number'   => $a->application_number,
@@ -295,22 +326,64 @@ class LoanAgreementService
             'installment_label'    => app(RepaymentScheduleGenerator::class)->installmentLabel($cadence),
             'total_interest'       => $totalInterest,
             'total_fees'           => $totalFees,
+            'total_repayable'      => $totalRepayable,
             'repayment_schedule'   => $schedule,
-            'customer_name'        => trim(($a->customer->first_name ?? '').' '.($a->customer->last_name ?? '')),
-            'customer_id'          => $a->customer->national_id ?? null,
-            'customer_phone'       => $a->customer->phone ?? null,
+            'customer_name'        => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
+            'customer_id'          => $customer->national_id ?? null,
+            'customer_phone'       => $customer->phone ?? null,
+            'customer_address'     => $borrowerAddress ?: null,
+            'customer_activity'    => $activityLabel,
+            'customer_income'      => $customer->monthly_income
+                ? format_money((float) $customer->monthly_income)
+                : (income_range_label($customer->income_range ?? '') ?: $customer->income_range),
+            'guarantor_name'       => $guarantor ? trim(($guarantor->first_name ?? '').' '.($guarantor->last_name ?? '')) : null,
+            'guarantor_nida'       => $guarantor?->national_id,
+            'guarantor_address'    => $guarantor?->address,
+            'guarantor_phone'      => $guarantor?->phone,
+            'guarantor_relationship' => $guarantor?->relationship,
             'purpose'              => $a->purpose ?? null,
+            'offer_expires_at'     => ($existing = LoanAgreement::query()
+                ->where('loan_application_id', $a->id)
+                ->where('document_type', 'offer_letter')
+                ->latest('id')
+                ->first())?->expires_at?->toDateString()
+                ?? now()->addDays($legal->offerValidityDays())->toDateString(),
+            'offer_validity_days'  => $legal->offerValidityDays(),
+            'legal_clauses'        => $legal->contractClauses(),
             'generated_at'         => now()->toIso8601String(),
-            'borrower_signature'   => $a->signatures->firstWhere('signer_type', 'borrower'),
+            'borrower_signature'   => $this->borrowerSignatureForPdf($a, 'loan_contract'),
             'guarantor_signature'  => $a->signatures->firstWhere('signer_type', 'guarantor'),
             'company_signatory'    => brand('legal_name'),
-            'company_signatory_name' => setting('company.signatory_name') ?: brand('legal_name'),
-            'company_signatory_title' => setting('company.signatory_title'),
-            'company_signature_path' => ($companySignaturePath && is_file($companySignaturePath)) ? $companySignaturePath : null,
+            'company_signatory_name' => $legal->signatoryName() ?: brand('legal_name'),
+            'company_signatory_title' => $legal->signatoryTitle(),
+            'company_signature_path' => $legal->signatureFilesystemPath(),
+            'company_stamp_path'   => $legal->stampFilesystemPath(),
             'is_asset_loan'        => $isAssetLoan,
             'asset_title'          => $reservation?->asset?->title,
             'asset_ownership_note' => $isAssetLoan ? config('asset_marketplace.ownership_note') : null,
         ];
+    }
+
+    /** @param 'offer_letter'|'loan_contract' $documentType */
+    private function borrowerSignatureForPdf(LoanApplication $application, string $documentType): ?object
+    {
+        $agreement = LoanAgreement::query()
+            ->where('loan_application_id', $application->id)
+            ->where('document_type', $documentType)
+            ->latest('id')
+            ->first();
+
+        if ($agreement?->isSigned() && filled($agreement->acceptance_signature_data)) {
+            $customer = $application->customer;
+
+            return (object) [
+                'signature_data' => $agreement->acceptance_signature_data,
+                'signer_name'    => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: 'Borrower',
+                'signed_at'      => $agreement->signed_at,
+            ];
+        }
+
+        return $application->signatures->firstWhere('signer_type', 'borrower');
     }
 
     /** @param array<string, mixed> $data */

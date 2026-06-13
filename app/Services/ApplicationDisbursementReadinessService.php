@@ -39,7 +39,7 @@ class ApplicationDisbursementReadinessService
     {
         $offer = $this->offerLetter($application);
 
-        return $offer && $offer->isSigned();
+        return $offer && $offer->isSigned() && ! $offer->isOfferExpired();
     }
 
     public function contractSigned(LoanApplication $application): bool
@@ -167,6 +167,8 @@ class ApplicationDisbursementReadinessService
 
         if (! $this->offerLetter($application)) {
             $messages[] = 'Generate and send the offer letter first.';
+        } elseif ($this->offerLetter($application)?->isOfferExpired()) {
+            $messages[] = 'Offer letter has expired — regenerate and reissue to the borrower.';
         } elseif (! $this->offerSigned($application)) {
             $messages[] = 'Borrower must sign the offer letter.';
         }
@@ -203,7 +205,7 @@ class ApplicationDisbursementReadinessService
     {
         $offer = $this->offerLetter($application);
 
-        return $offer && ! $offer->isSigned();
+        return $offer && ! $offer->isSigned() && ! $offer->isOfferExpired();
     }
 
     public function needsPostApprovalFees(LoanApplication $application): bool

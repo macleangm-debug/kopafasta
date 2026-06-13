@@ -11,6 +11,7 @@ class LoanAgreement extends Model
         'snapshot'         => 'array',
         'sent_at'          => 'datetime',
         'signed_at'        => 'datetime',
+        'expires_at'       => 'datetime',
         'otp_sent_at'      => 'datetime',
         'otp_expires_at'   => 'datetime',
     ];
@@ -38,5 +39,22 @@ class LoanAgreement extends Model
     public function isSigned(): bool
     {
         return $this->status === 'signed' && $this->signed_at !== null;
+    }
+
+    public function isOfferExpired(): bool
+    {
+        if ($this->document_type !== 'offer_letter') {
+            return false;
+        }
+
+        if ($this->isSigned()) {
+            return false;
+        }
+
+        if ($this->status === 'expired') {
+            return true;
+        }
+
+        return $this->expires_at !== null && now()->greaterThan($this->expires_at);
     }
 }

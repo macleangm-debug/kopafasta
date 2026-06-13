@@ -69,6 +69,32 @@ return [
         ],
     ],
 
+    'signature_check' => [
+        'title' => 'Signature check',
+        'items' => [
+            'Compare NIDA signature specimen with submitted application signature',
+            'Stroke style and legibility are consistent with ID record',
+            'Signature belongs to the borrower named on this application',
+        ],
+    ],
+
+    'face_verification' => [
+        'title' => 'Face verification',
+        'items' => [
+            'Compare NIDA photo with selfie and holding-ID photo',
+            'Same person visible across all capture angles',
+            'No signs of mask, screen replay, or photo-of-photo',
+        ],
+    ],
+
+    'nida_signature' => [
+        'title' => 'NIDA signature',
+        'items' => [
+            'Signature on ID matches application signature pad capture',
+            'Name on signature matches verified NIDA legal name',
+        ],
+    ],
+
     'business_registration' => [
         'title' => 'Business registration',
         'items' => [

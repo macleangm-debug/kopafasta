@@ -7,6 +7,7 @@
         'identity'   => ['Identity Verification', 'admin.settings.identity'],
         'loan-rules' => ['Loan Rules',      'admin.settings.loan-rules'],
         'underwriting' => ['Underwriting',  'admin.settings.underwriting'],
+        'legal'        => ['Legal',         'admin.settings.legal'],
         'credit-policy' => ['Credit Policy', 'admin.settings.credit-policy'],
         'fees'       => ['Fee management',  'admin.charges-fees.index'],
         'loan-products' => ['Loan Products', 'admin.settings.loan-products'],

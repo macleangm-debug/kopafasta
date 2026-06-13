@@ -90,10 +90,9 @@
             @endif
         </div>
         <div class="flex flex-wrap items-center gap-2 mb-6">
-            <a href="{{ route('admin.loan-agreements.download', $offer) }}" target="_blank"
-               class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 px-4 py-2 rounded-lg">
-                View PDF
-            </a>
+            <x-admin.document-preview
+                :url="route('admin.loan-agreements.download', $offer)"
+                label="Preview offer PDF" />
             <form method="POST" action="{{ route('admin.loan-applications.agreement.generate', $record) }}"
                   onsubmit="return confirm('Regenerate the offer letter? The borrower will need to sign the new version.');">
                 @csrf
@@ -127,10 +126,18 @@
             </div>
         </div>
         @if ($contract->file_path)
-            <a href="{{ route('admin.loan-agreements.download', $contract) }}" target="_blank"
-               class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 px-4 py-2 rounded-lg mb-6">
-                View contract PDF
-            </a>
+            <div class="flex flex-wrap items-center gap-2 mb-6">
+                <x-admin.document-preview
+                    :url="route('admin.loan-agreements.download', $contract)"
+                    label="Preview contract PDF" />
+                <form method="POST" action="{{ route('admin.loan-applications.contract.generate', $record) }}"
+                      onsubmit="return confirm('Regenerate the loan contract? The borrower will need to sign the new version.');">
+                    @csrf
+                    <button type="submit" class="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 px-4 py-2 rounded-lg">
+                        Regenerate contract
+                    </button>
+                </form>
+            </div>
         @endif
     @else
         <p class="text-sm text-gray-500 mb-6">Loan contract is generated after post-approval fees are paid.</p>

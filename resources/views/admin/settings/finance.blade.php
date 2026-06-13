@@ -21,7 +21,8 @@
             $fields = [
                 ['cash_gl_account_id',                      'Cash / Bank account',              'Credited for net amount paid out on disbursement.'],
                 ['customer_gl_account_id',                  'Customer account',                 'Debited when borrower payments are collected.'],
-                ['loan_receivable_gl_account_id',           'Loan receivable account',          'Credited on loan repayments; debited for principal.'],
+                ['loan_receivable_gl_account_id',           'Loan receivable account',          'Debited on disbursement when loan exposure begins.'],
+                ['capital_partner_pool_gl_account_id',      'Capital partner pool account',     'Credited instead of cash when a loan is funded from partner pools.'],
                 ['registration_fee_income_gl_account_id',   'Registration fee income',          'Credited when registration fees are verified.'],
                 ['application_fee_income_gl_account_id',    'Application fee income',           'Credited when application fees are verified.'],
                 ['fee_income_gl_account_id',                'Default fee income account',       'Fallback when a specific fee income account is not set.'],

@@ -63,6 +63,12 @@ class ApplicationOfferService
         $application->loadMissing(['customer', 'product']);
 
         if ($type === self::RECOMMEND_ASSET) {
+            if (! app(UnderwritingSettingsService::class)->assetBackedAlternativeEnabled()) {
+                throw ValidationException::withMessages([
+                    'recommendation_type' => 'Asset-backed alternatives are disabled in underwriting settings.',
+                ]);
+            }
+
             $product = $alternativeProductId
                 ? LoanProduct::find($alternativeProductId)
                 : LoanProduct::where('code', 'AB')->where('is_active', true)->first();
@@ -87,8 +93,13 @@ class ApplicationOfferService
 
         if ($type === self::RECOMMEND_APPROVE) {
             if ($affordability['verdict'] === 'fail') {
+                $settings = app(UnderwritingSettingsService::class);
+                $message = $settings->automaticRejectionEnabled()
+                    ? 'Affordability failed — reject the application or return for documents.'
+                    : 'Affordability failed — recommend a counter-offer or asset-backed alternative instead.';
+
                 throw ValidationException::withMessages([
-                    'recommendation_type' => 'Affordability failed — recommend a counter-offer or asset-backed alternative instead.',
+                    'recommendation_type' => $message,
                 ]);
             }
             $recommendedAmount = (float) $application->requested_amount;
@@ -96,6 +107,11 @@ class ApplicationOfferService
         }
 
         if ($type === self::RECOMMEND_COUNTER) {
+            if (! app(UnderwritingSettingsService::class)->counterOffersEnabled()) {
+                throw ValidationException::withMessages([
+                    'recommendation_type' => 'Counter-offers are disabled in underwriting settings.',
+                ]);
+            }
             $counter = $this->maxCounterOffer($application);
             $recommendedAmount = $recommendedAmount > 0 ? $recommendedAmount : $counter['amount'];
             $tenureMonths = $tenureMonths ?: $counter['tenure_months'];
