@@ -285,6 +285,73 @@ class ApplicationDisbursementReadinessService
         return $checklist;
     }
 
+    /**
+     * Borrower-facing disbursement checklist — ordered pipeline without internal capital checks.
+     *
+     * @return array<string, array{label: string, status: string, complete: bool}>
+     */
+    public function borrowerDisbursementChecklist(LoanApplication $application): array
+    {
+        $offerSigned = $this->offerSigned($application);
+        $hasFees = $this->hasPostApprovalFees($application);
+        $feesPaid = $this->feesPaid($application);
+        $feesComplete = $offerSigned && (! $hasFees || $feesPaid);
+        $detailsConfirmed = $this->disbursementDetailsConfirmed($application);
+        $contract = $this->loanContract($application);
+        $contractSigned = $this->contractSigned($application);
+        $canDisburse = $this->canMarkDisbursement($application);
+        $disbursed = (string) $application->status === 'disbursed'
+            || in_array((string) ($application->loan?->status ?? ''), ['active', 'disbursed'], true);
+
+        $feeStatus = match (true) {
+            ! $offerSigned => 'locked',
+            ! $hasFees => 'not_required',
+            $feesPaid => 'paid',
+            default => 'pending',
+        };
+
+        $destinationStatus = match (true) {
+            ! $feesComplete => 'locked',
+            $detailsConfirmed => 'accepted',
+            default => 'pending',
+        };
+
+        $contractStatus = match (true) {
+            ! $feesComplete || ! $detailsConfirmed => 'locked',
+            $contractSigned => 'accepted',
+            $contract => 'pending',
+            default => 'not_generated',
+        };
+
+        return [
+            'offer' => [
+                'label'    => __('borrower.contract.checklist.offer'),
+                'status'   => $offerSigned ? 'accepted' : 'pending',
+                'complete' => $offerSigned,
+            ],
+            'post_approval_fee' => [
+                'label'    => __('borrower.contract.checklist.post_approval_fee'),
+                'status'   => $feeStatus,
+                'complete' => $feesComplete,
+            ],
+            'destination' => [
+                'label'    => __('borrower.contract.checklist.destination'),
+                'status'   => $destinationStatus,
+                'complete' => $detailsConfirmed,
+            ],
+            'contract' => [
+                'label'    => __('borrower.contract.checklist.contract'),
+                'status'   => $contractStatus,
+                'complete' => $contractSigned,
+            ],
+            'disbursement' => [
+                'label'    => __('borrower.contract.checklist.disbursement'),
+                'status'   => $disbursed ? 'complete' : ($canDisburse ? 'pending' : 'locked'),
+                'complete' => $disbursed,
+            ],
+        ];
+    }
+
     /** Post-approval pipeline stage label for admin underwriting tabs. */
     public function approvedPipelineStage(LoanApplication $application): string
     {
@@ -302,12 +369,12 @@ class ApplicationDisbursementReadinessService
             return 'Post Approval Fee';
         }
 
-        if ($this->needsContractSignature($application)) {
-            return 'Contract';
-        }
-
         if ($this->needsDisbursementDetailsConfirmation($application)) {
             return 'Awaiting Disbursement Details';
+        }
+
+        if ($this->needsContractSignature($application)) {
+            return 'Contract';
         }
 
         if ($this->isReadyForDisbursement($application)) {

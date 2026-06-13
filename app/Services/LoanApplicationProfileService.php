@@ -139,7 +139,7 @@ class LoanApplicationProfileService
 
         $borrowerStatus = $this->borrowerStatus->forApplication($application);
         $disbursementChecklist = app(ApplicationDisbursementReadinessService::class)
-            ->disbursementChecklist($application);
+            ->borrowerDisbursementChecklist($application);
 
         return [
             'is_draft'             => false,

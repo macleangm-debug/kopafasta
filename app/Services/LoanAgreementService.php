@@ -408,7 +408,8 @@ class LoanAgreementService
     private function markSigned(LoanAgreement $agreement, string $method, ?string $ip = null, ?string $ua = null): void
     {
         $agreement->loadMissing('loanApplication.customer');
-        $customer = $agreement->loanApplication?->customer;
+        $application = $agreement->loanApplication;
+        $customer = $application?->customer;
         $signerName = trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: ($customer?->legalDisplayName() ?? 'Borrower');
         $acceptanceSignature = app(OtpSignatureImageService::class)->generateDataUri($signerName);
 
@@ -421,6 +422,48 @@ class LoanAgreementService
             'acceptance_signature_data' => $acceptanceSignature,
             'otp_code'                  => null,
         ]);
+
+        if ($agreement->document_type === 'offer_letter' && $application) {
+            $this->recordOfferAcceptance($application);
+        }
+    }
+
+    /** Sync application state and post-approval fees after the borrower accepts an offer letter. */
+    public function recordOfferAcceptance(LoanApplication $application): LoanApplication
+    {
+        $application->loadMissing('product');
+
+        $updates = [
+            'offer_responded_at' => now(),
+        ];
+
+        if (in_array($application->offer_status, [null, 'pending_borrower'], true)) {
+            $updates['offer_status'] = 'accepted';
+        }
+
+        if ($application->offered_amount) {
+            $updates['recommended_amount'] = $application->offered_amount;
+        }
+
+        if ($application->offered_tenure_months) {
+            $updates['requested_tenure_months'] = $application->offered_tenure_months;
+            $updates['approved_tenure_months'] = $application->offered_tenure_months;
+        }
+
+        $application->update($updates);
+        $application = $application->fresh();
+
+        if ($this->shouldGeneratePostApprovalFees($application)) {
+            app(PostApprovalFeeService::class)->generateForApplication($application);
+        }
+
+        return $application->fresh();
+    }
+
+    private function shouldGeneratePostApprovalFees(LoanApplication $application): bool
+    {
+        return in_array((string) ($application->current_stage ?? ''), ['approval', 'disbursement'], true)
+            || in_array((string) $application->status, ['approved', 'pre_approved'], true);
     }
 
     /** Generate the loan contract once post-approval fees are settled. */

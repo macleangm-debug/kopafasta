@@ -199,7 +199,6 @@ class ApplicationOfferService
             'offer_status'       => 'declined',
             'offer_responded_at' => now(),
             'status'             => 'withdrawn',
-            'current_stage'      => 'rejected',
         ]);
 
         return $application->fresh();
@@ -308,7 +307,6 @@ class ApplicationOfferService
             'offer_status'              => 'declined',
             'offer_responded_at'        => now(),
             'status'                    => 'withdrawn',
-            'current_stage'             => 'rejected',
         ]);
 
         return $application->fresh();

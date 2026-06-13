@@ -40,6 +40,14 @@ class ApplicationBorrowerStatusService
 
     public function borrowerDetail(LoanApplication $application): ?string
     {
+        if ($this->resolveCode($application) === 'offer_declined') {
+            return __('borrower.loan_profile.offer_declined_detail');
+        }
+
+        if ($this->resolveCode($application) === 'withdrawn') {
+            return __('borrower.loan_profile.withdrawn_detail');
+        }
+
         if ($this->resolveCode($application) === 'rejected') {
             $label = $this->rejectionReasons->labelForCode($application->rejection_reason_code)
                 ?: $application->rejection_reason
@@ -177,11 +185,14 @@ class ApplicationBorrowerStatusService
     public function postApprovalTimeline(LoanApplication $application): array
     {
         $readiness = app(ApplicationDisbursementReadinessService::class);
+        $offerSigned = $readiness->offerSigned($application);
         $hasFees = $readiness->hasPostApprovalFees($application);
         $feesPaid = $readiness->feesPaid($application);
+        $detailsConfirmed = $readiness->disbursementDetailsConfirmed($application);
         $contractSigned = $readiness->contractSigned($application);
         $disbursed = $this->isDisbursed($application);
         $activeLoan = $disbursed && ! $this->isClosed($application);
+        $feesComplete = $offerSigned && (! $hasFees || $feesPaid);
 
         $steps = [
             ['key' => 'submitted', 'label' => __('borrower.loan_progress.submitted'), 'complete' => true, 'current' => false],
@@ -189,9 +200,21 @@ class ApplicationBorrowerStatusService
             ['key' => 'credit_review', 'label' => __('borrower.loan_progress.credit_review'), 'complete' => true, 'current' => false],
             ['key' => 'approval', 'label' => __('borrower.loan_progress.approval'), 'complete' => true, 'current' => false],
             [
+                'key'      => 'accept_offer',
+                'label'    => __('borrower.loan_progress.accept_offer'),
+                'complete' => $offerSigned,
+                'current'  => false,
+            ],
+            [
                 'key'      => 'post_approval_fee',
                 'label'    => __('borrower.loan_progress.post_approval_fee'),
-                'complete' => ! $hasFees || $feesPaid,
+                'complete' => $feesComplete,
+                'current'  => false,
+            ],
+            [
+                'key'      => 'destination',
+                'label'    => __('borrower.loan_progress.destination'),
+                'complete' => $detailsConfirmed,
                 'current'  => false,
             ],
             [
@@ -218,10 +241,11 @@ class ApplicationBorrowerStatusService
             $activeLoan => 'active_loan',
             $disbursed => 'active_loan',
             $readiness->isReadyForDisbursement($application) => 'disbursement',
-            $readiness->needsDisbursementDetailsConfirmation($application) => 'contract',
             $readiness->needsContractSignature($application) => 'contract',
+            $readiness->needsDisbursementDetailsConfirmation($application) => 'destination',
             $readiness->needsPostApprovalFees($application) => 'post_approval_fee',
-            default => 'post_approval_fee',
+            $readiness->needsBorrowerSignature($application) => 'accept_offer',
+            default => 'accept_offer',
         };
 
         foreach ($steps as &$step) {
@@ -281,6 +305,14 @@ class ApplicationBorrowerStatusService
 
         if ($status === 'rejected' || $stage === 'rejected') {
             return 'rejected';
+        }
+
+        if ($status === 'withdrawn' && $application->offer_status === 'declined') {
+            return 'offer_declined';
+        }
+
+        if ($status === 'withdrawn') {
+            return 'withdrawn';
         }
 
         if ($this->isClosed($application)) {
@@ -358,6 +390,8 @@ class ApplicationBorrowerStatusService
             'documents_resubmitted' => __('borrower.applications_list.statuses.documents_resubmitted'),
             'credit_review'         => __('borrower.applications_list.statuses.credit_review'),
             'awaiting_offer'        => __('borrower.applications_list.statuses.awaiting_offer'),
+            'offer_declined'        => __('borrower.applications_list.statuses.offer_declined'),
+            'withdrawn'             => __('borrower.applications_list.statuses.withdrawn'),
             'awaiting_signature'    => __('borrower.applications_list.statuses.awaiting_signature'),
             'post_approval_fees'    => __('borrower.applications_list.statuses.post_approval_fees'),
             'awaiting_disbursement_details' => __('borrower.applications_list.statuses.awaiting_disbursement_details'),
@@ -375,6 +409,7 @@ class ApplicationBorrowerStatusService
     {
         return match ($code) {
             'rejected' => 'red',
+            'offer_declined', 'withdrawn' => 'red',
             'awaiting_offer' => 'amber',
             'awaiting_signature', 'post_approval_fees', 'awaiting_disbursement_details', 'awaiting_contract' => 'sky',
             'approved', 'ready_for_disbursement', 'disbursed', 'closed' => 'emerald',

@@ -65,6 +65,12 @@ class LoanAgreementController extends Controller
                 ->with('status', __('borrower.contract.pay_fees_first'));
         }
 
+        if ($this->readiness->needsDisbursementDetailsConfirmation($application)) {
+            return redirect()
+                ->route('site.borrower.application.disbursement-details', $application)
+                ->with('status', __('borrower.contract.confirm_destination_first'));
+        }
+
         $contract = $this->readiness->loanContract($application);
         if (! $contract) {
             $contract = $this->service->ensureLoanContractAfterFees($application->fresh());
@@ -73,7 +79,7 @@ class LoanAgreementController extends Controller
         abort_unless($contract, 404, __('borrower.contract.not_ready'));
 
         $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors.guarantor']);
-        $checklist = $this->readiness->disbursementChecklist($application);
+        $checklist = $this->readiness->borrowerDisbursementChecklist($application);
         $disbursementDetails = app(\App\Services\CustomerDisbursementDetailsService::class)
             ->snapshotForApplication($application);
         $detailsService = app(\App\Services\CustomerDisbursementDetailsService::class);
@@ -248,8 +254,9 @@ class LoanAgreementController extends Controller
 
         $this->service->declineOfferLetter($agreement);
         $application->update([
-            'status'        => 'withdrawn',
-            'current_stage' => 'rejected',
+            'status'             => 'withdrawn',
+            'offer_status'       => 'declined',
+            'offer_responded_at' => now(),
         ]);
 
         $this->auditBorrower('agreement.declined', $application, [
@@ -363,7 +370,7 @@ class LoanAgreementController extends Controller
 
     private function redirectAfterOfferAccepted(LoanApplication $application, string $message): RedirectResponse
     {
-        $application = $application->fresh();
+        $application = $this->service->recordOfferAcceptance($application->fresh());
         $customer = $this->customerOrFail($application);
 
         if ($this->readiness->needsPostApprovalFees($application)) {

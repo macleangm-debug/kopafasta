@@ -19,8 +19,9 @@
                 <span class="text-xs uppercase tracking-widest text-white/80">Offer summary</span>
             </div>
             <div class="p-6">
-            <h1 class="text-xl font-bold text-gray-900">View offer</h1>
-            <p class="text-sm text-gray-600 mt-1">Commercial offer summary — not a legal contract. Application <span class="font-mono">{{ $application->application_number }}</span></p>
+            <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">{{ __('borrower.offer.label') }}</p>
+            <h1 class="text-xl font-bold text-gray-900">{{ __('borrower.offer.title') }}</h1>
+            <p class="text-sm text-gray-600 mt-1">{{ __('borrower.offer.intro_approved', ['reference' => $application->application_number]) }}</p>
 
             @if (! $agreement)
                 <div class="mt-6 rounded-lg bg-gray-50 ring-1 ring-gray-200 p-5 text-sm text-gray-700">
@@ -88,20 +89,20 @@
                                 </button>
                             </form>
                         @else
-                            <p class="text-xs text-gray-600 mt-1">Review the offer summary above, then accept or decline.</p>
+                            <p class="text-xs text-gray-600 mt-1">{{ __('borrower.agreement.decision_help') }}</p>
                             <div class="mt-4 flex flex-wrap gap-3">
                                 <form method="POST" action="{{ route('site.borrower.application.agreement.accept', $application) }}"
-                                      @submit.prevent="window.confirmForm($el, { title: 'Accept this offer?', message: 'You are accepting the loan terms shown in this offer summary.', confirmLabel: 'Accept offer', confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white' })">
+                                      onsubmit="return confirm(@js(__('borrower.agreement.accept_confirm')));">
                                     @csrf
                                     <button type="submit" class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 rounded-lg">
-                                        Accept offer
+                                        {{ __('borrower.offer.accept') }}
                                     </button>
                                 </form>
                                 <form method="POST" action="{{ route('site.borrower.application.agreement.decline', $application) }}"
-                                      @submit.prevent="window.confirmForm($el, { title: 'Reject this offer?', message: 'Your application will be withdrawn.', confirmLabel: 'Reject offer', confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">
+                                      onsubmit="return confirm(@js(__('borrower.agreement.decline_confirm')));">
                                     @csrf
                                     <button type="submit" class="inline-flex items-center gap-2 text-sm font-semibold text-red-700 bg-red-50 hover:bg-red-100 px-5 py-2.5 rounded-lg">
-                                        Reject offer
+                                        {{ __('borrower.agreement.decline_button') }}
                                     </button>
                                 </form>
                             </div>

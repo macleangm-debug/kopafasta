@@ -44,7 +44,14 @@
         <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">{{ $errors->first() }}</div>
     @endif
 
-    @if (($status['code'] ?? '') === 'rejected')
+    @if (($status['code'] ?? '') === 'offer_declined')
+        <div class="mb-4 rounded-xl bg-amber-50 ring-amber-200 text-amber-900 ring-1 px-4 py-4 text-sm">
+            <p class="font-semibold text-base">{{ __('borrower.applications_list.statuses.offer_declined') }}</p>
+            @if (! empty($status['detail']))
+                <p class="mt-1">{{ $status['detail'] }}</p>
+            @endif
+        </div>
+    @elseif (($status['code'] ?? '') === 'rejected')
         <div class="mb-4 rounded-xl bg-red-50 ring-red-200 text-red-800 ring-1 px-4 py-4 text-sm">
             <p class="font-semibold text-base">{{ __('borrower.applications_list.statuses.rejected') }}</p>
             @if (! empty($status['detail']))

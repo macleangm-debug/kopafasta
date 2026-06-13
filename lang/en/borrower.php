@@ -889,6 +889,8 @@ return [
             'screening' => 'Screening',
             'credit_review' => 'Credit Review',
             'awaiting_offer' => 'Counter-offer pending',
+            'offer_declined' => 'Offer declined by you',
+            'withdrawn' => 'Withdrawn',
             'awaiting_signature' => 'Offer pending',
             'post_approval_fees' => 'Awaiting post approval fee',
             'awaiting_disbursement_details' => 'Confirm disbursement details',
@@ -953,6 +955,8 @@ return [
         'missing_requirements_hint' => 'Upload or complete each item below. You will be taken directly to the relevant section.',
         'underwriter_feedback' => 'Please upload: :items',
         'rejection_reason' => 'Reason: :reason',
+        'offer_declined_detail' => 'You declined the loan offer. This was your choice — the lender did not reject your application.',
+        'withdrawn_detail' => 'This application was withdrawn.',
         'upload' => 'Upload document',
         'reupload' => 'Re-upload',
         'residence_letter_missing' => 'Upload your local government residence verification letter.',
@@ -986,6 +990,7 @@ return [
             'submitted' => 'Application submitted',
             'disbursed' => 'Loan disbursed',
             'rejected' => 'Application declined',
+            'offer_declined' => 'You declined this loan offer',
         ],
         'sections' => [
             'personal' => 'Personal information',
@@ -1447,8 +1452,9 @@ return [
 
     'offer' => [
         'title' => 'Review loan offer',
-        'label' => 'Counter-offer',
+        'label' => 'Loan offer',
         'intro' => 'Credit committee reviewed your application and is offering revised terms. Accept to continue toward final approval, or decline to withdraw this application.',
+        'intro_approved' => 'Your loan has been approved. Review the offer summary below and accept to continue. Application :reference.',
         'requested' => 'You requested',
         'offered' => 'We offer',
         'estimated_installment' => 'Estimated monthly installment',
@@ -1517,8 +1523,12 @@ return [
 
     'agreement' => [
         'signed_on' => 'Accepted on :date.',
-        'signed_next_fees' => 'Thank you — your offer acceptance is recorded. Pay post-approval fees next, then review your loan contract.',
-        'declined' => 'You declined this offer. Your application has been withdrawn.',
+        'signed_next_fees' => 'Thank you — your offer acceptance is recorded. Pay post-approval fees next, then confirm your disbursement destination, then review your loan contract.',
+        'declined' => 'You declined this loan offer. This was your decision — the underwriting team did not reject your application.',
+        'decision_help' => 'Review the offer summary above, then accept or decline.',
+        'accept_confirm' => 'Accept this offer? You are accepting the loan terms shown in this offer summary.',
+        'decline_confirm' => 'Decline this offer? Your application will be withdrawn. This is your decision — it is not a rejection by the lender.',
+        'decline_button' => 'Decline offer',
     ],
 
     'contract' => [
@@ -1570,8 +1580,9 @@ return [
         'ready_message' => 'Your loan is ready for disbursement. Finance will process payout once final checks are complete.',
         'already_signed' => 'This contract is already accepted.',
         'not_ready' => 'Your loan contract is not ready yet.',
-        'sign_offer_first' => 'Sign your offer letter before reviewing the loan contract.',
+        'sign_offer_first' => 'Accept your loan offer before reviewing the loan contract.',
         'pay_fees_first' => 'Pay post-approval fees before reviewing the loan contract.',
+        'confirm_destination_first' => 'Confirm your disbursement destination before reviewing the loan contract.',
         'otp_sent' => 'We have sent a 6-digit code to your phone.',
         'notify_title' => 'Loan contract ready',
         'notify_message' => 'Application :reference — your loan contract is ready. Review and sign to proceed toward disbursement.',
@@ -1579,6 +1590,7 @@ return [
         'confirm_message' => 'You are accepting the loan terms. This action is legally binding.',
         'checklist' => [
             'title' => 'Disbursement progress',
+            'offer' => 'Offer accepted',
             'post_approval_fee' => 'Post-approval fee',
             'destination' => 'Destination verified',
             'contract' => 'Contract',
@@ -1642,7 +1654,9 @@ return [
         'screening' => 'Screening',
         'credit_review' => 'Credit Review',
         'approval' => 'Approval',
-        'post_approval_fee' => 'Post-Approval Fee',
+        'accept_offer' => 'Accept offer',
+        'post_approval_fee' => 'Post-approval fee',
+        'destination' => 'Verify disbursement destination',
         'contract' => 'Contract',
         'disbursement' => 'Disbursement',
         'active_loan' => 'Active Loan',
