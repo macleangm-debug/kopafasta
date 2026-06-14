@@ -19,6 +19,13 @@ class LoanApplication extends Model
         'rejected',
     ];
 
+    /** Borrower-facing post-approval pipeline stages (stored in current_stage). */
+    public const BORROWER_STAGE_POST_APPROVAL_FEES = 'post_approval_fees';
+
+    public const BORROWER_STAGE_AWAITING_DISBURSEMENT_DETAILS = 'awaiting_disbursement_details';
+
+    public const BORROWER_STAGE_CONTRACT = 'contract_generation';
+
     protected function casts(): array
     {
         return [

@@ -284,7 +284,8 @@ class ApplicationBorrowerStatusService
         }
 
         return in_array((string) $application->status, ['approved', 'pre_approved', 'disbursed'], true)
-            || in_array((string) ($application->current_stage ?? ''), ['approval', 'disbursement'], true);
+            || (string) $application->offer_status === 'accepted'
+            || in_array((string) ($application->current_stage ?? ''), app(ApplicationDisbursementReadinessService::class)->borrowerPostApprovalStages(), true);
     }
 
     /** @return array{pending: Collection, uploaded: Collection, completed: Collection, rejected: Collection} */
@@ -327,7 +328,10 @@ class ApplicationBorrowerStatusService
             return 'awaiting_offer';
         }
 
-        if (in_array($status, ['approved', 'pre_approved'], true) || in_array($stage, ['approval', 'disbursement', 'pre_approval'], true)) {
+        if ($application->offer_status === 'accepted'
+            || in_array($status, ['approved', 'pre_approved'], true)
+            || in_array($stage, app(\App\Services\ApplicationDisbursementReadinessService::class)->borrowerPostApprovalStages(), true)
+            || in_array($stage, ['pre_approval'], true)) {
             $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
 
             if ($readiness->needsBorrowerSignature($application)) {

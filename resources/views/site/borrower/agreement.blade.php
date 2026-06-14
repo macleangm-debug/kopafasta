@@ -40,7 +40,7 @@
                             'bg-emerald-100 text-emerald-800' => $agreement->status === 'signed',
                             'bg-amber-100 text-amber-800'     => $agreement->status === 'sent',
                             'bg-gray-100 text-gray-700'       => in_array($agreement->status, ['draft','expired','cancelled']),
-                        ])>{{ $agreement->status === 'signed' ? 'Accepted' : ucfirst($agreement->status) }}</span>
+                        ])>{{ $agreement->status === 'signed' ? 'Accepted' : ($agreement->isCancelled() ? __('borrower.applications_list.statuses.offer_declined') : ucfirst($agreement->status)) }}</span>
                     </div>
                     <div><div class="text-xs uppercase text-gray-500">Approved amount</div><div class="text-gray-900 font-semibold">{{ format_money($snap['principal'] ?? 0) }}</div></div>
                     <div><div class="text-xs uppercase text-gray-500">Interest rate</div><div class="text-gray-900">{{ format_number(($snap['interest_rate'] ?? 0) * 100, 2) }}% / month</div></div>
@@ -60,46 +60,65 @@
 
                 @if ($agreement->isOfferExpired())
                     <div class="mt-5 rounded-lg bg-red-50 ring-1 ring-red-200 p-4 text-sm text-red-800">
-                        This offer has expired. Contact the lender to request a new offer before you can accept.
+                        {{ __('borrower.agreement.expired') }}
                     </div>
-                @endif
-
-                @if (! $agreement->isSigned() && ! $agreement->isOfferExpired())
+                @elseif ($offerDeclined ?? false)
+                    <div class="mt-6 rounded-lg bg-amber-50 ring-1 ring-amber-200 p-4 text-sm text-amber-900">
+                        <p class="font-semibold">{{ __('borrower.applications_list.statuses.offer_declined') }}</p>
+                        <p class="mt-1">{{ __('borrower.agreement.declined_detail') }}</p>
+                        <a href="{{ route('site.borrower.application', $application) }}"
+                           class="inline-flex mt-3 text-sm font-semibold text-amber-800 hover:text-amber-900">
+                            {{ __('borrower.agreement.back_to_application') }} &rarr;
+                        </a>
+                    </div>
+                @elseif ($agreement->isSigned())
+                    <div class="mt-6 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 p-4 text-sm text-emerald-800">
+                        <strong>{{ __('borrower.agreement.signed_on', ['date' => $agreement->signed_at->format('d M Y H:i')]) }}</strong>
+                        <p class="mt-1">{{ __('borrower.agreement.signed_next_fees') }}</p>
+                        @php $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class); @endphp
+                        @if ($readiness->needsPostApprovalFees($application))
+                            <a href="{{ route('site.borrower.application.post-approval-fees', $application) }}"
+                               class="inline-flex mt-3 text-sm font-semibold text-emerald-800 hover:text-emerald-900">
+                                {{ __('borrower.loan_profile.actions.pay_post_approval_fees') }} &rarr;
+                            </a>
+                        @endif
+                    </div>
+                @elseif ($canRespondToOffer ?? false)
                     <div class="mt-6 border-t border-gray-200 pt-5">
-                        <h2 class="text-sm font-semibold text-gray-900">Your decision</h2>
+                        <h2 class="text-sm font-semibold text-gray-900">{{ __('borrower.agreement.decision_title') }}</h2>
                         @if ($requireAcceptanceCode ?? false)
-                            <p class="text-xs text-gray-600 mt-1">Confirm acceptance by entering the 6-digit code we send to your phone.</p>
+                            <p class="text-xs text-gray-600 mt-1">{{ __('borrower.agreement.code_help') }}</p>
 
                             <form method="POST" action="{{ route('site.borrower.application.agreement.otp', $application) }}" class="mt-3">
                                 @csrf
                                 <button type="submit" class="inline-flex items-center gap-2 text-sm font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 px-4 py-2 rounded-lg">
-                                    @if ($agreement->otp_sent_at) Resend code @else Send code @endif
+                                    @if ($agreement->otp_sent_at) {{ __('borrower.agreement.resend_code') }} @else {{ __('borrower.agreement.send_code') }} @endif
                                 </button>
                             </form>
 
                             <form method="POST" action="{{ route('site.borrower.application.agreement.sign', $application) }}" class="mt-4 flex flex-wrap items-end gap-3">
                                 @csrf
                                 <div>
-                                    <label class="block text-xs uppercase tracking-wider text-gray-500 mb-1">6-digit code</label>
+                                    <label class="block text-xs uppercase tracking-wider text-gray-500 mb-1">{{ __('borrower.agreement.otp_label') }}</label>
                                     <input type="text" name="otp" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required
                                            class="font-mono text-lg tracking-[0.4em] w-44 rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500">
                                 </div>
                                 <button type="submit" class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 rounded-lg">
-                                    Accept offer
+                                    {{ __('borrower.offer.accept') }}
                                 </button>
                             </form>
                         @else
                             <p class="text-xs text-gray-600 mt-1">{{ __('borrower.agreement.decision_help') }}</p>
                             <div class="mt-4 flex flex-wrap gap-3">
                                 <form method="POST" action="{{ route('site.borrower.application.agreement.accept', $application) }}"
-                                      onsubmit="return confirm(@js(__('borrower.agreement.accept_confirm')));">
+                                      onsubmit='return confirm(@json(__('borrower.agreement.accept_confirm')))'>
                                     @csrf
                                     <button type="submit" class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 rounded-lg">
                                         {{ __('borrower.offer.accept') }}
                                     </button>
                                 </form>
                                 <form method="POST" action="{{ route('site.borrower.application.agreement.decline', $application) }}"
-                                      onsubmit="return confirm(@js(__('borrower.agreement.decline_confirm')));">
+                                      onsubmit='return confirm(@json(__('borrower.agreement.decline_confirm')))'>
                                     @csrf
                                     <button type="submit" class="inline-flex items-center gap-2 text-sm font-semibold text-red-700 bg-red-50 hover:bg-red-100 px-5 py-2.5 rounded-lg">
                                         {{ __('borrower.agreement.decline_button') }}
@@ -109,9 +128,8 @@
                         @endif
                     </div>
                 @else
-                    <div class="mt-6 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 p-4 text-sm text-emerald-800">
-                        <strong>{{ __('borrower.agreement.signed_on', ['date' => $agreement->signed_at->format('d M Y H:i')]) }}</strong>
-                        <p class="mt-1">{{ __('borrower.agreement.signed_next_fees') }}</p>
+                    <div class="mt-6 rounded-lg bg-gray-50 ring-1 ring-gray-200 p-4 text-sm text-gray-700">
+                        {{ __('borrower.agreement.not_available') }}
                     </div>
                 @endif
             @endif

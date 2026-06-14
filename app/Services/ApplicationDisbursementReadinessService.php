@@ -352,6 +352,34 @@ class ApplicationDisbursementReadinessService
         ];
     }
 
+    public function resolveBorrowerStageAfterOfferAcceptance(LoanApplication $application): string
+    {
+        if ($this->needsPostApprovalFees($application)) {
+            return LoanApplication::BORROWER_STAGE_POST_APPROVAL_FEES;
+        }
+
+        if ($this->needsDisbursementDetailsConfirmation($application)) {
+            return LoanApplication::BORROWER_STAGE_AWAITING_DISBURSEMENT_DETAILS;
+        }
+
+        if ($this->needsContractSignature($application)) {
+            return LoanApplication::BORROWER_STAGE_CONTRACT;
+        }
+
+        return (string) ($application->current_stage ?? 'approval');
+    }
+
+    public function borrowerPostApprovalStages(): array
+    {
+        return [
+            LoanApplication::BORROWER_STAGE_POST_APPROVAL_FEES,
+            LoanApplication::BORROWER_STAGE_AWAITING_DISBURSEMENT_DETAILS,
+            LoanApplication::BORROWER_STAGE_CONTRACT,
+            'approval',
+            'disbursement',
+        ];
+    }
+
     /** Post-approval pipeline stage label for admin underwriting tabs. */
     public function approvedPipelineStage(LoanApplication $application): string
     {
@@ -365,7 +393,8 @@ class ApplicationDisbursementReadinessService
             return 'Offer Sent';
         }
 
-        if ($this->needsPostApprovalFees($application)) {
+        if (($application->current_stage ?? '') === LoanApplication::BORROWER_STAGE_POST_APPROVAL_FEES
+            || $this->needsPostApprovalFees($application)) {
             return 'Post Approval Fee';
         }
 

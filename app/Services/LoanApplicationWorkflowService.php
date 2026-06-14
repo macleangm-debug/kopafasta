@@ -375,6 +375,7 @@ class LoanApplicationWorkflowService
             'approval'            => 'Final approval',
             'disbursement'        => 'Disbursement',
             'awaiting_guarantor'  => 'Awaiting guarantor',
+            'awaiting_disbursement_details' => 'Awaiting disbursement details',
             'post_approval_fees'  => 'Post-approval fees',
             'contract_generation' => 'Contract generation',
             'rejected'            => 'Rejected',

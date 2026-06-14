@@ -47,6 +47,10 @@ class LoanAgreementService
             'generated_by_user_id' => Auth::id(),
         ]);
 
+        if ($regenerate) {
+            $this->resetDeclinedOfferState($application);
+        }
+
         // Render PDF
         $viewData = [
             'application' => $application,
@@ -194,9 +198,20 @@ class LoanAgreementService
         if ($agreement->isSigned()) {
             return [true, 'Already signed.'];
         }
+
+        if ($agreement->isCancelled()) {
+            return [false, __('borrower.agreement.already_declined')];
+        }
+
         if ($agreement->document_type === 'offer_letter' && $agreement->isOfferExpired()) {
             return [false, 'This offer has expired. Please contact the lender for a new offer letter.'];
         }
+
+        $application = $agreement->loanApplication;
+        if ($agreement->document_type === 'offer_letter' && $application && ! $this->borrowerCanRespondToOffer($application, $agreement)) {
+            return [false, __('borrower.agreement.already_declined')];
+        }
+
         if (! $agreement->otp_code || ! $agreement->otp_expires_at) {
             return [false, 'No OTP issued. Please request a new code.'];
         }
@@ -227,13 +242,43 @@ class LoanAgreementService
         if ($agreement->isSigned()) {
             return [true, 'Already signed.'];
         }
+
+        if ($agreement->isCancelled()) {
+            return [false, __('borrower.agreement.already_declined')];
+        }
+
         if ($agreement->document_type === 'offer_letter' && $agreement->isOfferExpired()) {
             return [false, 'This offer has expired. Please contact the lender for a new offer letter.'];
         }
 
+        $application = $agreement->loanApplication;
+        if ($application && ! $this->borrowerCanRespondToOffer($application, $agreement)) {
+            return [false, __('borrower.agreement.already_declined')];
+        }
+
         $this->markSigned($agreement, 'direct', $ip, $ua);
 
-        return [true, 'Accepted successfully.'];
+        return [true, __('borrower.agreement.accepted_success')];
+    }
+
+    public function borrowerCanRespondToOffer(LoanApplication $application, ?LoanAgreement $agreement): bool
+    {
+        if (! $agreement?->isRespondable()) {
+            return false;
+        }
+
+        if ($application->offer_status === 'declined') {
+            return false;
+        }
+
+        return ! in_array((string) $application->status, ['withdrawn', 'rejected'], true);
+    }
+
+    public function borrowerOfferDeclined(LoanApplication $application, ?LoanAgreement $agreement): bool
+    {
+        return $application->offer_status === 'declined'
+            || ($agreement?->isCancelled() ?? false)
+            || (string) $application->status === 'withdrawn';
     }
 
     /**
@@ -422,23 +467,25 @@ class LoanAgreementService
             'acceptance_signature_data' => $acceptanceSignature,
             'otp_code'                  => null,
         ]);
-
-        if ($agreement->document_type === 'offer_letter' && $application) {
-            $this->recordOfferAcceptance($application);
-        }
     }
 
-    /** Sync application state and post-approval fees after the borrower accepts an offer letter. */
-    public function recordOfferAcceptance(LoanApplication $application): LoanApplication
+    /**
+     * After the borrower accepts an offer: persist acceptance, generate fees,
+     * advance current_stage, and return the refreshed application.
+     */
+    public function advanceAfterOfferAcceptance(LoanApplication $application): LoanApplication
     {
         $application->loadMissing('product');
+        $readiness = app(ApplicationDisbursementReadinessService::class);
 
         $updates = [
+            'offer_status'       => 'accepted',
             'offer_responded_at' => now(),
         ];
 
-        if (in_array($application->offer_status, [null, 'pending_borrower'], true)) {
-            $updates['offer_status'] = 'accepted';
+        if (in_array((string) $application->status, ['withdrawn', 'awaiting_offer'], true)
+            || in_array((string) ($application->current_stage ?? ''), ['approval', 'disbursement', 'post_approval_fees'], true)) {
+            $updates['status'] = 'approved';
         }
 
         if ($application->offered_amount) {
@@ -451,13 +498,39 @@ class LoanAgreementService
         }
 
         $application->update($updates);
-        $application = $application->fresh();
+        $application = $application->fresh(['product']);
 
         if ($this->shouldGeneratePostApprovalFees($application)) {
             app(PostApprovalFeeService::class)->generateForApplication($application);
+            $application = $application->fresh(['product', 'postApprovalFees']);
         }
 
-        return $application->fresh();
+        $application->update([
+            'current_stage' => $readiness->resolveBorrowerStageAfterOfferAcceptance($application),
+        ]);
+
+        return $application->fresh(['product', 'postApprovalFees']);
+    }
+
+    /** @deprecated Use advanceAfterOfferAcceptance() */
+    public function recordOfferAcceptance(LoanApplication $application): LoanApplication
+    {
+        return $this->advanceAfterOfferAcceptance($application);
+    }
+
+    private function resetDeclinedOfferState(LoanApplication $application): void
+    {
+        if ($application->offer_status !== 'declined' && (string) $application->status !== 'withdrawn') {
+            return;
+        }
+
+        $application->update([
+            'status'             => in_array((string) ($application->current_stage ?? ''), ['approval', 'disbursement'], true)
+                ? 'approved'
+                : $application->status,
+            'offer_status'       => null,
+            'offer_responded_at' => null,
+        ]);
     }
 
     private function shouldGeneratePostApprovalFees(LoanApplication $application): bool

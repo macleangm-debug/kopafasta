@@ -63,17 +63,37 @@
 @endif
 
 @if ($offer)
-    <div class="mb-6 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between gap-3 flex-wrap">
+    @php
+        $offerDeclined = ($application->offer_status ?? '') === 'declined' || $offer->isCancelled();
+        $offerSigned = $offer->isSigned();
+    @endphp
+    <div @class([
+        'mb-6 rounded-2xl p-4 flex items-center justify-between gap-3 flex-wrap border',
+        'bg-amber-50 border-amber-200' => ! $offerDeclined,
+        'bg-gray-50 border-gray-200' => $offerDeclined,
+    ])>
         <div>
-            <p class="text-sm font-semibold text-amber-900">
-                {{ $offer->isSigned() ? __('borrower.application.offer_signed') : __('borrower.application.offer_ready') }}
+            <p @class([
+                'text-sm font-semibold',
+                'text-amber-900' => ! $offerDeclined,
+                'text-gray-700' => $offerDeclined,
+            ])>
+                @if ($offerDeclined)
+                    {{ __('borrower.applications_list.statuses.offer_declined') }}
+                @elseif ($offerSigned)
+                    {{ __('borrower.application.offer_signed') }}
+                @else
+                    {{ __('borrower.application.offer_ready') }}
+                @endif
             </p>
-            <p class="text-xs text-amber-800 mt-0.5">Reference: <span class="font-mono">{{ $offer->reference }}</span></p>
+            <p class="text-xs text-gray-600 mt-0.5">Reference: <span class="font-mono">{{ $offer->reference }}</span></p>
         </div>
-        <a href="{{ route('site.borrower.application.agreement', $application) }}"
-           class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-4 py-2 rounded-lg">
-            {{ $offer->isSigned() ? __('borrower.application.view_offer') : __('borrower.application.view_offer') }} →
-        </a>
+        @unless ($offerDeclined)
+            <a href="{{ route('site.borrower.application.agreement', $application) }}"
+               class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-4 py-2 rounded-lg">
+                {{ __('borrower.application.view_offer') }} →
+            </a>
+        @endunless
     </div>
 @endif
 

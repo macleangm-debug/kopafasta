@@ -41,6 +41,20 @@ class LoanAgreement extends Model
         return $this->status === 'signed' && $this->signed_at !== null;
     }
 
+    public function isCancelled(): bool
+    {
+        return $this->status === 'cancelled';
+    }
+
+    /** Whether the borrower can still accept or decline this offer letter. */
+    public function isRespondable(): bool
+    {
+        return $this->document_type === 'offer_letter'
+            && $this->status === 'sent'
+            && ! $this->isSigned()
+            && ! $this->isOfferExpired();
+    }
+
     public function isOfferExpired(): bool
     {
         if ($this->document_type !== 'offer_letter') {

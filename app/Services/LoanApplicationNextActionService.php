@@ -192,8 +192,9 @@ class LoanApplicationNextActionService
         }
 
         $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
-        $isPostApproval = in_array($status, ['approved', 'pre_approved'], true)
-            || in_array((string) ($application->current_stage ?? ''), ['approval', 'disbursement'], true);
+        $isPostApproval = (string) $application->offer_status === 'accepted'
+            || in_array($status, ['approved', 'pre_approved'], true)
+            || in_array((string) ($application->current_stage ?? ''), $readiness->borrowerPostApprovalStages(), true);
 
         if ($isPostApproval) {
             if ($readiness->needsBorrowerSignature($application)) {

@@ -46,6 +46,8 @@ class LoanAgreementController extends Controller
         return view('site.borrower.agreement', compact('application', 'agreement', 'customer'))
             ->with([
                 'requireAcceptanceCode' => app(\App\Services\OfferSettingsService::class)->requireOfferAcceptanceCode(),
+                'canRespondToOffer'     => $this->service->borrowerCanRespondToOffer($application, $agreement),
+                'offerDeclined'         => $this->service->borrowerOfferDeclined($application, $agreement),
             ]);
     }
 
@@ -179,8 +181,13 @@ class LoanAgreementController extends Controller
         $this->customerOrFail($application);
         $agreement = $this->offerOrFail($application);
         app(\App\Services\OfferLetterExpiryService::class)->expireIfStale($agreement);
+        $agreement = $agreement->fresh();
 
-        if ($agreement->fresh()->isOfferExpired()) {
+        if (! $this->service->borrowerCanRespondToOffer($application, $agreement)) {
+            return back()->with('error', __('borrower.agreement.already_declined'));
+        }
+
+        if ($agreement->isOfferExpired()) {
             return back()->with('error', 'This offer has expired. Please contact the lender for a new offer letter.');
         }
 
@@ -213,8 +220,13 @@ class LoanAgreementController extends Controller
         $this->customerOrFail($application);
         $agreement = $this->offerOrFail($application);
         app(\App\Services\OfferLetterExpiryService::class)->expireIfStale($agreement);
+        $agreement = $agreement->fresh();
 
-        if ($agreement->fresh()->isOfferExpired()) {
+        if (! $this->service->borrowerCanRespondToOffer($application, $agreement)) {
+            return back()->with('error', __('borrower.agreement.already_declined'));
+        }
+
+        if ($agreement->isOfferExpired()) {
             return back()->with('error', 'This offer has expired. Please contact the lender for a new offer letter.');
         }
 
@@ -247,6 +259,7 @@ class LoanAgreementController extends Controller
         $agreement = $this->offerOrFail($application);
 
         abort_if($agreement->isSigned(), 422, 'This offer has already been accepted.');
+        abort_if(! $this->service->borrowerCanRespondToOffer($application, $agreement), 422, __('borrower.agreement.already_declined'));
 
         $request->validate([
             'reason' => ['nullable', 'string', 'max:500'],
@@ -370,7 +383,7 @@ class LoanAgreementController extends Controller
 
     private function redirectAfterOfferAccepted(LoanApplication $application, string $message): RedirectResponse
     {
-        $application = $this->service->recordOfferAcceptance($application->fresh());
+        $application = $this->service->advanceAfterOfferAcceptance($application->fresh());
         $customer = $this->customerOrFail($application);
 
         if ($this->readiness->needsPostApprovalFees($application)) {
@@ -391,6 +404,12 @@ class LoanAgreementController extends Controller
                 ->with('status', $message);
         }
 
+        if ($this->readiness->needsDisbursementDetailsConfirmation($application)) {
+            return redirect()
+                ->route('site.borrower.application.disbursement-details', $application)
+                ->with('status', $message);
+        }
+
         $this->service->ensureLoanContractAfterFees($application);
 
         if ($this->readiness->needsContractSignature($application)) {
@@ -400,7 +419,7 @@ class LoanAgreementController extends Controller
         }
 
         return redirect()
-            ->route('site.borrower.application.agreement', $application)
+            ->route('site.borrower.application', $application)
             ->with('status', $message);
     }
 

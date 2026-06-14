@@ -67,7 +67,12 @@ class LoanApplicationsTable extends Component
             })
             ->when($this->pipeline === 'approved', function ($q) {
                 $q->where('status', 'approved')
-                    ->where('current_stage', 'approval');
+                    ->whereIn('current_stage', [
+                        'approval',
+                        'post_approval_fees',
+                        'awaiting_disbursement_details',
+                        'contract_generation',
+                    ]);
             })
             ->when($this->pipeline === 'disbursement', function ($q) {
                 $q->where(function ($q) {
