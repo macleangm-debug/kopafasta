@@ -162,9 +162,10 @@ class VendorController extends Controller
         $portal->assertVendorOwnsAssignment($recoveryAssignment, $vendor);
 
         $data = $request->validate([
-            'action' => ['required', 'string', 'max:40'],
-            'notes'  => ['nullable', 'string', 'max:2000'],
-            'file'   => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'action'           => ['required', 'string', 'max:40'],
+            'notes'            => ['nullable', 'string', 'max:2000'],
+            'file'             => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'auction_proceeds' => ['nullable', 'numeric', 'min:0.01'],
         ]);
 
         $portal->recordAction(
@@ -174,6 +175,7 @@ class VendorController extends Controller
             $data['action'],
             $data['notes'] ?? null,
             $request->file('file'),
+            isset($data['auction_proceeds']) ? (float) $data['auction_proceeds'] : null,
         );
 
         $message = in_array($data['action'], ['resolved', 'sold', 'gps_removed'], true)

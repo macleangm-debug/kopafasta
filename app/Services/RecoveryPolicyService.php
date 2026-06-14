@@ -26,7 +26,36 @@ class RecoveryPolicyService
 
     public function gracePeriodDays(): int
     {
-        return max(1, (int) Setting::get('recovery.grace_period_days', 7));
+        return max(1, (int) Setting::get('recovery.grace_period_days', 2));
+    }
+
+    public function feeBase(): string
+    {
+        $base = (string) Setting::get('recovery.fee_base', config('recovery.default_fee_base', 'principal'));
+
+        return in_array($base, ['principal', 'outstanding'], true) ? $base : 'principal';
+    }
+
+    public function feeTypeForPartnerType(string $type): string
+    {
+        $stored = Setting::get("recovery.fee_type.{$type}");
+        if (in_array($stored, ['percentage', 'fixed'], true)) {
+            return $stored;
+        }
+
+        return (string) (config("recovery.partner_types.{$type}.default_fee_type") ?? 'percentage');
+    }
+
+    public function fixedAmountForType(string $type): ?float
+    {
+        $stored = Setting::get("recovery.fixed_amount.{$type}");
+        if ($stored !== null && $stored !== '') {
+            return (float) $stored;
+        }
+
+        $default = config("recovery.partner_types.{$type}.default_fixed_amount");
+
+        return $default !== null ? (float) $default : null;
     }
 
     public function slaDaysForType(string $type): int
@@ -81,17 +110,30 @@ class RecoveryPolicyService
     }
 
     /**
-     * Commission is calculated from original outstanding only (not compounded).
+     * Commission is calculated from original outstanding or principal only (not compounded).
+     * Supports percentage or fixed partner fee with percentage markup on fixed amount.
      *
      * @return array{partner_amount: float, company_amount: float, total_charge: float}
      */
     public function calculateRecoveryCharge(
-        float $originalOutstanding,
-        float $commissionPercent,
-        float $markupPercent,
+        float $baseAmount,
+        string $partnerType,
+        ?float $commissionPercent = null,
+        ?float $markupPercent = null,
+        ?Vendor $vendor = null,
     ): array {
-        $partnerAmount = round($originalOutstanding * ($commissionPercent / 100), 2);
-        $companyAmount = round($originalOutstanding * ($markupPercent / 100), 2);
+        $feeType = $vendor?->recovery_fee_type ?? $this->feeTypeForPartnerType($partnerType);
+        $commissionPercent ??= (float) ($vendor?->recovery_commission_percent ?? $this->defaultCommissionPercent($partnerType));
+        $markupPercent ??= (float) ($vendor?->recovery_markup_percent ?? $this->defaultMarkupPercent($partnerType));
+
+        if ($feeType === 'fixed') {
+            $fixed = (float) ($vendor?->recovery_fixed_amount ?? $this->fixedAmountForType($partnerType) ?? 0);
+            $partnerAmount = round(max(0, $fixed), 2);
+            $companyAmount = round($partnerAmount * ($markupPercent / 100), 2);
+        } else {
+            $partnerAmount = round($baseAmount * ($commissionPercent / 100), 2);
+            $companyAmount = round($baseAmount * ($markupPercent / 100), 2);
+        }
 
         return [
             'partner_amount' => $partnerAmount,

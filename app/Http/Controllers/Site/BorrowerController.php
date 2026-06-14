@@ -23,7 +23,8 @@ use App\Models\RestructureRequest;
 use App\Models\TrustedDevice;
 use App\Support\KinName;
 use App\Rules\MinimumAge;
-use App\Rules\ValidNidaNumber;
+use App\Rules\ValidNationalId;
+use App\Support\NationalIdValidator;
 use App\Services\ApplicationDocumentRequestService;
 use App\Services\ApplicationRequirementsService;
 use App\Services\CrbService;
@@ -1517,8 +1518,11 @@ class BorrowerController extends Controller
         $customer = $this->customer();
 
         $data = $request->validate([
-            'national_id' => ['required', 'string', 'max:30', new ValidNidaNumber],
+            'national_id' => ['required', 'string', 'max:30', new ValidNationalId($customer->country_code)],
         ]);
+
+        $data['national_id'] = NationalIdValidator::format($data['national_id'], $customer->country_code)
+            ?? $data['national_id'];
 
         if ($message = $nida->assertCanVerify($customer)) {
             return redirect()
@@ -1574,10 +1578,13 @@ class BorrowerController extends Controller
         $customer = $this->customer();
 
         $data = $request->validate([
-            'national_id'       => ['required', 'string', 'max:30', new ValidNidaNumber],
+            'national_id'       => ['required', 'string', 'max:30', new ValidNationalId($customer->country_code)],
             'search_request_id' => ['required', 'string', 'max:120'],
             'entity_key'        => ['required', 'string', 'max:80'],
         ]);
+
+        $data['national_id'] = NationalIdValidator::format($data['national_id'], $customer->country_code)
+            ?? $data['national_id'];
 
         if ($message = $nida->assertCanVerify($customer)) {
             return redirect()

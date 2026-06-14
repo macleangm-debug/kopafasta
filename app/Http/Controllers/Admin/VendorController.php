@@ -31,6 +31,8 @@ class VendorController extends ResourceController
             'markup_percent'                 => ['nullable', 'numeric', 'min:0', 'max:100'],
             'deposit_markup_percent'         => ['nullable', 'numeric', 'min:0', 'max:100'],
             'affiliate_code'                 => ['nullable', 'string', 'max:32'],
+            'recovery_fee_type'              => ['nullable', 'in:percentage,fixed'],
+            'recovery_fixed_amount'          => ['nullable', 'numeric', 'min:0'],
             'registration_discount_percent'  => ['nullable', 'numeric', 'min:0', 'max:100'],
             'application_discount_percent'   => ['nullable', 'numeric', 'min:0', 'max:100'],
             'affiliate_commission_percent'   => ['nullable', 'numeric', 'min:0', 'max:100'],
@@ -64,6 +66,7 @@ class VendorController extends ResourceController
     public function store(Request $request)
     {
         $data = $this->transform($request->validate($this->rules()));
+        $this->validateAffiliateCode($data, null);
         $record = Vendor::create($data);
 
         if ($record->isAffiliate() && blank($record->affiliate_code)) {
@@ -71,11 +74,46 @@ class VendorController extends ResourceController
             $record->refresh();
         }
 
+        if (app(\App\Services\PartnerActivationService::class)->requiresActivation($record)) {
+            app(\App\Services\PartnerActivationService::class)->sendActivationInvite($record);
+        }
+
         $this->auditAdminCreated($record);
 
         return redirect()
             ->route("{$this->routePrefix}.show", $record)
             ->with('status', ucfirst($this->singular).' created.');
+    }
+
+    public function update(Request $request, $id)
+    {
+        $vendor = Vendor::findOrFail($id);
+        $data = $this->transform($request->validate($this->rules($vendor)), $vendor);
+        $this->validateAffiliateCode($data, $vendor);
+        $vendor->update($data);
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $vendor)
+            ->with('status', ucfirst($this->singular).' updated.');
+    }
+
+    /** @param array<string, mixed> $data */
+    private function validateAffiliateCode(array $data, ?Vendor $existing): void
+    {
+        if (($data['category'] ?? '') !== 'affiliate' && ! in_array('affiliate', $data['roles'] ?? [], true)) {
+            return;
+        }
+
+        $code = strtoupper(trim((string) ($data['affiliate_code'] ?? '')));
+        if ($code === '') {
+            return;
+        }
+
+        if (! app(AffiliateService::class)->codeIsUnique($code, $existing?->id)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'affiliate_code' => 'This affiliate code is already in use.',
+            ]);
+        }
     }
 
     protected function transform(array $data, ?Model $existing = null): array

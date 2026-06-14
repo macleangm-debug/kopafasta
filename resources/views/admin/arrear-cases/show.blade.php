@@ -169,6 +169,8 @@
 
             @include('admin.arrear-cases._recovery-partners')
 
+            @include('admin.arrear-cases._auction-settlement')
+
             @if ($loan && ! empty($approvalRequired) && ! empty($canRecommendWriteOff))
                 <div class="bg-white rounded-xl ring-1 ring-red-200 p-6">
                     <h2 class="text-sm font-semibold text-red-900 mb-4">Recommend write-off</h2>

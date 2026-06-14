@@ -3,67 +3,70 @@
 return [
     'partner_types' => [
         'call_center' => [
-            'label'           => 'Call Center',
-            'vendor_category' => 'call_center',
-            'default_sla_days' => 7,
+            'label'                      => 'Call Center',
+            'vendor_category'            => 'call_center',
+            'default_sla_days'           => 7,
             'default_commission_percent' => 10,
-            'default_markup_percent'   => 3,
+            'default_markup_percent'     => 3,
+            'default_fee_type'           => 'percentage',
+            'default_fixed_amount'       => null,
         ],
         'debt_collector' => [
-            'label'           => 'Debt Collector',
-            'vendor_category' => 'debt_collector',
-            'default_sla_days' => 10,
+            'label'                      => 'Debt Collector',
+            'vendor_category'            => 'debt_collector',
+            'default_sla_days'           => 10,
             'default_commission_percent' => 15,
-            'default_markup_percent'   => 3,
-        ],
-        'repossession' => [
-            'label'           => 'Repossession',
-            'vendor_category' => 'towing',
-            'default_sla_days' => 14,
-            'default_commission_percent' => 12,
-            'default_markup_percent'   => 4,
+            'default_markup_percent'     => 3,
+            'default_fee_type'           => 'percentage',
+            'default_fixed_amount'       => null,
         ],
         'auctioneer' => [
-            'label'           => 'Auctioneer',
-            'vendor_category' => 'auctioneer',
-            'default_sla_days' => 7,
+            'label'                      => 'Auctioneer',
+            'vendor_category'            => 'auctioneer',
+            'default_sla_days'           => 11,
             'default_commission_percent' => 8,
-            'default_markup_percent'   => 2,
+            'default_markup_percent'     => 2,
+            'default_fee_type'           => 'percentage',
+            'default_fixed_amount'       => null,
         ],
         'legal_partner' => [
-            'label'           => 'Legal Partner',
-            'vendor_category' => 'legal_partner',
-            'default_sla_days' => 21,
+            'label'                      => 'Legal Partner',
+            'vendor_category'            => 'legal_partner',
+            'default_sla_days'           => 21,
             'default_commission_percent' => 10,
-            'default_markup_percent'   => 5,
+            'default_markup_percent'     => 5,
+            'default_fee_type'           => 'percentage',
+            'default_fixed_amount'       => null,
         ],
         'gps_partner' => [
-            'label'           => 'GPS Partner',
-            'vendor_category' => 'gps_installer',
-            'default_sla_days' => 5,
+            'label'                      => 'GPS Partner',
+            'vendor_category'            => 'gps_installer',
+            'default_sla_days'           => 5,
             'default_commission_percent' => 5,
-            'default_markup_percent'   => 2,
+            'default_markup_percent'     => 2,
+            'default_fee_type'           => 'percentage',
+            'default_fixed_amount'       => null,
         ],
     ],
 
     'vendor_categories' => [
         'call_center',
         'debt_collector',
-        'towing',
-        'yard',
         'auctioneer',
         'legal_partner',
         'gps_installer',
     ],
 
-    /** Ordered recovery workflow — SLA expiry advances to the next stage when auto-escalate is on. */
+    /** Ordered recovery workflow — max 30 days total (2 grace + 7 + 10 + 11). Repossession is under debt collector. */
     'escalation_chain' => [
         'call_center',
         'debt_collector',
-        'repossession',
         'auctioneer',
         'legal_partner',
     ],
+
+    /** principal | outstanding */
+    'default_fee_base' => 'principal',
 
     'portal_actions' => [
         'call_center' => [
@@ -107,6 +110,18 @@ return [
                 'result'          => 'contacted',
                 'notes'           => 'required',
             ],
+            'repossession_scheduled' => [
+                'label'           => 'Repossession scheduled',
+                'collection_type' => 'field_visit',
+                'notes'           => 'optional',
+            ],
+            'repossession_complete' => [
+                'label'           => 'Repossession complete',
+                'collection_type' => 'field_visit',
+                'accepts_file'    => true,
+                'file_label'      => 'Repossession photo',
+                'notes'           => 'optional',
+            ],
             'gps_check' => [
                 'label'           => 'GPS checked',
                 'collection_type' => 'field_visit',
@@ -135,32 +150,6 @@ return [
                 'notes'           => 'optional',
             ],
         ],
-        'repossession' => [
-            'scheduled' => [
-                'label'           => 'Repossession scheduled',
-                'collection_type' => 'field_visit',
-                'notes'           => 'optional',
-            ],
-            'photo' => [
-                'label'           => 'Photo uploaded',
-                'collection_type' => 'field_visit',
-                'accepts_file'    => true,
-                'file_label'      => 'Repossession photo',
-                'notes'           => 'optional',
-            ],
-            'note' => [
-                'label'           => 'Repossession note',
-                'collection_type' => 'other',
-                'notes'           => 'required',
-            ],
-            'resolved' => [
-                'label'           => 'Resolved',
-                'collection_type' => 'other',
-                'completes'       => true,
-                'outcome'         => 'resolved',
-                'notes'           => 'optional',
-            ],
-        ],
         'auctioneer' => [
             'listed' => [
                 'label'           => 'Asset listed',
@@ -168,11 +157,12 @@ return [
                 'notes'           => 'optional',
             ],
             'sold' => [
-                'label'           => 'Asset sold',
-                'collection_type' => 'other',
-                'completes'       => true,
-                'outcome'         => 'sold',
-                'notes'           => 'optional',
+                'label'                   => 'Asset sold',
+                'collection_type'         => 'other',
+                'completes'               => true,
+                'outcome'                 => 'sold',
+                'requires_auction_proceeds' => true,
+                'notes'                   => 'optional',
             ],
             'note' => [
                 'label'           => 'Auction note',

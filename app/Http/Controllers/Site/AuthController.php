@@ -8,6 +8,8 @@ use App\Models\Lender;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Rules\FourDigitPin;
+use App\Rules\ValidNationalId;
+use App\Support\NationalIdValidator;
 use App\Services\NotificationService;
 use App\Services\PinService;
 use App\Services\ReferralService;
@@ -349,11 +351,18 @@ class AuthController extends Controller
         $invitation = $onboarding->invitationFromSession($request);
         $guarantorRegistration = $onboarding->registrationPrefill($invitation);
 
+        $registrationCountries = app(\App\Services\CountrySettingsService::class)->forRegistration();
+        $defaultCountry = app(\App\Services\CountrySettingsService::class)->defaultCountryCode();
+        $defaultDialPrefix = collect($registrationCountries)->firstWhere('code', $defaultCountry)['prefix'] ?? '+255';
+
         return view('site.auth.register-borrower', [
             'referralCode'            => $request->query('ref'),
             'affiliateCode'           => $request->query('aff') ?? session('affiliate_code'),
             'guarantorRegistration'   => $guarantorRegistration,
             'isGuarantorRegistration' => $guarantorRegistration !== null,
+            'registrationCountries'   => $registrationCountries,
+            'defaultCountry'          => $defaultCountry,
+            'defaultDialPrefix'       => $defaultDialPrefix,
         ]);
     }
 
@@ -364,8 +373,14 @@ class AuthController extends Controller
         $guarantorPrefill = $onboarding->registrationPrefill($invitation);
         $isGuarantorRegistration = $guarantorPrefill !== null;
 
+        $countryService = app(\App\Services\CountrySettingsService::class);
+        $activeCountryCodes = collect($countryService->forRegistration())
+            ->where('active', true)
+            ->pluck('code')
+            ->all();
+
         $rules = [
-            'country'       => ['required', 'string', 'in:TZ,KE,UG'],
+            'country'       => ['required', 'string', 'in:'.implode(',', $activeCountryCodes)],
             'first_name'    => ['required', 'string', 'max:60'],
             'middle_name'   => ['nullable', 'string', 'max:60'],
             'last_name'     => ['required', 'string', 'max:60'],
@@ -380,7 +395,7 @@ class AuthController extends Controller
         if ($isGuarantorRegistration) {
             $rules['national_id'] = ['nullable', 'string', 'max:30'];
         } else {
-            $rules['national_id'] = ['required', 'string', 'max:30', new \App\Rules\ValidNidaNumber];
+            $rules['national_id'] = ['required', 'string', 'max:30', new ValidNationalId()];
         }
 
         $data = $request->validate($rules, [
@@ -421,11 +436,12 @@ class AuthController extends Controller
                 'type'            => 'individual',
                 'status'          => 'active',
                 'branch_id'       => app(\App\Services\BranchService::class)->headOfficeId(),
+                'country_code'    => strtoupper($data['country']),
                 'first_name'      => $data['first_name'],
                 'middle_name'     => $data['middle_name'] ?? null,
                 'last_name'       => $data['last_name'],
                 'national_id'     => filled($data['national_id'] ?? null)
-                    ? \App\Support\NidaNumber::format($data['national_id'])
+                    ? (NationalIdValidator::format($data['national_id'], $data['country']) ?? \App\Support\NidaNumber::format($data['national_id']))
                     : null,
                 'date_of_birth'   => $data['date_of_birth'],
                 'email'           => $data['email'] ?? null,
@@ -455,6 +471,10 @@ class AuthController extends Controller
 
         Auth::login($user);
         $request->session()->regenerate();
+
+        $defaultLocale = app(\App\Services\CountrySettingsService::class)->defaultLocale($data['country']);
+        $request->session()->put('locale', $defaultLocale);
+        app()->setLocale($defaultLocale);
 
         $onboarding = app(\App\Services\GuarantorOnboardingService::class);
         if ($user->customer && ($invitation = $onboarding->pendingInvitationForCustomer($user->customer))) {

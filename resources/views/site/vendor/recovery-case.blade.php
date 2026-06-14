@@ -126,6 +126,7 @@
                             @php
                                 $needsFile = ! empty($action['accepts_file']);
                                 $needsNotes = ($action['notes'] ?? null) === 'required';
+                                $needsProceeds = ! empty($action['requires_auction_proceeds']);
                                 $isResolve = ! empty($action['completes']);
                             @endphp
                             <form method="POST"
@@ -147,6 +148,15 @@
                                     </button>
                                 </div>
                                 <div class="mt-3 space-y-2">
+                                    @if ($needsProceeds)
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">Auction proceeds (TZS)</label>
+                                            <input type="number" name="auction_proceeds" step="0.01" min="0.01" required
+                                                   placeholder="Amount received at auction"
+                                                   class="w-full rounded-lg border-gray-300 text-sm font-mono">
+                                            <p class="text-[11px] text-gray-500 mt-1">Loan balance and recovery costs are settled automatically. Surplus is returned to the borrower.</p>
+                                        </div>
+                                    @endif
                                     <textarea name="notes" rows="2" maxlength="2000"
                                               @if ($needsNotes && ! $needsFile) required @endif
                                               placeholder="{{ $needsNotes ? 'Enter details…' : 'Optional notes…' }}"

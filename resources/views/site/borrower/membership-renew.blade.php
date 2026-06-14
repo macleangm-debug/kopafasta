@@ -17,7 +17,7 @@
         <div class="rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white p-6 shadow-lg mb-6">
             <p class="text-[10px] uppercase tracking-widest text-white/80">{{ $isFirstTime ? __('borrower.membership.registration_fee') : __('borrower.membership.renewal_fee') }}</p>
             @if ($isFirstTime && $feeQuote)
-                <p class="mt-1 text-sm text-white/80 line-through">{{ $config['currency'] }} {{ format_number($feeQuote['base']) }}</p>
+                <x-site.affiliate-fee-breakdown :label="$isFirstTime ? __('borrower.membership.registration_fee') : __('borrower.membership.renewal_fee')" :currency="$config['currency']" :quote="$feeQuote" />
                 <p class="mt-1 text-3xl font-extrabold">{{ $config['currency'] }} {{ format_number($feeQuote['after_discount']) }}</p>
                 @if ($feeQuote['has_referrer'])
                     <p class="mt-2 text-xs text-white/90">Referral discount applied ({{ rtrim(rtrim(format_number($referralSettings['discount_percent'], 2), '0'), '.') }}%)</p>

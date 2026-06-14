@@ -46,8 +46,17 @@ class AffiliateService
             return $affiliate->affiliate_code;
         }
 
+        $fromName = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) $affiliate->name) ?? '');
+        if (strlen($fromName) >= 3 && $this->codeIsUnique($fromName)) {
+            $affiliate->update(['affiliate_code' => $fromName]);
+
+            return $fromName;
+        }
+
         $prefix = config('affiliates.code_prefix', 'KPA');
-        $code = $prefix.'-'.strtoupper(Str::random(6));
+        do {
+            $code = $prefix.'-'.strtoupper(Str::random(6));
+        } while (! $this->codeIsUnique($code));
 
         $affiliate->update(['affiliate_code' => $code]);
 
@@ -101,12 +110,16 @@ class AffiliateService
 
     public function registrationDiscountPercent(Vendor $affiliate): float
     {
-        return (float) ($affiliate->registration_discount_percent ?? config('affiliates.default_registration_discount_percent', 10));
+        return (float) ($affiliate->registration_discount_percent
+            ?? app(AffiliateSettingsService::class)->forForm()['default_registration_discount_percent']
+            ?? config('affiliates.default_registration_discount_percent', 10));
     }
 
     public function applicationDiscountPercent(Vendor $affiliate): float
     {
-        return (float) ($affiliate->application_discount_percent ?? config('affiliates.default_application_discount_percent', 10));
+        return (float) ($affiliate->application_discount_percent
+            ?? app(AffiliateSettingsService::class)->forForm()['default_application_discount_percent']
+            ?? config('affiliates.default_application_discount_percent', 10));
     }
 
     public function stats(Vendor $affiliate): array
@@ -132,7 +145,23 @@ class AffiliateService
 
     public function commissionPercent(Vendor $affiliate): float
     {
-        return (float) ($affiliate->affiliate_commission_percent ?? config('affiliates.default_commission_percent', 10));
+        return (float) ($affiliate->affiliate_commission_percent
+            ?? app(AffiliateSettingsService::class)->forForm()['default_commission_percent']
+            ?? config('affiliates.default_commission_percent', 10));
+    }
+
+    public function codeIsUnique(string $code, ?int $exceptVendorId = null): bool
+    {
+        $code = strtoupper(trim($code));
+        if ($code === '') {
+            return false;
+        }
+
+        return ! Vendor::query()
+            ->where('category', 'affiliate')
+            ->where('affiliate_code', $code)
+            ->when($exceptVendorId, fn ($q) => $q->where('id', '!=', $exceptVendorId))
+            ->exists();
     }
 
     /**
@@ -144,7 +173,7 @@ class AffiliateService
     {
         $affiliate = $this->affiliate($customer);
 
-        if (! $affiliate || $baseAmount <= 0) {
+        if (! $affiliate || $baseAmount <= 0 || ! app(AffiliateSettingsService::class)->appliesToFeeType($feeType)) {
             return [
                 'base'           => round($baseAmount, 2),
                 'discount'       => 0.0,

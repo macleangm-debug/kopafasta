@@ -102,4 +102,41 @@ class LedgerService
             ->orderBy('id')
             ->value('id');
     }
+
+    /** Liability account for fees withheld at disbursement (recognized as income later). */
+    public function deferredFeeLiabilityAccountId(): ?int
+    {
+        $id = (int) (Setting::get('finance.deferred_fee_liability_gl_account_id') ?? 0);
+        if ($id > 0 && ChartOfAccount::whereKey($id)->exists()) {
+            return $id;
+        }
+
+        return ChartOfAccount::query()
+            ->where('type', 'liability')
+            ->where(function ($q) {
+                $q->where('name', 'like', '%deferred%fee%')
+                    ->orWhere('name', 'like', '%unearned%fee%');
+            })
+            ->orderBy('code')
+            ->value('id');
+    }
+
+    /** Liability for auction surpluses owed back to borrowers. */
+    public function borrowerRefundsPayableAccountId(): ?int
+    {
+        $id = (int) (Setting::get('finance.borrower_refunds_payable_gl_account_id') ?? 0);
+        if ($id > 0 && ChartOfAccount::whereKey($id)->exists()) {
+            return $id;
+        }
+
+        return ChartOfAccount::query()
+            ->where('type', 'liability')
+            ->where(function ($q) {
+                $q->where('name', 'like', '%borrower%refund%')
+                    ->orWhere('name', 'like', '%customer%refund%')
+                    ->orWhere('name', 'like', '%refund%payable%');
+            })
+            ->orderBy('code')
+            ->value('id');
+    }
 }

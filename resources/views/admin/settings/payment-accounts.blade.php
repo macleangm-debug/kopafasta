@@ -57,6 +57,42 @@
         </button>
     </form>
 
+    <form method="POST" action="{{ route('admin.settings.payment-accounts.default-disbursement') }}" class="bg-white rounded-xl ring-1 ring-gray-200 p-5 mb-8 space-y-4">
+        @csrf @method('PUT')
+
+        <div>
+            <h2 class="text-sm font-semibold text-gray-900">Disbursement account</h2>
+            <p class="text-xs text-gray-500 mt-1">
+                Mobile money wallet used for outbound payouts (borrower refunds, etc.). In live mode, API credentials on the account are required.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Default disbursement account</label>
+                <select name="default_disbursement_mobile_money_account_id" class="w-full rounded-lg border-gray-200 text-sm">
+                    <option value="">— Not set —</option>
+                    @foreach ($mobileAccounts as $account)
+                        <option value="{{ $account->id }}" @selected($defaultDisbursementId === $account->id)>
+                            {{ $account->name }} · {{ $account->provider }}
+                            ({{ str_replace('_', ' ', $account->purpose) }})
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+
+        @if ($defaultDisbursement)
+            <p class="text-xs text-emerald-800 bg-emerald-50 ring-1 ring-emerald-100 rounded-lg px-3 py-2">
+                Active: <strong>{{ $defaultDisbursement->name }}</strong> · {{ $defaultDisbursement->msisdn }}
+            </p>
+        @endif
+
+        <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-4 py-2 rounded-lg">
+            Save disbursement account
+        </button>
+    </form>
+
     <form method="POST" action="{{ route('admin.settings.payment-accounts.save') }}" class="bg-white rounded-xl ring-1 ring-gray-200 overflow-hidden mb-8">
         @csrf @method('PUT')
 

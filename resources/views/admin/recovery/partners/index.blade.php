@@ -1,4 +1,4 @@
-<x-admin.layout title="Recovery Partners" heading="Recovery Partners" subheading="External partners for collections, repossession, auction, legal, and GPS recovery">
+<x-admin.layout title="Recovery Partners" heading="Recovery Partners" subheading="Call center, debt collector (incl. repossession), auctioneer, legal, and GPS partners">
 
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <p class="text-sm text-gray-600 max-w-3xl">

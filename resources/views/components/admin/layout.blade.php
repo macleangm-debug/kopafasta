@@ -67,14 +67,14 @@
         ['Partners', 'M3 7h18M3 12h18M3 17h18', [
             ['Partners hub',         'admin.partners.index'],
             ['All Partners',         'admin.vendors.index'],
-            ['Vendor Applications', 'admin.vendors.applications'],
+            ['Partner Applications', 'admin.vendors.applications'],
             ['Suppliers',           'admin.vendors.suppliers'],
             ['Asset Marketplace',   'admin.marketplace-assets.index'],
             ['Asset Requests',      'admin.asset-requests.index'],
             ['GPS Installers',      'admin.vendors.gps-installers'],
             ['Insurance Providers', 'admin.vendors.insurance-providers'],
             ['Valuers',             'admin.vendors.valuers'],
-            ['Vendor Tasks',        'admin.vendors.tasks'],
+            ['Partner Tasks',        'admin.vendors.tasks'],
         ], null],
         ['Capital', 'M19 7H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2zM3 11h18', [
             ['Capital funding',      'admin.capital-funding.index'],
@@ -97,6 +97,7 @@
             ['Settlements',           'admin.settlements.index',           'finance.operations'],
             ['Partner payments',      'admin.vendor-payments.index',       'finance.operations'],
             ['Partner settlements',   'admin.partner-settlements.index',   'finance.operations'],
+            ['Borrower refunds',      'admin.borrower-refunds.index',      'finance.operations'],
             ['Reconciliations',       'admin.reconciliations.index',       'finance.operations'],
             ['Journal Entries',       'admin.journal-entries.index',       'finance.operations'],
         ], ['finance.accounts', 'finance.methods', 'finance.operations']],
@@ -115,7 +116,7 @@
             ['Income Statement',  'admin.reports.income-statement',   'finance.reports'],
             ['Balance Sheet',     'admin.reports.balance-sheet',      'finance.reports'],
             ['Cash Flow',         'admin.reports.cash-flow',          'finance.reports'],
-            ['Vendor Performance','admin.reports.vendor-performance', 'reports.view'],
+            ['Affiliate Performance','admin.reports.vendor-performance', 'reports.view'],
         ], ['reports.view', 'finance.reports']],
         ['Compliance', 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z', [
             ['BOT Reports',         'admin.compliance.bot-reports'],
@@ -136,7 +137,7 @@
         ['Marketing', 'M11 5.882V19.24a1.76 1.76 0 01-3.27.87l-4.5-7.79A1.76 1.76 0 015.882 9H4a2 2 0 110-4h1.882a1.76 1.76 0 011.27.87l1.27 2.2', [
             ['Campaigns', 'admin.promotions.index'],
             ['Affiliate Partners', 'admin.vendors.affiliates'],
-            ['Promo codes', 'admin.promotions.index'],
+            ['Affiliate Settings', 'admin.settings.affiliates'],
         ], null],
         ['Administration', 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', [
             ['Departments', 'admin.departments.index', 'users.view'],
@@ -150,6 +151,7 @@
             ['KYC Requirements',        'admin.settings.kyc'],
             ['Loan Rules',              'admin.settings.loan-rules'],
             ['AML Thresholds',          'admin.settings.aml'],
+            ['Country Settings',        'admin.settings.countries'],
             ['Finance Defaults',        'admin.settings.finance'],
             ['Payment Accounts',        'admin.settings.payment-accounts'],
             ['Branches',                'admin.branches.index'],

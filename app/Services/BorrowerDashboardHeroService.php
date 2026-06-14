@@ -33,8 +33,8 @@ class BorrowerDashboardHeroService
 
                 return [
                     'variant'   => 'arrears',
-                    'title'     => __('borrower.dashboard.hero.arrears_title'),
-                    'subtitle'  => __('borrower.dashboard.hero.arrears_subtitle', ['days' => max(1, $daysLate)]),
+                    'title'     => __('borrower.dashboard.hero.payment_overdue'),
+                    'subtitle'  => __('borrower.dashboard.hero.days_late', ['days' => max(1, $daysLate)]),
                     'amount'    => format_money((float) ($servicing['next_due_amount'] ?? $servicing['amount_in_arrears'] ?? 0)),
                     'meta'      => __('borrower.dashboard.hero.outstanding', ['amount' => format_money($balance['total_outstanding'])]),
                     'cta_label' => __('borrower.loans_page.make_payment'),
@@ -46,13 +46,13 @@ class BorrowerDashboardHeroService
 
             return [
                 'variant'   => 'active_loan',
-                'title'     => __('borrower.dashboard.hero.next_payment'),
+                'title'     => __('borrower.dashboard.hero.active_loan'),
                 'subtitle'  => $servicing['next_due_date']
                     ? __('borrower.dashboard.hero.due_in_days', ['days' => max(0, $daysRemaining)])
                     : __('borrower.dashboard.hero.no_upcoming_due'),
                 'amount'    => format_money((float) ($servicing['next_due_amount'] ?? 0)),
                 'meta'      => __('borrower.dashboard.hero.outstanding', ['amount' => format_money($balance['total_outstanding'])]),
-                'cta_label' => __('borrower.loans_page.view_schedule'),
+                'cta_label' => __('borrower.dashboard.hero.view_loan'),
                 'cta_url'   => route('site.borrower.loans.show', $activeLoan),
             ];
         }

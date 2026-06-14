@@ -15,6 +15,8 @@
         'loan-products' => ['Loan Products', 'admin.settings.loan-products'],
         'membership' => ['Membership',      'admin.settings.membership'],
         'referrals'  => ['Referrals',       'admin.settings.referrals'],
+        'affiliates' => ['Affiliate Settings', 'admin.settings.affiliates'],
+        'countries'  => ['Country Settings',  'admin.settings.countries'],
         'aml'        => ['AML Thresholds',  'admin.settings.aml'],
         'finance'    => ['Finance defaults', 'admin.settings.finance'],
         'recovery'   => ['Recovery policy', 'admin.settings.recovery'],

@@ -9,7 +9,7 @@
 
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <h3 class="text-sm font-semibold text-gray-700 mb-1">Country configuration</h3>
-            <p class="text-xs text-gray-500 mb-4">Defaults for Tanzania. Extend by adding more country codes in settings later.</p>
+            <p class="text-xs text-gray-500 mb-4">Per-country language, currency, ID format, and grace rules are managed in <a href="{{ route('admin.settings.countries') }}" class="text-amber-700 font-semibold hover:underline">Country Settings</a>. Credit ratios below apply to the default country.</p>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <x-admin.input name="default_code" label="Default country code" :value="$country['code'] ?? 'TZ'" required maxlength="2" />
                 <x-admin.input name="repayment_ratio_pct" label="Maximum repayment ratio (%)" type="number" step="0.01" :value="$country['repayment_ratio_pct'] ?? 33.33" required />

@@ -21,6 +21,7 @@ class PaymentAccountSettingsController extends Controller
         $accounts->ensureDefaultMappings();
 
         $defaultCollectionId = (int) (Setting::get('payments.default_collection_mobile_money_account_id') ?? 0);
+        $defaultDisbursementId = (int) (Setting::get('payments.default_disbursement_mobile_money_account_id') ?? 0);
 
         return view('admin.settings.payment-accounts', [
             'mappings'              => PaymentAccountMapping::with(['bankAccount', 'mobileMoneyAccount'])->orderBy('payment_type')->orderBy('payment_method')->get(),
@@ -29,6 +30,10 @@ class PaymentAccountSettingsController extends Controller
             'defaultCollectionId'   => $defaultCollectionId,
             'defaultCollection'   => $defaultCollectionId > 0
                 ? MobileMoneyAccount::find($defaultCollectionId)
+                : null,
+            'defaultDisbursementId' => $defaultDisbursementId,
+            'defaultDisbursement'   => $defaultDisbursementId > 0
+                ? MobileMoneyAccount::find($defaultDisbursementId)
                 : null,
             'types'                 => config('payment_types.types', []),
             'methods'               => config('payment_types.methods', []),
@@ -58,6 +63,18 @@ class PaymentAccountSettingsController extends Controller
         }
 
         return back()->with('status', $message);
+    }
+
+    public function saveDefaultDisbursement(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'default_disbursement_mobile_money_account_id' => ['nullable', 'exists:mobile_money_accounts,id'],
+        ]);
+
+        $accountId = (int) ($data['default_disbursement_mobile_money_account_id'] ?? 0);
+        Setting::set('payments.default_disbursement_mobile_money_account_id', $accountId > 0 ? $accountId : '');
+
+        return back()->with('status', 'Default disbursement mobile money account saved.');
     }
 
     public function saveDefaults(Request $request, PaymentAccountService $accounts): RedirectResponse

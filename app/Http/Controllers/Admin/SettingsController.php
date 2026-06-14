@@ -393,6 +393,8 @@ class SettingsController extends Controller
             'bad_debt_expense_gl_account_id'          => ['nullable', 'exists:chart_of_accounts,id'],
             'default_expense_gl_account_id'           => ['nullable', 'exists:chart_of_accounts,id'],
             'capital_partner_pool_gl_account_id'      => ['nullable', 'exists:chart_of_accounts,id'],
+            'deferred_fee_liability_gl_account_id'    => ['nullable', 'exists:chart_of_accounts,id'],
+            'borrower_refunds_payable_gl_account_id'  => ['nullable', 'exists:chart_of_accounts,id'],
             'capital_partner_interest_share_percent'  => ['nullable', 'numeric', 'min:0', 'max:100'],
             'write_off_approval_required'             => ['nullable', 'boolean'],
         ]);
@@ -446,6 +448,92 @@ class SettingsController extends Controller
         Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["referrals.$k" => $v])->all());
 
         return back()->with('status', 'Referral settings saved.');
+    }
+
+    public function affiliates()
+    {
+        return view('admin.settings.affiliates', [
+            'values' => app(\App\Services\AffiliateSettingsService::class)->forForm(),
+        ]);
+    }
+
+    public function saveAffiliates(Request $request)
+    {
+        $data = $request->validate([
+            'code_prefix'                         => ['required', 'string', 'max:10'],
+            'default_registration_discount_percent' => ['required', 'numeric', 'min:0', 'max:100'],
+            'default_application_discount_percent'  => ['required', 'numeric', 'min:0', 'max:100'],
+            'default_commission_percent'          => ['required', 'numeric', 'min:0', 'max:100'],
+            'applies_to'                          => ['nullable', 'array'],
+            'applies_to.*'                        => ['nullable', 'boolean'],
+        ]);
+
+        $feeTypes = ['registration_fee', 'application_fee', 'post_approval_fee', 'interest', 'repayments'];
+        $appliesTo = collect($feeTypes)
+            ->mapWithKeys(fn (string $type) => [$type => $request->boolean("applies_to.$type")])
+            ->all();
+
+        Setting::setMany([
+            'affiliates.code_prefix'                         => $data['code_prefix'],
+            'affiliates.default_registration_discount_percent' => $data['default_registration_discount_percent'],
+            'affiliates.default_application_discount_percent'  => $data['default_application_discount_percent'],
+            'affiliates.default_commission_percent'          => $data['default_commission_percent'],
+            'affiliates.applies_to'                          => $appliesTo,
+        ]);
+
+        return back()->with('status', 'Affiliate settings saved.');
+    }
+
+    public function countries(Request $request)
+    {
+        $service = app(\App\Services\CountrySettingsService::class);
+        $code = strtoupper((string) $request->query('country', $service->defaultCountryCode()));
+
+        if (! in_array($code, $service->codes(), true)) {
+            $code = $service->defaultCountryCode();
+        }
+
+        $countries = collect($service->codes())
+            ->map(fn (string $c) => $service->forCode($c))
+            ->all();
+
+        return view('admin.settings.countries', [
+            'countries' => $countries,
+            'selected'  => $service->forCode($code),
+        ]);
+    }
+
+    public function saveCountry(Request $request, string $country)
+    {
+        $code = strtoupper($country);
+        abort_unless(in_array($code, app(\App\Services\CountrySettingsService::class)->codes(), true), 404);
+
+        $data = $request->validate([
+            'active'              => ['nullable', 'boolean'],
+            'language'            => ['required', 'in:en,sw'],
+            'currency'            => ['required', 'string', 'size:3'],
+            'timezone'            => ['required', 'string', 'max:50'],
+            'phone_prefix'        => ['required', 'string', 'max:6'],
+            'national_id_label'   => ['required', 'string', 'max:50'],
+            'national_id_format'  => ['required', 'in:nida_20,digits_8,digits_16,alphanumeric'],
+            'grace_period_days'   => ['required', 'integer', 'min:0', 'max:60'],
+            'repayment_ratio_pct' => ['required', 'numeric', 'min:1', 'max:100'],
+            'crb_freshness_days'  => ['required', 'integer', 'min:30', 'max:365'],
+            'kyc_freshness_days'  => ['required', 'integer', 'min:30', 'max:365'],
+            'guarantor_required'  => ['nullable', 'boolean'],
+            'contract_locale'     => ['required', 'in:en,sw'],
+            'contract_template'   => ['nullable', 'string', 'max:200'],
+            'loan_policy_notes'   => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $data['active'] = $request->boolean('active');
+        $data['guarantor_required'] = $request->boolean('guarantor_required');
+
+        app(\App\Services\CountrySettingsService::class)->save($code, $data);
+
+        return redirect()
+            ->route('admin.settings.countries', ['country' => $code])
+            ->with('status', $code.' country settings saved.');
     }
 
     public function creditPolicy()
@@ -507,19 +595,24 @@ class SettingsController extends Controller
         $types = $policy->partnerTypes();
 
         $values = [
-            'grace_period_days'       => $raw['grace_period_days'] ?? 7,
+            'grace_period_days'       => $raw['grace_period_days'] ?? 2,
+            'fee_base'                => $raw['fee_base'] ?? 'principal',
             'auto_escalate'           => (bool) ($raw['auto_escalate'] ?? true),
             'auto_assign_call_center' => (bool) ($raw['auto_assign_call_center'] ?? true),
-            'call_center_lead_days'   => $raw['call_center_lead_days'] ?? 2,
+            'call_center_lead_days'   => $raw['call_center_lead_days'] ?? 0,
             'sla_days'                => [],
             'commission_percent'=> [],
             'markup_percent'    => [],
+            'fee_type'          => [],
+            'fixed_amount'      => [],
         ];
 
         foreach ($types as $type => $meta) {
             $values['sla_days'][$type] = $raw["sla_days.{$type}"] ?? $meta['default_sla_days'];
             $values['commission_percent'][$type] = $raw["commission_percent.{$type}"] ?? $meta['default_commission_percent'];
             $values['markup_percent'][$type] = $raw["markup_percent.{$type}"] ?? $meta['default_markup_percent'];
+            $values['fee_type'][$type] = $raw["fee_type.{$type}"] ?? ($meta['default_fee_type'] ?? 'percentage');
+            $values['fixed_amount'][$type] = $raw["fixed_amount.{$type}"] ?? $meta['default_fixed_amount'];
         }
 
         return view('admin.settings.recovery', compact('values', 'types'));
@@ -531,6 +624,7 @@ class SettingsController extends Controller
 
         $rules = [
             'grace_period_days'       => ['required', 'integer', 'min:1', 'max:60'],
+            'fee_base'                => ['required', 'in:principal,outstanding'],
             'auto_escalate'           => ['nullable', 'boolean'],
             'auto_assign_call_center' => ['nullable', 'boolean'],
             'call_center_lead_days'   => ['required', 'integer', 'min:0', 'max:30'],
@@ -540,12 +634,15 @@ class SettingsController extends Controller
             $rules["sla_days_{$type}"] = ['required', 'integer', 'min:1', 'max:90'];
             $rules["commission_percent_{$type}"] = ['required', 'numeric', 'min:0', 'max:100'];
             $rules["markup_percent_{$type}"] = ['required', 'numeric', 'min:0', 'max:100'];
+            $rules["fee_type_{$type}"] = ['required', 'in:percentage,fixed'];
+            $rules["fixed_amount_{$type}"] = ['nullable', 'numeric', 'min:0'];
         }
 
         $data = $request->validate($rules);
 
         $settings = [
             'recovery.grace_period_days'       => $data['grace_period_days'],
+            'recovery.fee_base'                => $data['fee_base'],
             'recovery.auto_escalate'           => $request->boolean('auto_escalate'),
             'recovery.auto_assign_call_center' => $request->boolean('auto_assign_call_center'),
             'recovery.call_center_lead_days'   => $data['call_center_lead_days'],
@@ -555,6 +652,8 @@ class SettingsController extends Controller
             $settings["recovery.sla_days.{$type}"] = $data["sla_days_{$type}"];
             $settings["recovery.commission_percent.{$type}"] = $data["commission_percent_{$type}"];
             $settings["recovery.markup_percent.{$type}"] = $data["markup_percent_{$type}"];
+            $settings["recovery.fee_type.{$type}"] = $data["fee_type_{$type}"];
+            $settings["recovery.fixed_amount.{$type}"] = $data["fixed_amount_{$type}"] ?? null;
         }
 
         Setting::setMany($settings);

@@ -56,17 +56,20 @@ class FinanceReportsController extends Controller
     public function balanceSheet(GeneralLedgerService $ledger, LoanBalanceService $balances)
     {
         $byType = $ledger->balancesByType();
+        $retainedEarnings = round((float) ($byType['income'] ?? 0) - (float) ($byType['expense'] ?? 0), 2);
         $loansOutstanding = (float) Loan::query()
             ->whereIn('status', ['active', 'disbursed', 'arrears', 'restructuring', 'defaulted'])
             ->get()
             ->sum(fn (Loan $loan) => $balances->breakdown($loan)['total_outstanding']);
 
-        $loansReceivableGl = $ledger->accountBalanceByCode('1100');
+        $loansReceivableGl = $ledger->accountBalanceByCode('1100')
+            ?: $ledger->accountBalanceByCode('1200');
 
         return view('admin.reports.balance-sheet', [
             'assets'             => (float) ($byType['asset'] ?? 0),
             'liabilities'        => (float) ($byType['liability'] ?? 0),
-            'equity'             => (float) ($byType['equity'] ?? 0),
+            'equity'             => round((float) ($byType['equity'] ?? 0) + $retainedEarnings, 2),
+            'retainedEarnings'   => $retainedEarnings,
             'loansOutstanding'   => $loansOutstanding,
             'loansReceivableGl'  => $loansReceivableGl,
         ]);

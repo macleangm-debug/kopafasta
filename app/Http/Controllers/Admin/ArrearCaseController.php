@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ArrearCase;
 use App\Models\User;
 use App\Services\ActiveLoanServicingService;
+use App\Services\AuctionProceedsService;
 use App\Services\LoanCollectionActionService;
 use App\Services\RecoveryAssignmentService;
 use App\Services\RecoveryPartnerService;
@@ -59,6 +60,7 @@ class ArrearCaseController extends Controller
         $arrearCase->load([
             'loan.customer',
             'loan.product',
+            'loan.assetAuctionSettlements' => fn ($q) => $q->latest('settled_at'),
             'loan.repaymentSchedules' => fn ($q) => $q->orderBy('installment_no'),
             'assignee',
             'actions' => fn ($q) => $q->with('performer')->latest('performed_at'),
@@ -163,7 +165,7 @@ class ArrearCaseController extends Controller
 
         $data = $request->validate([
             'vendor_id'    => ['required', 'exists:vendors,id'],
-            'partner_type' => ['required', 'string', 'in:call_center,debt_collector,repossession,auctioneer,legal_partner,gps_partner'],
+            'partner_type' => ['required', 'string', 'in:call_center,debt_collector,auctioneer,legal_partner,gps_partner'],
             'notes'        => ['nullable', 'string', 'max:2000'],
         ]);
 
@@ -185,5 +187,48 @@ class ArrearCaseController extends Controller
         ]);
 
         return back()->with('status', 'Recovery partner assigned.');
+    }
+
+    public function recordAuctionSettlement(
+        Request $request,
+        ArrearCase $arrearCase,
+        AuctionProceedsService $auctions,
+    ): RedirectResponse {
+        $this->authorize('update', $arrearCase);
+
+        $loan = $arrearCase->loan;
+        abort_unless($loan, 404);
+
+        $data = $request->validate([
+            'auction_proceeds' => ['required', 'numeric', 'min:0.01'],
+            'notes'            => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $settlement = $auctions->settle(
+            $loan,
+            (float) $data['auction_proceeds'],
+            $request->user(),
+            $arrearCase,
+            null,
+            $data['notes'] ?? null,
+        );
+
+        $this->auditAdmin('admin.arrear_cases.auction_settled', $loan, [
+            'arrear_case_id'  => $arrearCase->id,
+            'settlement_id'   => $settlement->id,
+            'auction_proceeds'=> $data['auction_proceeds'],
+            'borrower_refund' => $settlement->borrower_refund,
+            'remaining_balance' => $settlement->remaining_balance,
+        ]);
+
+        $message = $settlement->loan_closed
+            ? 'Auction settled and loan closed.'
+            : 'Auction settled. Remaining balance: '.format_money((float) $settlement->remaining_balance);
+
+        if ((float) $settlement->borrower_refund > 0) {
+            $message .= ' Borrower refund due: '.format_money((float) $settlement->borrower_refund).'.';
+        }
+
+        return back()->with('status', $message);
     }
 }

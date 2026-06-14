@@ -104,6 +104,9 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         Route::post('/register/investor',[\App\Http\Controllers\Site\AuthController::class, 'registerInvestor'])->name('register.investor.post');
         Route::get('/register/capital-partner', [\App\Http\Controllers\Site\AuthController::class, 'showRegisterCapital'])->name('register.capital');
         Route::post('/register/capital-partner',[\App\Http\Controllers\Site\AuthController::class, 'registerCapital'])->name('register.capital.post');
+
+        Route::get('/partner/activate/{vendor}', [\App\Http\Controllers\Site\PartnerActivationController::class, 'show'])->name('partner.activate');
+        Route::post('/partner/activate/{vendor}', [\App\Http\Controllers\Site\PartnerActivationController::class, 'store'])->name('partner.activate.post');
     });
 
     // Authenticated public area (explicit web guard)
@@ -222,6 +225,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::put('/borrower/profile/security/pin',           [\App\Http\Controllers\Site\BorrowerController::class, 'updatePin'])->name('borrower.profile.pin.update');
             Route::delete('/borrower/profile/security/devices/{trustedDevice}', [\App\Http\Controllers\Site\BorrowerController::class, 'revokeTrustedDevice'])->name('borrower.profile.devices.revoke');
             Route::get('/borrower/support',                        [\App\Http\Controllers\Site\BorrowerController::class, 'support'])      ->name('borrower.support');
+            Route::get('/borrower/refunds',                        [\App\Http\Controllers\Site\BorrowerRefundController::class, 'index'])->name('borrower.refunds');
+            Route::post('/borrower/refunds/{borrowerRefund}/details', [\App\Http\Controllers\Site\BorrowerRefundController::class, 'submitDetails'])->name('borrower.refunds.details');
         });
 
         // ---- Vendor portal ----
@@ -402,6 +407,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('arrear-cases/{arrearCase}', [ArrearCaseController::class, 'update'])->name('arrear-cases.update');
         Route::post('arrear-cases/{arrearCase}/actions', [ArrearCaseController::class, 'addAction'])->name('arrear-cases.actions');
         Route::post('arrear-cases/{arrearCase}/recovery-assign', [ArrearCaseController::class, 'assignRecoveryPartner'])->name('arrear-cases.recovery-assign');
+        Route::post('arrear-cases/{arrearCase}/auction-settle', [ArrearCaseController::class, 'recordAuctionSettlement'])->name('arrear-cases.auction-settle');
         Route::get('write-off-requests', [WriteOffRequestController::class, 'index'])->name('write-off-requests.index');
         Route::get('write-off-requests/{writeOffRequest}', [WriteOffRequestController::class, 'show'])->name('write-off-requests.show');
         Route::post('loans/{loan}/write-off-requests', [WriteOffRequestController::class, 'recommendFromLoan'])->name('loans.write-off-requests.store');
@@ -467,6 +473,9 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             Route::get('partner-settlements/{partnerSettlement}', [PartnerSettlementController::class, 'show'])->name('partner-settlements.show');
             Route::post('partner-settlements/{partnerSettlement}/approve', [PartnerSettlementController::class, 'approve'])->name('partner-settlements.approve');
             Route::post('partner-settlements/{partnerSettlement}/mark-paid', [PartnerSettlementController::class, 'markPaid'])->name('partner-settlements.mark-paid');
+            Route::get('borrower-refunds', [\App\Http\Controllers\Admin\BorrowerRefundController::class, 'index'])->name('borrower-refunds.index');
+            Route::get('borrower-refunds/{borrowerRefund}', [\App\Http\Controllers\Admin\BorrowerRefundController::class, 'show'])->name('borrower-refunds.show');
+            Route::post('borrower-refunds/{borrowerRefund}/pay', [\App\Http\Controllers\Admin\BorrowerRefundController::class, 'markPaid'])->name('borrower-refunds.pay');
             $registerResource('reconciliations', 'reconciliation', ReconciliationController::class);
             Route::get('journal-entries',                [JournalEntryController::class, 'index'])->name('journal-entries.index');
             Route::get('journal-entries/{journal_entry}', [JournalEntryController::class, 'show'])->name('journal-entries.show');
@@ -601,6 +610,10 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/membership',       [SettingsController::class, 'saveMembership'])->name('settings.membership.save');
         Route::get('settings/referrals',        [SettingsController::class, 'referrals'])     ->name('settings.referrals');
         Route::put('settings/referrals',        [SettingsController::class, 'saveReferrals']) ->name('settings.referrals.save');
+        Route::get('settings/affiliates',      [SettingsController::class, 'affiliates'])    ->name('settings.affiliates');
+        Route::put('settings/affiliates',       [SettingsController::class, 'saveAffiliates'])->name('settings.affiliates.save');
+        Route::get('settings/countries',        [SettingsController::class, 'countries'])     ->name('settings.countries');
+        Route::put('settings/countries/{country}', [SettingsController::class, 'saveCountry'])->name('settings.countries.save');
         Route::get('settings/aml',              [SettingsController::class, 'amlSettings'])   ->name('settings.aml');
         Route::put('settings/aml',              [SettingsController::class, 'saveAmlSettings'])->name('settings.aml.save');
         Route::get('settings/finance',          [SettingsController::class, 'finance'])       ->name('settings.finance');
@@ -610,6 +623,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('settings/payment-accounts',   [PaymentAccountSettingsController::class, 'index'])         ->name('settings.payment-accounts');
         Route::put('settings/payment-accounts',   [PaymentAccountSettingsController::class, 'saveDefaults'])  ->name('settings.payment-accounts.save');
         Route::put('settings/payment-accounts/default-collection', [PaymentAccountSettingsController::class, 'saveDefaultCollection'])->name('settings.payment-accounts.default-collection');
+        Route::put('settings/payment-accounts/default-disbursement', [PaymentAccountSettingsController::class, 'saveDefaultDisbursement'])->name('settings.payment-accounts.default-disbursement');
         Route::post('settings/payment-accounts/overrides', [PaymentAccountSettingsController::class, 'saveOverride'])->name('settings.payment-accounts.overrides.save');
         Route::delete('settings/payment-accounts/overrides/{override}', [PaymentAccountSettingsController::class, 'deleteOverride'])->name('settings.payment-accounts.overrides.destroy');
 

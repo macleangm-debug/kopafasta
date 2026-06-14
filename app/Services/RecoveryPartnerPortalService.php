@@ -17,6 +17,7 @@ class RecoveryPartnerPortalService
     public function __construct(
         private readonly RecoveryAssignmentService $assignments,
         private readonly LoanCollectionActionService $collectionActions,
+        private readonly AuctionProceedsService $auctions,
     ) {}
 
     public function assertVendorOwnsAssignment(RecoveryAssignment $assignment, Vendor $vendor): void
@@ -103,6 +104,7 @@ class RecoveryPartnerPortalService
         string $actionKey,
         ?string $notes = null,
         ?UploadedFile $file = null,
+        ?float $auctionProceeds = null,
     ): RecoveryAssignment {
         $this->assertVendorOwnsAssignment($assignment, $vendor);
 
@@ -132,7 +134,13 @@ class RecoveryPartnerPortalService
             ]);
         }
 
-        return DB::transaction(function () use ($assignment, $vendor, $actor, $actionKey, $notes, $file, $config) {
+        if (($config['requires_auction_proceeds'] ?? false) && ($auctionProceeds === null || $auctionProceeds <= 0)) {
+            throw ValidationException::withMessages([
+                'auction_proceeds' => 'Enter the auction sale amount.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($assignment, $vendor, $actor, $actionKey, $notes, $file, $config, $auctionProceeds) {
             if ($assignment->status === RecoveryAssignment::STATUS_ASSIGNED) {
                 $assignment = $this->assignments->start($assignment, $actor);
             }
@@ -160,12 +168,28 @@ class RecoveryPartnerPortalService
             ]);
 
             if ($config['completes'] ?? false) {
-                return $this->assignments->complete(
+                $completed = $this->assignments->complete(
                     $assignment->fresh(),
                     $actor,
                     (string) ($config['outcome'] ?? $actionKey),
                     $notes !== '' ? $notes : null,
                 );
+
+                if (($config['requires_auction_proceeds'] ?? false) && $assignment->partner_type === 'auctioneer') {
+                    $loan = $assignment->arrearCase?->loan;
+                    if ($loan) {
+                        $this->auctions->settle(
+                            $loan,
+                            (float) $auctionProceeds,
+                            $actor,
+                            $assignment->arrearCase,
+                            $completed,
+                            trim(($notes !== '' ? $notes.' · ' : '').'Sold via auctioneer portal'),
+                        );
+                    }
+                }
+
+                return $completed->fresh();
             }
 
             return $assignment->fresh();

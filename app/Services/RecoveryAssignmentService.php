@@ -61,11 +61,16 @@ class RecoveryAssignmentService
         }
 
         $originalOutstanding = $this->balances->breakdown($loan)['total_outstanding'];
+        $feeBase = $this->policy->feeBase() === 'principal'
+            ? (float) ($loan->approved_amount ?? $loan->principal_amount ?? 0)
+            : $originalOutstanding;
         $rates = $this->policy->ratesForVendor($vendor, $partnerType);
         $charge = $this->policy->calculateRecoveryCharge(
-            $originalOutstanding,
+            $feeBase,
+            $partnerType,
             $rates['commission_percent'],
             $rates['company_markup_percent'],
+            $vendor,
         );
 
         return DB::transaction(function () use (

@@ -16,6 +16,7 @@ $nav = $portalMode === 'guarantor'
         ['key' => 'loans',         'label' => __('borrower.nav.loans'),         'route' => 'site.borrower.loans',         'icon' => 'wallet'],
         ['key' => 'marketplace',   'label' => __('borrower.nav.marketplace'),   'route' => 'site.borrower.marketplace', 'icon' => 'folder'],
         ['key' => 'payments',      'label' => __('borrower.nav.payments'),      'route' => 'site.borrower.payments',      'icon' => 'pay'],
+        ['key' => 'refunds',       'label' => __('borrower.nav.refunds'),       'route' => 'site.borrower.refunds',       'icon' => 'pay'],
         ['key' => 'notifications', 'label' => __('borrower.nav.notifications'), 'route' => 'site.borrower.notifications', 'icon' => 'bell'],
         ['key' => 'support',       'label' => __('borrower.nav.support'),       'route' => 'site.borrower.support',       'icon' => 'help'],
         ['key' => 'profile',       'label' => __('borrower.nav.profile'),       'route' => 'site.borrower.profile',       'icon' => 'user'],

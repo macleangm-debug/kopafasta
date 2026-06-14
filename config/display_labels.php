@@ -122,8 +122,7 @@ return [
 
         'recovery_partner_type' => [
             'call_center'    => 'Call center',
-            'debt_collector' => 'Debt collector',
-            'repossession'   => 'Repossession',
+            'debt_collector' => 'Debt collector (incl. repossession)',
             'auctioneer'     => 'Auctioneer',
             'legal_partner'  => 'Legal partner',
             'gps_partner'    => 'GPS partner',

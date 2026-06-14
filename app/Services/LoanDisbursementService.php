@@ -7,7 +7,6 @@ use App\Models\JournalEntry;
 use App\Models\Loan;
 use App\Models\LoanApplication;
 use App\Models\LoanFee;
-use App\Models\Setting;
 use Illuminate\Support\Facades\DB;
 
 class LoanDisbursementService
@@ -150,9 +149,11 @@ class LoanDisbursementService
     }
 
     /**
+     * Balance-sheet only — no income at disbursement.
+     *
      * Dr Loan Receivable: approved_amount
-     *   Cr Cash/Bank: net disbursed
-     *   Cr Fee Income (per fee with gl_account_id)
+     *   Cr Cash/Bank (or capital pool): net disbursed / funded amount
+     *   Cr Deferred fee liability: fees withheld from disbursement (when configured)
      */
     protected function postDisbursementJournal(Loan $loan, array $applied, float $base, float $net): void
     {
@@ -195,48 +196,44 @@ class LoanDisbursementService
             return;
         }
 
-        $lines = [];
-        $lines[] = ['account_id' => $receivableId, 'debit' => $base, 'credit' => 0, 'description' => 'Loan receivable '.$loan->loan_number];
-
-        $feeCreditTotal = 0.0;
-        if (! $usesCapital) {
-            foreach ($applied as $fee) {
-                $accountId = $fee->gl_account_id ?: $this->defaultFeeIncomeAccountId($ledger);
-                if (! $accountId) {
-                    continue;
-                }
-                $amt = (float) $fee->computed_amount;
-                if ($amt <= 0) {
-                    continue;
-                }
-                $lines[] = ['account_id' => $accountId, 'debit' => 0, 'credit' => $amt, 'description' => $fee->code.' '.$loan->loan_number];
-                $feeCreditTotal += $amt;
-            }
-        }
-
-        $fundingCredit = $usesCapital ? $base : round($base - $feeCreditTotal, 2);
-        if ($fundingCredit < 0) {
-            logger()->warning('Disbursement journal skipped: fees exceed approved amount.', [
-                'loan_id' => $loan->id,
-            ]);
-
-            return;
-        }
+        $withheldFees = round(max(0, $base - $net), 2);
+        $lines = [
+            ['account_id' => $receivableId, 'debit' => $base, 'credit' => 0, 'description' => 'Loan receivable '.$loan->loan_number],
+        ];
 
         if ($usesCapital && $capitalPoolId) {
             $lines[] = [
                 'account_id'  => $capitalPoolId,
                 'debit'       => 0,
-                'credit'      => $fundingCredit,
+                'credit'      => $base,
                 'description' => 'Capital partner pool deployment '.$loan->loan_number,
             ];
         } else {
             $lines[] = [
                 'account_id'  => $cashId,
                 'debit'       => 0,
-                'credit'      => $fundingCredit,
+                'credit'      => $net,
                 'description' => 'Net disbursement '.$loan->loan_number,
             ];
+
+            if ($withheldFees > 0.01) {
+                $deferredId = $ledger->deferredFeeLiabilityAccountId();
+                if (! $deferredId) {
+                    logger()->warning('Disbursement journal skipped: deferred fee liability GL account not configured for withheld fees.', [
+                        'loan_id'        => $loan->id,
+                        'withheld_fees'  => $withheldFees,
+                    ]);
+
+                    return;
+                }
+
+                $lines[] = [
+                    'account_id'  => $deferredId,
+                    'debit'       => 0,
+                    'credit'      => $withheldFees,
+                    'description' => 'Fees withheld at disbursement '.$loan->loan_number,
+                ];
+            }
         }
 
         try {
@@ -256,23 +253,6 @@ class LoanDisbursementService
                 'loan_id' => $loan->id,
             ]);
         }
-    }
-
-    private function defaultFeeIncomeAccountId(LedgerService $ledger): ?int
-    {
-        $id = (int) (Setting::get('finance.fee_income_gl_account_id') ?? 0);
-        if ($id > 0) {
-            return $id;
-        }
-
-        return \App\Models\ChartOfAccount::query()
-            ->where('type', 'income')
-            ->where(function ($q) {
-                $q->where('name', 'like', '%application%fee%')
-                    ->orWhere('name', 'like', '%fee%');
-            })
-            ->orderBy('code')
-            ->value('id');
     }
 
     /**
@@ -340,41 +320,39 @@ class LoanDisbursementService
             return;
         }
 
-        $lines = [];
-        $lines[] = ['account_id' => $receivableId, 'debit' => 0, 'credit' => $base, 'description' => 'Reversal receivable '.$loan->loan_number];
+        $net = (float) ($loan->net_disbursed_amount ?? $base);
+        $withheldFees = round(max(0, $base - $net), 2);
 
-        $feeCreditTotal = 0.0;
-        foreach ($applied as $fee) {
-            if (! $fee->gl_account_id) {
-                continue;
-            }
-            $amt = (float) $fee->computed_amount;
-            if ($amt <= 0) {
-                continue;
-            }
-            $lines[] = ['account_id' => $fee->gl_account_id, 'debit' => $amt, 'credit' => 0, 'description' => 'Reversal '.$fee->code.' '.$loan->loan_number];
-            $feeCreditTotal += $amt;
-        }
-
-        $fundingDebit = round($base - $feeCreditTotal, 2);
-        if ($fundingDebit < 0) {
-            return;
-        }
+        $lines = [
+            ['account_id' => $receivableId, 'debit' => 0, 'credit' => $base, 'description' => 'Reversal receivable '.$loan->loan_number],
+        ];
 
         if ($usesCapital && $capitalPoolId) {
             $lines[] = [
                 'account_id'  => $capitalPoolId,
-                'debit'       => $fundingDebit,
+                'debit'       => $base,
                 'credit'      => 0,
                 'description' => 'Reversal capital partner pool '.$loan->loan_number,
             ];
         } else {
             $lines[] = [
                 'account_id'  => $cashId,
-                'debit'       => $fundingDebit,
+                'debit'       => $net,
                 'credit'      => 0,
                 'description' => 'Reversal disbursement '.$loan->loan_number,
             ];
+
+            if ($withheldFees > 0.01) {
+                $deferredId = $ledger->deferredFeeLiabilityAccountId();
+                if ($deferredId) {
+                    $lines[] = [
+                        'account_id'  => $deferredId,
+                        'debit'       => $withheldFees,
+                        'credit'      => 0,
+                        'description' => 'Reversal withheld fees '.$loan->loan_number,
+                    ];
+                }
+            }
         }
 
         try {

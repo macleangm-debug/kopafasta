@@ -100,4 +100,9 @@ class Loan extends Model
     {
         return $this->hasMany(WriteOffRequest::class);
     }
+
+    public function assetAuctionSettlements(): HasMany
+    {
+        return $this->hasMany(AssetAuctionSettlement::class);
+    }
 }

@@ -9,7 +9,7 @@
 
         <p class="text-sm text-gray-600">
             These accounts are used when posting automatic journal entries (e.g. on loan disbursement).
-            Charges &amp; Fees can override the income account per-fee via their own <em>GL account</em> field.
+            Disbursement moves cash to loan receivable only — fee income is not recognized until earned.
         </p>
 
         @php
@@ -22,6 +22,8 @@
                 ['cash_gl_account_id',                      'Cash / Bank account',              'Credited for net amount paid out on disbursement.'],
                 ['customer_gl_account_id',                  'Customer account',                 'Debited when borrower payments are collected.'],
                 ['loan_receivable_gl_account_id',           'Loan receivable account',          'Debited on disbursement when loan exposure begins.'],
+                ['deferred_fee_liability_gl_account_id',    'Deferred fee liability',           'Credited when fees are withheld at disbursement (not income yet).'],
+                ['borrower_refunds_payable_gl_account_id',  'Borrower refunds payable',         'Credited when auction surplus is owed to borrowers; debited on payout.'],
                 ['capital_partner_pool_gl_account_id',      'Capital partner pool account',     'Credited instead of cash when a loan is funded from partner pools.'],
                 ['registration_fee_income_gl_account_id',   'Registration fee income',          'Credited when registration fees are verified.'],
                 ['application_fee_income_gl_account_id',    'Application fee income',           'Credited when application fees are verified.'],
