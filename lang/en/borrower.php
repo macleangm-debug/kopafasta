@@ -1237,6 +1237,9 @@ return [
             'outstanding' => 'Outstanding: :amount',
             'arrears_title' => 'Payment overdue',
             'arrears_subtitle' => ':days day(s) late',
+            'settled_title' => 'Congratulations',
+            'settled_subtitle' => 'Loan fully settled',
+            'settled_cta' => 'Apply for a new loan',
         ],
     ],
 

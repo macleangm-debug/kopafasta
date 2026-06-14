@@ -6,6 +6,7 @@
         'arrears' => 'bg-red-600 text-white ring-red-700',
         'active_loan' => 'bg-gray-900 text-white ring-gray-800',
         'under_review' => 'bg-amber-500 text-gray-900 ring-amber-600',
+        'settled' => 'bg-emerald-600 text-white ring-emerald-700',
         default => 'bg-gradient-to-br from-slate-800 to-slate-900 text-white ring-slate-700',
     };
 @endphp

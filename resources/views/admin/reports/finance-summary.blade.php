@@ -12,6 +12,7 @@
         <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 p-4">
             <p class="text-[10px] uppercase text-amber-700">Outstanding portfolio</p>
             <p class="text-2xl font-bold text-amber-900">{{ format_money($outstanding) }}</p>
+            <p class="text-xs text-amber-700 mt-1">GL loans receivable: {{ format_money($loansReceivableGl) }}</p>
         </div>
         <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 p-4">
             <p class="text-[10px] uppercase text-sky-700">Partner exposure</p>

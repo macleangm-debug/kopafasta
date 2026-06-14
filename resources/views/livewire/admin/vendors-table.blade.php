@@ -1,7 +1,7 @@
 <div>
-<x-admin.table-shell :records="$rows" :statuses="$statuses" searchPlaceholder="{{ ($affiliateMode ?? false) ? 'Search affiliate name, code, phone…' : 'Search vendor name, number, phone…' }}">
+<x-admin.table-shell :records="$rows" :statuses="$statuses" searchPlaceholder="{{ ($affiliateMode ?? false) ? 'Search affiliate partner name, code, phone…' : 'Search vendor name, number, phone…' }}">
     <x-slot:headers>
-        <x-admin.th :sort="$sort" :direction="$direction" col="vendor_number" label="Vendor #" />
+        <x-admin.th :sort="$sort" :direction="$direction" col="vendor_number" :label="($affiliateMode ?? false) ? 'Partner #' : 'Vendor #'" />
         <x-admin.th :sort="$sort" :direction="$direction" col="name"          label="Name" />
         @if ($affiliateMode ?? false)
             <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Affiliate code</th>
@@ -47,7 +47,7 @@
                 </td>
             </tr>
         @empty
-            <tr><td colspan="{{ ($affiliateMode ?? false) ? 8 : 6 }}" class="px-5 py-12 text-center text-gray-500">No vendors found.</td></tr>
+            <tr><td colspan="{{ ($affiliateMode ?? false) ? 8 : 6 }}" class="px-5 py-12 text-center text-gray-500">{{ ($affiliateMode ?? false) ? 'No affiliate partners found.' : 'No vendors found.' }}</td></tr>
         @endforelse
     </x-slot:rows>
 </x-admin.table-shell>

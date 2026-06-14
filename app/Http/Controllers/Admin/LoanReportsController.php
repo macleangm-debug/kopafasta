@@ -11,6 +11,7 @@ use App\Models\LoanFee;
 use App\Models\Repayment;
 use App\Services\ActiveLoanServicingService;
 use App\Services\CapitalPartnerAllocationService;
+use App\Services\GeneralLedgerService;
 use App\Services\LoanBalanceService;
 use Illuminate\View\View;
 
@@ -95,20 +96,23 @@ class LoanReportsController extends Controller
         return view('admin.reports.applications', compact('rows', 'counts'));
     }
 
-    public function financeSummary(CapitalPartnerAllocationService $capital): View
+    public function financeSummary(CapitalPartnerAllocationService $capital, GeneralLedgerService $ledger, LoanBalanceService $balances): View
     {
         $feesCollected = (float) LoanFee::query()->whereNotNull('paid_at')->sum('computed_amount');
         $interestIncome = (float) Repayment::query()->whereIn('status', ['received', 'allocated'])->sum('interest_component');
         $outstanding = (float) Loan::query()
             ->whereIn('status', ['active', 'disbursed', 'arrears', 'restructuring', 'defaulted'])
-            ->sum('outstanding_balance');
+            ->get()
+            ->sum(fn (Loan $loan) => $balances->breakdown($loan)['total_outstanding']);
 
+        $loansReceivableGl = $ledger->accountBalanceByCode('1100');
         $partnerExposure = (float) \App\Models\LoanCapitalAllocation::query()->sum('outstanding_exposure');
 
         return view('admin.reports.finance-summary', [
             'feesCollected'     => $feesCollected,
             'interestIncome'    => $interestIncome,
             'outstanding'       => $outstanding,
+            'loansReceivableGl' => $loansReceivableGl,
             'partnerExposure'   => $partnerExposure,
             'partnerSharePct'   => $capital->partnerInterestSharePercent(),
         ]);

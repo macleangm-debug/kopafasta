@@ -3,7 +3,10 @@
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <div class="text-xs text-gray-500 uppercase tracking-wide">Total assets</div>
             <div class="mt-2 text-2xl font-bold text-emerald-600 font-mono">{{ format_number($assets, 2) }}</div>
-            <p class="mt-3 text-xs text-gray-500">Includes loans outstanding: <span class="font-mono">{{ format_number($loansOutstanding, 2) }}</span></p>
+            <p class="mt-3 text-xs text-gray-500">
+                Loans receivable (GL 1100): <span class="font-mono">{{ format_money($loansReceivableGl) }}</span>
+                · Servicing outstanding: <span class="font-mono">{{ format_money($loansOutstanding) }}</span>
+            </p>
         </div>
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <div class="text-xs text-gray-500 uppercase tracking-wide">Total liabilities</div>

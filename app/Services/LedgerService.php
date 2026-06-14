@@ -79,9 +79,11 @@ class LedgerService
     public function loanReceivableAccountId(): ?int
     {
         $id = (int) (Setting::get('finance.loan_receivable_gl_account_id') ?? 0);
-        if ($id > 0 && ChartOfAccount::whereKey($id)->exists()) return $id;
-        return ChartOfAccount::where('type', 'asset')->where('name', 'like', '%loan%')->orderBy('id')->value('id')
-            ?? $this->cashAccountId();
+        if ($id > 0 && ChartOfAccount::whereKey($id)->exists()) {
+            return $id;
+        }
+
+        return ChartOfAccount::where('type', 'asset')->where('name', 'like', '%loan%')->orderBy('id')->value('id');
     }
 
     public function capitalPartnerPoolAccountId(): ?int

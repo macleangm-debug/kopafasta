@@ -10,32 +10,18 @@ use App\Models\Expense;
 use App\Models\Loan;
 use App\Models\LoanProduct;
 use App\Models\Repayment;
+use App\Services\GeneralLedgerService;
+use App\Services\LoanBalanceService;
 use Illuminate\Support\Carbon;
 
 class FinanceReportsController extends Controller
 {
     // -------- Trial balance --------
-    public function trialBalance()
+    public function trialBalance(GeneralLedgerService $ledger)
     {
-        $accounts = ChartOfAccount::orderBy('code')->get();
-        $totalDebit  = 0;
-        $totalCredit = 0;
-
-        $rows = $accounts->map(function ($a) use (&$totalDebit, &$totalCredit) {
-            $bal = (float) $a->opening_balance;
-            $isDebit = in_array($a->type, ['asset', 'expense']);
-            $debit  = $isDebit ? max($bal, 0) : 0;
-            $credit = ! $isDebit ? max($bal, 0) : 0;
-            $totalDebit  += $debit;
-            $totalCredit += $credit;
-            return (object) [
-                'code'   => $a->code,
-                'name'   => $a->name,
-                'type'   => $a->type,
-                'debit'  => $debit,
-                'credit' => $credit,
-            ];
-        });
+        $rows = $ledger->trialBalanceRows();
+        $totalDebit = (float) $rows->sum('debit');
+        $totalCredit = (float) $rows->sum('credit');
 
         return view('admin.reports.trial-balance', compact('rows', 'totalDebit', 'totalCredit'));
     }
@@ -67,19 +53,22 @@ class FinanceReportsController extends Controller
     }
 
     // -------- Balance sheet --------
-    public function balanceSheet()
+    public function balanceSheet(GeneralLedgerService $ledger, LoanBalanceService $balances)
     {
-        $byType = ChartOfAccount::selectRaw('type, SUM(opening_balance) as total')
-            ->groupBy('type')
-            ->pluck('total', 'type');
+        $byType = $ledger->balancesByType();
+        $loansOutstanding = (float) Loan::query()
+            ->whereIn('status', ['active', 'disbursed', 'arrears', 'restructuring', 'defaulted'])
+            ->get()
+            ->sum(fn (Loan $loan) => $balances->breakdown($loan)['total_outstanding']);
 
-        $loansOutstanding = (float) Loan::whereIn('status', ['active','arrears','restructured'])->sum('outstanding_balance');
+        $loansReceivableGl = $ledger->accountBalanceByCode('1100');
 
         return view('admin.reports.balance-sheet', [
-            'assets'      => (float) ($byType['asset']     ?? 0) + $loansOutstanding,
-            'liabilities' => (float) ($byType['liability'] ?? 0),
-            'equity'      => (float) ($byType['equity']    ?? 0),
-            'loansOutstanding' => $loansOutstanding,
+            'assets'             => (float) ($byType['asset'] ?? 0),
+            'liabilities'        => (float) ($byType['liability'] ?? 0),
+            'equity'             => (float) ($byType['equity'] ?? 0),
+            'loansOutstanding'   => $loansOutstanding,
+            'loansReceivableGl'  => $loansReceivableGl,
         ]);
     }
 

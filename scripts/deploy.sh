@@ -99,6 +99,7 @@ fi
 
 "$PHP_BIN" artisan migrate --force
 "$PHP_BIN" artisan db:seed --class=FinanceDefaultsSeeder --force || true
+"$PHP_BIN" artisan gl:backfill-disbursements || true
 "$PHP_BIN" artisan db:seed --class=LoanPolicyDefaultsSeeder --force || true
 "$PHP_BIN" artisan db:seed --class=DepartmentSeeder --force || true
 "$PHP_BIN" artisan db:seed --class=DefaultChartOfAccountsSeeder --force || true

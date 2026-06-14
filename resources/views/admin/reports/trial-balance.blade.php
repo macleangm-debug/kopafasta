@@ -1,4 +1,4 @@
-<x-admin.layout title="Trial Balance" heading="Trial Balance" subheading="Account balances from Chart of Accounts (opening basis)">
+<x-admin.layout title="Trial Balance" heading="Trial Balance" subheading="Posted journal balances including opening balances (as at {{ now()->format('Y-m-d') }})">
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
         <table class="w-full text-sm">
             <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">

@@ -57,6 +57,25 @@ class BorrowerDashboardHeroService
             ];
         }
 
+        $settledLoan = Loan::query()
+            ->where('customer_id', $customer->id)
+            ->where('status', 'closed')
+            ->where('outstanding_balance', '<=', 0)
+            ->latest('updated_at')
+            ->first();
+
+        if ($settledLoan) {
+            return [
+                'variant'   => 'settled',
+                'title'     => __('borrower.dashboard.hero.settled_title'),
+                'subtitle'  => __('borrower.dashboard.hero.settled_subtitle'),
+                'amount'    => null,
+                'meta'      => $settledLoan->loan_number,
+                'cta_label' => __('borrower.dashboard.hero.settled_cta'),
+                'cta_url'   => route('site.borrower.apply'),
+            ];
+        }
+
         $underReview = LoanApplication::query()
             ->where('customer_id', $customer->id)
             ->whereNotIn('status', ['rejected', 'disbursed', 'withdrawn'])

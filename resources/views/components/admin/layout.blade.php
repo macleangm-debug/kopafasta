@@ -64,7 +64,6 @@
             ['All Partners',         'admin.vendors.index'],
             ['Vendor Applications', 'admin.vendors.applications'],
             ['Suppliers',           'admin.vendors.suppliers'],
-            ['Affiliates',          'admin.vendors.affiliates'],
             ['Asset Marketplace',   'admin.marketplace-assets.index'],
             ['Asset Requests',      'admin.asset-requests.index'],
             ['GPS Installers',      'admin.vendors.gps-installers'],
@@ -131,7 +130,7 @@
         ], null],
         ['Marketing', 'M11 5.882V19.24a1.76 1.76 0 01-3.27.87l-4.5-7.79A1.76 1.76 0 015.882 9H4a2 2 0 110-4h1.882a1.76 1.76 0 011.27.87l1.27 2.2', [
             ['Campaigns', 'admin.promotions.index'],
-            ['Affiliates', 'admin.vendors.affiliates'],
+            ['Affiliate Partners', 'admin.vendors.affiliates'],
             ['Promo codes', 'admin.promotions.index'],
         ], null],
         ['Administration', 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', [
