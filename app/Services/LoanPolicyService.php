@@ -23,10 +23,11 @@ class LoanPolicyService
 
         return [
             'max_active_applications_per_product' => (int) ($loan['max_active_applications_per_product'] ?? 1),
+            'max_active_loans'                    => (int) ($loan['max_active_loans'] ?? 1),
             'max_active_guarantees'                 => (int) ($loan['max_active_guarantees'] ?? 5),
             'allow_asset_reuse'                     => (bool) ($loan['allow_asset_reuse'] ?? false),
             'top_up_min_successful_repayments'      => (int) ($loan['top_up_min_successful_repayments'] ?? 6),
-            'allow_restructure'                     => (bool) ($loan['allow_restructure'] ?? true),
+            'allow_restructure'                     => (bool) ($loan['allow_restructure'] ?? false),
             'max_restructures'                      => (int) ($loan['max_restructures'] ?? 2),
             'restructure_cooldown_days'             => (int) ($loan['restructure_cooldown_days'] ?? 30),
             'payment_holiday_accrue_interest'       => (bool) ($loan['payment_holiday_accrue_interest'] ?? true),
@@ -61,6 +62,10 @@ class LoanPolicyService
 
     public function canSubmitApplication(Customer $customer, LoanProduct $product, ?LoanApplication $excluding = null): ?string
     {
+        if ($blocked = $this->canOpenAdditionalLoan($customer)) {
+            return $blocked;
+        }
+
         $max = $this->settings()['max_active_applications_per_product'];
         $query = LoanApplication::query()
             ->where('customer_id', $customer->id)
@@ -76,6 +81,26 @@ class LoanPolicyService
                 'product' => $product->name,
                 'max'     => $max,
             ]);
+        }
+
+        return null;
+    }
+
+    public function activeLoanCount(Customer $customer): int
+    {
+        return Loan::query()
+            ->where('customer_id', $customer->id)
+            ->whereIn('status', ['active', 'disbursed', 'arrears', 'restructuring', 'defaulted'])
+            ->count();
+    }
+
+    public function canOpenAdditionalLoan(Customer $customer): ?string
+    {
+        $max = $this->settings()['max_active_loans'];
+        $count = $this->activeLoanCount($customer);
+
+        if ($count >= $max) {
+            return __('borrower.policy.max_active_loans', ['max' => $max]);
         }
 
         return null;

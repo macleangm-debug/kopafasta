@@ -347,8 +347,6 @@ class LoanController extends Controller
             'journal' => $entry?->entry_number,
         ]);
 
-        app(GuarantorNotificationService::class)->notifyLoanWrittenOff($loan->fresh(['application.customer']));
-
         return redirect()
             ->route('admin.loans.show', $loan)
             ->with('status', 'Loan written off.'.($entry ? ' Journal '.$entry->entry_number.' posted.' : ''));

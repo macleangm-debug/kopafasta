@@ -52,7 +52,7 @@
             </div>
             <div>
                 <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.outstanding') }}</p>
-                <p class="font-semibold text-gray-900 mt-1">{{ format_money($servicing['outstanding_balance']) }}</p>
+                <x-loan-balance-breakdown :breakdown="$servicing['balance_breakdown'] ?? []" />
             </div>
             <div>
                 <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loan_servicing.disbursement_date') }}</p>

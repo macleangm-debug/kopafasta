@@ -104,8 +104,8 @@ class RepaymentPostingService
             // 2) Apply payment across schedule rows (interest + principal components)
             $this->applyToSchedules($loan, $repayment);
 
-            // 3) Update loan outstanding (principal only reduces it)
-            $loan->outstanding_balance = max(0, (float) $loan->outstanding_balance - (float) $repayment->principal_component);
+            // 3) Recalculate outstanding from schedule components
+            $loan = app(LoanBalanceService::class)->syncOutstandingBalance($loan);
             if ($loan->outstanding_balance <= 0) {
                 $loan->status = 'closed';
                 $loan->closed_at = now();

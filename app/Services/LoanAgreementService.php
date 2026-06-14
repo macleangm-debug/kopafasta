@@ -356,7 +356,7 @@ class LoanAgreementService
             'loan'        => $loan,
         ];
 
-        $pdf = Pdf::loadView('pdf.repayment-schedule', $viewData)->setPaper('a4');
+        $pdf = $this->withBorrowerLocale($application, fn () => Pdf::loadView('pdf.repayment-schedule', $viewData)->setPaper('a4'));
         $path = "agreements/{$agreement->reference}.pdf";
         Storage::disk('public')->put($path, $pdf->output());
         $agreement->file_path = $path;
@@ -454,7 +454,7 @@ class LoanAgreementService
             'signedContract' => $signedContract,
         ];
 
-        $pdf = Pdf::loadView('pdf.final-loan-contract', $viewData)->setPaper('a4');
+        $pdf = $this->withBorrowerLocale($application, fn () => Pdf::loadView('pdf.final-loan-contract', $viewData)->setPaper('a4'));
         $path = "agreements/{$agreement->reference}.pdf";
         Storage::disk('public')->put($path, $pdf->output());
         $agreement->file_path = $path;
@@ -707,14 +707,12 @@ class LoanAgreementService
                 ?? now()->addDays($legal->offerValidityDays())->toDateString(),
             'offer_validity_days'  => $legal->offerValidityDays(),
             'legal_clauses'        => $legal->contractClauses(),
+            'contract_sections'    => $legal->contractSections(),
             'generated_at'         => now()->toIso8601String(),
             'borrower_signature'   => $this->borrowerSignatureForPdf($a, 'loan_contract'),
             'guarantor_signature'  => $a->signatures->firstWhere('signer_type', 'guarantor'),
             'company_signatory'    => brand('legal_name'),
-            'company_signatory_name' => $legal->signatoryName() ?: brand('legal_name'),
-            'company_signatory_title' => $legal->signatoryTitle(),
-            'company_signature_path' => $legal->signatureFilesystemPath(),
-            'company_stamp_path'   => $legal->stampFilesystemPath(),
+            ...$this->companySignatorySnapshot($legal),
             'is_asset_loan'        => $isAssetLoan,
             'asset_title'          => $reservation?->asset?->title,
             'asset_ownership_note' => $isAssetLoan ? config('asset_marketplace.ownership_note') : null,
@@ -746,12 +744,58 @@ class LoanAgreementService
     /** @param array<string, mixed> $data */
     private function renderAgreementPdf(?DocumentTemplate $template, string $fallbackView, array $data): \Barryvdh\DomPDF\PDF
     {
-        if ($template && filled($template->content)) {
-            $html = Blade::render($template->content, $data);
+        $application = $data['application'] ?? null;
 
-            return Pdf::loadHTML($html)->setPaper('a4');
+        return $this->withBorrowerLocale($application, function () use ($template, $fallbackView, $data) {
+            if ($template && filled($template->content)) {
+                $html = Blade::render($template->content, $data);
+
+                return Pdf::loadHTML($html)->setPaper('a4');
+            }
+
+            return Pdf::loadView($fallbackView, $data)->setPaper('a4');
+        });
+    }
+
+    /** @return array<string, mixed> */
+    private function companySignatorySnapshot(LegalSettingsService $legal): array
+    {
+        $signatory = $legal->activeSignatory();
+
+        if ($signatory) {
+            return [
+                'company_signatory_name'  => $signatory->name,
+                'company_signatory_title' => $signatory->position,
+                'company_signature_path'  => $signatory->signatureFilesystemPath(),
+                'company_stamp_path'      => $legal->stampFilesystemPath(),
+            ];
         }
 
-        return Pdf::loadView($fallbackView, $data)->setPaper('a4');
+        return [
+            'company_signatory_name'  => $legal->signatoryName() ?: brand('legal_name'),
+            'company_signatory_title' => $legal->signatoryTitle(),
+            'company_signature_path'  => $legal->signatureFilesystemPath(),
+            'company_stamp_path'    => $legal->stampFilesystemPath(),
+        ];
+    }
+
+    private function borrowerContractLocale(?LoanApplication $application): string
+    {
+        $locale = $application?->customer?->user?->preferences['locale']
+            ?? session('locale', config('app.locale', 'en'));
+
+        return in_array($locale, ['en', 'sw'], true) ? $locale : 'en';
+    }
+
+    private function withBorrowerLocale(?LoanApplication $application, callable $callback): mixed
+    {
+        $previous = app()->getLocale();
+        app()->setLocale($this->borrowerContractLocale($application));
+
+        try {
+            return $callback();
+        } finally {
+            app()->setLocale($previous);
+        }
     }
 }

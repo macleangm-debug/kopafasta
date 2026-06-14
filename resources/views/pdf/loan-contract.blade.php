@@ -31,6 +31,8 @@
 
 @php
     $clauses = $snapshot['legal_clauses'] ?? [];
+    $sections = $snapshot['contract_sections'] ?? [];
+    $show = fn (string $key): bool => (bool) ($sections[$key] ?? true);
 @endphp
 
 <div class="header">
@@ -38,6 +40,7 @@
     <div class="muted">Reference: {{ $agreement->reference }} · Application: {{ $snapshot['application_number'] }}</div>
 </div>
 
+@if ($show('definitions'))
 <p>
     This loan contract ("Agreement") is entered into on {{ now()->format('d M Y') }} between
     <strong>{{ brand('legal_name') }}</strong> ("Lender") and <strong>{{ $snapshot['customer_name'] }}</strong> ("Borrower").
@@ -53,7 +56,7 @@
     <tr><td class="label">Phone</td><td class="value">{{ $snapshot['customer_phone'] ?? '—' }}</td></tr>
 </table>
 
-@if (! empty($snapshot['guarantor_name']))
+@if ($show('guarantor_obligations') && ! empty($snapshot['guarantor_name']))
 <h2>Guarantor</h2>
 <table class="kv">
     <tr><td class="label">Name</td><td class="value">{{ $snapshot['guarantor_name'] }}</td></tr>
@@ -63,7 +66,9 @@
     <tr><td class="label">Relationship</td><td class="value">{{ $snapshot['guarantor_relationship'] ?? '—' }}</td></tr>
 </table>
 @endif
+@endif
 
+@if ($show('loan_terms'))
 <h2>Loan facility</h2>
 <table class="kv">
     <tr><td class="label">Reference</td><td class="value">{{ $agreement->reference }}</td></tr>
@@ -73,7 +78,9 @@
     <tr><td class="label">{{ $snapshot['installment_label'] ?? 'Instalment' }}</td><td class="value">{{ format_money($snapshot['estimated_emi']) }}</td></tr>
     <tr><td class="label">Total repayable</td><td class="value">{{ format_money($snapshot['total_repayable'] ?? 0) }}</td></tr>
 </table>
+@endif
 
+@if ($show('repayment_obligations'))
 <h2>Repayment terms</h2>
 <p>
     Repayments shall commence
@@ -86,6 +93,7 @@
 <p class="muted">
     A dated repayment schedule will be issued as an annex after disbursement.
 </p>
+@endif
 
 @if (!empty($snapshot['is_asset_loan']))
 <h2>Asset ownership</h2>
@@ -93,6 +101,7 @@
 <p>{{ $snapshot['asset_ownership_note'] }}</p>
 @endif
 
+@if ($show('penalty_clauses'))
 <h2>Charges &amp; penalties</h2>
 <table class="charges">
     <tr><td>Penalty rate</td><td>{{ $clauses['penalty_rate_label'] ?? 'As per schedule of charges' }}</td></tr>
@@ -102,24 +111,41 @@
     <tr><td>Collection charge</td><td>{{ $clauses['collection_charge'] ?? 'Actual cost incurred' }}</td></tr>
     <tr><td>Legal recovery</td><td>{{ $clauses['legal_recovery'] ?? 'Borrower responsible' }}</td></tr>
 </table>
+@endif
 
+@if ($show('default_events') || $show('recovery_clauses') || $show('legal_costs') || $show('jurisdiction') || $show('data_privacy'))
 <h2>Legal clauses</h2>
 <ol class="terms">
-    <li><strong>Default:</strong> {{ $clauses['default_clause'] ?? '' }}</li>
-    <li><strong>Collection:</strong> {{ $clauses['collection_clause'] ?? '' }}</li>
-    <li><strong>Recovery:</strong> {{ $clauses['recovery_clause'] ?? '' }}</li>
-    <li><strong>Penalty charges:</strong> {{ $clauses['penalty_clause'] ?? '' }}</li>
-    <li><strong>Legal costs:</strong> {{ $clauses['legal_cost_clause'] ?? '' }}</li>
+    @if ($show('default_events'))
+        <li><strong>Default:</strong> {{ $clauses['default_clause'] ?? '' }}</li>
+        <li><strong>Collection:</strong> {{ $clauses['collection_clause'] ?? '' }}</li>
+    @endif
+    @if ($show('recovery_clauses'))
+        <li><strong>Recovery:</strong> {{ $clauses['recovery_clause'] ?? '' }}</li>
+    @endif
+    @if ($show('penalty_clauses'))
+        <li><strong>Penalty charges:</strong> {{ $clauses['penalty_clause'] ?? '' }}</li>
+    @endif
+    @if ($show('legal_costs'))
+        <li><strong>Legal costs:</strong> {{ $clauses['legal_cost_clause'] ?? '' }}</li>
+    @endif
     @if (! empty($snapshot['is_asset_loan']))
         <li><strong>Asset recovery:</strong> {{ $clauses['asset_recovery_clause'] ?? '' }}</li>
     @endif
-    @if (! empty($snapshot['guarantor_name']))
+    @if ($show('guarantor_obligations') && ! empty($snapshot['guarantor_name']))
         <li><strong>Guarantor liability:</strong> {{ $clauses['guarantor_clause'] ?? '' }}</li>
     @endif
-    <li><strong>Jurisdiction:</strong> This Agreement is governed by the laws of {{ $clauses['jurisdiction'] ?? 'United Republic of Tanzania' }}.</li>
+    @if ($show('jurisdiction'))
+        <li><strong>Jurisdiction:</strong> This Agreement is governed by the laws of {{ $clauses['jurisdiction'] ?? 'United Republic of Tanzania' }}.</li>
+    @endif
+    @if ($show('data_privacy'))
+        <li>Personal data is processed in accordance with applicable data protection laws and the lender's privacy policy.</li>
+    @endif
     <li>Electronic and OTP signatures captured during application and acceptance form part of this contract.</li>
 </ol>
+@endif
 
+@if ($show('signatures'))
 <div class="signbox">
     <div class="sign-row">
         <div class="sign-col">
@@ -163,6 +189,7 @@
         <div class="muted" style="margin-top:10px">Executed {{ $agreement->signed_at->format('d M Y H:i') }}</div>
     @endif
 </div>
+@endif
 
 </body>
 </html>

@@ -1222,6 +1222,22 @@ return [
         'referral_title' => 'Invite friends & earn',
         'referral_wallet' => 'Available wallet',
         'referral_share' => 'Share referral link',
+        'hero' => [
+            'no_loan_title' => 'No active loan',
+            'no_loan_subtitle_ready' => 'You are eligible to apply for a loan.',
+            'no_loan_subtitle_profile' => 'Complete your profile to unlock loan applications.',
+            'apply_now' => 'Apply for a loan',
+            'complete_profile' => 'Complete your profile',
+            'under_review_title' => 'Application under review',
+            'under_review_subtitle' => 'Expected feedback within 24 hours.',
+            'view_application' => 'View application',
+            'next_payment' => 'Next payment',
+            'due_in_days' => 'Due in :days day(s)',
+            'no_upcoming_due' => 'No upcoming installment due',
+            'outstanding' => 'Outstanding: :amount',
+            'arrears_title' => 'Payment overdue',
+            'arrears_subtitle' => ':days day(s) late',
+        ],
     ],
 
     'membership' => [
@@ -1424,6 +1440,7 @@ return [
 
     'policy' => [
         'max_active_applications' => 'You already have the maximum of :max active :product application(s). Complete or withdraw the existing one before starting another.',
+        'max_active_loans' => 'You already have the maximum of :max active loan(s). Complete repayment before applying for another loan.',
         'max_active_guarantees' => 'This member has reached the maximum of :max active guarantees.',
         'restructure_disabled' => 'Loan restructuring is not currently available.',
         'restructure_after_disbursement' => 'Restructuring is only available after your loan has been disbursed.',

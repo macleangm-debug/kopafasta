@@ -193,12 +193,9 @@
 
         {{-- Summary card --}}
         <div class="lg:col-span-2 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
-            <div class="flex items-start justify-between mb-4">
-                <div>
-                    <div class="text-xs uppercase tracking-wider text-gray-500">Outstanding balance</div>
-                    <div class="text-3xl font-bold text-gray-900 mt-1">
-                        {{ format_money((float) $loan->outstanding_balance) }}
-                    </div>
+            <div class="flex items-start justify-between mb-4 gap-4">
+                <div class="max-w-md flex-1">
+                    <x-loan-balance-breakdown :breakdown="$servicing['balance_breakdown'] ?? app(\App\Services\LoanBalanceService::class)->breakdown($loan)" :expanded="true" />
                 </div>
                 <span @class([
                     'inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold uppercase tracking-wider',

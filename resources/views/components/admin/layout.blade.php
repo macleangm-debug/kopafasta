@@ -97,12 +97,14 @@
             ['Journal Entries',       'admin.journal-entries.index',       'finance.operations'],
         ], ['finance.accounts', 'finance.methods', 'finance.operations']],
         ['Reports', 'M3 3v18h18M7 17V9m4 8V5m4 12v-7m4 7V11', [
-            ['Financial Overview','admin.reports.financial-overview', 'finance.reports'],
             ['Portfolio',         'admin.reports.portfolio',          'reports.view'],
+            ['Applications',      'admin.reports.applications',       'reports.view'],
             ['Disbursements',     'admin.reports.disbursements',      'reports.view'],
-            ['Repayments',        'admin.reports.repayments',         'reports.view'],
             ['Arrears',           'admin.reports.arrears',            'reports.view'],
+            ['Collections',       'admin.reports.collections-performance', 'reports.view'],
+            ['Repayments',        'admin.reports.repayments',         'reports.view'],
             ['PAR',               'admin.reports.par',                'reports.view'],
+            ['Finance summary',   'admin.reports.finance-summary',    'finance.reports'],
             ['NPL',               'admin.reports.npl',                'finance.reports'],
             ['Customers',         'admin.reports.customers',          'reports.view'],
             ['Trial Balance',     'admin.reports.trial-balance',      'finance.reports'],
@@ -127,6 +129,16 @@
             ['Tickets',    'admin.support-tickets.index'],
             ['Complaints', 'admin.complaints.index'],
         ], null],
+        ['Marketing', 'M11 5.882V19.24a1.76 1.76 0 01-3.27.87l-4.5-7.79A1.76 1.76 0 015.882 9H4a2 2 0 110-4h1.882a1.76 1.76 0 011.27.87l1.27 2.2', [
+            ['Campaigns', 'admin.promotions.index'],
+            ['Affiliates', 'admin.vendors.affiliates'],
+            ['Promo codes', 'admin.promotions.index'],
+        ], null],
+        ['Administration', 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', [
+            ['Departments', 'admin.departments.index', 'users.view'],
+            ['Users', 'admin.users.index', 'users.view'],
+            ['Roles & Permissions', 'admin.roles.index', 'users.manage'],
+        ], ['users.view', 'users.manage']],
         ['Settings', 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z', [
             ['Company Profile',         'admin.settings.company'],
             ['Loan Products',           'admin.settings.loan-products'],
@@ -139,7 +151,6 @@
             ['Branches',                'admin.branches.index'],
             ['Departments',             'admin.departments.index'],
             ['Users',                   'admin.users.index'],
-            ['Roles & Permissions',     'admin.roles.index'],
             ['Approval Limits',         'admin.approval-limits.index'],
             ['Notification Templates',  'admin.notification-templates.index'],
             ['Document Templates',      'admin.document-templates.index'],
@@ -158,14 +169,21 @@
     };
 
     $filterNavItems = function (array $items) use ($permissionService) {
-        return array_values(array_filter($items, function (array $item) use ($permissionService) {
-            $permission = $item[2] ?? null;
+        $departmentAccess = app(\App\Services\DepartmentAccessService::class);
 
-            if ($permission === null) {
-                return true;
+        return array_values(array_filter($items, function (array $item) use ($permissionService, $departmentAccess) {
+            $permission = $item[2] ?? null;
+            $route = $item[1] ?? '';
+
+            if ($permission !== null && (! auth()->check() || ! $permissionService->has(auth()->user(), $permission))) {
+                return false;
             }
 
-            return auth()->check() && $permissionService->has(auth()->user(), $permission);
+            if (auth()->check() && ! $departmentAccess->canAccessRoute(auth()->user(), $route)) {
+                return false;
+            }
+
+            return true;
         }));
     };
 

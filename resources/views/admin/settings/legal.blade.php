@@ -13,6 +13,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <x-admin.input name="signatory_name" label="Signatory name" :value="$values['signatory_name'] ?? ''" placeholder="John Doe" />
                 <x-admin.input name="signatory_title" label="Position / title" :value="$values['signatory_title'] ?? ''" placeholder="Chief Executive Officer" />
+                <x-admin.input name="signatory_email" label="Email" type="email" :value="$values['signatory_email'] ?? ''" placeholder="ceo@company.co.tz" />
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Signature image</label>
                     @if (! empty($values['signature_path']))
@@ -40,6 +41,24 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <x-admin.input name="offer_validity_days" label="Offer validity (days)" type="number" min="1" max="90"
                                :value="$values['offer_validity_days'] ?? 14" required />
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+            <h3 class="text-sm font-semibold text-gray-900 mb-1">Contract sections</h3>
+            <p class="text-xs text-gray-500 mb-4">
+                Enable or disable sections included in loan contract PDFs. Manage signatories under
+                <a href="{{ route('admin.settings.signatories.index') }}" class="text-amber-700 hover:underline">Signatories</a>.
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                @foreach ($sectionLabels as $key => $label)
+                    <label class="flex items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" name="contract_sections[{{ $key }}]" value="1"
+                               @checked($contractSections[$key] ?? true)
+                               class="rounded border-gray-300 text-amber-600">
+                        {{ $label }}
+                    </label>
+                @endforeach
             </div>
         </div>
 

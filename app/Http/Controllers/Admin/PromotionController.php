@@ -17,7 +17,7 @@ class PromotionController extends ResourceController
         return [
             'code'              => ['required', 'string', 'max:40'],
             'name'              => ['required', 'string', 'max:150'],
-            'type'              => ['required', 'in:birthday,fee_discount,interest_discount,referral_bonus'],
+            'type'              => ['required', 'in:birthday,registration_fee_discount,application_fee_discount,referral,promo_code,seasonal,fee_discount,interest_discount,referral_bonus'],
             'status'            => ['required', 'in:draft,active,ended'],
             'discount_percent'  => ['nullable', 'numeric', 'min:0', 'max:100'],
             'discount_amount'   => ['nullable', 'numeric', 'min:0'],
@@ -32,10 +32,15 @@ class PromotionController extends ResourceController
     {
         return [
             'types' => [
-                'birthday'           => 'Birthday greeting',
-                'fee_discount'       => 'Fee discount',
-                'interest_discount'  => 'Interest discount',
-                'referral_bonus'     => 'Referral bonus',
+                'birthday'                  => 'Birthday',
+                'registration_fee_discount' => 'Registration fee discount',
+                'application_fee_discount'  => 'Application fee discount',
+                'referral'                  => 'Referral',
+                'promo_code'                => 'Promo code',
+                'seasonal'                  => 'Seasonal',
+                'fee_discount'              => 'General fee discount',
+                'interest_discount'         => 'Interest discount',
+                'referral_bonus'            => 'Referral bonus',
             ],
             'statuses' => [
                 'draft'  => 'Draft',

@@ -12,6 +12,8 @@
         </div>
     @endif
 
+    <x-site.borrower-dashboard-hero :hero="$dashboardHero ?? []" />
+
     <x-site.onboarding-hero-banner :banner="$onboardingBanner" />
 
     @if ($applyDraftResume ?? null)

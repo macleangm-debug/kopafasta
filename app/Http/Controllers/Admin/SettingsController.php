@@ -48,6 +48,20 @@ class SettingsController extends Controller
     {
         return view('admin.settings.legal', [
             'values' => Setting::group('legal'),
+            'contractSections' => app(\App\Services\LegalSettingsService::class)->contractSections(),
+            'sectionLabels' => [
+                'definitions'           => 'Definitions',
+                'loan_terms'            => 'Loan terms',
+                'repayment_obligations' => 'Repayment obligations',
+                'default_events'        => 'Default events',
+                'penalty_clauses'       => 'Penalty clauses',
+                'recovery_clauses'      => 'Recovery clauses',
+                'guarantor_obligations' => 'Guarantor obligations',
+                'legal_costs'           => 'Legal costs',
+                'jurisdiction'          => 'Jurisdiction',
+                'data_privacy'          => 'Data privacy',
+                'signatures'            => 'Signatures',
+            ],
         ]);
     }
 
@@ -56,6 +70,7 @@ class SettingsController extends Controller
         $data = $request->validate([
             'signatory_name'      => ['nullable', 'string', 'max:120'],
             'signatory_title'     => ['nullable', 'string', 'max:120'],
+            'signatory_email'     => ['nullable', 'email', 'max:150'],
             'offer_validity_days' => ['required', 'integer', 'min:1', 'max:90'],
             'late_fee_amount'     => ['required', 'numeric', 'min:0'],
             'jurisdiction'        => ['required', 'string', 'max:200'],
@@ -68,6 +83,8 @@ class SettingsController extends Controller
             'legal_cost_clause'   => ['nullable', 'string', 'max:2000'],
             'guarantor_clause'    => ['nullable', 'string', 'max:2000'],
             'asset_recovery_clause' => ['nullable', 'string', 'max:2000'],
+            'contract_sections'   => ['nullable', 'array'],
+            'contract_sections.*' => ['nullable', 'boolean'],
         ]);
 
         if ($request->hasFile('signature_image')) {
@@ -78,7 +95,18 @@ class SettingsController extends Controller
             $data['stamp_path'] = $request->file('stamp_image')->store('legal', 'public');
         }
 
+        $sectionKeys = [
+            'definitions', 'loan_terms', 'repayment_obligations', 'default_events',
+            'penalty_clauses', 'recovery_clauses', 'guarantor_obligations',
+            'legal_costs', 'jurisdiction', 'data_privacy', 'signatures',
+        ];
+        $sections = collect($sectionKeys)
+            ->mapWithKeys(fn (string $key) => [$key => $request->boolean("contract_sections.$key")])
+            ->all();
+        unset($data['contract_sections']);
+
         Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["legal.$k" => $v])->all());
+        Setting::set('legal.contract_sections', $sections);
 
         return back()->with('status', 'Legal settings saved.');
     }
@@ -252,6 +280,7 @@ class SettingsController extends Controller
             'qualification_kyc_incomplete_factor'   => ['nullable', 'numeric', 'min:0', 'max:1'],
             'qualification_min_profile_percent'     => ['nullable', 'integer', 'min:0', 'max:100'],
             'max_active_applications_per_product'   => ['nullable', 'integer', 'min:1', 'max:10'],
+            'max_active_loans'                        => ['nullable', 'integer', 'min:1', 'max:5'],
             'max_active_guarantees'                 => ['nullable', 'integer', 'min:1', 'max:20'],
             'allow_asset_reuse'                     => ['nullable', 'boolean'],
             'top_up_min_successful_repayments'      => ['nullable', 'integer', 'min:0', 'max:60'],
@@ -262,6 +291,7 @@ class SettingsController extends Controller
         $data['payment_holiday_accrue_interest'] = (bool) ($data['payment_holiday_accrue_interest'] ?? false);
         $data['payment_holiday_max_months'] = (int) ($data['payment_holiday_max_months'] ?? 3);
         $data['max_active_applications_per_product'] = (int) ($data['max_active_applications_per_product'] ?? 1);
+        $data['max_active_loans'] = (int) ($data['max_active_loans'] ?? 1);
         $data['max_active_guarantees'] = (int) ($data['max_active_guarantees'] ?? 5);
         $data['top_up_min_successful_repayments'] = (int) ($data['top_up_min_successful_repayments'] ?? 6);
 

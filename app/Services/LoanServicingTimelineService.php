@@ -129,19 +129,13 @@ class LoanServicingTimelineService
             }
         }
 
-        if (in_array($loan->status, ['closed', 'written_off'], true)) {
-            $closedAt = $loan->closed_at
-                ?? $loan->written_off_at
-                ?? $loan->updated_at;
+        if ($loan->status === 'closed') {
+            $closedAt = $loan->closed_at ?? $loan->updated_at;
 
             $events[] = [
-                'key'    => $loan->status === 'written_off' ? 'written_off' : 'closed',
-                'label'  => $loan->status === 'written_off'
-                    ? __('borrower.loan_servicing.timeline.written_off')
-                    : __('borrower.loan_servicing.timeline.closed'),
-                'detail' => $loan->status === 'written_off' && $loan->write_off_reason
-                    ? $loan->write_off_reason
-                    : null,
+                'key'    => 'closed',
+                'label'  => __('borrower.loan_servicing.timeline.closed'),
+                'detail' => null,
                 'at'     => Carbon::parse($closedAt),
                 'tone'   => 'gray',
             ];

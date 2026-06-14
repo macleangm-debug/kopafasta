@@ -12,9 +12,10 @@ class ActiveLoanServicingService
     public function forLoan(Loan $loan): array
     {
         $loan->loadMissing(['product', 'repaymentSchedules']);
+        $breakdown = app(LoanBalanceService::class)->breakdown($loan);
 
         $principal = (float) $loan->principal_amount;
-        $outstanding = (float) $loan->outstanding_balance;
+        $outstanding = $breakdown['total_outstanding'];
         $paid = max(0, $principal - $outstanding);
         $progressPct = $principal > 0 ? min(100, round(($paid / $principal) * 100, 1)) : 0.0;
 
@@ -52,6 +53,7 @@ class ActiveLoanServicingService
             'status_label'        => display_label($loan->status, 'loan_status'),
             'principal'           => $principal,
             'outstanding_balance' => $outstanding,
+            'balance_breakdown'   => $breakdown,
             'principal_paid'      => $paid,
             'progress_pct'        => $progressPct,
             'next_installment'    => $nextInstallment,

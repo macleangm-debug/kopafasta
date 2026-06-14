@@ -143,12 +143,13 @@ class BorrowerController extends Controller
         $referralCode = $customer->referral_code;
         $referralLink = $referralService->referralLink($customer);
         $referralWallet = $referralService->wallet($customer);
+        $dashboardHero = app(\App\Services\BorrowerDashboardHeroService::class)->forCustomer($customer, $activeLoan, $nextDue);
 
         return view('site.borrower.dashboard', compact(
             'customer','activeLoan','nextDue','applicationsCount',
             'notifications','eligibility',
             'products','applyRequirements','onboardingBanner','applyDraftResume','activeApplications','activeApplicationRows','unreadNotificationCount',
-            'openDocumentRequests','referralCode','referralLink','referralWallet',
+            'openDocumentRequests','referralCode','referralLink','referralWallet','dashboardHero',
         ));
     }
 

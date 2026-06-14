@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Models\Branch;
+use App\Models\Department;
 use App\Models\User;
 use App\Services\RoleService;
 use App\Services\UserAccountService;
@@ -37,6 +38,7 @@ class UserController extends ResourceController
             'phone'          => ['nullable', 'string', 'max:30'],
             'role'           => ['required', Rule::in($allowedRoles)],
             'branch_id'      => ['nullable', 'exists:branches,id'],
+            'department_id'  => ['nullable', 'exists:departments,id'],
             'approval_limit' => ['nullable', 'numeric', 'min:0'],
             'is_active'      => ['nullable', 'boolean'],
             'password'       => [$id ? 'nullable' : 'required', 'string', 'min:6'],
@@ -52,8 +54,9 @@ class UserController extends ResourceController
         }
 
         return [
-            'branches' => Branch::orderBy('name')->pluck('name', 'id'),
-            'roles'    => $roleOptions,
+            'branches'    => Branch::orderBy('name')->pluck('name', 'id'),
+            'departments' => Department::orderBy('name')->pluck('name', 'id'),
+            'roles'       => $roleOptions,
         ];
     }
 

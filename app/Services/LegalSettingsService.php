@@ -73,6 +73,39 @@ class LegalSettingsService
         return (string) $this->get('jurisdiction', 'United Republic of Tanzania');
     }
 
+    /** @return array<string, bool> */
+    public function contractSections(): array
+    {
+        $defaults = [
+            'definitions'            => true,
+            'loan_terms'             => true,
+            'repayment_obligations'  => true,
+            'default_events'         => true,
+            'penalty_clauses'        => true,
+            'recovery_clauses'       => true,
+            'guarantor_obligations'  => true,
+            'legal_costs'            => true,
+            'jurisdiction'           => true,
+            'data_privacy'           => true,
+            'signatures'             => true,
+        ];
+
+        $stored = Setting::get('legal.contract_sections');
+        if (! is_array($stored)) {
+            return $defaults;
+        }
+
+        return array_merge($defaults, array_map('boolval', $stored));
+    }
+
+    public function activeSignatory(): ?\App\Models\CompanySignatory
+    {
+        return \App\Models\CompanySignatory::query()
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->first();
+    }
+
     /** @return array<string, mixed> */
     public function contractClauses(): array
     {

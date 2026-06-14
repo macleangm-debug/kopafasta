@@ -11,6 +11,7 @@
 <x-admin.step title="Role & access">
     <x-admin.select name="role"            label="Role"           :options="$roles"   :value="$r?->role ?? 'officer'" required />
     <x-admin.select name="branch_id"       label="Branch"         :options="$branches" :value="$r?->branch_id" placeholder="— None —" />
+    <x-admin.select name="department_id"   label="Primary department" :options="$departments" :value="$r?->department_id" placeholder="— None —" />
     <x-admin.input  name="approval_limit"  label="Approval limit (TZS)" :value="$r?->approval_limit" money />
     <x-admin.select name="is_active"       label="Status"         :options="['1' => 'Active', '0' => 'Inactive']" :value="(string) ($r?->is_active ?? '1')" required />
 </x-admin.step>

@@ -38,8 +38,9 @@
                 <x-admin.input name="guarantor_required_above"  label="Guarantor required above" type="number" step="0.01" :value="$values['guarantor_required_above'] ?? '1000000'" />
                 <x-admin.input name="collateral_required_above" label="Collateral required above" type="number" step="0.01" :value="$values['collateral_required_above'] ?? '5000000'" />
                 <x-admin.input name="min_guarantors" label="Minimum guarantors" type="number" :value="$values['min_guarantors'] ?? '1'" required />
-                <x-admin.input name="max_active_guarantees" label="Max active guarantees per guarantor" type="number" :value="$values['max_active_guarantees'] ?? '5'" required />
                 <x-admin.input name="max_active_applications_per_product" label="Max active applications per product" type="number" :value="$values['max_active_applications_per_product'] ?? '1'" required />
+                <x-admin.input name="max_active_loans" label="Max active loans per borrower" type="number" :value="$values['max_active_loans'] ?? '1'" required />
+                <x-admin.input name="max_active_guarantees" label="Max active guarantees per guarantor" type="number" :value="$values['max_active_guarantees'] ?? '5'" required />
                 <x-admin.input name="top_up_min_successful_repayments" label="Top-up: min successful repayments" type="number" :value="$values['top_up_min_successful_repayments'] ?? '6'" required />
                 <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2 md:col-span-3">
                     <input type="hidden" name="allow_asset_reuse" value="0">
@@ -54,7 +55,7 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2 md:col-span-3">
                     <input type="hidden" name="allow_restructure" value="0">
-                    <input type="checkbox" name="allow_restructure" value="1" @checked(!empty($values['allow_restructure'])) class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                    <input type="checkbox" name="allow_restructure" value="1" @checked(array_key_exists('allow_restructure', $values) ? ! empty($values['allow_restructure']) : false) class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
                     <span class="text-gray-800">Allow loan restructuring</span>
                 </label>
                 <x-admin.input name="max_restructures"           label="Max restructures per loan" type="number" :value="$values['max_restructures'] ?? '2'" required />

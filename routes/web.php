@@ -31,7 +31,7 @@ use App\Http\Controllers\Admin\LoanController;
 use App\Http\Controllers\Admin\LoanProductController;
 use App\Http\Controllers\Admin\MembershipPaymentController;
 use App\Http\Controllers\Admin\PaymentAccountSettingsController;
-use App\Http\Controllers\Admin\LoanTopUpRequestController;
+use App\Http\Controllers\Admin\LoanReportsController;
 use App\Http\Controllers\Admin\PaymentVerificationController;
 use App\Http\Controllers\Admin\RestructureRequestController;
 use App\Http\Controllers\Admin\MobileMoneyAccountController;
@@ -43,7 +43,7 @@ use App\Http\Controllers\Admin\RepaymentController;
 use App\Http\Controllers\Admin\RepaymentMethodController;
 use App\Http\Controllers\Admin\RiskScoringRuleController;
 use App\Http\Controllers\Admin\RoleController;
-use App\Http\Controllers\Admin\SettingsController;
+use App\Http\Controllers\Admin\SignatoryController;
 use App\Http\Controllers\Admin\SettlementController;
 use App\Http\Controllers\Admin\SupportTicketController;
 use App\Http\Controllers\Admin\SuspiciousActivityController;
@@ -458,13 +458,19 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
 
         // Reports — operational
         Route::middleware('permission:reports.view')->group(function (): void {
-            Route::view('reports/portfolio',          'admin.reports.portfolio')          ->name('reports.portfolio');
-            Route::view('reports/disbursements',      'admin.reports.disbursements')      ->name('reports.disbursements');
-            Route::view('reports/repayments',         'admin.reports.repayments')         ->name('reports.repayments');
-            Route::view('reports/arrears',            'admin.reports.arrears')            ->name('reports.arrears');
-            Route::view('reports/par',                'admin.reports.par')                ->name('reports.par');
-            Route::view('reports/vendor-performance', 'admin.reports.vendor-performance') ->name('reports.vendor-performance');
-            Route::get('reports/customers',        [FinanceReportsController::class, 'customers'])      ->name('reports.customers');
+            Route::get('reports/portfolio', [LoanReportsController::class, 'portfolio'])->name('reports.portfolio');
+            Route::get('reports/disbursements', [LoanReportsController::class, 'disbursements'])->name('reports.disbursements');
+            Route::get('reports/applications', [LoanReportsController::class, 'applications'])->name('reports.applications');
+            Route::get('reports/arrears', [LoanReportsController::class, 'arrears'])->name('reports.arrears');
+            Route::get('reports/repayments', [LoanReportsController::class, 'repayments'])->name('reports.repayments');
+            Route::get('reports/collections-performance', [LoanReportsController::class, 'collectionsPerformance'])->name('reports.collections-performance');
+            Route::get('reports/par', [LoanReportsController::class, 'par'])->name('reports.par');
+            Route::view('reports/vendor-performance', 'admin.reports.vendor-performance')->name('reports.vendor-performance');
+            Route::get('reports/customers', [FinanceReportsController::class, 'customers'])->name('reports.customers');
+        });
+
+        Route::middleware('permission:finance.reports')->group(function (): void {
+            Route::get('reports/finance-summary', [LoanReportsController::class, 'financeSummary'])->name('reports.finance-summary');
         });
 
         // Support
@@ -566,6 +572,12 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/underwriting',    [SettingsController::class, 'saveUnderwriting'])->name('settings.underwriting.save');
         Route::get('settings/legal',           [SettingsController::class, 'legal'])         ->name('settings.legal');
         Route::put('settings/legal',           [SettingsController::class, 'saveLegal'])     ->name('settings.legal.save');
+        Route::get('settings/signatories', [SignatoryController::class, 'index'])->name('settings.signatories.index');
+        Route::get('settings/signatories/create', [SignatoryController::class, 'create'])->name('settings.signatories.create');
+        Route::post('settings/signatories', [SignatoryController::class, 'store'])->name('settings.signatories.store');
+        Route::get('settings/signatories/{signatory}/edit', [SignatoryController::class, 'edit'])->name('settings.signatories.edit');
+        Route::put('settings/signatories/{signatory}', [SignatoryController::class, 'update'])->name('settings.signatories.update');
+        Route::delete('settings/signatories/{signatory}', [SignatoryController::class, 'destroy'])->name('settings.signatories.destroy');
         Route::get('settings/credit-policy',    [SettingsController::class, 'creditPolicy'])  ->name('settings.credit-policy');
         Route::put('settings/credit-policy',    [SettingsController::class, 'saveCreditPolicy'])->name('settings.credit-policy.save');
         Route::get('settings/loan-products',    [SettingsController::class, 'loanProducts']) ->name('settings.loan-products');

@@ -9,6 +9,7 @@
         'offer'      => ['Offer Settings',  'admin.settings.offer'],
         'underwriting' => ['Underwriting',  'admin.settings.underwriting'],
         'legal'        => ['Legal',         'admin.settings.legal'],
+        'signatories'  => ['Signatories',   'admin.settings.signatories.index'],
         'credit-policy' => ['Credit Policy', 'admin.settings.credit-policy'],
         'fees'       => ['Fee management',  'admin.charges-fees.index'],
         'loan-products' => ['Loan Products', 'admin.settings.loan-products'],
