@@ -101,12 +101,19 @@ class LoanAgreementService
             'reference'           => 'LC-'.strtoupper(Str::random(8)),
         ]);
 
-        $agreement->fill([
+        $wasSigned = $existing && $existing->isSigned();
+
+        $fill = [
             'snapshot'             => $snapshot,
-            'status'               => 'sent',
-            'sent_at'              => now(),
             'generated_by_user_id' => Auth::id(),
-        ]);
+        ];
+
+        if (! $wasSigned) {
+            $fill['status'] = 'sent';
+            $fill['sent_at'] = now();
+        }
+
+        $agreement->fill($fill);
 
         $viewData = [
             'application' => $application,
@@ -512,11 +519,7 @@ class LoanAgreementService
             $application = $application->fresh(['product', 'postApprovalFees']);
         }
 
-        $application->update([
-            'current_stage' => $readiness->resolveBorrowerStageAfterOfferAcceptance($application),
-        ]);
-
-        return $application->fresh(['product', 'postApprovalFees']);
+        return $readiness->syncBorrowerProgress($application->fresh(['product', 'postApprovalFees']));
     }
 
     /** @deprecated Use advanceAfterOfferAcceptance() */

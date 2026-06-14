@@ -165,10 +165,7 @@ class PostApprovalFeeService
         app(AssetReservationService::class)->syncFromApplication($application);
 
         if ($this->allPaid($application)) {
-            $readiness = app(ApplicationDisbursementReadinessService::class);
-            $application->update([
-                'current_stage' => $readiness->resolveBorrowerStageAfterOfferAcceptance($application->fresh()),
-            ]);
+            app(ApplicationDisbursementReadinessService::class)->syncBorrowerProgress($application->fresh());
             app(LoanAgreementService::class)->ensureLoanContractAfterFees($application->fresh());
         }
 

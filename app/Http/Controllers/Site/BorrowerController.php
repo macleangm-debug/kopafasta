@@ -1161,11 +1161,17 @@ class BorrowerController extends Controller
             default     => $request->query('focus') === 'kin' ? 'kin' : 'nida',
         };
 
+        $detailsService = app(\App\Services\CustomerDisbursementDetailsService::class);
+        $borrowerLegalName = $customer->legalDisplayName() ?? trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
+
         return view($view, compact('customer', 'kyc', 'trustedDevices', 'nidaDocuments', 'employmentContract', 'residenceLetter', 'incomeProofChecklist', 'incomeProofEmployed', 'incomeProofMethod', 'incomePrimaryOptions', 'completionSummary', 'returnUrl', 'wizardMode', 'wizardKey'))
             ->with('editing', $wizardMode || $request->boolean('edit'))
             ->with('crbUsesStub', app(CrbService::class)->usesStub())
             ->with('crbSamples', config('crb_samples.scenarios', []))
-            ->with('profileSections', app(ProfileCompletionService::class)->displaySections($customer));
+            ->with('profileSections', app(ProfileCompletionService::class)->displaySections($customer))
+            ->with('paymentAccounts', $section === 'payment' ? $detailsService->accountsForCustomer($customer) : collect())
+            ->with('borrowerLegalName', $borrowerLegalName)
+            ->with('detailsService', $detailsService);
     }
 
     public function updateProfile(Request $request, string $section = 'personal'): RedirectResponse
@@ -1351,22 +1357,7 @@ class BorrowerController extends Controller
         }
 
         if ($section === 'payment') {
-            $method = $request->input('preferred_disbursement_method');
-            $detailsService = app(\App\Services\CustomerDisbursementDetailsService::class);
-            $data = $request->validate($detailsService->validationRules($method));
-
-            $customer->fill([
-                'preferred_disbursement_method'      => $data['preferred_disbursement_method'],
-                'disbursement_mobile_provider'       => $data['disbursement_mobile_provider'] ?? null,
-                'disbursement_mobile_number'         => $data['disbursement_mobile_number'] ?? null,
-                'disbursement_mobile_account_name'   => $data['disbursement_mobile_account_name'] ?? null,
-                'disbursement_bank_name'             => $data['disbursement_bank_name'] ?? null,
-                'disbursement_bank_account_name'     => $data['disbursement_bank_account_name'] ?? null,
-                'disbursement_bank_account_number'   => $data['disbursement_bank_account_number'] ?? null,
-                'disbursement_bank_branch'           => $data['disbursement_bank_branch'] ?? null,
-            ])->save();
-
-            $detailsService->clearConfirmationForCustomerApplications($customer->fresh());
+            return $this->storePaymentAccount($request, $customer);
         }
 
         if ($section === 'personal') {
@@ -1422,6 +1413,46 @@ class BorrowerController extends Controller
         }
 
         return $default;
+    }
+
+    private function storePaymentAccount(Request $request, Customer $customer): RedirectResponse
+    {
+        $detailsService = app(\App\Services\CustomerDisbursementDetailsService::class);
+        $type = $request->input('type', $request->input('preferred_disbursement_method'));
+        $data = $request->validate($detailsService->validationRules($type, $customer));
+
+        try {
+            $detailsService->createAccount($customer, $data);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        }
+
+        $this->auditBorrower('profile.payment_account_added', $customer, ['type' => $type]);
+
+        if ($return = $this->validatedReturnUrl($request)) {
+            return redirect($return)->with('status', __('borrower.payment_details.account_saved'));
+        }
+
+        return redirect()
+            ->route('site.borrower.profile', ['section' => 'payment'])
+            ->with('status', __('borrower.payment_details.account_saved'));
+    }
+
+    public function destroyPaymentAccount(Request $request, \App\Models\CustomerDisbursementAccount $account): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_if((int) $account->customer_id !== (int) $customer->id, 404);
+
+        app(\App\Services\CustomerDisbursementDetailsService::class)->deleteAccount($customer, $account);
+        $this->auditBorrower('profile.payment_account_removed', $customer, ['account_id' => $account->id]);
+
+        if ($return = $this->validatedReturnUrl($request)) {
+            return redirect($return)->with('status', __('borrower.payment_details.account_removed'));
+        }
+
+        return redirect()
+            ->route('site.borrower.profile', ['section' => 'payment'])
+            ->with('status', __('borrower.payment_details.account_removed'));
     }
 
     private function validatedReturnUrl(Request $request): ?string
@@ -1868,37 +1899,83 @@ class BorrowerController extends Controller
 
         $detailsService = app(\App\Services\CustomerDisbursementDetailsService::class);
         $loanAmount = app(\App\Services\ApplicationOfferService::class)->effectiveAmount($application);
-        $snapshot = $detailsService->snapshotFromCustomer($customer);
-        $paymentComplete = $detailsService->isComplete($customer);
+        $accounts = $detailsService->accountsForCustomer($customer)
+            ->filter(fn ($account) => $detailsService->accountIsComplete($account));
+        $borrowerLegalName = $customer->legalDisplayName() ?? trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
+        $paymentComplete = $accounts->isNotEmpty();
 
         return view('site.borrower.disbursement-details', compact(
             'customer',
             'application',
             'detailsService',
             'loanAmount',
-            'snapshot',
+            'accounts',
+            'borrowerLegalName',
             'paymentComplete',
         ));
     }
 
-    public function confirmDisbursementDetails(LoanApplication $application): RedirectResponse
+    public function confirmDisbursementDetails(Request $request, LoanApplication $application): RedirectResponse
     {
         $customer = $this->customer();
         abort_if($application->customer_id !== $customer->id, 404);
 
         $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
-        abort_unless($readiness->needsDisbursementDetailsConfirmation($application), 422);
-
         $detailsService = app(\App\Services\CustomerDisbursementDetailsService::class);
-        abort_unless($detailsService->isComplete($customer), 422, __('borrower.payment_details.incomplete'));
 
-        $detailsService->confirmForApplication($application, $customer);
+        if ($readiness->disbursementDetailsConfirmed($application)) {
+            return redirect()
+                ->route('site.borrower.application.contract', $application)
+                ->with('status', __('borrower.disbursement_details.already_confirmed'));
+        }
 
-        $this->auditBorrower('disbursement_details.confirmed', $application, [
-            'method' => $customer->preferred_disbursement_method,
+        if (! $readiness->needsDisbursementDetailsConfirmation($application)) {
+            if ($readiness->needsPostApprovalFees($application)) {
+                return redirect()
+                    ->route('site.borrower.application.post-approval-fees', $application)
+                    ->with('error', __('borrower.contract.pay_fees_first'));
+            }
+
+            if ($readiness->needsBorrowerSignature($application)) {
+                return redirect()
+                    ->route('site.borrower.application.agreement', $application)
+                    ->with('error', __('borrower.contract.sign_offer_first'));
+            }
+
+            return redirect()
+                ->route('site.borrower.application', $application)
+                ->with('error', __('borrower.disbursement_details.not_ready'));
+        }
+
+        $data = $request->validate([
+            'disbursement_account_id' => ['required', 'integer', 'exists:customer_disbursement_accounts,id'],
         ]);
 
-        app(\App\Services\LoanAgreementService::class)->ensureLoanContractAfterFees($application->fresh());
+        $account = \App\Models\CustomerDisbursementAccount::query()
+            ->where('customer_id', $customer->id)
+            ->where('id', $data['disbursement_account_id'])
+            ->firstOrFail();
+
+        try {
+            $detailsService->confirmForApplication($application, $customer, $account);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        }
+
+        $this->auditBorrower('disbursement_details.confirmed', $application, [
+            'account_id' => $account->id,
+            'method'     => $account->type,
+        ]);
+
+        $application = $application->fresh();
+        app(\App\Services\LoanAgreementService::class)->ensureLoanContractAfterFees($application);
+
+        $contract = $readiness->loanContract($application->fresh());
+        if (! $contract) {
+            return redirect()
+                ->route('site.borrower.application', $application)
+                ->with('status', __('borrower.disbursement_details.confirmed_contract_pending'));
+        }
 
         return redirect()
             ->route('site.borrower.application.contract', $application)

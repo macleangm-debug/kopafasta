@@ -210,6 +210,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/profile/wizard',              [\App\Http\Controllers\Site\BorrowerController::class, 'profileWizard'])->name('borrower.profile.wizard');
             Route::get('/borrower/profile/{section?}',             [\App\Http\Controllers\Site\BorrowerController::class, 'profile'])->name('borrower.profile')->where('section', 'personal|activity|residence|kin|kyc|security|payment');
             Route::put('/borrower/profile/{section}',              [\App\Http\Controllers\Site\BorrowerController::class, 'updateProfile'])->name('borrower.profile.update')->where('section', 'personal|activity|residence|kin|kyc|payment');
+            Route::delete('/borrower/profile/payment-accounts/{account}', [\App\Http\Controllers\Site\BorrowerController::class, 'destroyPaymentAccount'])->name('borrower.profile.payment-accounts.destroy');
             Route::post('/borrower/profile/nida/verify',           [\App\Http\Controllers\Site\BorrowerController::class, 'verifyNida'])->name('borrower.profile.nida.verify');
             Route::post('/borrower/profile/nida/accept-names',    [\App\Http\Controllers\Site\BorrowerController::class, 'acceptNidaNames'])->name('borrower.profile.nida.accept-names');
             Route::post('/borrower/profile/nida/confirm',          [\App\Http\Controllers\Site\BorrowerController::class, 'confirmNidaCandidate'])->name('borrower.profile.nida.confirm');

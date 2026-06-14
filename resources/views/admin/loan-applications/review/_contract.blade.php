@@ -51,6 +51,41 @@
         @endif
     @endif
 
+    @php
+        $disbursementDestination = $disbursementReadiness->disbursementDestination($record);
+        $detailsService = app(\App\Services\CustomerDisbursementDetailsService::class);
+        $destinationConfirmed = $disbursementReadiness->disbursementDetailsConfirmed($record);
+    @endphp
+
+    @if (! empty($disbursementDestination['method'] ?? null))
+        <div class="mb-5 rounded-lg ring-1 {{ $destinationConfirmed ? 'ring-emerald-200 bg-emerald-50/40' : 'ring-gray-200' }} overflow-hidden">
+            <div class="bg-gray-50 px-4 py-2 border-b border-gray-200 flex items-center justify-between gap-3">
+                <p class="text-xs font-semibold uppercase tracking-widest text-gray-600">Disbursement destination</p>
+                @if ($destinationConfirmed)
+                    <span class="text-[10px] font-semibold uppercase tracking-widest text-emerald-700">Locked · Selected by borrower</span>
+                @endif
+            </div>
+            <dl class="grid sm:grid-cols-2 gap-4 px-4 py-4 text-sm">
+                <div>
+                    <dt class="text-[10px] uppercase tracking-widest text-gray-500">Method</dt>
+                    <dd class="font-semibold text-gray-900 mt-1">{{ $detailsService->methodLabel($disbursementDestination['method'] ?? null) }}</dd>
+                </div>
+                @foreach ($detailsService->displayLines($disbursementDestination) as $label => $value)
+                    <div>
+                        <dt class="text-[10px] uppercase tracking-widest text-gray-500">{{ $label }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-1">{{ $value }}</dd>
+                    </div>
+                @endforeach
+                <div>
+                    <dt class="text-[10px] uppercase tracking-widest text-gray-500">Selected by borrower</dt>
+                    <dd class="font-semibold {{ $destinationConfirmed ? 'text-emerald-700' : 'text-amber-700' }} mt-1">
+                        {{ ($disbursementDestination['selected_by_borrower'] ?? false) ? 'Yes' : 'No' }}
+                    </dd>
+                </div>
+            </dl>
+        </div>
+    @endif
+
     <h4 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Offer summary</h4>
     @if ($offer)
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">

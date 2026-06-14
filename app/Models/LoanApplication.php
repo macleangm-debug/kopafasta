@@ -43,6 +43,7 @@ class LoanApplication extends Model
             'recommended_at' => 'datetime',
             'disbursement_details_confirmed_at' => 'datetime',
             'disbursement_details_snapshot' => 'array',
+            'borrower_completed_steps' => 'array',
         ];
     }
 
@@ -104,5 +105,10 @@ class LoanApplication extends Model
     public function assetReservation(): HasOne
     {
         return $this->hasOne(AssetReservation::class);
+    }
+
+    public function disbursementAccount(): BelongsTo
+    {
+        return $this->belongsTo(CustomerDisbursementAccount::class, 'disbursement_account_id');
     }
 }

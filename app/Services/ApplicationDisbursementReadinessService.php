@@ -37,6 +37,10 @@ class ApplicationDisbursementReadinessService
 
     public function offerSigned(LoanApplication $application): bool
     {
+        if ((string) $application->offer_status === 'accepted') {
+            return true;
+        }
+
         $offer = $this->offerLetter($application);
 
         return $offer && $offer->isSigned() && ! $offer->isOfferExpired();
@@ -370,7 +374,79 @@ class ApplicationDisbursementReadinessService
             return LoanApplication::BORROWER_STAGE_CONTRACT;
         }
 
+        if ($this->isReadyForDisbursement($application)) {
+            return 'disbursement';
+        }
+
         return (string) ($application->current_stage ?? 'approval');
+    }
+
+    public function resolveBorrowerCurrentAction(LoanApplication $application): ?string
+    {
+        if ($this->needsBorrowerSignature($application)) {
+            return 'sign_offer';
+        }
+
+        if ($this->needsPostApprovalFees($application)) {
+            return 'pay_post_approval_fees';
+        }
+
+        if ($this->needsDisbursementDetailsConfirmation($application)) {
+            return 'confirm_disbursement_details';
+        }
+
+        if ($this->needsContractSignature($application)) {
+            return 'sign_contract';
+        }
+
+        if ($this->isReadyForDisbursement($application)) {
+            return 'ready_for_disbursement';
+        }
+
+        return null;
+    }
+
+    /** @return list<string> */
+    public function resolveBorrowerCompletedSteps(LoanApplication $application): array
+    {
+        $steps = [];
+
+        if ($this->offerSigned($application)) {
+            $steps[] = 'offer_accepted';
+        }
+
+        if ($this->offerSigned($application)
+            && (! $this->hasPostApprovalFees($application) || $this->feesPaid($application))) {
+            $steps[] = 'post_approval_fees_paid';
+        }
+
+        if ($this->disbursementDetailsConfirmed($application)) {
+            $steps[] = 'disbursement_account_confirmed';
+        }
+
+        if ($this->contractSigned($application)) {
+            $steps[] = 'contract_signed';
+        }
+
+        if ((string) $application->status === 'disbursed'
+            || in_array((string) ($application->loan?->status ?? ''), ['active', 'disbursed'], true)) {
+            $steps[] = 'disbursed';
+        }
+
+        return $steps;
+    }
+
+    public function syncBorrowerProgress(LoanApplication $application): LoanApplication
+    {
+        $application = $application->fresh(['product', 'postApprovalFees', 'loan']);
+
+        $application->update([
+            'current_stage'            => $this->resolveBorrowerStageAfterOfferAcceptance($application),
+            'borrower_current_action'  => $this->resolveBorrowerCurrentAction($application),
+            'borrower_completed_steps' => $this->resolveBorrowerCompletedSteps($application),
+        ]);
+
+        return $application->fresh(['product', 'postApprovalFees', 'loan']);
     }
 
     public function borrowerPostApprovalStages(): array

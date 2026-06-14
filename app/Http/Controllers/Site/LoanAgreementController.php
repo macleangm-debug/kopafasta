@@ -300,6 +300,7 @@ class LoanAgreementController extends Controller
 
         if ($ok) {
             $this->service->generateLoanContract($application, regenerate: true);
+            app(ApplicationDisbursementReadinessService::class)->syncBorrowerProgress($application->fresh());
             $this->auditBorrower('contract.signed', $application, [
                 'agreement_id' => $contract->id,
                 'reference'    => $contract->reference,
@@ -328,6 +329,7 @@ class LoanAgreementController extends Controller
 
         if ($ok) {
             $this->service->generateLoanContract($application, regenerate: true);
+            app(ApplicationDisbursementReadinessService::class)->syncBorrowerProgress($application->fresh());
             $this->auditBorrower('contract.accepted', $application, [
                 'agreement_id' => $contract->id,
                 'reference'    => $contract->reference,
