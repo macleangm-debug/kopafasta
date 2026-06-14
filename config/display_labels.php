@@ -107,10 +107,26 @@ return [
             'gps_installer'       => 'GPS installer',
             'insurance'           => 'Insurance provider',
             'valuer'              => 'Valuer',
-            'lawyer'              => 'Lawyer',
+            'towing'              => 'Towing / repossession',
+            'yard'                => 'Yard',
             'auctioneer'          => 'Auctioneer',
+            'supplier'            => 'Asset supplier',
+            'affiliate'           => 'Affiliate partner',
+            'call_center'         => 'Call center',
+            'debt_collector'      => 'Debt collector',
+            'legal_partner'       => 'Legal partner',
+            'lawyer'              => 'Lawyer',
             'dealer'              => 'Dealer',
             'general'             => 'General vendor',
+        ],
+
+        'recovery_partner_type' => [
+            'call_center'    => 'Call center',
+            'debt_collector' => 'Debt collector',
+            'repossession'   => 'Repossession',
+            'auctioneer'     => 'Auctioneer',
+            'legal_partner'  => 'Legal partner',
+            'gps_partner'    => 'GPS partner',
         ],
 
         'vendor_task_type' => [

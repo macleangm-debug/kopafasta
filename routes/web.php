@@ -39,6 +39,8 @@ use App\Http\Controllers\Admin\NotificationTemplateController;
 use App\Http\Controllers\Admin\PepFlagController;
 use App\Http\Controllers\Admin\JournalEntryController;
 use App\Http\Controllers\Admin\ReconciliationController;
+use App\Http\Controllers\Admin\RecoveryAssignmentController;
+use App\Http\Controllers\Admin\RecoveryPartnerController;
 use App\Http\Controllers\Admin\RepaymentController;
 use App\Http\Controllers\Admin\RepaymentMethodController;
 use App\Http\Controllers\Admin\RiskScoringRuleController;
@@ -227,6 +229,10 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         Route::get('/vendor/tasks',                             [\App\Http\Controllers\Site\VendorController::class, 'tasks'])         ->name('vendor.tasks');
         Route::get('/vendor/tasks/active',                      [\App\Http\Controllers\Site\VendorController::class, 'activeJobs'])    ->name('vendor.tasks.active');
         Route::get('/vendor/tasks/completed',                   [\App\Http\Controllers\Site\VendorController::class, 'completedJobs']) ->name('vendor.tasks.completed');
+        Route::get('/vendor/recovery-cases',                    [\App\Http\Controllers\Site\VendorController::class, 'recoveryCases']) ->name('vendor.recovery-cases');
+        Route::get('/vendor/recovery-cases/{recoveryAssignment}', [\App\Http\Controllers\Site\VendorController::class, 'recoveryCase']) ->name('vendor.recovery-case');
+        Route::post('/vendor/recovery-cases/{recoveryAssignment}/start', [\App\Http\Controllers\Site\VendorController::class, 'startRecoveryCase']) ->name('vendor.recovery-case.start');
+        Route::post('/vendor/recovery-cases/{recoveryAssignment}/actions', [\App\Http\Controllers\Site\VendorController::class, 'recoveryCaseAction']) ->name('vendor.recovery-case.action');
         Route::get('/vendor/tasks/{task}',                      [\App\Http\Controllers\Site\VendorController::class, 'task'])          ->name('vendor.task');
         Route::post('/vendor/tasks/{task}/accept',              [\App\Http\Controllers\Site\VendorController::class, 'acceptTask'])    ->name('vendor.task.accept');
         Route::post('/vendor/tasks/{task}/start',               [\App\Http\Controllers\Site\VendorController::class, 'startTask'])     ->name('vendor.task.start');
@@ -395,10 +401,19 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('arrear-cases/{arrearCase}', [ArrearCaseController::class, 'show'])->name('arrear-cases.show');
         Route::put('arrear-cases/{arrearCase}', [ArrearCaseController::class, 'update'])->name('arrear-cases.update');
         Route::post('arrear-cases/{arrearCase}/actions', [ArrearCaseController::class, 'addAction'])->name('arrear-cases.actions');
+        Route::post('arrear-cases/{arrearCase}/recovery-assign', [ArrearCaseController::class, 'assignRecoveryPartner'])->name('arrear-cases.recovery-assign');
         Route::get('write-off-requests', [WriteOffRequestController::class, 'index'])->name('write-off-requests.index');
         Route::get('write-off-requests/{writeOffRequest}', [WriteOffRequestController::class, 'show'])->name('write-off-requests.show');
         Route::post('loans/{loan}/write-off-requests', [WriteOffRequestController::class, 'recommendFromLoan'])->name('loans.write-off-requests.store');
         Route::post('arrear-cases/{arrearCase}/write-off-requests', [WriteOffRequestController::class, 'recommendFromCase'])->name('arrear-cases.write-off-requests.store');
+
+        Route::get('recovery/partners', [RecoveryPartnerController::class, 'index'])->name('recovery.partners.index');
+        Route::get('recovery/partners/{type}', [RecoveryPartnerController::class, 'byType'])->name('recovery.partners.type');
+        Route::get('recovery/assignments', [RecoveryAssignmentController::class, 'index'])->name('recovery.assignments.index');
+        Route::get('recovery/assignments/{recoveryAssignment}', [RecoveryAssignmentController::class, 'show'])->name('recovery.assignments.show');
+        Route::post('recovery/assignments/{recoveryAssignment}/start', [RecoveryAssignmentController::class, 'start'])->name('recovery.assignments.start');
+        Route::post('recovery/assignments/{recoveryAssignment}/complete', [RecoveryAssignmentController::class, 'complete'])->name('recovery.assignments.complete');
+        Route::post('recovery/assignments/{recoveryAssignment}/escalate', [RecoveryAssignmentController::class, 'escalate'])->name('recovery.assignments.escalate');
         Route::post('write-off-requests/{writeOffRequest}/manager-approve', [WriteOffRequestController::class, 'managerApprove'])->name('write-off-requests.manager-approve');
         Route::post('write-off-requests/{writeOffRequest}/finance-approve', [WriteOffRequestController::class, 'financeApprove'])->name('write-off-requests.finance-approve');
         Route::post('write-off-requests/{writeOffRequest}/reject', [WriteOffRequestController::class, 'reject'])->name('write-off-requests.reject');
@@ -590,6 +605,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/aml',              [SettingsController::class, 'saveAmlSettings'])->name('settings.aml.save');
         Route::get('settings/finance',          [SettingsController::class, 'finance'])       ->name('settings.finance');
         Route::put('settings/finance',          [SettingsController::class, 'saveFinance'])   ->name('settings.finance.save');
+        Route::get('settings/recovery',         [SettingsController::class, 'recovery'])      ->name('settings.recovery');
+        Route::put('settings/recovery',         [SettingsController::class, 'saveRecovery'])  ->name('settings.recovery.save');
         Route::get('settings/payment-accounts',   [PaymentAccountSettingsController::class, 'index'])         ->name('settings.payment-accounts');
         Route::put('settings/payment-accounts',   [PaymentAccountSettingsController::class, 'saveDefaults'])  ->name('settings.payment-accounts.save');
         Route::put('settings/payment-accounts/default-collection', [PaymentAccountSettingsController::class, 'saveDefaultCollection'])->name('settings.payment-accounts.default-collection');

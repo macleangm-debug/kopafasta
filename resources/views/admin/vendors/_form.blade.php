@@ -42,3 +42,9 @@
     <x-admin.input name="application_discount_percent" label="Application discount (%)" type="number" step="0.01" :value="$r?->application_discount_percent ?? config('affiliates.default_application_discount_percent')" />
     <x-admin.input name="affiliate_commission_percent" label="Commission (%)" type="number" step="0.01" :value="$r?->affiliate_commission_percent ?? config('affiliates.default_commission_percent')" />
 </x-admin.step>
+
+<x-admin.step title="Recovery partner rates">
+    <p class="md:col-span-2 text-xs text-gray-500 mb-2">Optional overrides for call center, debt collector, towing, auctioneer, legal, and GPS recovery partners. Leave blank to use recovery policy defaults.</p>
+    <x-admin.input name="recovery_commission_percent" label="Recovery commission (%)" type="number" step="0.01" :value="$r?->recovery_commission_percent" />
+    <x-admin.input name="recovery_markup_percent" label="Recovery company markup (%)" type="number" step="0.01" :value="$r?->recovery_markup_percent" />
+</x-admin.step>

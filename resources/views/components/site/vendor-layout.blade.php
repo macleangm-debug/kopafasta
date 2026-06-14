@@ -4,6 +4,7 @@
 $nav = [
     ['key' => 'dashboard',     'label' => 'Dashboard',      'route' => 'site.vendor.dashboard',       'icon' => 'home'],
     ['key' => 'tasks',         'label' => 'Assigned Tasks', 'route' => 'site.vendor.tasks',           'icon' => 'clipboard'],
+    ['key' => 'recovery',      'label' => 'Recovery Cases', 'route' => 'site.vendor.recovery-cases',  'icon' => 'alert'],
     ['key' => 'active',        'label' => 'Active Jobs',    'route' => 'site.vendor.tasks.active',    'icon' => 'play'],
     ['key' => 'completed',     'label' => 'Completed Jobs', 'route' => 'site.vendor.tasks.completed', 'icon' => 'check'],
     ['key' => 'documents',     'label' => 'Documents',      'route' => 'site.vendor.documents',       'icon' => 'folder'],
@@ -14,10 +15,21 @@ $nav = [
     ['key' => 'profile',       'label' => 'Profile',        'route' => 'site.vendor.profile',         'icon' => 'user'],
 ];
 
+$portalVendor = auth()->user()
+    ? \App\Models\Vendor::query()->where('user_id', auth()->id())->first()
+    : null;
+$showRecoveryNav = $portalVendor
+    && app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($portalVendor);
+
+if (! $showRecoveryNav) {
+    $nav = array_values(array_filter($nav, fn (array $item) => $item['key'] !== 'recovery'));
+}
+
 $icon = function (string $name) {
     return match ($name) {
         'home'      => '<path d="M3 12 12 4l9 8M5 10v10h14V10"/>',
         'clipboard' => '<path d="M9 5h6a2 2 0 0 1 2 2v0h-10v0a2 2 0 0 1 2-2zM7 7H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"/>',
+        'alert'     => '<path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>',
         'play'      => '<path d="M8 5l12 7-12 7z"/>',
         'check'     => '<path d="M5 13l4 4L19 7"/>',
         'folder'    => '<path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6z"/>',

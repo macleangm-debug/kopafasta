@@ -20,6 +20,9 @@ class PartnerService
             'yard'          => 'Yard',
             'auctioneer'    => 'Auctioneer',
             'capital'       => 'Capital partner',
+            'call_center'   => 'Call center',
+            'debt_collector'=> 'Debt collector',
+            'legal_partner' => 'Legal partner',
         ];
     }
 

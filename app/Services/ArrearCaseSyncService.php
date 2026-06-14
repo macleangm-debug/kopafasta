@@ -41,16 +41,20 @@ class ArrearCaseSyncService
                 'status'            => $case->status === 'resolved' ? 'resolved' : $status,
             ]);
 
-            return $case->fresh();
+            $case = $case->fresh();
+        } else {
+            $case = ArrearCase::create([
+                'loan_id'           => $loan->id,
+                'days_past_due'     => $daysPastDue,
+                'amount_in_arrears' => (float) ($metrics['amount_in_arrears'] ?? 0),
+                'penalty_amount'    => 0,
+                'status'            => $status,
+            ]);
         }
 
-        return ArrearCase::create([
-            'loan_id'           => $loan->id,
-            'days_past_due'     => $daysPastDue,
-            'amount_in_arrears' => (float) ($metrics['amount_in_arrears'] ?? 0),
-            'penalty_amount'    => 0,
-            'status'            => $status,
-        ]);
+        app(RecoveryAutoAssignmentService::class)->maybeAssignCallCenter($case);
+
+        return $case;
     }
 
     public function notifyBorrowerArrears(Loan $loan): void

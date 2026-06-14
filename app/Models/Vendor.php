@@ -74,4 +74,14 @@ class Vendor extends Model
     {
         return $this->category === 'affiliate';
     }
+
+    public function isRecoveryPartner(): bool
+    {
+        return app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($this);
+    }
+
+    public function recoveryAssignments(): HasMany
+    {
+        return $this->hasMany(RecoveryAssignment::class);
+    }
 }

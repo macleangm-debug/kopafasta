@@ -13,6 +13,7 @@ class ActiveLoanServicingService
     {
         $loan->loadMissing(['product', 'repaymentSchedules']);
         $breakdown = app(LoanBalanceService::class)->breakdown($loan);
+        $recoveryCharges = app(RecoveryChargesService::class)->breakdownForLoan($loan);
 
         $principal = (float) $loan->principal_amount;
         $outstanding = $breakdown['total_outstanding'];
@@ -54,6 +55,7 @@ class ActiveLoanServicingService
             'principal'           => $principal,
             'outstanding_balance' => $outstanding,
             'balance_breakdown'   => $breakdown,
+            'recovery_charges'    => $recoveryCharges,
             'principal_paid'      => $paid,
             'progress_pct'        => $progressPct,
             'next_installment'    => $nextInstallment,

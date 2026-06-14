@@ -499,4 +499,66 @@ class SettingsController extends Controller
 
         return back()->with('status', 'Credit policy saved.');
     }
+
+    public function recovery()
+    {
+        $policy = app(\App\Services\RecoveryPolicyService::class);
+        $raw = Setting::group('recovery');
+        $types = $policy->partnerTypes();
+
+        $values = [
+            'grace_period_days'       => $raw['grace_period_days'] ?? 7,
+            'auto_escalate'           => (bool) ($raw['auto_escalate'] ?? true),
+            'auto_assign_call_center' => (bool) ($raw['auto_assign_call_center'] ?? true),
+            'call_center_lead_days'   => $raw['call_center_lead_days'] ?? 2,
+            'sla_days'                => [],
+            'commission_percent'=> [],
+            'markup_percent'    => [],
+        ];
+
+        foreach ($types as $type => $meta) {
+            $values['sla_days'][$type] = $raw["sla_days.{$type}"] ?? $meta['default_sla_days'];
+            $values['commission_percent'][$type] = $raw["commission_percent.{$type}"] ?? $meta['default_commission_percent'];
+            $values['markup_percent'][$type] = $raw["markup_percent.{$type}"] ?? $meta['default_markup_percent'];
+        }
+
+        return view('admin.settings.recovery', compact('values', 'types'));
+    }
+
+    public function saveRecovery(Request $request)
+    {
+        $types = array_keys(config('recovery.partner_types', []));
+
+        $rules = [
+            'grace_period_days'       => ['required', 'integer', 'min:1', 'max:60'],
+            'auto_escalate'           => ['nullable', 'boolean'],
+            'auto_assign_call_center' => ['nullable', 'boolean'],
+            'call_center_lead_days'   => ['required', 'integer', 'min:0', 'max:30'],
+        ];
+
+        foreach ($types as $type) {
+            $rules["sla_days_{$type}"] = ['required', 'integer', 'min:1', 'max:90'];
+            $rules["commission_percent_{$type}"] = ['required', 'numeric', 'min:0', 'max:100'];
+            $rules["markup_percent_{$type}"] = ['required', 'numeric', 'min:0', 'max:100'];
+        }
+
+        $data = $request->validate($rules);
+
+        $settings = [
+            'recovery.grace_period_days'       => $data['grace_period_days'],
+            'recovery.auto_escalate'           => $request->boolean('auto_escalate'),
+            'recovery.auto_assign_call_center' => $request->boolean('auto_assign_call_center'),
+            'recovery.call_center_lead_days'   => $data['call_center_lead_days'],
+        ];
+
+        foreach ($types as $type) {
+            $settings["recovery.sla_days.{$type}"] = $data["sla_days_{$type}"];
+            $settings["recovery.commission_percent.{$type}"] = $data["commission_percent_{$type}"];
+            $settings["recovery.markup_percent.{$type}"] = $data["markup_percent_{$type}"];
+        }
+
+        Setting::setMany($settings);
+
+        return back()->with('status', 'Recovery policy saved.');
+    }
 }

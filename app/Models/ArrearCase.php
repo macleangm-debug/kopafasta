@@ -31,4 +31,9 @@ class ArrearCase extends Model
     {
         return $this->hasMany(CollectionAction::class);
     }
+
+    public function recoveryAssignments(): HasMany
+    {
+        return $this->hasMany(RecoveryAssignment::class);
+    }
 }

@@ -8,6 +8,8 @@ use App\Models\ArrearCase;
 use App\Models\User;
 use App\Services\ActiveLoanServicingService;
 use App\Services\LoanCollectionActionService;
+use App\Services\RecoveryAssignmentService;
+use App\Services\RecoveryPartnerService;
 use App\Services\WriteOffRequestService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -60,6 +62,7 @@ class ArrearCaseController extends Controller
             'loan.repaymentSchedules' => fn ($q) => $q->orderBy('installment_no'),
             'assignee',
             'actions' => fn ($q) => $q->with('performer')->latest('performed_at'),
+            'recoveryAssignments.vendor',
         ]);
 
         $servicing = $arrearCase->loan
@@ -77,13 +80,26 @@ class ArrearCaseController extends Controller
             && $writeOffService->canRecommend(auth()->user())
             && ! $writeOffService->hasOpenRequest($arrearCase->loan);
 
-        return view('admin.arrear-cases.show', compact(
-            'arrearCase',
-            'servicing',
-            'collectors',
-            'writeOffService',
-            'approvalRequired',
-            'canRecommendWriteOff',
+        $recoveryPartners = app(RecoveryPartnerService::class)
+            ->filteredQuery()
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.arrear-cases.show', array_merge(
+            compact(
+                'arrearCase',
+                'servicing',
+                'collectors',
+                'writeOffService',
+                'approvalRequired',
+                'canRecommendWriteOff',
+                'recoveryPartners',
+            ),
+            [
+                'recoveryAssignments'  => $arrearCase->recoveryAssignments,
+                'recoveryPartnerTypes' => app(RecoveryPartnerService::class)->partnerTypeOptions(),
+            ],
         ));
     }
 
@@ -136,5 +152,38 @@ class ArrearCaseController extends Controller
         ]);
 
         return back()->with('status', 'Collection action logged.');
+    }
+
+    public function assignRecoveryPartner(
+        Request $request,
+        ArrearCase $arrearCase,
+        RecoveryAssignmentService $service,
+    ): RedirectResponse {
+        $this->authorize('update', $arrearCase);
+
+        $data = $request->validate([
+            'vendor_id'    => ['required', 'exists:vendors,id'],
+            'partner_type' => ['required', 'string', 'in:call_center,debt_collector,repossession,auctioneer,legal_partner,gps_partner'],
+            'notes'        => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $vendor = \App\Models\Vendor::findOrFail($data['vendor_id']);
+
+        $assignment = $service->assign(
+            $arrearCase,
+            $vendor,
+            $data['partner_type'],
+            $request->user(),
+            $data['notes'] ?? null,
+        );
+
+        $this->auditAdmin('admin.arrear_cases.recovery_assigned', $arrearCase->loan, [
+            'arrear_case_id' => $arrearCase->id,
+            'assignment_id'  => $assignment->id,
+            'vendor_id'      => $vendor->id,
+            'partner_type'   => $data['partner_type'],
+        ]);
+
+        return back()->with('status', 'Recovery partner assigned.');
     }
 }

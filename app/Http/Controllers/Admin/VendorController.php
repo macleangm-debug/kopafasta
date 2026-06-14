@@ -20,9 +20,9 @@ class VendorController extends ResourceController
         return [
             'vendor_number'                  => ['nullable', 'string', 'max:50'],
             'name'                           => ['required', 'string', 'max:150'],
-            'category'                       => ['required', 'in:gps_installer,insurance,valuer,towing,yard,auctioneer,supplier,affiliate'],
+            'category'                       => ['required', 'in:gps_installer,insurance,valuer,towing,yard,auctioneer,supplier,affiliate,call_center,debt_collector,legal_partner'],
             'roles'                          => ['nullable', 'array'],
-            'roles.*'                        => ['string', 'in:gps_installer,insurance,valuer,towing,yard,auctioneer,supplier,affiliate,capital'],
+            'roles.*'                        => ['string', 'in:gps_installer,insurance,valuer,towing,yard,auctioneer,supplier,affiliate,capital,call_center,debt_collector,legal_partner'],
             'phone'                          => ['nullable', 'string', 'max:30'],
             'email'                          => ['nullable', 'email', 'max:150'],
             'address'                        => ['nullable', 'string', 'max:500'],
@@ -34,6 +34,8 @@ class VendorController extends ResourceController
             'registration_discount_percent'  => ['nullable', 'numeric', 'min:0', 'max:100'],
             'application_discount_percent'   => ['nullable', 'numeric', 'min:0', 'max:100'],
             'affiliate_commission_percent'   => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'recovery_commission_percent'    => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'recovery_markup_percent'        => ['nullable', 'numeric', 'min:0', 'max:100'],
         ];
     }
 
@@ -50,6 +52,9 @@ class VendorController extends ResourceController
                 'auctioneer'    => 'Auctioneer',
                 'supplier'      => 'Asset Supplier',
                 'affiliate'     => 'Affiliate Partner',
+                'call_center'   => 'Call Center',
+                'debt_collector'=> 'Debt Collector',
+                'legal_partner' => 'Legal Partner',
             ],
             'roleOptions' => app(\App\Services\PartnerService::class)->roleOptions(),
             'defaultCategory' => request()->query('category'),
@@ -100,9 +105,12 @@ class VendorController extends ResourceController
         $affiliateStats = $record->isAffiliate()
             ? app(AffiliateService::class)->stats($record)
             : null;
+        $recoveryStats = $record->isRecoveryPartner()
+            ? app(\App\Services\RecoveryPartnerService::class)->statsForVendor($record)
+            : null;
 
         return view("admin.{$this->viewFolder}.show", array_merge(
-            ['record' => $record, 'affiliateStats' => $affiliateStats],
+            ['record' => $record, 'affiliateStats' => $affiliateStats, 'recoveryStats' => $recoveryStats],
             $this->formData($record),
         ));
     }

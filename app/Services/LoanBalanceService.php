@@ -49,7 +49,11 @@ class LoanBalanceService
 
         $recoveryCosts = (float) $loan->fees()
             ->whereNull('paid_at')
-            ->whereIn('code', ['RECOVERY', 'LEGAL', 'COLLECTION'])
+            ->where(function ($query): void {
+                $query->whereIn('code', ['RECOVERY', 'LEGAL', 'COLLECTION'])
+                    ->orWhere('code', 'like', 'RECOVERY\_%')
+                    ->orWhere('type', 'recovery');
+            })
             ->sum('computed_amount');
 
         $totalOutstanding = round(

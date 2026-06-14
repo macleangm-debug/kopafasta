@@ -16,6 +16,8 @@
         'membership' => ['Membership',      'admin.settings.membership'],
         'referrals'  => ['Referrals',       'admin.settings.referrals'],
         'aml'        => ['AML Thresholds',  'admin.settings.aml'],
+        'finance'    => ['Finance defaults', 'admin.settings.finance'],
+        'recovery'   => ['Recovery policy', 'admin.settings.recovery'],
     ];
 @endphp
 <nav class="flex flex-wrap gap-2 mb-6 border-b border-gray-200 pb-3">

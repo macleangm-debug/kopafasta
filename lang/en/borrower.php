@@ -1751,6 +1751,11 @@ return [
         'arrears_notify_title' => 'Loan in arrears',
         'arrears_notify_message' => 'Loan :reference has overdue repayments. Amount in arrears: :amount across :count installment(s). Please pay as soon as possible.',
         'timeline_title' => 'Loan activity',
+        'recovery_partner_fee' => 'Partner fee',
+        'recovery_company_fee' => 'Company fee',
+        'recovery_line_total' => 'Line total',
+        'recovery_total' => 'Total recovery charge',
+        'recovery_basis_note' => 'Recovery fees are calculated from your original outstanding balance at assignment, not compounded across partners.',
         'timeline' => [
             'disbursed' => 'Loan disbursed',
             'payment' => 'Repayment received',

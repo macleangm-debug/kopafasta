@@ -100,6 +100,91 @@ class VendorController extends Controller
         return view('site.vendor.active', compact('vendor', 'tasks'));
     }
 
+    public function recoveryCases(Request $request)
+    {
+        $vendor = $this->vendor();
+
+        if (! app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
+            abort(403, 'Recovery partner access only.');
+        }
+
+        $status = $request->string('status')->toString();
+
+        $query = \App\Models\RecoveryAssignment::query()
+            ->with(['arrearCase.loan.customer', 'vendorTask'])
+            ->where('vendor_id', $vendor->id)
+            ->latest('assigned_at');
+
+        if ($status !== '' && $status !== 'all') {
+            $query->where('status', $status);
+        }
+
+        $assignments = $query->paginate(15)->withQueryString();
+
+        return view('site.vendor.recovery-cases', compact('vendor', 'assignments', 'status'));
+    }
+
+    public function recoveryCase(\App\Models\RecoveryAssignment $recoveryAssignment)
+    {
+        $vendor = $this->vendor();
+
+        if (! app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
+            abort(403, 'Recovery partner access only.');
+        }
+
+        $portal = app(\App\Services\RecoveryPartnerPortalService::class);
+        $portal->assertVendorOwnsAssignment($recoveryAssignment, $vendor);
+
+        $case = $portal->caseViewData($recoveryAssignment);
+
+        return view('site.vendor.recovery-case', array_merge(
+            compact('vendor', 'recoveryAssignment'),
+            $case,
+            ['assignment' => $recoveryAssignment],
+        ));
+    }
+
+    public function startRecoveryCase(\App\Models\RecoveryAssignment $recoveryAssignment)
+    {
+        $vendor = $this->vendor();
+        $portal = app(\App\Services\RecoveryPartnerPortalService::class);
+        $portal->assertVendorOwnsAssignment($recoveryAssignment, $vendor);
+
+        $portal->startCase($recoveryAssignment, $vendor, Auth::user());
+
+        return back()->with('status', 'Recovery case marked in progress.');
+    }
+
+    public function recoveryCaseAction(Request $request, \App\Models\RecoveryAssignment $recoveryAssignment)
+    {
+        $vendor = $this->vendor();
+        $portal = app(\App\Services\RecoveryPartnerPortalService::class);
+        $portal->assertVendorOwnsAssignment($recoveryAssignment, $vendor);
+
+        $data = $request->validate([
+            'action' => ['required', 'string', 'max:40'],
+            'notes'  => ['nullable', 'string', 'max:2000'],
+            'file'   => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+        ]);
+
+        $portal->recordAction(
+            $recoveryAssignment,
+            $vendor,
+            Auth::user(),
+            $data['action'],
+            $data['notes'] ?? null,
+            $request->file('file'),
+        );
+
+        $message = in_array($data['action'], ['resolved', 'sold', 'gps_removed'], true)
+            ? 'Recovery case completed.'
+            : 'Action recorded.';
+
+        return redirect()
+            ->route('site.vendor.recovery-case', $recoveryAssignment)
+            ->with('status', $message);
+    }
+
     public function completedJobs()
     {
         $vendor = $this->vendor();
