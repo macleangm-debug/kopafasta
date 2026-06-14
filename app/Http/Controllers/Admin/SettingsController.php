@@ -363,7 +363,10 @@ class SettingsController extends Controller
             'bad_debt_expense_gl_account_id'          => ['nullable', 'exists:chart_of_accounts,id'],
             'default_expense_gl_account_id'           => ['nullable', 'exists:chart_of_accounts,id'],
             'capital_partner_pool_gl_account_id'      => ['nullable', 'exists:chart_of_accounts,id'],
+            'capital_partner_interest_share_percent'  => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'write_off_approval_required'             => ['nullable', 'boolean'],
         ]);
+        $data['write_off_approval_required'] = $request->boolean('write_off_approval_required');
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["finance.$k" => $v])->all());
         return back()->with('status', 'Finance defaults saved.');
     }

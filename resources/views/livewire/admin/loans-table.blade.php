@@ -44,6 +44,9 @@
                             ['status',        'Status'],
                             ['disbursement_date', 'Disbursed'],
                         ];
+                        if ($status === 'pending') {
+                            $cols[] = ['queue', 'Queue status'];
+                        }
                     @endphp
                     @foreach ($cols as [$col, $label])
                         <th class="px-5 py-2.5 cursor-pointer select-none" wire:click="sortBy('{{ $col }}')">
@@ -80,6 +83,17 @@
                             </span>
                         </td>
                         <td class="px-5 py-3 text-gray-500">{{ $loan->disbursement_date?->format('Y-m-d') ?? '—' }}</td>
+                        @if ($status === 'pending')
+                            <td class="px-5 py-3">
+                                @php $queue = $queueStatuses[$loan->id] ?? '—'; @endphp
+                                <span @class([
+                                    'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
+                                    'bg-emerald-100 text-emerald-800' => $queue === 'Ready',
+                                    'bg-amber-100 text-amber-800'     => in_array($queue, ['Awaiting Contract', 'Awaiting Fee', 'Awaiting Destination', 'Awaiting Offer', 'In Progress']),
+                                    'bg-gray-100 text-gray-700'       => $queue === 'Disbursed',
+                                ])>{{ $queue }}</span>
+                            </td>
+                        @endif
                         <td class="px-5 py-3 text-right">
                             <div class="inline-flex items-center gap-1">
                                 <a href="{{ route('admin.loans.show', $loan) }}"
@@ -90,6 +104,7 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                                     </svg>
                                 </a>
+                                @unless ($loan->isServicingLocked())
                                 <a href="{{ route('admin.loans.edit', $loan) }}"
                                    title="Edit"
                                    class="inline-flex items-center justify-center size-8 rounded-lg text-gray-500 hover:text-amber-600 hover:bg-amber-50 transition">
@@ -97,6 +112,7 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                     </svg>
                                 </a>
+                                @endunless
                                 <form method="POST" action="{{ route('admin.loans.destroy', $loan) }}"
                                       class="inline"
                                       onsubmit="return confirm('Delete loan {{ $loan->loan_number }}? This cannot be undone.');">
@@ -114,7 +130,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-5 py-12 text-center text-gray-500">
+                        <td colspan="{{ $status === 'pending' ? 8 : 7 }}" class="px-5 py-12 text-center text-gray-500">
                             <p>No loans found.</p>
                             <p class="text-sm mt-2">Loans are created from approved applications — start at
                                 <a href="{{ route('admin.loan-applications.index') }}" class="text-amber-700 font-medium hover:text-amber-800">Applications</a>.

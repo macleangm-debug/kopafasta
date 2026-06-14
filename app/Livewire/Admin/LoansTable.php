@@ -79,6 +79,16 @@ class LoansTable extends Component
 
         $statuses = ['pending', 'active', 'disbursed', 'arrears', 'restructuring', 'closed', 'defaulted', 'written_off'];
 
-        return view('livewire.admin.loans-table', compact('loans', 'statuses'));
+        $queueStatuses = [];
+        if ($this->status === 'pending') {
+            $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
+            foreach ($loans as $loan) {
+                $queueStatuses[$loan->id] = $loan->application
+                    ? $readiness->disbursementQueueStatus($loan->application)
+                    : ($loan->status === 'pending' ? 'Ready' : '—');
+            }
+        }
+
+        return view('livewire.admin.loans-table', compact('loans', 'statuses', 'queueStatuses'));
     }
 }

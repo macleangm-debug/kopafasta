@@ -167,6 +167,27 @@
                 </form>
             </div>
 
+            @if ($loan && ! empty($approvalRequired) && ! empty($canRecommendWriteOff))
+                <div class="bg-white rounded-xl ring-1 ring-red-200 p-6">
+                    <h2 class="text-sm font-semibold text-red-900 mb-4">Recommend write-off</h2>
+                    <form method="POST" action="{{ route('admin.arrear-cases.write-off-requests.store', $arrearCase) }}" class="space-y-3">
+                        @csrf
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Amount (TZS)</label>
+                            <input type="number" step="0.01" name="amount" value="{{ old('amount', (float) $loan->outstanding_balance) }}"
+                                   class="w-full rounded-lg border-gray-300 text-sm" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Reason</label>
+                            <textarea name="reason" rows="3" required maxlength="2000" class="w-full rounded-lg border-gray-300 text-sm">{{ old('reason') }}</textarea>
+                        </div>
+                        <button type="submit" class="w-full text-sm font-semibold text-white bg-red-600 hover:bg-red-700 px-3 py-2 rounded-lg">
+                            Recommend write-off
+                        </button>
+                    </form>
+                </div>
+            @endif
+
             @if ($loan)
                 <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6">
                     <h2 class="text-sm font-semibold text-gray-900 mb-3">Quick links</h2>

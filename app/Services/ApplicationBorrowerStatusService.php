@@ -165,6 +165,7 @@ class ApplicationBorrowerStatusService
      */
     public function postApprovalTimeline(LoanApplication $application): array
     {
+        $application->loadMissing('loan');
         $readiness = app(ApplicationDisbursementReadinessService::class);
         $offerSigned = $readiness->offerSigned($application);
         $hasFees = $readiness->hasPostApprovalFees($application);
@@ -204,13 +205,17 @@ class ApplicationBorrowerStatusService
             ],
             [
                 'key'      => 'disbursement',
-                'label'    => __('borrower.loan_progress.disbursement'),
+                'label'    => $disbursed && $application->disbursed_at
+                    ? __('borrower.loan_progress.disbursement').' · '.$application->disbursed_at->format('d M Y')
+                    : __('borrower.loan_progress.disbursement'),
                 'complete' => $disbursed,
                 'current'  => false,
             ],
             [
                 'key'      => 'active_loan',
-                'label'    => __('borrower.loan_progress.active_loan'),
+                'label'    => $activeLoan && $application->loan
+                    ? __('borrower.loan_progress.active_loan').' · '.$application->loan->loan_number
+                    : __('borrower.loan_progress.active_loan'),
                 'complete' => $activeLoan,
                 'current'  => false,
             ],

@@ -214,11 +214,15 @@ class LoanController extends Controller
 
     public function edit(Loan $loan)
     {
+        abort_if($loan->isServicingLocked(), 403, 'Active loans cannot be edited. Use restructure, top-up, or write-off workflows.');
+
         return view('admin.loans.edit', ['loan' => $loan] + $this->formData());
     }
 
     public function update(Request $request, Loan $loan)
     {
+        abort_if($loan->isServicingLocked(), 403, 'Active loans cannot be edited. Use restructure, top-up, or write-off workflows.');
+
         $before = app(AuditService::class)->snapshot($loan);
         $loan->update($this->validated($request));
         $loan->refresh();
@@ -313,11 +317,19 @@ class LoanController extends Controller
 
     public function writeOffForm(Loan $loan)
     {
-        return view('admin.loans.write-off', compact('loan'));
+        $approvalRequired = (bool) \App\Models\Setting::get('finance.write_off_approval_required');
+
+        return view('admin.loans.write-off', compact('loan', 'approvalRequired'));
     }
 
     public function writeOff(Request $request, Loan $loan, LoanWriteOffService $service)
     {
+        if ((bool) \App\Models\Setting::get('finance.write_off_approval_required')) {
+            return back()->withErrors([
+                'reason' => 'Write-off requires manager and finance approval. Use the collections workflow to recommend a write-off.',
+            ]);
+        }
+
         $data = $request->validate([
             'reason' => ['required', 'string', 'max:500'],
             'amount' => ['nullable', 'numeric', 'min:0'],

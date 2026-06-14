@@ -25,6 +25,16 @@ class CapitalPartnerAllocationService
 
     public const COMPANY_INTEREST_SHARE = 40.0;
 
+    public function partnerInterestSharePercent(): float
+    {
+        return (float) (\App\Models\Setting::get('finance.capital_partner_interest_share_percent') ?? self::PARTNER_INTEREST_SHARE);
+    }
+
+    public function companyInterestSharePercent(): float
+    {
+        return max(0, 100 - $this->partnerInterestSharePercent());
+    }
+
     /**
      * Dry-run capital availability for a loan (no writes).
      *
@@ -292,7 +302,7 @@ class CapitalPartnerAllocationService
                     'lender_investment_id'           => $investment->id,
                     'allocated_principal'            => $share,
                     'allocation_percent'             => $percent,
-                    'partner_interest_share_percent' => self::PARTNER_INTEREST_SHARE,
+                    'partner_interest_share_percent' => $this->partnerInterestSharePercent(),
                     'company_interest_share_percent' => self::COMPANY_INTEREST_SHARE,
                     'outstanding_exposure'           => $share,
                 ]);
@@ -391,7 +401,7 @@ class CapitalPartnerAllocationService
             'capital_partner.interest_distribution',
             $loan,
             [],
-            ['interest' => $interestAmount, 'partner_pct' => self::PARTNER_INTEREST_SHARE],
+            ['interest' => $interestAmount, 'partner_pct' => $this->partnerInterestSharePercent()],
         );
     }
 

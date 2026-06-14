@@ -152,11 +152,32 @@
                 @endif
             @endif
             @if (in_array($loan->status, ['active', 'arrears', 'defaulted']) && (float) $loan->outstanding_balance > 0)
-                <a href="{{ route('admin.loans.write-off-form', $loan) }}"
-                   class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg shadow-sm transition">
-                    Write off
-                </a>
+                @php
+                    $writeOffApprovalRequired = (bool) \App\Models\Setting::get('finance.write_off_approval_required');
+                    $writeOffService = app(\App\Services\WriteOffRequestService::class);
+                    $canRecommendWriteOff = $writeOffApprovalRequired
+                        && $writeOffService->canRecommend(auth()->user())
+                        && ! $writeOffService->hasOpenRequest($loan);
+                @endphp
+                @if ($writeOffApprovalRequired)
+                    @if ($canRecommendWriteOff)
+                        <a href="{{ route('admin.loans.write-off-form', $loan) }}"
+                           class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg shadow-sm transition">
+                            Recommend write-off
+                        </a>
+                    @endif
+                    <a href="{{ route('admin.write-off-requests.index') }}"
+                       class="inline-flex items-center gap-1.5 text-sm font-semibold text-red-800 bg-red-100 hover:bg-red-200 px-4 py-2 rounded-lg transition">
+                        Write-off queue
+                    </a>
+                @else
+                    <a href="{{ route('admin.loans.write-off-form', $loan) }}"
+                       class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg shadow-sm transition">
+                        Write off
+                    </a>
+                @endif
             @endif
+            @if (! $loan->isServicingLocked())
             <a href="{{ route('admin.loans.edit', $loan) }}"
                class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-4 py-2 rounded-lg shadow-sm transition">
                 <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -164,6 +185,7 @@
                 </svg>
                 Edit
             </a>
+            @endif
         </div>
     </div>
 
@@ -284,7 +306,7 @@
     @if ($loan->capitalAllocations->isNotEmpty())
         <div class="mt-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <h3 class="text-sm font-semibold text-gray-700 mb-1">Capital partner funding</h3>
-            <p class="text-xs text-gray-500 mb-4">Capital allocated at disbursement · interest split {{ \App\Services\CapitalPartnerAllocationService::PARTNER_INTEREST_SHARE }}% partner / {{ \App\Services\CapitalPartnerAllocationService::COMPANY_INTEREST_SHARE }}% company</p>
+            <p class="text-xs text-gray-500 mb-4">Capital allocated at disbursement · interest split {{ format_number(app(\App\Services\CapitalPartnerAllocationService::class)->partnerInterestSharePercent(), 0) }}% partner / {{ format_number(app(\App\Services\CapitalPartnerAllocationService::class)->companyInterestSharePercent(), 0) }}% company</p>
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 text-sm">
                 <div class="rounded-lg bg-gray-50 px-3 py-2"><span class="text-xs text-gray-500 block">Allocated</span><span class="font-semibold">{{ format_money($capitalTotals['allocated_principal']) }}</span></div>
                 <div class="rounded-lg bg-gray-50 px-3 py-2"><span class="text-xs text-gray-500 block">Outstanding exposure</span><span class="font-semibold">{{ format_money($capitalTotals['outstanding_exposure']) }}</span></div>

@@ -26,6 +26,21 @@ class Loan extends Model
         ];
     }
 
+    public const SERVICING_LOCKED_STATUSES = [
+        'active',
+        'arrears',
+        'restructuring',
+        'disbursed',
+        'defaulted',
+        'closed',
+        'written_off',
+    ];
+
+    public function isServicingLocked(): bool
+    {
+        return in_array((string) $this->status, self::SERVICING_LOCKED_STATUSES, true);
+    }
+
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
@@ -79,5 +94,10 @@ class Loan extends Model
     public function topUpRequests(): HasMany
     {
         return $this->hasMany(LoanTopUpRequest::class);
+    }
+
+    public function writeOffRequests(): HasMany
+    {
+        return $this->hasMany(WriteOffRequest::class);
     }
 }

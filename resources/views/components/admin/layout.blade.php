@@ -52,6 +52,7 @@
             ['Active loans',        'admin.loans.active'],
             ['Repayments',          'admin.repayments.index'],
             ['Collection cases',    'admin.arrear-cases.index'],
+            ['Write-off requests',  'admin.write-off-requests.index'],
             ['Loans in arrears',  'admin.loans.arrears'],
             ['Restructure requests','admin.restructure-requests.index'],
             ['Top-up requests',     'admin.top-up-requests.index'],

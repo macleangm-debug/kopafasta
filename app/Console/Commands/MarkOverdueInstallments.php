@@ -32,13 +32,24 @@ class MarkOverdueInstallments extends Command
             ->whereIn('status', ['active', 'disbursed'])
             ->update(['status' => 'arrears']);
 
+        $sync = app(\App\Services\ArrearCaseSyncService::class);
+
+        Loan::query()
+            ->where('status', 'arrears')
+            ->with(['customer', 'repaymentSchedules'])
+            ->each(fn (Loan $loan) => $sync->syncForLoan($loan));
+
         if ($loansInArrears > 0) {
             $notifier = app(GuarantorNotificationService::class);
+
             Loan::query()
                 ->whereIn('id', $loanIds)
                 ->where('status', 'arrears')
-                ->with('application.customer')
-                ->each(fn (Loan $loan) => $notifier->notifyLoanArrears($loan));
+                ->with(['application.customer', 'repaymentSchedules', 'customer'])
+                ->each(function (Loan $loan) use ($notifier, $sync) {
+                    $sync->notifyBorrowerArrears($loan);
+                    $notifier->notifyLoanArrears($loan);
+                });
         }
 
         $this->info("Marked {$changed} installment(s) overdue · moved {$loansInArrears} loan(s) into arrears.");

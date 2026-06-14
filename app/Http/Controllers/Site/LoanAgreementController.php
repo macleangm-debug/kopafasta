@@ -55,6 +55,16 @@ class LoanAgreementController extends Controller
     {
         $customer = $this->customerOrFail($application);
 
+        if (in_array((string) $application->status, ['disbursed'], true)
+            || in_array((string) ($application->loan?->status ?? ''), ['active', 'arrears', 'closed'], true)) {
+            $loan = $application->loan;
+            if ($loan) {
+                return redirect()
+                    ->route('site.borrower.loans.show', $loan)
+                    ->with('status', __('borrower.loan_servicing.use_final_contract'));
+            }
+        }
+
         if ($this->readiness->needsBorrowerSignature($application)) {
             return redirect()
                 ->route('site.borrower.application.agreement', $application)

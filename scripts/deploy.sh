@@ -98,6 +98,7 @@ if [[ "$RUN_NPM_BUILD" == "1" ]]; then
 fi
 
 "$PHP_BIN" artisan migrate --force
+"$PHP_BIN" artisan db:seed --class=DefaultChartOfAccountsSeeder --force || true
 "$PHP_BIN" artisan db:seed --class=BranchSeeder --force || true
 "$PHP_BIN" artisan db:seed --class=PublicLoanProductsSeeder --force || true
 "$PHP_BIN" artisan db:seed --class=LoanProductRateTierSeeder --force || true

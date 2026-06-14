@@ -605,16 +605,59 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         abort_if($loan->customer_id !== $customer->id, 404);
 
-        $loan->loadMissing(['product', 'repaymentSchedules', 'repayments']);
+        $loan->loadMissing(['product', 'repaymentSchedules', 'repayments', 'application']);
         $servicing = app(\App\Services\ActiveLoanServicingService::class)->forLoan($loan);
         $recentRepayments = $loan->repayments()->latest('paid_at')->limit(5)->get();
+
+        $finalContract = null;
+        $scheduleAnnex = null;
+        if ($loan->loan_application_id) {
+            $finalContract = \App\Models\LoanAgreement::query()
+                ->where('loan_application_id', $loan->loan_application_id)
+                ->where('document_type', 'final_loan_contract')
+                ->latest('id')
+                ->first();
+            $scheduleAnnex = \App\Models\LoanAgreement::query()
+                ->where('loan_application_id', $loan->loan_application_id)
+                ->where('document_type', 'repayment_schedule')
+                ->latest('id')
+                ->first();
+        }
+
+        $policy = app(\App\Services\LoanPolicyService::class);
+        $canRestructure = $policy->canSubmitRestructureRequest($loan) === null;
+        $canTopUp = $policy->canSubmitTopUpRequest($loan) === null;
+        $timeline = app(\App\Services\LoanServicingTimelineService::class)->forLoan($loan);
 
         return view('site.borrower.loan-show', compact(
             'customer',
             'loan',
             'servicing',
             'recentRepayments',
+            'finalContract',
+            'scheduleAnnex',
+            'canRestructure',
+            'canTopUp',
+            'timeline',
         ));
+    }
+
+    public function finalContract(Loan $loan)
+    {
+        $customer = $this->customer();
+        abort_if($loan->customer_id !== $customer->id, 404);
+        abort_unless($loan->isServicingLocked(), 404);
+
+        $agreement = \App\Models\LoanAgreement::query()
+            ->where('loan_application_id', $loan->loan_application_id)
+            ->where('document_type', 'final_loan_contract')
+            ->where('customer_id', $customer->id)
+            ->latest('id')
+            ->first();
+
+        abort_unless($agreement?->file_path, 404);
+
+        return redirect()->route('site.borrower.agreement.download', $agreement);
     }
 
     public function restructureLoan(Loan $loan): View
@@ -634,10 +677,8 @@ class BorrowerController extends Controller
             'holidayMaxMonths'      => $loanSettings['payment_holiday_max_months'],
             'holidayAccrueInterest' => $loanSettings['payment_holiday_accrue_interest'],
             'types'                 => [
-                'extend_term'         => __('borrower.loan_actions.restructure_types.extend_term'),
-                'reduce_installment'  => __('borrower.loan_actions.restructure_types.reduce_installment'),
-                'payment_holiday'     => __('borrower.loan_actions.restructure_types.payment_holiday'),
-                'interest_adjustment' => __('borrower.loan_actions.restructure_types.interest_adjustment'),
+                'extend_term'     => __('borrower.loan_actions.restructure_types.extend_term'),
+                'payment_holiday' => __('borrower.loan_actions.restructure_types.payment_holiday'),
             ],
         ]);
     }
@@ -653,7 +694,7 @@ class BorrowerController extends Controller
         }
 
         $data = $request->validate([
-            'restructure_type'  => ['required', 'in:extend_term,reduce_installment,payment_holiday,interest_adjustment'],
+            'restructure_type'  => ['required', 'in:extend_term,payment_holiday'],
             'reason'            => ['required', 'string', 'max:500'],
             'new_tenure_months' => ['nullable', 'integer', 'min:1', 'max:120'],
         ]);

@@ -102,7 +102,7 @@ class LoanDisbursementOrchestrator
                 }
             }
 
-            app(GuarantorNotificationService::class)->notifyLoanDisbursed($loan->fresh(['application.customer', 'product']));
+            app(LoanDisbursementNotificationService::class)->notifyDisbursement($loan->fresh(['application.customer', 'product', 'repaymentSchedules']));
 
             return $loan->fresh(['customer', 'product', 'disbursements']);
         });

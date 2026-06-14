@@ -402,16 +402,25 @@ class LoanAgreementService
         $snapshot['first_due_date'] = $schedules->first()?->due_date?->toDateString();
         $snapshot['last_due_date'] = $schedules->last()?->due_date?->toDateString();
         $snapshot['schedule_is_estimate'] = false;
-        $snapshot['repayment_schedule'] = $schedules->map(fn ($row) => [
-            'installment_no' => $row->installment_no,
-            'label'          => ($loan->product->repayment_cadence ?? 'weekly') === 'monthly'
-                ? 'Month '.$row->installment_no
-                : 'Week '.$row->installment_no,
-            'due_date'       => $row->due_date?->toDateString(),
-            'principal_due'  => (float) $row->principal_due,
-            'interest_due'   => (float) $row->interest_due,
-            'total_due'      => (float) $row->total_due,
-        ])->all();
+        $runningBalance = (float) $loan->principal_amount;
+        $snapshot['repayment_schedule'] = $schedules->map(function ($row) use ($loan, &$runningBalance) {
+            $totalDue = (float) $row->total_due;
+            $outstandingAfter = max(0, round($runningBalance - (float) $row->principal_due, 2));
+            $entry = [
+                'installment_no'      => $row->installment_no,
+                'label'               => ($loan->product->repayment_cadence ?? 'weekly') === 'monthly'
+                    ? 'Month '.$row->installment_no
+                    : 'Week '.$row->installment_no,
+                'due_date'            => $row->due_date?->toDateString(),
+                'principal_due'       => (float) $row->principal_due,
+                'interest_due'        => (float) $row->interest_due,
+                'total_due'           => $totalDue,
+                'outstanding_balance' => $outstandingAfter,
+            ];
+            $runningBalance = $outstandingAfter;
+
+            return $entry;
+        })->all();
 
         if ($signedContract?->acceptance_signature_data) {
             $customer = $application->customer;

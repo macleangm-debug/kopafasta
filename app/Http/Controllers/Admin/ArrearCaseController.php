@@ -8,6 +8,7 @@ use App\Models\ArrearCase;
 use App\Models\User;
 use App\Services\ActiveLoanServicingService;
 use App\Services\LoanCollectionActionService;
+use App\Services\WriteOffRequestService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -70,7 +71,20 @@ class ArrearCaseController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'role']);
 
-        return view('admin.arrear-cases.show', compact('arrearCase', 'servicing', 'collectors'));
+        $writeOffService = app(WriteOffRequestService::class);
+        $approvalRequired = (bool) \App\Models\Setting::get('finance.write_off_approval_required');
+        $canRecommendWriteOff = $arrearCase->loan
+            && $writeOffService->canRecommend(auth()->user())
+            && ! $writeOffService->hasOpenRequest($arrearCase->loan);
+
+        return view('admin.arrear-cases.show', compact(
+            'arrearCase',
+            'servicing',
+            'collectors',
+            'writeOffService',
+            'approvalRequired',
+            'canRecommendWriteOff',
+        ));
     }
 
     public function update(Request $request, ArrearCase $arrearCase): RedirectResponse

@@ -133,9 +133,8 @@
             <tr>
                 <th>#</th>
                 <th>Due date</th>
-                <th>Principal</th>
-                <th>Interest</th>
-                <th>Total</th>
+                <th>Amount</th>
+                <th>Outstanding</th>
             </tr>
         </thead>
         <tbody>
@@ -143,9 +142,8 @@
                 <tr>
                     <td>{{ $row['installment_no'] }}</td>
                     <td>{{ \Illuminate\Support\Carbon::parse($row['due_date'])->format('d M Y') }}</td>
-                    <td>{{ format_money($row['principal_due']) }}</td>
-                    <td>{{ format_money($row['interest_due']) }}</td>
                     <td>{{ format_money($row['total_due']) }}</td>
+                    <td>{{ format_money($row['outstanding_balance'] ?? 0) }}</td>
                 </tr>
             @endforeach
         </tbody>

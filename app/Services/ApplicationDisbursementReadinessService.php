@@ -503,19 +503,40 @@ class ApplicationDisbursementReadinessService
         return 'Offer Accepted';
     }
 
-    /** Disbursement pipeline stage label for admin underwriting tabs. */
-    public function disbursementPipelineStage(LoanApplication $application): string
+    /** Disbursement queue status for admin operations. */
+    public function disbursementQueueStatus(LoanApplication $application): string
     {
         if ((string) $application->status === 'disbursed'
-            || in_array((string) ($application->loan?->status ?? ''), ['active', 'closed', 'written_off'], true)) {
+            || in_array((string) ($application->loan?->status ?? ''), ['active', 'closed', 'written_off', 'arrears'], true)) {
             return 'Disbursed';
         }
 
-        $loan = $application->loan;
-        if ($loan && $loan->disbursements()->where('status', 'processing')->exists()) {
-            return 'Processing';
+        if ($this->isReadyForDisbursement($application)) {
+            return 'Ready';
         }
 
-        return 'Pending';
+        if ($this->needsContractSignature($application)) {
+            return 'Awaiting Contract';
+        }
+
+        if ($this->needsPostApprovalFees($application)) {
+            return 'Awaiting Fee';
+        }
+
+        if ($this->needsDisbursementDetailsConfirmation($application)) {
+            return 'Awaiting Destination';
+        }
+
+        if ($this->needsBorrowerSignature($application)) {
+            return 'Awaiting Offer';
+        }
+
+        return 'In Progress';
+    }
+
+    /** Disbursement pipeline stage label for admin underwriting tabs. */
+    public function disbursementPipelineStage(LoanApplication $application): string
+    {
+        return $this->disbursementQueueStatus($application);
     }
 }

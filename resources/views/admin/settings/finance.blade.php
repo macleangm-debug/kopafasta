@@ -34,6 +34,26 @@
         @endphp
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Capital partner interest share (%)</label>
+                <input type="number" name="capital_partner_interest_share_percent" min="0" max="100" step="0.01"
+                       value="{{ $values['capital_partner_interest_share_percent'] ?? 60 }}"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                <p class="text-xs text-gray-500 mt-1">Partner share of interest collected on repayments. Company receives the remainder.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Write-off approval required</label>
+                <input type="hidden" name="write_off_approval_required" value="0">
+                <label class="inline-flex items-center gap-2 text-sm text-gray-800 mt-2">
+                    <input type="checkbox" name="write_off_approval_required" value="1"
+                           @checked(! empty($values['write_off_approval_required']))
+                           class="rounded border-gray-300 text-amber-600">
+                    Require manager and finance approval before write-off
+                </label>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             @foreach ($fields as [$key, $label, $hint])
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">{{ $label }}</label>

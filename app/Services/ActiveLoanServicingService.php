@@ -19,9 +19,12 @@ class ActiveLoanServicingService
         $progressPct = $principal > 0 ? min(100, round(($paid / $principal) * 100, 1)) : 0.0;
 
         $schedules = $loan->repaymentSchedules->sortBy('installment_no');
-        $nextInstallment = $schedules
-            ->first(fn (RepaymentSchedule $row) => ! in_array($row->status, ['paid'], true)
-                && (float) $row->amount_paid < (float) $row->total_due);
+        $paidRows = $schedules->filter(fn (RepaymentSchedule $row) => in_array($row->status, ['paid'], true)
+            || (float) $row->amount_paid >= (float) $row->total_due);
+        $remainingRows = $schedules->reject(fn (RepaymentSchedule $row) => in_array($row->status, ['paid'], true)
+            || (float) $row->amount_paid >= (float) $row->total_due);
+
+        $nextInstallment = $remainingRows->first();
 
         $today = now()->startOfDay();
         $daysRemaining = null;
@@ -33,6 +36,9 @@ class ActiveLoanServicingService
         $amountInArrears = (float) $overdueRows->sum(
             fn (RepaymentSchedule $row) => max(0, (float) $row->total_due - (float) $row->amount_paid)
         );
+        $daysPastDue = (int) $overdueRows
+            ->map(fn (RepaymentSchedule $row) => (int) $row->due_date?->startOfDay()->diffInDays($today))
+            ->max() ?? 0;
 
         $maturityDate = $loan->maturity_date ?? $schedules->last()?->due_date;
         $daysToMaturity = $maturityDate
@@ -57,6 +63,13 @@ class ActiveLoanServicingService
             'in_arrears'          => $loan->status === 'arrears' || $overdueRows->isNotEmpty(),
             'amount_in_arrears'   => $amountInArrears,
             'overdue_installments'=> $overdueRows->count(),
+            'days_past_due'       => $daysPastDue,
+            'installments_paid'   => $paidRows->count(),
+            'installments_remaining' => $remainingRows->count(),
+            'installments_total'  => $schedules->count(),
+            'arrears_status'      => $loan->status === 'arrears' || $overdueRows->isNotEmpty()
+                ? 'in_arrears'
+                : 'current',
             'disbursement_date'   => $loan->disbursement_date,
             'tenure_months'       => (int) $loan->tenure_months,
             'interest_rate'       => (float) $loan->interest_rate,

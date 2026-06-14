@@ -51,6 +51,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\PartnerSettlementController;
 use App\Http\Controllers\Admin\VendorController;
 use App\Http\Controllers\Admin\VendorPaymentController;
+use App\Http\Controllers\Admin\WriteOffRequestController;
 use App\Http\Controllers\Admin\WriteOffRuleController;
 use Illuminate\Support\Facades\Route;
 
@@ -167,6 +168,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/agreements/{agreement}/download',                     [\App\Http\Controllers\Site\LoanAgreementController::class, 'download']) ->name('borrower.agreement.download');
             Route::get('/borrower/loans',                          [\App\Http\Controllers\Site\BorrowerController::class, 'loans'])        ->name('borrower.loans');
             Route::get('/borrower/loans/{loan}',                   [\App\Http\Controllers\Site\BorrowerController::class, 'showLoan'])   ->name('borrower.loans.show');
+            Route::get('/borrower/loans/{loan}/final-contract',    [\App\Http\Controllers\Site\BorrowerController::class, 'finalContract'])->name('borrower.loans.final-contract');
             Route::get('/borrower/schedule/{loan?}',               [\App\Http\Controllers\Site\BorrowerController::class, 'schedule'])     ->name('borrower.schedule');
             Route::get('/borrower/loans/{loan}/restructure',       [\App\Http\Controllers\Site\BorrowerController::class, 'restructureLoan'])->name('borrower.loans.restructure');
             Route::post('/borrower/loans/{loan}/restructure',      [\App\Http\Controllers\Site\BorrowerController::class, 'submitRestructure'])->name('borrower.loans.restructure.submit');
@@ -392,6 +394,13 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('arrear-cases/{arrearCase}', [ArrearCaseController::class, 'show'])->name('arrear-cases.show');
         Route::put('arrear-cases/{arrearCase}', [ArrearCaseController::class, 'update'])->name('arrear-cases.update');
         Route::post('arrear-cases/{arrearCase}/actions', [ArrearCaseController::class, 'addAction'])->name('arrear-cases.actions');
+        Route::get('write-off-requests', [WriteOffRequestController::class, 'index'])->name('write-off-requests.index');
+        Route::get('write-off-requests/{writeOffRequest}', [WriteOffRequestController::class, 'show'])->name('write-off-requests.show');
+        Route::post('loans/{loan}/write-off-requests', [WriteOffRequestController::class, 'recommendFromLoan'])->name('loans.write-off-requests.store');
+        Route::post('arrear-cases/{arrearCase}/write-off-requests', [WriteOffRequestController::class, 'recommendFromCase'])->name('arrear-cases.write-off-requests.store');
+        Route::post('write-off-requests/{writeOffRequest}/manager-approve', [WriteOffRequestController::class, 'managerApprove'])->name('write-off-requests.manager-approve');
+        Route::post('write-off-requests/{writeOffRequest}/finance-approve', [WriteOffRequestController::class, 'financeApprove'])->name('write-off-requests.finance-approve');
+        Route::post('write-off-requests/{writeOffRequest}/reject', [WriteOffRequestController::class, 'reject'])->name('write-off-requests.reject');
         Route::get('loans/{loan}/write-off',  [LoanController::class, 'writeOffForm'])->name('loans.write-off-form');
         Route::post('loans/{loan}/write-off', [LoanController::class, 'writeOff'])->name('loans.write-off');
         $registerResource('repayments', 'repayment', RepaymentController::class);
