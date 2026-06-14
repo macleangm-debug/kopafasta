@@ -70,6 +70,13 @@ class ApplicationBorrowerStatusService
             }
         }
 
+        $code = $this->resolveCode($application);
+        if (in_array($code, ['submitted', 'under_review', 'screening', 'credit_review'], true)) {
+            return __('borrower.loan_profile.review_sla', [
+                'time' => app(UnderwritingSettingsService::class)->loanReviewSlaLabel(),
+            ]);
+        }
+
         return null;
     }
 
@@ -93,84 +100,58 @@ class ApplicationBorrowerStatusService
 
         $hasOpenRequests = $requests->whereIn('status', ['pending', 'rejected'])->isNotEmpty();
         $hasUploadedRequests = $requests->where('status', 'uploaded')->isNotEmpty();
-        $documentsComplete = ! $hasOpenRequests && ($requests->isEmpty() || $requests->every(fn ($r) => in_array($r->status, ['satisfied', 'uploaded'], true)));
 
         $steps = [
             ['key' => 'submitted', 'label' => __('borrower.applications_list.pipeline.submitted'), 'complete' => false, 'current' => false],
-            ['key' => 'screening', 'label' => __('borrower.applications_list.pipeline.screening'), 'complete' => false, 'current' => false],
-            ['key' => 'documents_submitted', 'label' => __('borrower.applications_list.pipeline.documents_submitted'), 'complete' => false, 'current' => false],
-            ['key' => 'credit_review', 'label' => __('borrower.applications_list.pipeline.credit_review'), 'complete' => false, 'current' => false],
-            ['key' => 'approved', 'label' => __('borrower.applications_list.pipeline.approval'), 'complete' => false, 'current' => false],
-            ['key' => 'disbursed', 'label' => __('borrower.applications_list.pipeline.disbursed'), 'complete' => false, 'current' => false],
+            ['key' => 'under_review', 'label' => __('borrower.applications_list.pipeline.under_review'), 'complete' => false, 'current' => false],
         ];
 
-        $stageOrder = ['submitted', 'screening', 'credit_appraisal', 'pre_approval', 'approval', 'disbursement'];
-        $stageIndex = array_search($stage, $stageOrder, true);
-        if ($stageIndex === false) {
-            $stageIndex = match ((string) $application->status) {
-                'under_review' => 2,
-                'pre_approved' => 3,
-                'approved'     => 4,
-                'disbursed'    => 5,
-                default        => 0,
-            };
+        if ($hasOpenRequests || $hasUploadedRequests || (string) $application->status === 'pending_documents') {
+            $steps[] = ['key' => 'documents_requested', 'label' => __('borrower.applications_list.pipeline.documents_requested'), 'complete' => false, 'current' => false];
         }
 
-        foreach ($steps as $i => &$step) {
-            match ($step['key']) {
-                'submitted' => $step['complete'] = $stageIndex >= 0 || filled($application->submitted_at),
-                'screening' => $step['complete'] = $stageIndex >= 1,
-                'documents_submitted' => $step['complete'] = $documentsComplete || $hasUploadedRequests || $stageIndex >= 2,
-                'credit_review' => $step['complete'] = $stageIndex >= 2,
-                'approved' => $step['complete'] = in_array($stage, ['approval', 'disbursement'], true)
-                    || in_array((string) $application->status, ['approved', 'pre_approved', 'disbursed'], true),
-                'disbursed' => $step['complete'] = $this->isDisbursed($application),
-                default => null,
-            };
+        $steps[] = ['key' => 'approved', 'label' => __('borrower.applications_list.pipeline.approved'), 'complete' => false, 'current' => false];
+
+        $isApproved = in_array((string) $application->status, ['approved', 'pre_approved', 'awaiting_offer'], true)
+            || in_array($stage, ['approval', 'disbursement', 'pre_approval'], true)
+            || $application->offer_status === 'pending_borrower';
+
+        $steps[0]['complete'] = filled($application->submitted_at);
+
+        $underReviewComplete = $isApproved
+            || $hasOpenRequests
+            || $hasUploadedRequests
+            || in_array($stage, ['screening', 'credit_appraisal', 'pre_approval', 'approval', 'disbursement'], true)
+            || in_array((string) $application->status, ['under_review', 'pending_documents', 'awaiting_offer', 'approved', 'pre_approved'], true);
+
+        $steps[1]['complete'] = $underReviewComplete;
+
+        foreach ($steps as $index => &$step) {
+            if ($step['key'] === 'documents_requested') {
+                $step['complete'] = $hasUploadedRequests && ! $hasOpenRequests;
+            }
+            if ($step['key'] === 'approved') {
+                $step['complete'] = $isApproved;
+            }
         }
         unset($step);
 
         $currentKey = match (true) {
-            $this->isClosed($application) => 'disbursed',
-            $this->isDisbursed($application) => 'disbursed',
-            in_array((string) $application->status, ['approved', 'pre_approved'], true) || in_array($stage, ['approval', 'disbursement'], true) => 'approved',
-            $stage === 'credit_appraisal' || (string) $application->status === 'under_review' => 'credit_review',
-            $hasUploadedRequests => 'documents_submitted',
-            $hasOpenRequests || (string) $application->status === 'pending_documents' => 'documents_submitted',
-            $stage === 'screening' => 'screening',
+            $isApproved => 'approved',
+            $hasOpenRequests || (string) $application->status === 'pending_documents' => 'documents_requested',
+            $hasUploadedRequests => 'documents_requested',
+            $underReviewComplete => 'under_review',
             default => 'submitted',
         };
 
+        if (! collect($steps)->contains(fn (array $s) => $s['key'] === $currentKey)) {
+            $currentKey = $underReviewComplete ? 'under_review' : 'submitted';
+        }
+
         foreach ($steps as &$step) {
-            $step['current'] = $step['key'] === $currentKey && ! $step['complete'];
-            if ($step['key'] === $currentKey && ! $this->isDisbursed($application) && ! $this->isClosed($application)) {
-                if (! $step['complete']) {
-                    $step['current'] = true;
-                }
-            }
+            $step['current'] = $step['key'] === $currentKey && ! ($step['complete'] ?? false);
         }
         unset($step);
-
-        if ($hasOpenRequests && ! $hasUploadedRequests) {
-            $steps[1]['current'] = false;
-            $steps[2]['current'] = false;
-            foreach ($steps as &$step) {
-                $step['current'] = false;
-            }
-            unset($step);
-            $steps[1]['current'] = (string) $application->status === 'pending_documents';
-        }
-
-        if ((string) $application->status === 'pending_documents') {
-            foreach ($steps as &$step) {
-                $step['current'] = false;
-            }
-            unset($step);
-            $idx = $hasUploadedRequests ? 2 : 1;
-            if (! ($steps[$idx]['complete'] ?? false)) {
-                $steps[$idx]['current'] = true;
-            }
-        }
 
         $completedCount = collect($steps)->where('complete', true)->count();
         $currentIndex = collect($steps)->search(fn (array $s) => $s['current'] ?? false);
@@ -196,9 +177,7 @@ class ApplicationBorrowerStatusService
 
         $steps = [
             ['key' => 'submitted', 'label' => __('borrower.loan_progress.submitted'), 'complete' => true, 'current' => false],
-            ['key' => 'screening', 'label' => __('borrower.loan_progress.screening'), 'complete' => true, 'current' => false],
-            ['key' => 'credit_review', 'label' => __('borrower.loan_progress.credit_review'), 'complete' => true, 'current' => false],
-            ['key' => 'approval', 'label' => __('borrower.loan_progress.approval'), 'complete' => true, 'current' => false],
+            ['key' => 'approved', 'label' => __('borrower.loan_progress.approval'), 'complete' => true, 'current' => false],
             [
                 'key'      => 'accept_offer',
                 'label'    => __('borrower.loan_progress.accept_offer'),
@@ -339,7 +318,7 @@ class ApplicationBorrowerStatusService
             }
 
             if ($readiness->needsPostApprovalFees($application)) {
-                return 'post_approval_fees';
+                return 'offer_accepted';
             }
 
             if ($readiness->needsDisbursementDetailsConfirmation($application)) {
@@ -369,16 +348,12 @@ class ApplicationBorrowerStatusService
             return 'documents_requested';
         }
 
-        if ($stage === 'credit_appraisal' || $status === 'under_review') {
-            return 'credit_review';
+        if ($stage === 'credit_appraisal' || $status === 'under_review' || $stage === 'screening' || $stage === 'pre_approval') {
+            return 'under_review';
         }
 
-        if ($stage === 'screening') {
-            return 'screening';
-        }
-
-        if (in_array($status, ['submitted', 'pending'], true) && $stage === 'submitted') {
-            return 'submitted';
+        if (in_array($status, ['submitted', 'pending'], true) && in_array($stage, ['submitted', 'screening'], true)) {
+            return in_array($stage, ['screening'], true) ? 'under_review' : 'submitted';
         }
 
         return 'submitted';
@@ -389,11 +364,13 @@ class ApplicationBorrowerStatusService
         return match ($code) {
             'draft'                 => __('borrower.applications_list.statuses.draft'),
             'submitted'             => __('borrower.applications_list.statuses.submitted'),
-            'screening'             => __('borrower.applications_list.statuses.screening'),
+            'under_review'          => __('borrower.applications_list.statuses.under_review'),
+            'screening'             => __('borrower.applications_list.statuses.under_review'),
             'documents_requested'   => __('borrower.applications_list.statuses.documents_requested'),
             'documents_resubmitted' => __('borrower.applications_list.statuses.documents_resubmitted'),
-            'credit_review'         => __('borrower.applications_list.statuses.credit_review'),
+            'credit_review'         => __('borrower.applications_list.statuses.under_review'),
             'awaiting_offer'        => __('borrower.applications_list.statuses.awaiting_offer'),
+            'offer_accepted'        => __('borrower.applications_list.statuses.offer_accepted'),
             'offer_declined'        => __('borrower.applications_list.statuses.offer_declined'),
             'withdrawn'             => __('borrower.applications_list.statuses.withdrawn'),
             'awaiting_signature'    => __('borrower.applications_list.statuses.awaiting_signature'),
@@ -402,7 +379,7 @@ class ApplicationBorrowerStatusService
             'awaiting_contract'     => __('borrower.applications_list.statuses.awaiting_contract'),
             'ready_for_disbursement'=> __('borrower.applications_list.statuses.ready_for_disbursement'),
             'approved'              => __('borrower.applications_list.statuses.approved'),
-            'rejected'              => __('borrower.applications_list.statuses.rejected'),
+            'rejected'              => __('borrower.applications_list.statuses.not_approved'),
             'disbursed'             => __('borrower.applications_list.statuses.disbursed'),
             'closed'                => __('borrower.applications_list.statuses.closed'),
             default                 => ucfirst(str_replace('_', ' ', $code)),
@@ -415,7 +392,8 @@ class ApplicationBorrowerStatusService
             'rejected' => 'red',
             'offer_declined', 'withdrawn' => 'red',
             'awaiting_offer' => 'amber',
-            'awaiting_signature', 'post_approval_fees', 'awaiting_disbursement_details', 'awaiting_contract' => 'sky',
+            'offer_accepted', 'post_approval_fees' => 'sky',
+            'awaiting_signature', 'awaiting_disbursement_details', 'awaiting_contract' => 'sky',
             'approved', 'ready_for_disbursement', 'disbursed', 'closed' => 'emerald',
             'draft', 'submitted' => 'amber',
             'documents_requested', 'documents_resubmitted' => 'orange',

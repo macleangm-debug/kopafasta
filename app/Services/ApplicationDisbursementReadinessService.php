@@ -203,6 +203,10 @@ class ApplicationDisbursementReadinessService
 
     public function needsBorrowerSignature(LoanApplication $application): bool
     {
+        if ((string) $application->offer_status === 'accepted') {
+            return false;
+        }
+
         $offer = $this->offerLetter($application);
 
         return $offer && ! $offer->isSigned() && ! $offer->isOfferExpired();

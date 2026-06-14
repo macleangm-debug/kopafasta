@@ -54,6 +54,17 @@ class UnderwritingSettingsService
         return max(1, (int) $this->get('stage_sla_days', 5));
     }
 
+    public function loanReviewSlaLabel(): string
+    {
+        $days = $this->stageSlaDays();
+
+        if ($days === 1) {
+            return __('borrower.loan_profile.sla_hours', ['hours' => 24]);
+        }
+
+        return __('borrower.loan_profile.sla_days', ['days' => $days]);
+    }
+
     public function counterOffersEnabled(): bool
     {
         return (bool) $this->get('enable_counter_offers', false);

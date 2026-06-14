@@ -211,14 +211,38 @@ class BorrowerController extends Controller
         $offers = app(\App\Services\ApplicationOfferService::class);
 
         if ($data['decision'] === 'accept') {
-            $offers->acceptOffer($application, $customer);
+            $application = $offers->acceptOffer($application, $customer);
             $message = __('borrower.offer.accepted');
-        } else {
-            $offers->declineOffer($application, $customer);
-            $message = __('borrower.offer.declined');
+            $this->auditBorrower('application.offer_accept', $application);
+
+            $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
+            if ($readiness->needsPostApprovalFees($application)) {
+                return redirect()
+                    ->route('site.borrower.application.post-approval-fees', $application)
+                    ->with('status', $message);
+            }
+
+            if ($readiness->needsDisbursementDetailsConfirmation($application)) {
+                return redirect()
+                    ->route('site.borrower.application.disbursement-details', $application)
+                    ->with('status', $message);
+            }
+
+            app(\App\Services\LoanAgreementService::class)->ensureLoanContractAfterFees($application);
+            if ($readiness->needsContractSignature($application)) {
+                return redirect()
+                    ->route('site.borrower.application.contract', $application)
+                    ->with('status', $message);
+            }
+
+            return redirect()
+                ->route('site.borrower.application', $application->id)
+                ->with('status', $message);
         }
 
-        $this->auditBorrower('application.offer_'.$data['decision'], $application);
+        $offers->declineOffer($application, $customer);
+        $message = __('borrower.offer.declined');
+        $this->auditBorrower('application.offer_decline', $application);
 
         return redirect()
             ->route('site.borrower.application', $application->id)

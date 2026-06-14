@@ -114,6 +114,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::get('/borrower/apply',  [\App\Http\Controllers\Site\ApplyController::class, 'show'])->name('borrower.apply');
                 Route::get('/borrower/apply/product/{product}/readiness', [\App\Http\Controllers\Site\ApplyController::class, 'productReadiness'])->name('borrower.apply.product-readiness');
                 Route::post('/borrower/apply/guarantor-lookup', [\App\Http\Controllers\Site\ApplyController::class, 'lookupGuarantor'])->name('borrower.apply.guarantor-lookup');
+                Route::get('/borrower/apply/previous-guarantors', [\App\Http\Controllers\Site\ApplyController::class, 'previousGuarantors'])->name('borrower.apply.previous-guarantors');
+                Route::post('/borrower/apply/previous-guarantor', [\App\Http\Controllers\Site\ApplyController::class, 'selectPreviousGuarantor'])->name('borrower.apply.previous-guarantor');
                 Route::post('/borrower/apply/guarantor-invite', [\App\Http\Controllers\Site\ApplyController::class, 'prepareExternalGuarantor'])->name('borrower.apply.guarantor-invite');
                 Route::get('/borrower/apply/guarantor-status', [\App\Http\Controllers\Site\ApplyController::class, 'guarantorInvitationStatus'])->name('borrower.apply.guarantor-status');
                 Route::post('/borrower/apply/guarantor-expire', [\App\Http\Controllers\Site\ApplyController::class, 'expireGuarantorInvitation'])->name('borrower.apply.guarantor-expire');

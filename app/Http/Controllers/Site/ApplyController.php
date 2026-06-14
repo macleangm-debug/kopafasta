@@ -277,6 +277,34 @@ class ApplyController extends Controller
         ]);
     }
 
+    public function previousGuarantors(GuarantorInvitationService $guarantors): \Illuminate\Http\JsonResponse
+    {
+        $borrower = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($borrower, 403);
+
+        return response()->json([
+            'guarantors' => $guarantors->previousGuarantorsForBorrower($borrower),
+        ]);
+    }
+
+    public function selectPreviousGuarantor(Request $request, GuarantorInvitationService $guarantors): \Illuminate\Http\JsonResponse
+    {
+        $borrower = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($borrower, 403);
+
+        $data = $request->validate([
+            'customer_guarantor_id' => ['required', 'integer'],
+        ]);
+
+        $result = $guarantors->prepareWizardPreviousGuarantor($borrower, (int) $data['customer_guarantor_id']);
+
+        if (! $result['ok']) {
+            return response()->json($result, 422);
+        }
+
+        return response()->json($result);
+    }
+
     public function prepareExternalGuarantor(
         Request $request,
         GuarantorInvitationService $guarantors,
@@ -711,7 +739,7 @@ class ApplyController extends Controller
             'activity_type'           => ['required', 'string', 'max:40'],
             'activity_details'        => ['nullable', 'array'],
             'income_range'            => ['required', 'string', 'in:'.implode(',', array_keys(config('income_ranges')))],
-            'guarantor_mode'          => ['nullable', 'in:none,internal,external'],
+            'guarantor_mode'          => ['nullable', 'in:none,internal,external,previous'],
             'internal_member_no'      => ['nullable', 'string', 'max:40'],
             'internal_guarantor_phone'=> ['nullable', 'string', 'max:20'],
             'internal_guarantor_name' => ['nullable', 'string', 'max:120'],
@@ -772,7 +800,10 @@ class ApplyController extends Controller
             }
             if ($mode === 'none') {
                 // Borrower submission must not be blocked by incomplete guarantor onboarding.
-            } elseif ($mode === 'internal') {
+            } elseif ($mode === 'internal' || $mode === 'previous') {
+                if ($mode === 'previous') {
+                    $data['guarantor_mode'] = 'internal';
+                }
                 foreach (['internal_member_no', 'internal_guarantor_phone', 'internal_guarantor_name'] as $field) {
                     if (blank($data[$field] ?? null) && filled($draftForm[$field] ?? null)) {
                         $data[$field] = $draftForm[$field];

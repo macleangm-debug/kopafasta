@@ -940,4 +940,122 @@ class GuarantorInvitationService
     {
         return app(UnderwritingSettingsService::class)->guarantorInvitationExpiryDays();
     }
+
+    /**
+     * @return list<array{id: int, label: string, mode: string, membership_id: ?string, phone: string, name: string, kyc_fresh: bool}>
+     */
+    public function previousGuarantorsForBorrower(Customer $borrower): array
+    {
+        $links = CustomerGuarantor::query()
+            ->with(['guarantor', 'loanApplication'])
+            ->where('customer_id', $borrower->id)
+            ->whereNotNull('guarantor_id')
+            ->latest('id')
+            ->get();
+
+        $seen = [];
+        $items = [];
+
+        foreach ($links as $link) {
+            $guarantor = $link->guarantor;
+            if (! $guarantor) {
+                continue;
+            }
+
+            $key = strtolower(trim($guarantor->phone ?: $guarantor->national_id ?: $guarantor->email ?: (string) $link->id));
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+
+            $invitation = GuarantorInvitation::query()
+                ->where('customer_guarantor_id', $link->id)
+                ->latest('id')
+                ->first();
+
+            $member = $invitation?->guarantor_customer_id
+                ? Customer::find($invitation->guarantor_customer_id)
+                : null;
+
+            $mode = $invitation?->type === 'internal' || $member ? 'internal' : 'external';
+            $label = trim(($guarantor->first_name ?? '').' '.($guarantor->last_name ?? '')) ?: 'Guarantor';
+            $kycFresh = $member
+                ? (bool) (collect(app(ApplicationRequirementsService::class)->checklist($member)['items'] ?? [])
+                    ->firstWhere('key', 'kyc_freshness')['complete'] ?? false)
+                : false;
+
+            $items[] = [
+                'id'            => $link->id,
+                'label'         => $label,
+                'mode'          => $mode,
+                'membership_id' => $invitation?->membership_id,
+                'phone'         => $guarantor->phone ?? '',
+                'name'          => $label,
+                'kyc_fresh'     => $kycFresh,
+            ];
+        }
+
+        return $items;
+    }
+
+    /**
+     * @return array{ok: bool, message: string, lookup?: array<string, mixed>}
+     */
+    public function prepareWizardPreviousGuarantor(Customer $borrower, int $customerGuarantorId): array
+    {
+        $link = CustomerGuarantor::query()
+            ->with(['guarantor'])
+            ->where('customer_id', $borrower->id)
+            ->where('id', $customerGuarantorId)
+            ->first();
+
+        if (! $link || ! $link->guarantor) {
+            return ['ok' => false, 'message' => __('borrower.apply.alerts.guarantor_not_found')];
+        }
+
+        $invitation = GuarantorInvitation::query()
+            ->where('customer_guarantor_id', $link->id)
+            ->latest('id')
+            ->first();
+
+        if ($invitation?->type === 'internal' && $invitation->membership_id) {
+            $member = $this->findCustomerByMemberNumber($invitation->membership_id);
+            if ($member) {
+                $verified = $this->verifyInternalMember(
+                    $borrower,
+                    $invitation->membership_id,
+                    $member->phone ?? $link->guarantor->phone ?? '',
+                    trim(($link->guarantor->first_name ?? '').' '.($link->guarantor->last_name ?? '')),
+                );
+
+                if ($verified['ok']) {
+                    return [
+                        'ok'      => true,
+                        'message' => __('borrower.apply.previous_guarantor.ready'),
+                        'lookup'  => [
+                            'ok'    => true,
+                            'name'  => $verified['name'] ?? $verified['label'] ?? $link->guarantor->first_name,
+                            'label' => $verified['label'] ?? null,
+                            'member_no' => $invitation->membership_id,
+                            'previous_guarantor_id' => $link->id,
+                            'kyc_fresh' => true,
+                        ],
+                    ];
+                }
+            }
+        }
+
+        return [
+            'ok'      => true,
+            'message' => __('borrower.apply.previous_guarantor.request_sent'),
+            'lookup'  => [
+                'ok'    => true,
+                'name'  => trim(($link->guarantor->first_name ?? '').' '.($link->guarantor->last_name ?? '')),
+                'label' => trim(($link->guarantor->first_name ?? '').' '.($link->guarantor->last_name ?? '')),
+                'member_no' => $invitation?->membership_id,
+                'previous_guarantor_id' => $link->id,
+                'kyc_fresh' => false,
+            ],
+        ];
+    }
 }

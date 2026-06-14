@@ -142,10 +142,10 @@ class LoanApplicationNextActionService
 
         if ($status === 'rejected') {
             return $this->action(
-                'view_application',
+                'view_rejection_reason',
                 __('borrower.loan_profile.next_actions.rejected'),
-                __('borrower.applications_list.view'),
-                $profileUrl,
+                __('borrower.loan_profile.actions.view_reason'),
+                $profileUrl.'#rejection',
                 tone: 'secondary',
             );
         }
@@ -210,7 +210,7 @@ class LoanApplicationNextActionService
             if ($readiness->needsPostApprovalFees($application)) {
                 return $this->action(
                     'pay_post_approval_fees',
-                    __('borrower.loan_profile.next_actions.pay_post_approval_fees'),
+                    __('borrower.loan_profile.next_actions.offer_accepted'),
                     __('borrower.loan_profile.actions.pay_post_approval_fees'),
                     route('site.borrower.application.post-approval-fees', $application->id),
                     tone: 'primary',
@@ -284,8 +284,10 @@ class LoanApplicationNextActionService
         }
 
         return $this->action(
-            'view_application',
-            __('borrower.loan_profile.next_actions.submitted'),
+            'under_review',
+            __('borrower.loan_profile.next_actions.under_review', [
+                'time' => app(UnderwritingSettingsService::class)->loanReviewSlaLabel(),
+            ]),
             __('borrower.applications_list.view'),
             $profileUrl,
             tone: 'secondary',

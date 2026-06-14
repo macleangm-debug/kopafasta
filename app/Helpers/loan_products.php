@@ -77,6 +77,7 @@ if (! function_exists('loan_product_wizard_payload')) {
     function loan_product_wizard_payload(LoanProduct $product, ?Customer $customer = null): array
     {
         $rateService = app(\App\Services\DisplayedRateService::class);
+        $policy = app(\App\Services\LoanPolicyService::class);
 
         return [
             'id'                => $product->id,
@@ -94,6 +95,7 @@ if (! function_exists('loan_product_wizard_payload')) {
             'tmax'              => (int) $product->tenure_max_months,
             'desc'              => $product->description,
             'requires_guarantor' => (bool) $product->requires_guarantor,
+            'guarantor_required_above' => (float) ($policy->settings()['guarantor_required_above'] ?? 0),
             'frequency'         => $product->repayment_cadence ?? 'weekly',
         ];
     }

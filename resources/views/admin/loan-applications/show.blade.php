@@ -33,21 +33,48 @@
 
     @include('admin.loan-applications.review._recommendation')
 
-    @include('admin.loan-applications.review._nav')
+    <div x-data="{ tab: 'borrower' }" class="space-y-4">
+        <nav class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2" aria-label="Review sections">
+            @foreach ([
+                ['borrower', 'Borrower'],
+                ['documents', 'Documents'],
+                ['crb', 'CRB'],
+                ['guarantor', 'Guarantor'],
+                ['decision', 'Decision'],
+            ] as [$key, $label])
+                <button type="button"
+                        @click="tab = '{{ $key }}'"
+                        :class="tab === '{{ $key }}' ? 'bg-gray-900 text-white ring-gray-900' : 'bg-white text-gray-700 ring-gray-200 hover:bg-gray-50'"
+                        class="rounded-xl px-3 py-2.5 text-xs font-semibold ring-1 transition text-left">
+                    {{ $label }}
+                </button>
+            @endforeach
+        </nav>
 
-    @include('admin.loan-applications._workflow')
+        <div x-show="tab === 'borrower'" x-cloak class="space-y-6">
+            @include('admin.loan-applications.review._borrower')
+            @include('admin.loan-applications.review._verification')
+        </div>
 
-    @include('admin.loan-applications._loan-link')
+        <div x-show="tab === 'documents'" x-cloak class="space-y-6">
+            @include('admin.loan-applications.review._documents')
+            @include('admin.loan-applications.review._document-requests')
+            @include('admin.loan-applications.review._asset')
+        </div>
 
-    <div class="space-y-6">
-        @include('admin.loan-applications.review._borrower')
-        @include('admin.loan-applications.review._verification')
-        @include('admin.loan-applications.review._documents')
-        @include('admin.loan-applications.review._guarantors')
-        @include('admin.loan-applications.review._asset')
-        @include('admin.loan-applications.review._crb')
-        @include('admin.loan-applications.review._contract')
-        @include('admin.loan-applications.review._document-requests')
+        <div x-show="tab === 'crb'" x-cloak class="space-y-6">
+            @include('admin.loan-applications.review._crb')
+        </div>
+
+        <div x-show="tab === 'guarantor'" x-cloak class="space-y-6">
+            @include('admin.loan-applications.review._guarantors')
+        </div>
+
+        <div x-show="tab === 'decision'" x-cloak class="space-y-6">
+            @include('admin.loan-applications._workflow')
+            @include('admin.loan-applications._loan-link')
+            @include('admin.loan-applications.review._contract')
+        </div>
     </div>
 
 </x-admin.layout>

@@ -125,10 +125,12 @@ class SmartLoanApplicationWizardService
      *
      * @return list<array{key: string, label: string, skippable: bool, skipped: bool}>
      */
-    public function borrowerStepPlan(Customer $customer, ?LoanProduct $product = null): array
+    public function borrowerStepPlan(Customer $customer, ?LoanProduct $product = null, float $requestedAmount = 0): array
     {
         $sections = collect($this->profileSections($customer))->keyBy('key');
-        $requiresGuarantor = (bool) ($product?->requires_guarantor ?? false);
+        $policy = app(LoanPolicyService::class);
+        $amount = $requestedAmount > 0 ? $requestedAmount : (float) ($product?->min_amount ?? 0);
+        $requiresGuarantor = $product && $policy->requiresGuarantorForApplication($product, $amount);
         $productCode = $product?->code;
         $hasProductQuestions = $productCode && ! empty(config('loan_product_questions.'.$productCode));
 

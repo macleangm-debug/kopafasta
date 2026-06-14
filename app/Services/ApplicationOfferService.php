@@ -179,15 +179,18 @@ class ApplicationOfferService
         abort_unless((int) $application->customer_id === (int) $customer->id, 403);
         abort_unless($application->offer_status === 'pending_borrower', 422);
 
-        $application->update([
-            'offer_status'        => 'accepted',
-            'offer_responded_at'  => now(),
-            'recommended_amount'  => $application->offered_amount ?? $application->recommended_amount,
-            'requested_tenure_months' => $application->offered_tenure_months ?? $application->requested_tenure_months,
-            'status'              => 'pre_approved',
-        ]);
+        $agreementService = app(LoanAgreementService::class);
+        $offer = \App\Models\LoanAgreement::query()
+            ->where('loan_application_id', $application->id)
+            ->where('document_type', 'offer_letter')
+            ->latest('id')
+            ->first();
 
-        return $application->fresh();
+        if ($offer && ! $offer->isSigned() && ! $offer->isOfferExpired()) {
+            $agreementService->acceptDirectly($offer);
+        }
+
+        return $agreementService->advanceAfterOfferAcceptance($application->fresh());
     }
 
     public function declineOffer(LoanApplication $application, Customer $customer): LoanApplication

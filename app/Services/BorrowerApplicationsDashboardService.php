@@ -41,7 +41,8 @@ class BorrowerApplicationsDashboardService
         $submitted = LoanApplication::query()
             ->with(['product', 'documentRequests', 'loan'])
             ->where('customer_id', $customer->id)
-            ->whereNotIn('status', ['draft'])
+            ->whereNotIn('status', ['draft', 'disbursed'])
+            ->whereDoesntHave('loan', fn ($query) => $query->whereIn('status', ['active', 'disbursed', 'arrears']))
             ->latest()
             ->get();
 
@@ -116,6 +117,7 @@ class BorrowerApplicationsDashboardService
         $borrowerStatus = $this->borrowerStatus->forApplication($application);
         $statusCode = $borrowerStatus['code'];
         $needsDocuments = in_array($statusCode, ['documents_requested', 'documents_resubmitted'], true);
+        $isRejected = $statusCode === 'rejected';
 
         return [
             'is_draft'           => false,
@@ -139,10 +141,14 @@ class BorrowerApplicationsDashboardService
             'last_updated_human' => optional($application->updated_at)->diffForHumans(),
             'sort_at'            => ($application->submitted_at ?? $application->updated_at)?->timestamp ?? 0,
             'detail'             => $this->borrowerStatus->borrowerDetail($application),
-            'action_url'         => route('site.borrower.application', $application->id),
-            'action_label'       => $needsDocuments || in_array($statusCode, ['submitted', 'screening', 'credit_review', 'documents_requested', 'documents_resubmitted'], true)
-                ? __('borrower.applications_list.view')
-                : __('borrower.applications_list.open'),
+            'action_url'         => $isRejected
+                ? route('site.borrower.application', $application->id).'#rejection'
+                : route('site.borrower.application', $application->id),
+            'action_label'       => match (true) {
+                $isRejected => __('borrower.loan_profile.actions.view_reason'),
+                $needsDocuments => __('borrower.loan_profile.upload'),
+                default => __('borrower.applications_list.open'),
+            },
             'receipt_url'        => route('site.apply.success', $application->id),
         ];
     }

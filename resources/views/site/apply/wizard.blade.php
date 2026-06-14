@@ -82,6 +82,8 @@
                   products: @js($wizardProducts->map($wizardProductPayload)->values()->all()),
                   guarantorLookupUrl: @js(route('site.borrower.apply.guarantor-lookup')),
                   guarantorInviteUrl: @js(route('site.borrower.apply.guarantor-invite')),
+                  previousGuarantorsUrl: @js(route('site.borrower.apply.previous-guarantors')),
+                  selectPreviousGuarantorUrl: @js(route('site.borrower.apply.previous-guarantor')),
                   guarantorStatusUrl: @js(route('site.borrower.apply.guarantor-status')),
                   guarantorExpireUrl: @js(route('site.borrower.apply.guarantor-expire')),
                   repaymentPreviewUrl: @js(route('site.borrower.apply.repayment-preview')),
@@ -417,7 +419,30 @@
                         </button>
                     </div>
                     <div class="space-y-4" x-show="!isGuarantorLocked()">
-                        <div class="flex flex-wrap gap-3">
+                        <div x-show="previousGuarantors.length" x-cloak class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-4 space-y-3">
+                            <p class="text-sm font-semibold text-sky-900">{{ __('borrower.apply.previous_guarantor.title') }}</p>
+                            <div class="flex flex-wrap gap-3">
+                                <label class="inline-flex items-center gap-2 text-sm">
+                                    <input type="radio" name="guarantor_choice" value="previous" @change="form.guarantor_mode = 'previous'" :checked="form.guarantor_mode === 'previous'" class="text-amber-500">
+                                    {{ __('borrower.apply.previous_guarantor.use_previous') }}
+                                </label>
+                                <label class="inline-flex items-center gap-2 text-sm">
+                                    <input type="radio" name="guarantor_choice" value="new" @change="form.guarantor_mode = 'internal'" :checked="form.guarantor_mode !== 'previous'" class="text-amber-500">
+                                    {{ __('borrower.apply.previous_guarantor.select_new') }}
+                                </label>
+                            </div>
+                            <div x-show="form.guarantor_mode === 'previous'" class="space-y-2">
+                                <template x-for="item in previousGuarantors" :key="item.id">
+                                    <button type="button"
+                                            @click="selectPreviousGuarantor(item.id)"
+                                            class="w-full text-left rounded-lg bg-white ring-1 ring-sky-200 px-3 py-2 text-sm hover:bg-sky-100/60">
+                                        <span class="font-semibold text-gray-900" x-text="item.label"></span>
+                                        <span class="block text-xs text-gray-500 mt-0.5" x-text="item.kyc_fresh ? @js(__('borrower.apply.previous_guarantor.kyc_fresh')) : @js(__('borrower.apply.previous_guarantor.new_request'))"></span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-3" x-show="form.guarantor_mode !== 'previous'">
                             <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="guarantor_mode" value="internal" x-model="form.guarantor_mode" class="text-amber-500"> {{ __('borrower.apply.internal_guarantor') }}</label>
                             <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="guarantor_mode" value="external" x-model="form.guarantor_mode" class="text-amber-500"> {{ __('borrower.apply.external_guarantor') }}</label>
                         </div>
@@ -822,6 +847,9 @@
                 readinessUrl: config.readinessUrl,
                 guarantorLookupUrl: config.guarantorLookupUrl || '',
                 guarantorInviteUrl: config.guarantorInviteUrl || '',
+                previousGuarantorsUrl: config.previousGuarantorsUrl || '',
+                selectPreviousGuarantorUrl: config.selectPreviousGuarantorUrl || '',
+                previousGuarantors: [],
                 guarantorStatusUrl: config.guarantorStatusUrl || '',
                 guarantorExpireUrl: config.guarantorExpireUrl || '',
                 repaymentPreviewUrl: config.repaymentPreviewUrl || '',
@@ -933,6 +961,9 @@
                     this.$watch('stepKey', (key) => {
                         if (key === 'application_fee') {
                             this.enterApplicationFeeStep();
+                        }
+                        if (key === 'guarantor') {
+                            this.loadPreviousGuarantors();
                         }
                         if (key === 'guarantor' && this.externalGuarantor?.invitation_id) {
                             this.refreshExternalGuarantorStatus();
@@ -1442,7 +1473,7 @@
                             steps.push({ key: 'asset_tenure', label: stepLabels.asset_tenure || stepLabels.quote });
                         }
                         steps.push({ key: 'application_fee', label: @js(__('borrower.apply.steps.application_fee')) });
-                        if (this.current?.requires_guarantor) {
+                        if (this.requiresGuarantor()) {
                             steps.push({ key: 'guarantor', label: @js(__('borrower.apply.steps.guarantor')) });
                         }
                         if (this.current?.code && this.productQuestions[this.current.code]) {
@@ -1465,8 +1496,8 @@
                     }
                     if (! this.form.requested_amount || this.form.requested_amount < p.min) this.form.requested_amount = p.min;
                     if (! this.form.requested_tenure_months || this.form.requested_tenure_months < p.tmin) this.form.requested_tenure_months = p.tmin;
-                    if (! p.requires_guarantor) this.form.guarantor_mode = 'none';
-                    else if (this.form.guarantor_mode === 'none') this.form.guarantor_mode = 'internal';
+                    if (! this.requiresGuarantor()) this.form.guarantor_mode = 'none';
+                    else if (this.form.guarantor_mode === 'none') this.form.guarantor_mode = 'previous';
                     this.updateQuote();
                     if (rebuild) this.rebuildSteps();
                 },
@@ -1500,10 +1531,65 @@
                         fees: this.applicationFee,
                         total: (emi * this.form.requested_tenure_months) + this.applicationFee,
                     };
+                    if (this.phase === 'application') {
+                        this.rebuildSteps();
+                    }
                 },
 
                 hasStep(key) {
                     return this.steps.some(s => s.key === key);
+                },
+
+                requiresGuarantor() {
+                    if (! this.current) return false;
+                    if (this.current.requires_guarantor) return true;
+                    const threshold = Number(this.current.guarantor_required_above || 0);
+                    const amount = Number(this.form.requested_amount || 0);
+
+                    return threshold > 0 && amount >= threshold;
+                },
+
+                async loadPreviousGuarantors() {
+                    if (! this.previousGuarantorsUrl) return;
+                    try {
+                        const response = await fetch(this.previousGuarantorsUrl, { headers: { Accept: 'application/json' } });
+                        const data = await response.json();
+                        this.previousGuarantors = data.guarantors || [];
+                    } catch (e) {
+                        this.previousGuarantors = [];
+                    }
+                },
+
+                async selectPreviousGuarantor(id) {
+                    if (! this.selectPreviousGuarantorUrl || ! id) return;
+                    this.guarantorLookup.loading = true;
+                    try {
+                        const response = await fetch(this.selectPreviousGuarantorUrl, {
+                            method: 'POST',
+                            headers: {
+                                Accept: 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
+                            },
+                            body: JSON.stringify({ customer_guarantor_id: id }),
+                        });
+                        const data = await response.json();
+                        if (! data.ok) {
+                            alert(data.message || 'Could not use previous guarantor.');
+                            return;
+                        }
+                        this.form.guarantor_mode = 'internal';
+                        this.form.previous_guarantor_id = id;
+                        this.guarantorLookup = { ok: true, ...(data.lookup || {}) };
+                        if (data.lookup?.member_no) {
+                            this.form.internal_member_no = String(data.lookup.member_no).replace(/^KPF-TZ-/i, '');
+                        }
+                        if (data.lookup?.name) {
+                            this.form.internal_guarantor_name = data.lookup.name;
+                        }
+                    } finally {
+                        this.guarantorLookup.loading = false;
+                    }
                 },
 
                 gotoKey(key) {
@@ -1512,7 +1598,7 @@
                 },
 
                 isGuarantorLocked() {
-                    if (this.form.guarantor_mode === 'internal') {
+                    if (this.form.guarantor_mode === 'internal' || this.form.guarantor_mode === 'previous') {
                         return this.internalGuarantorValidated();
                     }
                     if (this.form.guarantor_mode === 'external') {
@@ -2026,7 +2112,7 @@
                             alert(this.i18n.alerts.selectGuarantor);
                             return false;
                         }
-                        if (this.form.guarantor_mode === 'internal') {
+                        if (this.form.guarantor_mode === 'internal' || this.form.guarantor_mode === 'previous') {
                             if (! this.internalGuarantorValidated()) {
                                 alert(this.i18n.alerts.guarantor_validate_first);
                                 return false;

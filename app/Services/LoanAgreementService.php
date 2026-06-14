@@ -39,13 +39,20 @@ class LoanAgreementService
             'reference'           => 'OL-'.strtoupper(Str::random(8)),
         ]);
 
-        $agreement->fill([
+        $wasSigned = $existing && $existing->isSigned();
+
+        $fill = [
             'snapshot'             => $snapshot,
-            'status'               => 'sent',
-            'sent_at'              => now(),
             'expires_at'           => now()->addDays(app(LegalSettingsService::class)->offerValidityDays()),
             'generated_by_user_id' => Auth::id(),
-        ]);
+        ];
+
+        if (! $wasSigned) {
+            $fill['status'] = 'sent';
+            $fill['sent_at'] = now();
+        }
+
+        $agreement->fill($fill);
 
         if ($regenerate) {
             $this->resetDeclinedOfferState($application);

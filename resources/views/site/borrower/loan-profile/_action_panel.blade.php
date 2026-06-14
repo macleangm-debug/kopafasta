@@ -22,6 +22,21 @@
 @endphp
 
 <div class="mb-6 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-4 sm:p-5">
+    @if (($status['code'] ?? '') === 'rejected')
+        <div id="rejection" class="rounded-xl bg-white ring-1 ring-red-100 px-4 py-4">
+            <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_profile.current_status') }}</p>
+            <p class="text-lg font-bold text-red-800 mt-1">{{ __('borrower.applications_list.statuses.not_approved') }}</p>
+            @if (! empty($status['detail']))
+                <p class="text-sm text-red-700 mt-2">{{ $status['detail'] }}</p>
+            @endif
+            @if (! empty($next['url']))
+                <a href="{{ $next['url'] }}"
+                   class="inline-flex items-center justify-center font-semibold px-5 py-2.5 rounded-full text-sm mt-4 bg-white ring-1 ring-red-200 hover:bg-red-50 text-red-800">
+                    {{ $next['button_label'] ?? __('borrower.loan_profile.actions.view_reason') }}
+                </a>
+            @endif
+        </div>
+    @else
     <div class="grid sm:grid-cols-2 gap-3 mb-4">
         <div class="rounded-xl bg-white ring-1 ring-amber-100 px-4 py-3">
             <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_profile.profile_completion') }}</p>
@@ -58,11 +73,12 @@
             </div>
         </div>
 
-        @if (! empty($next['url']))
+        @if (! empty($next['url']) && ! in_array($next['code'] ?? '', ['under_review', 'view_application'], true))
             <a href="{{ $next['url'] }}"
                class="inline-flex items-center justify-center font-semibold px-6 py-3 rounded-full text-sm shrink-0 {{ $btnClass }}">
                 {{ $next['button_label'] ?? __('borrower.loan_profile.actions.continue_to_form') }}
             </a>
         @endif
     </div>
+    @endif
 </div>
