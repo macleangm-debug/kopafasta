@@ -44,6 +44,7 @@ use App\Http\Controllers\Admin\RepaymentMethodController;
 use App\Http\Controllers\Admin\RiskScoringRuleController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SignatoryController;
+use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\SettlementController;
 use App\Http\Controllers\Admin\SupportTicketController;
 use App\Http\Controllers\Admin\SuspiciousActivityController;
