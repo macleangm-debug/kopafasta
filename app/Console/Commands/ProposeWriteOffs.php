@@ -9,7 +9,7 @@ class ProposeWriteOffs extends Command
 {
     protected $signature = 'loans:propose-write-offs';
 
-    protected $description = 'Auto-propose write-offs for loans matching active rules with auto_propose enabled';
+    protected $description = 'Auto-propose recommended write-offs (never executes — approval workflow required)';
 
     public function handle(WriteOffRequestService $service): int
     {

@@ -104,7 +104,7 @@ class WriteOffRequestService
                 ArrearCase::where('id', $request->arrear_case_id)->update(['status' => 'resolved']);
             }
 
-            app(GuarantorNotificationService::class)->notifyLoanClosed($loan->fresh(['application']));
+            app(GuarantorNotificationService::class)->notifyLoanWrittenOff($loan->fresh(['application']));
 
             return $request->fresh(['loan.customer']);
         });

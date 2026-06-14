@@ -5,10 +5,12 @@ namespace App\Services;
 use App\Models\ArrearCase;
 use App\Models\Loan;
 use App\Models\NotificationLog;
-use App\Services\NotificationService;
+use App\Models\Setting;
 
 class ArrearCaseSyncService
 {
+    public const ESCALATION_DAYS_PAST_DUE = 180;
+
     public function __construct(
         private readonly ActiveLoanServicingService $servicing,
         private readonly NotificationService $notifications,
@@ -23,11 +25,12 @@ class ArrearCaseSyncService
             return null;
         }
 
-        $daysPastDue = max(0, -1 * (int) ($metrics['days_remaining'] ?? 0));
+        $daysPastDue = (int) ($metrics['days_past_due'] ?? 0);
+        $status = $daysPastDue >= self::ESCALATION_DAYS_PAST_DUE ? 'escalated' : 'open';
 
         $case = ArrearCase::query()
             ->where('loan_id', $loan->id)
-            ->where('status', 'open')
+            ->whereIn('status', ['open', 'escalated'])
             ->latest('id')
             ->first();
 
@@ -35,6 +38,7 @@ class ArrearCaseSyncService
             $case->update([
                 'days_past_due'     => max((int) $case->days_past_due, $daysPastDue),
                 'amount_in_arrears' => (float) ($metrics['amount_in_arrears'] ?? 0),
+                'status'            => $case->status === 'resolved' ? 'resolved' : $status,
             ]);
 
             return $case->fresh();
@@ -45,7 +49,7 @@ class ArrearCaseSyncService
             'days_past_due'     => $daysPastDue,
             'amount_in_arrears' => (float) ($metrics['amount_in_arrears'] ?? 0),
             'penalty_amount'    => 0,
-            'status'            => 'open',
+            'status'            => $status,
         ]);
     }
 

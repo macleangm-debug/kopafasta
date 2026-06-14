@@ -46,7 +46,7 @@
                 <input type="hidden" name="write_off_approval_required" value="0">
                 <label class="inline-flex items-center gap-2 text-sm text-gray-800 mt-2">
                     <input type="checkbox" name="write_off_approval_required" value="1"
-                           @checked(! empty($values['write_off_approval_required']))
+                           @checked(array_key_exists('write_off_approval_required', $values) ? ! empty($values['write_off_approval_required']) : true)
                            class="rounded border-gray-300 text-amber-600">
                     Require manager and finance approval before write-off
                 </label>

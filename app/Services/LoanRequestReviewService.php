@@ -56,7 +56,9 @@ class LoanRequestReviewService
         app(GuarantorNotificationService::class)->notifyRestructureApproved($loan->fresh(['application']), $request->restructure_type);
 
         if ($loan->loan_application_id) {
-            app(LoanAgreementService::class)->generateFinalLoanContract($loan->fresh(), regenerate: true);
+            $agreements = app(LoanAgreementService::class);
+            $agreements->generateRepaymentScheduleAnnex($loan->fresh(), regenerate: true);
+            $agreements->generateFinalLoanContract($loan->fresh(), regenerate: true);
         }
 
         return $request->fresh(['loan']);
@@ -149,7 +151,9 @@ class LoanRequestReviewService
         app(GuarantorNotificationService::class)->notifyTopUpDisbursed($loan->fresh(['application']), $amount);
 
         if ($loan->loan_application_id) {
-            app(LoanAgreementService::class)->generateFinalLoanContract($loan->fresh(), regenerate: true);
+            $agreements = app(LoanAgreementService::class);
+            $agreements->generateRepaymentScheduleAnnex($loan->fresh(), regenerate: true);
+            $agreements->generateFinalLoanContract($loan->fresh(), regenerate: true);
         }
 
         return $request->fresh(['loan']);

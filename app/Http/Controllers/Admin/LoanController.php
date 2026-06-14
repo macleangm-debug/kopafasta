@@ -347,7 +347,7 @@ class LoanController extends Controller
             'journal' => $entry?->entry_number,
         ]);
 
-        app(GuarantorNotificationService::class)->notifyLoanClosed($loan->fresh(['application.customer']));
+        app(GuarantorNotificationService::class)->notifyLoanWrittenOff($loan->fresh(['application.customer']));
 
         return redirect()
             ->route('admin.loans.show', $loan)

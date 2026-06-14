@@ -81,6 +81,24 @@ class GuarantorNotificationService
         ]);
     }
 
+    public function notifyLoanWrittenOff(Loan $loan): void
+    {
+        $application = $loan->application ?? LoanApplication::find($loan->loan_application_id);
+        if (! $application) {
+            return;
+        }
+
+        $application->loadMissing(['customer']);
+        $this->notifyGuarantors($application, 'guarantor_loan_written_off', [
+            'title'   => __('borrower.guaranteed.notify.written_off_title'),
+            'message' => __('borrower.guaranteed.notify.written_off_message', [
+                'borrower'  => $application->customer?->legalDisplayName() ?? 'Borrower',
+                'reference' => $loan->loan_number,
+                'amount'    => format_money((float) ($loan->written_off_amount ?? $loan->outstanding_balance)),
+            ]),
+        ]);
+    }
+
     public function notifyRestructureRequested(Loan $loan, string $type): void
     {
         $application = $loan->application ?? LoanApplication::find($loan->loan_application_id);
