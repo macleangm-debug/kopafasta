@@ -160,6 +160,17 @@ class LoanApplicationNextActionService
             );
         }
 
+        if ($application->offer_status === 'declined'
+            || app(\App\Services\ApplicationOfferService::class)->offerDeclinedByBorrower($application)) {
+            return $this->action(
+                'offer_declined',
+                __('borrower.loan_profile.next_actions.offer_declined'),
+                __('borrower.applications_list.view'),
+                $profileUrl,
+                tone: 'secondary',
+            );
+        }
+
         if ($status === 'withdrawn') {
             return $this->action(
                 'withdrawn',

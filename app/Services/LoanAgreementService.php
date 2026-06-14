@@ -266,7 +266,7 @@ class LoanAgreementService
         }
 
         $application = $agreement->loanApplication;
-        if ($application && ! $this->borrowerCanRespondToOffer($application, $agreement)) {
+        if ($agreement->document_type === 'offer_letter' && $application && ! $this->borrowerCanRespondToOffer($application, $agreement)) {
             return [false, __('borrower.agreement.already_declined')];
         }
 
@@ -466,11 +466,22 @@ class LoanAgreementService
 
     private function markSigned(LoanAgreement $agreement, string $method, ?string $ip = null, ?string $ua = null): void
     {
-        $agreement->loadMissing('loanApplication.customer');
+        $agreement->loadMissing('loanApplication.customer', 'loanApplication.signatures');
         $application = $agreement->loanApplication;
         $customer = $application?->customer;
         $signerName = trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: ($customer?->legalDisplayName() ?? 'Borrower');
-        $acceptanceSignature = app(OtpSignatureImageService::class)->generateDataUri($signerName);
+
+        $acceptanceSignature = null;
+        if ($agreement->document_type === 'loan_contract') {
+            $appSignature = app(BorrowerSignatureService::class)->signature($application);
+            if ($appSignature) {
+                $acceptanceSignature = $appSignature->signature_data;
+            }
+        }
+
+        if (! filled($acceptanceSignature)) {
+            $acceptanceSignature = app(OtpSignatureImageService::class)->generateDataUri($signerName);
+        }
 
         $agreement->update([
             'status'                    => 'signed',
@@ -530,16 +541,34 @@ class LoanAgreementService
 
     private function resetDeclinedOfferState(LoanApplication $application): void
     {
-        if ($application->offer_status !== 'declined' && (string) $application->status !== 'withdrawn') {
+        $offer = LoanAgreement::query()
+            ->where('loan_application_id', $application->id)
+            ->where('document_type', 'offer_letter')
+            ->latest('id')
+            ->first();
+
+        $wasDeclined = $application->offer_status === 'declined'
+            || (string) $application->status === 'withdrawn'
+            || ($offer?->isCancelled() ?? false);
+
+        if (! $wasDeclined) {
             return;
         }
 
+        $postApproval = in_array((string) ($application->current_stage ?? ''), [
+            'approval',
+            'disbursement',
+            'post_approval_fees',
+            'awaiting_disbursement_details',
+            'contract_generation',
+        ], true);
+
         $application->update([
-            'status'             => in_array((string) ($application->current_stage ?? ''), ['approval', 'disbursement'], true)
-                ? 'approved'
-                : $application->status,
-            'offer_status'       => null,
-            'offer_responded_at' => null,
+            'status'               => $postApproval ? 'approved' : 'awaiting_offer',
+            'offer_status'         => 'pending_borrower',
+            'offer_responded_at'   => null,
+            'offer_decline_reason' => null,
+            'offer_issued_at'      => now(),
         ]);
     }
 

@@ -87,6 +87,81 @@
     @endif
 
     <h4 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Offer summary</h4>
+    @php
+        $offerDeclined = app(\App\Services\ApplicationOfferService::class)->offerDeclinedByBorrower($record);
+    @endphp
+
+    @if ($offerDeclined)
+        <div class="mb-5 rounded-lg ring-1 ring-red-200 bg-red-50/50 overflow-hidden">
+            <div class="px-4 py-3 border-b border-red-100">
+                <p class="text-sm font-semibold text-red-900">Offer declined by borrower</p>
+                <p class="text-xs text-red-700 mt-0.5">This is the borrower&apos;s decision — not an application rejection.</p>
+            </div>
+            <dl class="grid sm:grid-cols-2 gap-4 px-4 py-4 text-sm">
+                <div>
+                    <dt class="text-[10px] uppercase tracking-widest text-gray-500">Declined on</dt>
+                    <dd class="font-semibold text-gray-900 mt-1">{{ optional($record->offer_responded_at)->format('d M Y, H:i') ?? '—' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-[10px] uppercase tracking-widest text-gray-500">Previous amount</dt>
+                    <dd class="font-semibold text-gray-900 mt-1">{{ format_money($effectiveAmount) }}</dd>
+                </div>
+                @if (filled($record->offer_decline_reason))
+                    <div class="sm:col-span-2">
+                        <dt class="text-[10px] uppercase tracking-widest text-gray-500">Reason</dt>
+                        <dd class="text-gray-800 mt-1">{{ $record->offer_decline_reason }}</dd>
+                    </div>
+                @endif
+            </dl>
+            <div class="px-4 pb-4 flex flex-wrap items-center gap-2">
+                <form method="POST" action="{{ route('admin.loan-applications.offer.resend', $record) }}"
+                      onsubmit="return confirm('Resend the same offer to the borrower?');">
+                    @csrf
+                    <button type="submit" class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg">
+                        Resend offer
+                    </button>
+                </form>
+                <button type="button"
+                        data-open-dialog="reissue-offer-{{ $record->id }}"
+                        class="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-900 bg-amber-100 hover:bg-amber-200 px-4 py-2 rounded-lg">
+                    Create new offer
+                </button>
+            </div>
+        </div>
+
+        <dialog id="reissue-offer-{{ $record->id }}"
+                class="rounded-xl shadow-xl ring-1 ring-gray-200 p-0 w-full max-w-md backdrop:bg-black/40">
+            <form method="POST" action="{{ route('admin.loan-applications.offer.reissue', $record) }}" class="p-6">
+                @csrf
+                <h4 class="font-semibold text-gray-900">Create new offer</h4>
+                <p class="text-xs text-gray-500 mt-1">Issue revised terms after the borrower declined the previous offer.</p>
+                <div class="mt-4 space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Loan amount (TZS)</label>
+                        <input type="number" name="offered_amount" required min="0" step="1000"
+                               value="{{ (int) $effectiveAmount }}"
+                               class="w-full rounded-lg border-gray-300 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Duration (months)</label>
+                        <input type="number" name="offered_tenure_months" required min="1" max="120"
+                               value="{{ $record->offered_tenure_months ?? $record->requested_tenure_months }}"
+                               class="w-full rounded-lg border-gray-300 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Notes (optional)</label>
+                        <textarea name="remarks" rows="2" class="w-full rounded-lg border-gray-300 text-sm"></textarea>
+                    </div>
+                </div>
+                <div class="mt-5 flex justify-end gap-2">
+                    <button type="button" data-close-dialog="reissue-offer-{{ $record->id }}"
+                            class="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">Cancel</button>
+                    <button type="submit" class="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg">Send new offer</button>
+                </div>
+            </form>
+        </dialog>
+    @endif
+
     @if ($offer)
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
             <div><div class="text-xs uppercase text-gray-500">Reference</div><div class="font-mono font-semibold">{{ $offer->reference }}</div></div>
@@ -94,9 +169,10 @@
                 <span @class([
                     'inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold uppercase mt-1',
                     'bg-emerald-100 text-emerald-800' => $offer->status === 'signed',
+                    'bg-red-100 text-red-800'         => $offer->isCancelled(),
                     'bg-amber-100 text-amber-800'     => $offer->status === 'sent',
-                    'bg-gray-100 text-gray-700'       => in_array($offer->status, ['draft','expired','cancelled']),
-                ])>{{ $offer->status === 'signed' ? 'Accepted' : ucfirst($offer->status) }}</span>
+                    'bg-gray-100 text-gray-700'       => in_array($offer->status, ['draft','expired','cancelled']) && ! $offer->isCancelled(),
+                ])>{{ $offer->status === 'signed' ? 'Accepted' : ($offer->isCancelled() ? 'Declined by borrower' : ucfirst($offer->status)) }}</span>
             </div>
             <div><div class="text-xs uppercase text-gray-500">Accepted at</div><div>{{ optional($offer->signed_at)->format('d M Y, H:i') ?? '—' }}</div></div>
         </div>
@@ -131,10 +207,10 @@
                     label="View offer summary" />
             @endif
             <form method="POST" action="{{ route('admin.loan-applications.agreement.generate', $record) }}"
-                  onsubmit="return confirm('Regenerate the offer letter? The borrower will need to sign the new version.');">
+                  onsubmit="return confirm('{{ $offerDeclined ? 'Resend this offer to the borrower with the same terms?' : 'Regenerate the offer letter? The borrower will need to sign the new version.' }}');">
                 @csrf
                 <button type="submit" class="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 px-4 py-2 rounded-lg">
-                    Regenerate offer
+                    {{ $offerDeclined ? 'Resend offer' : 'Regenerate offer' }}
                 </button>
             </form>
         </div>

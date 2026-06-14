@@ -13,6 +13,80 @@
             <div class="mt-3 rounded-lg bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">{{ session('error') }}</div>
         @endif
 
+        {{-- Loan summary cards --}}
+        <div class="mt-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5">
+            <h2 class="text-sm font-semibold text-gray-900 mb-4">{{ __('borrower.contract.loan_summary') }}</h2>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-3">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.contract.approved_amount') }}</p>
+                    <p class="font-semibold text-gray-900 mt-1">{{ format_money($snap['principal'] ?? 0) }}</p>
+                </div>
+                <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-3">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.contract.interest_rate') }}</p>
+                    <p class="font-semibold text-gray-900 mt-1">{{ format_number(($snap['interest_rate'] ?? 0) * 100, 2) }}% / month</p>
+                </div>
+                <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-3">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.contract.installment') }}</p>
+                    <p class="font-semibold text-gray-900 mt-1">{{ format_money($snap['estimated_emi'] ?? 0) }}</p>
+                </div>
+                <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-3">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.contract.repayment_frequency') }}</p>
+                    <p class="font-semibold text-gray-900 mt-1">{{ ucfirst($snap['repayment_cadence'] ?? 'weekly') }}</p>
+                </div>
+                <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-3">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.contract.total_repayable') }}</p>
+                    <p class="font-semibold text-gray-900 mt-1">{{ format_money($snap['total_repayable'] ?? 0) }}</p>
+                </div>
+                <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-3">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.contract.guarantor') }}</p>
+                    <p class="font-semibold text-gray-900 mt-1">{{ $guarantorName ?: '—' }}</p>
+                </div>
+            </div>
+        </div>
+
+        {{-- Repayment schedule --}}
+        @if (! empty($scheduleRows))
+            <div class="mt-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5">
+                <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
+                    <h2 class="text-sm font-semibold text-gray-900">{{ __('borrower.contract.schedule_title') }}</h2>
+                    @unless ($disbursed)
+                        <span class="text-[10px] font-semibold uppercase tracking-widest text-amber-700">{{ __('borrower.contract.schedule_estimate') }}</span>
+                    @endunless
+                </div>
+                @if ($disbursed)
+                    <div class="overflow-x-auto -mx-1">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-[10px] uppercase tracking-widest text-gray-500 border-b border-gray-200">
+                                    <th class="px-3 py-2">{{ __('borrower.contract.schedule_date') }}</th>
+                                    <th class="px-3 py-2">{{ __('borrower.contract.schedule_installment') }}</th>
+                                    <th class="px-3 py-2 text-right">{{ __('borrower.contract.schedule_amount') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                @foreach ($scheduleRows as $row)
+                                    <tr>
+                                        <td class="px-3 py-2 text-gray-700">{{ optional($row['due_date'])->format('d M Y') ?? '—' }}</td>
+                                        <td class="px-3 py-2 font-medium text-gray-900">{{ __('borrower.contract.installment_n', ['n' => $row['installment_no']]) }}</td>
+                                        <td class="px-3 py-2 text-right font-semibold text-gray-900">{{ format_money($row['amount']) }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <div class="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
+                        @foreach ($scheduleRows as $row)
+                            <div class="shrink-0 min-w-[9rem] rounded-xl bg-gray-50 ring-1 ring-gray-100 p-4 text-center">
+                                <p class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.contract.installment_n', ['n' => $row['installment_no']]) }}</p>
+                                <p class="text-base font-bold text-gray-900 mt-2">{{ format_money($row['amount']) }}</p>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+        @endif
+
         {{-- Progress checklist --}}
         <div class="mt-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5">
             <h2 class="text-sm font-semibold text-gray-900 mb-3">{{ __('borrower.contract.checklist.title') }}</h2>
@@ -73,23 +147,7 @@
             <div class="p-6">
                 <h1 class="text-xl font-bold text-gray-900">{{ __('borrower.contract.review_title') }}</h1>
                 <p class="text-sm text-gray-600 mt-1">{{ __('borrower.contract.application_ref', ['ref' => $application->application_number]) }}</p>
-
-                <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mt-6 mb-3">{{ __('borrower.contract.loan_summary') }}</h2>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.contract.loan_reference') }}</div><div class="font-mono text-gray-900">{{ $contract->reference }}</div></div>
-                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.contract.approved_amount') }}</div><div class="font-semibold text-gray-900">{{ format_money($snap['principal'] ?? 0) }}</div></div>
-                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.contract.interest_rate') }}</div><div class="text-gray-900">{{ format_number(($snap['interest_rate'] ?? 0) * 100, 2) }}% / month</div></div>
-                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.contract.duration') }}</div><div class="text-gray-900">{{ $snap['tenure_months'] ?? '—' }} {{ __('borrower.contract.months') }}</div></div>
-                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.contract.installment') }}</div><div class="text-gray-900">{{ format_money($snap['estimated_emi'] ?? 0) }}</div></div>
-                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.contract.status') }}</div>
-                        <span @class([
-                            'inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold uppercase',
-                            'bg-emerald-100 text-emerald-800' => $contract->status === 'signed',
-                            'bg-amber-100 text-amber-800'     => $contract->status === 'sent',
-                            'bg-gray-100 text-gray-700'       => in_array($contract->status, ['draft','expired','cancelled']),
-                        ])>{{ $contract->status === 'signed' ? __('borrower.contract.accepted') : __('borrower.contract.pending_signature') }}</span>
-                    </div>
-                </div>
+                <p class="text-xs text-gray-500 mt-1 font-mono">{{ $contract->reference }}</p>
 
                 <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mt-6 mb-3">{{ __('borrower.contract.parties') }}</h2>
                 <div class="grid sm:grid-cols-2 gap-4 text-sm">
@@ -101,14 +159,15 @@
                         <p class="text-[10px] uppercase text-gray-500">{{ __('borrower.contract.company') }}</p>
                         <p class="font-semibold mt-1">{{ $snap['company_signatory'] ?? brand('legal_name') }}</p>
                     </div>
-                    @if ($needsGuarantor)
+                    @if ($needsGuarantor || $guarantorName)
                         <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-4 sm:col-span-2">
                             <p class="text-[10px] uppercase text-gray-500">{{ __('borrower.contract.guarantor') }}</p>
-                            @php $guarantor = $application->customerGuarantors->first()?->guarantor; @endphp
-                            <p class="font-semibold mt-1">{{ $guarantor ? trim(($guarantor->first_name ?? '').' '.($guarantor->last_name ?? '')) : '—' }}</p>
-                            <p class="text-xs mt-1 {{ $guarantorSigned ? 'text-emerald-700' : 'text-amber-700' }}">
-                                {{ $guarantorSigned ? __('borrower.contract.guarantor_signed') : __('borrower.contract.guarantor_pending') }}
-                            </p>
+                            <p class="font-semibold mt-1">{{ $guarantorName ?: '—' }}</p>
+                            @if ($needsGuarantor)
+                                <p class="text-xs mt-1 {{ $guarantorSigned ? 'text-emerald-700' : 'text-amber-700' }}">
+                                    {{ $guarantorSigned ? __('borrower.contract.guarantor_signed') : __('borrower.contract.guarantor_pending') }}
+                                </p>
+                            @endif
                         </div>
                     @endif
                 </div>
@@ -117,8 +176,14 @@
                 <ul class="space-y-2 text-sm">
                     <li class="flex justify-between gap-3">
                         <span>{{ __('borrower.contract.borrower_signature') }}</span>
-                        <span class="font-semibold {{ $contract->isSigned() ? 'text-emerald-700' : 'text-amber-700' }}">
-                            {{ $contract->isSigned() ? __('borrower.contract.signed') : __('borrower.contract.pending') }}
+                        <span class="font-semibold {{ ($contract->isSigned() || $borrowerSignatureAvailable) ? 'text-emerald-700' : 'text-amber-700' }}">
+                            @if ($contract->isSigned())
+                                {{ __('borrower.contract.signed') }}
+                            @elseif ($borrowerSignatureAvailable)
+                                {{ __('borrower.contract.signature_available') }}
+                            @else
+                                {{ __('borrower.contract.signature_required') }}
+                            @endif
                         </span>
                     </li>
                     @if ($needsGuarantor)
@@ -144,11 +209,20 @@
                        class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 px-4 py-2 rounded-lg">
                         {{ __('borrower.contract.view_pdf') }}
                     </a>
+                    <span @class([
+                        'inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold uppercase',
+                        'bg-emerald-100 text-emerald-800' => $contract->status === 'signed',
+                        'bg-amber-100 text-amber-800'     => $contract->status === 'sent',
+                        'bg-gray-100 text-gray-700'       => in_array($contract->status, ['draft','expired','cancelled']),
+                    ])>{{ $contract->status === 'signed' ? __('borrower.contract.accepted') : __('borrower.contract.pending_signature') }}</span>
                 </div>
 
                 @if (! $contract->isSigned() && $contract->status !== 'cancelled')
                     <div class="mt-6 border-t border-gray-200 pt-5">
                         <h2 class="text-sm font-semibold text-gray-900">{{ __('borrower.contract.accept_title') }}</h2>
+                        @if ($borrowerSignatureAvailable)
+                            <p class="text-xs text-emerald-700 mt-1 font-medium">{{ __('borrower.contract.signature_reuse_help') }}</p>
+                        @endif
                         @if ($requireAcceptanceCode ?? false)
                             <p class="text-xs text-gray-600 mt-1">{{ __('borrower.contract.accept_help') }}</p>
 
@@ -163,7 +237,7 @@
                             </form>
 
                             <form method="POST" action="{{ route('site.borrower.application.contract.sign', $application) }}" class="mt-4 flex flex-wrap items-end gap-3"
-                                  @submit.prevent="window.confirmForm($el, { title: '{{ __('borrower.contract.confirm_title') }}', message: '{{ __('borrower.contract.confirm_message') }}', confirmLabel: '{{ __('borrower.contract.accept_button') }}', confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white' })">
+                                  @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.contract.confirm_title')), message: @js(__('borrower.contract.confirm_message')), confirmLabel: @js(__('borrower.contract.accept_button')), confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white' })">
                                 @csrf
                                 <div>
                                     <label class="block text-xs uppercase tracking-wider text-gray-500 mb-1">{{ __('borrower.contract.otp_label') }}</label>
@@ -178,7 +252,7 @@
                         @else
                             <p class="text-xs text-gray-600 mt-1">{{ __('borrower.contract.accept_direct_help') }}</p>
                             <form method="POST" action="{{ route('site.borrower.application.contract.accept', $application) }}" class="mt-4"
-                                  @submit.prevent="window.confirmForm($el, { title: '{{ __('borrower.contract.confirm_title') }}', message: '{{ __('borrower.contract.confirm_message') }}', confirmLabel: '{{ __('borrower.contract.accept_button') }}', confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white' })">
+                                  @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.contract.confirm_title')), message: @js(__('borrower.contract.confirm_message')), confirmLabel: @js(__('borrower.contract.accept_button')), confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white' })">
                                 @csrf
                                 <button type="submit" class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 rounded-lg">
                                     {{ __('borrower.contract.accept_button') }}
@@ -187,7 +261,7 @@
                         @endif
 
                         <form method="POST" action="{{ route('site.borrower.application.contract.decline', $application) }}" class="mt-4"
-                              @submit.prevent="window.confirmForm($el, { title: '{{ __('borrower.contract.decline_title') }}', message: '{{ __('borrower.contract.decline_message') }}', confirmLabel: '{{ __('borrower.contract.decline_button') }}', confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">
+                              @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.contract.decline_title')), message: @js(__('borrower.contract.decline_message')), confirmLabel: @js(__('borrower.contract.decline_button')), confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">
                             @csrf
                             <textarea name="reason" rows="2" placeholder="{{ __('borrower.contract.decline_reason') }}"
                                       class="w-full rounded-lg border-gray-300 text-sm mb-2"></textarea>

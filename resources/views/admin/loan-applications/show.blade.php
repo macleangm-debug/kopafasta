@@ -20,6 +20,10 @@
             <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-900 ring-1 ring-amber-200">
                 Awaiting borrower on offer
             </span>
+        @elseif (app(\App\Services\ApplicationOfferService::class)->offerDeclinedByBorrower($record))
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800 ring-1 ring-red-200">
+                Offer declined by borrower
+            </span>
         @endif
         <a href="{{ route('admin.loan-applications.edit', $record) }}"
            class="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-gray-900 hover:bg-gray-800 px-3 py-1.5 rounded-lg">

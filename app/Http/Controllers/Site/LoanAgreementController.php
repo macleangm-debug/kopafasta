@@ -80,7 +80,7 @@ class LoanAgreementController extends Controller
 
         abort_unless($contract, 404, __('borrower.contract.not_ready'));
 
-        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors.guarantor']);
+        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors.guarantor', 'loan.repaymentSchedules']);
         $checklist = $this->readiness->borrowerDisbursementChecklist($application);
         $disbursementDetails = app(\App\Services\CustomerDisbursementDetailsService::class)
             ->snapshotForApplication($application);
@@ -88,6 +88,37 @@ class LoanAgreementController extends Controller
         $snap = $contract->snapshot ?? [];
         $needsGuarantor = $this->readiness->requiresGuarantorSignature($application);
         $guarantorSigned = $this->readiness->guarantorSigned($application);
+        $borrowerSignatureAvailable = app(\App\Services\BorrowerSignatureService::class)->hasSignature($application);
+
+        $disbursed = (string) $application->status === 'disbursed'
+            || in_array((string) ($application->loan?->status ?? ''), ['active', 'disbursed'], true);
+
+        $scheduleRows = [];
+        if ($disbursed && $application->loan) {
+            $scheduleRows = $application->loan->repaymentSchedules
+                ->sortBy('installment_no')
+                ->map(fn ($row) => [
+                    'installment_no' => $row->installment_no,
+                    'amount'         => (float) $row->total_due,
+                    'due_date'       => $row->due_date,
+                ])
+                ->values()
+                ->all();
+        } else {
+            $scheduleRows = collect($snap['repayment_schedule'] ?? [])
+                ->map(fn ($row) => [
+                    'installment_no' => $row['installment_no'] ?? null,
+                    'amount'         => (float) ($row['total_due'] ?? 0),
+                    'due_date'       => null,
+                ])
+                ->values()
+                ->all();
+        }
+
+        $guarantor = $application->customerGuarantors->first()?->guarantor;
+        $guarantorName = $guarantor
+            ? trim(($guarantor->first_name ?? '').' '.($guarantor->last_name ?? ''))
+            : ($snap['guarantor_name'] ?? null);
 
         return view('site.borrower.contract', compact(
             'application',
@@ -99,6 +130,10 @@ class LoanAgreementController extends Controller
             'snap',
             'needsGuarantor',
             'guarantorSigned',
+            'borrowerSignatureAvailable',
+            'disbursed',
+            'scheduleRows',
+            'guarantorName',
         ))->with([
             'requireAcceptanceCode' => app(\App\Services\OfferSettingsService::class)->requireContractAcceptanceCode(),
         ]);
@@ -267,9 +302,10 @@ class LoanAgreementController extends Controller
 
         $this->service->declineOfferLetter($agreement);
         $application->update([
-            'status'             => 'withdrawn',
-            'offer_status'       => 'declined',
-            'offer_responded_at' => now(),
+            'status'               => 'withdrawn',
+            'offer_status'         => 'declined',
+            'offer_responded_at'   => now(),
+            'offer_decline_reason' => filled($request->input('reason')) ? $request->input('reason') : null,
         ]);
 
         $this->auditBorrower('agreement.declined', $application, [

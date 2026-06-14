@@ -332,6 +332,10 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         $registerResource('loan-applications', 'loan_application', LoanApplicationController::class);
         Route::post('loan-applications/{loan_application}/agreement', [\App\Http\Controllers\Admin\LoanAgreementController::class, 'generate'])
             ->name('loan-applications.agreement.generate');
+        Route::post('loan-applications/{loan_application}/offer/resend', [\App\Http\Controllers\Admin\LoanAgreementController::class, 'resendOffer'])
+            ->name('loan-applications.offer.resend');
+        Route::post('loan-applications/{loan_application}/offer/reissue', [\App\Http\Controllers\Admin\LoanAgreementController::class, 'reissueOffer'])
+            ->name('loan-applications.offer.reissue');
         Route::post('loan-applications/{loan_application}/contract', [\App\Http\Controllers\Admin\LoanAgreementController::class, 'generateContract'])
             ->name('loan-applications.contract.generate');
         Route::get('loan-agreements/{agreement}/download', [\App\Http\Controllers\Site\LoanAgreementController::class, 'download'])

@@ -66,13 +66,25 @@ class LoanApplicationsTable extends Component
                 })->whereNotIn('status', ['approved', 'disbursed']);
             })
             ->when($this->pipeline === 'approved', function ($q) {
-                $q->where('status', 'approved')
-                    ->whereIn('current_stage', [
-                        'approval',
-                        'post_approval_fees',
-                        'awaiting_disbursement_details',
-                        'contract_generation',
-                    ]);
+                $q->where(function ($q) {
+                    $q->where(function ($q) {
+                        $q->where('status', 'approved')
+                            ->whereIn('current_stage', [
+                                'approval',
+                                'post_approval_fees',
+                                'awaiting_disbursement_details',
+                                'contract_generation',
+                            ]);
+                    })->orWhere(function ($q) {
+                        $q->where('offer_status', 'declined')
+                            ->whereIn('current_stage', [
+                                'approval',
+                                'post_approval_fees',
+                                'awaiting_disbursement_details',
+                                'contract_generation',
+                            ]);
+                    });
+                });
             })
             ->when($this->pipeline === 'disbursement', function ($q) {
                 $q->where(function ($q) {

@@ -193,18 +193,89 @@ class ApplicationOfferService
         return $agreementService->advanceAfterOfferAcceptance($application->fresh());
     }
 
-    public function declineOffer(LoanApplication $application, Customer $customer): LoanApplication
+    public function declineOffer(LoanApplication $application, Customer $customer, ?string $reason = null): LoanApplication
     {
         abort_unless((int) $application->customer_id === (int) $customer->id, 403);
         abort_unless($application->offer_status === 'pending_borrower', 422);
 
+        $offer = \App\Models\LoanAgreement::query()
+            ->where('loan_application_id', $application->id)
+            ->where('document_type', 'offer_letter')
+            ->latest('id')
+            ->first();
+
+        if ($offer && ! $offer->isSigned()) {
+            app(LoanAgreementService::class)->declineOfferLetter($offer);
+        }
+
         $application->update([
-            'offer_status'       => 'declined',
-            'offer_responded_at' => now(),
-            'status'             => 'withdrawn',
+            'offer_status'          => 'declined',
+            'offer_responded_at'    => now(),
+            'offer_decline_reason'  => filled($reason) ? $reason : null,
+            'status'                => 'withdrawn',
         ]);
 
         return $application->fresh();
+    }
+
+    public function resendDeclinedOffer(LoanApplication $application, User $user): LoanApplication
+    {
+        abort_unless($this->offerDeclinedByBorrower($application), 422, 'Only declined offers can be resent.');
+
+        app(LoanAgreementService::class)->generateOfferLetter($application, regenerate: true);
+
+        $this->notifyOfferIssued($application->fresh(['customer', 'product']));
+
+        return $application->fresh();
+    }
+
+    public function reissueDeclinedOffer(
+        LoanApplication $application,
+        User $user,
+        float $offeredAmount,
+        int $offeredTenure,
+        ?string $remarks = null,
+    ): LoanApplication {
+        abort_unless($this->offerDeclinedByBorrower($application), 422, 'Only declined offers can be reissued.');
+
+        $application->loadMissing('product');
+        $product = $application->product;
+
+        if ($product) {
+            if ($offeredAmount < (float) $product->min_amount || $offeredAmount > (float) $product->max_amount) {
+                throw ValidationException::withMessages([
+                    'offered_amount' => 'Amount must be between '.format_money($product->min_amount).' and '.format_money($product->max_amount).'.',
+                ]);
+            }
+        }
+
+        $application->update([
+            'offered_amount'           => $offeredAmount,
+            'offered_tenure_months'    => $offeredTenure,
+            'recommended_amount'       => $offeredAmount,
+            'committee_recommendation' => $remarks ?: $application->committee_recommendation,
+        ]);
+
+        app(LoanAgreementService::class)->generateOfferLetter($application, regenerate: true);
+
+        $this->notifyOfferIssued($application->fresh(['customer', 'product']));
+
+        return $application->fresh();
+    }
+
+    public function offerDeclinedByBorrower(LoanApplication $application): bool
+    {
+        if ($application->offer_status === 'declined') {
+            return true;
+        }
+
+        $offer = \App\Models\LoanAgreement::query()
+            ->where('loan_application_id', $application->id)
+            ->where('document_type', 'offer_letter')
+            ->latest('id')
+            ->first();
+
+        return ($offer?->isCancelled() ?? false) && ! ($offer?->isSigned() ?? false);
     }
 
     public function effectiveAmount(LoanApplication $application): float

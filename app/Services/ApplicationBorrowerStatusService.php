@@ -287,6 +287,10 @@ class ApplicationBorrowerStatusService
             return 'rejected';
         }
 
+        if ($application->offer_status === 'declined' || $this->offerCancelledByBorrower($application)) {
+            return 'offer_declined';
+        }
+
         if ($status === 'withdrawn' && $application->offer_status === 'declined') {
             return 'offer_declined';
         }
@@ -417,5 +421,10 @@ class ApplicationBorrowerStatusService
         $loan = $application->relationLoaded('loan') ? $application->loan : $application->loan()->first();
 
         return $loan && in_array((string) $loan->status, ['closed', 'settled', 'paid_off'], true);
+    }
+
+    private function offerCancelledByBorrower(LoanApplication $application): bool
+    {
+        return app(ApplicationOfferService::class)->offerDeclinedByBorrower($application);
     }
 }

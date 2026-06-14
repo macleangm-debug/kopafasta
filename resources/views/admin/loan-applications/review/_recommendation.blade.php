@@ -21,7 +21,11 @@
                 };
             @endphp
             <span class="text-xs font-semibold rounded-full px-3 py-1 {{ $offerTone }}">
-                Offer: {{ str_replace('_', ' ', ucfirst($rec['offer_status'])) }}
+                Offer: {{ match ($rec['offer_status']) {
+                    'declined' => 'Declined by borrower',
+                    'pending_borrower' => 'Pending borrower',
+                    default => str_replace('_', ' ', ucfirst($rec['offer_status'])),
+                } }}
             </span>
         @endif
     </div>

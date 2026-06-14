@@ -23,7 +23,8 @@
         },
         onCancel: null,
         cancel() {
-            open = false;
+            this.open = false;
+            this.form = null;
             if (typeof this.onCancel === 'function') this.onCancel();
             this.onCancel = null;
         },
@@ -37,6 +38,7 @@
         confirmClass = $event.detail?.confirmClass ?? defaults.confirmClass;
         onCancel = $event.detail?.onCancel ?? null;
     "
+    x-on:keydown.escape.window="if (open) cancel()"
     x-show="open"
     x-cloak
     class="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -53,7 +55,7 @@
                 {{ $cancelLabel }}
             </button>
             <button type="button"
-                    @click="if (form) { form.dispatchEvent(new CustomEvent('sync-before-submit', { bubbles: true })); form.submit(); } open = false; onCancel = null;"
+                    @click="if (form) { form.dispatchEvent(new CustomEvent('sync-before-submit', { bubbles: true })); form.submit(); } open = false; form = null; onCancel = null;"
                     :disabled="!form"
                     class="px-4 py-2.5 rounded-xl text-sm font-semibold"
                     :class="confirmClass"

@@ -211,6 +211,11 @@ class ApplicationDisbursementReadinessService
             return false;
         }
 
+        if ($application->offer_status === 'declined'
+            || app(ApplicationOfferService::class)->offerDeclinedByBorrower($application)) {
+            return false;
+        }
+
         $offer = $this->offerLetter($application);
 
         return $offer && ! $offer->isSigned() && ! $offer->isOfferExpired();
@@ -463,6 +468,11 @@ class ApplicationDisbursementReadinessService
     /** Post-approval pipeline stage label for admin underwriting tabs. */
     public function approvedPipelineStage(LoanApplication $application): string
     {
+        if ($application->offer_status === 'declined'
+            || app(ApplicationOfferService::class)->offerDeclinedByBorrower($application)) {
+            return 'Offer Declined';
+        }
+
         $offer = $this->offerLetter($application);
 
         if (! $offer || (! $offer->isSigned() && $offer->status !== 'cancelled')) {

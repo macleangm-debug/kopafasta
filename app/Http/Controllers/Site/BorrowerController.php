@@ -240,7 +240,7 @@ class BorrowerController extends Controller
                 ->with('status', $message);
         }
 
-        $offers->declineOffer($application, $customer);
+        $offers->declineOffer($application, $customer, $request->input('reason'));
         $message = __('borrower.offer.declined');
         $this->auditBorrower('application.offer_decline', $application);
 
