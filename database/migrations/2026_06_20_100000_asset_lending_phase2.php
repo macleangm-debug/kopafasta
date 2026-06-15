@@ -25,15 +25,19 @@ return new class extends Migration
             });
         }
 
-        if (Schema::hasTable('loan_application_post_approval_fees')) {
+        if (Schema::hasTable('loan_application_post_approval_fees')
+            && ! Schema::hasColumn('loan_application_post_approval_fees', 'manual_post_approval_fee_id')) {
             Schema::table('loan_application_post_approval_fees', function (Blueprint $table): void {
-                if (! Schema::hasColumn('loan_application_post_approval_fees', 'manual_post_approval_fee_id')) {
-                    $table->foreignId('manual_post_approval_fee_id')
-                        ->nullable()
-                        ->after('loan_product_post_approval_fee_id')
-                        ->constrained('manual_post_approval_fees')
-                        ->nullOnDelete();
-                }
+                $table->unsignedBigInteger('manual_post_approval_fee_id')
+                    ->nullable()
+                    ->after('loan_product_post_approval_fee_id');
+            });
+
+            Schema::table('loan_application_post_approval_fees', function (Blueprint $table): void {
+                $table->foreign('manual_post_approval_fee_id', 'app_post_fee_manual_fee_fk')
+                    ->references('id')
+                    ->on('manual_post_approval_fees')
+                    ->nullOnDelete();
             });
         }
     }
@@ -43,7 +47,8 @@ return new class extends Migration
         if (Schema::hasTable('loan_application_post_approval_fees')
             && Schema::hasColumn('loan_application_post_approval_fees', 'manual_post_approval_fee_id')) {
             Schema::table('loan_application_post_approval_fees', function (Blueprint $table): void {
-                $table->dropConstrainedForeignId('manual_post_approval_fee_id');
+                $table->dropForeign('app_post_fee_manual_fee_fk');
+                $table->dropColumn('manual_post_approval_fee_id');
             });
         }
 
