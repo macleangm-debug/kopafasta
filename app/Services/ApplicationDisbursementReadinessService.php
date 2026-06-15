@@ -72,6 +72,10 @@ class ApplicationDisbursementReadinessService
 
     public function needsDisbursementDetailsConfirmation(LoanApplication $application): bool
     {
+        if ($this->isAssetLendingApplication($application)) {
+            return false;
+        }
+
         if (! $this->offerSigned($application)) {
             return false;
         }
@@ -81,6 +85,69 @@ class ApplicationDisbursementReadinessService
         }
 
         return ! $this->disbursementDetailsConfirmed($application);
+    }
+
+    public function isAssetLendingApplication(LoanApplication $application): bool
+    {
+        return app(AssetLendingService::class)->isAssetLendingApplication($application);
+    }
+
+    public function canMarkAssetHandover(LoanApplication $application): bool
+    {
+        if (! $this->isAssetLendingApplication($application)) {
+            return false;
+        }
+
+        if (! $this->offerSigned($application)) {
+            return false;
+        }
+
+        if ($this->hasPostApprovalFees($application) && ! $this->feesPaid($application)) {
+            return false;
+        }
+
+        if (! $this->contractSigned($application)) {
+            return false;
+        }
+
+        if ($this->requiresGuarantorSignature($application) && ! $this->guarantorSigned($application)) {
+            return false;
+        }
+
+        $reservation = app(AssetReservationService::class)->reservationForApplication($application);
+
+        return $reservation && app(AssetReservationService::class)->handoverReady($reservation);
+    }
+
+    /** @return list<string> */
+    public function assetHandoverBlockingMessages(LoanApplication $application): array
+    {
+        $messages = [];
+
+        if (! $this->offerSigned($application)) {
+            $messages[] = 'Borrower must accept the offer letter.';
+        }
+
+        if ($this->hasPostApprovalFees($application) && ! $this->feesPaid($application)) {
+            $messages[] = 'Post-approval fees must be paid.';
+        }
+
+        if (! $this->contractSigned($application)) {
+            $messages[] = 'Borrower must sign the loan contract.';
+        }
+
+        if ($this->requiresGuarantorSignature($application) && ! $this->guarantorSigned($application)) {
+            $messages[] = 'Guarantor must sign before asset handover.';
+        }
+
+        $reservation = app(AssetReservationService::class)->reservationForApplication($application);
+        if (! $reservation) {
+            $messages[] = 'Marketplace asset reservation is missing.';
+        } elseif (! app(AssetReservationService::class)->handoverReady($reservation)) {
+            $messages[] = 'Complete GPS installation and insurance activation before handover.';
+        }
+
+        return $messages;
     }
 
     /** @return array<string, mixed> */
@@ -114,6 +181,10 @@ class ApplicationDisbursementReadinessService
 
     public function canMarkDisbursement(LoanApplication $application): bool
     {
+        if ($this->isAssetLendingApplication($application)) {
+            return $this->canMarkAssetHandover($application);
+        }
+
         if (! $this->offerSigned($application)) {
             return false;
         }
@@ -189,8 +260,12 @@ class ApplicationDisbursementReadinessService
             }
         }
 
-        if ($this->contractSigned($application) && ! $this->disbursementDetailsConfirmed($application)) {
+        if ($this->contractSigned($application) && ! $this->isAssetLendingApplication($application) && ! $this->disbursementDetailsConfirmed($application)) {
             $messages[] = 'Borrower must confirm disbursement destination.';
+        }
+
+        if ($this->isAssetLendingApplication($application) && $this->contractSigned($application) && ! $this->canMarkAssetHandover($application)) {
+            $messages[] = 'Complete asset readiness (GPS, insurance) before handover.';
         }
 
         if ($this->requiresGuarantorSignature($application) && ! $this->guarantorSigned($application)) {
@@ -305,6 +380,10 @@ class ApplicationDisbursementReadinessService
      */
     public function borrowerDisbursementChecklist(LoanApplication $application): array
     {
+        if ($this->isAssetLendingApplication($application)) {
+            return $this->borrowerAssetHandoverChecklist($application);
+        }
+
         $offerSigned = $this->offerSigned($application);
         $hasFees = $this->hasPostApprovalFees($application);
         $feesPaid = $this->feesPaid($application);
@@ -371,12 +450,20 @@ class ApplicationDisbursementReadinessService
             return LoanApplication::BORROWER_STAGE_POST_APPROVAL_FEES;
         }
 
-        if ($this->needsDisbursementDetailsConfirmation($application)) {
-            return LoanApplication::BORROWER_STAGE_AWAITING_DISBURSEMENT_DETAILS;
-        }
-
         if ($this->needsContractSignature($application)) {
             return LoanApplication::BORROWER_STAGE_CONTRACT;
+        }
+
+        if ($this->isAssetLendingApplication($application)) {
+            if ($this->canMarkAssetHandover($application)) {
+                return 'asset_handover';
+            }
+
+            return 'asset_readiness';
+        }
+
+        if ($this->needsDisbursementDetailsConfirmation($application)) {
+            return LoanApplication::BORROWER_STAGE_AWAITING_DISBURSEMENT_DETAILS;
         }
 
         if ($this->isReadyForDisbursement($application)) {
@@ -396,12 +483,20 @@ class ApplicationDisbursementReadinessService
             return 'pay_post_approval_fees';
         }
 
-        if ($this->needsDisbursementDetailsConfirmation($application)) {
-            return 'confirm_disbursement_details';
-        }
-
         if ($this->needsContractSignature($application)) {
             return 'sign_contract';
+        }
+
+        if ($this->isAssetLendingApplication($application)) {
+            if ($this->canMarkAssetHandover($application)) {
+                return 'ready_for_asset_handover';
+            }
+
+            return 'awaiting_asset_readiness';
+        }
+
+        if ($this->needsDisbursementDetailsConfirmation($application)) {
+            return 'confirm_disbursement_details';
         }
 
         if ($this->isReadyForDisbursement($application)) {
@@ -433,6 +528,24 @@ class ApplicationDisbursementReadinessService
             $steps[] = 'contract_signed';
         }
 
+        if ($this->isAssetLendingApplication($application)) {
+            $reservation = app(AssetReservationService::class)->reservationForApplication($application);
+            $resStatus = (string) ($reservation?->status ?? '');
+            $reqs = app(AssetLendingService::class)->categoryRequirements($reservation?->asset?->category);
+
+            if (($reqs['gps_required'] ?? false) && in_array($resStatus, ['insurance_active', 'released'], true)) {
+                $steps[] = 'gps_installed';
+            }
+
+            if (($reqs['insurance_required'] ?? false) && in_array($resStatus, ['insurance_active', 'released'], true)) {
+                $steps[] = 'insurance_active';
+            }
+
+            if ($this->canMarkAssetHandover($application)) {
+                $steps[] = 'asset_readiness_complete';
+            }
+        }
+
         if ((string) $application->status === 'disbursed'
             || in_array((string) ($application->loan?->status ?? ''), ['active', 'disbursed'], true)) {
             $steps[] = 'disbursed';
@@ -460,6 +573,8 @@ class ApplicationDisbursementReadinessService
             LoanApplication::BORROWER_STAGE_POST_APPROVAL_FEES,
             LoanApplication::BORROWER_STAGE_AWAITING_DISBURSEMENT_DETAILS,
             LoanApplication::BORROWER_STAGE_CONTRACT,
+            'asset_readiness',
+            'asset_handover',
             'approval',
             'disbursement',
         ];
@@ -538,5 +653,109 @@ class ApplicationDisbursementReadinessService
     public function disbursementPipelineStage(LoanApplication $application): string
     {
         return $this->disbursementQueueStatus($application);
+    }
+
+    /**
+     * Asset-lending borrower checklist — GPS, insurance, and handover instead of cash disbursement.
+     *
+     * @return array<string, array{label: string, status: string, complete: bool}>
+     */
+    public function borrowerAssetHandoverChecklist(LoanApplication $application): array
+    {
+        $offerSigned = $this->offerSigned($application);
+        $hasFees = $this->hasPostApprovalFees($application);
+        $feesPaid = $this->feesPaid($application);
+        $feesComplete = $offerSigned && (! $hasFees || $feesPaid);
+        $contract = $this->loanContract($application);
+        $contractSigned = $this->contractSigned($application);
+        $handoverReady = $this->canMarkAssetHandover($application);
+        $disbursed = (string) $application->status === 'disbursed'
+            || in_array((string) ($application->loan?->status ?? ''), ['active', 'disbursed'], true);
+
+        $reservation = app(AssetReservationService::class)->reservationForApplication($application);
+        $resStatus = (string) ($reservation?->status ?? '');
+        $reqs = app(AssetLendingService::class)->categoryRequirements($reservation?->asset?->category);
+        $gpsRequired = (bool) ($reqs['gps_required'] ?? false);
+        $insuranceRequired = (bool) ($reqs['insurance_required'] ?? false);
+
+        $feeStatus = match (true) {
+            ! $offerSigned => 'locked',
+            ! $hasFees => 'not_required',
+            $feesPaid => 'paid',
+            default => 'pending',
+        };
+
+        $contractStatus = match (true) {
+            ! $feesComplete => 'locked',
+            $contractSigned => 'accepted',
+            $contract => 'pending',
+            default => 'not_generated',
+        };
+
+        $postContract = $contractSigned;
+
+        $gpsStatus = match (true) {
+            ! $gpsRequired => 'not_required',
+            ! $postContract => 'locked',
+            in_array($resStatus, ['insurance_active', 'released'], true) => 'complete',
+            $resStatus === 'gps_installation' => 'pending',
+            default => 'pending',
+        };
+
+        $insuranceStatus = match (true) {
+            ! $insuranceRequired => 'not_required',
+            ! $postContract => 'locked',
+            in_array($resStatus, ['insurance_active', 'released'], true) => 'complete',
+            default => 'pending',
+        };
+
+        $handoverStatus = match (true) {
+            $disbursed => 'complete',
+            $handoverReady => 'pending',
+            ! $postContract => 'locked',
+            default => 'locked',
+        };
+
+        $checklist = [
+            'offer' => [
+                'label'    => __('borrower.contract.checklist.offer'),
+                'status'   => $offerSigned ? 'accepted' : 'pending',
+                'complete' => $offerSigned,
+            ],
+            'post_approval_fee' => [
+                'label'    => __('borrower.contract.checklist.post_approval_fee'),
+                'status'   => $feeStatus,
+                'complete' => $feesComplete,
+            ],
+            'contract' => [
+                'label'    => __('borrower.contract.checklist.contract'),
+                'status'   => $contractStatus,
+                'complete' => $contractSigned,
+            ],
+        ];
+
+        if ($gpsRequired) {
+            $checklist['gps'] = [
+                'label'    => __('borrower.contract.checklist.gps'),
+                'status'   => $gpsStatus,
+                'complete' => in_array($gpsStatus, ['complete', 'not_required'], true),
+            ];
+        }
+
+        if ($insuranceRequired) {
+            $checklist['insurance'] = [
+                'label'    => __('borrower.contract.checklist.insurance'),
+                'status'   => $insuranceStatus,
+                'complete' => in_array($insuranceStatus, ['complete', 'not_required'], true),
+            ];
+        }
+
+        $checklist['handover'] = [
+            'label'    => __('borrower.contract.checklist.handover'),
+            'status'   => $handoverStatus,
+            'complete' => $disbursed,
+        ];
+
+        return $checklist;
     }
 }

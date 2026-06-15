@@ -167,7 +167,7 @@ class LoanApplicationController extends ResourceController
     public function show($id): View
     {
         $record = LoanApplication::query()
-            ->with(['customer', 'product', 'loan', 'stageHistory.changedByUser', 'alternativeProduct', 'recommendedByUser', 'collateralAsset'])
+            ->with(['customer', 'product', 'loan', 'stageHistory.changedByUser', 'alternativeProduct', 'recommendedByUser', 'collateralAsset', 'assetReservation.asset.vendor', 'manualPostApprovalFees'])
             ->findOrFail($id);
 
         $workflow = app(LoanApplicationWorkflowService::class);
@@ -391,5 +391,44 @@ class LoanApplicationController extends ResourceController
         return redirect()
             ->route('admin.loans.show', $loan)
             ->with('status', 'Loan '.$loan->loan_number.' created from application. Review and disburse when ready.');
+    }
+
+    public function advanceReservation(Request $request, LoanApplication $loan_application): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+
+        $action = $request->validate([
+            'action' => ['required', 'in:gps_installation,insurance_active,release'],
+        ])['action'];
+
+        $reservation = app(\App\Services\AssetReservationService::class)->reservationForApplication($loan_application);
+        abort_unless($reservation, 404, 'No asset reservation linked to this application.');
+
+        app(\App\Services\AssetReservationService::class)->advance($reservation, $action);
+
+        if ($action === 'release') {
+            app(\App\Services\ApplicationDisbursementReadinessService::class)->syncBorrowerProgress($loan_application->fresh());
+        }
+
+        return back()->with('status', 'Reservation status updated.');
+    }
+
+    public function updateAssetIdentifiers(Request $request, LoanApplication $loan_application): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+
+        $reservation = app(\App\Services\AssetReservationService::class)->reservationForApplication($loan_application);
+        abort_unless($reservation?->asset, 404, 'No marketplace asset linked to this application.');
+
+        $data = $request->validate([
+            'serial_number'           => ['nullable', 'string', 'max:80'],
+            'chassis_number'          => ['nullable', 'string', 'max:80'],
+            'engine_number'           => ['nullable', 'string', 'max:80'],
+            'insurance_policy_number' => ['nullable', 'string', 'max:80'],
+        ]);
+
+        $reservation->asset->update($data);
+
+        return back()->with('status', 'Asset identifiers saved.');
     }
 }

@@ -33,6 +33,7 @@ class FinanceDefaultsSeeder extends Seeder
             'finance.recovery_revenue_gl_account_id'        => '4040',
             'finance.valuation_revenue_gl_account_id'       => '4050',
             'finance.gps_revenue_gl_account_id'             => '4060',
+            'finance.asset_lending_revenue_gl_account_id'   => '4070',
             'finance.bad_debt_expense_gl_account_id'        => '5000',
             'finance.default_expense_gl_account_id'         => '5050',
         ];

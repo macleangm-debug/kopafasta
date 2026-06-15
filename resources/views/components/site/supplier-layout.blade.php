@@ -3,7 +3,9 @@
 $nav = [
     ['key' => 'dashboard', 'label' => 'Dashboard', 'route' => 'site.supplier.dashboard'],
     ['key' => 'assets', 'label' => 'Assets', 'route' => 'site.supplier.assets'],
+    ['key' => 'applications', 'label' => 'Applications', 'route' => 'site.supplier.applications'],
     ['key' => 'reservations', 'label' => 'Reservations', 'route' => 'site.supplier.reservations'],
+    ['key' => 'delivered', 'label' => 'Delivered', 'route' => 'site.supplier.delivered'],
     ['key' => 'requests', 'label' => 'Asset requests', 'route' => 'site.supplier.requests'],
     ['key' => 'settlements', 'label' => 'Settlements', 'route' => 'site.supplier.settlements'],
 ];

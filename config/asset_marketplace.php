@@ -10,10 +10,7 @@ return [
     /** Product codes that must start from marketplace, not /borrower/apply browse. */
     'marketplace_only_codes' => ['AL', 'AST'],
 
-    'categories' => [
-        'vehicles'    => 'Vehicles',
-        'motorcycles' => 'Motorcycles',
-        'equipment'   => 'Equipment',
-        'machinery'   => 'Machinery',
-    ],
+    'categories' => collect(config('asset_lending.categories', []))
+        ->mapWithKeys(fn (array $row, string $key) => [$key => $row['label'] ?? $key])
+        ->all(),
 ];

@@ -40,6 +40,18 @@
                         <dd class="font-semibold mt-0.5">{{ $asset['viewing_date'] }}</dd>
                     </div>
                 @endif
+                @if ($asset['serial_number'] ?? null)
+                    <div><dt class="text-xs text-gray-500">Serial / reg.</dt><dd class="font-semibold mt-0.5">{{ $asset['serial_number'] }}</dd></div>
+                @endif
+                @if ($asset['chassis_number'] ?? null)
+                    <div><dt class="text-xs text-gray-500">Chassis</dt><dd class="font-semibold mt-0.5">{{ $asset['chassis_number'] }}</dd></div>
+                @endif
+                @if ($asset['engine_number'] ?? null)
+                    <div><dt class="text-xs text-gray-500">Engine</dt><dd class="font-semibold mt-0.5">{{ $asset['engine_number'] }}</dd></div>
+                @endif
+                @if ($asset['insurance_policy_number'] ?? null)
+                    <div><dt class="text-xs text-gray-500">Insurance policy</dt><dd class="font-semibold mt-0.5">{{ $asset['insurance_policy_number'] }}</dd></div>
+                @endif
             </dl>
         </div>
     @endif

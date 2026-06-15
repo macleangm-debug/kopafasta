@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Concerns\AuditsActions;
 use App\Http\Controllers\Controller;
+use App\Models\BorrowerRefund;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
 use App\Models\Loan;
+use App\Services\BorrowerPaymentLedgerService;
 use App\Services\CustomerPaymentService;
 use App\Services\PaymentAccountService;
 use Illuminate\Http\RedirectResponse;
@@ -23,18 +25,27 @@ class BorrowerPaymentController extends Controller
         return Customer::where('user_id', Auth::id())->firstOrFail();
     }
 
-    public function index(): View
+    public function index(BorrowerPaymentLedgerService $ledger): View
     {
         $customer = $this->customer();
-        $payments = CustomerPayment::where('customer_id', $customer->id)
-            ->latest()
-            ->paginate(20);
+        $entries = $ledger->entriesFor($customer);
 
         $loans = Loan::where('customer_id', $customer->id)
             ->whereIn('status', ['active', 'disbursed', 'arrears'])
             ->get();
 
-        return view('site.borrower.payments.index', compact('customer', 'payments', 'loans'));
+        return view('site.borrower.payments.index', compact('customer', 'entries', 'loans'));
+    }
+
+    public function showRefund(BorrowerRefund $borrowerRefund): View
+    {
+        $customer = $this->customer();
+        abort_unless((int) $borrowerRefund->customer_id === (int) $customer->id, 403);
+
+        return view('site.borrower.payments.refund-show', [
+            'customer' => $customer,
+            'refund'   => $borrowerRefund->load('loan'),
+        ]);
     }
 
     public function create(Request $request): View

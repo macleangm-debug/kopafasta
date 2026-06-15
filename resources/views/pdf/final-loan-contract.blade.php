@@ -80,7 +80,24 @@
 
 @if (!empty($snapshot['is_asset_loan']))
 <h2>Asset recovery</h2>
-<p><strong>Financed asset:</strong> {{ $snapshot['asset_title'] ?: 'As described in the loan application' }}</p>
+<table class="kv">
+    <tr><td class="label">Financed asset</td><td class="value">{{ $snapshot['asset_title'] ?: 'As described in the loan application' }}</td></tr>
+    @if (!empty($snapshot['asset_supplier']))
+    <tr><td class="label">Supplier</td><td class="value">{{ $snapshot['asset_supplier'] }}</td></tr>
+    @endif
+    @if (!empty($snapshot['asset_serial_number']))
+    <tr><td class="label">Serial / registration</td><td class="value">{{ $snapshot['asset_serial_number'] }}</td></tr>
+    @endif
+    @if (!empty($snapshot['asset_chassis_number']))
+    <tr><td class="label">Chassis number</td><td class="value">{{ $snapshot['asset_chassis_number'] }}</td></tr>
+    @endif
+    @if (!empty($snapshot['asset_engine_number']))
+    <tr><td class="label">Engine number</td><td class="value">{{ $snapshot['asset_engine_number'] }}</td></tr>
+    @endif
+    @if (!empty($snapshot['asset_insurance_policy']))
+    <tr><td class="label">Insurance policy</td><td class="value">{{ $snapshot['asset_insurance_policy'] }}</td></tr>
+    @endif
+</table>
 <p>{{ $clauses['asset_recovery_clause'] ?? $snapshot['asset_ownership_note'] ?? '' }}</p>
 @endif
 

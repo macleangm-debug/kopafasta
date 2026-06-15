@@ -2053,6 +2053,9 @@ class BorrowerController extends Controller
         if ($application->postApprovalFees->isEmpty()) {
             $fees->generateForApplication($application);
             $application->load('postApprovalFees');
+        } else {
+            $fees->syncManualFees($application);
+            $application->load('postApprovalFees');
         }
 
         app(\App\Services\PostApprovalFeePaymentService::class)->reconcileVerifiedPayment($application);

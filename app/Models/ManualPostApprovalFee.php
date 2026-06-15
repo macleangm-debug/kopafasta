@@ -37,4 +37,9 @@ class ManualPostApprovalFee extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    public function isPaid(): bool
+    {
+        return $this->status === 'paid';
+    }
 }

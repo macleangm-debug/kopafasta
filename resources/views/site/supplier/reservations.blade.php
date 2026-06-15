@@ -26,6 +26,18 @@
                                 </form>
                             @elseif ($row->status === 'viewing_completed')
                                 <span class="text-xs text-gray-500">Awaiting borrower confirmation</span>
+                            @elseif ($row->status === 'post_approval_fees_paid')
+                                <form method="POST" action="{{ route('site.supplier.reservations.update', $row) }}" class="inline">
+                                    @csrf
+                                    <input type="hidden" name="action" value="gps_installation">
+                                    <button class="text-xs font-semibold text-sky-700">GPS installed</button>
+                                </form>
+                            @elseif ($row->status === 'gps_installation')
+                                <form method="POST" action="{{ route('site.supplier.reservations.update', $row) }}" class="inline">
+                                    @csrf
+                                    <input type="hidden" name="action" value="insurance_active">
+                                    <button class="text-xs font-semibold text-indigo-700">Insurance active</button>
+                                </form>
                             @else
                                 <span class="text-xs text-gray-400">—</span>
                             @endif

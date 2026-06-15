@@ -30,7 +30,8 @@
 </x-admin.step>
 
 <x-admin.step title="Supplier deposit markup">
-    <p class="md:col-span-2 text-xs text-gray-500 mb-2">Example: supplier deposit 6 + 10% markup → customer deposit 7. Used when uploading marketplace assets for this supplier.</p>
+    <p class="md:col-span-2 text-xs text-gray-500 mb-2">Example: supplier deposit 6M + 10% markup → customer deposit 6.6M. Markup base is configured under Settings → Asset lending.</p>
+    <x-admin.select name="supplier_type" label="Supplier type" :options="config('asset_lending.supplier_types')" :value="$r?->supplier_type ?? config('asset_lending.default_supplier_type')" />
     <x-admin.input name="deposit_markup_percent" label="Deposit markup (%)" type="number" step="0.01" :value="$r?->deposit_markup_percent ?? $r?->markup_percent" />
     <x-admin.input name="partner_cost" label="Default partner cost (optional)" type="number" step="0.01" :value="$r?->partner_cost" />
     <x-admin.input name="markup_percent" label="General markup (%)" type="number" step="0.01" :value="$r?->markup_percent" />

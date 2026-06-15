@@ -399,12 +399,32 @@ class SettingsController extends Controller
             'recovery_partner_payable_gl_account_id'  => ['nullable', 'exists:chart_of_accounts,id'],
             'valuation_revenue_gl_account_id'         => ['nullable', 'exists:chart_of_accounts,id'],
             'gps_revenue_gl_account_id'               => ['nullable', 'exists:chart_of_accounts,id'],
+            'asset_lending_revenue_gl_account_id'     => ['nullable', 'exists:chart_of_accounts,id'],
             'capital_partner_interest_share_percent'  => ['nullable', 'numeric', 'min:0', 'max:100'],
             'write_off_approval_required'             => ['nullable', 'boolean'],
         ]);
         $data['write_off_approval_required'] = $request->boolean('write_off_approval_required');
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["finance.$k" => $v])->all());
         return back()->with('status', 'Finance defaults saved.');
+    }
+
+    public function assetLending()
+    {
+        return view('admin.settings.asset-lending', [
+            'values'     => Setting::group('asset_lending'),
+            'categories' => config('asset_lending.categories', []),
+        ]);
+    }
+
+    public function saveAssetLending(Request $request)
+    {
+        $data = $request->validate([
+            'markup_base' => ['required', 'in:deposit,asset_price'],
+        ]);
+
+        Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["asset_lending.$k" => $v])->all());
+
+        return back()->with('status', 'Asset lending settings saved.');
     }
 
     // ---------------- Membership ----------------

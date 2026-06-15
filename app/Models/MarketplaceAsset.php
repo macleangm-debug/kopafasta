@@ -8,7 +8,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class MarketplaceAsset extends Model
 {
     protected $fillable = [
-        'slug', 'category', 'title', 'description', 'supplier_name', 'vendor_id',
+        'slug', 'category', 'title', 'serial_number', 'chassis_number', 'engine_number',
+        'insurance_policy_number', 'description', 'supplier_name', 'vendor_id',
         'asset_value', 'supplier_deposit', 'deposit_markup_percent', 'customer_deposit',
         'weekly_installment', 'max_tenure_months', 'photos', 'is_active', 'availability_status',
     ];
@@ -28,9 +29,7 @@ class MarketplaceAsset extends Model
 
     public function computeCustomerDeposit(): float
     {
-        $markup = round((float) $this->supplier_deposit * ((float) $this->deposit_markup_percent / 100), 2);
-
-        return round((float) $this->supplier_deposit + $markup, 2);
+        return app(AssetLendingService::class)->computeCustomerDeposit($this);
     }
 
     public function vendor(): \Illuminate\Database\Eloquent\Relations\BelongsTo

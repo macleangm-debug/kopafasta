@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\LoanApplication;
 use App\Models\Vendor;
 use App\Services\ValuationPartnerService;
+use App\Services\PostApprovalFeeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -38,7 +39,7 @@ class OriginationPartnerController extends Controller
         return back()->with('status', 'Valuation partner assigned.');
     }
 
-    public function addManualFee(Request $request, LoanApplication $loanApplication): RedirectResponse
+    public function addManualFee(Request $request, LoanApplication $loanApplication, PostApprovalFeeService $fees): RedirectResponse
     {
         $data = $request->validate([
             'description'   => ['required', 'string', 'max:200'],
@@ -46,16 +47,13 @@ class OriginationPartnerController extends Controller
             'markup_percent'=> ['required', 'numeric', 'min:0', 'max:100'],
         ]);
 
-        $borrowerAmount = round((float) $data['partner_cost'] * (1 + ((float) $data['markup_percent'] / 100)), 2);
-
-        $loanApplication->manualPostApprovalFees()->create([
-            'description'     => $data['description'],
-            'partner_cost'    => $data['partner_cost'],
-            'markup_percent'  => $data['markup_percent'],
-            'borrower_amount' => $borrowerAmount,
-            'status'          => 'pending',
-            'created_by'      => $request->user()->id,
-        ]);
+        $fees->addManualFee(
+            $loanApplication,
+            $data['description'],
+            (float) $data['partner_cost'],
+            (float) $data['markup_percent'],
+            $request->user()->id,
+        );
 
         return back()->with('status', 'Manual post-approval fee added. Borrower will receive a payment request.');
     }

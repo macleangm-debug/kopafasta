@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class LoanApplicationPostApprovalFee extends Model
 {
     protected $fillable = [
-        'loan_application_id', 'loan_product_post_approval_fee_id',
+        'loan_application_id', 'loan_product_post_approval_fee_id', 'manual_post_approval_fee_id',
         'code', 'name', 'fee_type', 'configured_amount', 'calculated_amount',
         'amount_paid', 'status', 'paid_at',
     ];
@@ -26,6 +26,11 @@ class LoanApplicationPostApprovalFee extends Model
     public function application(): BelongsTo
     {
         return $this->belongsTo(LoanApplication::class, 'loan_application_id');
+    }
+
+    public function manualFee(): BelongsTo
+    {
+        return $this->belongsTo(ManualPostApprovalFee::class, 'manual_post_approval_fee_id');
     }
 
     public function isPaid(): bool

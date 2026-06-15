@@ -28,6 +28,7 @@
                 ['recovery_partner_payable_gl_account_id',  'Recovery partner payable',         'Partner cost accrual until payout.'],
                 ['valuation_revenue_gl_account_id',         'Valuation revenue',                'Company markup on valuation fees.'],
                 ['gps_revenue_gl_account_id',               'GPS revenue',                      'Company markup on GPS device and monitoring fees.'],
+                ['asset_lending_revenue_gl_account_id',     'Asset lending revenue',            'Deposit markup and asset-lending fees (not interest income).'],
                 ['capital_partner_pool_gl_account_id',      'Capital partner pool account',     'Credited instead of cash when a loan is funded from partner pools.'],
                 ['registration_fee_income_gl_account_id',   'Registration fee income',          'Credited when registration fees are verified.'],
                 ['application_fee_income_gl_account_id',    'Application fee income',           'Credited when application fees are verified.'],

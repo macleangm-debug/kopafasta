@@ -27,6 +27,10 @@ class LoanDisbursementOrchestrator
         return DB::transaction(function () use ($loan, $actor, $channel, $existingDisbursement) {
             $loan = $loan->fresh(['application', 'customer', 'product']);
 
+            if ($loan->product && is_marketplace_loan_product($loan->product->code)) {
+                return app(AssetHandoverService::class)->completeHandover($loan, $actor);
+            }
+
             if (! in_array($loan->status, ['pending'], true)) {
                 throw ValidationException::withMessages([
                     'loan' => 'Only pending loans can be disbursed.',

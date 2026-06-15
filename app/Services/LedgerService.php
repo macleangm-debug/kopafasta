@@ -190,4 +190,21 @@ class LedgerService
 
         return ChartOfAccount::query()->where('type', 'income')->where('name', 'like', '%gps%')->orderBy('code')->value('id');
     }
+
+    public function assetLendingRevenueAccountId(): ?int
+    {
+        $id = (int) (Setting::get('finance.asset_lending_revenue_gl_account_id') ?? 0);
+        if ($id > 0 && ChartOfAccount::whereKey($id)->exists()) {
+            return $id;
+        }
+
+        return ChartOfAccount::query()
+            ->where('type', 'income')
+            ->where(function ($q) {
+                $q->where('name', 'like', '%asset%lending%')
+                    ->orWhere('name', 'like', '%asset%finance%');
+            })
+            ->orderBy('code')
+            ->value('id');
+    }
 }

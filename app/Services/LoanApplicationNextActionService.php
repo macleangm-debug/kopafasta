@@ -248,6 +248,41 @@ class LoanApplicationNextActionService
                 );
             }
 
+            if ($readiness->isAssetLendingApplication($application)) {
+                $loan = \App\Models\Loan::query()->where('loan_application_id', $application->id)->first();
+                $disbursed = (string) $application->status === 'disbursed'
+                    || in_array((string) ($loan?->status ?? ''), ['active', 'disbursed'], true);
+
+                if ($disbursed) {
+                    return $this->action(
+                        'view_loan',
+                        __('borrower.loan_profile.next_actions.disbursed'),
+                        __('borrower.loan_profile.actions.view_active_loan'),
+                        $application->loan
+                            ? route('site.borrower.loans.show', $loan->id)
+                            : $profileUrl,
+                    );
+                }
+
+                if ($readiness->canMarkAssetHandover($application)) {
+                    return $this->action(
+                        'ready_for_asset_handover',
+                        __('borrower.loan_profile.next_actions.ready_for_asset_handover'),
+                        __('borrower.applications_list.view'),
+                        $profileUrl,
+                        tone: 'secondary',
+                    );
+                }
+
+                return $this->action(
+                    'awaiting_asset_readiness',
+                    __('borrower.loan_profile.next_actions.awaiting_asset_readiness'),
+                    __('borrower.applications_list.view'),
+                    $profileUrl,
+                    tone: 'secondary',
+                );
+            }
+
             if ($readiness->isReadyForDisbursement($application)) {
                 return $this->action(
                     'ready_for_disbursement',

@@ -264,6 +264,10 @@ class VendorController extends Controller
             'notes'        => $data['notes'] ?? $task->notes,
         ]);
 
+        if (str_contains((string) $task->task_type, 'gps')) {
+            app(\App\Services\AssetReservationService::class)->syncGpsFromTask($task->fresh());
+        }
+
         // auto-issue invoice if fee set and no payment yet
         if ($task->fee_amount > 0 && ! $task->payment()->exists()) {
             app(\App\Services\PartnerSettlementService::class)->accrue(

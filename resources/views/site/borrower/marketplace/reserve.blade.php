@@ -18,7 +18,14 @@
     @endif
 
     <ol class="space-y-3 mb-8">
+        @php
+            $lastPhase = null;
+        @endphp
         @foreach ($steps as $step)
+            @if (($step['phase'] ?? null) && $step['phase'] !== $lastPhase)
+                @php $lastPhase = $step['phase']; @endphp
+                <li class="pt-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">{{ __('borrower.marketplace.pipeline.'.$step['phase']) }}</li>
+            @endif
             <li class="flex items-center gap-3 rounded-xl px-4 py-3 {{ $step['current'] ? 'bg-amber-50 ring-1 ring-amber-200' : ($step['done'] ? 'bg-emerald-50' : 'bg-gray-50') }}">
                 <span class="w-6 h-6 rounded-full grid place-items-center text-xs font-bold {{ $step['done'] ? 'bg-emerald-500 text-white' : ($step['current'] ? 'bg-amber-500 text-gray-900' : 'bg-gray-200 text-gray-500') }}">{{ $step['done'] ? '✓' : '•' }}</span>
                 <span class="text-sm {{ $step['done'] ? 'text-emerald-900' : 'text-gray-700' }}">{{ $step['label'] }}</span>
@@ -168,6 +175,36 @@
             <a href="{{ route('site.borrower.apply', ['product' => config('asset_marketplace.asset_loan_product_code', 'AL'), 'reservation' => $reservation->id]) }}" class="inline-flex bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
                 {{ __('borrower.marketplace.start_loan_application') }} →
             </a>
+        @elseif (in_array($reservation->status, ['application_submitted', 'approved', 'post_approval_fees_paid', 'gps_installation', 'insurance_active'], true))
+            @php
+                $app = $reservation->loanApplication;
+                $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
+                $loan = $app?->loan;
+            @endphp
+            @if ($reservation->status === 'application_submitted')
+                <p class="text-sm text-gray-600">{{ __('borrower.marketplace.post_deposit.application_submitted') }}</p>
+            @elseif ($app && $readiness->needsPostApprovalFees($app))
+                <p class="text-sm text-gray-600 mb-3">{{ __('borrower.marketplace.post_deposit.fees_pending') }}</p>
+            @elseif ($app && $readiness->needsContractSignature($app))
+                <p class="text-sm text-gray-600 mb-3">{{ __('borrower.marketplace.post_deposit.contract_pending') }}</p>
+            @elseif ($app && $readiness->canMarkAssetHandover($app))
+                <p class="text-sm text-emerald-800 font-medium">{{ __('borrower.marketplace.post_deposit.handover_ready') }}</p>
+            @else
+                <p class="text-sm text-gray-600">{{ __('borrower.marketplace.post_deposit.readiness') }}</p>
+            @endif
+            @if ($app)
+                <a href="{{ route('site.borrower.application', $app->id) }}" class="inline-flex mt-3 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                    {{ __('borrower.marketplace.post_deposit.view_application') }} →
+                </a>
+            @endif
+        @elseif ($reservation->status === 'released')
+            @php $loan = $reservation->loanApplication?->loan; @endphp
+            <p class="text-sm text-emerald-800 font-medium mb-3">{{ __('borrower.marketplace.post_deposit.handed_over') }}</p>
+            @if ($loan)
+                <a href="{{ route('site.borrower.loans.show', $loan->id) }}" class="inline-flex bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
+                    {{ __('borrower.marketplace.post_deposit.view_loan') }} →
+                </a>
+            @endif
         @else
             <p class="text-sm text-emerald-700 font-semibold">{{ __('borrower.marketplace.in_progress') }}</p>
             <a href="{{ route('site.borrower.loans') }}" class="text-sm font-semibold text-amber-700 hover:underline mt-2 inline-block">{{ __('borrower.dashboard.view_all') }}</a>

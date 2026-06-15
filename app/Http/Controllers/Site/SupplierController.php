@@ -150,17 +150,42 @@ class SupplierController extends Controller
         return view('site.supplier.settlements', compact('vendor', 'payments'));
     }
 
+    public function applications(): View
+    {
+        $vendor = $this->supplier();
+        $applications = \App\Models\LoanApplication::query()
+            ->with(['customer', 'product', 'assetReservation.asset', 'loan'])
+            ->whereHas('assetReservation.asset', fn ($q) => $q->where('vendor_id', $vendor->id))
+            ->whereNotIn('status', ['withdrawn'])
+            ->latest()
+            ->paginate(20);
+
+        return view('site.supplier.applications', compact('vendor', 'applications'));
+    }
+
+    public function delivered(): View
+    {
+        $vendor = $this->supplier();
+        $reservations = AssetReservation::query()
+            ->with(['asset', 'customer', 'loanApplication.loan'])
+            ->whereHas('asset', fn ($q) => $q->where('vendor_id', $vendor->id))
+            ->whereIn('status', ['released'])
+            ->latest('released_at')
+            ->paginate(20);
+
+        return view('site.supplier.delivered', compact('vendor', 'reservations'));
+    }
+
     public function updateReservation(Request $request, AssetReservation $reservation): RedirectResponse
     {
         $vendor = $this->supplier();
         abort_unless($reservation->asset?->vendor_id === $vendor->id, 404);
 
         $action = $request->validate([
-            'action' => ['required', 'in:confirm_viewing,complete_viewing'],
+            'action' => ['required', 'in:confirm_viewing,complete_viewing,gps_installation,insurance_active'],
         ])['action'];
 
         if ($action === 'confirm_viewing' && $reservation->status === 'viewing_scheduled') {
-            // Supplier acknowledges the scheduled viewing — no status change required.
             return back()->with('status', 'Viewing appointment acknowledged.');
         }
 
@@ -168,6 +193,12 @@ class SupplierController extends Controller
             app(AssetReservationService::class)->markViewingCompleted($reservation);
 
             return back()->with('status', 'Viewing marked complete by supplier.');
+        }
+
+        if (in_array($action, ['gps_installation', 'insurance_active'], true)) {
+            app(AssetReservationService::class)->advance($reservation, $action);
+
+            return back()->with('status', 'Reservation milestone updated.');
         }
 
         return back()->with('error', 'This reservation cannot be updated at its current stage.');

@@ -26,6 +26,7 @@ class DefaultChartOfAccountsSeeder extends Seeder
             ['code' => '4040', 'name' => 'Recovery Revenue', 'type' => 'income'],
             ['code' => '4050', 'name' => 'Valuation Revenue', 'type' => 'income'],
             ['code' => '4060', 'name' => 'GPS Revenue', 'type' => 'income'],
+            ['code' => '4070', 'name' => 'Asset Lending Revenue', 'type' => 'income'],
             ['code' => '5000', 'name' => 'Bad Debt Expense', 'type' => 'expense'],
             ['code' => '5010', 'name' => 'Recovery Partner Expense', 'type' => 'expense'],
             ['code' => '5020', 'name' => 'Valuation Expense', 'type' => 'expense'],

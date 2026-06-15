@@ -17,16 +17,9 @@ class BorrowerRefundController extends Controller
         return Auth::user()->customer ?? abort(404);
     }
 
-    public function index(): View
+    public function index(): RedirectResponse
     {
-        $customer = $this->customer();
-        $refunds = BorrowerRefund::query()
-            ->with(['loan', 'settlement'])
-            ->where('customer_id', $customer->id)
-            ->latest()
-            ->get();
-
-        return view('site.borrower.refunds', compact('customer', 'refunds'));
+        return redirect()->route('site.borrower.payments');
     }
 
     public function submitDetails(Request $request, BorrowerRefund $borrowerRefund, BorrowerRefundService $service): RedirectResponse
@@ -36,6 +29,7 @@ class BorrowerRefundController extends Controller
 
         $service->submitPayoutDetails($borrowerRefund, $customer, $request->all());
 
-        return back()->with('status', 'Payout details submitted. We will process your refund shortly.');
+        return redirect()->route('site.borrower.payments.refund', $borrowerRefund)
+            ->with('status', 'Payout details submitted. We will process your refund shortly.');
     }
 }

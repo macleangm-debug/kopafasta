@@ -30,6 +30,7 @@ class VendorController extends ResourceController
             'partner_cost'                   => ['nullable', 'numeric', 'min:0'],
             'markup_percent'                 => ['nullable', 'numeric', 'min:0', 'max:100'],
             'deposit_markup_percent'         => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'supplier_type'                  => ['nullable', 'in:managed_loan,upfront_settlement'],
             'affiliate_code'                 => ['nullable', 'string', 'max:32'],
             'recovery_fee_type'              => ['nullable', 'in:percentage,fixed'],
             'recovery_fixed_amount'          => ['nullable', 'numeric', 'min:0'],

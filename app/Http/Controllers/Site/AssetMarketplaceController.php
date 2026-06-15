@@ -23,6 +23,26 @@ class AssetMarketplaceController extends Controller
 
     public function index(Request $request): View
     {
+        return $this->renderIndex($request, 'site.borrower.marketplace.index', true);
+    }
+
+    public function publicIndex(Request $request): View
+    {
+        return $this->renderIndex($request, 'site.public.marketplace.index', false);
+    }
+
+    public function publicShow(string $assetId): View
+    {
+        $asset = $this->findAsset($assetId);
+        abort_if(! $asset, 404);
+
+        $loginUrl = route('site.login', ['redirect' => route('site.borrower.marketplace.show', $assetId)]);
+
+        return view('site.public.marketplace.show', compact('asset', 'loginUrl'));
+    }
+
+    private function renderIndex(Request $request, string $view, bool $authenticated): View
+    {
         $category = $request->query('category');
         $filters = [
             'q'         => trim((string) $request->query('q', '')),
@@ -32,11 +52,12 @@ class AssetMarketplaceController extends Controller
         ];
         $assets = $this->loadAssets($category, $filters);
 
-        return view('site.borrower.marketplace.index', [
+        return view($view, [
             'assets'     => $assets,
             'categories' => config('asset_marketplace.categories', []),
             'category'   => $category,
             'filters'    => $filters,
+            'authenticated' => $authenticated,
         ]);
     }
 
@@ -111,6 +132,8 @@ class AssetMarketplaceController extends Controller
             return redirect()->route('site.borrower.marketplace.show', $assetId)
                 ->with('warning', 'Apply for this asset and choose a viewing slot first.');
         }
+
+        $reservation->load(['loanApplication.loan', 'loanApplication.postApprovalFees']);
 
         $steps = $reservations->steps($reservation);
         $applyRequirements = $requirements->checklist($customer);
@@ -236,27 +259,39 @@ class AssetMarketplaceController extends Controller
 
         $data = $request->validate([
             'asset_name'              => ['required', 'string', 'max:150'],
+            'description'             => ['nullable', 'string', 'max:2000'],
             'budget'                  => ['nullable', 'numeric', 'min:0'],
             'preferred_tenure_months' => ['nullable', 'integer', 'min:1', 'max:120'],
             'photo'                   => ['nullable', 'image', 'max:5120'],
+            'photos'                  => ['nullable', 'array'],
+            'photos.*'                => ['image', 'max:5120'],
         ]);
 
         $path = $request->hasFile('photo')
             ? $request->file('photo')->store("customer/{$customer->id}/asset-requests", 'public')
             : null;
 
+        $additional = [];
+        if ($request->hasFile('photos')) {
+            foreach ($request->file('photos') as $file) {
+                $additional[] = $file->store("customer/{$customer->id}/asset-requests", 'public');
+            }
+        }
+
         AssetRequest::create([
             'customer_id'             => $customer->id,
             'asset_name'              => $data['asset_name'],
+            'description'             => $data['description'] ?? null,
             'budget'                  => $data['budget'] ?? null,
             'preferred_tenure_months' => $data['preferred_tenure_months'] ?? null,
             'photo_path'              => $path,
-            'status'                  => 'pending',
+            'additional_photos'       => $additional ?: null,
+            'status'                  => 'sourcing',
         ]);
 
         return redirect()
             ->route('site.borrower.marketplace')
-            ->with('status', 'Your asset request has been submitted. We will notify you when a match is available.');
+            ->with('status', 'Asset sourcing request submitted. Our team will work with suppliers to find a match.');
     }
 
     /** @return \Illuminate\Support\Collection<int, array<string, mixed>> */

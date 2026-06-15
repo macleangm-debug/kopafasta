@@ -75,6 +75,9 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
     Route::get('/invest',           [\App\Http\Controllers\Site\PageController::class, 'invest'])->name('invest');
     Route::get('/capital-partners', [\App\Http\Controllers\Site\PageController::class, 'capitalPartners'])->name('capital-partners');
 
+    Route::get('/marketplace', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'publicIndex'])->name('marketplace');
+    Route::get('/marketplace/{assetId}', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'publicShow'])->name('marketplace.show');
+
     // Public guarantor invitation (guest + logged-in users must both reach this page)
     Route::get('/guarantor-request/{token}', [\App\Http\Controllers\Site\PublicGuarantorController::class, 'show'])->name('guarantor.show');
     Route::get('/guarantor-request/{token}/declined', [\App\Http\Controllers\Site\PublicGuarantorController::class, 'declined'])->name('guarantor.declined');
@@ -186,6 +189,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/payments',                       [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'index'])       ->name('borrower.payments');
             Route::get('/borrower/payments/new',                   [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'create'])      ->name('borrower.payments.create');
             Route::post('/borrower/payments',                      [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'store'])       ->name('borrower.payments.store');
+            Route::get('/borrower/payments/refund/{borrowerRefund}', [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'showRefund'])->name('borrower.payments.refund');
             Route::get('/borrower/payments/{payment}',             [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'show'])        ->name('borrower.payments.show');
             Route::post('/borrower/payments/{payment}/proof',      [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'uploadProof']) ->name('borrower.payments.proof');
             Route::get('/borrower/documents',                      [\App\Http\Controllers\Site\BorrowerController::class, 'documents'])    ->name('borrower.documents');
@@ -265,6 +269,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::put('/assets/{asset}', [\App\Http\Controllers\Site\SupplierController::class, 'updateAsset'])->name('assets.update');
             Route::get('/requests', [\App\Http\Controllers\Site\SupplierController::class, 'requests'])->name('requests');
             Route::get('/reservations', [\App\Http\Controllers\Site\SupplierController::class, 'reservations'])->name('reservations');
+            Route::get('/applications', [\App\Http\Controllers\Site\SupplierController::class, 'applications'])->name('applications');
+            Route::get('/delivered', [\App\Http\Controllers\Site\SupplierController::class, 'delivered'])->name('delivered');
             Route::post('/reservations/{reservation}', [\App\Http\Controllers\Site\SupplierController::class, 'updateReservation'])->name('reservations.update');
             Route::post('/requests/{assetRequest}', [\App\Http\Controllers\Site\SupplierController::class, 'updateRequest'])->name('requests.update');
             Route::get('/settlements', [\App\Http\Controllers\Site\SupplierController::class, 'settlements'])->name('settlements');
@@ -421,6 +427,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('origination/valuation-partners', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'valuationIndex'])->name('origination.valuation-partners');
         Route::post('loan-applications/{loan_application}/assign-valuer', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'assignValuer'])->name('loan-applications.assign-valuer');
         Route::post('loan-applications/{loan_application}/manual-fee', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'addManualFee'])->name('loan-applications.manual-fee');
+        Route::post('loan-applications/{loan_application}/reservation-advance', [LoanApplicationController::class, 'advanceReservation'])->name('loan-applications.reservation-advance');
+        Route::put('loan-applications/{loan_application}/asset-identifiers', [LoanApplicationController::class, 'updateAssetIdentifiers'])->name('loan-applications.asset-identifiers');
         Route::get('recovery/assignments', [RecoveryAssignmentController::class, 'index'])->name('recovery.assignments.index');
         Route::get('recovery/assignments/{recoveryAssignment}', [RecoveryAssignmentController::class, 'show'])->name('recovery.assignments.show');
         Route::post('recovery/assignments/{recoveryAssignment}/start', [RecoveryAssignmentController::class, 'start'])->name('recovery.assignments.start');
@@ -624,6 +632,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/aml',              [SettingsController::class, 'saveAmlSettings'])->name('settings.aml.save');
         Route::get('settings/finance',          [SettingsController::class, 'finance'])       ->name('settings.finance');
         Route::put('settings/finance',          [SettingsController::class, 'saveFinance'])   ->name('settings.finance.save');
+        Route::get('settings/asset-lending',    [SettingsController::class, 'assetLending'])  ->name('settings.asset-lending');
+        Route::put('settings/asset-lending',    [SettingsController::class, 'saveAssetLending'])->name('settings.asset-lending.save');
         Route::get('settings/recovery',         [SettingsController::class, 'recovery'])      ->name('settings.recovery');
         Route::put('settings/recovery',         [SettingsController::class, 'saveRecovery'])  ->name('settings.recovery.save');
         Route::get('settings/payment-accounts',   [PaymentAccountSettingsController::class, 'index'])         ->name('settings.payment-accounts');

@@ -272,6 +272,10 @@ class LoanApplicationReviewService
             'viewing_date'         => $reservation->viewing_date,
             'deposit_status'       => $reservation->deposit_status,
             'reservation_fee_status' => $reservation->reservation_fee_status,
+            'serial_number'        => $asset->serial_number,
+            'chassis_number'       => $asset->chassis_number,
+            'engine_number'        => $asset->engine_number,
+            'insurance_policy_number' => $asset->insurance_policy_number,
         ];
     }
 
