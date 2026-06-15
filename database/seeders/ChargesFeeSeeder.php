@@ -96,7 +96,7 @@ class ChargesFeeSeeder extends Seeder
             [
                 'name'        => 'Legal fee',
                 'code'        => 'LEGAL_FEE',
-                'type'        => 'legal',
+                'type'        => 'other',
                 'basis'       => 'fixed',
                 'amount'      => 75000,
                 'charge_when' => 'post_approval',
@@ -105,7 +105,7 @@ class ChargesFeeSeeder extends Seeder
             [
                 'name'        => 'Registration fee (post-approval)',
                 'code'        => 'REG_POST_FEE',
-                'type'        => 'registration',
+                'type'        => 'other',
                 'basis'       => 'fixed',
                 'amount'      => 35000,
                 'charge_when' => 'post_approval',
