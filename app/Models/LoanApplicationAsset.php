@@ -9,6 +9,7 @@ class LoanApplicationAsset extends Model
 {
     protected $fillable = [
         'loan_application_id',
+        'customer_asset_id',
         'asset_type',
         'description',
         'market_value',
@@ -36,6 +37,11 @@ class LoanApplicationAsset extends Model
     public function application(): BelongsTo
     {
         return $this->belongsTo(LoanApplication::class, 'loan_application_id');
+    }
+
+    public function customerAsset(): BelongsTo
+    {
+        return $this->belongsTo(CustomerAsset::class);
     }
 
     public function isMovableAsset(): bool

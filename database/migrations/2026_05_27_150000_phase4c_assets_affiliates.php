@@ -40,17 +40,21 @@ return new class extends Migration
             });
         }
 
-        Schema::table('marketplace_assets', function (Blueprint $table): void {
-            if (! Schema::hasColumn('marketplace_assets', 'vendor_id')) {
-                $table->foreignId('vendor_id')->nullable()->after('id')->constrained()->nullOnDelete();
-            }
-        });
+        if (Schema::hasTable('marketplace_assets')) {
+            Schema::table('marketplace_assets', function (Blueprint $table): void {
+                if (! Schema::hasColumn('marketplace_assets', 'vendor_id')) {
+                    $table->foreignId('vendor_id')->nullable()->after('id')->constrained()->nullOnDelete();
+                }
+            });
+        }
 
-        Schema::table('asset_requests', function (Blueprint $table): void {
-            if (! Schema::hasColumn('asset_requests', 'vendor_id')) {
-                $table->foreignId('vendor_id')->nullable()->after('customer_id')->constrained()->nullOnDelete();
-            }
-        });
+        if (Schema::hasTable('asset_requests')) {
+            Schema::table('asset_requests', function (Blueprint $table): void {
+                if (! Schema::hasColumn('asset_requests', 'vendor_id')) {
+                    $table->foreignId('vendor_id')->nullable()->after('customer_id')->constrained()->nullOnDelete();
+                }
+            });
+        }
 
         if (! Schema::hasTable('asset_reservations')) {
             Schema::create('asset_reservations', function (Blueprint $table): void {

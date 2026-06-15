@@ -29,6 +29,7 @@ use App\Http\Controllers\Admin\LoanApplicationController;
 use App\Http\Controllers\Admin\LoanApplicationDocumentRequestController;
 use App\Http\Controllers\Admin\LoanController;
 use App\Http\Controllers\Admin\LoanProductController;
+use App\Http\Controllers\Admin\LoanTopUpRequestController;
 use App\Http\Controllers\Admin\MembershipPaymentController;
 use App\Http\Controllers\Admin\PaymentAccountSettingsController;
 use App\Http\Controllers\Admin\LoanReportsController;

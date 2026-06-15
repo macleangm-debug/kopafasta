@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\CustomerAsset;
 use App\Models\CustomerDocument;
 use App\Models\DocumentType;
 use App\Models\LoanApplication;
@@ -31,9 +32,10 @@ class AssetBackedApplyService
     }
 
     /** @param array<string, mixed> $form */
-    public function validateAssetDetails(array $form): void
+    public function validateAssetDetails(Customer $customer, array $form): void
     {
-        $type = (string) ($form['asset_type'] ?? '');
+        $customerAsset = $this->resolveCustomerAsset($customer, $form);
+        $type = $customerAsset?->asset_type ?? (string) ($form['asset_type'] ?? '');
         $options = $this->assets->assetTypeOptions();
 
         if ($type === '' || ! array_key_exists($type, $options)) {
@@ -112,26 +114,42 @@ class AssetBackedApplyService
                 : now();
         }
 
+        $customerAsset = $this->resolveCustomerAsset($application->customer, $form);
+        $assetType = (string) ($customerAsset?->asset_type ?? $form['asset_type'] ?? 'saloon_car');
+        $description = $customerAsset
+            ? trim(collect([$customerAsset->label, $customerAsset->description, $customerAsset->registration_number])->filter()->implode(' · '))
+            : (filled($form['asset_description'] ?? null) ? (string) $form['asset_description'] : null);
+
         $asset = LoanApplicationAsset::updateOrCreate(
             ['loan_application_id' => $application->id],
             [
-                'asset_type'            => (string) ($form['asset_type'] ?? 'saloon_car'),
-                'description'           => filled($form['asset_description'] ?? null)
-                    ? (string) $form['asset_description']
-                    : null,
+                'customer_asset_id'     => $customerAsset?->id,
+                'asset_type'            => $assetType,
+                'description'           => $description ?: null,
                 'valuation_status'      => 'awaiting_valuation',
                 'valuation_fee_paid_at' => $paidAt,
-                'gps_required'          => in_array(
-                    (string) ($form['asset_type'] ?? ''),
-                    ['motorcycle', 'saloon_car', 'suv', 'truck', 'heavy_machinery'],
-                    true,
-                ),
+                'gps_required'          => in_array($assetType, ['motorcycle', 'saloon_car', 'suv', 'truck', 'heavy_machinery'], true),
             ],
         );
 
         $this->linkDocuments($application, $draftPayload);
 
         return $asset;
+    }
+
+    /** @param array<string, mixed> $form */
+    private function resolveCustomerAsset(Customer $customer, array $form): ?CustomerAsset
+    {
+        $id = (int) ($form['customer_asset_id'] ?? 0);
+        if ($id <= 0) {
+            return null;
+        }
+
+        return CustomerAsset::query()
+            ->where('customer_id', $customer->id)
+            ->where('is_active', true)
+            ->where('id', $id)
+            ->first();
     }
 
     /** @param array<string, mixed> $draftPayload */

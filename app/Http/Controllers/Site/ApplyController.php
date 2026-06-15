@@ -986,8 +986,19 @@ class ApplyController extends Controller
                 $data['purpose'] = 'asset_financing';
             }
 
+            $draftForm = $draftPayload['form'] ?? [];
+            if (filled($draftForm['customer_asset_id'] ?? null)) {
+                $data['customer_asset_id'] = $draftForm['customer_asset_id'];
+            }
+            if (blank($data['asset_type'] ?? null) && filled($draftForm['asset_type'] ?? null)) {
+                $data['asset_type'] = $draftForm['asset_type'];
+            }
+            if (blank($data['asset_description'] ?? null) && filled($draftForm['asset_description'] ?? null)) {
+                $data['asset_description'] = $draftForm['asset_description'];
+            }
+
             try {
-                app(AssetBackedApplyService::class)->validateAssetDetails($data);
+                app(AssetBackedApplyService::class)->validateAssetDetails($customer, $data);
             } catch (ValidationException $e) {
                 return $this->wizardSubmitRedirect($request, $draft)
                     ->withInput()
@@ -1193,6 +1204,7 @@ class ApplyController extends Controller
         if ($isAssetBackedProduct) {
             app(AssetBackedApplyService::class)->persistOnSubmit($app, array_merge($draftPayload, [
                 'form' => array_merge($draftPayload['form'] ?? [], [
+                    'customer_asset_id'       => $data['customer_asset_id'] ?? ($draftPayload['form']['customer_asset_id'] ?? null),
                     'asset_type'              => $data['asset_type'] ?? ($draftPayload['form']['asset_type'] ?? null),
                     'asset_description'       => $data['asset_description'] ?? ($draftPayload['form']['asset_description'] ?? null),
                     'requested_amount'        => $data['requested_amount'],

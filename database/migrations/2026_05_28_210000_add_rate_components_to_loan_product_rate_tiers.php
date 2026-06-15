@@ -9,6 +9,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (! Schema::hasTable('loan_product_rate_tiers')) {
+            return;
+        }
+
         Schema::table('loan_product_rate_tiers', function (Blueprint $table): void {
             if (! Schema::hasColumn('loan_product_rate_tiers', 'bot_regulated_rate')) {
                 $table->decimal('bot_regulated_rate', 8, 4)->nullable()->after('max_amount');

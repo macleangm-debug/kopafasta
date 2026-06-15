@@ -26,6 +26,12 @@ return new class extends Migration
             });
         }
 
+        if (Schema::hasTable('loan_application_assets') && ! Schema::hasColumn('loan_application_assets', 'customer_asset_id')) {
+            Schema::table('loan_application_assets', function (Blueprint $table): void {
+                $table->foreignId('customer_asset_id')->nullable()->after('loan_application_id')->constrained()->nullOnDelete();
+            });
+        }
+
         Schema::table('vendors', function (Blueprint $table): void {
             if (! Schema::hasColumn('vendors', 'affiliate_kyc_status')) {
                 $table->string('affiliate_kyc_status', 30)->nullable()->after('affiliate_commission_percent');
@@ -47,6 +53,12 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (Schema::hasTable('loan_application_assets') && Schema::hasColumn('loan_application_assets', 'customer_asset_id')) {
+            Schema::table('loan_application_assets', function (Blueprint $table): void {
+                $table->dropConstrainedForeignId('customer_asset_id');
+            });
+        }
+
         Schema::dropIfExists('customer_assets');
 
         Schema::table('vendors', function (Blueprint $table): void {
