@@ -227,9 +227,35 @@ class VendorController extends Controller
         abort_unless($task->vendor_id === $vendor->id, 404);
 
         $data = $request->validate([
-            'gps_serial' => ['nullable', 'string', 'max:60'],
-            'notes'      => ['nullable', 'string', 'max:1000'],
+            'gps_serial'        => ['nullable', 'string', 'max:60'],
+            'notes'             => ['nullable', 'string', 'max:1000'],
+            'market_value'      => ['nullable', 'numeric', 'min:0'],
+            'forced_sale_value' => ['nullable', 'numeric', 'min:0'],
         ]);
+
+        if ($task->task_type === 'asset_valuation') {
+            $assignment = \App\Models\ValuationAssignment::query()
+                ->where('vendor_task_id', $task->id)
+                ->first();
+
+            if ($assignment && filled($data['market_value'] ?? null) && filled($data['forced_sale_value'] ?? null)) {
+                app(\App\Services\ValuationPartnerService::class)->complete(
+                    $assignment,
+                    (float) $data['market_value'],
+                    (float) $data['forced_sale_value'],
+                    $data['notes'] ?? null,
+                );
+            } else {
+                $task->update([
+                    'status'       => 'completed',
+                    'completed_at' => now(),
+                    'notes'        => $data['notes'] ?? $task->notes,
+                ]);
+            }
+
+            return redirect()->route('site.vendor.task', $task)
+                ->with('status', 'Valuation submitted.');
+        }
 
         $task->update([
             'status'       => 'completed',

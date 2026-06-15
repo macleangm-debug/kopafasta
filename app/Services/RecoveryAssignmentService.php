@@ -65,13 +65,20 @@ class RecoveryAssignmentService
             ? (float) ($loan->approved_amount ?? $loan->principal_amount ?? 0)
             : $originalOutstanding;
         $rates = $this->policy->ratesForVendor($vendor, $partnerType);
-        $charge = $this->policy->calculateRecoveryCharge(
-            $feeBase,
-            $partnerType,
-            $rates['commission_percent'],
-            $rates['company_markup_percent'],
-            $vendor,
-        );
+
+        $repossessionCharge = $partnerType === 'debt_collector'
+            ? app(RepossessionChargeService::class)->calculateForLoan($loan)
+            : null;
+
+        $charge = $repossessionCharge && $repossessionCharge['total_charge'] > 0
+            ? $repossessionCharge
+            : $this->policy->calculateRecoveryCharge(
+                $feeBase,
+                $partnerType,
+                $rates['commission_percent'],
+                $rates['company_markup_percent'],
+                $vendor,
+            );
 
         return DB::transaction(function () use (
             $arrearCase,
@@ -115,7 +122,7 @@ class RecoveryAssignmentService
                 'vendor_task_id'           => $task->id,
             ]);
 
-            $this->accrueRecoveryFee($loan, $charge['total_charge'], $partnerType);
+            $this->accrueRecoveryFee($loan, $charge, $partnerType);
 
             $this->collectionActions->logForCase(
                 $arrearCase,
@@ -235,13 +242,15 @@ class RecoveryAssignmentService
         };
     }
 
-    private function accrueRecoveryFee($loan, float $totalCharge, string $partnerType): void
+    /** @param array{partner_amount: float, company_amount: float, total_charge: float} $charge */
+    private function accrueRecoveryFee($loan, array $charge, string $partnerType): void
     {
+        $totalCharge = (float) ($charge['total_charge'] ?? 0);
         if ($totalCharge <= 0) {
             return;
         }
 
-        LoanFee::firstOrCreate(
+        $fee = LoanFee::firstOrCreate(
             [
                 'loan_id' => $loan->id,
                 'code'    => 'RECOVERY_'.$partnerType,
@@ -256,6 +265,20 @@ class RecoveryAssignmentService
                 'charge_when'     => 'recovery',
                 'charged_at'      => now(),
             ],
+        );
+
+        if ((float) $fee->computed_amount !== $totalCharge) {
+            $fee->update([
+                'computed_amount' => $totalCharge,
+                'rate_or_amount'  => $totalCharge,
+            ]);
+        }
+
+        app(RecoveryChargePostingService::class)->postFeeAccrual(
+            $loan,
+            $fee->fresh(),
+            (float) ($charge['partner_amount'] ?? 0),
+            (float) ($charge['company_amount'] ?? 0),
         );
 
         app(LoanBalanceService::class)->syncOutstandingBalance($loan->fresh());

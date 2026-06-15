@@ -21,6 +21,7 @@ use App\Services\FaceVerificationService;
 use App\Services\GuarantorInvitationService;
 use App\Services\KycFreshnessService;
 use App\Services\ApplicationFeePaymentService;
+use App\Services\AssetBackedApplyService;
 use App\Services\CrbCreditCheckService;
 use App\Services\DisplayedRateService;
 use App\Services\LoanApplicationDraftService;
@@ -30,6 +31,7 @@ use App\Services\ReferenceNumberService;
 use App\Services\ReferralService;
 use App\Services\RepaymentScheduleGenerator;
 use App\Services\SmartLoanApplicationWizardService;
+use App\Services\ValuationFeePaymentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -192,6 +194,18 @@ class ApplyController extends Controller
         $request->session()->put('application_fee_payment_ref', $applicationFeePaymentRef);
         $bankAccounts = $this->paymentBankAccountsForProduct($selectedProduct, $applicationFeePaymentRef);
 
+        $valuationFeeQuote = $selectedProduct && is_asset_backed_loan_product($selectedProduct->code)
+            ? app(ValuationFeePaymentService::class)->quote($customer)
+            : null;
+        $valuationFeeAmount = is_asset_backed_loan_product($selectedProduct?->code)
+            ? quoted_valuation_fee($customer)
+            : 0;
+        $valuationFeePaymentRef = $request->session()->get('valuation_fee_payment_ref')
+            ?? app(ValuationFeePaymentService::class)->generatePaymentReference();
+        $request->session()->put('valuation_fee_payment_ref', $valuationFeePaymentRef);
+        $assetTypeOptions = app(\App\Services\AssetBackedLoanService::class)->assetTypeOptions();
+        $assetDocumentLabels = app(AssetBackedApplyService::class)->documentLabels();
+
         return view('site.apply.wizard', compact(
             'products',
             'customer',
@@ -214,6 +228,11 @@ class ApplyController extends Controller
             'referralWallet',
             'referralSettings',
             'applicationFeePaymentRef',
+            'valuationFeeQuote',
+            'valuationFeeAmount',
+            'valuationFeePaymentRef',
+            'assetTypeOptions',
+            'assetDocumentLabels',
         ))->with('paymentGatewayDummy', payment_gateway_is_dummy())
             ->with('loanPurposes', loan_purpose_options())
             ->with('marketplaceOnlyCodes', marketplace_only_loan_codes())
@@ -458,6 +477,8 @@ class ApplyController extends Controller
             'inputs'               => ['nullable', 'array'],
             'guarantor_lookup'     => ['nullable', 'array'],
             'application_fee'      => ['nullable', 'array'],
+            'valuation_fee'        => ['nullable', 'array'],
+            'asset_documents'      => ['nullable', 'array'],
             'external_guarantor'   => ['nullable', 'array'],
             'borrower_signature'   => ['nullable', 'array'],
             'declaration_accepted' => ['nullable', 'boolean'],
@@ -553,6 +574,173 @@ class ApplyController extends Controller
         }
 
         return back()->with(($feeState['status'] ?? '') === 'paid' ? 'status' : 'warning', $bankMessage);
+    }
+
+    public function payValuationFee(
+        Request $request,
+        LoanApplicationDraftService $drafts,
+        ValuationFeePaymentService $fees,
+        AssetBackedApplyService $assetApply,
+    ): \Illuminate\Http\JsonResponse|RedirectResponse {
+        $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($customer, 403);
+
+        $dummyGateway = payment_gateway_is_dummy();
+        $data = $request->validate([
+            'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
+            'channel'         => ['required', 'in:mobile_money,bank'],
+            'payment_phone'   => [$dummyGateway ? 'nullable' : 'required_if:channel,mobile_money', 'nullable', 'string', 'max:20'],
+            'use_wallet'      => ['nullable', 'boolean'],
+            'asset_type'      => ['nullable', 'string', 'max:40'],
+            'asset_description' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
+        abort_unless(is_asset_backed_loan_product($product->code), 422);
+
+        $draft = $drafts->find($customer, $product->id);
+        $form = ($draft?->payload ?? [])['form'] ?? [];
+        if (filled($data['asset_type'] ?? null)) {
+            $form['asset_type'] = $data['asset_type'];
+        }
+        if (array_key_exists('asset_description', $data)) {
+            $form['asset_description'] = $data['asset_description'];
+        }
+
+        try {
+            if (blank($form['asset_type'] ?? null)) {
+                throw ValidationException::withMessages([
+                    'asset_type' => 'Select an asset type before paying the valuation fee.',
+                ]);
+            }
+        } catch (ValidationException $e) {
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => collect($e->errors())->flatten()->first()], 422);
+            }
+
+            return back()->withErrors($e->errors());
+        }
+
+        if ($draft) {
+            $payload = $draft->payload ?? [];
+            $payload['form'] = array_merge($payload['form'] ?? [], $form);
+            $draft->update(['payload' => $payload, 'saved_at' => now()]);
+        }
+
+        $amount = quoted_valuation_fee($customer);
+
+        if ($amount <= 0) {
+            $feeState = ['status' => 'waived', 'reference' => null, 'channel' => 'waived', 'amount' => 0, 'paid_at' => now()->toIso8601String()];
+            $drafts->saveValuationFee($customer, $product->id, $feeState);
+
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => true, 'fee' => $feeState]);
+            }
+
+            return back()->with('status', __('borrower.apply.valuation_fee.waived'));
+        }
+
+        $paymentReference = $request->session()->get('valuation_fee_payment_ref')
+            ?? $fees->generatePaymentReference();
+        $request->session()->put('valuation_fee_payment_ref', $paymentReference);
+
+        if ($data['channel'] === 'mobile_money') {
+            $feeState = $fees->processMobileMoney(
+                $customer,
+                $product,
+                $paymentReference,
+                $request->boolean('use_wallet'),
+            );
+            $drafts->saveValuationFee($customer, $product->id, $feeState);
+            $request->session()->forget('valuation_fee_payment_ref');
+
+            $message = $dummyGateway
+                ? __('borrower.apply.valuation_fee.dummy_paid')
+                : __('borrower.apply.valuation_fee.paid');
+
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => true, 'fee' => $feeState, 'message' => $message, 'dummy' => $dummyGateway]);
+            }
+
+            return back()->with('status', $message);
+        }
+
+        $feeState = $fees->processBankPending($customer, $product, $paymentReference);
+        $drafts->saveValuationFee($customer, $product->id, $feeState);
+        $request->session()->forget('valuation_fee_payment_ref');
+
+        $bankMessage = ($dummyGateway && ($feeState['status'] ?? '') === 'paid')
+            ? __('borrower.apply.valuation_fee.dummy_paid')
+            : __('borrower.apply.valuation_fee.bank_submitted', ['ref' => $paymentReference]);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok'      => true,
+                'fee'     => $feeState,
+                'message' => $bankMessage,
+                'dummy'   => $dummyGateway,
+            ]);
+        }
+
+        return back()->with(($feeState['status'] ?? '') === 'paid' ? 'status' : 'warning', $bankMessage);
+    }
+
+    public function valuationFeeQuote(Request $request, ValuationFeePaymentService $fees): \Illuminate\Http\JsonResponse
+    {
+        $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($customer, 403);
+
+        LoanProduct::where('id', $request->query('loan_product_id'))
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        return response()->json([
+            'amount' => quoted_valuation_fee($customer),
+            'quote'  => $fees->quote($customer),
+        ]);
+    }
+
+    public function uploadAssetDocument(
+        Request $request,
+        LoanApplicationDraftService $drafts,
+        AssetBackedApplyService $assetApply,
+    ): \Illuminate\Http\JsonResponse {
+        $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($customer, 403);
+
+        $data = $request->validate([
+            'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
+            'document_code'   => ['required', 'string', 'max:60'],
+            'file'            => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+        ]);
+
+        $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
+        abort_unless(is_asset_backed_loan_product($product->code), 422);
+
+        $draft = $drafts->find($customer, $product->id)
+            ?? $drafts->save($customer, [
+                'phase'           => 'application',
+                'loan_product_id' => $product->id,
+                'form'            => [],
+            ]);
+
+        abort_unless($draft, 422);
+
+        $document = $assetApply->uploadDocument(
+            $customer,
+            $draft,
+            $data['document_code'],
+            $request->file('file'),
+        );
+
+        $payload = $drafts->payloadForWizard($customer, $product->id);
+
+        return response()->json([
+            'ok'              => true,
+            'document_id'     => $document->id,
+            'document_code'   => $data['document_code'],
+            'asset_documents' => $payload['asset_documents'] ?? [],
+        ]);
     }
 
     public function applicationFeeQuote(Request $request, ApplicationFeePaymentService $fees): \Illuminate\Http\JsonResponse
@@ -690,6 +878,7 @@ class ApplyController extends Controller
         }
 
         $isMarketplaceProduct = is_marketplace_loan_product($loanProduct->code);
+        $isAssetBackedProduct = is_asset_backed_loan_product($loanProduct->code);
 
         $draftPayload = $draft?->payload ?? [];
         $storedSignature = $draftPayload['borrower_signature'] ?? null;
@@ -721,7 +910,9 @@ class ApplyController extends Controller
             'loan_product_id'         => ['required', 'exists:loan_products,id'],
             'requested_amount'        => ['required', 'numeric', 'min:1000'],
             'requested_tenure_months' => ['required', 'integer', 'min:1', 'max:60'],
-            'purpose'                 => [$isMarketplaceProduct ? 'nullable' : 'required', 'string', 'max:100'],
+            'purpose'                 => [$isMarketplaceProduct || $isAssetBackedProduct ? 'nullable' : 'required', 'string', 'max:100'],
+            'asset_type'              => [$isAssetBackedProduct ? 'required' : 'nullable', 'string', 'max:40'],
+            'asset_description'       => ['nullable', 'string', 'max:500'],
             'first_name'              => ['required', 'string', 'max:60'],
             'last_name'               => ['required', 'string', 'max:60'],
             'date_of_birth'           => ['required', 'date', new MinimumAge],
@@ -770,6 +961,30 @@ class ApplyController extends Controller
 
         if ($isMarketplaceProduct && blank($data['purpose'] ?? null)) {
             $data['purpose'] = 'asset_financing';
+        }
+
+        if ($isAssetBackedProduct) {
+            if (blank($data['purpose'] ?? null)) {
+                $data['purpose'] = 'asset_financing';
+            }
+
+            try {
+                app(AssetBackedApplyService::class)->validateAssetDetails($data);
+            } catch (ValidationException $e) {
+                return $this->wizardSubmitRedirect($request, $draft)
+                    ->withInput()
+                    ->withErrors($e->errors());
+            }
+
+            $valFee = quoted_valuation_fee($customer);
+            $valFeeState = $draftPayload['valuation_fee'] ?? null;
+            $valFeeService = app(ValuationFeePaymentService::class);
+
+            if (! $valFeeService->isFeeSatisfied($valFeeState, $valFee)) {
+                return $this->wizardSubmitRedirect($request, $draft)->withInput()->withErrors([
+                    'valuation_fee' => __('borrower.apply.valuation_fee.required_before_submit'),
+                ]);
+            }
         }
 
         $amount = (float) $data['requested_amount'];
@@ -955,6 +1170,17 @@ class ApplyController extends Controller
             if ($reservation) {
                 app(AssetReservationService::class)->linkApplication($reservation, $app);
             }
+        }
+
+        if ($isAssetBackedProduct) {
+            app(AssetBackedApplyService::class)->persistOnSubmit($app, array_merge($draftPayload, [
+                'form' => array_merge($draftPayload['form'] ?? [], [
+                    'asset_type'              => $data['asset_type'] ?? ($draftPayload['form']['asset_type'] ?? null),
+                    'asset_description'       => $data['asset_description'] ?? ($draftPayload['form']['asset_description'] ?? null),
+                    'requested_amount'        => $data['requested_amount'],
+                    'requested_tenure_months' => $data['requested_tenure_months'],
+                ]),
+            ]));
         }
 
         app(AffiliateService::class)->trackApplication($app);

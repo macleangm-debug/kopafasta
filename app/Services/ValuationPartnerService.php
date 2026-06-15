@@ -1,0 +1,129 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\LoanApplication;
+use App\Models\LoanApplicationAsset;
+use App\Models\User;
+use App\Models\ValuationAssignment;
+use App\Models\Vendor;
+use App\Models\VendorTask;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+class ValuationPartnerService
+{
+    public function assign(LoanApplication $application, Vendor $valuer, User $actor, ?string $notes = null): ValuationAssignment
+    {
+        if ($valuer->category !== 'valuer' && ! $valuer->hasPartnerRole('valuer')) {
+            throw ValidationException::withMessages([
+                'vendor_id' => 'Selected partner is not a valuation partner.',
+            ]);
+        }
+
+        $asset = LoanApplicationAsset::query()->firstOrCreate(
+            ['loan_application_id' => $application->id],
+            ['asset_type' => 'saloon_car', 'valuation_status' => 'awaiting_valuation'],
+        );
+
+        if (! $asset->valuation_fee_paid_at) {
+            throw ValidationException::withMessages([
+                'valuation' => 'Valuation fee must be paid before assigning a valuer.',
+            ]);
+        }
+
+        $open = ValuationAssignment::query()
+            ->where('loan_application_id', $application->id)
+            ->whereIn('status', [ValuationAssignment::STATUS_ASSIGNED, ValuationAssignment::STATUS_IN_PROGRESS])
+            ->exists();
+
+        if ($open) {
+            throw ValidationException::withMessages([
+                'valuation' => 'This application already has an open valuation assignment.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($application, $valuer, $actor, $notes, $asset) {
+            $customer = $application->customer;
+
+            $task = VendorTask::create([
+                'vendor_id'      => $valuer->id,
+                'loan_id'        => $application->loan_id,
+                'task_type'      => 'asset_valuation',
+                'status'         => 'assigned',
+                'due_at'         => now()->addDays(5),
+                'customer_name'  => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
+                'customer_phone' => $customer->phone ?? null,
+                'notes'          => $notes,
+            ]);
+
+            $assignment = ValuationAssignment::create([
+                'loan_application_id' => $application->id,
+                'vendor_id'           => $valuer->id,
+                'vendor_task_id'      => $task->id,
+                'status'              => ValuationAssignment::STATUS_ASSIGNED,
+                'notes'               => $notes,
+                'assigned_by'         => $actor->id,
+                'assigned_at'         => now(),
+            ]);
+
+            $asset->update(['valuation_status' => 'assigned']);
+
+            return $assignment->fresh(['vendor', 'vendorTask', 'application.customer']);
+        });
+    }
+
+    public function complete(
+        ValuationAssignment $assignment,
+        float $marketValue,
+        float $forcedSaleValue,
+        ?string $notes = null,
+    ): ValuationAssignment {
+        if (! in_array($assignment->status, [ValuationAssignment::STATUS_ASSIGNED, ValuationAssignment::STATUS_IN_PROGRESS], true)) {
+            throw ValidationException::withMessages([
+                'status' => 'Valuation assignment is already closed.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($assignment, $marketValue, $forcedSaleValue, $notes) {
+            $assignment->update([
+                'status'            => ValuationAssignment::STATUS_COMPLETED,
+                'market_value'      => $marketValue,
+                'forced_sale_value' => $forcedSaleValue,
+                'notes'             => trim(($assignment->notes ? $assignment->notes."\n" : '').($notes ?? '')),
+                'completed_at'      => now(),
+            ]);
+
+            $assignment->vendorTask?->update([
+                'status'       => 'completed',
+                'completed_at' => now(),
+            ]);
+
+            $application = $assignment->application;
+            $assetType = LoanApplicationAsset::query()
+                ->where('loan_application_id', $application->id)
+                ->value('asset_type') ?? 'saloon_car';
+
+            $ltvPercent = (float) (config("repossession_charges.ltv_percent.{$assetType}")
+                ?? config('repossession_charges.ltv_percent.default', 60));
+
+            $maxLoan = round($forcedSaleValue * ($ltvPercent / 100), 2);
+            $gpsRequired = in_array($assetType, ['motorcycle', 'saloon_car', 'suv', 'truck', 'heavy_machinery'], true);
+
+            LoanApplicationAsset::query()->updateOrCreate(
+                ['loan_application_id' => $application->id],
+                [
+                    'market_value'      => $marketValue,
+                    'forced_sale_value' => $forcedSaleValue,
+                    'ltv_percent'       => $ltvPercent,
+                    'max_loan_amount'   => $maxLoan,
+                    'gps_required'      => $gpsRequired,
+                    'valuation_status'  => 'completed',
+                    'valuer_notes'      => $notes,
+                ],
+            );
+
+            return $assignment->fresh(['application.asset']);
+        });
+    }
+}

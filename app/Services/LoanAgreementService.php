@@ -639,7 +639,8 @@ class LoanAgreementService
         $totalFees = (float) ($a->processing_fee ?? 0);
         $totalRepayable = round(collect($schedule)->sum('total_due') + $totalFees, 2);
         $offerSettings = app(OfferSettingsService::class);
-        $isAssetLoan = ($a->product->code ?? '') === config('asset_marketplace.asset_loan_product_code', 'AL');
+        $isAssetLoan = in_array(strtoupper((string) ($a->product->code ?? '')), ['AL', 'AB'], true);
+        $collateral = $a->collateralAsset;
         $reservation = AssetReservation::query()
             ->with('asset')
             ->where('loan_application_id', $a->id)
@@ -714,8 +715,14 @@ class LoanAgreementService
             'company_signatory'    => brand('legal_name'),
             ...$this->companySignatorySnapshot($legal),
             'is_asset_loan'        => $isAssetLoan,
-            'asset_title'          => $reservation?->asset?->title,
+            'asset_title'          => $reservation?->asset?->title ?? ($collateral?->description),
             'asset_ownership_note' => $isAssetLoan ? config('asset_marketplace.ownership_note') : null,
+            'collateral_asset_type'=> $collateral?->asset_type,
+            'collateral_description'=> $collateral?->description,
+            'collateral_market_value' => $collateral?->market_value,
+            'collateral_forced_sale_value' => $collateral?->forced_sale_value,
+            'collateral_gps_required' => (bool) ($collateral?->gps_required ?? false),
+            'collateral_ltv_percent' => $collateral?->ltv_percent,
         ];
     }
 

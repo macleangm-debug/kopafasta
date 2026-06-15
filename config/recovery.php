@@ -3,7 +3,7 @@
 return [
     'partner_types' => [
         'call_center' => [
-            'label'                      => 'Call Center',
+            'label'                      => 'Call Center Partner',
             'vendor_category'            => 'call_center',
             'default_sla_days'           => 7,
             'default_commission_percent' => 10,
@@ -12,7 +12,7 @@ return [
             'default_fixed_amount'       => null,
         ],
         'debt_collector' => [
-            'label'                      => 'Debt Collector',
+            'label'                      => 'Debt Collection Partner',
             'vendor_category'            => 'debt_collector',
             'default_sla_days'           => 10,
             'default_commission_percent' => 15,
@@ -21,7 +21,7 @@ return [
             'default_fixed_amount'       => null,
         ],
         'auctioneer' => [
-            'label'                      => 'Auctioneer',
+            'label'                      => 'Auction Partner',
             'vendor_category'            => 'auctioneer',
             'default_sla_days'           => 11,
             'default_commission_percent' => 8,

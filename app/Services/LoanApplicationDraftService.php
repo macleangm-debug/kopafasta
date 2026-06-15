@@ -103,6 +103,8 @@ class LoanApplicationDraftService
             'inputs'               => $payload['inputs'] ?? [],
             'guarantor_lookup'     => $payload['guarantor_lookup'] ?? null,
             'application_fee'      => $payload['application_fee'] ?? null,
+            'valuation_fee'        => $payload['valuation_fee'] ?? null,
+            'asset_documents'      => $payload['asset_documents'] ?? [],
             'external_guarantor'   => $this->refreshExternalGuarantorPayload($customer, $payload['external_guarantor'] ?? null),
             'borrower_signature'   => $payload['borrower_signature'] ?? null,
             'declaration_accepted' => (bool) ($payload['declaration_accepted'] ?? false),
@@ -244,6 +246,8 @@ class LoanApplicationDraftService
                 || (bool) ($data['application_started'] ?? ($existing?->payload['application_started'] ?? false)),
             'guarantor_lookup'     => $data['guarantor_lookup'] ?? ($existing?->payload['guarantor_lookup'] ?? null),
             'application_fee'      => $data['application_fee'] ?? ($existing?->payload['application_fee'] ?? null),
+            'valuation_fee'      => $data['valuation_fee'] ?? ($existing?->payload['valuation_fee'] ?? null),
+            'asset_documents'      => $data['asset_documents'] ?? ($existing?->payload['asset_documents'] ?? []),
             'external_guarantor'   => $data['external_guarantor'] ?? ($existing?->payload['external_guarantor'] ?? null),
             'borrower_signature'   => $data['borrower_signature'] ?? ($existing?->payload['borrower_signature'] ?? null),
             'declaration_accepted' => array_key_exists('declaration_accepted', $data)
@@ -293,6 +297,34 @@ class LoanApplicationDraftService
 
         $payload = $draft->payload ?? [];
         $payload['application_fee'] = $feeState;
+
+        $draft->fill([
+            'payload'  => $payload,
+            'saved_at' => now(),
+        ])->save();
+
+        return $draft;
+    }
+
+    /** @param array<string, mixed> $feeState */
+    public function saveValuationFee(Customer $customer, int $loanProductId, array $feeState): LoanApplicationDraft
+    {
+        $product = LoanProduct::find($loanProductId);
+        $draft = $this->find($customer, $loanProductId)
+            ?? new LoanApplicationDraft([
+                'customer_id'     => $customer->id,
+                'loan_product_id' => $loanProductId,
+                'phase'           => 'application',
+                'step'            => 0,
+                'payload'         => [],
+            ]);
+
+        if (! $draft->draft_reference && $product) {
+            $draft->draft_reference = app(ReferenceNumberService::class)->applicationReference($product);
+        }
+
+        $payload = $draft->payload ?? [];
+        $payload['valuation_fee'] = $feeState;
 
         $draft->fill([
             'payload'  => $payload,

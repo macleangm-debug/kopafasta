@@ -139,4 +139,55 @@ class LedgerService
             ->orderBy('code')
             ->value('id');
     }
+
+    public function recoveryRevenueAccountId(): ?int
+    {
+        $id = (int) (Setting::get('finance.recovery_revenue_gl_account_id') ?? 0);
+        if ($id > 0 && ChartOfAccount::whereKey($id)->exists()) {
+            return $id;
+        }
+
+        return ChartOfAccount::query()
+            ->where('type', 'income')
+            ->where('name', 'like', '%recovery%revenue%')
+            ->orderBy('code')
+            ->value('id');
+    }
+
+    public function recoveryPartnerPayableAccountId(): ?int
+    {
+        $id = (int) (Setting::get('finance.recovery_partner_payable_gl_account_id') ?? 0);
+        if ($id > 0 && ChartOfAccount::whereKey($id)->exists()) {
+            return $id;
+        }
+
+        return ChartOfAccount::query()
+            ->where('type', 'liability')
+            ->where(function ($q) {
+                $q->where('name', 'like', '%recovery%partner%')
+                    ->orWhere('name', 'like', '%partner%payable%');
+            })
+            ->orderBy('code')
+            ->value('id');
+    }
+
+    public function valuationRevenueAccountId(): ?int
+    {
+        $id = (int) (Setting::get('finance.valuation_revenue_gl_account_id') ?? 0);
+        if ($id > 0 && ChartOfAccount::whereKey($id)->exists()) {
+            return $id;
+        }
+
+        return ChartOfAccount::query()->where('type', 'income')->where('name', 'like', '%valuation%')->orderBy('code')->value('id');
+    }
+
+    public function gpsRevenueAccountId(): ?int
+    {
+        $id = (int) (Setting::get('finance.gps_revenue_gl_account_id') ?? 0);
+        if ($id > 0 && ChartOfAccount::whereKey($id)->exists()) {
+            return $id;
+        }
+
+        return ChartOfAccount::query()->where('type', 'income')->where('name', 'like', '%gps%')->orderBy('code')->value('id');
+    }
 }

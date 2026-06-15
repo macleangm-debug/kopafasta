@@ -98,6 +98,18 @@
 @if (!empty($snapshot['is_asset_loan']))
 <h2>Asset ownership</h2>
 <p><strong>Financed asset:</strong> {{ $snapshot['asset_title'] ?: 'As described in the loan application' }}</p>
+@if (!empty($snapshot['collateral_description']))
+<p><strong>Description:</strong> {{ $snapshot['collateral_description'] }}</p>
+@endif
+@if (!empty($snapshot['collateral_market_value']))
+<p><strong>Market value:</strong> {{ format_money($snapshot['collateral_market_value']) }}</p>
+@endif
+@if (!empty($snapshot['collateral_forced_sale_value']))
+<p><strong>Forced sale value:</strong> {{ format_money($snapshot['collateral_forced_sale_value']) }}</p>
+@endif
+@if (!empty($snapshot['collateral_gps_required']))
+<p><strong>GPS tracking:</strong> Required for this asset for the loan tenure.</p>
+@endif
 <p>{{ $snapshot['asset_ownership_note'] }}</p>
 @endif
 

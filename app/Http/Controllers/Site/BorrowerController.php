@@ -524,8 +524,14 @@ class BorrowerController extends Controller
         $viewMode = $request->query('view');
         if (in_array($viewMode, ['cards', 'table'], true)) {
             $prefs = $user->preferences ?? [];
-            $prefs['applications_view'] = $viewMode;
+            if ($activeTab === 'active') {
+                $prefs['active_loans_view'] = $viewMode;
+            } else {
+                $prefs['applications_view'] = $viewMode;
+            }
             $user->update(['preferences' => $prefs]);
+        } elseif ($activeTab === 'active') {
+            $viewMode = $user->preferences['active_loans_view'] ?? 'cards';
         } else {
             $viewMode = $user->preferences['applications_view'] ?? 'table';
         }

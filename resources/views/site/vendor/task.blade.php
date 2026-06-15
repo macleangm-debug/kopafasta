@@ -77,6 +77,16 @@
                     <h2 class="font-bold mb-3">Mark complete</h2>
                     <form method="POST" action="{{ route('site.vendor.task.complete', $task) }}" class="space-y-3">
                         @csrf
+                        @if ($task->task_type === 'asset_valuation')
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Market value (TZS)</label>
+                                <input name="market_value" type="number" min="0" step="1000" required class="w-full rounded-lg border-gray-300 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Forced sale value (TZS)</label>
+                                <input name="forced_sale_value" type="number" min="0" step="1000" required class="w-full rounded-lg border-gray-300 text-sm">
+                            </div>
+                        @endif
                         @if (str_contains($task->task_type, 'gps'))
                             <div>
                                 <label class="block text-xs text-gray-500 mb-1">GPS serial number</label>

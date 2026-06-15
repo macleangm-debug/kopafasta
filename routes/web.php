@@ -130,6 +130,9 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::put('/borrower/apply/draft', [\App\Http\Controllers\Site\ApplyController::class, 'saveDraft'])->name('borrower.apply.draft.save');
                 Route::post('/borrower/apply/application-fee', [\App\Http\Controllers\Site\ApplyController::class, 'payApplicationFee'])->name('borrower.apply.application-fee.pay');
                 Route::get('/borrower/apply/application-fee/quote', [\App\Http\Controllers\Site\ApplyController::class, 'applicationFeeQuote'])->name('borrower.apply.application-fee.quote');
+                Route::post('/borrower/apply/valuation-fee', [\App\Http\Controllers\Site\ApplyController::class, 'payValuationFee'])->name('borrower.apply.valuation-fee.pay');
+                Route::get('/borrower/apply/valuation-fee/quote', [\App\Http\Controllers\Site\ApplyController::class, 'valuationFeeQuote'])->name('borrower.apply.valuation-fee.quote');
+                Route::post('/borrower/apply/asset-document', [\App\Http\Controllers\Site\ApplyController::class, 'uploadAssetDocument'])->name('borrower.apply.asset-document');
                 Route::get('/borrower/apply/repayment-preview', [\App\Http\Controllers\Site\ApplyController::class, 'repaymentPreview'])->name('borrower.apply.repayment-preview');
                 Route::post('/borrower/apply', [\App\Http\Controllers\Site\ApplyController::class, 'submit'])->name('borrower.apply.submit');
                 Route::get('/apply', fn () => redirect()->route('site.borrower.apply'))->name('apply.show');
@@ -415,6 +418,9 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
 
         Route::get('recovery/partners', [RecoveryPartnerController::class, 'index'])->name('recovery.partners.index');
         Route::get('recovery/partners/{type}', [RecoveryPartnerController::class, 'byType'])->name('recovery.partners.type');
+        Route::get('origination/valuation-partners', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'valuationIndex'])->name('origination.valuation-partners');
+        Route::post('loan-applications/{loan_application}/assign-valuer', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'assignValuer'])->name('loan-applications.assign-valuer');
+        Route::post('loan-applications/{loan_application}/manual-fee', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'addManualFee'])->name('loan-applications.manual-fee');
         Route::get('recovery/assignments', [RecoveryAssignmentController::class, 'index'])->name('recovery.assignments.index');
         Route::get('recovery/assignments/{recoveryAssignment}', [RecoveryAssignmentController::class, 'show'])->name('recovery.assignments.show');
         Route::post('recovery/assignments/{recoveryAssignment}/start', [RecoveryAssignmentController::class, 'start'])->name('recovery.assignments.start');

@@ -60,6 +60,27 @@ if (! function_exists('quoted_application_fee')) {
     }
 }
 
+if (! function_exists('quoted_valuation_fee')) {
+    function quoted_valuation_fee(?Customer $customer): int
+    {
+        $base = (float) (optional(ChargesFee::where('code', 'VAL_FEE')->where('is_active', true)->first())->amount ?? 0);
+
+        if ($base <= 0) {
+            return 0;
+        }
+
+        if ($customer && app(ReferralService::class)->referrer($customer)) {
+            return (int) round(app(ReferralService::class)->quoteFee($customer, $base, false, 'valuation_fee')['after_discount']);
+        }
+
+        if ($customer) {
+            return (int) round(app(AffiliateService::class)->quoteFee($customer, $base, 'valuation_fee')['after_discount']);
+        }
+
+        return (int) round(app(PromotionService::class)->applyAfter('valuation_fee', $base)['after_discount']);
+    }
+}
+
 if (! function_exists('quoted_application_fee_due')) {
     function quoted_application_fee_due(?Customer $customer, ?LoanProduct $product = null, ?LoanApplication $application = null): int
     {

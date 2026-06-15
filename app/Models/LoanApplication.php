@@ -111,4 +111,19 @@ class LoanApplication extends Model
     {
         return $this->belongsTo(CustomerDisbursementAccount::class, 'disbursement_account_id');
     }
+
+    public function collateralAsset(): HasOne
+    {
+        return $this->hasOne(LoanApplicationAsset::class);
+    }
+
+    public function valuationAssignments(): HasMany
+    {
+        return $this->hasMany(ValuationAssignment::class);
+    }
+
+    public function manualPostApprovalFees(): HasMany
+    {
+        return $this->hasMany(ManualPostApprovalFee::class);
+    }
 }

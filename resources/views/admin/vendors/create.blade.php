@@ -1,6 +1,6 @@
 <x-admin.create-page
-    title="New vendor"
-    heading="New vendor"
+    title="New partner"
+    heading="New partner"
     subheading="Add a service partner"
     :action="route('admin.vendors.store')"
     :cancelUrl="route('admin.vendors.index')"

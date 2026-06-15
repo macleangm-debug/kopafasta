@@ -64,6 +64,7 @@
             @include('admin.loan-applications.review._documents')
             @include('admin.loan-applications.review._document-requests')
             @include('admin.loan-applications.review._asset')
+            @include('admin.loan-applications._asset-backed')
         </div>
 
         <div x-show="tab === 'crb'" x-cloak class="space-y-6">

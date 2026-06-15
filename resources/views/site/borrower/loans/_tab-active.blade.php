@@ -1,6 +1,18 @@
-<div class="mb-6">
-    <h2 class="text-lg font-semibold mb-1">{{ __('borrower.loans_page.tab_active') }}</h2>
-    <p class="text-sm text-gray-500">{{ __('borrower.loans_page.active_hint') }}</p>
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <div>
+        <h2 class="text-lg font-semibold mb-1">{{ __('borrower.loans_page.tab_active') }}</h2>
+        <p class="text-sm text-gray-500">{{ __('borrower.loans_page.active_hint') }}</p>
+    </div>
+    <div class="inline-flex rounded-lg ring-1 ring-gray-200 bg-white p-0.5 text-xs">
+        <a href="{{ route('site.borrower.loans', ['tab' => 'active', 'view' => 'cards']) }}"
+           class="px-3 py-1.5 rounded-md font-semibold {{ ($viewMode ?? 'cards') === 'cards' ? 'bg-amber-500 text-gray-900' : 'text-gray-600 hover:bg-gray-50' }}">
+            {{ __('borrower.applications_list.cards') }}
+        </a>
+        <a href="{{ route('site.borrower.loans', ['tab' => 'active', 'view' => 'table']) }}"
+           class="px-3 py-1.5 rounded-md font-semibold {{ ($viewMode ?? 'cards') === 'table' ? 'bg-amber-500 text-gray-900' : 'text-gray-600 hover:bg-gray-50' }}">
+            {{ __('borrower.applications_list.table') }}
+        </a>
+    </div>
 </div>
 
 @if ($loans->isEmpty())
@@ -12,6 +24,34 @@
         :action-url="route('site.borrower.apply')"
     />
 @else
+    @if (($viewMode ?? 'cards') === 'table')
+        <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
+                    <tr>
+                        <th class="px-4 py-3">Loan</th>
+                        <th class="px-4 py-3">Product</th>
+                        <th class="px-4 py-3 text-right">Outstanding</th>
+                        <th class="px-4 py-3">Status</th>
+                        <th class="px-4 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    @foreach ($loans as $loan)
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3 font-mono font-semibold">{{ $loan->loan_number }}</td>
+                            <td class="px-4 py-3">{{ $loan->product->name ?? '—' }}</td>
+                            <td class="px-4 py-3 text-right font-mono">{{ format_money($loan->outstanding_balance) }}</td>
+                            <td class="px-4 py-3 capitalize">{{ $loan->status }}</td>
+                            <td class="px-4 py-3 text-right">
+                                <a href="{{ route('site.borrower.loans.show', $loan) }}" class="text-amber-700 font-semibold hover:underline">Open</a>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @else
     <div class="space-y-4">
         @foreach ($loans as $loan)
             @php
@@ -82,4 +122,5 @@
             </div>
         @endforeach
     </div>
+    @endif
 @endif

@@ -395,6 +395,10 @@ class SettingsController extends Controller
             'capital_partner_pool_gl_account_id'      => ['nullable', 'exists:chart_of_accounts,id'],
             'deferred_fee_liability_gl_account_id'    => ['nullable', 'exists:chart_of_accounts,id'],
             'borrower_refunds_payable_gl_account_id'  => ['nullable', 'exists:chart_of_accounts,id'],
+            'recovery_revenue_gl_account_id'          => ['nullable', 'exists:chart_of_accounts,id'],
+            'recovery_partner_payable_gl_account_id'  => ['nullable', 'exists:chart_of_accounts,id'],
+            'valuation_revenue_gl_account_id'         => ['nullable', 'exists:chart_of_accounts,id'],
+            'gps_revenue_gl_account_id'               => ['nullable', 'exists:chart_of_accounts,id'],
             'capital_partner_interest_share_percent'  => ['nullable', 'numeric', 'min:0', 'max:100'],
             'write_off_approval_required'             => ['nullable', 'boolean'],
         ]);
@@ -464,6 +468,7 @@ class SettingsController extends Controller
             'default_registration_discount_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'default_application_discount_percent'  => ['required', 'numeric', 'min:0', 'max:100'],
             'default_commission_percent'          => ['required', 'numeric', 'min:0', 'max:100'],
+            'commission_calculation_base'         => ['required', 'in:original_amount,discounted_amount'],
             'applies_to'                          => ['nullable', 'array'],
             'applies_to.*'                        => ['nullable', 'boolean'],
         ]);
@@ -478,6 +483,7 @@ class SettingsController extends Controller
             'affiliates.default_registration_discount_percent' => $data['default_registration_discount_percent'],
             'affiliates.default_application_discount_percent'  => $data['default_application_discount_percent'],
             'affiliates.default_commission_percent'          => $data['default_commission_percent'],
+            'affiliates.commission_calculation_base'         => $data['commission_calculation_base'],
             'affiliates.applies_to'                          => $appliesTo,
         ]);
 
@@ -605,6 +611,7 @@ class SettingsController extends Controller
             'markup_percent'    => [],
             'fee_type'          => [],
             'fixed_amount'      => [],
+            'repossession_charges' => Setting::get('repossession.charges') ?? [],
         ];
 
         foreach ($types as $type => $meta) {
@@ -638,6 +645,12 @@ class SettingsController extends Controller
             $rules["fixed_amount_{$type}"] = ['nullable', 'numeric', 'min:0'];
         }
 
+        foreach (array_keys(config('repossession_charges.asset_types', [])) as $assetType) {
+            $rules["repossession_partner_cost_{$assetType}"] = ['nullable', 'numeric', 'min:0'];
+            $rules["repossession_markup_{$assetType}"] = ['nullable', 'numeric', 'min:0', 'max:100'];
+            $rules["repossession_manual_{$assetType}"] = ['nullable', 'boolean'];
+        }
+
         $data = $request->validate($rules);
 
         $settings = [
@@ -655,6 +668,16 @@ class SettingsController extends Controller
             $settings["recovery.fee_type.{$type}"] = $data["fee_type_{$type}"];
             $settings["recovery.fixed_amount.{$type}"] = $data["fixed_amount_{$type}"] ?? null;
         }
+
+        $repossession = [];
+        foreach (array_keys(config('repossession_charges.asset_types', [])) as $assetType) {
+            $repossession[$assetType] = [
+                'partner_cost'   => $data["repossession_partner_cost_{$assetType}"] ?? null,
+                'markup_percent' => $data["repossession_markup_{$assetType}"] ?? 10,
+                'manual_quote'   => $request->boolean("repossession_manual_{$assetType}"),
+            ];
+        }
+        $settings['repossession.charges'] = $repossession;
 
         Setting::setMany($settings);
 

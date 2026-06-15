@@ -20,6 +20,7 @@ class ApplicationOfferService
         private readonly AffordabilityService $affordability,
         private readonly NotificationService $notifications,
         private readonly DisplayedRateService $rates,
+        private readonly AssetBackedLoanService $assetBacked,
     ) {}
 
     /** @return array{amount: float, tenure_months: int, installment: float} */
@@ -33,6 +34,11 @@ class ApplicationOfferService
         if ($product) {
             $amount = min($amount, (float) $product->max_amount);
             $amount = max($amount, (float) $product->min_amount);
+        }
+
+        $ltvCap = $this->assetBacked->maxOfferAmount($application);
+        if ($ltvCap !== null && $ltvCap > 0) {
+            $amount = min($amount, $ltvCap);
         }
 
         $amount = floor(max(0, $amount) / 1000) * 1000;
@@ -104,6 +110,13 @@ class ApplicationOfferService
             }
             $recommendedAmount = (float) $application->requested_amount;
             $tenureMonths = (int) $application->requested_tenure_months;
+
+            $ltvCap = $this->assetBacked->maxOfferAmount($application);
+            if ($ltvCap !== null && $ltvCap > 0 && $recommendedAmount > $ltvCap) {
+                throw ValidationException::withMessages([
+                    'recommendation_type' => 'Requested amount exceeds the LTV cap of '.format_money($ltvCap).' based on valuation.',
+                ]);
+            }
         }
 
         if ($type === self::RECOMMEND_COUNTER) {
@@ -157,6 +170,13 @@ class ApplicationOfferService
                     'offered_amount' => 'Amount must be between '.format_money($product->min_amount).' and '.format_money($product->max_amount).'.',
                 ]);
             }
+        }
+
+        $ltvCap = $this->assetBacked->maxOfferAmount($application);
+        if ($ltvCap !== null && $ltvCap > 0 && $offeredAmount > $ltvCap) {
+            throw ValidationException::withMessages([
+                'offered_amount' => 'Offer cannot exceed the LTV cap of '.format_money($ltvCap).' from collateral valuation.',
+            ]);
         }
 
         $application->update([
@@ -247,6 +267,13 @@ class ApplicationOfferService
                     'offered_amount' => 'Amount must be between '.format_money($product->min_amount).' and '.format_money($product->max_amount).'.',
                 ]);
             }
+        }
+
+        $ltvCap = $this->assetBacked->maxOfferAmount($application);
+        if ($ltvCap !== null && $ltvCap > 0 && $offeredAmount > $ltvCap) {
+            throw ValidationException::withMessages([
+                'offered_amount' => 'Offer cannot exceed the LTV cap of '.format_money($ltvCap).' from collateral valuation.',
+            ]);
         }
 
         $application->update([

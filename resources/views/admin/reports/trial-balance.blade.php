@@ -1,4 +1,12 @@
-<x-admin.layout title="Trial Balance" heading="Trial Balance" subheading="Posted journal balances including opening balances (as at {{ now()->format('Y-m-d') }})">
+<x-admin.layout title="Trial Balance" heading="Trial Balance" subheading="Posted journal balances including opening balances">
+    <form method="GET" class="mb-4 flex flex-wrap items-end gap-3">
+        <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">As at date</label>
+            <input type="date" name="as_of" value="{{ ($asOf ?? now())->format('Y-m-d') }}" class="rounded-lg border-gray-300 text-sm">
+        </div>
+        <button type="submit" class="bg-gray-900 text-white text-sm font-semibold px-4 py-2 rounded-lg">Update</button>
+    </form>
+
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
         <table class="w-full text-sm">
             <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
@@ -29,11 +37,13 @@
                     <td class="px-5 py-3 text-right font-mono">{{ format_number($totalDebit, 2) }}</td>
                     <td class="px-5 py-3 text-right font-mono">{{ format_number($totalCredit, 2) }}</td>
                 </tr>
-                <tr class="{{ abs($totalDebit - $totalCredit) < 0.01 ? 'text-emerald-700' : 'text-rose-700' }}">
-                    <td class="px-5 py-3" colspan="3">Difference</td>
-                    <td class="px-5 py-3 text-right font-mono" colspan="2">{{ format_number($totalDebit - $totalCredit, 2) }}</td>
-                </tr>
             </tfoot>
         </table>
     </div>
+
+    @if (round($totalDebit, 2) !== round($totalCredit, 2))
+        <p class="mt-3 text-sm text-red-600">Trial balance is out of balance by {{ format_money(abs($totalDebit - $totalCredit)) }}.</p>
+    @else
+        <p class="mt-3 text-sm text-emerald-700">Trial balance is in balance.</p>
+    @endif
 </x-admin.layout>

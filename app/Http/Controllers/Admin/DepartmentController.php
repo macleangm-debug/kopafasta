@@ -28,15 +28,29 @@ class DepartmentController extends ResourceController
 
     protected function formData(?Model $record = null): array
     {
+        $staffRoles = app(\App\Services\RoleService::class)->staffRoles();
+
         return [
             'branches' => Branch::orderBy('name')->pluck('name', 'id'),
-            'users'    => User::orderBy('name')->pluck('name', 'id'),
+            'users'    => User::query()
+                ->whereIn('role', $staffRoles)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->pluck('name', 'id'),
         ];
     }
 
     protected function transform(array $data, ?Model $existing = null): array
     {
         $data['is_active'] = (bool) ($data['is_active'] ?? false);
+
+        if (filled($data['head_user_id'] ?? null)) {
+            $user = User::find($data['head_user_id']);
+            if (! $user || ! app(\App\Services\RoleService::class)->isStaff($user->role)) {
+                $data['head_user_id'] = null;
+            }
+        }
+
         return $data;
     }
 }

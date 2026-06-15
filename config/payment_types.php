@@ -12,6 +12,11 @@ return [
             'credit_gl'   => 'application_fee_income_gl_account_id',
             'fallback_gl' => 'fee_income_gl_account_id',
         ],
+        'valuation_fee' => [
+            'label'       => 'Valuation Fee',
+            'credit_gl'   => 'valuation_revenue_gl_account_id',
+            'fallback_gl' => 'fee_income_gl_account_id',
+        ],
         'asset_reservation_fee' => [
             'label'       => 'Asset Reservation Fee',
             'credit_gl'   => 'application_fee_income_gl_account_id',

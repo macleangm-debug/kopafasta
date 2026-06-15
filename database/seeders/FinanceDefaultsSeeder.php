@@ -19,10 +19,22 @@ class FinanceDefaultsSeeder extends Seeder
         }
 
         $map = [
-            'finance.cash_gl_account_id'               => '1010',
-            'finance.loan_receivable_gl_account_id'    => '1100',
-            'finance.capital_partner_pool_gl_account_id' => '2000',
-            'finance.fee_income_gl_account_id'         => '4020',
+            'finance.cash_gl_account_id'                    => '1010',
+            'finance.loan_receivable_gl_account_id'       => '1100',
+            'finance.capital_partner_pool_gl_account_id'    => '2000',
+            'finance.borrower_refunds_payable_gl_account_id' => '2100',
+            'finance.deferred_fee_liability_gl_account_id'  => '2110',
+            'finance.recovery_partner_payable_gl_account_id'=> '2120',
+            'finance.fee_income_gl_account_id'            => '4020',
+            'finance.application_fee_income_gl_account_id'  => '4020',
+            'finance.registration_fee_income_gl_account_id' => '4030',
+            'finance.interest_income_gl_account_id'         => '4000',
+            'finance.penalty_income_gl_account_id'          => '4010',
+            'finance.recovery_revenue_gl_account_id'        => '4040',
+            'finance.valuation_revenue_gl_account_id'       => '4050',
+            'finance.gps_revenue_gl_account_id'             => '4060',
+            'finance.bad_debt_expense_gl_account_id'        => '5000',
+            'finance.default_expense_gl_account_id'         => '5050',
         ];
 
         foreach ($map as $key => $code) {

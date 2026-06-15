@@ -47,6 +47,30 @@
         </div>
 
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+            <h3 class="text-sm font-semibold text-gray-900 mb-2">Repossession charges by asset type</h3>
+            <p class="text-xs text-gray-500 mb-4">Fixed partner cost + markup % for debt collection / repossession. Borrower charge = partner cost + markup.</p>
+            @php $assetTypes = app(\App\Services\RepossessionChargeService::class)->assetTypes(); @endphp
+            <div class="space-y-3">
+                @foreach ($assetTypes as $type => $row)
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end rounded-lg border border-gray-200 p-3">
+                        <div class="text-sm font-semibold capitalize">{{ $row['label'] ?? $type }}</div>
+                        <x-admin.input :name="'repossession_partner_cost_'.$type" label="Partner cost" type="number" step="1" min="0"
+                                       :value="$values['repossession_charges'][$type]['partner_cost'] ?? $row['partner_cost'] ?? ''" />
+                        <x-admin.input :name="'repossession_markup_'.$type" label="Markup %" type="number" step="0.1" min="0" max="100"
+                                       :value="$values['repossession_charges'][$type]['markup_percent'] ?? $row['markup_percent'] ?? 10" />
+                        <label class="inline-flex items-center gap-2 text-sm pb-2">
+                            <input type="hidden" name="repossession_manual_{{ $type }}" value="0">
+                            <input type="checkbox" name="repossession_manual_{{ $type }}" value="1"
+                                   @checked((bool) ($values['repossession_charges'][$type]['manual_quote'] ?? $row['manual_quote'] ?? false))
+                                   class="rounded border-gray-300 text-amber-600">
+                            Manual quote
+                        </label>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <h3 class="text-sm font-semibold text-gray-900 mb-4">Partner SLAs &amp; rates</h3>
             <p class="text-xs text-gray-500 mb-4">Each partner supports percentage or fixed recovery fee plus company markup. Fixed example: 10,000 fee + 10% markup → borrower pays 11,000.</p>
             <div class="space-y-4">

@@ -17,13 +17,17 @@ use Illuminate\Support\Carbon;
 class FinanceReportsController extends Controller
 {
     // -------- Trial balance --------
-    public function trialBalance(GeneralLedgerService $ledger)
+    public function trialBalance(GeneralLedgerService $ledger, \Illuminate\Http\Request $request)
     {
-        $rows = $ledger->trialBalanceRows();
+        $asOf = $request->filled('as_of')
+            ? Carbon::parse($request->string('as_of')->toString())->endOfDay()
+            : now()->endOfDay();
+
+        $rows = $ledger->trialBalanceRows($asOf);
         $totalDebit = (float) $rows->sum('debit');
         $totalCredit = (float) $rows->sum('credit');
 
-        return view('admin.reports.trial-balance', compact('rows', 'totalDebit', 'totalCredit'));
+        return view('admin.reports.trial-balance', compact('rows', 'totalDebit', 'totalCredit', 'asOf'));
     }
 
     // -------- Income statement --------
@@ -53,9 +57,13 @@ class FinanceReportsController extends Controller
     }
 
     // -------- Balance sheet --------
-    public function balanceSheet(GeneralLedgerService $ledger, LoanBalanceService $balances)
+    public function balanceSheet(GeneralLedgerService $ledger, LoanBalanceService $balances, \Illuminate\Http\Request $request)
     {
-        $byType = $ledger->balancesByType();
+        $asOf = $request->filled('as_of')
+            ? Carbon::parse($request->string('as_of')->toString())->endOfDay()
+            : now()->endOfDay();
+
+        $byType = $ledger->balancesByType($asOf);
         $retainedEarnings = round((float) ($byType['income'] ?? 0) - (float) ($byType['expense'] ?? 0), 2);
         $loansOutstanding = (float) Loan::query()
             ->whereIn('status', ['active', 'disbursed', 'arrears', 'restructuring', 'defaulted'])
@@ -72,6 +80,9 @@ class FinanceReportsController extends Controller
             'retainedEarnings'   => $retainedEarnings,
             'loansOutstanding'   => $loansOutstanding,
             'loansReceivableGl'  => $loansReceivableGl,
+            'asOf'               => $asOf,
+            'income'             => (float) ($byType['income'] ?? 0),
+            'expense'            => (float) ($byType['expense'] ?? 0),
         ]);
     }
 

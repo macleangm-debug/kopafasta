@@ -94,6 +94,12 @@
                   draftSaveUrl: @js(route('site.borrower.apply.draft.save')),
                   applicationFeePayUrl: @js(route('site.borrower.apply.application-fee.pay')),
                   applicationFeeQuoteUrl: @js(route('site.borrower.apply.application-fee.quote')),
+                  valuationFeePayUrl: @js(route('site.borrower.apply.valuation-fee.pay')),
+                  valuationFeeQuoteUrl: @js(route('site.borrower.apply.valuation-fee.quote')),
+                  assetDocumentUploadUrl: @js(route('site.borrower.apply.asset-document')),
+                  assetTypeOptions: @js($assetTypeOptions ?? []),
+                  assetDocumentLabels: @js($assetDocumentLabels ?? []),
+                  valuationFeeAmount: {{ (int) ($valuationFeeAmount ?? 0) }},
                   paymentGatewayDummy: @js($paymentGatewayDummy ?? payment_gateway_is_dummy()),
                   savedDraft: @js($savedDraft ?? null),
                   isResume: @js($isResume ?? false),
@@ -131,6 +137,8 @@
                           'income' => __('borrower.apply.steps.income'),
                           'product_questions' => __('borrower.apply.steps.product_questions'),
                           'asset_tenure' => __('borrower.apply.steps.asset_tenure'),
+                          'asset_details' => __('borrower.apply.steps.asset_details'),
+                          'valuation_fee' => __('borrower.apply.steps.valuation_fee'),
                       ],
                       'alerts' => [
                           'loadProduct' => __('borrower.apply.alerts.load_product'),
@@ -356,6 +364,57 @@
                     </template>
                 </div>
 
+                {{-- Asset-backed collateral details --}}
+                <div x-show="stepKey === 'asset_details'" class="p-6 sm:p-8">
+                    <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.asset_details.title') }}</h2>
+                    <p class="text-sm text-gray-600 mb-5">{{ __('borrower.apply.asset_details.subtitle') }}</p>
+                    <template x-if="current">
+                        <div class="space-y-5">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.asset_details.asset_type') }} <span class="text-rose-500">*</span></label>
+                                <select name="asset_type" x-model="form.asset_type" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                    <option value="">{{ __('borrower.profile.select') }}</option>
+                                    @foreach ($assetTypeOptions ?? [] as $key => $label)
+                                        <option value="{{ $key }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.asset_details.description') }}</label>
+                                <textarea name="asset_description" x-model="form.asset_description" rows="3" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" placeholder="{{ __('borrower.apply.asset_details.description_hint') }}"></textarea>
+                            </div>
+                            <div class="bg-gray-50 rounded-xl p-5">
+                                <div class="flex justify-between text-sm mb-2"><span class="text-gray-600">{{ __('borrower.apply.quote.loan_amount') }}</span><span class="font-bold" x-text="formatTzs(form.requested_amount)"></span></div>
+                                <input type="range" :min="current.min" :max="current.max" step="50000" x-model.number="form.requested_amount" @input="updateQuote()" class="w-full accent-amber-500">
+                                <div class="flex justify-between text-sm mb-2 mt-4"><span class="text-gray-600">{{ __('borrower.apply.quote.tenure') }}</span><span class="font-bold"><span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.quote.months') }}</span></div>
+                                <input type="range" :min="current.tmin" :max="current.tmax" step="1" x-model.number="form.requested_tenure_months" @input="updateQuote()" class="w-full accent-amber-500">
+                                <p class="text-xs text-amber-700 mt-3">{{ __('borrower.apply.asset_details.ltv_note') }}</p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.quote.purpose') }}</label>
+                                <select x-model="form.purpose" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                    <option value="">{{ __('borrower.apply.quote.select_purpose') }}</option>
+                                    @foreach ($loanPurposes as $key => $label)
+                                        <option value="{{ $key }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <p class="text-xs font-semibold text-gray-700 mb-2">{{ __('borrower.apply.asset_details.documents') }}</p>
+                                <div class="space-y-3">
+                                    @foreach ($assetDocumentLabels ?? [] as $code => $label)
+                                        <div class="flex flex-col sm:flex-row sm:items-center gap-2 rounded-lg ring-1 ring-gray-200 px-3 py-2">
+                                            <span class="text-sm text-gray-700 flex-1">{{ $label }}</span>
+                                            <span x-show="assetDocuments['{{ $code }}']" x-cloak class="text-xs text-emerald-700 font-medium">{{ __('borrower.apply.asset_details.uploaded') }}</span>
+                                            <input type="file" accept=".jpg,.jpeg,.png,.pdf" @change="uploadAssetDocument('{{ $code }}', $event)" class="text-xs">
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
                 {{-- Guarantor --}}
                 <div x-show="stepKey === 'guarantor'" class="p-6 sm:p-8">
                     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.guarantor') }}</h2>
@@ -572,6 +631,15 @@
                 </div>
 
                 @php $membershipCfg = \App\Services\MembershipService::config(); @endphp
+                <x-site.valuation-fee-step
+                    :fee-quote="$valuationFeeQuote ?? null"
+                    :bank-accounts="$bankAccounts ?? []"
+                    :currency="$membershipCfg['currency'] ?? 'TZS'"
+                    :payment-reference="$valuationFeePaymentRef ?? null"
+                    :referral-wallet="$referralWallet ?? null"
+                    :referral-settings="$referralSettings ?? []"
+                    :payment-gateway-dummy="$paymentGatewayDummy ?? payment_gateway_is_dummy()"
+                />
                 <x-site.application-fee-step
                     :fee-quote="$feeQuote ?? null"
                     :bank-accounts="$bankAccounts ?? []"
@@ -666,9 +734,17 @@
 
                     <h3 class="text-sm font-semibold text-gray-900 mb-2">{{ __('borrower.apply.review_step.loan_section') }}</h3>
                     <div class="rounded-xl border border-gray-200 divide-y divide-gray-200 mb-5 text-sm">
-                        <div class="px-4 py-3 flex justify-between gap-3" x-show="hasStep('quote') || hasStep('asset_tenure')">
+                        <div class="px-4 py-3 flex justify-between gap-3" x-show="hasStep('quote') || hasStep('asset_tenure') || hasStep('asset_details')">
                             <div><span class="text-gray-500 block">{{ __('borrower.apply.review_step.loan_amount') }}</span><span class="font-medium" x-text="formatTzs(form.requested_amount)"></span></div>
-                            <button type="button" @click="gotoKey(hasStep('quote') ? 'quote' : 'asset_tenure')" class="text-xs text-amber-700 shrink-0">{{ __('borrower.apply.edit') }}</button>
+                            <button type="button" @click="gotoKey(hasStep('asset_details') ? 'asset_details' : (hasStep('quote') ? 'quote' : 'asset_tenure'))" class="text-xs text-amber-700 shrink-0">{{ __('borrower.apply.edit') }}</button>
+                        </div>
+                        <div class="px-4 py-3" x-show="hasStep('asset_details')">
+                            <span class="text-gray-500 block">{{ __('borrower.apply.asset_details.asset_type') }}</span>
+                            <span class="font-medium" x-text="assetTypeOptions[form.asset_type] || form.asset_type || '—'"></span>
+                        </div>
+                        <div class="px-4 py-3" x-show="hasStep('valuation_fee')">
+                            <span class="text-gray-500 block">{{ __('borrower.apply.review_step.valuation_fee') }}</span>
+                            <span class="font-medium" x-text="valuationFeePaid ? formatTzs(effectiveValuationFeeAmount()) : @js(__('borrower.apply.valuation_fee.pending'))"></span>
                         </div>
                         <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.duration') }}</span><span class="font-medium"><span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.browse.months_short') }}</span></div>
                         <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.interest_rate') }}</span><span class="font-medium" x-text="reviewSummary.monthly_rate_pct ? (reviewSummary.monthly_rate_pct + '% / month') : '—'"></span></div>
@@ -835,6 +911,20 @@
                 applicationFeeQuoteUrl: config.applicationFeeQuoteUrl || '',
                 applicationFeeState: config.savedDraft?.application_fee || null,
                 applicationFeePaid: false,
+                valuationFeePayUrl: config.valuationFeePayUrl || '',
+                valuationFeeQuoteUrl: config.valuationFeeQuoteUrl || '',
+                assetDocumentUploadUrl: config.assetDocumentUploadUrl || '',
+                assetTypeOptions: config.assetTypeOptions || {},
+                assetDocumentLabels: config.assetDocumentLabels || {},
+                valuationFeeAmount: config.valuationFeeAmount || 0,
+                valuationFeeState: config.savedDraft?.valuation_fee || null,
+                valuationFeePaid: false,
+                valuationFeeChannel: 'mobile_money',
+                valuationFeePhone: @js(old('payment_phone', $customer->phone ?? '')),
+                valuationFeePaying: false,
+                valuationFeePaymentReference: @js($valuationFeePaymentRef ?? null),
+                assetDocuments: config.savedDraft?.asset_documents || {},
+                assetDocumentUploading: false,
                 feeChannel: 'mobile_money',
                 feePhone: @js(old('payment_phone', $customer->phone ?? '')),
                 feeUseWallet: false,
@@ -910,6 +1000,8 @@
                     external_email: '',
                     external_region: '',
                     external_district: '',
+                    asset_type: '',
+                    asset_description: '',
                 },
                 quote: { monthly: 0, weekly: 0, interest: 0, total: 0, fees: 0 },
                 review: { personal: '', residence: '', employment: '', nok: '', activity: '', guarantor: '', guarantorType: '', guarantorName: '', guarantorStatus: '' },
@@ -919,6 +1011,8 @@
                 scheduleLoading: false,
                 stepIcons: {
                     quote: '💰',
+                    asset_details: '🚗',
+                    valuation_fee: '📋',
                     asset_tenure: '📅',
                     application_fee: '💳',
                     guarantor: '🤝',
@@ -947,6 +1041,7 @@
 
                 init() {
                     this.syncFeePaidState();
+                    this.syncValuationFeePaidState();
                     window.applyWizardSaveDraft = () => this.persistDraft(true);
                     this.$watch('phase', (value, oldValue) => {
                         this.scheduleDraftSave();
@@ -961,6 +1056,9 @@
                     this.$watch('stepKey', (key) => {
                         if (key === 'application_fee') {
                             this.enterApplicationFeeStep();
+                        }
+                        if (key === 'valuation_fee') {
+                            this.enterValuationFeeStep();
                         }
                         if (key === 'guarantor') {
                             this.loadPreviousGuarantors();
@@ -1036,6 +1134,8 @@
                         inputs,
                         guarantor_lookup: this.guarantorLookup.ok ? this.guarantorLookup : null,
                         application_fee: this.applicationFeeState,
+                        valuation_fee: this.valuationFeeState,
+                        asset_documents: this.assetDocuments,
                         external_guarantor: this.externalGuarantor,
                         borrower_signature: this.borrowerSignature,
                         declaration_accepted: this.declarationAccepted,
@@ -1116,6 +1216,142 @@
                     };
                     this.syncFeePaidState();
                     await this.persistDraft(true);
+                },
+
+                isAssetBackedProduct(product) {
+                    return (product?.code || '').toUpperCase() === 'AB';
+                },
+
+                effectiveValuationFeeAmount() {
+                    return Number(this.valuationFeeAmount) || 0;
+                },
+
+                showsValuationFeePayment() {
+                    return ! this.valuationFeePaid && this.effectiveValuationFeeAmount() > 0;
+                },
+
+                enterValuationFeeStep() {
+                    this.syncValuationFeePaidState();
+                    this.refreshValuationFeeQuote();
+                },
+
+                syncValuationFeePaidState() {
+                    const amount = this.effectiveValuationFeeAmount();
+                    const st = this.valuationFeeState?.status || '';
+                    if (amount > 0 && st === 'waived' && ! this.valuationFeeState?.reference) {
+                        this.valuationFeeState = null;
+                    }
+                    const status = this.valuationFeeState?.status || '';
+                    this.valuationFeePaid = amount <= 0 || ['paid', 'waived'].includes(status);
+                },
+
+                valuationFeeGateSatisfied() {
+                    if (! this.hasStep('valuation_fee')) return true;
+                    return this.effectiveValuationFeeAmount() <= 0
+                        || ['paid', 'waived', 'pending'].includes(this.valuationFeeState?.status || '');
+                },
+
+                valuationGateRequiredForStep(targetStepKey) {
+                    const feeIdx = this.steps.findIndex(s => s.key === 'valuation_fee');
+                    const targetIdx = this.steps.findIndex(s => s.key === targetStepKey);
+                    return feeIdx >= 0 && targetIdx > feeIdx && this.effectiveValuationFeeAmount() > 0;
+                },
+
+                async refreshValuationFeeQuote() {
+                    if (! this.form.loan_product_id || ! this.valuationFeeQuoteUrl) {
+                        this.syncValuationFeePaidState();
+                        return;
+                    }
+                    try {
+                        const url = `${this.valuationFeeQuoteUrl}?loan_product_id=${encodeURIComponent(this.form.loan_product_id)}`;
+                        const res = await fetch(url, {
+                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                            credentials: 'same-origin',
+                        });
+                        if (! res.ok) return;
+                        const data = await res.json();
+                        if (data.amount !== undefined) {
+                            this.valuationFeeAmount = data.amount;
+                        }
+                    } catch (e) {
+                        console.warn('valuation fee quote failed', e);
+                    } finally {
+                        this.syncValuationFeePaidState();
+                    }
+                },
+
+                async payValuationFee() {
+                    if (! this.valuationFeePayUrl || ! this.form.loan_product_id) return;
+                    if (! this.form.asset_type) {
+                        alert(@js(__('borrower.apply.asset_details.type_required')));
+                        return;
+                    }
+                    this.valuationFeePaying = true;
+                    try {
+                        const body = {
+                            loan_product_id: this.form.loan_product_id,
+                            channel: this.valuationFeeChannel || 'mobile_money',
+                            payment_phone: this.valuationFeePhone || '',
+                            asset_type: this.form.asset_type,
+                            asset_description: this.form.asset_description || '',
+                        };
+                        const res = await fetch(this.valuationFeePayUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
+                            },
+                            credentials: 'same-origin',
+                            body: JSON.stringify(body),
+                        });
+                        const data = await res.json();
+                        if (! res.ok || ! data.ok) {
+                            throw new Error(data.message || 'Payment failed');
+                        }
+                        this.valuationFeeState = data.fee;
+                        this.syncValuationFeePaidState();
+                        await this.persistDraft(true);
+                        alert(data.message || @js(__('borrower.apply.valuation_fee.paid')));
+                    } catch (e) {
+                        alert(e?.message || @js(__('borrower.apply.valuation_fee.failed')));
+                    } finally {
+                        this.valuationFeePaying = false;
+                    }
+                },
+
+                async uploadAssetDocument(code, event) {
+                    const file = event.target?.files?.[0];
+                    if (! file || ! this.assetDocumentUploadUrl || ! this.form.loan_product_id) return;
+                    this.assetDocumentUploading = true;
+                    try {
+                        const formData = new FormData();
+                        formData.append('loan_product_id', this.form.loan_product_id);
+                        formData.append('document_code', code);
+                        formData.append('file', file);
+                        const res = await fetch(this.assetDocumentUploadUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
+                            },
+                            credentials: 'same-origin',
+                            body: formData,
+                        });
+                        const data = await res.json();
+                        if (! res.ok || ! data.ok) {
+                            throw new Error(data.message || 'Upload failed');
+                        }
+                        this.assetDocuments = data.asset_documents || {};
+                        await this.persistDraft(true);
+                    } catch (e) {
+                        alert(e?.message || @js(__('borrower.apply.asset_details.upload_failed')));
+                    } finally {
+                        this.assetDocumentUploading = false;
+                        if (event.target) event.target.value = '';
+                    }
                 },
 
                 async refreshApplicationFeeQuote() {
@@ -1296,11 +1532,14 @@
                     }
                     if (draft.guarantor_lookup) this.guarantorLookup = draft.guarantor_lookup;
                     if (draft.application_fee) this.applicationFeeState = draft.application_fee;
+                    if (draft.valuation_fee) this.valuationFeeState = draft.valuation_fee;
+                    if (draft.asset_documents) this.assetDocuments = draft.asset_documents;
                     if (draft.external_guarantor) this.externalGuarantor = draft.external_guarantor;
                     if (draft.borrower_signature) this.borrowerSignature = draft.borrower_signature;
                     if (draft.declaration_accepted || draft.borrower_signature) this.declarationAccepted = true;
                     if (draft.draft_reference) this.draftReference = draft.draft_reference;
                     this.syncFeePaidState();
+                    this.syncValuationFeePaidState();
 
                     const resumeStep = target.step ?? draft.step ?? 0;
                     const resumeKey = target.step_key ?? draft.step_key ?? '';
@@ -1467,7 +1706,10 @@
                     } else {
                         const stepLabels = this.i18n.steps;
                         const steps = [];
-                        if (! this.isMarketplaceProduct(this.current)) {
+                        if (this.isAssetBackedProduct(this.current)) {
+                            steps.push({ key: 'asset_details', label: stepLabels.asset_details || 'Asset details' });
+                            steps.push({ key: 'valuation_fee', label: stepLabels.valuation_fee || 'Valuation fee' });
+                        } else if (! this.isMarketplaceProduct(this.current)) {
                             steps.push({ key: 'quote', label: stepLabels.quote });
                         } else {
                             steps.push({ key: 'asset_tenure', label: stepLabels.asset_tenure || stepLabels.quote });
@@ -1496,6 +1738,7 @@
                     }
                     if (! this.form.requested_amount || this.form.requested_amount < p.min) this.form.requested_amount = p.min;
                     if (! this.form.requested_tenure_months || this.form.requested_tenure_months < p.tmin) this.form.requested_tenure_months = p.tmin;
+                    if (this.isAssetBackedProduct(p) && ! this.form.purpose) this.form.purpose = 'asset_financing';
                     if (! this.requiresGuarantor()) this.form.guarantor_mode = 'none';
                     else if (this.form.guarantor_mode === 'none') this.form.guarantor_mode = 'previous';
                     this.updateQuote();
@@ -2106,6 +2349,42 @@
                             return false;
                         }
                     }
+                    if (this.stepKey === 'asset_details' && this.hasStep('asset_details')) {
+                        if (! this.form.asset_type) {
+                            alert(@js(__('borrower.apply.asset_details.type_required')));
+                            return false;
+                        }
+                        if (! this.form.requested_amount || this.form.requested_amount < (this.current?.min || 1000)) {
+                            alert(@js(__('borrower.apply.asset_details.amount_required')));
+                            return false;
+                        }
+                        if (! this.form.requested_tenure_months) {
+                            alert(@js(__('borrower.apply.asset_details.tenure_required')));
+                            return false;
+                        }
+                        if (! this.form.purpose) {
+                            this.form.purpose = 'asset_financing';
+                        }
+                    }
+                    if (this.stepKey === 'valuation_fee') {
+                        if (this.effectiveValuationFeeAmount() > 0) {
+                            const st = this.valuationFeeState?.status || '';
+                            if (! ['paid', 'waived', 'pending'].includes(st)) {
+                                alert(@js(__('borrower.apply.valuation_fee.required_before_continue')));
+                                return false;
+                            }
+                        } else if (! this.valuationFeePaid) {
+                            this.valuationFeeState = {
+                                status: 'waived',
+                                reference: null,
+                                channel: 'waived',
+                                amount: 0,
+                                paid_at: new Date().toISOString(),
+                            };
+                            this.syncValuationFeePaidState();
+                            await this.persistDraft(true);
+                        }
+                    }
                     if (this.stepKey === 'guarantor' && this.hasStep('guarantor')) {
                         this.syncGuarantorFormFromDom();
                         if (! this.form.guarantor_mode || this.form.guarantor_mode === 'none') {
@@ -2151,9 +2430,17 @@
                         alert(@js(__('borrower.apply.application_fee.required_before_continue')));
                         return false;
                     }
+                    if (! this.valuationFeeGateSatisfied() && this.valuationGateRequiredForStep(this.stepKey)) {
+                        alert(@js(__('borrower.apply.valuation_fee.required_before_continue')));
+                        return false;
+                    }
                     const nextKey = this.steps[this.step + 1]?.key;
                     if (nextKey && this.feeGateRequiredForStep(nextKey) && ! this.feeGateSatisfied()) {
                         alert(@js(__('borrower.apply.application_fee.required_before_continue')));
+                        return false;
+                    }
+                    if (nextKey && this.valuationGateRequiredForStep(nextKey) && ! this.valuationFeeGateSatisfied()) {
+                        alert(@js(__('borrower.apply.valuation_fee.required_before_continue')));
                         return false;
                     }
                     return true;

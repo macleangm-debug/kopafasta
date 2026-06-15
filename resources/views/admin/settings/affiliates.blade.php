@@ -19,6 +19,25 @@
         </div>
 
         <div>
+            <h3 class="text-sm font-semibold text-gray-900 mb-3">Commission calculation base</h3>
+            <div class="flex flex-wrap gap-4 text-sm">
+                <label class="inline-flex items-center gap-2">
+                    <input type="radio" name="commission_calculation_base" value="discounted_amount"
+                           @checked(($values['commission_calculation_base'] ?? 'discounted_amount') === 'discounted_amount')
+                           class="text-amber-600">
+                    Discounted amount (recommended)
+                </label>
+                <label class="inline-flex items-center gap-2">
+                    <input type="radio" name="commission_calculation_base" value="original_amount"
+                           @checked(($values['commission_calculation_base'] ?? '') === 'original_amount')
+                           class="text-amber-600">
+                    Original amount
+                </label>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">Example: 10,000 fee with 10% discount → paid 9,000. At 10% commission on discounted base = 900.</p>
+        </div>
+
+        <div>
             <h3 class="text-sm font-semibold text-gray-900 mb-3">Apply affiliate promo codes to</h3>
             <p class="text-xs text-gray-500 mb-4">Choose which fee types accept affiliate discounts and accrue commission.</p>
             @php

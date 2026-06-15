@@ -197,7 +197,11 @@ class AffiliateService
             $discount += $promotion['promotion_discount'];
             $afterDiscount = $promotion['after_discount'];
         }
-        $commission = round($baseAmount * ($this->commissionPercent($affiliate) / 100), 2);
+
+        $commissionBase = app(AffiliateSettingsService::class)->commissionCalculationBase() === 'discounted_amount'
+            ? $afterDiscount
+            : $baseAmount;
+        $commission = round($commissionBase * ($this->commissionPercent($affiliate) / 100), 2);
 
         return [
             'base'           => round($baseAmount, 2),

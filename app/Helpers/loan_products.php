@@ -72,6 +72,13 @@ if (! function_exists('loan_product_application_fee')) {
     }
 }
 
+if (! function_exists('is_asset_backed_loan_product')) {
+    function is_asset_backed_loan_product(?string $code): bool
+    {
+        return strtoupper((string) $code) === 'AB';
+    }
+}
+
 if (! function_exists('loan_product_wizard_payload')) {
     /** @return array<string, mixed> */
     function loan_product_wizard_payload(LoanProduct $product, ?Customer $customer = null): array

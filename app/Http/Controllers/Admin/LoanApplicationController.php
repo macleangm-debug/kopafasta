@@ -167,7 +167,7 @@ class LoanApplicationController extends ResourceController
     public function show($id): View
     {
         $record = LoanApplication::query()
-            ->with(['customer', 'product', 'loan', 'stageHistory.changedByUser', 'alternativeProduct', 'recommendedByUser'])
+            ->with(['customer', 'product', 'loan', 'stageHistory.changedByUser', 'alternativeProduct', 'recommendedByUser', 'collateralAsset'])
             ->findOrFail($id);
 
         $workflow = app(LoanApplicationWorkflowService::class);
@@ -206,6 +206,14 @@ class LoanApplicationController extends ResourceController
             ->first();
         $disbursementReadiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
 
+        $valuers = \App\Models\Vendor::query()
+            ->where('status', 'active')
+            ->where(function ($q): void {
+                $q->where('category', 'valuer')->orWhere('roles', 'like', '%"valuer"%');
+            })
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         return view("admin.{$this->viewFolder}.show", compact(
             'record',
             'review',
@@ -222,6 +230,7 @@ class LoanApplicationController extends ResourceController
             'counterOffer',
             'assetAlternativeProduct',
             'disbursementReadiness',
+            'valuers',
         ));
     }
 
