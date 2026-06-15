@@ -1,0 +1,76 @@
+<x-site.borrower-layout :title="brand_title(__('borrower.profile.my_assets'))" active="profile">
+    @include('site.borrower.profile._tabs', ['active' => 'assets'])
+
+    <div class="max-w-3xl">
+        @include('site.borrower.profile._heading', [
+            'title' => __('borrower.profile.my_assets'),
+            'subtitle' => __('borrower.profile.my_assets_hint'),
+        ])
+
+        @if (session('status'))
+            <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
+        @endif
+
+        <form method="POST" action="{{ route('site.borrower.profile.assets.store') }}" enctype="multipart/form-data" class="bg-white rounded-2xl ring-1 ring-gray-200 p-6 mb-6 space-y-4">
+            @csrf
+            <h2 class="font-semibold text-gray-900">{{ __('borrower.profile.add_asset') }}</h2>
+            <div class="grid sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.asset_type') }}</label>
+                    <select name="asset_type" required class="w-full rounded-lg border-gray-300 text-sm">
+                        @foreach ($assetTypes as $key => $label)
+                            <option value="{{ $key }}" @selected(old('asset_type') === $key)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.asset_label') }}</label>
+                    <input type="text" name="label" value="{{ old('label') }}" required maxlength="150" class="w-full rounded-lg border-gray-300 text-sm" placeholder="e.g. Toyota RAV4 2018">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.registration_number') }}</label>
+                    <input type="text" name="registration_number" value="{{ old('registration_number') }}" maxlength="80" class="w-full rounded-lg border-gray-300 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.estimated_value') }}</label>
+                    <input type="number" name="estimated_value" value="{{ old('estimated_value') }}" min="0" step="1" class="w-full rounded-lg border-gray-300 text-sm">
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.description') }}</label>
+                    <textarea name="description" rows="2" class="w-full rounded-lg border-gray-300 text-sm">{{ old('description') }}</textarea>
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.asset_photo') }}</label>
+                    <input type="file" name="photo" accept="image/*" class="w-full text-sm">
+                </div>
+            </div>
+            <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.profile.save_asset') }}</button>
+        </form>
+
+        <div class="space-y-3">
+            @forelse ($assets as $asset)
+                <div class="bg-white rounded-2xl ring-1 ring-gray-200 p-5 flex flex-wrap gap-4 justify-between items-start">
+                    <div>
+                        <p class="text-xs uppercase tracking-widest text-gray-500">{{ $assetTypes[$asset->asset_type] ?? $asset->asset_type }}</p>
+                        <h3 class="font-semibold text-gray-900 mt-1">{{ $asset->label }}</h3>
+                        @if ($asset->registration_number)
+                            <p class="text-sm text-gray-600 mt-1 font-mono">{{ $asset->registration_number }}</p>
+                        @endif
+                        @if ($asset->estimated_value)
+                            <p class="text-sm text-gray-600 mt-1">{{ format_money($asset->estimated_value) }}</p>
+                        @endif
+                        @if ($asset->description)
+                            <p class="text-sm text-gray-500 mt-2">{{ $asset->description }}</p>
+                        @endif
+                    </div>
+                    <form method="POST" action="{{ route('site.borrower.profile.assets.destroy', $asset) }}" onsubmit="return confirm('Remove this asset?')">
+                        @csrf @method('DELETE')
+                        <button type="submit" class="text-xs font-semibold text-rose-700 hover:underline">{{ __('borrower.profile.remove_asset') }}</button>
+                    </form>
+                </div>
+            @empty
+                <p class="text-sm text-gray-500">{{ __('borrower.profile.no_assets_yet') }}</p>
+            @endforelse
+        </div>
+    </div>
+</x-site.borrower-layout>

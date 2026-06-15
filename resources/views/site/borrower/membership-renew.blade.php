@@ -15,19 +15,22 @@
         </div>
 
         <div class="rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white p-6 shadow-lg mb-6">
-            <p class="text-[10px] uppercase tracking-widest text-white/80">{{ $isFirstTime ? __('borrower.membership.registration_fee') : __('borrower.membership.renewal_fee') }}</p>
             @if ($isFirstTime && $feeQuote)
-                <x-site.affiliate-fee-breakdown :label="$isFirstTime ? __('borrower.membership.registration_fee') : __('borrower.membership.renewal_fee')" :currency="$config['currency']" :quote="$feeQuote" />
-                <p class="mt-1 text-3xl font-extrabold">{{ $config['currency'] }} {{ format_number($feeQuote['after_discount']) }}</p>
-                @if ($feeQuote['has_referrer'])
-                    <p class="mt-2 text-xs text-white/90">Referral discount applied ({{ rtrim(rtrim(format_number($referralSettings['discount_percent'], 2), '0'), '.') }}%)</p>
-                @endif
+                <x-site.payment-gate-breakdown :label="$isFirstTime ? __('borrower.membership.registration_fee') : __('borrower.membership.renewal_fee')" :currency="$config['currency']" :quote="$feeQuote" class="mb-0" />
             @else
+                <p class="text-[10px] uppercase tracking-widest text-white/80">{{ $isFirstTime ? __('borrower.membership.registration_fee') : __('borrower.membership.renewal_fee') }}</p>
                 <p class="mt-1 text-3xl font-extrabold">{{ $config['currency'] }} {{ format_number($feeAmount) }}</p>
             @endif
             <p class="mt-3 text-xs text-white/90">Payment reference (auto-generated)</p>
             <p class="mt-1 font-mono text-sm bg-white/15 inline-block px-3 py-1 rounded-lg">{{ $paymentReference }}</p>
         </div>
+
+        @if ($isFirstTime)
+            <div class="mb-6 rounded-xl bg-white ring-1 ring-gray-200 px-4 py-4 text-sm">
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Promo code (optional)</label>
+                <input type="text" name="promo_code" form="membership-renew-form" value="{{ old('promo_code') }}" maxlength="40" class="w-full rounded-lg border-gray-300 text-sm font-mono uppercase" placeholder="PROMO2026">
+            </div>
+        @endif
 
         @if ($isFirstTime && $feeQuote && ($referralWallet->balance ?? 0) > 0)
             <div class="mb-6 rounded-xl bg-indigo-50 ring-1 ring-indigo-200 px-4 py-4 text-sm text-indigo-900">

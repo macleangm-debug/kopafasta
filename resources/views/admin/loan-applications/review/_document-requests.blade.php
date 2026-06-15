@@ -14,7 +14,7 @@
         'rejected'  => 'Rejected documents',
     ];
 @endphp
-<x-admin.review-section id="review-document-requests" title="Request additional documents" subtitle="Request one or more documents from the borrower">
+<x-admin.review-section id="review-document-requests" title="Request document re-upload" subtitle="Select the document and provide a reason — the borrower can upload only the affected item">
     @if ($documentRequests->isNotEmpty())
         <div class="mb-6 space-y-5">
             @foreach ($groupLabels as $groupKey => $groupLabel)
@@ -103,26 +103,26 @@
         </div>
 
         <div>
-            <label class="block text-xs font-semibold text-gray-600 mb-1">Custom document label</label>
-            <input type="text" name="label" maxlength="120" placeholder="e.g. Updated utility bill"
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Document</label>
+            <input type="text" name="label" maxlength="120" placeholder="e.g. Ownership certificate"
                    class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 px-3 py-2">
         </div>
 
         <div>
-            <label class="block text-xs font-semibold text-gray-600 mb-1">Instructions for borrower</label>
-            <textarea name="instructions" rows="2" maxlength="2000" placeholder="Tell the borrower exactly what you need…"
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Reason (shown to borrower)</label>
+            <textarea name="instructions" rows="2" maxlength="2000" placeholder="e.g. Image not clear — please re-upload a sharper photo"
                       class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 px-3 py-2"></textarea>
         </div>
 
         <div>
             <button type="submit" class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-4 py-2 rounded-lg">
-                Send document request(s)
+                Request document re-upload
             </button>
         </div>
     </form>
 
     @if ($documentRequests->isEmpty())
-        <p class="text-sm text-gray-500">No ad-hoc requests yet.</p>
+        <p class="text-sm text-gray-500">No re-upload requests yet.</p>
     @else
         <ul class="divide-y divide-gray-100">
             @foreach ($documentRequests as $docReq)

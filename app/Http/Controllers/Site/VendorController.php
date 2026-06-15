@@ -426,7 +426,27 @@ class VendorController extends Controller
             'phone'   => ['nullable', 'string', 'max:30'],
             'email'   => ['nullable', 'email', 'max:120'],
             'address' => ['nullable', 'string', 'max:255'],
+            'affiliate_selfie' => ['nullable', 'image', 'max:5120'],
+            'affiliate_id'     => ['nullable', 'image', 'max:5120'],
+            'affiliate_photo'  => ['nullable', 'image', 'max:5120'],
         ]);
+        unset($data['affiliate_selfie'], $data['affiliate_id'], $data['affiliate_photo']);
+
+        if ($vendor->isAffiliate()) {
+            if ($request->hasFile('affiliate_selfie')) {
+                $data['affiliate_selfie_path'] = $request->file('affiliate_selfie')->store("partners/{$vendor->id}/kyc", 'public');
+            }
+            if ($request->hasFile('affiliate_id')) {
+                $data['affiliate_id_path'] = $request->file('affiliate_id')->store("partners/{$vendor->id}/kyc", 'public');
+            }
+            if ($request->hasFile('affiliate_photo')) {
+                $data['affiliate_photo_path'] = $request->file('affiliate_photo')->store("partners/{$vendor->id}/kyc", 'public');
+            }
+            if (! empty($data['affiliate_selfie_path']) && ! empty($data['affiliate_id_path'])) {
+                $data['affiliate_kyc_status'] = 'submitted';
+            }
+        }
+
         $vendor->update($data);
         return back()->with('status', 'Profile updated.');
     }

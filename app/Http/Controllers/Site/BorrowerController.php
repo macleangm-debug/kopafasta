@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Site;
 use App\Http\Controllers\Concerns\AuditsActions;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Models\CustomerAsset;
 use App\Models\CustomerDocument;
 use App\Models\CustomerGuarantor;
 use App\Models\CustomerKyc;
@@ -1169,7 +1170,7 @@ class BorrowerController extends Controller
             return redirect()->to(route('site.borrower.profile', ['section' => 'personal', 'wizard' => $wizardMode ? 1 : null, 'focus' => 'kin']).'#next-of-kin');
         }
 
-        $section = in_array($section, ['personal', 'activity', 'residence', 'kyc', 'security', 'payment'], true)
+        $section = in_array($section, ['personal', 'activity', 'residence', 'kyc', 'security', 'payment', 'assets'], true)
             ? $section
             : 'personal';
 
@@ -1179,6 +1180,7 @@ class BorrowerController extends Controller
             'kyc'       => 'site.borrower.profile.kyc',
             'security'  => 'site.borrower.profile.security',
             'payment'   => 'site.borrower.profile.payment',
+            'assets'    => 'site.borrower.profile.assets',
             default     => 'site.borrower.profile.personal',
         };
 
@@ -1220,7 +1222,9 @@ class BorrowerController extends Controller
             ->with('profileSections', app(ProfileCompletionService::class)->displaySections($customer))
             ->with('paymentAccounts', $section === 'payment' ? $detailsService->accountsForCustomer($customer) : collect())
             ->with('borrowerLegalName', $borrowerLegalName)
-            ->with('detailsService', $detailsService);
+            ->with('detailsService', $detailsService)
+            ->with('assets', $section === 'assets' ? app(\App\Services\CustomerAssetService::class)->forCustomer($customer) : collect())
+            ->with('assetTypes', \App\Models\CustomerAsset::typeOptions());
     }
 
     public function updateProfile(Request $request, string $section = 'personal'): RedirectResponse
@@ -2077,11 +2081,12 @@ class BorrowerController extends Controller
 
         $wallet = app(ReferralService::class)->wallet($customer);
         $referrals = app(ReferralService::class);
-        $baseTotal = (float) $application->postApprovalFees->where('status', '!=', 'paid')->sum('calculated_amount');
-        $feeQuote = $this->postApprovalFeeQuote($customer, $baseTotal, false, $referrals);
-        $maxWalletQuote = $this->postApprovalFeeQuote($customer, $baseTotal, true, $referrals);
-        $referralSettings = $referrals->settings();
+        $useWallet = (bool) old('use_wallet', false);
+        $promoCode = old('promo_code');
         $paymentService = app(\App\Services\PostApprovalFeePaymentService::class);
+        $feeQuote = $paymentService->quote($customer, $application, $useWallet, $promoCode);
+        $maxWalletQuote = $paymentService->quote($customer, $application, true, $promoCode);
+        $referralSettings = $referrals->settings();
 
         $paymentReference = $paymentService->generatePaymentReference($application);
         $accounts = app(\App\Services\PaymentAccountService::class);
@@ -2127,6 +2132,7 @@ class BorrowerController extends Controller
             'payment_date'   => ['nullable', 'date'],
             'proof'          => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'use_wallet'     => ['nullable', 'boolean'],
+            'promo_code'     => ['nullable', 'string', 'max:40'],
         ]);
 
         $paymentService = app(\App\Services\PostApprovalFeePaymentService::class);
@@ -2140,6 +2146,7 @@ class BorrowerController extends Controller
                 $reference,
                 $useWallet,
                 $data['mobile_number'] ?? null,
+                $data['promo_code'] ?? null,
             );
             $payment = $result['payment'];
 
@@ -2167,6 +2174,7 @@ class BorrowerController extends Controller
             $reference,
             $useWallet,
             $data['payment_date'] ?? null,
+            $data['promo_code'] ?? null,
         );
         $payment = $result['payment'];
 
@@ -2239,25 +2247,6 @@ class BorrowerController extends Controller
         return view('site.borrower.support', ['customer' => $this->customer()]);
     }
 
-    /** @return array<string, mixed> */
-    private function postApprovalFeeQuote(Customer $customer, float $baseTotal, bool $useWallet, ReferralService $referrals): array
-    {
-        if ($referrals->referrer($customer)) {
-            return $referrals->quoteFee($customer, $baseTotal, $useWallet, 'post_approval_fee');
-        }
-
-        $affiliateQuote = app(AffiliateService::class)->quoteFee($customer, $baseTotal, 'post_approval_fee');
-        $walletQuote = $referrals->quoteFee($customer, $affiliateQuote['after_discount'], $useWallet, 'post_approval_fee', applyDiscount: false);
-
-        return array_merge($affiliateQuote, [
-            'wallet_usable'  => $walletQuote['wallet_usable'],
-            'wallet_applied' => $walletQuote['wallet_applied'],
-            'cash_due'       => max(0, round($affiliateQuote['after_discount'] - $walletQuote['wallet_applied'], 2)),
-            'has_referrer'   => false,
-            'referrer'       => null,
-        ]);
-    }
-
     /**
      * @param  list<\Illuminate\Http\UploadedFile>  $pageFiles
      */
@@ -2317,5 +2306,34 @@ class BorrowerController extends Controller
         return redirect()
             ->route('site.borrower.profile', ['section' => 'personal'])
             ->with('nida_result', ['status' => $status, 'level' => $level, 'message' => $message]);
+    }
+
+    public function storeAsset(Request $request): RedirectResponse
+    {
+        $customer = $this->customer();
+        $data = $request->validate([
+            'asset_type'          => ['required', 'string', 'max:40'],
+            'label'               => ['required', 'string', 'max:150'],
+            'description'         => ['nullable', 'string', 'max:2000'],
+            'registration_number' => ['nullable', 'string', 'max:80'],
+            'estimated_value'     => ['nullable', 'numeric', 'min:0'],
+            'photo'               => ['nullable', 'image', 'max:5120'],
+        ]);
+
+        app(\App\Services\CustomerAssetService::class)->store($customer, $data, $request->file('photo'));
+
+        return redirect()
+            ->route('site.borrower.profile', ['section' => 'assets'])
+            ->with('status', __('borrower.profile.asset_saved'));
+    }
+
+    public function destroyAsset(CustomerAsset $asset): RedirectResponse
+    {
+        abort_unless($asset->customer_id === $this->customer()->id, 403);
+        app(\App\Services\CustomerAssetService::class)->deactivate($asset);
+
+        return redirect()
+            ->route('site.borrower.profile', ['section' => 'assets'])
+            ->with('status', __('borrower.profile.asset_removed'));
     }
 }

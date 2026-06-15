@@ -1,4 +1,4 @@
-@props(['title' => 'Vendor portal — Kopafasta', 'active' => 'dashboard'])
+@props(['title' => 'Partner portal — Kopafasta', 'active' => 'dashboard'])
 
 @php
 $nav = [

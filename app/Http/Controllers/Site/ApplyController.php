@@ -184,7 +184,12 @@ class ApplyController extends Controller
         }
 
         $feeQuote = $selectedProduct
-            ? app(ApplicationFeePaymentService::class)->quote($customer, $selectedProduct)
+            ? app(ApplicationFeePaymentService::class)->quote(
+                $customer,
+                $selectedProduct,
+                (bool) old('use_wallet', false),
+                old('promo_code'),
+            )
             : null;
         $referralService = app(ReferralService::class);
         $referralWallet = $referralService->wallet($customer);
@@ -205,6 +210,7 @@ class ApplyController extends Controller
         $request->session()->put('valuation_fee_payment_ref', $valuationFeePaymentRef);
         $assetTypeOptions = app(\App\Services\AssetBackedLoanService::class)->assetTypeOptions();
         $assetDocumentLabels = app(AssetBackedApplyService::class)->documentLabels();
+        $customerAssets = app(\App\Services\CustomerAssetService::class)->forCustomer($customer);
 
         return view('site.apply.wizard', compact(
             'products',
@@ -233,6 +239,7 @@ class ApplyController extends Controller
             'valuationFeePaymentRef',
             'assetTypeOptions',
             'assetDocumentLabels',
+            'customerAssets',
         ))->with('paymentGatewayDummy', payment_gateway_is_dummy())
             ->with('loanPurposes', loan_purpose_options())
             ->with('marketplaceOnlyCodes', marketplace_only_loan_codes())
@@ -515,6 +522,7 @@ class ApplyController extends Controller
             'channel'         => ['required', 'in:mobile_money,bank'],
             'payment_phone'   => [$dummyGateway ? 'nullable' : 'required_if:channel,mobile_money', 'nullable', 'string', 'max:20'],
             'use_wallet'      => ['nullable', 'boolean'],
+            'promo_code'      => ['nullable', 'string', 'max:40'],
         ]);
 
         $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
@@ -541,6 +549,7 @@ class ApplyController extends Controller
                 $product,
                 $paymentReference,
                 $request->boolean('use_wallet'),
+                $data['promo_code'] ?? null,
             );
             $drafts->saveApplicationFee($customer, $product->id, $feeState);
             $request->session()->forget('application_fee_payment_ref');
@@ -556,7 +565,13 @@ class ApplyController extends Controller
             return back()->with('status', $message);
         }
 
-        $feeState = $fees->processBankPending($customer, $product, $paymentReference);
+        $feeState = $fees->processBankPending(
+            $customer,
+            $product,
+            $paymentReference,
+            $request->boolean('use_wallet'),
+            $data['promo_code'] ?? null,
+        );
         $drafts->saveApplicationFee($customer, $product->id, $feeState);
         $request->session()->forget('application_fee_payment_ref');
 
@@ -752,9 +767,12 @@ class ApplyController extends Controller
             ->where('is_active', true)
             ->firstOrFail();
 
+        $useWallet = $request->boolean('use_wallet');
+        $promoCode = $request->query('promo_code');
+
         return response()->json([
             'amount' => quoted_application_fee($customer, $product),
-            'quote'  => $fees->quote($customer, $product),
+            'quote'  => $fees->quote($customer, $product, $useWallet, $promoCode),
         ]);
     }
 

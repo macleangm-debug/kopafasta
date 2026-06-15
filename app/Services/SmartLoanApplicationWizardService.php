@@ -142,7 +142,6 @@ class SmartLoanApplicationWizardService
 
         if ($isAssetBacked) {
             $steps[] = ['key' => 'asset_details', 'label' => __('borrower.apply.steps.asset_details'), 'skippable' => false, 'skipped' => false];
-            $steps[] = ['key' => 'valuation_fee', 'label' => __('borrower.apply.steps.valuation_fee'), 'skippable' => false, 'skipped' => false];
         } elseif (! $isAssetLending) {
             $steps[] = ['key' => 'quote', 'label' => __('borrower.apply.steps.quote'), 'skippable' => false, 'skipped' => false];
         } else {

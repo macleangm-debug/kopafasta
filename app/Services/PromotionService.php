@@ -62,12 +62,55 @@ class PromotionService
             return [
                 'promotion_discount' => 0.0,
                 'after_discount'     => round($amount, 2),
+                'promotion'          => null,
             ];
         }
 
         return [
             'promotion_discount' => $promotionDiscount,
             'after_discount'     => max(0, round($amount - $promotionDiscount, 2)),
+            'promotion'          => $this->active(type: 'fee_discount', appliesTo: $feeType)->first(),
+        ];
+    }
+
+    /** @return array{valid: bool, promotion_discount: float, after_discount: float, promotion: Promotion|null} */
+    public function applyPromoCode(string $code, string $feeType, float $amount): array
+    {
+        $promotion = Promotion::query()
+            ->where('code', strtoupper(trim($code)))
+            ->where('status', 'active')
+            ->first();
+
+        if (! $promotion || ! $promotion->isActive()) {
+            return [
+                'valid'              => false,
+                'promotion_discount' => 0.0,
+                'after_discount'     => round($amount, 2),
+                'promotion'          => null,
+            ];
+        }
+
+        if ($promotion->applies_to && $promotion->applies_to !== $feeType && $promotion->applies_to !== 'all') {
+            return [
+                'valid'              => false,
+                'promotion_discount' => 0.0,
+                'after_discount'     => round($amount, 2),
+                'promotion'          => null,
+            ];
+        }
+
+        $discount = 0.0;
+        if ($promotion->discount_amount) {
+            $discount = min($amount, (float) $promotion->discount_amount);
+        } elseif ($promotion->discount_percent) {
+            $discount = round($amount * ((float) $promotion->discount_percent / 100), 2);
+        }
+
+        return [
+            'valid'              => $discount > 0,
+            'promotion_discount' => $discount,
+            'after_discount'     => max(0, round($amount - $discount, 2)),
+            'promotion'          => $promotion,
         ];
     }
 }

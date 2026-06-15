@@ -20,6 +20,9 @@ class PartnerActivationService
         'legal_partner',
         'gps_installer',
         'capital',
+        'valuer',
+        'supplier',
+        'insurance',
     ];
 
     public function requiresActivation(Vendor $vendor): bool

@@ -60,8 +60,9 @@ class MembershipController extends Controller
 
         $baseFee = $isFirstTime ? $cfg['registration_fee'] : $cfg['renewal_fee'];
         $useWallet = (bool) old('use_wallet', false);
+        $promoCode = old('promo_code');
         $feeQuote = $isFirstTime
-            ? $this->membershipFeeQuote($customer, (float) $baseFee, $useWallet, $referrals)
+            ? app(\App\Services\PaymentGateService::class)->quote($customer, (float) $baseFee, 'registration_fee', $useWallet, $promoCode)
             : null;
         $referralWallet = $referrals->wallet($customer);
         $referralSettings = $referrals->settings();
@@ -91,6 +92,7 @@ class MembershipController extends Controller
             'channel'       => ['required', 'in:mobile_money,bank'],
             'payment_phone' => ['required_if:channel,mobile_money', 'nullable', 'string', 'max:20'],
             'use_wallet'    => ['nullable', 'boolean'],
+            'promo_code'    => ['nullable', 'string', 'max:40'],
         ]);
 
         $customer = $this->resolveCustomer($request);
@@ -106,9 +108,13 @@ class MembershipController extends Controller
         $cfg = MembershipService::config();
         $baseFee = $isFirstTime ? $cfg['registration_fee'] : $cfg['renewal_fee'];
         $useWallet = $isFirstTime && $request->boolean('use_wallet');
+        $promoCode = $data['promo_code'] ?? null;
         $paymentBreakdown = null;
+        $gate = app(\App\Services\PaymentGateService::class);
 
         if ($isFirstTime) {
+            $quote = $gate->quote($customer, (float) $baseFee, 'registration_fee', $useWallet, $promoCode);
+
             if ($data['channel'] === 'mobile_money') {
                 if ($referrals->referrer($customer)) {
                     $paymentBreakdown = $referrals->settleFee(
@@ -121,24 +127,6 @@ class MembershipController extends Controller
                     );
                 } else {
                     $affiliate = app(AffiliateService::class);
-                    $quote = $affiliate->quoteFee($customer, (float) $baseFee, 'registration_fee');
-                    $walletApplied = 0.0;
-
-                    if ($useWallet && $referrals->canUseWalletFor('registration_fee')) {
-                        $walletQuote = $referrals->quoteFee($customer, $quote['after_discount'], true, 'registration_fee', applyDiscount: false);
-                        $walletApplied = $walletQuote['wallet_applied'];
-
-                        if ($walletApplied > 0) {
-                            $referrals->debit(
-                                $customer,
-                                $walletApplied,
-                                'Applied to registration fee',
-                                \App\Models\MembershipHistory::class,
-                                null,
-                            );
-                        }
-                    }
-
                     $affiliate->accrueCommission(
                         $customer,
                         (float) $baseFee,
@@ -147,13 +135,20 @@ class MembershipController extends Controller
                         null,
                     );
 
-                    $paymentBreakdown = array_merge($quote, [
-                        'wallet_applied' => $walletApplied,
-                        'cash_due'       => max(0, round($quote['after_discount'] - $walletApplied, 2)),
-                    ]);
+                    if ($useWallet && $quote['wallet_applied'] > 0) {
+                        $referrals->debit(
+                            $customer,
+                            $quote['wallet_applied'],
+                            'Applied to registration fee',
+                            \App\Models\MembershipHistory::class,
+                            null,
+                        );
+                    }
+
+                    $paymentBreakdown = $quote;
                 }
             } else {
-                $paymentBreakdown = $this->membershipFeeQuote($customer, (float) $baseFee, $useWallet, $referrals);
+                $paymentBreakdown = $quote;
             }
         }
 
@@ -162,7 +157,7 @@ class MembershipController extends Controller
                 'customer'       => $customer,
                 'payment_type'   => 'registration_fee',
                 'payment_method' => 'mobile_money',
-                'amount'         => $paymentBreakdown['after_discount'] ?? $baseFee,
+                'amount'         => $paymentBreakdown['cash_due'] ?? $paymentBreakdown['after_discount'] ?? $baseFee,
                 'reference'      => $paymentReference,
                 'mobile_number'  => $data['payment_phone'] ?? null,
                 'auto_verify'    => payment_gateway_is_dummy(),

@@ -4,6 +4,6 @@
     subheading="Add a service partner"
     :action="route('admin.vendors.store')"
     :cancelUrl="route('admin.vendors.index')"
-    submitLabel="Create vendor">
+    submitLabel="Create partner">
     @include('admin.vendors._form', ['record' => null])
 </x-admin.create-page>

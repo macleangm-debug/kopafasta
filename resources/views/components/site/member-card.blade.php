@@ -30,6 +30,7 @@
     $name    = strtoupper(trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')));
     $memberNoRaw = MemberNumberFormatter::raw($customer->member_no);
     $memberNoDisplay = MemberNumberFormatter::display($customer->member_no);
+    $verifyUrl = $memberNoRaw ? route('site.member.verify', ['memberNo' => $memberNoRaw]) : null;
     $days    = max(0, (int) $customer->membershipDaysRemaining());
     $duration = (int) (\App\Services\MembershipService::config()['duration_days'] ?? 365);
     $pct     = $duration > 0 ? max(0, min(100, ($days / $duration) * 100)) : 0;
@@ -96,6 +97,17 @@
                 <dd class="font-semibold">{{ $expires }}</dd>
             </div>
         </dl>
+
+        @if ($verifyUrl)
+            <div class="relative mt-5 flex items-center gap-4 rounded-xl bg-black/15 px-4 py-4 ring-1 ring-white/20">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data={{ urlencode($verifyUrl) }}"
+                     alt="Membership QR code" class="size-[72px] rounded-lg bg-white p-1 shrink-0">
+                <div class="text-left min-w-0">
+                    <p class="text-[10px] uppercase tracking-widest text-white/70">Scan to verify</p>
+                    <p class="text-xs text-white/90 mt-1">Opens public member verification for this card.</p>
+                </div>
+            </div>
+        @endif
     </div>
 
     {{-- Circular status widget --}}

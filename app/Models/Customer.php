@@ -54,6 +54,11 @@ class Customer extends Model
         return $this->hasMany(CustomerDocument::class);
     }
 
+    public function assets(): HasMany
+    {
+        return $this->hasMany(CustomerAsset::class);
+    }
+
     public function faceVerifications(): HasMany
     {
         return $this->hasMany(FaceVerification::class);

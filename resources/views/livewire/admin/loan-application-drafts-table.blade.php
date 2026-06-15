@@ -67,8 +67,8 @@
                     </td>
                     <td class="px-5 py-3 text-right">
                         @if ($r->customer)
-                            <a href="{{ route('admin.customers.show', $r->customer) }}#customer-applications"
-                               class="text-xs font-medium text-amber-600 hover:text-amber-700">{{ __('admin.application_drafts.view_customer') }} →</a>
+                            <a href="{{ route('admin.loan-applications.incomplete.show', $r) }}"
+                               class="text-xs font-medium text-amber-600 hover:text-amber-700">{{ __('admin.application_drafts.view_application') }} →</a>
                         @endif
                     </td>
                 </tr>

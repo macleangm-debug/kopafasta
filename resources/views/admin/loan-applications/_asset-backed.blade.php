@@ -22,7 +22,7 @@
             <p class="text-sm text-gray-500 mb-4">Borrower has not submitted asset details yet.</p>
         @endif
 
-        @if ($asset?->valuation_fee_paid_at && ! in_array($asset->valuation_status, ['completed'], true))
+        @if ($asset && ! in_array($asset->valuation_status, ['completed'], true))
             <form method="POST" action="{{ route('admin.loan-applications.assign-valuer', $application) }}" class="flex flex-wrap gap-3 items-end border-t border-gray-100 pt-4">
                 @csrf
                 <div class="min-w-[220px]">

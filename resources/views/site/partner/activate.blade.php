@@ -1,7 +1,13 @@
 <x-site.layout :title="brand_title('Activate Partner Account')">
     <div class="max-w-md mx-auto py-10 px-4">
-        <h1 class="text-2xl font-bold mb-2">Activate your partner account</h1>
-        <p class="text-sm text-gray-600 mb-6">Set your password and PIN for {{ $vendor->name }}.</p>
+        <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">Partner portal</p>
+        <h1 class="text-2xl font-bold mb-2">Create your PIN</h1>
+        <p class="text-sm text-gray-600 mb-2">Partner: <strong>{{ $vendor->name }}</strong></p>
+        @if ($vendor->vendor_number)
+            <p class="text-sm text-gray-500 mb-6">Partner code: <span class="font-mono font-semibold">{{ $vendor->vendor_number }}</span></p>
+        @else
+            <div class="mb-6"></div>
+        @endif
 
         @if ($errors->any())
             <div class="mb-4 rounded-lg bg-rose-50 ring-1 ring-rose-200 px-4 py-3 text-sm text-rose-700">

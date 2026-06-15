@@ -139,13 +139,19 @@ class AssetMarketplaceController extends Controller
         $applyRequirements = $requirements->checklist($customer);
         $feeBreakdown = app(AssetMarketplaceFeeService::class)->breakdown($customer, $model);
         $paymentGatewayDummy = payment_gateway_is_dummy();
-        $reservationRef = 'RES-'.$reservation->id;
+        $paymentService = app(AssetReservationPaymentService::class);
+        $reservationRef = $paymentService->paymentReference($reservation, AssetReservationPaymentService::STEP_RESERVATION_FEE);
+        $depositRef = $paymentService->paymentReference($reservation, AssetReservationPaymentService::STEP_DEPOSIT);
         $bankAccounts = $accounts->bankAccountsForDisplay('asset_reservation_fee', $reservationRef);
         $mobileResolved = $accounts->resolve('asset_reservation_fee', 'mobile_money');
         $mobileDetails = $accounts->mobileMoneyDetails($mobileResolved['mobile_money_account'], $reservationRef);
-        $depositBankAccounts = $accounts->bankAccountsForDisplay('asset_deposit', $reservationRef);
+        $depositBankAccounts = $accounts->bankAccountsForDisplay('asset_deposit', $depositRef);
         $depositMobileResolved = $accounts->resolve('asset_deposit', 'mobile_money');
-        $depositMobileDetails = $accounts->mobileMoneyDetails($depositMobileResolved['mobile_money_account'], $reservationRef);
+        $depositMobileDetails = $accounts->mobileMoneyDetails($depositMobileResolved['mobile_money_account'], $depositRef);
+        $paymentService = app(AssetReservationPaymentService::class);
+        $reservationFeeQuote = $paymentService->quote($customer, $reservation, AssetReservationPaymentService::STEP_RESERVATION_FEE);
+        $depositQuote = $paymentService->quote($customer, $reservation, AssetReservationPaymentService::STEP_DEPOSIT);
+        $referralWallet = app(\App\Services\ReferralService::class)->wallet($customer);
 
         return view('site.borrower.marketplace.reserve', compact(
             'asset',
@@ -159,6 +165,10 @@ class AssetMarketplaceController extends Controller
             'mobileDetails',
             'depositBankAccounts',
             'depositMobileDetails',
+            'depositRef',
+            'reservationFeeQuote',
+            'depositQuote',
+            'referralWallet',
         ));
     }
 
@@ -179,6 +189,8 @@ class AssetMarketplaceController extends Controller
             'mobile_number'  => [payment_gateway_is_dummy() ? 'nullable' : 'required_if:payment_method,mobile_money', 'nullable', 'string', 'max:20'],
             'payment_date'   => ['nullable', 'date'],
             'proof'          => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'use_wallet'     => ['nullable', 'boolean'],
+            'promo_code'     => ['nullable', 'string', 'max:40'],
         ]);
 
         $checklist = app(ApplicationRequirementsService::class)->checklist($customer);
@@ -200,10 +212,16 @@ class AssetMarketplaceController extends Controller
                 'mobile_number'  => $data['mobile_number'] ?? null,
                 'payment_date'   => $data['payment_date'] ?? null,
                 'proof'          => $request->file('proof'),
-                'reference'      => 'RES-'.$reservation->id,
+                'reference'      => $payments->paymentReference($reservation, $data['step']),
+                'use_wallet'     => $request->boolean('use_wallet'),
+                'promo_code'     => $data['promo_code'] ?? null,
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return back()->withErrors($e->errors());
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->withInput()->with('error', __('borrower.marketplace.payment_failed'));
         }
 
         $this->auditBorrower('marketplace.reservation_payment', $reservation, [

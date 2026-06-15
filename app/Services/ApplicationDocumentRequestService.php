@@ -14,6 +14,10 @@ class ApplicationDocumentRequestService
 {
     /** @var list<string> */
     public const PRESET_LABELS = [
+        'Insurance About To Expire',
+        'Image Not Clear',
+        'Ownership Certificate Missing Page',
+        'Signature Not Visible',
         'Updated Bank Statement',
         'Updated Mobile Money Statement',
         'Additional Income Proof',

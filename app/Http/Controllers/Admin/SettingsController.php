@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class SettingsController extends Controller
 {
@@ -85,15 +86,33 @@ class SettingsController extends Controller
             'asset_recovery_clause' => ['nullable', 'string', 'max:2000'],
             'contract_sections'   => ['nullable', 'array'],
             'contract_sections.*' => ['nullable', 'boolean'],
+            'signature_image'     => ['nullable', 'image', 'mimes:png,jpeg,jpg,webp', 'max:5120'],
+            'stamp_image'         => ['nullable', 'image', 'mimes:png,jpeg,jpg,webp', 'max:5120'],
+            'remove_stamp'        => ['nullable', 'boolean'],
         ]);
 
+        $existing = Setting::group('legal');
+
+        if ($request->boolean('remove_stamp') && ! empty($existing['stamp_path'])) {
+            Storage::disk('public')->delete($existing['stamp_path']);
+            $data['stamp_path'] = '';
+        }
+
         if ($request->hasFile('signature_image')) {
+            if (! empty($existing['signature_path'])) {
+                Storage::disk('public')->delete($existing['signature_path']);
+            }
             $data['signature_path'] = $request->file('signature_image')->store('legal', 'public');
         }
 
         if ($request->hasFile('stamp_image')) {
+            if (! empty($existing['stamp_path'])) {
+                Storage::disk('public')->delete($existing['stamp_path']);
+            }
             $data['stamp_path'] = $request->file('stamp_image')->store('legal', 'public');
         }
+
+        unset($data['remove_stamp']);
 
         $sectionKeys = [
             'definitions', 'loan_terms', 'repayment_obligations', 'default_events',

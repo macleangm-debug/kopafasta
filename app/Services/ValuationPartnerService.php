@@ -26,12 +26,6 @@ class ValuationPartnerService
             ['asset_type' => 'saloon_car', 'valuation_status' => 'awaiting_valuation'],
         );
 
-        if (! $asset->valuation_fee_paid_at) {
-            throw ValidationException::withMessages([
-                'valuation' => 'Valuation fee must be paid before assigning a valuer.',
-            ]);
-        }
-
         $open = ValuationAssignment::query()
             ->where('loan_application_id', $application->id)
             ->whereIn('status', [ValuationAssignment::STATUS_ASSIGNED, ValuationAssignment::STATUS_IN_PROGRESS])

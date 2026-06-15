@@ -20,6 +20,7 @@ class VendorSeeder extends Seeder
             ['name' => 'Sanlam General TZ',      'category' => 'insurance',     'status' => 'active',   'phone' => '+255712000010', 'email' => 'claims@sanlam.co.tz'],
             ['name' => 'Heritage Insurance',     'category' => 'insurance',     'status' => 'active',   'phone' => '+255712000011', 'email' => 'corp@heritage.co.tz'],
             ['name' => 'Jubilee Allianz',        'category' => 'insurance',     'status' => 'inactive', 'phone' => '+255712000012', 'email' => 'biz@jubilee.tz'],
+            ['name' => 'Copper Fasta Valuer',      'category' => 'valuer',        'status' => 'active',   'phone' => '+255712000023', 'email' => 'valuer@copperfasta.test'],
             ['name' => 'Apex Valuers Ltd',       'category' => 'valuer',        'status' => 'active',   'phone' => '+255712000020', 'email' => 'reports@apex.tz'],
             ['name' => 'NovaCert Valuations',    'category' => 'valuer',        'status' => 'active',   'phone' => '+255712000021', 'email' => 'team@novacert.tz'],
             ['name' => 'PrimeAsset Valuers',     'category' => 'valuer',        'status' => 'inactive', 'phone' => '+255712000022', 'email' => 'info@primeasset.tz'],

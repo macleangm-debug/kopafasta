@@ -36,6 +36,47 @@ class AssetReservationPaymentService
         return $step === self::STEP_DEPOSIT ? 'reservation_fee_paid' : 'interest_confirmed';
     }
 
+    public function paymentReference(AssetReservation $reservation, string $step): string
+    {
+        $suffix = $step === self::STEP_DEPOSIT ? 'DEP' : 'FEE';
+
+        return 'RES-'.$reservation->id.'-'.$suffix;
+    }
+
+    public function gateFeeType(string $step): string
+    {
+        return $step === self::STEP_DEPOSIT ? 'asset_deposit' : 'application_fee';
+    }
+
+    /** @return array<string, mixed> */
+    public function quote(Customer $customer, AssetReservation $reservation, string $step, bool $useWallet = false, ?string $promoCode = null): array
+    {
+        $base = $this->amountFor($reservation, $step);
+        $cfg = MembershipService::config();
+
+        if ($base <= 0) {
+            return [
+                'base'           => 0,
+                'after_discount' => 0,
+                'discount'       => 0,
+                'total_discount' => 0,
+                'wallet_applied' => 0,
+                'cash_due'       => 0,
+                'wallet_usable'  => 0,
+                'wallet_allowed' => false,
+                'currency'       => $cfg['currency'],
+            ];
+        }
+
+        return app(PaymentGateService::class)->quote(
+            $customer,
+            $base,
+            $this->gateFeeType($step),
+            $useWallet,
+            $promoCode,
+        );
+    }
+
     public function isPaid(AssetReservation $reservation, string $step): bool
     {
         return $step === self::STEP_DEPOSIT
@@ -79,15 +120,51 @@ class AssetReservationPaymentService
             ]);
         }
 
+        $useWallet = (bool) ($data['use_wallet'] ?? false);
+        $promoCode = $data['promo_code'] ?? null;
+        $quote = $this->quote($customer, $reservation, $step, $useWallet, $promoCode);
+        $cashDue = (float) ($quote['cash_due'] ?? $quote['after_discount']);
+
+        if ($cashDue <= 0) {
+            app(PaymentGateService::class)->settle(
+                $customer,
+                $quote,
+                $this->gateFeeType($step),
+                AssetReservation::class,
+                (int) $reservation->id,
+                $useWallet,
+            );
+            $this->markPaidWithoutPayment($reservation, $step);
+
+            return CustomerPayment::make([
+                'reference'      => $data['reference'] ?? $this->paymentReference($reservation, $step),
+                'amount'         => 0,
+                'status'         => 'verified',
+                'payment_type'   => $this->paymentType($step),
+                'payment_method' => 'waived',
+            ]);
+        }
+
         $method = $data['payment_method'];
         $dummyGateway = $this->usesDummyGateway();
         $autoVerify = $method === 'mobile_money' || ($dummyGateway && $method === 'bank_transfer');
+
+        if ($autoVerify) {
+            app(PaymentGateService::class)->settle(
+                $customer,
+                $quote,
+                $this->gateFeeType($step),
+                AssetReservation::class,
+                (int) $reservation->id,
+                $useWallet,
+            );
+        }
 
         return app(CustomerPaymentService::class)->create([
             'customer'       => $customer,
             'payment_type'   => $this->paymentType($step),
             'payment_method' => $method,
-            'amount'         => $amount,
+            'amount'         => $cashDue,
             'mobile_number'  => $data['mobile_number'] ?? null,
             'payment_date'   => $data['payment_date'] ?? null,
             'proof'          => $data['proof'] ?? null,

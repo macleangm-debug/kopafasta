@@ -72,7 +72,7 @@ class PostApprovalFeePaymentService
     }
 
     /** @return array<string, mixed> */
-    public function quote(Customer $customer, LoanApplication $application, bool $useWallet = false): array
+    public function quote(Customer $customer, LoanApplication $application, bool $useWallet = false, ?string $promoCode = null): array
     {
         $application->loadMissing('postApprovalFees', 'product');
         $base = (float) $application->postApprovalFees
@@ -85,37 +85,26 @@ class PostApprovalFeePaymentService
                 'base'           => 0,
                 'after_discount' => 0,
                 'discount'       => 0,
+                'total_discount' => 0,
                 'wallet_applied' => 0,
                 'cash_due'       => 0,
-                'wallet_usable'  => false,
+                'wallet_usable'  => 0,
+                'wallet_allowed' => false,
                 'currency'       => $cfg['currency'],
             ];
         }
 
-        $referrals = app(ReferralService::class);
-
-        if ($referrals->referrer($customer)) {
-            $quote = $referrals->quoteFee($customer, $base, $useWallet, 'post_approval_fee', LoanApplication::class, (int) $application->id);
-
-            return array_merge($quote, [
-                'currency'      => $cfg['currency'],
-                'wallet_usable' => $referrals->canUseWalletFor('post_approval_fee'),
-            ]);
-        }
-
-        $affiliateQuote = app(AffiliateService::class)->quoteFee($customer, $base, 'post_approval_fee');
-        $walletQuote = $referrals->quoteFee($customer, $affiliateQuote['after_discount'], $useWallet, 'post_approval_fee', applyDiscount: false);
-
-        return array_merge($affiliateQuote, [
-            'wallet_usable'  => $walletQuote['wallet_usable'],
-            'wallet_applied' => $walletQuote['wallet_applied'],
-            'cash_due'       => max(0, round($affiliateQuote['after_discount'] - $walletQuote['wallet_applied'], 2)),
-            'currency'       => $cfg['currency'],
-        ]);
+        return app(PaymentGateService::class)->quote(
+            $customer,
+            $base,
+            'post_approval_fee',
+            $useWallet,
+            $promoCode,
+        );
     }
 
     /**
-     * @return array{payment: CustomerPayment, quote: array<string, mixed>}
+     * @return array{payment: CustomerPayment|null, quote: array<string, mixed>}
      */
     public function processMobileMoney(
         Customer $customer,
@@ -123,11 +112,12 @@ class PostApprovalFeePaymentService
         string $paymentReference,
         bool $useWallet = false,
         ?string $mobileNumber = null,
+        ?string $promoCode = null,
     ): array {
-        $quote = $this->quote($customer, $application, $useWallet);
-        $amount = (int) $quote['after_discount'];
+        $quote = $this->quote($customer, $application, $useWallet, $promoCode);
+        $cashDue = (int) ($quote['cash_due'] ?? $quote['after_discount']);
 
-        if ($amount <= 0) {
+        if ($cashDue <= 0) {
             app(PostApprovalFeeService::class)->markAllPaid($application, $customer, $useWallet);
 
             return [
@@ -140,13 +130,20 @@ class PostApprovalFeePaymentService
             return ['payment' => $existing, 'quote' => $quote];
         }
 
-        $this->settleDiscounts($customer, $application, $quote, $useWallet);
+        app(PaymentGateService::class)->settle(
+            $customer,
+            $quote,
+            'post_approval_fee',
+            LoanApplication::class,
+            (int) $application->id,
+            $useWallet,
+        );
 
         $payment = app(CustomerPaymentService::class)->create([
             'customer'       => $customer,
             'payment_type'   => 'post_approval_fee',
             'payment_method' => 'mobile_money',
-            'amount'         => $amount,
+            'amount'         => $cashDue,
             'loan_product'   => $application->product,
             'reference'      => $paymentReference,
             'source'         => $application,
@@ -158,7 +155,7 @@ class PostApprovalFeePaymentService
     }
 
     /**
-     * @return array{payment: CustomerPayment, quote: array<string, mixed>}
+     * @return array{payment: CustomerPayment|null, quote: array<string, mixed>}
      */
     public function processBankPending(
         Customer $customer,
@@ -166,11 +163,12 @@ class PostApprovalFeePaymentService
         string $paymentReference,
         bool $useWallet = false,
         ?string $paymentDate = null,
+        ?string $promoCode = null,
     ): array {
-        $quote = $this->quote($customer, $application, $useWallet);
-        $amount = (int) $quote['after_discount'];
+        $quote = $this->quote($customer, $application, $useWallet, $promoCode);
+        $cashDue = (int) ($quote['cash_due'] ?? $quote['after_discount']);
 
-        if ($amount <= 0) {
+        if ($cashDue <= 0) {
             app(PostApprovalFeeService::class)->markAllPaid($application, $customer, $useWallet);
 
             return [
@@ -183,13 +181,22 @@ class PostApprovalFeePaymentService
             return ['payment' => $existing, 'quote' => $quote];
         }
 
-        $this->settleDiscounts($customer, $application, $quote, $useWallet);
+        if ($this->usesDummyGateway()) {
+            app(PaymentGateService::class)->settle(
+                $customer,
+                $quote,
+                'post_approval_fee',
+                LoanApplication::class,
+                (int) $application->id,
+                $useWallet,
+            );
+        }
 
         $payment = app(CustomerPaymentService::class)->create([
             'customer'       => $customer,
             'payment_type'   => 'post_approval_fee',
             'payment_method' => 'bank_transfer',
-            'amount'         => $amount,
+            'amount'         => $cashDue,
             'loan_product'   => $application->product,
             'reference'      => $paymentReference,
             'source'         => $application,
@@ -198,39 +205,5 @@ class PostApprovalFeePaymentService
         ]);
 
         return ['payment' => $payment, 'quote' => $quote];
-    }
-
-    /** @param array<string, mixed> $quote */
-    private function settleDiscounts(Customer $customer, LoanApplication $application, array $quote, bool $useWallet): void
-    {
-        $base = (float) ($quote['base'] ?? 0);
-        $referrals = app(ReferralService::class);
-
-        if ($referrals->referrer($customer)) {
-            $referrals->settleFee($customer, $base, $useWallet, 'post_approval_fee', LoanApplication::class, (int) $application->id);
-
-            return;
-        }
-
-        app(AffiliateService::class)->accrueCommission(
-            $customer,
-            $base,
-            'post_approval_fee',
-            LoanApplication::class,
-            (int) $application->id,
-        );
-
-        if ($useWallet && $referrals->canUseWalletFor('post_approval_fee')) {
-            $walletApplied = (float) ($quote['wallet_applied'] ?? 0);
-            if ($walletApplied > 0) {
-                $referrals->debit(
-                    $customer,
-                    $walletApplied,
-                    'Applied to post-approval fee',
-                    LoanApplication::class,
-                    (int) $application->id,
-                );
-            }
-        }
     }
 }

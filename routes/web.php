@@ -77,6 +77,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
 
     Route::get('/marketplace', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'publicIndex'])->name('marketplace');
     Route::get('/marketplace/{assetId}', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'publicShow'])->name('marketplace.show');
+    Route::get('/verify/member/{memberNo}', [\App\Http\Controllers\Site\MemberVerificationController::class, 'show'])->name('member.verify');
+    Route::get('/verify/affiliate/{code}', [\App\Http\Controllers\Site\AffiliateVerificationController::class, 'show'])->name('affiliate.verify');
 
     // Public guarantor invitation (guest + logged-in users must both reach this page)
     Route::get('/guarantor-request/{token}', [\App\Http\Controllers\Site\PublicGuarantorController::class, 'show'])->name('guarantor.show');
@@ -110,6 +112,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
 
         Route::get('/partner/activate/{vendor}', [\App\Http\Controllers\Site\PartnerActivationController::class, 'show'])->name('partner.activate');
         Route::post('/partner/activate/{vendor}', [\App\Http\Controllers\Site\PartnerActivationController::class, 'store'])->name('partner.activate.post');
+        Route::get('/partner/start', [\App\Http\Controllers\Site\PartnerPortalController::class, 'start'])->name('partner.start');
+        Route::post('/partner/start', [\App\Http\Controllers\Site\PartnerPortalController::class, 'lookup'])->name('partner.start.lookup');
     });
 
     // Authenticated public area (explicit web guard)
@@ -223,8 +227,10 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::delete('/borrower/notifications/{notification}', [\App\Http\Controllers\Site\BorrowerController::class, 'clearNotification'])->name('borrower.notifications.item.clear');
             Route::post('/borrower/notifications/clear-all',       [\App\Http\Controllers\Site\BorrowerController::class, 'clearAllNotifications'])->name('borrower.notifications.clear-all');
             Route::get('/borrower/profile/wizard',              [\App\Http\Controllers\Site\BorrowerController::class, 'profileWizard'])->name('borrower.profile.wizard');
-            Route::get('/borrower/profile/{section?}',             [\App\Http\Controllers\Site\BorrowerController::class, 'profile'])->name('borrower.profile')->where('section', 'personal|activity|residence|kin|kyc|security|payment');
+            Route::get('/borrower/profile/{section?}',             [\App\Http\Controllers\Site\BorrowerController::class, 'profile'])->name('borrower.profile')->where('section', 'personal|activity|residence|kin|kyc|security|payment|assets');
             Route::put('/borrower/profile/{section}',              [\App\Http\Controllers\Site\BorrowerController::class, 'updateProfile'])->name('borrower.profile.update')->where('section', 'personal|activity|residence|kin|kyc|payment');
+            Route::post('/borrower/profile/assets',                  [\App\Http\Controllers\Site\BorrowerController::class, 'storeAsset'])->name('borrower.profile.assets.store');
+            Route::delete('/borrower/profile/assets/{asset}',        [\App\Http\Controllers\Site\BorrowerController::class, 'destroyAsset'])->name('borrower.profile.assets.destroy');
             Route::delete('/borrower/profile/payment-accounts/{account}', [\App\Http\Controllers\Site\BorrowerController::class, 'destroyPaymentAccount'])->name('borrower.profile.payment-accounts.destroy');
             Route::post('/borrower/profile/nida/verify',           [\App\Http\Controllers\Site\BorrowerController::class, 'verifyNida'])->name('borrower.profile.nida.verify');
             Route::post('/borrower/profile/nida/accept-names',    [\App\Http\Controllers\Site\BorrowerController::class, 'acceptNidaNames'])->name('borrower.profile.nida.accept-names');
@@ -278,6 +284,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
 
         // Legacy redirect
         Route::get('/vendor-portal', fn () => redirect()->route('site.vendor.dashboard'));
+        Route::get('/partner-portal', fn () => redirect()->route('site.vendor.dashboard'))->name('partner.dashboard');
 
         // ---- Investor / Capital Lender portal ----
         Route::get('/investor',                                 [\App\Http\Controllers\Site\InvestorController::class, 'dashboard'])    ->name('investor.dashboard');
@@ -350,6 +357,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::redirect('loan-applications/final-approvals', '/admin/loan-applications/pipeline/approved')->name('loan-applications.final-approvals');
         Route::view('loan-applications/rejected',         'admin.loan-applications.rejected')         ->name('loan-applications.rejected');
         Route::view('loan-applications/incomplete',      'admin.loan-applications.incomplete')      ->name('loan-applications.incomplete');
+        Route::get('loan-applications/incomplete/{draft}', [\App\Http\Controllers\Admin\LoanApplicationDraftController::class, 'show'])
+            ->name('loan-applications.incomplete.show');
         Route::get('loan-applications/wizard-data/{customer}', [LoanApplicationController::class, 'wizardCustomerData'])
             ->name('loan-applications.wizard-data');
         $registerResource('loan-applications', 'loan_application', LoanApplicationController::class);
@@ -460,6 +469,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('asset-requests/{assetRequest}', [\App\Http\Controllers\Admin\AssetRequestController::class, 'update'])->name('asset-requests.update');
         $registerResource('marketplace-assets', 'marketplace_asset', \App\Http\Controllers\Admin\MarketplaceAssetController::class);
         $registerResource('vendors', 'vendor', VendorController::class);
+        Route::post('vendors/{vendor}/affiliate-kyc/approve', [VendorController::class, 'approveAffiliateKyc'])->name('vendors.affiliate-kyc.approve');
+        Route::post('vendors/{vendor}/affiliate-kyc/reject', [VendorController::class, 'rejectAffiliateKyc'])->name('vendors.affiliate-kyc.reject');
         $registerResource('promotions', 'promotion', \App\Http\Controllers\Admin\PromotionController::class);
 
         // Capital

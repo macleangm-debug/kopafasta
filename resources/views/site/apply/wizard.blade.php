@@ -99,6 +99,14 @@
                   assetDocumentUploadUrl: @js(route('site.borrower.apply.asset-document')),
                   assetTypeOptions: @js($assetTypeOptions ?? []),
                   assetDocumentLabels: @js($assetDocumentLabels ?? []),
+                  customerAssets: @js(($customerAssets ?? collect())->map(fn ($a) => [
+                      'id' => $a->id,
+                      'asset_type' => $a->asset_type,
+                      'label' => $a->label,
+                      'description' => $a->description,
+                      'registration_number' => $a->registration_number,
+                      'estimated_value' => $a->estimated_value,
+                  ])->values()->all()),
                   valuationFeeAmount: {{ (int) ($valuationFeeAmount ?? 0) }},
                   paymentGatewayDummy: @js($paymentGatewayDummy ?? payment_gateway_is_dummy()),
                   savedDraft: @js($savedDraft ?? null),
@@ -370,6 +378,15 @@
                     <p class="text-sm text-gray-600 mb-5">{{ __('borrower.apply.asset_details.subtitle') }}</p>
                     <template x-if="current">
                         <div class="space-y-5">
+                            <div x-show="customerAssets.length" class="rounded-xl bg-sky-50 ring-1 ring-sky-200 p-4">
+                                <p class="text-sm font-semibold text-sky-900 mb-2">{{ __('borrower.apply.asset_details.choose_existing') }}</p>
+                                <select x-model="form.customer_asset_id" @change="applyExistingAsset()" class="w-full rounded-lg border-gray-300 text-sm">
+                                    <option value="">{{ __('borrower.apply.asset_details.new_asset') }}</option>
+                                    <template x-for="asset in customerAssets" :key="asset.id">
+                                        <option :value="asset.id" x-text="asset.label + (asset.registration_number ? ' · ' + asset.registration_number : '')"></option>
+                                    </template>
+                                </select>
+                            </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.asset_details.asset_type') }} <span class="text-rose-500">*</span></label>
                                 <select name="asset_type" x-model="form.asset_type" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
@@ -916,6 +933,7 @@
                 assetDocumentUploadUrl: config.assetDocumentUploadUrl || '',
                 assetTypeOptions: config.assetTypeOptions || {},
                 assetDocumentLabels: config.assetDocumentLabels || {},
+                customerAssets: config.customerAssets || [],
                 valuationFeeAmount: config.valuationFeeAmount || 0,
                 valuationFeeState: config.savedDraft?.valuation_fee || null,
                 valuationFeePaid: false,
@@ -928,6 +946,8 @@
                 feeChannel: 'mobile_money',
                 feePhone: @js(old('payment_phone', $customer->phone ?? '')),
                 feeUseWallet: false,
+                feePromoCode: '',
+                feeQuoteData: @js($feeQuote ?? null),
                 feePaying: false,
                 feePaymentReference: @js($applicationFeePaymentRef ?? null),
                 purposeLabels: config.purposeLabels,
@@ -1002,6 +1022,7 @@
                     external_district: '',
                     asset_type: '',
                     asset_description: '',
+                    customer_asset_id: '',
                 },
                 quote: { monthly: 0, weekly: 0, interest: 0, total: 0, fees: 0 },
                 review: { personal: '', residence: '', employment: '', nok: '', activity: '', guarantor: '', guarantorType: '', guarantorName: '', guarantorStatus: '' },
@@ -1147,6 +1168,10 @@
                 },
 
                 effectiveFeeAmount() {
+                    if (this.feeQuoteData) {
+                        const due = Number(this.feeQuoteData.cash_due ?? this.feeQuoteData.after_discount);
+                        if (due > 0) return due;
+                    }
                     const fromQuote = this.feeAmount();
                     const fromProduct = Number(this.current?.application_fee) || 0;
                     const fromReadiness = Number(this.readiness?.fees?.application) || 0;
@@ -1321,6 +1346,20 @@
                     }
                 },
 
+                applyExistingAsset() {
+                    const id = String(this.form.customer_asset_id || '');
+                    if (! id) return;
+                    const asset = (this.customerAssets || []).find(a => String(a.id) === id);
+                    if (! asset) return;
+                    this.form.asset_type = asset.asset_type || this.form.asset_type;
+                    this.form.asset_description = asset.description || asset.label || this.form.asset_description;
+                    if (asset.estimated_value && ! this.form.requested_amount) {
+                        this.form.requested_amount = Number(asset.estimated_value);
+                        this.updateQuote();
+                    }
+                    this.scheduleDraftSave();
+                },
+
                 async uploadAssetDocument(code, event) {
                     const file = event.target?.files?.[0];
                     if (! file || ! this.assetDocumentUploadUrl || ! this.form.loan_product_id) return;
@@ -1364,7 +1403,14 @@
                         return;
                     }
                     try {
-                        const url = `${this.applicationFeeQuoteUrl}?loan_product_id=${encodeURIComponent(this.form.loan_product_id)}`;
+                        const params = new URLSearchParams({
+                            loan_product_id: String(this.form.loan_product_id),
+                            use_wallet: this.feeUseWallet ? '1' : '0',
+                        });
+                        if (this.feePromoCode) {
+                            params.set('promo_code', this.feePromoCode);
+                        }
+                        const url = `${this.applicationFeeQuoteUrl}?${params.toString()}`;
                         const res = await fetch(url, {
                             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                             credentials: 'same-origin',
@@ -1373,6 +1419,9 @@
                         const data = await res.json();
                         if (data.amount !== undefined) {
                             this.applicationFee = data.amount;
+                        }
+                        if (data.quote) {
+                            this.feeQuoteData = data.quote;
                         }
                     } catch (e) {
                         console.warn('application fee quote failed', e);
@@ -1390,6 +1439,7 @@
                             channel: this.feeChannel || 'mobile_money',
                             payment_phone: this.feePhone || '',
                             use_wallet: !!this.feeUseWallet,
+                            promo_code: this.feePromoCode || null,
                         };
                         const res = await fetch(this.applicationFeePayUrl, {
                             method: 'POST',

@@ -38,20 +38,13 @@
                 @endforeach
             </ul>
             <div class="px-5 py-4 bg-gray-50 space-y-2">
-                @if ($feeQuote['discount'] > 0)
-                    <div class="flex items-center justify-between text-sm text-gray-600">
-                        <span>{{ __('borrower.post_approval_fees.subtotal') }}</span>
-                        <span>{{ format_money($feeQuote['base']) }}</span>
-                    </div>
-                    <div class="flex items-center justify-between text-sm text-emerald-700">
-                        <span>{{ __('borrower.post_approval_fees.referral_discount') }}</span>
-                        <span>- {{ format_money($feeQuote['discount']) }}</span>
-                    </div>
-                @endif
-                <div class="flex items-center justify-between">
-                    <span class="font-semibold">{{ __('borrower.post_approval_fees.total_due') }}</span>
-                    <span class="text-lg font-bold">{{ format_money($feeQuote['after_discount']) }}</span>
-                </div>
+                <x-site.payment-gate-breakdown
+                    :label="__('borrower.post_approval_fees.total_due')"
+                    currency="TZS"
+                    :quote="$feeQuote"
+                    variant="light"
+                    class="mb-0"
+                />
             </div>
         </div>
 
@@ -72,9 +65,18 @@
                 @csrf
 
                 <div class="rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white p-5">
-                    <p class="text-[10px] uppercase tracking-widest text-white/80">{{ __('borrower.post_approval_fees.page_title') }}</p>
-                    <p class="mt-1 text-2xl font-extrabold">TZS {{ format_number($feeQuote['after_discount']) }}</p>
+                    <x-site.payment-gate-breakdown
+                        :label="__('borrower.post_approval_fees.page_title')"
+                        currency="TZS"
+                        :quote="$feeQuote"
+                        class="mb-2"
+                    />
                     <p class="mt-2 text-xs text-white/90">{{ __('borrower.membership.payment_reference') }}: <span class="font-mono">{{ $paymentReference }}</span></p>
+                </div>
+
+                <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3 text-sm">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Promo code (optional)</label>
+                    <input type="text" name="promo_code" value="{{ old('promo_code') }}" maxlength="40" class="w-full rounded-lg border-gray-300 text-sm font-mono uppercase" placeholder="PROMO2026">
                 </div>
 
                 <div>
@@ -126,7 +128,7 @@
                     </label>
                 </div>
 
-                @if ($wallet->balance > 0 && ($maxWalletQuote['wallet_usable'] ?? 0) > 0)
+                @if (($feeQuote['wallet_allowed'] ?? false) && $wallet->balance > 0 && ($maxWalletQuote['wallet_usable'] ?? 0) > 0)
                     <label class="flex items-start gap-3 rounded-xl bg-indigo-50 ring-1 ring-indigo-200 px-4 py-3 text-sm cursor-pointer">
                         <input type="checkbox" name="use_wallet" value="1" class="mt-1 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
                         <span>{{ __('borrower.post_approval_fees.use_wallet', ['amount' => format_money(min($wallet->balance, $maxWalletQuote['wallet_usable'] ?? 0))]) }}</span>

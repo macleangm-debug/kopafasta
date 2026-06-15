@@ -20,7 +20,7 @@ class ApplicationFeePaymentService
     }
 
     /** @return array<string, mixed> */
-    public function quote(Customer $customer, LoanProduct $product): array
+    public function quote(Customer $customer, LoanProduct $product, bool $useWallet = false, ?string $promoCode = null): array
     {
         $base = (float) quoted_application_fee($customer, $product);
         $cfg = MembershipService::config();
@@ -30,35 +30,23 @@ class ApplicationFeePaymentService
                 'base'             => 0,
                 'after_discount'   => 0,
                 'discount'         => 0,
+                'total_discount'   => 0,
                 'wallet_applied'   => 0,
                 'cash_due'         => 0,
-                'wallet_usable'    => false,
+                'wallet_usable'    => 0,
+                'wallet_allowed'   => false,
                 'has_referrer'     => false,
                 'currency'         => $cfg['currency'],
             ];
         }
 
-        $referrals = app(ReferralService::class);
-        if ($referrals->referrer($customer)) {
-            $quote = $referrals->quoteFee($customer, $base, false, 'application_fee');
-
-            return array_merge($quote, [
-                'currency'      => $cfg['currency'],
-                'wallet_usable' => $referrals->canUseWalletFor('application_fee'),
-            ]);
-        }
-
-        $affiliateQuote = app(AffiliateService::class)->quoteFee($customer, $base, 'application_fee');
-        $walletQuote = $referrals->quoteFee($customer, $affiliateQuote['after_discount'], false, 'application_fee', applyDiscount: false);
-
-        return array_merge($affiliateQuote, [
-            'wallet_usable'  => $walletQuote['wallet_usable'],
-            'wallet_applied' => $walletQuote['wallet_applied'],
-            'cash_due'       => max(0, round($affiliateQuote['after_discount'] - $walletQuote['wallet_applied'], 2)),
-            'has_referrer'   => false,
-            'referrer'       => null,
-            'currency'       => $cfg['currency'],
-        ]);
+        return app(PaymentGateService::class)->quote(
+            $customer,
+            $base,
+            'application_fee',
+            $useWallet,
+            $promoCode,
+        );
     }
 
     /**
@@ -69,11 +57,14 @@ class ApplicationFeePaymentService
         LoanProduct $product,
         string $paymentReference,
         bool $useWallet = false,
+        ?string $promoCode = null,
     ): array {
-        $quote = $this->quote($customer, $product);
-        $amount = (int) $quote['after_discount'];
+        $quote = $this->quote($customer, $product, $useWallet, $promoCode);
+        $cashDue = (int) ($quote['cash_due'] ?? $quote['after_discount']);
 
-        if ($amount <= 0) {
+        if ($cashDue <= 0) {
+            app(PaymentGateService::class)->settle($customer, $quote, 'application_fee', null, null, $useWallet);
+
             return [
                 'status'    => 'waived',
                 'reference' => null,
@@ -83,31 +74,13 @@ class ApplicationFeePaymentService
             ];
         }
 
-        $referrals = app(ReferralService::class);
-        if ($referrals->referrer($customer)) {
-            $referrals->settleFee($customer, (float) $quote['base'], $useWallet, 'application_fee');
-        } else {
-            $walletApplied = 0.0;
-            if ($useWallet && $referrals->canUseWalletFor('application_fee')) {
-                $walletQuote = $referrals->quoteFee($customer, $quote['after_discount'], true, 'application_fee', applyDiscount: false);
-                $walletApplied = $walletQuote['wallet_applied'];
-                if ($walletApplied > 0) {
-                    $referrals->debit($customer, $walletApplied, 'Applied to loan application fee');
-                }
-            }
-
-            app(AffiliateService::class)->accrueCommission(
-                $customer,
-                (float) $quote['base'],
-                'application_fee',
-            );
-        }
+        app(PaymentGateService::class)->settle($customer, $quote, 'application_fee', null, null, $useWallet);
 
         $payment = app(CustomerPaymentService::class)->create([
             'customer'       => $customer,
             'payment_type'   => 'application_fee',
             'payment_method' => 'mobile_money',
-            'amount'         => $amount,
+            'amount'         => $cashDue,
             'loan_product'   => $product,
             'reference'      => $paymentReference,
             'auto_verify'    => true,
@@ -117,18 +90,25 @@ class ApplicationFeePaymentService
             'status'    => 'paid',
             'reference' => $payment->reference,
             'channel'   => $this->usesDummyGateway() ? 'dummy_mobile_money' : 'mobile_money',
-            'amount'    => $amount,
+            'amount'    => $cashDue,
             'paid_at'   => now()->toIso8601String(),
         ];
     }
 
     /** @return array{status: string, reference: string, channel: string, amount: int, paid_at: string|null} */
-    public function processBankPending(Customer $customer, LoanProduct $product, string $paymentReference): array
-    {
-        $quote = $this->quote($customer, $product);
-        $amount = (int) $quote['after_discount'];
+    public function processBankPending(
+        Customer $customer,
+        LoanProduct $product,
+        string $paymentReference,
+        bool $useWallet = false,
+        ?string $promoCode = null,
+    ): array {
+        $quote = $this->quote($customer, $product, $useWallet, $promoCode);
+        $cashDue = (int) ($quote['cash_due'] ?? $quote['after_discount']);
 
-        if ($amount <= 0) {
+        if ($cashDue <= 0) {
+            app(PaymentGateService::class)->settle($customer, $quote, 'application_fee', null, null, $useWallet);
+
             return [
                 'status'    => 'waived',
                 'reference' => $paymentReference,
@@ -140,11 +120,15 @@ class ApplicationFeePaymentService
 
         $autoVerify = $this->usesDummyGateway();
 
+        if ($autoVerify) {
+            app(PaymentGateService::class)->settle($customer, $quote, 'application_fee', null, null, $useWallet);
+        }
+
         $payment = app(CustomerPaymentService::class)->create([
             'customer'       => $customer,
             'payment_type'   => 'application_fee',
             'payment_method' => 'bank_transfer',
-            'amount'         => $amount,
+            'amount'         => $cashDue,
             'loan_product'   => $product,
             'reference'      => $paymentReference,
             'auto_verify'    => $autoVerify,
@@ -154,7 +138,7 @@ class ApplicationFeePaymentService
             'status'    => $autoVerify ? 'paid' : 'pending',
             'reference' => $payment->reference,
             'channel'   => $autoVerify ? 'dummy_bank' : 'bank',
-            'amount'    => $amount,
+            'amount'    => $cashDue,
             'paid_at'   => $autoVerify ? now()->toIso8601String() : null,
         ];
     }

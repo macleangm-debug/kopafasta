@@ -2,7 +2,7 @@
 
 return [
     'application_drafts' => [
-        'title'                    => 'Incomplete applications',
+        'title'                    => 'Applications in progress',
         'subtitle'                 => 'Borrowers who started an application but have not submitted it yet',
         'hint'                     => 'These are auto-saved wizard drafts (product selection or in-progress application). They are not submitted loan applications until the borrower completes and submits the form.',
         'all_phases'               => 'All phases',
@@ -14,6 +14,14 @@ return [
         'status'                   => 'Status',
         'actions'                  => 'Actions',
         'view_customer'            => 'View customer',
+        'view_application'         => 'View application',
+        'view_customer_profile'    => 'View customer profile',
+        'profile_completion'       => 'Profile completion',
+        'application_completion'   => 'Application completion',
+        'uploaded_documents'       => 'Uploaded documents',
+        'guarantor_status'         => 'Guarantor status',
+        'current_step'             => 'Current step',
+        'no_documents_yet'         => 'No documents uploaded in this draft yet.',
         'empty'                    => 'No incomplete applications right now.',
         'phase_details'            => 'Product / amount (not in wizard yet)',
         'phase_application'        => 'Application wizard',

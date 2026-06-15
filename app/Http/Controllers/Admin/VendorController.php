@@ -13,7 +13,7 @@ class VendorController extends ResourceController
     protected string $model = Vendor::class;
     protected string $routePrefix = 'admin.vendors';
     protected string $viewFolder = 'vendors';
-    protected string $singular = 'vendor';
+    protected string $singular = 'partner';
 
     protected function rules(?Model $model = null): array
     {
@@ -40,6 +40,15 @@ class VendorController extends ResourceController
             'recovery_commission_percent'    => ['nullable', 'numeric', 'min:0', 'max:100'],
             'recovery_markup_percent'        => ['nullable', 'numeric', 'min:0', 'max:100'],
         ];
+    }
+
+    public function create()
+    {
+        if (! request()->query('category')) {
+            return view('admin.vendors.choose-type', $this->formData());
+        }
+
+        return view("admin.{$this->viewFolder}.create", $this->formData());
     }
 
     protected function formData(?Model $record = null): array
@@ -152,5 +161,35 @@ class VendorController extends ResourceController
             ['record' => $record, 'affiliateStats' => $affiliateStats, 'recoveryStats' => $recoveryStats],
             $this->formData($record),
         ));
+    }
+
+    public function approveAffiliateKyc(Vendor $vendor): \Illuminate\Http\RedirectResponse
+    {
+        abort_unless($vendor->isAffiliate(), 404);
+
+        $vendor->update([
+            'affiliate_kyc_status' => 'verified',
+        ]);
+
+        $this->auditAdmin('vendor.affiliate_kyc.approved', $vendor);
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $vendor)
+            ->with('status', 'Affiliate KYC approved. Public verification is now active.');
+    }
+
+    public function rejectAffiliateKyc(Vendor $vendor): \Illuminate\Http\RedirectResponse
+    {
+        abort_unless($vendor->isAffiliate(), 404);
+
+        $vendor->update([
+            'affiliate_kyc_status' => 'rejected',
+        ]);
+
+        $this->auditAdmin('vendor.affiliate_kyc.rejected', $vendor);
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $vendor)
+            ->with('status', 'Affiliate KYC rejected. Partner can re-upload documents.');
     }
 }

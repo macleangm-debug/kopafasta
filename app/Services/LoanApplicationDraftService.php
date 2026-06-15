@@ -442,4 +442,64 @@ class LoanApplicationDraftService
 
         return max(0, min($fallbackIndex, max(0, $wizardSteps->count() - 1)));
     }
+
+    /** @return array<string, mixed> */
+    public function adminSnapshot(LoanApplicationDraft $draft): array
+    {
+        $draft->loadMissing(['customer', 'product']);
+        $customer = $draft->customer;
+        $product = $draft->product;
+
+        $profileCompletion = $customer
+            ? app(ProfileCompletionService::class)->completionSummary($customer)
+            : ['percent' => 0, 'remaining' => [], 'completed' => []];
+
+        $wizardSteps = ($customer && $product)
+            ? collect(app(SmartLoanApplicationWizardService::class)->borrowerStepPlan($customer, $product))
+                ->reject(fn (array $step) => $step['key'] === 'product')
+                ->values()
+            : collect();
+
+        $currentIndex = max(0, min((int) $draft->step, max(0, $wizardSteps->count() - 1)));
+        $applicationPercent = $wizardSteps->isEmpty()
+            ? 0
+            : (int) round(($currentIndex / max(1, $wizardSteps->count())) * 100);
+
+        $payload = $draft->payload ?? [];
+        $uploadedDocuments = collect($payload['asset_documents'] ?? [])
+            ->map(fn (array $doc) => $doc['label'] ?? $doc['code'] ?? 'Document')
+            ->values()
+            ->all();
+
+        $customerDocuments = $customer
+            ? $customer->documents()->with('documentType')->latest()->limit(10)->get()
+                ->map(fn ($doc) => $doc->documentType?->name ?? 'Document')
+                ->all()
+            : [];
+
+        $guarantor = $payload['external_guarantor'] ?? null;
+        $guarantorStatus = 'Not required';
+        if (is_array($guarantor) && ! empty($guarantor['invitation_url'])) {
+            $guarantorStatus = ! empty($guarantor['approved'])
+                ? 'Approved'
+                : (filled($guarantor['status_label'] ?? null) ? (string) $guarantor['status_label'] : 'Pending');
+        } elseif ($product && $customer) {
+            $requiresGuarantor = app(LoanPolicyService::class)->requiresGuarantorForApplication(
+                $product,
+                (float) (($payload['form']['requested_amount'] ?? 0) ?: ($product->min_amount ?? 0)),
+            );
+            if ($requiresGuarantor) {
+                $guarantorStatus = 'Not started';
+            }
+        }
+
+        return [
+            'profile_completion_percent'     => (int) ($profileCompletion['percent'] ?? 0),
+            'application_completion_percent' => $applicationPercent,
+            'uploaded_documents'             => array_values(array_unique(array_merge($uploadedDocuments, $customerDocuments))),
+            'guarantor_status'               => $guarantorStatus,
+            'current_step'                   => $this->progressLabel($draft),
+            'last_activity'                  => $draft->saved_at ?? $draft->updated_at,
+        ];
+    }
 }

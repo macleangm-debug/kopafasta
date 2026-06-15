@@ -1,11 +1,15 @@
 <x-site.borrower-layout :title="brand_title(__('borrower.marketplace.reserve_title'))" active="marketplace">
 
+    <div class="max-w-4xl mx-auto">
     <div class="mb-4">
         <a href="{{ route('site.borrower.marketplace.show', $asset['id']) }}" class="text-xs text-gray-500 hover:text-gray-700">← {{ __('borrower.marketplace.back_to_asset') }}</a>
     </div>
 
-    <h1 class="text-2xl font-bold mb-1">{{ __('borrower.marketplace.reserve_title') }}</h1>
-    <p class="text-sm text-gray-500 mb-6">{{ $asset['title'] }}</p>
+    <div class="mb-6">
+        <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">{{ brand_name() }} {{ __('borrower.marketplace.reserve_title') }}</p>
+        <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">{{ $asset['title'] }}</h1>
+        <p class="mt-1 text-sm text-gray-500">{{ __('borrower.marketplace.fees.payment_note') }}</p>
+    </div>
 
     @if (session('status'))
         <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
@@ -17,23 +21,10 @@
         <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-800">{{ session('warning') }}</div>
     @endif
 
-    <ol class="space-y-3 mb-8">
-        @php
-            $lastPhase = null;
-        @endphp
-        @foreach ($steps as $step)
-            @if (($step['phase'] ?? null) && $step['phase'] !== $lastPhase)
-                @php $lastPhase = $step['phase']; @endphp
-                <li class="pt-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">{{ __('borrower.marketplace.pipeline.'.$step['phase']) }}</li>
-            @endif
-            <li class="flex items-center gap-3 rounded-xl px-4 py-3 {{ $step['current'] ? 'bg-amber-50 ring-1 ring-amber-200' : ($step['done'] ? 'bg-emerald-50' : 'bg-gray-50') }}">
-                <span class="w-6 h-6 rounded-full grid place-items-center text-xs font-bold {{ $step['done'] ? 'bg-emerald-500 text-white' : ($step['current'] ? 'bg-amber-500 text-gray-900' : 'bg-gray-200 text-gray-500') }}">{{ $step['done'] ? '✓' : '•' }}</span>
-                <span class="text-sm {{ $step['done'] ? 'text-emerald-900' : 'text-gray-700' }}">{{ $step['label'] }}</span>
-            </li>
-        @endforeach
-    </ol>
+    @include('site.borrower.marketplace._wizard-steps', ['steps' => $steps])
 
-    <div class="grid lg:grid-cols-2 gap-6">
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 mb-6">
+        <div class="grid lg:grid-cols-2 gap-6">
         <div class="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
             <h2 class="font-semibold">{{ __('borrower.marketplace.asset_summary') }}</h2>
             <dl class="space-y-2 text-sm">
@@ -77,9 +68,10 @@
             @endif
             <p class="text-xs text-gray-500">{{ __('borrower.marketplace.fees.payment_note') }}</p>
         </div>
+        </div>
     </div>
 
-    <div class="mt-8 bg-white rounded-2xl border border-gray-200 p-6 max-w-2xl space-y-4">
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 max-w-2xl space-y-4">
         <h2 class="font-semibold">{{ __('borrower.marketplace.next_action') }}</h2>
 
         @php
@@ -155,6 +147,9 @@
                     'paymentReference' => $reservationRef ?? ('RES-'.$reservation->id),
                     'bankAccounts' => $bankAccounts ?? [],
                     'mobileDetails' => $mobileDetails ?? null,
+                    'reservationFeeQuote' => $reservationFeeQuote ?? null,
+                    'depositQuote' => $depositQuote ?? null,
+                    'referralWallet' => $referralWallet ?? null,
                 ])
             @endif
         @elseif ($reservation->status === 'reservation_fee_paid')
@@ -165,9 +160,12 @@
                     'amount' => $reservation->deposit_amount,
                     'assetId' => $asset['id'],
                     'paymentGatewayDummy' => $paymentGatewayDummy ?? payment_gateway_is_dummy(),
-                    'paymentReference' => $reservationRef ?? ('RES-'.$reservation->id),
+                    'paymentReference' => $depositRef ?? ('RES-'.$reservation->id.'-DEP'),
                     'bankAccounts' => $depositBankAccounts ?? ($bankAccounts ?? []),
                     'mobileDetails' => $depositMobileDetails ?? ($mobileDetails ?? null),
+                    'reservationFeeQuote' => $reservationFeeQuote ?? null,
+                    'depositQuote' => $depositQuote ?? null,
+                    'referralWallet' => $referralWallet ?? null,
                 ])
             @endif
         @elseif ($reservation->status === 'deposit_paid')
@@ -209,6 +207,7 @@
             <p class="text-sm text-emerald-700 font-semibold">{{ __('borrower.marketplace.in_progress') }}</p>
             <a href="{{ route('site.borrower.loans') }}" class="text-sm font-semibold text-amber-700 hover:underline mt-2 inline-block">{{ __('borrower.dashboard.view_all') }}</a>
         @endif
+    </div>
     </div>
 
 </x-site.borrower-layout>

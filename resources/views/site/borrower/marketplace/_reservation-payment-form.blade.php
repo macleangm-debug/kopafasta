@@ -1,5 +1,7 @@
 @php
     $channel = old('payment_method', 'mobile_money') === 'bank_transfer' ? 'bank_transfer' : 'mobile_money';
+    $feeQuote = $step === 'deposit' ? ($depositQuote ?? null) : ($reservationFeeQuote ?? null);
+    $cfg = \App\Services\MembershipService::config();
 @endphp
 
 @if ($paymentGatewayDummy ?? false)
@@ -8,17 +10,38 @@
     </div>
 @endif
 
-<form method="POST" action="{{ route('site.borrower.marketplace.reservation.pay', $assetId) }}" enctype="multipart/form-data" class="space-y-4 mt-4" x-data="{ channel: @js($channel) }">
+<form method="POST" action="{{ route('site.borrower.marketplace.reservation.pay', $assetId) }}" enctype="multipart/form-data" class="space-y-4 mt-4" x-data="{ channel: @js($channel), useWallet: {{ old('use_wallet') ? 'true' : 'false' }} }">
     @csrf
     <input type="hidden" name="step" value="{{ $step }}">
 
     <div class="rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white p-5">
-        <p class="text-[10px] uppercase tracking-widest text-white/80">{{ $step === 'deposit' ? __('borrower.marketplace.deposit') : __('borrower.marketplace.fees.application') }}</p>
-        <p class="mt-1 text-2xl font-extrabold">TZS {{ format_number($amount) }}</p>
+        @if ($feeQuote && ($feeQuote['base'] ?? 0) > 0)
+            <x-site.payment-gate-breakdown
+                :label="$step === 'deposit' ? __('borrower.marketplace.deposit') : __('borrower.marketplace.fees.application')"
+                :currency="$cfg['currency'] ?? 'TZS'"
+                :quote="$feeQuote"
+                class="mb-3"
+            />
+        @else
+            <p class="text-[10px] uppercase tracking-widest text-white/80">{{ $step === 'deposit' ? __('borrower.marketplace.deposit') : __('borrower.marketplace.fees.application') }}</p>
+            <p class="mt-1 text-2xl font-extrabold">TZS {{ format_number($amount) }}</p>
+        @endif
         @if (! empty($paymentReference))
             <p class="mt-2 text-xs text-white/90">{{ __('borrower.membership.payment_reference') }}: <span class="font-mono">{{ $paymentReference }}</span></p>
         @endif
     </div>
+
+    <div class="rounded-xl bg-white ring-1 ring-gray-200 px-4 py-3 text-sm">
+        <label class="block text-xs font-semibold text-gray-600 mb-1">Promo code (optional)</label>
+        <input type="text" name="promo_code" value="{{ old('promo_code') }}" maxlength="40" class="w-full rounded-lg border-gray-300 text-sm font-mono uppercase" placeholder="PROMO2026">
+    </div>
+
+    @if (($feeQuote['wallet_allowed'] ?? false) && ($referralWallet->balance ?? 0) > 0)
+        <label class="flex items-start gap-3 rounded-xl bg-indigo-50 ring-1 ring-indigo-200 px-4 py-3 text-sm cursor-pointer">
+            <input type="checkbox" name="use_wallet" value="1" x-model="useWallet" class="mt-1 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
+            <span>Use referral wallet ({{ format_money($referralWallet->balance) }} available)</span>
+        </label>
+    @endif
 
     <div>
         <p class="text-xs uppercase tracking-wider text-gray-500 mb-2">{{ __('borrower.marketplace.payment_method') }}</p>

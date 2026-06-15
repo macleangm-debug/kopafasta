@@ -27,12 +27,18 @@
 
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <h3 class="text-sm font-semibold text-gray-900 mb-1">Company stamp</h3>
-            <p class="text-xs text-gray-500 mb-4">Upload your official company stamp (transparent PNG recommended).</p>
+            <p class="text-xs text-gray-500 mb-4">Upload or replace your official company stamp (transparent PNG recommended).</p>
             <div>
                 @if (! empty($values['stamp_path']))
                     <img src="{{ asset('storage/'.$values['stamp_path']) }}" alt="Company stamp" class="h-24 mb-3 object-contain">
+                    <label class="flex items-center gap-2 text-sm text-gray-600 mb-3">
+                        <input type="checkbox" name="remove_stamp" value="1" class="rounded border-gray-300 text-amber-600">
+                        Remove current stamp
+                    </label>
                 @endif
-                <input type="file" name="stamp_image" accept="image/png,image/webp" class="block w-full text-sm text-gray-600">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Replace stamp</label>
+                <input type="file" name="stamp_image" accept="image/png,image/jpeg,image/jpg,image/webp" class="block w-full text-sm text-gray-600">
+                <p class="text-xs text-gray-500 mt-1">PNG, JPG, or WebP. Max 5 MB.</p>
             </div>
         </div>
 
