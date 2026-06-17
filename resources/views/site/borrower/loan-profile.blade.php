@@ -1,6 +1,7 @@
 <x-site.borrower-layout
     :title="brand_title($profile['summary']['application_number'] ?? __('borrower.loan_profile.title'))"
-    active="loans">
+    active="loans"
+    content-width="wide">
 
     @php
         $summary = $profile['summary'];
@@ -62,6 +63,8 @@
     @if (! ($profile['is_draft'] ?? false) && ! empty($profile['disbursement_checklist']))
         @include('site.borrower.loan-profile._disbursement_checklist', ['checklist' => $profile['disbursement_checklist']])
     @endif
+
+    @include('site.borrower.loan-profile._handover_milestones', ['profile' => $profile])
 
     {{-- Application summary --}}
     <div class="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
@@ -183,7 +186,9 @@
         </div>
     @endif
 
-    @if (! ($profile['is_draft'] ?? false) && $application)
+    @if ($profile['is_draft'] ?? false)
+        @include('site.borrower.loan-profile._draft_sections', ['profile' => $profile])
+    @elseif ($application)
         @include('site.borrower.loan-profile._submitted', ['profile' => $profile, 'application' => $application, 'customer' => $customer])
     @endif
 

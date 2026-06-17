@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.referrals.title'))" active="referrals">
+<x-site.borrower-layout :title="brand_title(__('borrower.referrals.title'))" active="referrals" content-width="wide">
 
     <div class="mb-6">
         <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">{{ __('borrower.referrals.grow') }}</p>
@@ -15,7 +15,7 @@
             <p class="mt-2 text-sm break-all text-indigo-100 bg-white/10 rounded-xl px-4 py-3">{{ $referralLink }}</p>
 
             <div class="mt-6">
-                <x-site.referral-share :link="$referralLink" :code="$referralCode" />
+                <x-site.referral-share :link="$referralLink" :code="$referralCode" :message="$referralShareMessage ?? null" />
             </div>
 
             <p class="mt-6 text-xs text-indigo-200">

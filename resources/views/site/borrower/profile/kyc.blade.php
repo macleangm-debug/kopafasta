@@ -1,6 +1,6 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.profile.title'))" active="profile">
+<x-site.borrower-layout :title="brand_title(__('borrower.profile.title'))" active="profile" content-width="wide">
 
-    <div class="max-w-3xl">
+    <div>
         @include('site.borrower.profile._profile_shell', [
             'title' => __('borrower.profile.title'),
             'subtitle' => __('borrower.profile.kyc_subtitle'),

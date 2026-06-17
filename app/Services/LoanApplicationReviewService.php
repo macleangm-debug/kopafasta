@@ -244,6 +244,29 @@ class LoanApplicationReviewService
             ];
         }
 
+        $asset = $this->assetSummary($application);
+        $lending = app(\App\Services\AssetLendingService::class);
+        $needsInsurance = $asset && (
+            $lending->isAssetLendingApplication($application)
+            || (bool) ($lending->categoryRequirements($asset['category'])['insurance_required'] ?? false)
+        );
+
+        if ($needsInsurance) {
+            $insurance = $asset['insurance_status'];
+            $items[] = [
+                'key'    => 'asset_insurance',
+                'label'  => 'Asset insurance',
+                'status' => match ($insurance['status']) {
+                    'valid'    => 'complete',
+                    'expiring' => 'review',
+                    'expired', 'missing' => 'blocked',
+                    default    => 'pending',
+                },
+                'tone'   => $insurance['tone'],
+                'detail' => $insurance['detail'],
+            ];
+        }
+
         return $items;
     }
 
@@ -276,6 +299,9 @@ class LoanApplicationReviewService
             'chassis_number'       => $asset->chassis_number,
             'engine_number'        => $asset->engine_number,
             'insurance_policy_number' => $asset->insurance_policy_number,
+            'insurance_expires_at'    => $asset->insurance_expires_at,
+            'waiting_period_days'     => $asset->waiting_period_days,
+            'insurance_status'        => app(\App\Services\AssetLendingService::class)->insuranceStatus($asset->insurance_expires_at),
         ];
     }
 

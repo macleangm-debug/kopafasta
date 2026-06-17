@@ -1,7 +1,7 @@
 <div>
-<x-admin.table-shell :records="$rows" :statuses="$statuses" searchPlaceholder="{{ ($affiliateMode ?? false) ? 'Search affiliate partner name, code, phone…' : 'Search vendor name, number, phone…' }}">
+<x-admin.table-shell :records="$rows" :statuses="$statuses" searchPlaceholder="{{ ($affiliateMode ?? false) ? 'Search affiliate partner name, code, phone…' : 'Search partner name, code, phone…' }}">
     <x-slot:headers>
-        <x-admin.th :sort="$sort" :direction="$direction" col="vendor_number" :label="($affiliateMode ?? false) ? 'Partner #' : 'Vendor #'" />
+        <x-admin.th :sort="$sort" :direction="$direction" col="vendor_number" :label="($affiliateMode ?? false) ? 'Partner #' : 'Partner #'" />
         <x-admin.th :sort="$sort" :direction="$direction" col="name"          label="Name" />
         @if ($affiliateMode ?? false)
             <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Affiliate code</th>
@@ -19,7 +19,7 @@
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3 font-mono text-xs text-gray-500">{{ $r->vendor_number }}</td>
                 <td class="px-5 py-3 font-medium">
-                    <a href="{{ route('admin.vendors.show', $r) }}" class="text-amber-700 hover:underline">{{ $r->name }}</a>
+                    <a href="{{ route('admin.partners.show', $r) }}" class="text-amber-700 hover:underline">{{ $r->name }}</a>
                 </td>
                 @if ($affiliateMode ?? false)
                     <td class="px-5 py-3 font-mono text-xs">{{ $r->affiliate_code ?: '—' }}</td>
@@ -43,11 +43,11 @@
                     ]" />
                 </td>
                 <td class="px-5 py-3 text-right text-sm">
-                    <a href="{{ route('admin.vendors.edit', $r) }}" class="text-gray-600 hover:text-amber-700">Edit</a>
+                    <a href="{{ route('admin.partners.edit', $r) }}" class="text-gray-600 hover:text-amber-700">Edit</a>
                 </td>
             </tr>
         @empty
-            <tr><td colspan="{{ ($affiliateMode ?? false) ? 8 : 6 }}" class="px-5 py-12 text-center text-gray-500">{{ ($affiliateMode ?? false) ? 'No affiliate partners found.' : 'No vendors found.' }}</td></tr>
+            <tr><td colspan="{{ ($affiliateMode ?? false) ? 8 : 6 }}" class="px-5 py-12 text-center text-gray-500">{{ ($affiliateMode ?? false) ? 'No affiliate partners found.' : 'No partners found.' }}</td></tr>
         @endforelse
     </x-slot:rows>
 </x-admin.table-shell>

@@ -9,6 +9,7 @@
     'backLabel' => 'Back',
     'submitLabel' => 'Save changes',
     'deleteConfirm' => 'Delete this record? This cannot be undone.',
+    'enctype' => null,
 ])
 
 <x-admin.layout
@@ -19,7 +20,7 @@
     :backLabel="$backLabel">
 
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
-        <form method="POST" action="{{ $action }}" class="space-y-6">
+        <form method="POST" action="{{ $action }}" @if ($enctype) enctype="{{ $enctype }}" @endif class="space-y-6">
             @csrf
             @method('PUT')
 

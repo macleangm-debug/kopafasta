@@ -39,7 +39,7 @@
                         <td class="px-4 py-3 font-semibold">{{ $fmt($p->amount) }}</td>
                         <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-{{ $pc }}-100 text-{{ $pc }}-700">{{ $p->status }}</span></td>
                         <td class="px-4 py-3 text-gray-600">{{ $p->paid_at?->format('d M Y') ?? '—' }}</td>
-                        <td class="px-4 py-3 text-right"><a href="{{ route('site.vendor.invoice', $p) }}" class="text-indigo-600 hover:underline text-sm font-semibold">Invoice</a></td>
+                        <td class="px-4 py-3 text-right"><a href="{{ route('site.partner.invoice', $p) }}" class="text-indigo-600 hover:underline text-sm font-semibold">Invoice</a></td>
                     </tr>
                 @empty
                     <tr><td colspan="6" class="px-4 py-10 text-center text-gray-500 text-sm">No invoices yet.</td></tr>

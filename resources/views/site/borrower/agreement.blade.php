@@ -1,7 +1,7 @@
-<x-site.borrower-layout :title="brand_title('Offer — '.$application->application_number)" active="loans">
+<x-site.borrower-layout :title="brand_title(__('borrower.agreement.page_title', ['number' => $application->application_number]))" active="loans" content-width="wide">
 
-    <div class="max-w-3xl mx-auto">
-        <a href="{{ route('site.borrower.application', $application) }}" class="text-sm text-amber-700 hover:underline">&larr; Back to application</a>
+    <div>
+        <a href="{{ route('site.borrower.application', $application) }}" class="text-sm text-amber-700 hover:underline">&larr; {{ __('borrower.agreement.back_to_application') }}</a>
 
         @if (session('status'))
             <div class="mt-3 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
@@ -16,46 +16,56 @@
         <div class="mt-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
             <div class="bg-gradient-to-r from-gray-900 to-amber-900 text-white px-6 py-4 flex items-center justify-between gap-3">
                 <x-site.brand-mark size="sm" variant="light" />
-                <span class="text-xs uppercase tracking-widest text-white/80">Offer summary</span>
+                <span class="text-xs uppercase tracking-widest text-white/80">{{ __('borrower.agreement.offer_summary') }}</span>
             </div>
             <div class="p-6">
             <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">{{ __('borrower.offer.label') }}</p>
             <h1 class="text-xl font-bold text-gray-900">{{ __('borrower.offer.title') }}</h1>
             <p class="text-sm text-gray-600 mt-1">{{ __('borrower.offer.intro_approved', ['reference' => $application->application_number]) }}</p>
 
+            @php
+                $documentStatuses = __('borrower.agreement.document_statuses');
+                $repaymentCadences = __('borrower.agreement.repayment_cadences');
+            @endphp
+
             @if (! $agreement)
                 <div class="mt-6 rounded-lg bg-gray-50 ring-1 ring-gray-200 p-5 text-sm text-gray-700">
-                    Your offer has not been issued yet. Once your application is approved, the credit team will issue a formal offer here for your acceptance.
+                    {{ __('borrower.agreement.not_issued_yet') }}
                 </div>
             @else
                 @php
                     $snap = $agreement->snapshot ?? [];
+                    $statusLabel = match (true) {
+                        $agreement->status === 'signed' => __('borrower.agreement.status_accepted'),
+                        $agreement->isCancelled() => __('borrower.applications_list.statuses.offer_declined'),
+                        default => $documentStatuses[$agreement->status] ?? ucfirst($agreement->status),
+                    };
                 @endphp
 
                 <div class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                    <div><div class="text-xs uppercase text-gray-500">Reference</div><div class="font-mono text-gray-900">{{ $agreement->reference }}</div></div>
-                    <div><div class="text-xs uppercase text-gray-500">Status</div>
+                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.agreement.reference') }}</div><div class="font-mono text-gray-900">{{ $agreement->reference }}</div></div>
+                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.agreement.status') }}</div>
                         <span @class([
                             'inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold uppercase',
                             'bg-emerald-100 text-emerald-800' => $agreement->status === 'signed',
                             'bg-amber-100 text-amber-800'     => $agreement->status === 'sent',
                             'bg-gray-100 text-gray-700'       => in_array($agreement->status, ['draft','expired','cancelled']),
-                        ])>{{ $agreement->status === 'signed' ? 'Accepted' : ($agreement->isCancelled() ? __('borrower.applications_list.statuses.offer_declined') : ucfirst($agreement->status)) }}</span>
+                        ])>{{ $statusLabel }}</span>
                     </div>
-                    <div><div class="text-xs uppercase text-gray-500">Approved amount</div><div class="text-gray-900 font-semibold">{{ format_money($snap['principal'] ?? 0) }}</div></div>
-                    <div><div class="text-xs uppercase text-gray-500">Interest rate</div><div class="text-gray-900">{{ format_number(($snap['interest_rate'] ?? 0) * 100, 2) }}% / month</div></div>
-                    <div><div class="text-xs uppercase text-gray-500">Tenure</div><div class="text-gray-900">{{ $snap['tenure_months'] ?? '—' }} months</div></div>
-                    <div><div class="text-xs uppercase text-gray-500">Instalment amount</div><div class="text-gray-900">{{ format_money($snap['estimated_emi'] ?? 0) }}</div></div>
-                    <div><div class="text-xs uppercase text-gray-500">Repayment frequency</div><div class="text-gray-900">{{ ucfirst($snap['repayment_cadence'] ?? 'weekly') }}</div></div>
-                    <div><div class="text-xs uppercase text-gray-500">Number of instalments</div><div class="text-gray-900">{{ $snap['installment_count'] ?? count($snap['repayment_schedule'] ?? []) }}</div></div>
-                    <div class="sm:col-span-2"><div class="text-xs uppercase text-gray-500">Total repayable</div><div class="text-gray-900 font-semibold">{{ format_money($snap['total_repayable'] ?? 0) }}</div></div>
+                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.agreement.approved_amount') }}</div><div class="text-gray-900 font-semibold">{{ format_money($snap['principal'] ?? 0) }}</div></div>
+                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.agreement.interest_rate') }}</div><div class="text-gray-900">{{ __('borrower.agreement.interest_rate_monthly', ['rate' => format_number(($snap['interest_rate'] ?? 0) * 100, 2)]) }}</div></div>
+                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.agreement.tenure') }}</div><div class="text-gray-900">{{ __('borrower.agreement.tenure_months', ['count' => $snap['tenure_months'] ?? '—']) }}</div></div>
+                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.agreement.installment_amount') }}</div><div class="text-gray-900">{{ format_money($snap['estimated_emi'] ?? 0) }}</div></div>
+                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.agreement.repayment_frequency') }}</div><div class="text-gray-900">{{ $repaymentCadences[$snap['repayment_cadence'] ?? 'weekly'] ?? ucfirst($snap['repayment_cadence'] ?? 'weekly') }}</div></div>
+                    <div><div class="text-xs uppercase text-gray-500">{{ __('borrower.agreement.number_of_installments') }}</div><div class="text-gray-900">{{ $snap['installment_count'] ?? count($snap['repayment_schedule'] ?? []) }}</div></div>
+                    <div class="sm:col-span-2"><div class="text-xs uppercase text-gray-500">{{ __('borrower.agreement.total_repayable') }}</div><div class="text-gray-900 font-semibold">{{ format_money($snap['total_repayable'] ?? 0) }}</div></div>
                     @if ($agreement->expires_at)
-                        <div class="sm:col-span-2"><div class="text-xs uppercase text-gray-500">Offer expires</div><div class="text-gray-900">{{ $agreement->expires_at->format('d M Y, H:i') }}</div></div>
+                        <div class="sm:col-span-2"><div class="text-xs uppercase text-gray-500">{{ __('borrower.agreement.offer_expires') }}</div><div class="text-gray-900">{{ $agreement->expires_at->format('d M Y, H:i') }}</div></div>
                     @endif
                 </div>
 
                 <p class="mt-4 text-xs text-gray-500 rounded-lg bg-sky-50 ring-1 ring-sky-100 px-3 py-2">
-                    Repayment dates are not shown because disbursement has not happened yet. Actual due dates will be set after the loan is funded.
+                    {{ __('borrower.agreement.schedule_dates_note') }}
                 </p>
 
                 @if ($agreement->isOfferExpired())

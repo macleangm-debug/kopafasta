@@ -39,14 +39,15 @@ class BorrowerPaymentLedgerService
                 'id'         => $refund->id,
                 'date'       => $refund->created_at,
                 'reference'  => $refund->reference,
-                'type_label' => 'Refund',
+                'type_label' => __('borrower.payments_page.refund.title'),
                 'amount'     => (float) $refund->amount,
                 'status'     => $refund->status,
-                'status_label' => str_replace('_', ' ', ucfirst($refund->status)),
+                'status_label' => __('borrower.payments_page.refund.statuses.'.$refund->status)
+                    ?: str_replace('_', ' ', ucfirst($refund->status)),
                 'url'        => route('site.borrower.payments.refund', $refund),
             ]);
 
-        return $payments->merge($refunds)
+        return collect($payments)->merge($refunds)
             ->sortByDesc(fn (array $row) => $row['date']?->timestamp ?? 0)
             ->values()
             ->take($limit);

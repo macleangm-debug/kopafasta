@@ -29,14 +29,22 @@ class OriginationPartnerController extends Controller
     public function assignValuer(Request $request, LoanApplication $loanApplication, ValuationPartnerService $service): RedirectResponse
     {
         $data = $request->validate([
-            'vendor_id' => ['required', 'exists:vendors,id'],
+            'vendor_id' => ['nullable', 'exists:vendors,id'],
+            'auto'      => ['nullable', 'boolean'],
             'notes'     => ['nullable', 'string', 'max:500'],
         ]);
 
-        $valuer = Vendor::findOrFail($data['vendor_id']);
+        $valuer = filled($data['vendor_id'] ?? null)
+            ? Vendor::findOrFail($data['vendor_id'])
+            : ($request->boolean('auto') ? $service->suggestValuer($loanApplication) : null);
+
+        if (! $valuer) {
+            return back()->with('error', 'No matching valuer found for the borrower region. Assign manually or update partner regions.');
+        }
+
         $service->assign($loanApplication, $valuer, $request->user(), $data['notes'] ?? null);
 
-        return back()->with('status', 'Valuation partner assigned.');
+        return back()->with('status', 'Valuation partner assigned: '.$valuer->name.'.');
     }
 
     public function addManualFee(Request $request, LoanApplication $loanApplication, PostApprovalFeeService $fees): RedirectResponse

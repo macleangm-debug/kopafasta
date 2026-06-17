@@ -1,6 +1,6 @@
 @php
     use App\Support\RatePercent;
-    $total = is_numeric($row['monthly_rate'] ?? null)
+    $total = is_numeric($row['monthly_rate'] ?? null) && (float) ($row['monthly_rate'] ?? 0) <= 1
         ? (float) $row['monthly_rate']
         : \App\Models\LoanProductRateTier::totalFromComponents(
             RatePercent::toDecimal($row['bot_regulated_rate'] ?? 0),
@@ -29,25 +29,25 @@
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">BOT rate</label>
                     <input type="text" inputmode="decimal" name="rate_tiers[{{ $index }}][bot_regulated_rate]" data-tier-component data-tier-bot
-                           value="{{ $row['bot_regulated_rate'] ?? '3.5' }}" placeholder="3.5"
+                           value="{{ RatePercent::forInput($row['bot_regulated_rate'] ?? 3.5) }}" placeholder="3.5"
                            class="w-full text-sm rounded-lg border-gray-300 px-3 py-2 focus:border-amber-500 focus:ring-amber-500/20">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Processing rate</label>
                     <input type="text" inputmode="decimal" name="rate_tiers[{{ $index }}][processing_fee_rate]" data-tier-component data-tier-processing
-                           value="{{ $row['processing_fee_rate'] ?? '' }}" placeholder="5"
+                           value="{{ RatePercent::forInput($row['processing_fee_rate'] ?? null) }}" placeholder="5"
                            class="w-full text-sm rounded-lg border-gray-300 px-3 py-2 focus:border-amber-500 focus:ring-amber-500/20">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Risk rate</label>
                     <input type="text" inputmode="decimal" name="rate_tiers[{{ $index }}][service_fee_rate]" data-tier-component data-tier-risk
-                           value="{{ $row['service_fee_rate'] ?? '' }}" placeholder="3.5"
+                           value="{{ RatePercent::forInput($row['service_fee_rate'] ?? null) }}" placeholder="3.5"
                            class="w-full text-sm rounded-lg border-gray-300 px-3 py-2 focus:border-amber-500 focus:ring-amber-500/20">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Insurance rate</label>
                     <input type="text" inputmode="decimal" name="rate_tiers[{{ $index }}][administration_fee_rate]" data-tier-component data-tier-insurance
-                           value="{{ $row['administration_fee_rate'] ?? '' }}" placeholder="0"
+                           value="{{ RatePercent::forInput($row['administration_fee_rate'] ?? null) }}" placeholder="0"
                            class="w-full text-sm rounded-lg border-gray-300 px-3 py-2 focus:border-amber-500 focus:ring-amber-500/20">
                 </div>
             </div>

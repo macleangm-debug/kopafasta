@@ -15,6 +15,10 @@ class ApplicationDocumentRequestService
     /** @var list<string> */
     public const PRESET_LABELS = [
         'Insurance About To Expire',
+        'New Insurance Certificate',
+        'New Ownership Document',
+        'New Asset Photo',
+        'Updated National ID',
         'Image Not Clear',
         'Ownership Certificate Missing Page',
         'Signature Not Visible',
@@ -31,6 +35,30 @@ class ApplicationDocumentRequestService
         'Latest salary slip',
     ];
 
+    /** @var list<string> */
+    public const ASSET_BACKED_PRESET_LABELS = [
+        'Insurance About To Expire',
+        'New Insurance Certificate',
+        'New Ownership Document',
+        'New Asset Photo',
+        'Updated National ID',
+        'Image Not Clear',
+    ];
+
+    /** @return array<string, string> preset => default borrower instructions */
+    public static function presetInstructions(): array
+    {
+        return [
+            'Insurance About To Expire'      => 'Your asset insurance is expiring soon. Please upload an updated insurance certificate.',
+            'New Insurance Certificate'      => 'Please upload a clear copy of the current insurance certificate for this asset.',
+            'New Ownership Document'         => 'Please upload the ownership or logbook document for this asset.',
+            'New Asset Photo'                => 'Please upload a clear, recent photo of the asset.',
+            'Updated National ID'            => 'Please upload a clear copy of your national ID.',
+            'Image Not Clear'                => 'The uploaded image is not clear enough. Please re-upload a sharper photo.',
+            'Ownership Certificate Missing Page' => 'The ownership certificate appears incomplete. Please upload all pages.',
+        ];
+    }
+
     public function __construct(private readonly NotificationService $notifier) {}
 
     public function create(
@@ -41,6 +69,8 @@ class ApplicationDocumentRequestService
         ?\DateTimeInterface $dueAt = null,
         string $type = 'document',
     ): LoanApplicationDocumentRequest {
+        $instructions ??= self::presetInstructions()[$label] ?? null;
+
         $request = LoanApplicationDocumentRequest::create([
             'loan_application_id' => $application->id,
             'requested_by'        => $requester->id,
@@ -84,7 +114,7 @@ class ApplicationDocumentRequestService
                 'requested_by'        => $requester->id,
                 'type'                => $type,
                 'label'               => $label,
-                'instructions'        => $instructions,
+                'instructions'        => $instructions ?: (self::presetInstructions()[$label] ?? null),
                 'status'              => 'pending',
                 'due_at'              => $dueAt,
             ]);

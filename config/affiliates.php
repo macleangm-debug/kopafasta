@@ -18,4 +18,15 @@ return [
         'interest'          => false,
         'repayments'        => false,
     ],
+
+    /** Placeholders: {brand}, {affiliate_name}, {affiliate_code}, {affiliate_link}, {registration_link}, {verify_link} */
+    'messages' => [
+        'share_template'       => 'Join {brand} with my affiliate code {affiliate_code}. Register: {registration_link}',
+        'referral_sms'         => 'Use affiliate code {affiliate_code} at {brand} for a discount on fees. Verify: {verify_link}',
+        'verification_notice'  => 'This page confirms {affiliate_name} ({affiliate_code}) is a registered {brand} affiliate partner.',
+        'welcome_partner'      => 'Welcome to the {brand} affiliate program, {affiliate_name}! Share your link: {affiliate_link}',
+    ],
+
+    /** Require KYC approval before affiliate link is publicly verified. */
+    'require_kyc_for_verification' => true,
 ];

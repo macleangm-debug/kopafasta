@@ -232,7 +232,6 @@ class CapitalPartnerAllocationService
 
     /**
      * Proportionally allocate approved principal across active capital partners at disbursement.
-     * Example: Partner A 50M + Partner B 100M → A funds 33.33%, B funds 66.67% of each loan.
      */
     public function allocateForLoan(Loan $loan): void
     {
@@ -266,72 +265,29 @@ class CapitalPartnerAllocationService
             ]);
         }
 
-        DB::transaction(function () use ($loan, $partners, $amount, $totalAvailable): void {
-            $remaining = $amount;
-            $lastIndex = $partners->count() - 1;
+        $strategy = $this->allocationStrategy();
 
-            foreach ($partners->values() as $index => $partner) {
-                $share = $index === $lastIndex
-                    ? $remaining
-                    : round($amount * ($partner['available'] / $totalAvailable), 2);
+        if ($strategy === 'manual') {
+            throw ValidationException::withMessages([
+                'capital' => 'Capital allocation is set to manual. Allocate this loan from the capital funding screen.',
+            ]);
+        }
 
-                $share = min($share, $remaining, $partner['available']);
-                if ($share <= 0) {
-                    continue;
-                }
+        $slices = match ($strategy) {
+            'round_robin' => $this->buildRoundRobinSlices($partners, $amount),
+            'priority'    => $this->buildPrioritySlices($partners, $amount),
+            default       => $this->buildProportionalSlices($partners, $amount),
+        };
 
-                $remaining -= $share;
-                $percent = round(($share / $amount) * 100, 4);
+        if ($slices === []) {
+            throw ValidationException::withMessages([
+                'capital' => 'Could not build a capital allocation plan for this loan.',
+            ]);
+        }
 
-                $investment = LenderInvestment::create([
-                    'lender_id'        => $partner['lender']->id,
-                    'funding_pool_id'  => $partner['pool']->id,
-                    'loan_id'          => $loan->id,
-                    'reference'        => 'INV-'.now()->format('Ymd').'-'.Str::upper(Str::random(6)),
-                    'principal'        => $share,
-                    'return_amount'    => 0,
-                    'return_rate'      => $partner['pool']->expected_yield ?? 0,
-                    'invested_at'      => now()->toDateString(),
-                    'status'           => 'active',
-                ]);
-
-                LoanCapitalAllocation::create([
-                    'loan_id'                        => $loan->id,
-                    'lender_id'                      => $partner['lender']->id,
-                    'funding_pool_id'                => $partner['pool']->id,
-                    'lender_investment_id'           => $investment->id,
-                    'allocated_principal'            => $share,
-                    'allocation_percent'             => $percent,
-                    'partner_interest_share_percent' => $this->partnerInterestSharePercent(),
-                    'company_interest_share_percent' => self::COMPANY_INTEREST_SHARE,
-                    'outstanding_exposure'           => $share,
-                ]);
-
-                $pool = $partner['pool'];
-                $pool->amount_deployed = (float) $pool->amount_deployed + $share;
-                $pool->save();
-
-                $lender = $partner['lender'];
-                if ($lender->available_balance > 0) {
-                    $lender->available_balance = max(0, (float) $lender->available_balance - $share);
-                    $lender->save();
-                }
-
-                LenderTransaction::create([
-                    'lender_id'             => $lender->id,
-                    'funding_pool_id'       => $pool->id,
-                    'lender_investment_id'  => $investment->id,
-                    'loan_id'               => $loan->id,
-                    'reference'             => 'TXN-'.Str::upper(Str::random(10)),
-                    'type'                  => 'investment',
-                    'direction'             => 'debit',
-                    'amount'                => $share,
-                    'status'                => 'completed',
-                    'channel'               => 'system',
-                    'notes'                 => 'Loan '.$loan->loan_number.' proportional allocation ('.format_number($percent, 2).'%)',
-                    'processed_at'          => now(),
-                    'created_by'            => $this->actorId(),
-                ]);
+        DB::transaction(function () use ($loan, $amount, $slices, $strategy): void {
+            foreach ($slices as $slice) {
+                $this->persistAllocationSlice($loan, $slice, $strategy);
             }
 
             $this->audit->log(
@@ -339,9 +295,174 @@ class CapitalPartnerAllocationService
                 'capital_partner.loan_allocation',
                 $loan,
                 [],
-                ['loan_number' => $loan->loan_number, 'principal' => $amount, 'partners' => $loan->capitalAllocations()->count()],
+                [
+                    'loan_number' => $loan->loan_number,
+                    'principal'   => $amount,
+                    'strategy'    => $strategy,
+                    'partners'    => $loan->capitalAllocations()->count(),
+                ],
             );
         });
+    }
+
+    public function allocationStrategy(): string
+    {
+        $strategy = (string) (\App\Models\Setting::get('finance.capital_allocation_strategy') ?? 'proportional');
+
+        return in_array($strategy, ['proportional', 'round_robin', 'priority', 'manual'], true)
+            ? $strategy
+            : 'proportional';
+    }
+
+    /** @return list<array{lender: Lender, pool: FundingPool, share: float, percent: float}> */
+    protected function buildProportionalSlices($partners, float $amount): array
+    {
+        $totalAvailable = $partners->sum('available');
+        $remaining = $amount;
+        $lastIndex = $partners->count() - 1;
+        $slices = [];
+
+        foreach ($partners->values() as $index => $partner) {
+            $share = $index === $lastIndex
+                ? $remaining
+                : round($amount * ($partner['available'] / $totalAvailable), 2);
+
+            $share = min($share, $remaining, $partner['available']);
+            if ($share <= 0) {
+                continue;
+            }
+
+            $remaining -= $share;
+            $slices[] = [
+                'lender'  => $partner['lender'],
+                'pool'    => $partner['pool'],
+                'share'   => $share,
+                'percent' => round(($share / $amount) * 100, 4),
+            ];
+        }
+
+        return $slices;
+    }
+
+    /** @return list<array{lender: Lender, pool: FundingPool, share: float, percent: float}> */
+    protected function buildRoundRobinSlices($partners, float $amount): array
+    {
+        $ordered = $this->partnersOrderedForRoundRobin($partners);
+
+        foreach ($ordered as $partner) {
+            if ($partner['available'] >= $amount) {
+                return [[
+                    'lender'  => $partner['lender'],
+                    'pool'    => $partner['pool'],
+                    'share'   => $amount,
+                    'percent' => 100.0,
+                ]];
+            }
+        }
+
+        return $this->buildProportionalSlices($partners, $amount);
+    }
+
+    /** @return list<array{lender: Lender, pool: FundingPool, share: float, percent: float}> */
+    protected function buildPrioritySlices($partners, float $amount): array
+    {
+        $ordered = $partners
+            ->sortBy(fn (array $row) => $row['lender']->allocation_priority ?? 9999)
+            ->values();
+
+        $remaining = $amount;
+        $slices = [];
+
+        foreach ($ordered as $partner) {
+            if ($remaining <= 0) {
+                break;
+            }
+
+            $share = min($remaining, $partner['available']);
+            if ($share <= 0) {
+                continue;
+            }
+
+            $remaining -= $share;
+            $slices[] = [
+                'lender'  => $partner['lender'],
+                'pool'    => $partner['pool'],
+                'share'   => $share,
+                'percent' => round(($share / $amount) * 100, 4),
+            ];
+        }
+
+        return $slices;
+    }
+
+    /** @param array{lender: Lender, pool: FundingPool, share: float, percent: float} $slice */
+    protected function persistAllocationSlice(Loan $loan, array $slice, string $strategy): void
+    {
+        $share = (float) $slice['share'];
+        $percent = (float) $slice['percent'];
+        $strategyLabel = str_replace('_', ' ', $strategy);
+
+        $investment = LenderInvestment::create([
+            'lender_id'        => $slice['lender']->id,
+            'funding_pool_id'  => $slice['pool']->id,
+            'loan_id'          => $loan->id,
+            'reference'        => 'INV-'.now()->format('Ymd').'-'.Str::upper(Str::random(6)),
+            'principal'        => $share,
+            'return_amount'    => 0,
+            'return_rate'      => $slice['pool']->expected_yield ?? 0,
+            'invested_at'      => now()->toDateString(),
+            'status'           => 'active',
+        ]);
+
+        LoanCapitalAllocation::create([
+            'loan_id'                        => $loan->id,
+            'lender_id'                      => $slice['lender']->id,
+            'funding_pool_id'                => $slice['pool']->id,
+            'lender_investment_id'           => $investment->id,
+            'allocated_principal'            => $share,
+            'allocation_percent'             => $percent,
+            'partner_interest_share_percent' => $this->partnerInterestSharePercent(),
+            'company_interest_share_percent' => self::COMPANY_INTEREST_SHARE,
+            'outstanding_exposure'           => $share,
+        ]);
+
+        $pool = $slice['pool'];
+        $pool->amount_deployed = (float) $pool->amount_deployed + $share;
+        $pool->save();
+
+        $lender = $slice['lender'];
+        if ($lender->available_balance > 0) {
+            $lender->available_balance = max(0, (float) $lender->available_balance - $share);
+            $lender->save();
+        }
+
+        LenderTransaction::create([
+            'lender_id'             => $lender->id,
+            'funding_pool_id'       => $pool->id,
+            'lender_investment_id'  => $investment->id,
+            'loan_id'               => $loan->id,
+            'reference'             => 'TXN-'.Str::upper(Str::random(10)),
+            'type'                  => 'investment',
+            'direction'             => 'debit',
+            'amount'                => $share,
+            'status'                => 'completed',
+            'channel'               => 'system',
+            'notes'                 => 'Loan '.$loan->loan_number.' '.$strategyLabel.' allocation ('.format_number($percent, 2).'%)',
+            'processed_at'          => now(),
+            'created_by'            => $this->actorId(),
+        ]);
+    }
+
+    protected function partnersOrderedForRoundRobin($partners)
+    {
+        $lastAllocated = LoanCapitalAllocation::query()
+            ->selectRaw('lender_id, MAX(created_at) as last_allocated_at')
+            ->groupBy('lender_id')
+            ->pluck('last_allocated_at', 'lender_id');
+
+        return $partners
+            ->sortBy(fn (array $row) => $lastAllocated[$row['lender']->id] ?? '1970-01-01 00:00:00')
+            ->values();
     }
 
     /** Distribute interest from a repayment across capital partners (60/40 split). */

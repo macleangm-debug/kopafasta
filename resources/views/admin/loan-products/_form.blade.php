@@ -3,7 +3,8 @@
 
 <x-admin.step title="Basics">
     <x-admin.input  name="code"                label="Product code"        :value="$r?->code"     required placeholder="e.g. BIZ-30" />
-    <x-admin.input  name="name"                label="Name"                :value="$r?->name"     required />
+    <x-admin.input  name="name"                label="Name (English)"    :value="$r?->name"     required />
+    <x-admin.input  name="name_sw"             label="Name (Swahili)"    :value="$r?->name_sw"  placeholder="Optional — shown when locale is Swahili" />
     <x-admin.select name="category"            label="Category"
                     :options="[
                         'business_loan' => 'Business loan',

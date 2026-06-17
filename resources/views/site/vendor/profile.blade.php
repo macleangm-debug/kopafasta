@@ -6,7 +6,7 @@
         <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
     @endif
 
-    <form method="POST" action="{{ route('site.vendor.profile.update') }}" enctype="multipart/form-data" class="max-w-2xl rounded-2xl border border-gray-200 bg-white p-6 space-y-4">
+    <form method="POST" action="{{ route('site.partner.profile.update') }}" enctype="multipart/form-data" class="max-w-2xl rounded-2xl border border-gray-200 bg-white p-6 space-y-4">
         @csrf @method('PUT')
         <div>
             <label class="block text-xs text-gray-500 mb-1">Business / display name</label>

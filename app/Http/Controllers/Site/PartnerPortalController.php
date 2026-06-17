@@ -20,20 +20,12 @@ class PartnerPortalController extends Controller
     {
         $data = $request->validate([
             'partner_code' => ['required', 'string', 'max:50'],
-            'phone'        => ['nullable', 'string', 'max:30'],
-            'email'        => ['nullable', 'email', 'max:150'],
+            'phone'        => ['required', 'string', 'max:30'],
         ]);
-
-        if (blank($data['phone']) && blank($data['email'])) {
-            return back()->withInput()->withErrors([
-                'phone' => 'Enter the phone or email registered for this partner account.',
-            ]);
-        }
 
         $vendor = Vendor::query()
             ->where('vendor_number', strtoupper(trim($data['partner_code'])))
-            ->when(filled($data['phone'] ?? null), fn ($q) => $q->where('phone', $data['phone']))
-            ->when(filled($data['email'] ?? null), fn ($q) => $q->where('email', $data['email']))
+            ->where('phone', $data['phone'])
             ->first();
 
         if (! $vendor) {
@@ -43,7 +35,7 @@ class PartnerPortalController extends Controller
         }
 
         if ($vendor->activated_at && $vendor->user_id) {
-            return redirect()->route('site.login', ['role' => 'vendor'])
+            return redirect()->route('site.login', ['portal' => 'partner'])
                 ->with('status', 'Your partner account is already active. Sign in with your phone and PIN.');
         }
 

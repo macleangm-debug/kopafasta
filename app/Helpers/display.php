@@ -46,3 +46,19 @@ if (! function_exists('format_display_value')) {
         return (string) $value;
     }
 }
+
+if (! function_exists('marketplace_category_emoji')) {
+    function marketplace_category_emoji(?string $category): string
+    {
+        return match ($category) {
+            'vehicle', 'vehicles'       => '🚗',
+            'motorcycle', 'motorcycles' => '🏍️',
+            'truck', 'trucks'           => '🚚',
+            'equipment'                 => '🧰',
+            'electronics'               => '📱',
+            'furniture'                 => '🪑',
+            'property'                  => '🏠',
+            default                     => '🏭',
+        };
+    }
+}

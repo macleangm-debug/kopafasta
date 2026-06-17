@@ -21,6 +21,12 @@ class AssetMarketplaceController extends Controller
 {
     use AuditsActions;
 
+    /** @return list<array<string, mixed>> */
+    public function homepageFeatured(int $limit = 6): array
+    {
+        return $this->loadAssets(null, ['sort' => 'title'])->take($limit)->values()->all();
+    }
+
     public function index(Request $request): View
     {
         return $this->renderIndex($request, 'site.borrower.marketplace.index', true);
@@ -46,9 +52,11 @@ class AssetMarketplaceController extends Controller
         $category = $request->query('category');
         $filters = [
             'q'         => trim((string) $request->query('q', '')),
+            'brand'     => trim((string) $request->query('brand', '')),
             'min_price' => $request->query('min_price'),
             'max_price' => $request->query('max_price'),
             'tenure'    => $request->query('tenure'),
+            'sort'      => $request->query('sort', 'title'),
         ];
         $assets = $this->loadAssets($category, $filters);
 
@@ -108,12 +116,14 @@ class AssetMarketplaceController extends Controller
         ]);
 
         $service = app(AssetReservationService::class);
-        $reservation = $service->activeForCustomer($customer, $model)
-            ?? $service->createReservation($customer, $model, $request->input('viewing_date'), $request->input('viewing_time'));
+        $reservation = $service->activeForCustomer($customer, $model);
+        abort_unless($reservation && $service->canScheduleViewing($reservation), 422);
+
+        $service->scheduleViewing($reservation, $request->input('viewing_date'), $request->input('viewing_time'));
 
         return redirect()
             ->route('site.borrower.marketplace.reserve', $assetId)
-            ->with('status', 'Viewing scheduled. Complete the viewing step to continue your asset application.');
+            ->with('status', __('borrower.marketplace.viewing_scheduled_status'));
     }
 
     public function reserveFlow(string $assetId, AssetReservationService $reservations, ApplicationRequirementsService $requirements, PaymentAccountService $accounts): View|RedirectResponse
@@ -130,7 +140,7 @@ class AssetMarketplaceController extends Controller
         $reservation = $reservations->activeForCustomer($customer, $model);
         if (! $reservation) {
             return redirect()->route('site.borrower.marketplace.show', $assetId)
-                ->with('warning', 'Apply for this asset and choose a viewing slot first.');
+                ->with('warning', __('borrower.marketplace.start_application_first'));
         }
 
         $reservation->load(['loanApplication.loan', 'loanApplication.postApprovalFees']);
@@ -258,10 +268,13 @@ class AssetMarketplaceController extends Controller
             'action' => ['required', 'in:skip_viewing,complete_viewing,confirm_interest'],
         ])['action'];
 
+        $feeAlreadyPaid = $reservation->reservation_fee_status === 'paid';
         $reservations->advance($reservation, $action);
 
         $message = match ($action) {
-            'skip_viewing'     => __('borrower.marketplace.viewing_skipped'),
+            'skip_viewing'     => $feeAlreadyPaid
+                ? __('borrower.marketplace.viewing_skipped_after_fee')
+                : __('borrower.marketplace.viewing_skipped'),
             'complete_viewing' => __('borrower.marketplace.viewing_completed'),
             'confirm_interest' => __('borrower.marketplace.interest_confirmed'),
             default            => __('borrower.marketplace.progress_updated'),
@@ -316,15 +329,38 @@ class AssetMarketplaceController extends Controller
     private function loadAssets(?string $category, array $filters = [])
     {
         if (\Illuminate\Support\Facades\Schema::hasTable('marketplace_assets') && MarketplaceAsset::query()->exists()) {
-            return MarketplaceAsset::query()
+            $query = MarketplaceAsset::query()
                 ->where('is_active', true)
+                ->where(fn ($q) => $q->whereNull('availability_status')->orWhere('availability_status', 'available'))
                 ->when($category, fn ($q) => $q->where('category', $category))
-                ->when(filled($filters['q'] ?? null), fn ($q) => $q->where('title', 'like', '%'.$filters['q'].'%'))
+                ->when(filled($filters['q'] ?? null), function ($q) use ($filters): void {
+                    $term = '%'.$filters['q'].'%';
+                    $q->where(function ($inner) use ($term): void {
+                        $inner->where('title', 'like', $term)
+                            ->orWhere('description', 'like', $term)
+                            ->orWhere('supplier_name', 'like', $term);
+                    });
+                })
+                ->when(filled($filters['brand'] ?? null), function ($q) use ($filters): void {
+                    $term = '%'.$filters['brand'].'%';
+                    $q->where(function ($inner) use ($term): void {
+                        $inner->where('title', 'like', $term)
+                            ->orWhere('description', 'like', $term);
+                    });
+                })
                 ->when(filled($filters['min_price'] ?? null), fn ($q) => $q->where('asset_value', '>=', \App\Support\MoneyFormat::toNumber($filters['min_price'])))
                 ->when(filled($filters['max_price'] ?? null), fn ($q) => $q->where('asset_value', '<=', \App\Support\MoneyFormat::toNumber($filters['max_price'])))
-                ->when(filled($filters['tenure'] ?? null), fn ($q) => $q->where('max_tenure_months', '<=', (int) $filters['tenure']))
-                ->orderBy('title')
-                ->get()
+                ->when(filled($filters['tenure'] ?? null), fn ($q) => $q->where('max_tenure_months', '<=', (int) $filters['tenure']));
+
+            $sort = $filters['sort'] ?? 'title';
+            match ($sort) {
+                'price_asc'  => $query->orderBy('asset_value'),
+                'price_desc' => $query->orderByDesc('asset_value'),
+                'deposit_asc'=> $query->orderBy('customer_deposit'),
+                default      => $query->orderBy('title'),
+            };
+
+            return $query->get()
                 ->map(fn (MarketplaceAsset $a) => $this->normalizeAsset($a))
                 ->values();
         }
@@ -333,6 +369,10 @@ class AssetMarketplaceController extends Controller
             ->when($category, fn ($c) => $c->where('category', $category))
             ->when(filled($filters['q'] ?? null), fn ($c) => $c->filter(
                 fn (array $asset) => str_contains(strtolower($asset['title'] ?? ''), strtolower($filters['q']))
+                    || str_contains(strtolower($asset['description'] ?? ''), strtolower($filters['q']))
+            ))
+            ->when(filled($filters['brand'] ?? null), fn ($c) => $c->filter(
+                fn (array $asset) => str_contains(strtolower($asset['title'] ?? ''), strtolower($filters['brand']))
             ))
             ->values();
     }
@@ -345,6 +385,7 @@ class AssetMarketplaceController extends Controller
 
         return MarketplaceAsset::query()
             ->where('is_active', true)
+            ->where(fn ($q) => $q->whereNull('availability_status')->orWhere('availability_status', 'available'))
             ->where(function ($q) use ($assetId): void {
                 $q->where('slug', $assetId);
                 if (is_numeric($assetId)) {
@@ -367,24 +408,29 @@ class AssetMarketplaceController extends Controller
     /** @return array<string, mixed> */
     private function normalizeAsset(MarketplaceAsset $asset): array
     {
+        $lending = app(\App\Services\AssetLendingService::class);
         $deposit = (float) ($asset->customer_deposit ?: $asset->computeCustomerDeposit());
         $assetValue = (float) ($asset->asset_value ?: ($deposit * 1.4));
         $remainingLoan = max(0, round($assetValue - $deposit, 2));
+        $supplierDeposit = (float) $asset->supplier_deposit;
 
         return [
-            'id'                   => $asset->slug ?: (string) $asset->id,
-            'category'             => $asset->category,
-            'title'                => $asset->title,
-            'vendor'               => $asset->supplier_name,
-            'supplier'             => $asset->supplier_name,
-            'description'          => $asset->description,
-            'asset_value'          => $assetValue,
-            'deposit'              => $deposit,
-            'remaining_loan'       => $remainingLoan,
-            'supplier_deposit'     => (float) $asset->supplier_deposit,
-            'weekly_installment'   => (float) $asset->weekly_installment,
-            'max_tenure_months'    => effective_marketplace_asset_max_tenure($asset),
-            'photos'               => $asset->photos ?? [],
+            'id'                     => $asset->slug ?: (string) $asset->id,
+            'category'               => $asset->category,
+            'title'                  => $asset->title,
+            'vendor'                 => $asset->supplier_name,
+            'supplier'               => $asset->supplier_name,
+            'description'            => $asset->description,
+            'asset_value'            => $assetValue,
+            'deposit'                => $deposit,
+            'remaining_loan'         => $remainingLoan,
+            'supplier_deposit'       => $supplierDeposit,
+            'deposit_markup_percent' => (float) ($asset->deposit_markup_percent ?? 0),
+            'deposit_markup_amount'  => $lending->depositMarkupAmount($asset),
+            'weekly_installment'     => (float) $asset->weekly_installment,
+            'max_tenure_months'      => effective_marketplace_asset_max_tenure($asset),
+            'waiting_period_days'    => $asset->waiting_period_days,
+            'photos'                 => $asset->photos ?? [],
         ];
     }
 

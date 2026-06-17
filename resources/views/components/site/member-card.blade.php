@@ -2,6 +2,7 @@
 @php
     /** @var \App\Models\Customer $customer */
     use App\Support\MemberNumberFormatter;
+    use App\Services\ReferralService;
 
     $color = $customer->membershipStatusColor();
     $label = $customer->membershipStatusLabel();
@@ -30,7 +31,10 @@
     $name    = strtoupper(trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')));
     $memberNoRaw = MemberNumberFormatter::raw($customer->member_no);
     $memberNoDisplay = MemberNumberFormatter::display($customer->member_no);
-    $verifyUrl = $memberNoRaw ? route('site.member.verify', ['memberNo' => $memberNoRaw]) : null;
+    $verifyUrl = $memberNoRaw
+        ? rtrim(app(ReferralService::class)->appBaseUrl(), '/').'/verify/member/'.urlencode($memberNoRaw)
+        : null;
+    $shareText = trim($name.' · '.brand_name().' member '.$memberNoDisplay.($verifyUrl ? ' · Verify: '.$verifyUrl : ''));
     $days    = max(0, (int) $customer->membershipDaysRemaining());
     $duration = (int) (\App\Services\MembershipService::config()['duration_days'] ?? 365);
     $pct     = $duration > 0 ? max(0, min(100, ($days / $duration) * 100)) : 0;
@@ -40,7 +44,7 @@
 
     {{-- Member card --}}
     <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br {{ $bgGradient }} text-white shadow-lg p-6"
-         x-data="{ copied: false, copyNo: @js($memberNoRaw) }">
+         x-data="{ copied: false, shareCopied: false, copyNo: @js($memberNoRaw), shareText: @js($shareText) }">
         <div class="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/10"></div>
         <div class="absolute -left-10 -bottom-16 h-40 w-40 rounded-full bg-white/10"></div>
 
@@ -107,6 +111,26 @@
                     <p class="text-xs text-white/90 mt-1">Opens public member verification for this card.</p>
                 </div>
             </div>
+
+            <div class="relative mt-4 flex flex-wrap gap-2">
+                <button type="button"
+                        @click="navigator.clipboard.writeText(shareText).then(() => { shareCopied = true; setTimeout(() => shareCopied = false, 2500); })"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-white/15 hover:bg-white/25 ring-1 ring-white/25 px-3 py-2 text-xs font-semibold">
+                    Copy share link
+                </button>
+                @if (Route::has('site.membership.card.download'))
+                    <a href="{{ route('site.membership.card.download') }}"
+                       class="inline-flex items-center gap-1.5 rounded-lg bg-white/15 hover:bg-white/25 ring-1 ring-white/25 px-3 py-2 text-xs font-semibold">
+                        Download PDF
+                    </a>
+                @endif
+                <button type="button"
+                        onclick="if (navigator.share) { navigator.share({ title: @js(brand_name().' membership'), text: shareText, url: @js($verifyUrl) }); } else { navigator.clipboard.writeText(shareText); }"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-white/15 hover:bg-white/25 ring-1 ring-white/25 px-3 py-2 text-xs font-semibold">
+                    Share
+                </button>
+            </div>
+            <p x-show="shareCopied" x-cloak class="mt-2 text-xs text-emerald-100">Share text copied.</p>
         @endif
     </div>
 

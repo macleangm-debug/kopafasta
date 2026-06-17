@@ -1,6 +1,7 @@
 <x-site.borrower-layout
     :title="brand_title(__('borrower.offer.title'))"
-    active="loans">
+    active="loans"
+    content-width="wide">
 
     <div class="mb-4">
         <a href="{{ route('site.borrower.application', $application->id) }}" class="text-xs text-gray-500 hover:text-gray-700">

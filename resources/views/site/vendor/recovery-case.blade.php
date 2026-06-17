@@ -14,7 +14,7 @@
     @endphp
 
     <div class="mb-5">
-        <a href="{{ route('site.vendor.recovery-cases') }}" class="text-sm text-indigo-600 hover:underline">← Back to recovery cases</a>
+        <a href="{{ route('site.partner.recovery-cases') }}" class="text-sm text-indigo-600 hover:underline">← Back to recovery cases</a>
     </div>
 
     @if (session('status'))
@@ -112,7 +112,7 @@
                     <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
                         <h2 class="font-bold">Record action</h2>
                         @if ($assignment->status === 'assigned')
-                            <form method="POST" action="{{ route('site.vendor.recovery-case.start', $assignment) }}">
+                            <form method="POST" action="{{ route('site.partner.recovery-case.start', $assignment) }}">
                                 @csrf
                                 <button type="submit" class="rounded-lg bg-slate-800 text-white text-xs font-semibold px-3 py-2 hover:bg-slate-900">
                                     Start case
@@ -130,7 +130,7 @@
                                 $isResolve = ! empty($action['completes']);
                             @endphp
                             <form method="POST"
-                                  action="{{ route('site.vendor.recovery-case.action', $assignment) }}"
+                                  action="{{ route('site.partner.recovery-case.action', $assignment) }}"
                                   enctype="multipart/form-data"
                                   class="rounded-xl border border-gray-200 p-4 {{ $isResolve ? 'border-emerald-200 bg-emerald-50/40' : '' }}">
                                 @csrf
@@ -202,7 +202,7 @@
                 <div class="rounded-2xl border border-gray-200 bg-white p-5">
                     <h2 class="font-bold mb-3">Linked task</h2>
                     <p class="text-sm text-gray-600 mb-3">{{ ucfirst(str_replace('_', ' ', $assignment->vendorTask->task_type)) }}</p>
-                    <a href="{{ route('site.vendor.task', $assignment->vendorTask) }}"
+                    <a href="{{ route('site.partner.task', $assignment->vendorTask) }}"
                        class="inline-flex rounded-lg bg-indigo-600 text-white text-xs font-semibold px-3 py-2 hover:bg-indigo-700">
                         Open task
                     </a>

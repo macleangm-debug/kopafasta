@@ -14,7 +14,7 @@
             <h2 class="font-bold text-red-700 mb-3">Overdue ({{ $overdue->count() }})</h2>
             <div class="divide-y divide-red-100">
                 @foreach ($overdue as $t)
-                    <a href="{{ route('site.vendor.task', $t) }}" class="flex items-center justify-between py-2 hover:bg-white/50 -mx-2 px-2 rounded-lg">
+                    <a href="{{ route('site.partner.task', $t) }}" class="flex items-center justify-between py-2 hover:bg-white/50 -mx-2 px-2 rounded-lg">
                         <div>
                             <p class="font-semibold text-sm">{{ ucfirst(str_replace('_',' ', $t->task_type)) }} · {{ $t->customer_name ?: '—' }}</p>
                             <p class="text-xs text-red-700">Was due {{ $t->due_at->format('d M H:i') }} · {{ $t->location ?: '—' }}</p>

@@ -15,6 +15,7 @@ class Vendor extends Model
         return [
             'metadata' => 'array',
             'roles'    => 'array',
+            'regions'  => 'array',
         ];
     }
 

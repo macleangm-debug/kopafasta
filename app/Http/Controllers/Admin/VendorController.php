@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 class VendorController extends ResourceController
 {
     protected string $model = Vendor::class;
-    protected string $routePrefix = 'admin.vendors';
+    protected string $routePrefix = 'admin.partners';
     protected string $viewFolder = 'vendors';
     protected string $singular = 'partner';
 
@@ -39,11 +39,17 @@ class VendorController extends ResourceController
             'affiliate_commission_percent'   => ['nullable', 'numeric', 'min:0', 'max:100'],
             'recovery_commission_percent'    => ['nullable', 'numeric', 'min:0', 'max:100'],
             'recovery_markup_percent'        => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'regions'                        => ['nullable', 'array'],
+            'regions.*'                      => ['string', 'max:100'],
         ];
     }
 
     public function create()
     {
+        if (request()->routeIs('admin.vendors.create')) {
+            return redirect()->route('admin.partners.create', request()->query());
+        }
+
         if (! request()->query('category')) {
             return view('admin.vendors.choose-type', $this->formData());
         }
@@ -70,6 +76,7 @@ class VendorController extends ResourceController
             ],
             'roleOptions' => app(\App\Services\PartnerService::class)->roleOptions(),
             'defaultCategory' => request()->query('category'),
+            'regionOptions' => array_keys(config('tanzania_locations', [])),
         ];
     }
 
@@ -129,7 +136,7 @@ class VendorController extends ResourceController
     protected function transform(array $data, ?Model $existing = null): array
     {
         if (empty($data['vendor_number'])) {
-            $data['vendor_number'] = 'VND-'.now()->format('ymd').'-'.Str::upper(Str::random(4));
+            $data['vendor_number'] = 'PTR-'.now()->format('ymd').'-'.Str::upper(Str::random(4));
         }
 
         if (($data['category'] ?? '') === 'affiliate' && empty($data['affiliate_code']) && $existing instanceof Vendor) {
@@ -144,11 +151,19 @@ class VendorController extends ResourceController
             $data['roles'] = [$data['category']];
         }
 
+        if (array_key_exists('regions', $data)) {
+            $data['regions'] = array_values(array_filter($data['regions'] ?? []));
+        }
+
         return $data;
     }
 
     public function show($id)
     {
+        if (request()->routeIs('admin.vendors.show')) {
+            return redirect()->route('admin.partners.show', $id);
+        }
+
         $record = Vendor::findOrFail($id);
         $affiliateStats = $record->isAffiliate()
             ? app(AffiliateService::class)->stats($record)
@@ -159,6 +174,20 @@ class VendorController extends ResourceController
 
         return view("admin.{$this->viewFolder}.show", array_merge(
             ['record' => $record, 'affiliateStats' => $affiliateStats, 'recoveryStats' => $recoveryStats],
+            $this->formData($record),
+        ));
+    }
+
+    public function edit($id)
+    {
+        if (request()->routeIs('admin.vendors.edit')) {
+            return redirect()->route('admin.partners.edit', $id);
+        }
+
+        $record = Vendor::findOrFail($id);
+
+        return view("admin.{$this->viewFolder}.edit", array_merge(
+            ['record' => $record],
             $this->formData($record),
         ));
     }
@@ -191,5 +220,16 @@ class VendorController extends ResourceController
         return redirect()
             ->route("{$this->routePrefix}.show", $vendor)
             ->with('status', 'Affiliate KYC rejected. Partner can re-upload documents.');
+    }
+
+    public function destroy($id)
+    {
+        $record = Vendor::findOrFail($id);
+        $this->auditAdminDeleted($record);
+        $record->delete();
+
+        return redirect()
+            ->route('admin.partners.all')
+            ->with('status', ucfirst($this->singular).' deleted.');
     }
 }

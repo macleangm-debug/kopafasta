@@ -1,9 +1,9 @@
-<x-site.borrower-layout :title="brand_title('Repayment schedule')" active="schedule">
+<x-site.borrower-layout :title="brand_title(__('borrower.schedule_page.title'))" active="schedule" content-width="wide">
 
     <div class="flex items-center justify-between flex-wrap gap-3 mb-6">
         <div>
-            <h1 class="text-2xl font-bold">Repayment schedule</h1>
-            <p class="text-sm text-gray-500">{{ $loan ? $loan->loan_number : 'No loan selected.' }}</p>
+            <h1 class="text-2xl font-bold">{{ __('borrower.schedule_page.title') }}</h1>
+            <p class="text-sm text-gray-500">{{ $loan ? $loan->loan_number : __('borrower.schedule_page.no_loan') }}</p>
         </div>
         @if ($allLoans->count() > 1)
             <form method="GET" class="text-sm">
@@ -19,20 +19,20 @@
 
     @if (! $loan || $schedule->isEmpty())
         <div class="bg-white rounded-2xl border border-gray-200 p-12 text-center">
-            <p class="text-gray-500">No repayment schedule yet.</p>
+            <p class="text-gray-500">{{ __('borrower.schedule_page.empty') }}</p>
         </div>
     @else
         <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                     <tr>
-                        <th class="px-4 py-3 text-left">#</th>
-                        <th class="px-4 py-3 text-left">Due date</th>
-                        <th class="px-4 py-3 text-right">Principal</th>
-                        <th class="px-4 py-3 text-right">Interest</th>
-                        <th class="px-4 py-3 text-right">Total due</th>
-                        <th class="px-4 py-3 text-right">Paid</th>
-                        <th class="px-4 py-3 text-center">Status</th>
+                        <th class="px-4 py-3 text-left">{{ __('borrower.schedule_page.col_number') }}</th>
+                        <th class="px-4 py-3 text-left">{{ __('borrower.schedule_page.col_due_date') }}</th>
+                        <th class="px-4 py-3 text-right">{{ __('borrower.schedule_page.col_principal') }}</th>
+                        <th class="px-4 py-3 text-right">{{ __('borrower.schedule_page.col_interest') }}</th>
+                        <th class="px-4 py-3 text-right">{{ __('borrower.schedule_page.col_total_due') }}</th>
+                        <th class="px-4 py-3 text-right">{{ __('borrower.schedule_page.col_paid') }}</th>
+                        <th class="px-4 py-3 text-center">{{ __('borrower.schedule_page.col_status') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -62,7 +62,7 @@
         </div>
 
         <div class="mt-5 flex justify-end">
-            <a href="{{ route('site.borrower.payments') }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">Pay next installment →</a>
+            <a href="{{ route('site.borrower.payments') }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.schedule_page.pay_next') }}</a>
         </div>
     @endif
 

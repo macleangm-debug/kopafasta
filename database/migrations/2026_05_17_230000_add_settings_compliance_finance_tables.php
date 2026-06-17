@@ -128,7 +128,7 @@ return new class extends Migration
             $t->decimal('amount', 16, 4);              // fixed amount or percent
             $t->decimal('min_amount', 16, 2)->nullable();
             $t->decimal('max_amount', 16, 2)->nullable();
-            $t->enum('charge_when', ['disbursement', 'application', 'repayment', 'late', 'event'])->default('disbursement');
+            $t->enum('charge_when', ['application', 'post_approval', 'disbursement', 'repayment', 'late', 'event'])->default('disbursement');
             $t->foreignId('gl_account_id')->nullable()->constrained('chart_of_accounts')->nullOnDelete();
             $t->boolean('is_active')->default(true);
             $t->text('description')->nullable();

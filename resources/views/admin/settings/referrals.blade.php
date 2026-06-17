@@ -30,6 +30,17 @@
             <p class="mt-3 text-xs text-gray-500">Wallet credits may cover registration, application, and post-approval fees — not loan repayments, interest, or penalties.</p>
         </div>
 
+        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+            <h3 class="text-sm font-semibold text-gray-700 mb-1">Referral messages</h3>
+            <p class="text-xs text-gray-500 mb-4">Placeholders: <span class="font-mono">{brand}</span>, <span class="font-mono">{referrer_name}</span>, <span class="font-mono">{referral_code}</span>, <span class="font-mono">{referral_link}</span>, <span class="font-mono">{discount_percent}</span></p>
+            <div class="space-y-4">
+                <x-admin.textarea name="message_share_template" label="Share message (portal copy / WhatsApp)" rows="2"
+                                  :value="$values['message_share_template'] ?? config('referrals.messages.share_template')" />
+                <x-admin.textarea name="message_invite_sms" label="SMS invite template" rows="2"
+                                  :value="$values['message_invite_sms'] ?? config('referrals.messages.invite_sms')" />
+            </div>
+        </div>
+
         <div class="flex justify-end">
             <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">Save referral settings</button>
         </div>

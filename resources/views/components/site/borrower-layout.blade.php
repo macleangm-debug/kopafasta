@@ -1,7 +1,12 @@
-@props(['title' => null, 'active' => 'dashboard', 'portalMode' => 'borrower'])
+@props(['title' => null, 'active' => 'dashboard', 'portalMode' => 'borrower', 'contentWidth' => 'default'])
 
 @php
     $pageTitle = $title ?? brand_title('My account');
+    $contentMax = match ($contentWidth) {
+        'narrow' => 'max-w-3xl',
+        'wide'   => 'max-w-7xl',
+        default  => 'max-w-6xl',
+    };
 $nav = $portalMode === 'guarantor'
     ? [
         ['key' => 'loans', 'label' => __('borrower.loans_page.tab_guarantor_requests'), 'route' => 'site.borrower.loans', 'route_params' => ['tab' => 'guarantor'], 'icon' => 'users'],
@@ -220,7 +225,7 @@ $icon = function (string $name) {
         @endif
 
         <main class="flex-1 px-4 lg:px-8 py-6 lg:py-8">
-            <div class="max-w-6xl w-full">
+            <div class="{{ $contentMax }} w-full mx-auto">
                 {{ $slot }}
             </div>
         </main>

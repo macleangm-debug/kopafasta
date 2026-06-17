@@ -30,7 +30,7 @@ class VendorController extends Controller
             'metadata' => ['nullable', 'array'],
         ]);
 
-        $data['vendor_number'] = 'VND-'.strtoupper(Str::random(8));
+        $data['vendor_number'] = 'PTR-'.strtoupper(Str::random(8));
 
         return response()->json(Vendor::create($data), 201);
     }

@@ -1,4 +1,5 @@
 <x-admin.layout title="Marketplace Assets" heading="Marketplace Assets" subheading="Asset lending inventory">
+    @include('admin.settings._tabs', ['active' => 'marketplace-assets'])
     <x-admin.index-toolbar route="admin.marketplace-assets" label="New asset" />
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
         <table class="min-w-full text-sm">

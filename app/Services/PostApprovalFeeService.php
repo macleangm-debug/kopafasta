@@ -16,41 +16,87 @@ class PostApprovalFeeService
         return DB::transaction(function () use ($application, $regenerate) {
             $application->loadMissing('product');
 
+            $hasTemplateFees = LoanApplicationPostApprovalFee::query()
+                ->where('loan_application_id', $application->id)
+                ->whereNull('manual_post_approval_fee_id')
+                ->exists();
+
             if ($regenerate) {
                 LoanApplicationPostApprovalFee::query()
                     ->where('loan_application_id', $application->id)
                     ->whereNull('manual_post_approval_fee_id')
+                    ->where('status', '!=', 'paid')
                     ->delete();
-            } elseif (! LoanApplicationPostApprovalFee::query()
-                ->where('loan_application_id', $application->id)
-                ->whereNull('manual_post_approval_fee_id')
-                ->exists()) {
-                $principal = app(ApplicationOfferService::class)->effectiveAmount($application);
-                $templates = LoanProductPostApprovalFee::query()
-                    ->where('loan_product_id', $application->loan_product_id)
-                    ->where('is_active', true)
-                    ->orderBy('sort_order')
-                    ->get();
 
-                foreach ($templates as $fee) {
-                    $calculated = $this->calculateAmount($fee, $principal, $application);
-                    LoanApplicationPostApprovalFee::create([
-                        'loan_application_id'               => $application->id,
-                        'loan_product_post_approval_fee_id' => $fee->id,
-                        'code'                              => $fee->code,
-                        'name'                              => $fee->name,
-                        'fee_type'                          => $fee->fee_type,
-                        'configured_amount'                 => $fee->amount,
-                        'calculated_amount'                 => $calculated,
-                        'status'                            => 'pending',
-                    ]);
-                }
+                $hasTemplateFees = LoanApplicationPostApprovalFee::query()
+                    ->where('loan_application_id', $application->id)
+                    ->whereNull('manual_post_approval_fee_id')
+                    ->exists();
+            }
+
+            if (! $hasTemplateFees) {
+                $this->createTemplateFees($application);
             }
 
             $this->syncManualFees($application);
 
             return LoanApplicationPostApprovalFee::where('loan_application_id', $application->id)->count();
         });
+    }
+
+    /** Regenerate pending template fees when a loan product's post-approval config changes. */
+    public function syncFromProductUpdate(\App\Models\LoanProduct $product): int
+    {
+        $applicationIds = LoanApplicationPostApprovalFee::query()
+            ->whereNull('manual_post_approval_fee_id')
+            ->where('status', 'pending')
+            ->whereHas('application', fn ($q) => $q->where('loan_product_id', $product->id))
+            ->pluck('loan_application_id')
+            ->unique();
+
+        $regenerated = 0;
+
+        foreach (LoanApplication::query()->whereIn('id', $applicationIds)->get() as $application) {
+            if ($this->canRegenerateTemplateFees($application)) {
+                $this->generateForApplication($application, regenerate: true);
+                $regenerated++;
+            }
+        }
+
+        return $regenerated;
+    }
+
+    public function canRegenerateTemplateFees(LoanApplication $application): bool
+    {
+        return ! LoanApplicationPostApprovalFee::query()
+            ->where('loan_application_id', $application->id)
+            ->whereNull('manual_post_approval_fee_id')
+            ->where('status', 'paid')
+            ->exists();
+    }
+
+    private function createTemplateFees(LoanApplication $application): void
+    {
+        $principal = app(ApplicationOfferService::class)->effectiveAmount($application);
+        $templates = LoanProductPostApprovalFee::query()
+            ->where('loan_product_id', $application->loan_product_id)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->get();
+
+        foreach ($templates as $fee) {
+            $calculated = $this->calculateAmount($fee, $principal, $application);
+            LoanApplicationPostApprovalFee::create([
+                'loan_application_id'               => $application->id,
+                'loan_product_post_approval_fee_id' => $fee->id,
+                'code'                              => $fee->code,
+                'name'                              => $fee->name,
+                'fee_type'                          => $fee->fee_type,
+                'configured_amount'                 => $fee->amount,
+                'calculated_amount'                 => $calculated,
+                'status'                            => 'pending',
+            ]);
+        }
     }
 
     public function addManualFee(

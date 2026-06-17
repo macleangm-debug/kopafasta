@@ -1,6 +1,8 @@
 @perm('applications.request_documents')
 @php
     $presets = app(\App\Services\ApplicationDocumentRequestService::class)::PRESET_LABELS;
+    $assetPresets = app(\App\Services\ApplicationDocumentRequestService::class)::ASSET_BACKED_PRESET_LABELS;
+    $generalPresets = array_values(array_diff($presets, $assetPresets));
     $groups = $groupedDocumentRequests ?? [
         'pending' => collect(),
         'uploaded' => collect(),
@@ -91,9 +93,18 @@
         </div>
 
         <div>
-            <label class="block text-xs font-semibold text-gray-600 mb-2">Common requests</label>
+            <label class="block text-xs font-semibold text-gray-600 mb-2">Asset-backed requests</label>
+            <div class="grid sm:grid-cols-2 gap-2 mb-4">
+                @foreach ($assetPresets as $preset)
+                    <label class="flex items-start gap-2 text-sm text-gray-700 bg-amber-50 rounded-lg px-3 py-2 ring-1 ring-amber-100">
+                        <input type="checkbox" name="presets[]" value="{{ $preset }}" class="mt-0.5 rounded border-gray-300 text-amber-600">
+                        <span>{{ $preset }}</span>
+                    </label>
+                @endforeach
+            </div>
+            <label class="block text-xs font-semibold text-gray-600 mb-2">Other common requests</label>
             <div class="grid sm:grid-cols-2 gap-2">
-                @foreach ($presets as $preset)
+                @foreach ($generalPresets as $preset)
                     <label class="flex items-start gap-2 text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2 ring-1 ring-gray-100">
                         <input type="checkbox" name="presets[]" value="{{ $preset }}" class="mt-0.5 rounded border-gray-300 text-amber-600">
                         <span>{{ $preset }}</span>

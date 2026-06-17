@@ -21,6 +21,7 @@ use App\Services\FaceVerificationService;
 use App\Services\GuarantorInvitationService;
 use App\Services\KycFreshnessService;
 use App\Services\ApplicationFeePaymentService;
+use App\Services\ApplicationTrackingShareService;
 use App\Services\AssetBackedApplyService;
 use App\Services\CrbCreditCheckService;
 use App\Services\DisplayedRateService;
@@ -141,7 +142,7 @@ class ApplyController extends Controller
             ->values()
             ->all();
         $incomeVerification = $wizard->incomeVerification($customer);
-        $applicationFee = quoted_application_fee($customer, $selectedProduct);
+        $applicationFee = quoted_origination_fee($customer, $selectedProduct);
         $productQuestions = config('loan_product_questions', []);
         $readinessUrl = route('site.borrower.apply.product-readiness', ['product' => '__ID__']);
 
@@ -526,11 +527,14 @@ class ApplyController extends Controller
         ]);
 
         $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
-        $amount = quoted_application_fee($customer, $product);
+        $amount = quoted_origination_fee($customer, $product);
 
         if ($amount <= 0) {
             $feeState = ['status' => 'waived', 'reference' => null, 'channel' => 'waived', 'amount' => 0, 'paid_at' => now()->toIso8601String()];
             $drafts->saveApplicationFee($customer, $product->id, $feeState);
+            if (product_includes_valuation_fee($product)) {
+                $drafts->saveValuationFee($customer, $product->id, $feeState);
+            }
 
             if ($request->expectsJson()) {
                 return response()->json(['ok' => true, 'fee' => $feeState]);
@@ -552,6 +556,9 @@ class ApplyController extends Controller
                 $data['promo_code'] ?? null,
             );
             $drafts->saveApplicationFee($customer, $product->id, $feeState);
+            if (product_includes_valuation_fee($product)) {
+                $drafts->saveValuationFee($customer, $product->id, $feeState);
+            }
             $request->session()->forget('application_fee_payment_ref');
 
             $message = $dummyGateway
@@ -573,6 +580,9 @@ class ApplyController extends Controller
             $data['promo_code'] ?? null,
         );
         $drafts->saveApplicationFee($customer, $product->id, $feeState);
+        if (product_includes_valuation_fee($product)) {
+            $drafts->saveValuationFee($customer, $product->id, $feeState);
+        }
         $request->session()->forget('application_fee_payment_ref');
 
         $bankMessage = ($dummyGateway && ($feeState['status'] ?? '') === 'paid')
@@ -771,7 +781,7 @@ class ApplyController extends Controller
         $promoCode = $request->query('promo_code');
 
         return response()->json([
-            'amount' => quoted_application_fee($customer, $product),
+            'amount' => quoted_origination_fee($customer, $product),
             'quote'  => $fees->quote($customer, $product, $useWallet, $promoCode),
         ]);
     }
@@ -940,8 +950,11 @@ class ApplyController extends Controller
             'district'                => ['required', 'string', 'max:100'],
             'ward'                    => ['nullable', 'string', 'max:100'],
             'street'                  => ['required', 'string', 'max:255'],
+            'nok_first_name'   => ['nullable', 'string', 'max:80'],
+            'nok_middle_name'  => ['nullable', 'string', 'max:80'],
+            'nok_last_name'    => ['nullable', 'string', 'max:80'],
             'nok_name'                => ['required', 'string', 'max:120'],
-            'nok_relationship'        => ['required', 'string', 'max:40'],
+            'nok_relationship'        => ['required', 'string', 'max:40', 'in:'.implode(',', config('kin.relationships', []))],
             'nok_phone'               => ['required', 'string', 'max:20'],
             'nok_region'              => ['required', 'string', 'max:100'],
             'nok_district'            => ['required', 'string', 'max:100'],
@@ -1010,9 +1023,15 @@ class ApplyController extends Controller
             $valFeeService = app(ValuationFeePaymentService::class);
 
             if (! $valFeeService->isFeeSatisfied($valFeeState, $valFee)) {
-                return $this->wizardSubmitRedirect($request, $draft)->withInput()->withErrors([
-                    'valuation_fee' => __('borrower.apply.valuation_fee.required_before_submit'),
-                ]);
+                $appFeeState = $draftPayload['application_fee'] ?? null;
+                $appFeeService = app(ApplicationFeePaymentService::class);
+                $originationDue = quoted_origination_fee($customer, $loanProduct);
+
+                if (! $appFeeService->isFeeSatisfied($appFeeState, $originationDue)) {
+                    return $this->wizardSubmitRedirect($request, $draft)->withInput()->withErrors([
+                        'valuation_fee' => __('borrower.apply.valuation_fee.required_before_submit'),
+                    ]);
+                }
             }
         }
 
@@ -1098,6 +1117,10 @@ class ApplyController extends Controller
             ]);
         }
 
+        $nokName = filled($data['nok_name'] ?? null)
+            ? $data['nok_name']
+            : \App\Support\KinName::full($data['nok_first_name'] ?? null, $data['nok_middle_name'] ?? null, $data['nok_last_name'] ?? null);
+
         $customer->fill([
             'customer_number' => $customer->customer_number ?: 'C-'.strtoupper(Str::random(6)),
             'type'            => 'individual',
@@ -1109,7 +1132,10 @@ class ApplyController extends Controller
             'ward'            => $data['ward'] ?? null,
             'street'          => $data['street'],
             'address'         => $addressLine,
-            'nok_name'        => $data['nok_name'],
+            'nok_first_name'  => $data['nok_first_name'] ?? $customer->nok_first_name,
+            'nok_middle_name' => $data['nok_middle_name'] ?? $customer->nok_middle_name,
+            'nok_last_name'   => $data['nok_last_name'] ?? $customer->nok_last_name,
+            'nok_name'        => $nokName,
             'nok_relationship'=> $data['nok_relationship'],
             'nok_phone'       => $data['nok_phone'],
             'nok_region'      => $data['nok_region'],
@@ -1341,6 +1367,13 @@ class ApplyController extends Controller
             ? $guarantorService->emailShareUrl($guarantorInvitation)
             : null;
 
+        $trackingShare = app(ApplicationTrackingShareService::class);
+        $trackingShareUrl = $trackingShare->whatsAppShareUrl($application);
+        $trackingUrl = $trackingShare->trackingUrl($application);
+        $combinedShareUrl = ($guarantorInvitation && $guarantorInvitationUrl)
+            ? $trackingShare->combinedWhatsAppShareUrl($application, $guarantorInvitation, $guarantorInvitationUrl)
+            : null;
+
         return view('site.apply.success', compact(
             'application',
             'underwritingStages',
@@ -1349,6 +1382,9 @@ class ApplyController extends Controller
             'guarantorInvitationUrl',
             'guarantorSmsUrl',
             'guarantorEmailUrl',
+            'trackingShareUrl',
+            'trackingUrl',
+            'combinedShareUrl',
         ));
     }
 

@@ -1,4 +1,7 @@
-<x-admin.layout title="Vendors" heading="Vendors" subheading="Third party vendors">
-    <x-admin.index-toolbar route="admin.vendors" label="New partner" />
+<x-admin.layout title="Partners" heading="Partners" subheading="Suppliers, affiliates, GPS, insurance, valuers, and field partners">
+    <div class="mb-4">
+        <a href="{{ route('admin.partners.index') }}" class="text-sm font-semibold text-amber-700 hover:underline">← Partners hub</a>
+    </div>
+    <x-admin.index-toolbar route="admin.partners" label="New partner" />
     @livewire('admin.vendors-table')
 </x-admin.layout>

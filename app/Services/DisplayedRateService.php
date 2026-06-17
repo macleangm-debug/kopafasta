@@ -172,6 +172,35 @@ class DisplayedRateService
         ];
     }
 
+    /** Borrower-facing disclosure lines (i18n) for apply wizard and product cards. */
+    /** @return list<string> */
+    public function borrowerDisclosureLines(LoanProduct $product, ?float $principal = null): array
+    {
+        $parts = $this->breakdown($product, $principal);
+
+        if ($parts['uses_tiers']) {
+            return [
+                __('borrower.rate_disclosure.tiered_range', ['range' => $parts['tier_borrower_range']]),
+                __('borrower.rate_disclosure.tiered_at_min', [
+                    'rate' => $this->formatPercent($parts['tier_borrower_rate_at_min'] ?? $parts['displayed_monthly_rate']),
+                ]),
+            ];
+        }
+
+        return [
+            __('borrower.rate_disclosure.bot_regulated', [
+                'rate' => $this->formatPercent($parts['bot_regulated_rate']),
+                'max'  => $this->formatPercent(self::BOT_MAX_MONTHLY_RATE),
+            ]),
+            __('borrower.rate_disclosure.internal_fees', [
+                'rate' => $this->formatPercent($parts['internal_fee_rate']),
+            ]),
+            __('borrower.rate_disclosure.total_monthly', [
+                'rate' => $this->formatPercent($parts['displayed_monthly_rate']),
+            ]),
+        ];
+    }
+
     /**
      * @return array{
      *     bot_regulated_rate: float,

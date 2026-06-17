@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\AssetLendingService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -11,7 +12,8 @@ class MarketplaceAsset extends Model
         'slug', 'category', 'title', 'serial_number', 'chassis_number', 'engine_number',
         'insurance_policy_number', 'description', 'supplier_name', 'vendor_id',
         'asset_value', 'supplier_deposit', 'deposit_markup_percent', 'customer_deposit',
-        'weekly_installment', 'max_tenure_months', 'photos', 'is_active', 'availability_status',
+        'weekly_installment', 'max_tenure_months', 'waiting_period_days', 'photos', 'is_active', 'availability_status',
+        'insurance_expires_at',
     ];
 
     protected function casts(): array
@@ -24,6 +26,7 @@ class MarketplaceAsset extends Model
             'weekly_installment'     => 'decimal:2',
             'photos'                 => 'array',
             'is_active'              => 'boolean',
+            'insurance_expires_at'   => 'date',
         ];
     }
 

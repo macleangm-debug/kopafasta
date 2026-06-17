@@ -24,7 +24,7 @@ class PartnerActivationController extends Controller
         }
 
         if ($vendor->activated_at && $vendor->user_id) {
-            return redirect()->route('site.vendor.dashboard')
+            return redirect()->route('site.partner.dashboard')
                 ->with('status', 'Your partner account is already active.');
         }
 
@@ -40,7 +40,7 @@ class PartnerActivationController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('site.vendor.dashboard')
+        return redirect()->route('site.partner.dashboard')
             ->with('status', 'Partner account activated. Complete your profile and payment details.');
     }
 }

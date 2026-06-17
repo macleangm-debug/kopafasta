@@ -26,7 +26,7 @@
                     <tr class="hover:bg-gray-50">
                         <td class="px-5 py-3 font-mono text-xs">{{ $row->vendor_number }}</td>
                         <td class="px-5 py-3 font-medium">
-                            <a href="{{ route('admin.vendors.show', $row) }}" class="text-amber-700 hover:underline">{{ $row->name }}</a>
+                            <a href="{{ route('admin.partners.show', $row) }}" class="text-amber-700 hover:underline">{{ $row->name }}</a>
                         </td>
                         <td class="px-5 py-3 text-xs">
                             @foreach (($row->roles ?? [$row->category]) as $role)
@@ -36,7 +36,7 @@
                         <td class="px-5 py-3">{{ $row->phone ?? '—' }}</td>
                         <td class="px-5 py-3 capitalize">{{ $row->status }}</td>
                         <td class="px-5 py-3 text-right">
-                            <a href="{{ route('admin.vendors.edit', $row) }}" class="text-gray-600 hover:text-amber-700">Edit</a>
+                            <a href="{{ route('admin.partners.edit', $row) }}" class="text-gray-600 hover:text-amber-700">Edit</a>
                         </td>
                     </tr>
                 @empty

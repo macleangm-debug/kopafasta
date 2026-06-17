@@ -1,14 +1,14 @@
-<x-site.borrower-layout :title="brand_title('Payments')" active="payments">
+<x-site.borrower-layout :title="brand_title(__('borrower.payments_page.title'))" active="payments" content-width="wide">
 
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-            <h1 class="text-2xl font-bold mb-1">Payments</h1>
-            <p class="text-sm text-gray-500">Registration fees, application fees, deposits, repayments, and refunds.</p>
+            <h1 class="text-2xl font-bold mb-1">{{ __('borrower.payments_page.title') }}</h1>
+            <p class="text-sm text-gray-500">{{ __('borrower.payments_page.subtitle') }}</p>
         </div>
         @if ($loans->isNotEmpty())
             <a href="{{ route('site.borrower.payments.create') }}"
                class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                Make repayment →
+                {{ __('borrower.payments_page.make_repayment') }}
             </a>
         @endif
     </div>
@@ -20,11 +20,11 @@
     @if ($entries->isEmpty())
         <x-site.empty-state
             icon="💳"
-            title="No payments yet."
+            :title="__('borrower.payments_page.empty_title')"
             :description="$loans->isEmpty()
-                ? 'Once you receive a loan, you can make repayments here.'
-                : 'Your payment history will appear here after your first payment.'"
-            :action-label="$loans->isNotEmpty() ? 'Make a repayment' : 'View loan products'"
+                ? __('borrower.payments_page.empty_desc_no_loans')
+                : __('borrower.payments_page.empty_desc_has_loans')"
+            :action-label="$loans->isNotEmpty() ? __('borrower.payments_page.empty_action_repayment') : __('borrower.payments_page.empty_action_products')"
             :action-url="$loans->isNotEmpty() ? route('site.borrower.payments.create') : route('site.borrower.dashboard')"
         />
     @else
@@ -33,11 +33,11 @@
                 <table class="w-full text-sm">
                     <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                         <tr>
-                            <th class="px-4 py-3">Date</th>
-                            <th class="px-4 py-3">Reference</th>
-                            <th class="px-4 py-3">Type</th>
-                            <th class="px-4 py-3">Amount</th>
-                            <th class="px-4 py-3">Status</th>
+                            <th class="px-4 py-3">{{ __('borrower.payments_page.col_date') }}</th>
+                            <th class="px-4 py-3">{{ __('borrower.payments_page.col_reference') }}</th>
+                            <th class="px-4 py-3">{{ __('borrower.payments_page.col_type') }}</th>
+                            <th class="px-4 py-3">{{ __('borrower.payments_page.col_amount') }}</th>
+                            <th class="px-4 py-3">{{ __('borrower.payments_page.col_status') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">

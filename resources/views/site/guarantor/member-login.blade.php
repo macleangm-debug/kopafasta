@@ -24,7 +24,7 @@
                 </div>
             </dl>
 
-            <a href="{{ route('login') }}"
+            <a href="{{ route('site.login') }}"
                class="inline-flex w-full justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-3 rounded-full text-sm">
                 {{ __('borrower.guarantor_invite.member_login_button') }}
             </a>

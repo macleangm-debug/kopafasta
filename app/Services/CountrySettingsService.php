@@ -33,12 +33,15 @@ class CountrySettingsService
             $ratio = round((float) $ratio / 100, 4);
         }
 
+        $language = (string) ($merged['language'] ?? 'en');
+        $contractLocale = (string) ($merged['contract_locale'] ?? $language);
+
         return [
             'code'                => $code,
             'name'                => (string) ($merged['name'] ?? $code),
             'emoji'               => (string) ($merged['emoji'] ?? ''),
             'active'              => filter_var($merged['active'] ?? true, FILTER_VALIDATE_BOOLEAN),
-            'language'            => in_array($merged['language'] ?? 'en', ['en', 'sw'], true) ? $merged['language'] : 'en',
+            'language'            => in_array($language, ['en', 'sw'], true) ? $language : 'en',
             'currency'            => strtoupper((string) ($merged['currency'] ?? 'TZS')),
             'timezone'            => (string) ($merged['timezone'] ?? 'Africa/Dar_es_Salaam'),
             'phone_prefix'        => (string) ($merged['phone_prefix'] ?? '+255'),
@@ -50,8 +53,7 @@ class CountrySettingsService
             'crb_freshness_days'  => max(30, min(365, (int) ($merged['crb_freshness_days'] ?? 90))),
             'kyc_freshness_days'  => max(30, min(365, (int) ($merged['kyc_freshness_days'] ?? 90))),
             'guarantor_required'  => filter_var($merged['guarantor_required'] ?? true, FILTER_VALIDATE_BOOLEAN),
-            'contract_locale'     => in_array($merged['contract_locale'] ?? 'en', ['en', 'sw'], true)
-                ? $merged['contract_locale'] : 'en',
+            'contract_locale'     => in_array($contractLocale, ['en', 'sw'], true) ? $contractLocale : 'en',
             'contract_template'   => $merged['contract_template'] ?? null,
             'loan_policy_notes'   => (string) ($merged['loan_policy_notes'] ?? ''),
         ];

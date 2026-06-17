@@ -67,15 +67,16 @@
         ], null],
         ['Partners', 'M3 7h18M3 12h18M3 17h18', [
             ['Partners hub',         'admin.partners.index'],
-            ['All Partners',         'admin.vendors.index'],
-            ['Partner Applications', 'admin.vendors.applications'],
-            ['Suppliers',           'admin.vendors.suppliers'],
+            ['All Partners',         'admin.partners.all'],
+            ['Partner Applications', 'admin.partners.applications'],
+            ['Affiliate applications', 'admin.partner-applications.index'],
+            ['Suppliers',           'admin.partners.suppliers'],
             ['Asset Marketplace',   'admin.marketplace-assets.index'],
             ['Asset Requests',      'admin.asset-requests.index'],
-            ['GPS Installers',      'admin.vendors.gps-installers'],
-            ['Insurance Providers', 'admin.vendors.insurance-providers'],
-            ['Valuers',             'admin.vendors.valuers'],
-            ['Partner Tasks',        'admin.vendors.tasks'],
+            ['GPS Installers',      'admin.partners.gps-installers'],
+            ['Insurance Providers', 'admin.partners.insurance-providers'],
+            ['Valuers',             'admin.partners.valuers'],
+            ['Partner Tasks',        'admin.partners.tasks'],
         ], null],
         ['Capital', 'M19 7H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2zM3 11h18', [
             ['Capital funding',      'admin.capital-funding.index'],
@@ -96,7 +97,7 @@
             ['Payments',              'admin.payments.index',            'finance.operations'],
             ['Expenses',              'admin.expenses.index',              'finance.operations'],
             ['Settlements',           'admin.settlements.index',           'finance.operations'],
-            ['Partner payments',      'admin.vendor-payments.index',       'finance.operations'],
+            ['Partner payments',      'admin.partner-payments.index',       'finance.operations'],
             ['Partner settlements',   'admin.partner-settlements.index',   'finance.operations'],
             ['Borrower refunds',      'admin.borrower-refunds.index',      'finance.operations'],
             ['Reconciliations',       'admin.reconciliations.index',       'finance.operations'],
@@ -117,7 +118,7 @@
             ['Income Statement',  'admin.reports.income-statement',   'finance.reports'],
             ['Balance Sheet',     'admin.reports.balance-sheet',      'finance.reports'],
             ['Cash Flow',         'admin.reports.cash-flow',          'finance.reports'],
-            ['Affiliate Performance','admin.reports.vendor-performance', 'reports.view'],
+            ['Affiliate Performance','admin.reports.partner-performance', 'reports.view'],
         ], ['reports.view', 'finance.reports']],
         ['Compliance', 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z', [
             ['BOT Reports',         'admin.compliance.bot-reports'],
@@ -137,7 +138,7 @@
         ], null],
         ['Marketing', 'M11 5.882V19.24a1.76 1.76 0 01-3.27.87l-4.5-7.79A1.76 1.76 0 015.882 9H4a2 2 0 110-4h1.882a1.76 1.76 0 011.27.87l1.27 2.2', [
             ['Campaigns', 'admin.promotions.index'],
-            ['Affiliate Partners', 'admin.vendors.affiliates'],
+            ['Affiliate Partners', 'admin.partners.affiliates'],
             ['Affiliate Settings', 'admin.settings.affiliates'],
         ], null],
         ['Administration', 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', [
@@ -146,22 +147,40 @@
             ['Roles & Permissions', 'admin.roles.index', 'users.manage'],
         ], ['users.view', 'users.manage']],
         ['Settings', 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z', [
-            ['Company Profile',         'admin.settings.company'],
-            ['Loan Products',           'admin.settings.loan-products'],
-            ['SMS / Email Gateways',    'admin.settings.gateways'],
-            ['KYC Requirements',        'admin.settings.kyc'],
-            ['Loan Rules',              'admin.settings.loan-rules'],
-            ['AML Thresholds',          'admin.settings.aml'],
-            ['Country Settings',        'admin.settings.countries'],
-            ['Finance Defaults',        'admin.settings.finance'],
-            ['Payment Accounts',        'admin.settings.payment-accounts'],
-            ['Branches',                'admin.branches.index'],
-            ['Departments',             'admin.departments.index'],
-            ['Users',                   'admin.users.index'],
-            ['Approval Limits',         'admin.approval-limits.index'],
-            ['Notification Templates',  'admin.notification-templates.index'],
-            ['Document Templates',      'admin.document-templates.index'],
+            ['Settings hub',            'admin.settings.index'],
+            ['— Lending —',             '__group__'],
+            ['Loan products',           'admin.loan-products.index'],
+            ['Underwriting',            'admin.settings.underwriting'],
+            ['Loan rules',              'admin.settings.loan-rules'],
+            ['Offer settings',          'admin.settings.offer'],
+            ['Asset lending',           'admin.settings.asset-lending'],
+            ['— Compliance —',          '__group__'],
+            ['KYC rules',               'admin.settings.kyc'],
+            ['Identity verification',   'admin.settings.identity'],
+            ['Credit policy',           'admin.settings.credit-policy'],
+            ['AML thresholds',          'admin.settings.aml'],
+            ['Countries',               'admin.settings.countries'],
+            ['— Finance —',             '__group__'],
+            ['Finance defaults',        'admin.settings.finance'],
+            ['Payment accounts',        'admin.settings.payment-accounts'],
+            ['Charges & fees',          'admin.charges-fees.index'],
+            ['— Partners & marketing —','__group__'],
+            ['Affiliate settings',      'admin.settings.affiliates'],
+            ['Membership',              'admin.settings.membership'],
+            ['Referrals',               'admin.settings.referrals'],
             ['Campaigns',               'admin.promotions.index'],
+            ['— Integrations —',        '__group__'],
+            ['SMS / Email',             'admin.settings.gateways'],
+            ['CRB integration',         'admin.settings.crb'],
+            ['Notification templates',  'admin.notification-templates.index'],
+            ['— Organization —',        '__group__'],
+            ['Company profile',         'admin.settings.company'],
+            ['Legal & contracts',       'admin.settings.legal'],
+            ['Signatories',             'admin.settings.signatories.index'],
+            ['Recovery policy',         'admin.settings.recovery'],
+            ['Branches',                'admin.branches.index'],
+            ['Approval limits',         'admin.approval-limits.index'],
+            ['Document templates',      'admin.document-templates.index'],
         ], ['settings.manage', 'users.view', 'users.manage']],
     ];
 
@@ -179,6 +198,10 @@
         $departmentAccess = app(\App\Services\DepartmentAccessService::class);
 
         return array_values(array_filter($items, function (array $item) use ($permissionService, $departmentAccess) {
+            if (($item[1] ?? '') === '__group__') {
+                return true;
+            }
+
             $permission = $item[2] ?? null;
             $route = $item[1] ?? '';
 
@@ -208,14 +231,17 @@
             continue;
         }
 
-        $childRoutes = array_column($visibleItems, 1);
+        $childRoutes = array_values(array_filter(
+            array_column($visibleItems, 1),
+            fn ($route) => $route !== '__group__',
+        ));
         $isActive = in_array($currentRoute, $childRoutes, true);
 
         $visibleSections[] = [
             'label'       => $label,
             'items'       => $visibleItems,
             'isActive'    => $isActive,
-            'targetRoute' => $visibleItems[0][1],
+            'targetRoute' => collect($visibleItems)->first(fn ($item) => ($item[1] ?? '') !== '__group__')[1] ?? $visibleItems[0][1],
         ];
 
         if ($isActive) {
@@ -324,14 +350,20 @@
                             </summary>
                             <div class="absolute left-0 top-full z-50 min-w-[13rem] max-h-80 overflow-y-auto rounded-b-lg rounded-tr-lg bg-white shadow-xl ring-1 ring-gray-200 py-1">
                                 @foreach ($section['items'] as $item)
-                                    @php $itemActive = $currentRoute === $item[1]; @endphp
-                                    <a href="{{ route($item[1]) }}"
-                                       class="block px-4 py-2 text-sm transition
-                                              {{ $itemActive
-                                                   ? 'bg-amber-50 text-amber-800 font-semibold'
-                                                   : 'text-gray-700 hover:bg-gray-50' }}">
-                                        {{ $item[0] }}
-                                    </a>
+                                    @if (($item[1] ?? '') === '__group__')
+                                        <div class="px-4 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 first:pt-1">
+                                            {{ trim($item[0], ' —') }}
+                                        </div>
+                                    @else
+                                        @php $itemActive = $currentRoute === $item[1]; @endphp
+                                        <a href="{{ route($item[1]) }}"
+                                           class="block px-4 py-2 text-sm transition
+                                                  {{ $itemActive
+                                                       ? 'bg-amber-50 text-amber-800 font-semibold'
+                                                       : 'text-gray-700 hover:bg-gray-50' }}">
+                                            {{ $item[0] }}
+                                        </a>
+                                    @endif
                                 @endforeach
                             </div>
                         </details>
@@ -360,7 +392,10 @@
         </div>
 
         @if (count($activeSectionTabs) > 1)
-            <x-admin.tabs :items="array_map(fn($t) => ['label' => $t[0], 'route' => $t[1]], $activeSectionTabs)" />
+            <x-admin.tabs :items="array_map(
+                fn ($t) => ['label' => $t[0], 'route' => $t[1]],
+                array_values(array_filter($activeSectionTabs, fn ($t) => ($t[1] ?? '') !== '__group__'))
+            )" />
         @endif
 
         @if (session('status'))
@@ -375,7 +410,7 @@
             </div>
         @endif
 
-        @if ($errors->any())
+        @if ($errors instanceof \Illuminate\Support\ViewErrorBag && $errors->any())
             <div class="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
                 <ul class="list-disc list-inside space-y-1">
                     @foreach ($errors->all() as $error)

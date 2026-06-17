@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Support\KinName;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 
@@ -286,6 +287,10 @@ class ApplicationRequirementsService
     {
         $customer->refresh();
 
+        $nokName = filled($customer->nok_name)
+            ? $customer->nok_name
+            : KinName::full($customer->nok_first_name, $customer->nok_middle_name, $customer->nok_last_name);
+
         return [
             'first_name'       => $customer->first_name,
             'last_name'        => $customer->last_name,
@@ -296,7 +301,10 @@ class ApplicationRequirementsService
             'district'         => $customer->district,
             'ward'             => $customer->ward,
             'street'           => $customer->street ?: $customer->address,
-            'nok_name'         => $customer->nok_name,
+            'nok_first_name'   => $customer->nok_first_name,
+            'nok_middle_name'  => $customer->nok_middle_name,
+            'nok_last_name'    => $customer->nok_last_name,
+            'nok_name'         => $nokName,
             'nok_relationship' => $customer->nok_relationship,
             'nok_phone'        => $customer->nok_phone,
             'nok_region'       => $customer->nok_region,

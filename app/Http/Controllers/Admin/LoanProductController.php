@@ -53,6 +53,7 @@ class LoanProductController extends ResourceController
         return [
             'code'                => ['required', 'string', 'max:30'],
             'name'                => ['required', 'string', 'max:150'],
+            'name_sw'             => ['nullable', 'string', 'max:150'],
             'category'            => ['nullable', 'string', 'max:50'],
             'description'         => ['nullable', 'string', 'max:1000'],
             'interest_rate'       => ['nullable', 'numeric', 'min:0', 'max:1'],
@@ -181,12 +182,30 @@ class LoanProductController extends ResourceController
         $this->syncPostApprovalFees($record, $postApprovalFees);
         $this->syncRateTiers($record, $rateTiers, applyDefaultsIfEmpty: true);
         $this->syncInterestRateFromTiers($record);
+        $regeneratedFees = app(\App\Services\PostApprovalFeeService::class)->syncFromProductUpdate($record->fresh());
         $record->refresh();
         $this->auditAdminUpdated($record, $before);
 
+        $message = ucfirst($this->singular).' updated.';
+        if ($regeneratedFees > 0) {
+            $message .= " Regenerated post-approval fees for {$regeneratedFees} pending application(s).";
+        }
+
         return redirect()
             ->route("{$this->routePrefix}.show", $record)
-            ->with('status', ucfirst($this->singular).' updated.');
+            ->with('status', $message);
+    }
+
+    public function regenerateRateTiers(LoanProduct $loanProduct): RedirectResponse
+    {
+        app(LoanRateTierTemplateService::class)->applyDefaults($loanProduct, replaceExisting: true);
+        $this->syncInterestRateFromTiers($loanProduct->fresh());
+
+        $this->auditAdmin('loan_products.rate_tiers.regenerated', $loanProduct);
+
+        return redirect()
+            ->route("{$this->routePrefix}.edit", $loanProduct)
+            ->with('status', 'Default amount-band tiers regenerated from product limits and interest rate.');
     }
 
     protected function normalizeMoneyRequest(Request $request): void
@@ -367,7 +386,7 @@ class LoanProductController extends ResourceController
             $insurance = RatePercent::toDecimal($row['administration_fee_rate'] ?? 0);
             $monthly = LoanProductRateTier::totalFromComponents($bot, $processing, $risk, $insurance);
 
-            if ($monthly <= 0) {
+            if ($monthly <= 0 || $monthly > 1) {
                 continue;
             }
 

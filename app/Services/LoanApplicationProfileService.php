@@ -57,6 +57,7 @@ class LoanApplicationProfileService
             'actions'              => $this->primaryActions($next),
             'resume_target'        => $resumeTarget,
             'wizard_url'           => $this->drafts->wizardApplyUrl($draft, $resumeTarget),
+            'snapshot'             => $this->drafts->adminSnapshot($draft),
             'document_requests'    => [],
             'guarantor_invitations' => collect(),
             'customer_guarantors'  => collect(),
@@ -190,6 +191,7 @@ class LoanApplicationProfileService
             'disbursement_details' => app(CustomerDisbursementDetailsService::class)
                 ->snapshotForApplication($application),
             'disbursement_checklist' => $disbursementChecklist,
+            'handover_milestones'    => app(AssetHandoverMilestoneService::class)->forApplication($application),
         ];
     }
 
@@ -200,7 +202,7 @@ class LoanApplicationProfileService
 
         return [
             'loan_type'           => $this->loanTypeLabel($product),
-            'product_name'        => $product?->name ?? __('borrower.apply.title'),
+            'product_name'        => $product?->localizedName() ?? __('borrower.apply.title'),
             'requested_amount'    => $this->drafts->requestedAmount($draft),
             'requested_tenure'    => (int) ($form['requested_tenure_months'] ?? 0),
             'interest_rate_label' => $product
@@ -219,7 +221,7 @@ class LoanApplicationProfileService
 
         return [
             'loan_type'           => $this->loanTypeLabel($product),
-            'product_name'        => $product?->name ?? '—',
+            'product_name'        => $product?->localizedName() ?? '—',
             'requested_amount'    => (float) $application->requested_amount,
             'requested_tenure'    => (int) $application->requested_tenure_months,
             'interest_rate_label' => $product

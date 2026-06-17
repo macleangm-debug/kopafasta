@@ -1,6 +1,6 @@
 <x-admin.layout title="Partner settlements" heading="Partner settlement batches" subheading="Weekly payout batches for suppliers, GPS installers, and affiliates">
     <div class="mb-4 flex flex-wrap gap-2">
-        <a href="{{ route('admin.vendor-payments.index') }}" class="text-sm font-medium text-amber-700 hover:text-amber-900">Review pending payments →</a>
+        <a href="{{ route('admin.partner-payments.index') }}" class="text-sm font-medium text-amber-700 hover:text-amber-900">Review pending payments →</a>
     </div>
 
     <div class="bg-white rounded-xl ring-1 ring-gray-200 overflow-hidden">

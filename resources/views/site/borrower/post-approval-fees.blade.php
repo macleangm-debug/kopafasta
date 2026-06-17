@@ -1,5 +1,5 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.post_approval_fees.page_title'))" active="loans">
-    <div class="max-w-2xl mx-auto" x-data="{ channel: @js(old('channel', 'mobile_money')) }">
+<x-site.borrower-layout :title="brand_title(__('borrower.post_approval_fees.page_title'))" active="loans" content-width="wide">
+    <div x-data="{ channel: @js(old('channel', 'mobile_money')) }">
         <div class="mb-6">
             <a href="{{ route('site.borrower.application', $application) }}" class="text-sm text-amber-700 hover:text-amber-800">&larr; {{ __('borrower.post_approval_fees.back') }}</a>
             <h1 class="text-2xl font-bold mt-2">{{ __('borrower.post_approval_fees.page_title') }}</h1>
@@ -75,8 +75,8 @@
                 </div>
 
                 <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3 text-sm">
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">Promo code (optional)</label>
-                    <input type="text" name="promo_code" value="{{ old('promo_code') }}" maxlength="40" class="w-full rounded-lg border-gray-300 text-sm font-mono uppercase" placeholder="PROMO2026">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">{{ __('borrower.post_approval_fees.promo_code_label') }}</label>
+                    <input type="text" name="promo_code" value="{{ old('promo_code') }}" maxlength="40" class="w-full rounded-lg border-gray-300 text-sm font-mono uppercase" placeholder="{{ __('borrower.post_approval_fees.promo_code_placeholder') }}">
                 </div>
 
                 <div>

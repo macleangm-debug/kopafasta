@@ -1,6 +1,6 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.guarantor.detail_title'))" active="guarantors">
+<x-site.borrower-layout :title="brand_title(__('borrower.guarantor.detail_title'))" active="guarantors" content-width="wide">
 
-    <div class="max-w-2xl">
+    <div>
         <a href="{{ route('site.borrower.loans', ['tab' => 'guarantor']) }}" class="inline-flex items-center gap-1 text-sm font-semibold text-amber-700 hover:underline mb-4">
             ← {{ __('borrower.guarantor.back_to_requests') }}
         </a>

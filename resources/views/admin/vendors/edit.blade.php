@@ -1,10 +1,10 @@
 <x-admin.edit-page
     :title="'Edit '.$record->name"
-    heading="Edit vendor"
+    heading="Edit partner"
     :subheading="$record->vendor_number"
-    :action="route('admin.vendors.update', $record)"
-    :destroyAction="route('admin.vendors.destroy', $record)"
-    :cancelUrl="route('admin.vendors.show', $record)"
+    :action="route('admin.partners.update', $record)"
+    :destroyAction="route('admin.partners.destroy', $record)"
+    :cancelUrl="route('admin.partners.show', $record)"
     submitLabel="Save changes">
     @include('admin.vendors._form')
 </x-admin.edit-page>

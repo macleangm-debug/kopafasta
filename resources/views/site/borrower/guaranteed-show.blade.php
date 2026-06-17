@@ -1,6 +1,6 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.guaranteed.detail_title'))" active="loans" portalMode="guarantor">
+<x-site.borrower-layout :title="brand_title(__('borrower.guaranteed.detail_title'))" active="loans" portalMode="guarantor" content-width="wide">
 
-    <div class="max-w-4xl">
+    <div>
         <a href="{{ route('site.borrower.loans', ['tab' => 'guaranteed']) }}" class="inline-flex items-center gap-1 text-sm font-semibold text-amber-700 hover:underline mb-4">
             ← {{ __('borrower.guaranteed.back_to_list') }}
         </a>
@@ -113,6 +113,7 @@
                                     @php
                                         $isOverdue = $installment->status !== 'paid' && \Carbon\Carbon::parse($installment->due_date)->isPast();
                                         $st = $isOverdue ? 'overdue' : $installment->status;
+                                        $installmentStatuses = __('borrower.guaranteed.installment_statuses');
                                         $color = match ($st) {
                                             'paid' => 'bg-emerald-100 text-emerald-700',
                                             'overdue' => 'bg-red-100 text-red-700',
@@ -125,7 +126,7 @@
                                         <td class="px-4 py-2.5 text-right font-semibold">{{ format_number($installment->total_due) }}</td>
                                         <td class="px-4 py-2.5 text-right text-gray-500">{{ format_number($installment->amount_paid) }}</td>
                                         <td class="px-4 py-2.5 text-center">
-                                            <span class="text-xs font-semibold rounded-full px-2 py-0.5 {{ $color }}">{{ ucfirst($st) }}</span>
+                                            <span class="text-xs font-semibold rounded-full px-2 py-0.5 {{ $color }}">{{ $installmentStatuses[$st] ?? ucfirst($st) }}</span>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -139,17 +140,20 @@
         @if ($row->restructure || $row->top_up)
             <div class="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
                 <h2 class="font-semibold mb-4">{{ __('borrower.guaranteed.modifications_title') }}</h2>
+                @php
+                    $modificationStatuses = __('borrower.guaranteed.modification_statuses');
+                @endphp
                 <dl class="space-y-4 text-sm">
                     @if ($row->restructure)
                         <div class="rounded-xl bg-gray-50 px-4 py-3">
                             <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.loan_actions.restructure') }}</dt>
-                            <dd class="mt-1 capitalize">{{ str_replace('_', ' ', $row->restructure->restructure_type) }} · <span class="font-semibold">{{ ucfirst($row->restructure->status) }}</span></dd>
+                            <dd class="mt-1 capitalize">{{ str_replace('_', ' ', $row->restructure->restructure_type) }} · <span class="font-semibold">{{ $modificationStatuses[$row->restructure->status] ?? ucfirst($row->restructure->status) }}</span></dd>
                         </div>
                     @endif
                     @if ($row->top_up)
                         <div class="rounded-xl bg-gray-50 px-4 py-3">
                             <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.loan_actions.top_up') }}</dt>
-                            <dd class="mt-1">{{ format_money($row->top_up->requested_amount) }} · <span class="font-semibold">{{ ucfirst($row->top_up->status) }}</span></dd>
+                            <dd class="mt-1">{{ format_money($row->top_up->requested_amount) }} · <span class="font-semibold">{{ $modificationStatuses[$row->top_up->status] ?? ucfirst($row->top_up->status) }}</span></dd>
                         </div>
                     @endif
                 </dl>

@@ -2,17 +2,17 @@
 
 @php
 $nav = [
-    ['key' => 'dashboard',     'label' => 'Dashboard',      'route' => 'site.vendor.dashboard',       'icon' => 'home'],
-    ['key' => 'tasks',         'label' => 'Assigned Tasks', 'route' => 'site.vendor.tasks',           'icon' => 'clipboard'],
-    ['key' => 'recovery',      'label' => 'Recovery Cases', 'route' => 'site.vendor.recovery-cases',  'icon' => 'alert'],
-    ['key' => 'active',        'label' => 'Active Jobs',    'route' => 'site.vendor.tasks.active',    'icon' => 'play'],
-    ['key' => 'completed',     'label' => 'Completed Jobs', 'route' => 'site.vendor.tasks.completed', 'icon' => 'check'],
-    ['key' => 'documents',     'label' => 'Documents',      'route' => 'site.vendor.documents',       'icon' => 'folder'],
-    ['key' => 'payments',      'label' => 'Payments',       'route' => 'site.vendor.payments',        'icon' => 'wallet'],
-    ['key' => 'calendar',      'label' => 'Calendar',       'route' => 'site.vendor.calendar',        'icon' => 'calendar'],
-    ['key' => 'notifications', 'label' => 'Notifications',  'route' => 'site.vendor.notifications',   'icon' => 'bell'],
-    ['key' => 'support',       'label' => 'Support',        'route' => 'site.vendor.support',         'icon' => 'help'],
-    ['key' => 'profile',       'label' => 'Profile',        'route' => 'site.vendor.profile',         'icon' => 'user'],
+    ['key' => 'dashboard',     'label' => 'Dashboard',      'route' => 'site.partner.dashboard',       'icon' => 'home'],
+    ['key' => 'tasks',         'label' => 'Assigned Tasks', 'route' => 'site.partner.tasks',           'icon' => 'clipboard'],
+    ['key' => 'recovery',      'label' => 'Recovery Cases', 'route' => 'site.partner.recovery-cases',  'icon' => 'alert'],
+    ['key' => 'active',        'label' => 'Active Jobs',    'route' => 'site.partner.tasks.active',    'icon' => 'play'],
+    ['key' => 'completed',     'label' => 'Completed Jobs', 'route' => 'site.partner.tasks.completed', 'icon' => 'check'],
+    ['key' => 'documents',     'label' => 'Documents',      'route' => 'site.partner.documents',       'icon' => 'folder'],
+    ['key' => 'payments',      'label' => 'Payments',       'route' => 'site.partner.payments',        'icon' => 'wallet'],
+    ['key' => 'calendar',      'label' => 'Calendar',       'route' => 'site.partner.calendar',        'icon' => 'calendar'],
+    ['key' => 'notifications', 'label' => 'Notifications',  'route' => 'site.partner.notifications',   'icon' => 'bell'],
+    ['key' => 'support',       'label' => 'Support',        'route' => 'site.partner.support',         'icon' => 'help'],
+    ['key' => 'profile',       'label' => 'Profile',        'route' => 'site.partner.profile',         'icon' => 'user'],
 ];
 
 $portalVendor = auth()->user()
@@ -62,7 +62,7 @@ $icon = function (string $name) {
             <span class="size-9 grid place-items-center rounded-lg bg-white text-indigo-700 font-extrabold shadow">K</span>
             <div class="leading-tight">
                 <div class="font-extrabold tracking-tight text-sm">Kopafasta</div>
-                <div class="text-[11px] text-white/70">Vendor portal</div>
+                <div class="text-[11px] text-white/70">Partner portal</div>
             </div>
         </a>
         <nav class="flex-1 overflow-y-auto py-4">
@@ -108,7 +108,7 @@ $icon = function (string $name) {
         <header class="lg:hidden sticky top-0 z-30 bg-white border-b border-gray-200 flex items-center justify-between px-4 h-14">
             <a href="{{ route('site.home') }}" class="flex items-center gap-2">
                 <span class="size-7 grid place-items-center rounded-md bg-indigo-600 text-white font-extrabold text-sm">K</span>
-                <span class="font-bold">Vendor</span>
+                <span class="font-bold">Partner</span>
             </a>
             <div class="flex items-center gap-1">
                 <form method="POST" action="{{ route('site.logout') }}">

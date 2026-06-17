@@ -14,8 +14,10 @@ class PageController extends Controller
     {
         $products = LoanProduct::with('rateTiers')->whereIn('status', ['active', 'coming_soon'])->orderBy('id')->get();
         $rateFromLabel = app(DisplayedRateService::class)->lowestBorrowerRateLabel($products);
+        $featuredAssets = app(\App\Http\Controllers\Site\AssetMarketplaceController::class)->homepageFeatured(6);
+        $marketplaceCategories = config('asset_marketplace.categories', []);
 
-        return view('site.home', compact('products', 'rateFromLabel'));
+        return view('site.home', compact('products', 'rateFromLabel', 'featuredAssets', 'marketplaceCategories'));
     }
 
     public function products(): View

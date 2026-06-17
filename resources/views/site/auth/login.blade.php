@@ -19,9 +19,13 @@
                     <x-site.brand-mark />
                 </a>
 
-                <h1 class="text-3xl font-bold tracking-tight text-gray-900">Welcome back</h1>
+                <h1 class="text-3xl font-bold tracking-tight text-gray-900">{{ ($partnerPortal ?? false) ? 'Partner sign in' : 'Welcome back' }}</h1>
                 <p class="mt-2 text-sm text-gray-600">
-                    New here? <a href="{{ route('site.register') }}" class="text-amber-600 font-semibold hover:underline">Create an account</a>
+                    @if ($partnerPortal ?? false)
+                        New partner? <a href="{{ route('site.partner.start') }}" class="text-amber-600 font-semibold hover:underline">Activate your account</a>
+                    @else
+                        New here? <a href="{{ route('site.register') }}" class="text-amber-600 font-semibold hover:underline">Create an account</a>
+                    @endif
                 </p>
 
                 @if (session('status'))
@@ -72,6 +76,14 @@
                                    class="w-full px-3 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 text-sm tracking-[0.5em] font-mono text-center text-lg outline-none"
                                    placeholder="••••">
                         </div>
+                        @if ($partnerPortal ?? false)
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1.5">Partner code</label>
+                                <input type="text" name="partner_code" value="{{ old('partner_code') }}"
+                                       class="w-full px-3 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 text-sm font-mono uppercase outline-none"
+                                       placeholder="PTR-XXXXXX">
+                            </div>
+                        @endif
                     </div>
 
                     <div x-show="method === 'password'" x-cloak>

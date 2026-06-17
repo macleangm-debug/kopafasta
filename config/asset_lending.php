@@ -16,6 +16,9 @@ return [
     /** Default supplier type for new suppliers. */
     'default_supplier_type' => 'managed_loan',
 
+    /** Monthly rate used when auto-calculating marketplace weekly instalments. */
+    'default_monthly_rate' => 0.12,
+
     /**
      * Asset categories with workflow requirements.
      * Keys are stored on marketplace_assets.category.

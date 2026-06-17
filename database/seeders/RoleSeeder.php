@@ -19,7 +19,7 @@ class RoleSeeder extends Seeder
         'auditor'        => 'Read-only audit log access via API.',
         'borrower'       => 'Borrower portal self-service account.',
         'customer'       => 'Borrower portal account (legacy customer code).',
-        'vendor'         => 'Vendor portal partner account.',
+        'vendor'         => 'Partner portal account.',
         'investor'       => 'Investor / capital partner portal account.',
     ];
 

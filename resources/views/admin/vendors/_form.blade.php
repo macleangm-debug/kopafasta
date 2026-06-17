@@ -1,7 +1,9 @@
-{{-- Shared partner form. Expects $record, $statuses, $categories --}}
+{{-- Shared partner form. Expects $record, $statuses, $categories, $regionOptions --}}
 @php
     $r = $record ?? null;
     $category = old('category', $r?->category ?? ($defaultCategory ?? 'supplier'));
+    $selectedRegions = old('regions', $r?->regions ?? []);
+    $regionRequiredCategories = ['valuer', 'gps_installer', 'insurance', 'debt_collector', 'towing', 'auctioneer', 'legal_partner', 'supplier'];
 @endphp
 
 <div x-data="{ category: @js($category) }">
@@ -9,7 +11,7 @@
         <p class="md:col-span-2 text-sm text-gray-600">
             Selected type: <span class="font-semibold text-gray-900 capitalize" x-text="category.replace(/_/g, ' ')"></span>
             @if (! $r)
-                · <a href="{{ route('admin.vendors.create') }}" class="text-amber-700 hover:underline">Change type</a>
+                · <a href="{{ route('admin.partners.create') }}" class="text-amber-700 hover:underline">Change type</a>
             @endif
         </p>
     </x-admin.step>
@@ -17,18 +19,47 @@
     <x-admin.step title="Basic info">
         <x-admin.input  name="vendor_number" label="Partner code" :value="$r?->vendor_number" placeholder="Auto-generated if blank" />
         <x-admin.input  name="name"          label="Name"          :value="$r?->name"          required />
-        <x-admin.select name="category"      label="Category"      :options="$categories"      :value="$category" required x-model="category" />
+        <x-admin.select name="category"      label="Category"      :options="$categories"      :value="$category" required x-model="category"
+                        @if (! $r && ($defaultCategory ?? null)) disabled @endif />
+        @if (! $r && ($defaultCategory ?? null))
+            <input type="hidden" name="category" value="{{ $category }}">
+        @endif
         <x-admin.select name="status"        label="Status"        :options="$statuses"        :value="$r?->status ?? 'active'" required />
     </x-admin.step>
+
+    <div x-show="['valuer','gps_installer','insurance','debt_collector','towing','auctioneer','legal_partner','supplier'].includes(category)" x-cloak>
+        <x-admin.step title="Coverage regions">
+            <div class="md:col-span-2">
+                <p class="text-xs text-gray-500 mb-3">Select one or more regions this partner covers. The system assigns the nearest matching partner.</p>
+                <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-64 overflow-y-auto rounded-lg border border-gray-200 p-3">
+                    @foreach ($regionOptions ?? [] as $region)
+                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" name="regions[]" value="{{ $region }}"
+                                   @checked(in_array($region, $selectedRegions, true))
+                                   class="rounded border-gray-300 text-amber-600 focus:ring-amber-500">
+                            <span>{{ $region }}</span>
+                        </label>
+                    @endforeach
+                </div>
+            </div>
+        </x-admin.step>
+    </div>
 
     <x-admin.step title="Contact">
         <x-admin.input  name="phone"         label="Phone"         :value="$r?->phone"         placeholder="+255…" />
         <x-admin.input  name="email"         label="Email"         :value="$r?->email"         type="email" />
-        <div class="md:col-span-2">
+        <div class="md:col-span-2" x-show="category !== 'valuer'" x-cloak>
             <x-admin.textarea name="address" label="Address / coverage area" :value="$r?->address" rows="2"
-                              placeholder="For valuers: list regions and vehicle types covered" />
+                              placeholder="Office address or service coverage notes" />
         </div>
     </x-admin.step>
+
+    <div x-show="category === 'valuer'" x-cloak>
+        <x-admin.step title="Valuer rates">
+            <x-admin.input name="partner_cost" label="Base cost (TZS)" type="number" step="0.01" :value="$r?->partner_cost" />
+            <x-admin.input name="markup_percent" label="Company markup (%)" type="number" step="0.01" :value="$r?->markup_percent" />
+        </x-admin.step>
+    </div>
 
     <div x-show="category === 'supplier'" x-cloak>
         <x-admin.step title="Supplier settings">
@@ -47,7 +78,7 @@
         </x-admin.step>
     </div>
 
-    <div x-show="['debt_collector','call_center','towing','auctioneer','legal_partner','gps_installer','insurance'].includes(category)" x-cloak>
+    <div x-show="['debt_collector','towing','auctioneer','legal_partner','gps_installer','insurance'].includes(category)" x-cloak>
         <x-admin.step title="Service rates">
             <x-admin.input name="partner_cost" label="Default partner cost (optional)" type="number" step="0.01" :value="$r?->partner_cost" />
             <x-admin.input name="markup_percent" label="Markup (%)" type="number" step="0.01" :value="$r?->markup_percent" />

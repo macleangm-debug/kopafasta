@@ -51,33 +51,30 @@ class SupplierController extends Controller
     public function createAsset(): View
     {
         $vendor = $this->supplier();
+        $lending = app(\App\Services\AssetLendingService::class);
 
         return view('site.supplier.assets.form', [
-            'vendor' => $vendor,
-            'asset'  => null,
-            'categories' => config('asset_marketplace.categories', []),
+            'vendor'                      => $vendor,
+            'asset'                       => null,
+            'categories'                  => config('asset_marketplace.categories', []),
+            'defaultDepositMarkupPercent' => $lending->defaultDepositMarkupPercent(),
+            'defaultWaitingPeriodDays'    => $lending->defaultWaitingPeriodDays(),
         ]);
     }
 
     public function storeAsset(Request $request, MarketplaceAssetService $assets): RedirectResponse
     {
         $vendor = $this->supplier();
-        $data = $request->validate([
-            'category'               => ['required', 'string', 'max:40'],
-            'title'                  => ['required', 'string', 'max:150'],
-            'description'            => ['nullable', 'string'],
-            'asset_value'            => ['required', 'numeric', 'min:0'],
-            'supplier_deposit'       => ['required', 'numeric', 'min:0'],
-            'deposit_markup_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'weekly_installment'     => ['required', 'numeric', 'min:0'],
-            'max_tenure_months'      => ['required', 'integer', 'min:1', 'max:120'],
-        ]);
+        $validated = $request->validate($assets->validationRules());
 
-        $data['vendor_id'] = $vendor->id;
-        $data['supplier_name'] = $vendor->name;
-        $data['is_active'] = true;
-        $data = $assets->prepareForSave($data);
-        MarketplaceAsset::create($data);
+        $data = $assets->prepareForSave(array_merge($validated, [
+            'vendor_id'     => $vendor->id,
+            'supplier_name' => $vendor->name,
+            'is_active'     => true,
+        ]));
+
+        $record = MarketplaceAsset::create($data);
+        $assets->syncPhotos($record, $request->file('photos', []));
 
         return redirect()->route('site.supplier.assets')->with('status', 'Asset uploaded successfully.');
     }
@@ -86,11 +83,14 @@ class SupplierController extends Controller
     {
         $vendor = $this->supplier();
         abort_unless($asset->vendor_id === $vendor->id, 404);
+        $lending = app(\App\Services\AssetLendingService::class);
 
         return view('site.supplier.assets.form', [
-            'vendor' => $vendor,
-            'asset'  => $asset,
-            'categories' => config('asset_marketplace.categories', []),
+            'vendor'                      => $vendor,
+            'asset'                       => $asset,
+            'categories'                  => config('asset_marketplace.categories', []),
+            'defaultDepositMarkupPercent' => $lending->defaultDepositMarkupPercent(),
+            'defaultWaitingPeriodDays'    => $lending->defaultWaitingPeriodDays(),
         ]);
     }
 
@@ -99,21 +99,13 @@ class SupplierController extends Controller
         $vendor = $this->supplier();
         abort_unless($asset->vendor_id === $vendor->id, 404);
 
-        $data = $request->validate([
-            'category'               => ['required', 'string', 'max:40'],
-            'title'                  => ['required', 'string', 'max:150'],
-            'description'            => ['nullable', 'string'],
-            'asset_value'            => ['required', 'numeric', 'min:0'],
-            'supplier_deposit'       => ['required', 'numeric', 'min:0'],
-            'deposit_markup_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'weekly_installment'     => ['required', 'numeric', 'min:0'],
-            'max_tenure_months'      => ['required', 'integer', 'min:1', 'max:120'],
-            'is_active'              => ['nullable', 'boolean'],
-        ]);
+        $validated = $request->validate($assets->validationRules($asset));
+        $data = $assets->prepareForSave(array_merge($validated, [
+            'is_active' => $request->boolean('is_active', true),
+        ]), $asset);
 
-        $data['is_active'] = $request->boolean('is_active', true);
-        $data = $assets->prepareForSave($data, $asset);
         $asset->update($data);
+        $assets->syncPhotos($asset, $request->file('photos', []), $request->input('remove_photos', []));
 
         return redirect()->route('site.supplier.assets')->with('status', 'Asset updated.');
     }

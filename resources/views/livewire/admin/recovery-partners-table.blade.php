@@ -17,7 +17,7 @@
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3 font-mono text-xs text-gray-500">{{ $r->vendor_number }}</td>
                 <td class="px-5 py-3 font-medium">
-                    <a href="{{ route('admin.vendors.show', $r) }}" class="text-amber-700 hover:underline">{{ $r->name }}</a>
+                    <a href="{{ route('admin.partners.show', $r) }}" class="text-amber-700 hover:underline">{{ $r->name }}</a>
                 </td>
                 <td class="px-5 py-3 text-xs">
                     @if ($r->user_id)
@@ -38,7 +38,7 @@
                     ]" />
                 </td>
                 <td class="px-5 py-3 text-right text-sm">
-                    <a href="{{ route('admin.vendors.edit', $r) }}" class="text-gray-600 hover:text-amber-700">Edit</a>
+                    <a href="{{ route('admin.partners.edit', $r) }}" class="text-gray-600 hover:text-amber-700">Edit</a>
                 </td>
             </tr>
         @empty

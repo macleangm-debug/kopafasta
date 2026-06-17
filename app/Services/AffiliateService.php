@@ -134,6 +134,26 @@ class AffiliateService
         ];
     }
 
+    /** @return array<string, string> */
+    public function messageContext(Vendor $affiliate): array
+    {
+        $code = $this->ensureCode($affiliate);
+
+        return [
+            'brand'              => brand_name(),
+            'affiliate_name'     => $affiliate->name,
+            'affiliate_code'     => $code,
+            'affiliate_link'     => $this->affiliateLink($affiliate),
+            'registration_link'  => $this->registrationLink($affiliate),
+            'verify_link'        => route('site.affiliate.verify', $code),
+        ];
+    }
+
+    public function renderMessage(Vendor $affiliate, string $key): string
+    {
+        return app(AffiliateSettingsService::class)->message($key, $this->messageContext($affiliate));
+    }
+
     public function affiliate(Customer $customer): ?Vendor
     {
         if (! $customer->affiliate_vendor_id) {

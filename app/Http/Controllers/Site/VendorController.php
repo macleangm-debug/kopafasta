@@ -26,7 +26,7 @@ class VendorController extends Controller
         $vendor = Vendor::where('user_id', $user->id)->first();
         if (! $vendor) {
             $vendor = Vendor::create([
-                'vendor_number' => 'VND-'.strtoupper(Str::random(6)),
+                'vendor_number' => 'PTR-'.strtoupper(Str::random(6)),
                 'name'          => $user->name,
                 'category'      => 'gps_installer',
                 'phone'         => $user->phone,
@@ -70,7 +70,23 @@ class VendorController extends Controller
         $notifications = NotificationLog::where('user_id', Auth::id())
             ->latest()->limit(4)->get();
 
-        return view('site.vendor.dashboard', compact('vendor', 'stats', 'upcoming', 'notifications'));
+        $affiliateStats = null;
+        $affiliateShare = null;
+        $affiliateLinks = null;
+
+        if ($vendor->category === 'affiliate') {
+            $affiliateService = app(\App\Services\AffiliateService::class);
+            $affiliateService->ensureCode($vendor);
+            $vendor->refresh();
+            $affiliateStats = $affiliateService->stats($vendor);
+            $affiliateShare = $affiliateService->renderMessage($vendor, 'share_template');
+            $affiliateLinks = $affiliateService->messageContext($vendor);
+        }
+
+        return view('site.vendor.dashboard', compact(
+            'vendor', 'stats', 'upcoming', 'notifications',
+            'affiliateStats', 'affiliateShare', 'affiliateLinks',
+        ));
     }
 
     /* ------------------------------------------------------------------ */
@@ -183,7 +199,7 @@ class VendorController extends Controller
             : 'Action recorded.';
 
         return redirect()
-            ->route('site.vendor.recovery-case', $recoveryAssignment)
+            ->route('site.partner.recovery-case', $recoveryAssignment)
             ->with('status', $message);
     }
 
@@ -210,6 +226,8 @@ class VendorController extends Controller
         $vendor = $this->vendor();
         abort_unless($task->vendor_id === $vendor->id, 404);
         $task->update(['status' => 'in_progress', 'accepted_at' => now()]);
+        $this->markValuationInProgress($task);
+
         return back()->with('status', 'Task accepted. You may start work now.');
     }
 
@@ -218,7 +236,24 @@ class VendorController extends Controller
         $vendor = $this->vendor();
         abort_unless($task->vendor_id === $vendor->id, 404);
         $task->update(['status' => 'in_progress', 'started_at' => now()]);
+        $this->markValuationInProgress($task);
+
         return back()->with('status', 'Marked as in progress.');
+    }
+
+    private function markValuationInProgress(VendorTask $task): void
+    {
+        if ($task->task_type !== 'asset_valuation') {
+            return;
+        }
+
+        $assignment = \App\Models\ValuationAssignment::query()
+            ->where('vendor_task_id', $task->id)
+            ->first();
+
+        if ($assignment) {
+            app(\App\Services\ValuationPartnerService::class)->markInProgress($assignment);
+        }
     }
 
     public function completeTask(Request $request, VendorTask $task)
@@ -253,7 +288,7 @@ class VendorController extends Controller
                 ]);
             }
 
-            return redirect()->route('site.vendor.task', $task)
+            return redirect()->route('site.partner.task', $task)
                 ->with('status', 'Valuation submitted.');
         }
 
@@ -281,7 +316,7 @@ class VendorController extends Controller
             $task->update(['payment_status' => 'pending']);
         }
 
-        return redirect()->route('site.vendor.task', $task)
+        return redirect()->route('site.partner.task', $task)
             ->with('status', 'Task completed. Invoice generated and awaiting settlement.');
     }
 

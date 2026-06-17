@@ -4,7 +4,7 @@
         <p class="text-sm text-gray-600 max-w-2xl">
             Affiliate partners receive unique codes and links. Track clicks, registrations, and application conversions from each partner profile.
         </p>
-        <a href="{{ route('admin.vendors.create', ['category' => 'affiliate']) }}"
+        <a href="{{ route('admin.partners.create', ['category' => 'affiliate']) }}"
            class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2 rounded-lg text-sm">
             + New affiliate partner
         </a>

@@ -1,4 +1,5 @@
 <x-admin.layout title="Finance defaults" heading="Finance defaults" subheading="GL accounts used for automatic journal posting">
+    @include('admin.settings._tabs', ['active' => 'finance'])
 
     @if (session('status'))
         <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
@@ -47,6 +48,17 @@
                        value="{{ $values['capital_partner_interest_share_percent'] ?? 60 }}"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 <p class="text-xs text-gray-500 mt-1">Partner share of interest collected on repayments. Company receives the remainder.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Capital allocation strategy</label>
+                @php $strategy = $values['capital_allocation_strategy'] ?? 'proportional'; @endphp
+                <select name="capital_allocation_strategy" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <option value="proportional" @selected($strategy === 'proportional')>Proportional (by available pool balance)</option>
+                    <option value="round_robin" @selected($strategy === 'round_robin')>Round robin (one partner per loan when possible)</option>
+                    <option value="priority" @selected($strategy === 'priority')>Priority waterfall (by lender priority field)</option>
+                    <option value="manual" @selected($strategy === 'manual')>Manual (block automatic allocation)</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">Used when disbursing loans funded by capital partners.</p>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Write-off approval required</label>

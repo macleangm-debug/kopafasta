@@ -8,6 +8,25 @@ use Illuminate\Support\Collection;
 
 class PromotionService
 {
+    /** Fee types promotions may discount — never interest or penalties. */
+    public const FEE_APPLIES_TO = [
+        'registration_fee',
+        'application_fee',
+        'post_approval_fee',
+        'valuation_fee',
+        'membership_fee',
+        'all',
+    ];
+
+    public static function isAllowedAppliesTo(?string $appliesTo): bool
+    {
+        if ($appliesTo === null || $appliesTo === '') {
+            return true;
+        }
+
+        return in_array($appliesTo, self::FEE_APPLIES_TO, true);
+    }
+
     /** @return Collection<int, Promotion> */
     public function active(?string $type = null, ?string $appliesTo = null): Collection
     {
@@ -39,6 +58,10 @@ class PromotionService
 
     public function discountForFee(string $feeType, float $baseAmount): float
     {
+        if (! self::isAllowedAppliesTo($feeType)) {
+            return 0.0;
+        }
+
         $promotion = $this->active(type: 'fee_discount', appliesTo: $feeType)->first();
         if (! $promotion) {
             return 0.0;
@@ -82,6 +105,15 @@ class PromotionService
             ->first();
 
         if (! $promotion || ! $promotion->isActive()) {
+            return [
+                'valid'              => false,
+                'promotion_discount' => 0.0,
+                'after_discount'     => round($amount, 2),
+                'promotion'          => null,
+            ];
+        }
+
+        if (! self::isAllowedAppliesTo($promotion->applies_to)) {
             return [
                 'valid'              => false,
                 'promotion_discount' => 0.0,

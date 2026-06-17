@@ -1,6 +1,6 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.profile.title'))" active="profile">
+<x-site.borrower-layout :title="brand_title(__('borrower.profile.title'))" active="profile" content-width="wide">
 
-    <div class="max-w-3xl">
+    <div class="grid lg:grid-cols-2 gap-6">
         @include('site.borrower.profile._heading', [
             'title' => __('borrower.profile.title'),
             'subtitle' => __('borrower.security_tab.subtitle'),
@@ -13,7 +13,7 @@
                 <h2 class="font-semibold mb-1">{{ auth()->user()->pin_set_at ? __('borrower.security_tab.change_pin') : __('borrower.security_tab.set_pin') }}</h2>
                 <p class="text-sm text-gray-500 mb-4">{{ __('borrower.security_tab.pin_hint') }}</p>
 
-                <form method="POST" action="{{ route('site.borrower.profile.pin.update') }}" class="grid sm:grid-cols-2 gap-4 max-w-lg">
+                <form method="POST" action="{{ route('site.borrower.profile.pin.update') }}" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     @csrf @method('PUT')
                     @if (auth()->user()->pin_set_at)
                         <div class="sm:col-span-2">

@@ -23,20 +23,29 @@ class NidaVerificationService
         return $customer->nida_verification_status === 'verified' && $customer->identity_locked;
     }
 
-    /** @return array{max_mismatch_attempts: int, lock_days: int, require_dob: bool} */
+    /** @return array{max_mismatch_attempts: int, lock_hours: int|null, lock_days: int, require_dob: bool} */
     public function settings(): array
     {
         $group = Setting::group('identity_verification');
-        $lockDays = $group['lock_days'] ?? null;
-        if ($lockDays === null && isset($group['lock_hours'])) {
-            $lockDays = max(1, (int) ceil(((int) $group['lock_hours']) / 24));
-        }
+        $lockHours = $group['lock_hours'] ?? config('identity_verification.lock_hours');
+        $lockDays = $group['lock_days'] ?? config('identity_verification.lock_days', 1);
 
         return [
             'max_mismatch_attempts' => (int) ($group['max_mismatch_attempts'] ?? config('identity_verification.max_mismatch_attempts', 3)),
-            'lock_days'             => (int) ($lockDays ?? config('identity_verification.lock_days', 30)),
+            'lock_hours'            => $lockHours !== null ? (int) $lockHours : null,
+            'lock_days'             => (int) $lockDays,
             'require_dob'           => (bool) ($group['require_dob'] ?? config('identity_verification.require_dob', true)),
         ];
+    }
+
+    /** @param  array{lock_hours: int|null, lock_days: int}  $settings */
+    public function lockUntil(array $settings): \Illuminate\Support\Carbon
+    {
+        if (! empty($settings['lock_hours'])) {
+            return now()->addHours((int) $settings['lock_hours']);
+        }
+
+        return now()->addDays(max(1, (int) $settings['lock_days']));
     }
 
     public function isLocked(Customer $customer): bool
@@ -415,10 +424,11 @@ class NidaVerificationService
         ];
 
         if ($attempts >= $settings['max_mismatch_attempts']) {
-            $until = now()->addDays($settings['lock_days']);
+            $until = $this->lockUntil($settings);
             $updates['nida_locked_until'] = $until;
             $updates['nida_verification_status'] = 'identity_verification_failed';
             $customer->update($updates);
+            $this->syncUserLock($customer, $until);
 
             $this->audit->logBorrower(auth()->user(), 'nida.verification_suspended', $customer, [
                 'attempts'     => $attempts,

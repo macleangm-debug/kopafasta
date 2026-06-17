@@ -92,9 +92,10 @@ class PartnerActivationService
         }
 
         $validated = validator($data, [
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'pin'      => ['required', 'digits:4'],
+            'pin' => ['required', 'digits:4'],
         ])->validate();
+
+        $password = Str::password(32);
 
         $email = $vendor->email;
         if (blank($email)) {
@@ -123,13 +124,13 @@ class PartnerActivationService
             'name'      => $vendor->name,
             'email'     => $email,
             'phone'     => $vendor->phone,
-            'password'  => Hash::make($validated['password']),
+            'password'  => Hash::make($password),
             'role'      => $role,
             'is_active' => true,
         ]);
 
         if ($existingUser) {
-            $user->update(['password' => Hash::make($validated['password']), 'is_active' => true]);
+            $user->update(['is_active' => true]);
         }
 
         app(PinService::class)->setPin($user, $validated['pin']);

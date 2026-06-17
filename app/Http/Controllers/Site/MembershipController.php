@@ -225,4 +225,22 @@ class MembershipController extends Controller
             'referrer'       => null,
         ]);
     }
+
+    public function downloadCard(Request $request, ReferralService $referrals): \Symfony\Component\HttpFoundation\Response
+    {
+        $customer = $this->resolveCustomer($request);
+        abort_unless($customer && $customer->hasMembership(), 404);
+
+        $memberNo = \App\Support\MemberNumberFormatter::raw($customer->member_no);
+        $verifyUrl = $memberNo
+            ? rtrim($referrals->appBaseUrl(), '/').'/verify/member/'.urlencode($memberNo)
+            : null;
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.membership-card', compact('customer', 'verifyUrl'))
+            ->setPaper('a6', 'landscape');
+
+        $filename = 'membership-'.($memberNo ?: $customer->id).'.pdf';
+
+        return $pdf->download($filename);
+    }
 }

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\CustomerDocument;
 use App\Models\GuarantorInvitation;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationDraft;
@@ -466,16 +467,17 @@ class LoanApplicationDraftService
             : (int) round(($currentIndex / max(1, $wizardSteps->count())) * 100);
 
         $payload = $draft->payload ?? [];
-        $uploadedDocuments = collect($payload['asset_documents'] ?? [])
-            ->map(fn (array $doc) => $doc['label'] ?? $doc['code'] ?? 'Document')
-            ->values()
-            ->all();
-
         $customerDocuments = $customer
             ? $customer->documents()->with('documentType')->latest()->limit(10)->get()
-                ->map(fn ($doc) => $doc->documentType?->name ?? 'Document')
-                ->all()
-            : [];
+            : collect();
+
+        $assetMedia = $this->resolveDraftAssetMedia($payload, $customerDocuments);
+        $uploadedDocuments = $assetMedia['uploaded_documents'];
+
+        $profileSections = $customer
+            ? collect(app(ProfileCompletionService::class)->calculate($customer)['sections'] ?? [])
+                ->mapWithKeys(fn (array $section) => [$section['key'] => $section])
+            : collect();
 
         $guarantor = $payload['external_guarantor'] ?? null;
         $guarantorStatus = 'Not required';
@@ -496,10 +498,121 @@ class LoanApplicationDraftService
         return [
             'profile_completion_percent'     => (int) ($profileCompletion['percent'] ?? 0),
             'application_completion_percent' => $applicationPercent,
-            'uploaded_documents'             => array_values(array_unique(array_merge($uploadedDocuments, $customerDocuments))),
+            'uploaded_documents'             => $uploadedDocuments,
+            'asset_photos'                   => $assetMedia['asset_photos'],
+            'insurance_documents'            => $assetMedia['insurance_documents'],
+            'ownership_documents'            => $assetMedia['ownership_documents'],
             'guarantor_status'               => $guarantorStatus,
             'current_step'                   => $this->progressLabel($draft),
             'last_activity'                  => $draft->saved_at ?? $draft->updated_at,
+            'personal'                       => [
+                'complete' => (bool) ($profileSections['personal']['complete'] ?? false),
+                'name'     => $customer?->full_name,
+                'phone'    => $customer?->phone,
+                'email'    => $customer?->email,
+                'nida'     => $customer?->national_id,
+            ],
+            'kyc' => [
+                'complete' => (bool) ($profileSections['face']['complete'] ?? false),
+                'nida'     => $customer?->nida_verification_status,
+                'face'     => $customer?->face_verification_status,
+            ],
+            'employment' => [
+                'complete' => (bool) ($profileSections['activity']['complete'] ?? false),
+                'type'     => activity_type_label($customer?->activity_type) ?? $customer?->activity_type,
+                'income'   => income_range_label($customer?->income_range) ?? $customer?->income_range,
+                'employer' => $customer?->business_name,
+            ],
+            'residence' => [
+                'complete' => (bool) ($profileSections['residence']['complete'] ?? false),
+                'region'   => $customer?->region,
+                'district' => $customer?->district,
+                'street'   => $customer?->street,
+            ],
+            'guarantor' => [
+                'status' => $guarantorStatus,
+                'name'   => is_array($guarantor) ? ($guarantor['invitee_name'] ?? null) : null,
+            ],
+        ];
+    }
+
+    /** @return array{uploaded_documents: list<array<string, mixed>>, asset_photos: list<array<string, mixed>>, insurance_documents: list<array<string, mixed>>, ownership_documents: list<array<string, mixed>>} */
+    private function resolveDraftAssetMedia(array $payload, $customerDocuments): array
+    {
+        $labels = app(AssetBackedApplyService::class)->documentLabels();
+        $photoCodes = ['asset_photo_front', 'asset_photo_rear', 'asset_photo_left', 'asset_photo_right'];
+
+        $documentIds = collect($payload['asset_documents'] ?? [])
+            ->filter(fn ($doc) => is_array($doc))
+            ->pluck('customer_document_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $documentsById = CustomerDocument::query()
+            ->whereIn('id', $documentIds)
+            ->with('documentType')
+            ->get()
+            ->keyBy('id');
+
+        $uploadedDocuments = [];
+        $assetPhotos = [];
+        $insuranceDocuments = [];
+        $ownershipDocuments = [];
+
+        foreach ($payload['asset_documents'] ?? [] as $code => $doc) {
+            if (! is_array($doc)) {
+                continue;
+            }
+
+            $code = (string) ($doc['code'] ?? $code);
+            $entry = $this->formatDraftDocumentEntry($code, $doc, $labels, $documentsById);
+            $uploadedDocuments[] = $entry;
+
+            if (in_array($code, $photoCodes, true)) {
+                $assetPhotos[] = $entry;
+            } elseif ($code === 'insurance_certificate') {
+                $insuranceDocuments[] = $entry;
+            } elseif ($code === 'ownership_certificate') {
+                $ownershipDocuments[] = $entry;
+            }
+        }
+
+        foreach ($customerDocuments as $doc) {
+            $path = $doc->file_path;
+            $uploadedDocuments[] = [
+                'code'     => $doc->documentType?->code,
+                'label'    => $doc->documentType?->name ?? 'Document',
+                'url'      => $path ? asset('storage/'.$path) : null,
+                'is_image' => $path ? (bool) preg_match('/\.(jpe?g|png|gif|webp)$/i', $path) : false,
+            ];
+        }
+
+        return [
+            'uploaded_documents'    => $uploadedDocuments,
+            'asset_photos'          => $assetPhotos,
+            'insurance_documents'   => $insuranceDocuments,
+            'ownership_documents'   => $ownershipDocuments,
+        ];
+    }
+
+    /** @param array<string, string> $labels */
+    /** @param \Illuminate\Support\Collection<int, CustomerDocument> $documentsById */
+    /** @param array<string, mixed> $doc */
+    /** @return array<string, mixed> */
+    private function formatDraftDocumentEntry(string $code, array $doc, array $labels, $documentsById): array
+    {
+        $customerDoc = isset($doc['customer_document_id'])
+            ? $documentsById->get($doc['customer_document_id'])
+            : null;
+        $path = $doc['path'] ?? $customerDoc?->file_path;
+        $url = $path ? asset('storage/'.$path) : null;
+
+        return [
+            'code'     => $code,
+            'label'    => $doc['label'] ?? $labels[$code] ?? 'Document',
+            'url'      => $url,
+            'is_image' => $url ? (bool) preg_match('/\.(jpe?g|png|gif|webp)$/i', (string) $path) : false,
         ];
     }
 }

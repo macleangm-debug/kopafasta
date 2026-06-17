@@ -1,2 +1,2 @@
-<x-admin.report-placeholder title="Vendor Performance" heading="Vendor Performance"
-    description="Vendor SLAs, throughput, and quality metrics." />
+<x-admin.report-placeholder title="Partner Performance" heading="Partner Performance"
+    description="Partner SLAs, throughput, and quality metrics." />

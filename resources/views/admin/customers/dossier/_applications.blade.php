@@ -1,4 +1,6 @@
-@php($draftService = app(\App\Services\LoanApplicationDraftService::class))
+@php
+    $draftService = app(\App\Services\LoanApplicationDraftService::class);
+@endphp
 
 <x-admin.review-section id="customer-applications" title="Loan applications" subtitle="Application history for this borrower">
 

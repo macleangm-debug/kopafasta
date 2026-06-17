@@ -28,6 +28,7 @@ class SignatoryController extends Controller
     {
         $data = $this->validated($request);
         $data['signature_path'] = $this->storeSignature($request);
+        $data['stamp_path'] = $this->storeStamp($request);
 
         CompanySignatory::create($data);
 
@@ -51,6 +52,13 @@ class SignatoryController extends Controller
             $data['signature_path'] = $path;
         }
 
+        if ($path = $this->storeStamp($request)) {
+            if ($signatory->stamp_path) {
+                Storage::disk('public')->delete($signatory->stamp_path);
+            }
+            $data['stamp_path'] = $path;
+        }
+
         $signatory->update($data);
 
         return redirect()->route('admin.settings.signatories.index')
@@ -61,6 +69,9 @@ class SignatoryController extends Controller
     {
         if ($signatory->signature_path) {
             Storage::disk('public')->delete($signatory->signature_path);
+        }
+        if ($signatory->stamp_path) {
+            Storage::disk('public')->delete($signatory->stamp_path);
         }
 
         $signatory->delete();
@@ -73,11 +84,22 @@ class SignatoryController extends Controller
     private function validated(Request $request): array
     {
         return $request->validate([
-            'name'     => ['required', 'string', 'max:120'],
-            'position' => ['nullable', 'string', 'max:120'],
-            'email'    => ['nullable', 'email', 'max:150'],
-            'is_active'=> ['nullable', 'boolean'],
+            'name'           => ['required', 'string', 'max:120'],
+            'position'       => ['nullable', 'string', 'max:120'],
+            'email'          => ['nullable', 'email', 'max:150'],
+            'signatory_type' => ['required', 'in:company,legal_advocate'],
+            'is_active'      => ['nullable', 'boolean'],
+            'stamp_image'    => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]) + ['is_active' => $request->boolean('is_active', true)];
+    }
+
+    private function storeStamp(Request $request): ?string
+    {
+        if (! $request->hasFile('stamp_image')) {
+            return null;
+        }
+
+        return $request->file('stamp_image')->store('signatories/stamps', 'public');
     }
 
     private function storeSignature(Request $request): ?string

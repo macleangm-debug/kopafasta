@@ -1,5 +1,5 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.apply.title'))" active="loans">
-    <div class="max-w-4xl mx-auto">
+<x-site.borrower-layout :title="brand_title(__('borrower.apply.title'))" active="loans" content-width="narrow">
+    <div>
 
         <div class="mb-6">
             <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">{{ brand_name() }} {{ __('borrower.apply.smart_application') }}</p>
@@ -336,6 +336,13 @@
                                 <div class="rounded-xl ring-1 ring-gray-100 bg-white p-4"><p class="text-[10px] uppercase text-gray-500">{{ __('borrower.apply.quote.interest_est') }}</p><p class="font-bold mt-1" x-text="formatTzs(quote.interest)"></p></div>
                                 <div class="rounded-xl ring-1 ring-gray-100 bg-white p-4"><p class="text-[10px] uppercase text-gray-500">{{ __('borrower.apply.quote.total_repayment') }}</p><p class="font-bold mt-1" x-text="formatTzs(quote.total)"></p></div>
                             </div>
+                            <div x-show="current?.rate_disclosure?.length" class="rounded-xl bg-amber-50 ring-1 ring-amber-200 p-4 text-xs text-amber-900 space-y-1">
+                                <p class="font-semibold uppercase tracking-widest text-[10px]">{{ __('borrower.rate_disclosure.title') }}</p>
+                                <template x-for="(line, idx) in (current.rate_disclosure || [])" :key="idx">
+                                    <p x-text="line"></p>
+                                </template>
+                                <p class="text-amber-800/80 pt-1">{{ __('borrower.rate_disclosure.footnote') }}</p>
+                            </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.quote.purpose') }}</label>
                                 <select x-model="form.purpose" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
@@ -543,7 +550,7 @@
                                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.guarantor_fields.guarantor_name') }}</label>
                                 <input name="internal_guarantor_name" x-model="form.internal_guarantor_name" @input="delete guarantorErrors.internal_guarantor_name; guarantorLookup.ok = false"
                                        :class="guarantorErrors.internal_guarantor_name ? 'ring-rose-400' : 'ring-gray-200'"
-                                       class="w-full rounded-lg border-gray-300 ring-1 px-3 py-2.5 text-sm" placeholder="Full name">
+                                       class="w-full rounded-lg border-gray-300 ring-1 px-3 py-2.5 text-sm" placeholder="{{ __('borrower.profile.fields.full_name') }}">
                                 <p x-show="guarantorErrors.internal_guarantor_name" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.internal_guarantor_name"></p>
                                 <p class="mt-1 text-xs text-gray-500">{{ __('borrower.apply.guarantor_fields.guarantor_name_hint') }}</p>
                             </div>
@@ -665,6 +672,7 @@
                     :referral-wallet="$referralWallet ?? null"
                     :referral-settings="$referralSettings ?? []"
                     :payment-gateway-dummy="$paymentGatewayDummy ?? payment_gateway_is_dummy()"
+                    :apply-requirements="$applyRequirements ?? null"
                 />
 
                 {{-- Product-specific questions --}}
@@ -676,6 +684,16 @@
                             <h3 class="text-sm font-semibold text-gray-900 mb-4">{{ $block['title'] ?? __('borrower.apply.product_questions.additional') }}</h3>
                             <div class="grid sm:grid-cols-2 gap-4">
                                 @foreach ($block['fields'] as $field)
+                                    @if (($field['type'] ?? 'text') === 'tz_address')
+                                        <div class="sm:col-span-2">
+                                            <label class="block text-xs font-medium text-gray-600 mb-2">{{ $field['label'] }}</label>
+                                            <x-site.address-fields
+                                                form-key="product_question"
+                                                :prefix="$field['prefix'] ?? ''"
+                                                :required="$field['required'] ?? true"
+                                            />
+                                        </div>
+                                    @else
                                     <div class="{{ ($field['type'] ?? 'text') === 'textarea' ? 'sm:col-span-2' : '' }}">
                                         <label class="block text-xs font-medium text-gray-600 mb-1">{{ $field['label'] }}</label>
                                         @if (($field['type'] ?? 'text') === 'select')
@@ -691,6 +709,7 @@
                                             <input type="text" name="product_question[{{ $field['key'] }}]" placeholder="{{ $field['placeholder'] ?? '' }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                                         @endif
                                     </div>
+                                    @endif
                                 @endforeach
                             </div>
                         </div>
@@ -1333,7 +1352,7 @@
                         });
                         const data = await res.json();
                         if (! res.ok || ! data.ok) {
-                            throw new Error(data.message || 'Payment failed');
+                            throw new Error(data.message || @js(__('borrower.apply.valuation_fee.failed')));
                         }
                         this.valuationFeeState = data.fee;
                         this.syncValuationFeePaidState();
@@ -1381,7 +1400,7 @@
                         });
                         const data = await res.json();
                         if (! res.ok || ! data.ok) {
-                            throw new Error(data.message || 'Upload failed');
+                            throw new Error(data.message || @js(__('borrower.apply.asset_details.upload_failed')));
                         }
                         this.assetDocuments = data.asset_documents || {};
                         await this.persistDraft(true);
@@ -1454,7 +1473,7 @@
                         });
                         const data = await res.json();
                         if (! res.ok || ! data.ok) {
-                            throw new Error(data.message || 'Payment failed');
+                            throw new Error(data.message || @js(__('borrower.apply.application_fee.failed')));
                         }
                         this.applicationFeeState = data.fee;
                         this.syncFeePaidState();
@@ -1757,8 +1776,7 @@
                         const stepLabels = this.i18n.steps;
                         const steps = [];
                         if (this.isAssetBackedProduct(this.current)) {
-                            steps.push({ key: 'asset_details', label: stepLabels.asset_details || 'Asset details' });
-                            steps.push({ key: 'valuation_fee', label: stepLabels.valuation_fee || 'Valuation fee' });
+                            steps.push({ key: 'asset_details', label: stepLabels.asset_details || @js(__('borrower.apply.steps.asset_details')) });
                         } else if (! this.isMarketplaceProduct(this.current)) {
                             steps.push({ key: 'quote', label: stepLabels.quote });
                         } else {
@@ -1868,7 +1886,7 @@
                         });
                         const data = await response.json();
                         if (! data.ok) {
-                            alert(data.message || 'Could not use previous guarantor.');
+                            alert(data.message || @js(__('borrower.apply.previous_guarantor.failed')));
                             return;
                         }
                         this.form.guarantor_mode = 'internal';

@@ -20,16 +20,11 @@
             <input type="hidden" name="token" value="{{ $token }}">
 
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <input type="password" name="password" required class="w-full rounded-lg border-gray-300 px-3 py-2 text-sm">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Confirm password</label>
-                <input type="password" name="password_confirmation" required class="w-full rounded-lg border-gray-300 px-3 py-2 text-sm">
-            </div>
-            <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">4-digit PIN</label>
-                <input type="password" name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required class="w-full rounded-lg border-gray-300 px-3 py-2 text-sm font-mono tracking-widest">
+                <input type="password" name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required
+                       class="w-full rounded-lg border-gray-300 px-3 py-2 text-sm font-mono tracking-widest text-center text-lg"
+                       placeholder="••••">
+                <p class="text-xs text-gray-500 mt-1">Use this PIN with your phone number to sign in to the partner portal.</p>
             </div>
 
             <button type="submit" class="w-full bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-3 rounded-full text-sm">

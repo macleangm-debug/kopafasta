@@ -144,14 +144,17 @@ class BorrowerController extends Controller
         $referralService->ensureCode($customer);
         $referralCode = $customer->referral_code;
         $referralLink = $referralService->referralLink($customer);
+        $referralShareMessage = $referralService->shareMessage($customer);
         $referralWallet = $referralService->wallet($customer);
         $dashboardHero = app(\App\Services\BorrowerDashboardHeroService::class)->forCustomer($customer, $activeLoan, $nextDue);
+        $kycFreshness = app(KycFreshnessService::class);
+        $kycSectionsDue = $kycFreshness->sectionsDueForRefresh($customer);
 
         return view('site.borrower.dashboard', compact(
             'customer','activeLoan','nextDue','applicationsCount',
             'notifications','eligibility',
             'products','applyRequirements','onboardingBanner','applyDraftResume','activeApplications','activeApplicationRows','unreadNotificationCount',
-            'openDocumentRequests','referralCode','referralLink','referralWallet','dashboardHero',
+            'openDocumentRequests','referralCode','referralLink','referralShareMessage','referralWallet','dashboardHero','kycSectionsDue',
         ));
     }
 
@@ -867,7 +870,11 @@ class BorrowerController extends Controller
         $types = DocumentType::where('is_active', true)->orderBy('name')->get();
         $documents = CustomerDocument::with('documentType')
             ->where('customer_id', $customer->id)->latest()->get();
-        return view('site.borrower.documents', compact('customer','types','documents'));
+        $verificationSections = collect(app(\App\Services\ProfileCompletionService::class)->displaySections($customer, false))
+            ->filter(fn (array $section) => in_array($section['key'], ['personal', 'documents', 'face', 'identity'], true))
+            ->values();
+
+        return view('site.borrower.documents', compact('customer', 'types', 'documents', 'verificationSections'));
     }
 
     public function uploadDocument(Request $request): RedirectResponse
@@ -1167,7 +1174,7 @@ class BorrowerController extends Controller
         $wizardMode = $request->boolean('wizard');
 
         if ($section === 'kin') {
-            return redirect()->to(route('site.borrower.profile', ['section' => 'personal', 'wizard' => $wizardMode ? 1 : null, 'focus' => 'kin']).'#next-of-kin');
+            return view('site.borrower.profile.kin', compact('customer', 'wizardMode'));
         }
 
         $section = in_array($section, ['personal', 'activity', 'residence', 'kyc', 'security', 'payment', 'assets'], true)
@@ -1230,8 +1237,38 @@ class BorrowerController extends Controller
     public function updateProfile(Request $request, string $section = 'personal'): RedirectResponse
     {
         $customer = $this->customer();
+
         if ($section === 'kin') {
-            $section = 'personal';
+            $data = $request->validate([
+                'nok_first_name'   => ['required', 'string', 'max:80'],
+                'nok_middle_name'  => ['nullable', 'string', 'max:80'],
+                'nok_last_name'    => ['required', 'string', 'max:80'],
+                'nok_relationship' => ['required', 'string', 'max:60'],
+                'nok_phone'        => ['required', 'string', 'max:30'],
+                'nok_region'       => ['required', 'string', 'max:100'],
+                'nok_district'     => ['required', 'string', 'max:100'],
+                'nok_ward'         => ['nullable', 'string', 'max:100'],
+                'nok_street'       => ['required', 'string', 'max:255'],
+            ]);
+
+            $customer->fill([
+                'nok_first_name'   => $data['nok_first_name'],
+                'nok_middle_name'  => $data['nok_middle_name'] ?? null,
+                'nok_last_name'    => $data['nok_last_name'],
+                'nok_name'         => \App\Support\KinName::full($data['nok_first_name'], $data['nok_middle_name'] ?? null, $data['nok_last_name']),
+                'nok_relationship' => $data['nok_relationship'],
+                'nok_phone'        => $data['nok_phone'],
+                'nok_region'       => $data['nok_region'],
+                'nok_district'     => $data['nok_district'],
+                'nok_ward'         => $data['nok_ward'] ?? null,
+                'nok_street'       => $data['nok_street'],
+            ])->save();
+
+            app(KycFreshnessService::class)->markSectionConfirmed($customer->fresh(), 'kin');
+
+            return redirect()
+                ->route('site.borrower.profile', ['section' => 'kin'])
+                ->with('status', __('borrower.profile.kin_saved'));
         }
 
         $section = in_array($section, ['personal', 'activity', 'residence', 'kyc', 'payment'], true) ? $section : 'personal';

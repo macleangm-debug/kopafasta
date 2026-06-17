@@ -75,6 +75,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
     Route::get('/faq',              [\App\Http\Controllers\Site\PageController::class, 'faq'])->name('faq');
     Route::get('/invest',           [\App\Http\Controllers\Site\PageController::class, 'invest'])->name('invest');
     Route::get('/capital-partners', [\App\Http\Controllers\Site\PageController::class, 'capitalPartners'])->name('capital-partners');
+    Route::get('/become-affiliate', [\App\Http\Controllers\Site\PartnerApplicationController::class, 'create'])->name('affiliate.apply');
+    Route::post('/become-affiliate', [\App\Http\Controllers\Site\PartnerApplicationController::class, 'store'])->name('affiliate.apply.post');
 
     Route::get('/marketplace', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'publicIndex'])->name('marketplace');
     Route::get('/marketplace/{assetId}', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'publicShow'])->name('marketplace.show');
@@ -115,7 +117,14 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         Route::post('/partner/activate/{vendor}', [\App\Http\Controllers\Site\PartnerActivationController::class, 'store'])->name('partner.activate.post');
         Route::get('/partner/start', [\App\Http\Controllers\Site\PartnerPortalController::class, 'start'])->name('partner.start');
         Route::post('/partner/start', [\App\Http\Controllers\Site\PartnerPortalController::class, 'lookup'])->name('partner.start.lookup');
+
+        Route::redirect('/partner/login', '/login?portal=partner');
+        Route::get('/register/partner', fn () => redirect()->route('site.register.vendor'))->name('register.partner');
+        Route::redirect('/partner/register', '/register/partner');
     });
+
+    Route::get('/partner', [\App\Http\Controllers\Site\PartnerHomeController::class, '__invoke'])
+        ->name('partner.dashboard');
 
     // Authenticated public area (explicit web guard)
     Route::middleware('auth:web')->group(function () {
@@ -151,6 +160,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
 
             Route::get('/borrower/referrals',         [\App\Http\Controllers\Site\ReferralsController::class, 'show'])       ->name('borrower.referrals');
             Route::get('/borrower/membership',         [\App\Http\Controllers\Site\MembershipController::class, 'show'])      ->name('membership.show');
+            Route::get('/borrower/membership/card.pdf', [\App\Http\Controllers\Site\MembershipController::class, 'downloadCard'])->name('membership.card.download');
             Route::get('/borrower/membership/renew',   [\App\Http\Controllers\Site\MembershipController::class, 'renewForm']) ->name('membership.renew');
             Route::post('/borrower/membership/renew',  [\App\Http\Controllers\Site\MembershipController::class, 'renew'])     ->name('membership.renew.post');
 
@@ -243,29 +253,13 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/refunds/{borrowerRefund}/details', [\App\Http\Controllers\Site\BorrowerRefundController::class, 'submitDetails'])->name('borrower.refunds.details');
         });
 
-        // ---- Vendor portal ----
-        Route::get('/vendor',                                   [\App\Http\Controllers\Site\VendorController::class, 'dashboard'])     ->name('vendor.dashboard');
-        Route::get('/vendor/tasks',                             [\App\Http\Controllers\Site\VendorController::class, 'tasks'])         ->name('vendor.tasks');
-        Route::get('/vendor/tasks/active',                      [\App\Http\Controllers\Site\VendorController::class, 'activeJobs'])    ->name('vendor.tasks.active');
-        Route::get('/vendor/tasks/completed',                   [\App\Http\Controllers\Site\VendorController::class, 'completedJobs']) ->name('vendor.tasks.completed');
-        Route::get('/vendor/recovery-cases',                    [\App\Http\Controllers\Site\VendorController::class, 'recoveryCases']) ->name('vendor.recovery-cases');
-        Route::get('/vendor/recovery-cases/{recoveryAssignment}', [\App\Http\Controllers\Site\VendorController::class, 'recoveryCase']) ->name('vendor.recovery-case');
-        Route::post('/vendor/recovery-cases/{recoveryAssignment}/start', [\App\Http\Controllers\Site\VendorController::class, 'startRecoveryCase']) ->name('vendor.recovery-case.start');
-        Route::post('/vendor/recovery-cases/{recoveryAssignment}/actions', [\App\Http\Controllers\Site\VendorController::class, 'recoveryCaseAction']) ->name('vendor.recovery-case.action');
-        Route::get('/vendor/tasks/{task}',                      [\App\Http\Controllers\Site\VendorController::class, 'task'])          ->name('vendor.task');
-        Route::post('/vendor/tasks/{task}/accept',              [\App\Http\Controllers\Site\VendorController::class, 'acceptTask'])    ->name('vendor.task.accept');
-        Route::post('/vendor/tasks/{task}/start',               [\App\Http\Controllers\Site\VendorController::class, 'startTask'])     ->name('vendor.task.start');
-        Route::post('/vendor/tasks/{task}/complete',            [\App\Http\Controllers\Site\VendorController::class, 'completeTask'])  ->name('vendor.task.complete');
-        Route::post('/vendor/tasks/{task}/proof',               [\App\Http\Controllers\Site\VendorController::class, 'uploadProof'])   ->name('vendor.task.proof');
-        Route::get('/vendor/documents',                         [\App\Http\Controllers\Site\VendorController::class, 'documents'])     ->name('vendor.documents');
-        Route::post('/vendor/documents',                        [\App\Http\Controllers\Site\VendorController::class, 'uploadDocument'])->name('vendor.documents.store');
-        Route::get('/vendor/payments',                          [\App\Http\Controllers\Site\VendorController::class, 'payments'])      ->name('vendor.payments');
-        Route::get('/vendor/payments/{payment}/invoice',        [\App\Http\Controllers\Site\VendorController::class, 'invoice'])       ->name('vendor.invoice');
-        Route::get('/vendor/calendar',                          [\App\Http\Controllers\Site\VendorController::class, 'calendar'])      ->name('vendor.calendar');
-        Route::get('/vendor/notifications',                     [\App\Http\Controllers\Site\VendorController::class, 'notifications']) ->name('vendor.notifications');
-        Route::get('/vendor/profile',                           [\App\Http\Controllers\Site\VendorController::class, 'profile'])       ->name('vendor.profile');
-        Route::put('/vendor/profile',                           [\App\Http\Controllers\Site\VendorController::class, 'updateProfile']) ->name('vendor.profile.update');
-        Route::get('/vendor/support',                           [\App\Http\Controllers\Site\VendorController::class, 'support'])       ->name('vendor.support');
+        // ---- Partner portal (/partner primary, /vendor legacy) ----
+        $registerPartnerPortal = require base_path('routes/partner_portal.php');
+        $registerPartnerPortal('partner', 'partner.', registerDashboard: false);
+        $registerPartnerPortal('vendor', 'vendor.');
+
+        Route::get('/vendor-portal', fn () => redirect()->route('site.partner.dashboard'));
+        Route::get('/partner-portal', fn () => redirect()->route('site.partner.dashboard'));
 
         Route::prefix('supplier')->name('supplier.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Site\SupplierController::class, 'dashboard'])->name('dashboard');
@@ -282,10 +276,6 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/requests/{assetRequest}', [\App\Http\Controllers\Site\SupplierController::class, 'updateRequest'])->name('requests.update');
             Route::get('/settlements', [\App\Http\Controllers\Site\SupplierController::class, 'settlements'])->name('settlements');
         });
-
-        // Legacy redirect
-        Route::get('/vendor-portal', fn () => redirect()->route('site.vendor.dashboard'));
-        Route::get('/partner-portal', fn () => redirect()->route('site.vendor.dashboard'))->name('partner.dashboard');
 
         // ---- Investor / Capital Lender portal ----
         Route::get('/investor',                                 [\App\Http\Controllers\Site\InvestorController::class, 'dashboard'])    ->name('investor.dashboard');
@@ -456,22 +446,36 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::view('loan-products/documents',      'admin.loan-products.documents')     ->name('loan-products.documents');
         Route::view('loan-products/approval-rules', 'admin.loan-products.approval-rules')->name('loan-products.approval-rules');
         $registerResource('loan-products', 'loan_product', LoanProductController::class);
+        Route::post('loan-products/{loan_product}/regenerate-rate-tiers', [LoanProductController::class, 'regenerateRateTiers'])
+            ->name('loan-products.regenerate-rate-tiers');
 
         Route::get('partners', [\App\Http\Controllers\Admin\PartnersController::class, 'index'])->name('partners.index');
         // Vendors
-        Route::view('vendors/applications',        'admin.vendors.applications')        ->name('vendors.applications');
-        Route::view('vendors/gps-installers',      'admin.vendors.gps-installers')      ->name('vendors.gps-installers');
-        Route::view('vendors/insurance-providers', 'admin.vendors.insurance-providers') ->name('vendors.insurance-providers');
-        Route::view('vendors/valuers',             'admin.vendors.valuers')             ->name('vendors.valuers');
-        Route::view('vendors/suppliers',           'admin.vendors.suppliers')           ->name('vendors.suppliers');
-        Route::view('vendors/affiliates',         'admin.vendors.affiliates')         ->name('vendors.affiliates');
-        Route::view('vendors/tasks',               'admin.vendors.tasks')               ->name('vendors.tasks');
+        // Legacy vendor list URLs → partners hub
+        Route::redirect('vendors/applications', '/admin/partners/applications')->name('vendors.applications');
+        Route::redirect('vendors/gps-installers', '/admin/partners/gps-installers')->name('vendors.gps-installers');
+        Route::redirect('vendors/insurance-providers', '/admin/partners/insurance-providers')->name('vendors.insurance-providers');
+        Route::redirect('vendors/valuers', '/admin/partners/valuers')->name('vendors.valuers');
+        Route::redirect('vendors/suppliers', '/admin/partners/suppliers')->name('vendors.suppliers');
+        Route::redirect('vendors/affiliates', '/admin/partners/affiliates')->name('vendors.affiliates');
+        Route::redirect('vendors/tasks', '/admin/partners/tasks')->name('vendors.tasks');
         Route::get('asset-requests', [\App\Http\Controllers\Admin\AssetRequestController::class, 'index'])->name('asset-requests.index');
         Route::put('asset-requests/{assetRequest}', [\App\Http\Controllers\Admin\AssetRequestController::class, 'update'])->name('asset-requests.update');
+        Route::get('partner-applications', [\App\Http\Controllers\Admin\PartnerApplicationController::class, 'index'])->name('partner-applications.index');
+        Route::put('partner-applications/{partnerApplication}', [\App\Http\Controllers\Admin\PartnerApplicationController::class, 'update'])->name('partner-applications.update');
         $registerResource('marketplace-assets', 'marketplace_asset', \App\Http\Controllers\Admin\MarketplaceAssetController::class);
-        $registerResource('vendors', 'vendor', VendorController::class);
+        Route::redirect('vendors', '/admin/partners/all')->name('vendors.index');
+        Route::redirect('vendors/create', '/admin/partners/create')->name('vendors.create');
+        Route::post('vendors', [VendorController::class, 'store'])->name('vendors.store');
+        Route::get('vendors/{vendor}', [VendorController::class, 'show'])->name('vendors.show');
+        Route::get('vendors/{vendor}/edit', [VendorController::class, 'edit'])->name('vendors.edit');
+        Route::put('vendors/{vendor}', [VendorController::class, 'update'])->name('vendors.update');
+        Route::delete('vendors/{vendor}', [VendorController::class, 'destroy'])->name('vendors.destroy');
         Route::post('vendors/{vendor}/affiliate-kyc/approve', [VendorController::class, 'approveAffiliateKyc'])->name('vendors.affiliate-kyc.approve');
         Route::post('vendors/{vendor}/affiliate-kyc/reject', [VendorController::class, 'rejectAffiliateKyc'])->name('vendors.affiliate-kyc.reject');
+
+        $registerAdminPartners = require base_path('routes/admin_partners.php');
+        $registerAdminPartners();
         $registerResource('promotions', 'promotion', \App\Http\Controllers\Admin\PromotionController::class);
 
         // Capital
@@ -495,6 +499,9 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             Route::get('vendor-payments', [VendorPaymentController::class, 'index'])->name('vendor-payments.index');
             Route::post('vendor-payments/{vendorPayment}/approve', [VendorPaymentController::class, 'approve'])->name('vendor-payments.approve');
             Route::post('vendor-payments/{vendorPayment}/cancel', [VendorPaymentController::class, 'cancel'])->name('vendor-payments.cancel');
+            Route::get('partner-payments', [VendorPaymentController::class, 'index'])->name('partner-payments.index');
+            Route::post('partner-payments/{vendorPayment}/approve', [VendorPaymentController::class, 'approve'])->name('partner-payments.approve');
+            Route::post('partner-payments/{vendorPayment}/cancel', [VendorPaymentController::class, 'cancel'])->name('partner-payments.cancel');
             Route::get('partner-settlements', [PartnerSettlementController::class, 'index'])->name('partner-settlements.index');
             Route::get('partner-settlements/{partnerSettlement}', [PartnerSettlementController::class, 'show'])->name('partner-settlements.show');
             Route::post('partner-settlements/{partnerSettlement}/approve', [PartnerSettlementController::class, 'approve'])->name('partner-settlements.approve');
@@ -516,6 +523,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             Route::get('reports/repayments', [LoanReportsController::class, 'repayments'])->name('reports.repayments');
             Route::get('reports/collections-performance', [LoanReportsController::class, 'collectionsPerformance'])->name('reports.collections-performance');
             Route::get('reports/par', [LoanReportsController::class, 'par'])->name('reports.par');
+            Route::get('reports/partner-performance', fn () => redirect()->route('admin.reports.vendor-performance'))->name('reports.partner-performance');
             Route::view('reports/vendor-performance', 'admin.reports.vendor-performance')->name('reports.vendor-performance');
             Route::get('reports/customers', [FinanceReportsController::class, 'customers'])->name('reports.customers');
         });
@@ -613,6 +621,9 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/gateways',         [SettingsController::class, 'saveGateways'])  ->name('settings.gateways.save');
         Route::get('settings/kyc',              [SettingsController::class, 'kyc'])           ->name('settings.kyc');
         Route::put('settings/kyc',              [SettingsController::class, 'saveKyc'])       ->name('settings.kyc.save');
+        Route::get('settings/crb',              [SettingsController::class, 'crb'])           ->name('settings.crb');
+        Route::put('settings/crb',              [SettingsController::class, 'saveCrb'])         ->name('settings.crb.save');
+        Route::post('settings/crb/test',        [SettingsController::class, 'testCrbConnection'])->name('settings.crb.test');
         Route::get('settings/identity-verification', [SettingsController::class, 'identityVerification'])->name('settings.identity');
         Route::put('settings/identity-verification', [SettingsController::class, 'saveIdentityVerification'])->name('settings.identity.save');
         Route::get('settings/loan-rules',       [SettingsController::class, 'loanRules'])     ->name('settings.loan-rules');

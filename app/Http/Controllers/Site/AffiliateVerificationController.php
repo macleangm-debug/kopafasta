@@ -19,14 +19,24 @@ class AffiliateVerificationController extends Controller
             })
             ->first();
 
+        $requireKyc = app(\App\Services\AffiliateSettingsService::class)->requireKycForVerification();
+
         $verified = $affiliate
             && $affiliate->status === 'active'
-            && in_array($affiliate->affiliate_kyc_status, ['verified', 'approved'], true);
+            && (! $requireKyc || in_array($affiliate->affiliate_kyc_status, ['verified', 'approved'], true));
+
+        $notice = $affiliate
+            ? app(\App\Services\AffiliateService::class)->renderMessage($affiliate, 'verification_notice')
+            : null;
 
         return view('site.public.affiliate-verify', [
-            'affiliate' => $affiliate,
-            'code'      => strtoupper(trim($code)),
-            'verified'  => $verified,
+            'affiliate'  => $affiliate,
+            'code'       => strtoupper(trim($code)),
+            'verified'   => $verified,
+            'notice'     => $notice,
+            'verify_url' => $affiliate
+                ? route('site.affiliate.verify', $affiliate->affiliate_code ?? $code)
+                : null,
         ]);
     }
 }

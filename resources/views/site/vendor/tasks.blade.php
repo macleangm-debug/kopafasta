@@ -25,7 +25,7 @@
     {{-- Filter pills --}}
     <div class="flex flex-wrap gap-2 mb-5">
         @foreach ($tabs as $k => $label)
-            <a href="{{ route('site.vendor.tasks', $k === 'all' ? [] : ['status' => $k]) }}"
+            <a href="{{ route('site.partner.tasks', $k === 'all' ? [] : ['status' => $k]) }}"
                class="px-3 py-1.5 rounded-full text-xs font-semibold border
                       {{ $current === $k ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50' }}">
                 {{ $label }}
@@ -57,7 +57,7 @@
                             <td class="px-4 py-3 text-gray-600">{{ $t->location ?: '—' }}</td>
                             <td class="px-4 py-3 text-gray-600">{{ $t->due_at ? $t->due_at->format('d M Y H:i') : '—' }}</td>
                             <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold {{ $badge($t->status) }}">{{ str_replace('_',' ', $t->status) }}</span></td>
-                            <td class="px-4 py-3 text-right"><a href="{{ route('site.vendor.task', $t) }}" class="text-indigo-600 hover:underline text-sm font-semibold">Open</a></td>
+                            <td class="px-4 py-3 text-right"><a href="{{ route('site.partner.task', $t) }}" class="text-indigo-600 hover:underline text-sm font-semibold">Open</a></td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -66,7 +66,7 @@
 
         <div class="lg:hidden space-y-3">
             @foreach ($tasks as $t)
-                <a href="{{ route('site.vendor.task', $t) }}" class="block rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-sm">
+                <a href="{{ route('site.partner.task', $t) }}" class="block rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-sm">
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0">
                             <p class="font-semibold text-sm">{{ ucfirst(str_replace('_',' ', $t->task_type)) }}</p>

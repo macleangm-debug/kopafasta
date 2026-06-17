@@ -11,6 +11,7 @@
     <div class="space-y-4">
         @foreach ($guaranteedLinks as $row)
             @php
+                $loanStatuses = __('borrower.loans_page.loan_statuses');
                 $borrowerName = $row->borrower?->legalDisplayName() ?? __('borrower.loans_page.borrower');
                 $productName = $row->product?->name ?? __('borrower.guarantor.loan');
                 $appTone = match ($row->application_status['tone'] ?? 'gray') {
@@ -54,7 +55,7 @@
                     <div>
                         <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.loan_status') }}</p>
                         @if ($row->loan)
-                            <span class="inline-flex text-xs font-semibold rounded-full px-2 py-0.5 {{ $loanTone }}">{{ ucfirst($row->loan_status) }}</span>
+                            <span class="inline-flex text-xs font-semibold rounded-full px-2 py-0.5 {{ $loanTone }}">{{ $loanStatuses[$row->loan_status] ?? ucfirst($row->loan_status) }}</span>
                         @else
                             <p class="text-gray-600">{{ __('borrower.loans_page.not_disbursed') }}</p>
                         @endif

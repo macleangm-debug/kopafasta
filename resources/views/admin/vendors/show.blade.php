@@ -2,8 +2,8 @@
     :title="$record->name"
     :heading="$record->name"
     :subheading="$record->vendor_number"
-    :backUrl="route('admin.vendors.index')"
-    :editUrl="route('admin.vendors.edit', $record)"
+    :backUrl="route('admin.partners.all')"
+    :editUrl="route('admin.partners.edit', $record)"
     :fields="array_filter([
         'Partner #'  => $record->vendor_number,
         'Name'      => $record->name,
@@ -64,11 +64,11 @@
         @endif
         @if (in_array($record->affiliate_kyc_status, ['submitted', 'pending', 'rejected'], true) || filled($record->affiliate_selfie_path))
             <div class="flex flex-wrap gap-3">
-                <form method="POST" action="{{ route('admin.vendors.affiliate-kyc.approve', $record) }}">
+                <form method="POST" action="{{ route('admin.partners.affiliate-kyc.approve', $record) }}">
                     @csrf
                     <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">Approve KYC</button>
                 </form>
-                <form method="POST" action="{{ route('admin.vendors.affiliate-kyc.reject', $record) }}">
+                <form method="POST" action="{{ route('admin.partners.affiliate-kyc.reject', $record) }}">
                     @csrf
                     <button type="submit" class="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">Reject KYC</button>
                 </form>

@@ -38,9 +38,7 @@ return [
                 'electrician'   => 'Electrician',
                 'other'         => 'Other',
             ]],
-            ['key' => 'workshop_region', 'label' => 'Workshop region', 'type' => 'text', 'required' => true, 'address' => 'region'],
-            ['key' => 'workshop_district', 'label' => 'Workshop district', 'type' => 'text', 'required' => true, 'address' => 'district'],
-            ['key' => 'workshop_street', 'label' => 'Workshop street', 'type' => 'text', 'required' => true, 'placeholder' => 'Street or landmark'],
+            ['key' => 'workshop_location', 'label' => 'Workshop location', 'type' => 'tz_address', 'prefix' => 'workshop', 'required' => true],
         ],
     ],
 ];

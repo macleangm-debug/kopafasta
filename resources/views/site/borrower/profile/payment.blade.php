@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.payment_details.page_title'))" active="profile">
+<x-site.borrower-layout :title="brand_title(__('borrower.payment_details.page_title'))" active="profile" content-width="wide">
 
     <div>
         @include('site.borrower.profile._profile_shell', [

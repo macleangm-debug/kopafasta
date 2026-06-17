@@ -48,6 +48,10 @@ class AssetReservationService
 
     public function scheduleViewing(AssetReservation $reservation, string $viewingDate, string $viewingTime): AssetReservation
     {
+        if ($reservation->status !== 'reservation_fee_paid') {
+            throw new \InvalidArgumentException(__('borrower.marketplace.viewing_after_fee_only'));
+        }
+
         $reservation->update([
             'viewing_date' => $viewingDate,
             'viewing_time' => $viewingTime,
@@ -55,6 +59,12 @@ class AssetReservationService
         ]);
 
         return $reservation->refresh();
+    }
+
+    public function canScheduleViewing(AssetReservation $reservation): bool
+    {
+        return $reservation->status === 'reservation_fee_paid'
+            && ! $reservation->viewing_completed_at;
     }
 
     public function activeForCustomer(Customer $customer, MarketplaceAsset $asset): ?AssetReservation
@@ -81,10 +91,15 @@ class AssetReservationService
 
     public function markViewingCompleted(AssetReservation $reservation): AssetReservation
     {
-        $reservation->update([
-            'viewing_completed_at' => now(),
-            'status'               => 'viewing_completed',
-        ]);
+        $payload = ['viewing_completed_at' => now()];
+
+        if ($reservation->reservation_fee_status === 'paid') {
+            $payload['status'] = 'reservation_fee_paid';
+        } else {
+            $payload['status'] = 'viewing_completed';
+        }
+
+        $reservation->update($payload);
 
         return $reservation->refresh();
     }
@@ -105,8 +120,12 @@ class AssetReservationService
             'status'                    => 'deposit_paid',
         ]);
 
-        $this->accrueSupplierDeposit($reservation->fresh(['asset.vendor']));
-        app(AssetLendingRevenuePostingService::class)->postDepositMarkup($reservation->fresh(['asset']));
+        try {
+            $this->accrueSupplierDeposit($reservation->fresh(['asset.vendor']));
+            app(AssetLendingRevenuePostingService::class)->postDepositMarkup($reservation->fresh(['asset']));
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return $reservation->refresh();
     }
@@ -328,10 +347,10 @@ class AssetReservationService
 
         $labels = [
             ['key' => 'start', 'label' => __('borrower.marketplace.steps.start'), 'phase' => 'reservation'],
-            ['key' => 'viewing', 'label' => __('borrower.marketplace.steps.viewing'), 'phase' => 'reservation'],
-            ['key' => 'viewing_done', 'label' => __('borrower.marketplace.steps.viewing_done'), 'phase' => 'reservation'],
             ['key' => 'interest', 'label' => __('borrower.marketplace.steps.interest'), 'phase' => 'reservation'],
             ['key' => 'application_fee', 'label' => __('borrower.marketplace.steps.application_fee'), 'phase' => 'reservation'],
+            ['key' => 'viewing', 'label' => __('borrower.marketplace.steps.viewing'), 'phase' => 'reservation'],
+            ['key' => 'viewing_done', 'label' => __('borrower.marketplace.steps.viewing_done'), 'phase' => 'reservation'],
             ['key' => 'deposit', 'label' => __('borrower.marketplace.steps.deposit'), 'phase' => 'reservation'],
             ['key' => 'loan_application', 'label' => __('borrower.marketplace.steps.loan_application'), 'phase' => 'loan'],
             ['key' => 'loan_offer', 'label' => __('borrower.marketplace.steps.loan_offer'), 'phase' => 'loan'],
@@ -418,13 +437,26 @@ class AssetReservationService
 
         return match ($status) {
             'application_started' => 'start',
-            'viewing_scheduled' => 'viewing',
-            'viewing_completed' => 'viewing_done',
+            'viewing_completed' => 'interest',
             'interest_confirmed' => 'interest',
-            'reservation_fee_paid' => 'application_fee',
+            'reservation_fee_paid' => $this->resolveViewingStepKey($reservation),
+            'viewing_scheduled' => 'viewing',
             'deposit_paid' => 'deposit',
             'application_submitted', 'approved', 'post_approval_fees_paid' => 'loan_application',
             default => 'start',
         };
+    }
+
+    private function resolveViewingStepKey(AssetReservation $reservation): string
+    {
+        if ($reservation->viewing_completed_at) {
+            return 'viewing_done';
+        }
+
+        if ($reservation->viewing_date) {
+            return 'viewing';
+        }
+
+        return 'application_fee';
     }
 }

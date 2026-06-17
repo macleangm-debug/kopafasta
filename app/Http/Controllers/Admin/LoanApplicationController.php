@@ -167,7 +167,7 @@ class LoanApplicationController extends ResourceController
     public function show($id): View
     {
         $record = LoanApplication::query()
-            ->with(['customer', 'product', 'loan', 'stageHistory.changedByUser', 'alternativeProduct', 'recommendedByUser', 'collateralAsset', 'assetReservation.asset.vendor', 'manualPostApprovalFees'])
+            ->with(['customer', 'product', 'loan', 'stageHistory.changedByUser', 'alternativeProduct', 'recommendedByUser', 'collateralAsset', 'assetReservation.asset.vendor', 'manualPostApprovalFees', 'valuationAssignments.vendor'])
             ->findOrFail($id);
 
         $workflow = app(LoanApplicationWorkflowService::class);
@@ -206,13 +206,9 @@ class LoanApplicationController extends ResourceController
             ->first();
         $disbursementReadiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
 
-        $valuers = \App\Models\Vendor::query()
-            ->where('status', 'active')
-            ->where(function ($q): void {
-                $q->where('category', 'valuer')->orWhere('roles', 'like', '%"valuer"%');
-            })
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        $valuers = app(\App\Services\ValuationPartnerService::class)->valuersForApplication($record);
+        $suggestedValuer = app(\App\Services\ValuationPartnerService::class)->suggestValuer($record);
+        $valuationReport = app(\App\Services\ValuationPartnerService::class)->reportForApplication($record);
 
         return view("admin.{$this->viewFolder}.show", compact(
             'record',
@@ -231,6 +227,8 @@ class LoanApplicationController extends ResourceController
             'assetAlternativeProduct',
             'disbursementReadiness',
             'valuers',
+            'suggestedValuer',
+            'valuationReport',
         ));
     }
 

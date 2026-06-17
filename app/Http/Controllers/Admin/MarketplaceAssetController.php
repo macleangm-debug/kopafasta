@@ -17,41 +17,44 @@ class MarketplaceAssetController extends ResourceController
 
     protected function rules(?Model $model = null): array
     {
-        return [
-            'vendor_id'              => ['nullable', 'exists:vendors,id'],
-            'slug'                   => ['nullable', 'string', 'max:60'],
-            'category'               => ['required', 'string', 'max:40'],
-            'title'                  => ['required', 'string', 'max:150'],
-            'description'            => ['nullable', 'string'],
-            'supplier_name'          => ['nullable', 'string', 'max:150'],
-            'asset_value'            => ['required', 'numeric', 'min:0'],
-            'supplier_deposit'       => ['required', 'numeric', 'min:0'],
-            'deposit_markup_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'weekly_installment'     => ['required', 'numeric', 'min:0'],
-            'max_tenure_months'      => ['required', 'integer', 'min:1', 'max:120'],
-            'is_active'              => ['nullable', 'boolean'],
-        ];
+        return array_merge(app(MarketplaceAssetService::class)->validationRules(), [
+            'vendor_id' => ['nullable', 'exists:vendors,id'],
+            'slug'      => ['nullable', 'string', 'max:60'],
+        ]);
     }
 
     protected function formData(?Model $record = null): array
     {
+        $lending = app(\App\Services\AssetLendingService::class);
+
         return [
-            'suppliers'  => Vendor::query()->where('category', 'supplier')->where('status', 'active')->orderBy('name')->pluck('name', 'id'),
-            'categories' => config('asset_marketplace.categories', []),
+            'suppliers'                   => Vendor::query()->where('category', 'supplier')->where('status', 'active')->orderBy('name')->pluck('name', 'id'),
+            'categories'                  => config('asset_marketplace.categories', []),
+            'defaultDepositMarkupPercent' => $lending->defaultDepositMarkupPercent(),
+            'defaultWaitingPeriodDays'    => $lending->defaultWaitingPeriodDays(),
+            'prefill'                     => [
+                'title'               => request()->query('title'),
+                'asset_value'         => request()->query('asset_value'),
+                'max_tenure_months'   => request()->query('max_tenure_months'),
+            ],
         ];
     }
 
     protected function transform(array $data, ?Model $existing = null): array
     {
         $data['is_active'] = (bool) ($data['is_active'] ?? true);
+        unset($data['photos'], $data['remove_photos']);
 
         return app(MarketplaceAssetService::class)->prepareForSave($data, $existing instanceof MarketplaceAsset ? $existing : null);
     }
 
     public function store(Request $request)
     {
-        $data = $this->transform($request->validate($this->rules()));
+        $service = app(MarketplaceAssetService::class);
+        $validated = $request->validate($this->rules());
+        $data = $this->transform($validated);
         $record = MarketplaceAsset::create($data);
+        $service->syncPhotos($record, $request->file('photos', []), $request->input('remove_photos', []));
         $this->auditAdminCreated($record);
 
         return redirect()
@@ -61,10 +64,13 @@ class MarketplaceAssetController extends ResourceController
 
     public function update(Request $request, $id)
     {
+        $service = app(MarketplaceAssetService::class);
         $record = MarketplaceAsset::findOrFail($id);
         $before = app(\App\Services\AuditService::class)->snapshot($record);
-        $data = $this->transform($request->validate($this->rules($record)), $record);
+        $validated = $request->validate($this->rules($record));
+        $data = $this->transform($validated, $record);
         $record->update($data);
+        $service->syncPhotos($record, $request->file('photos', []), $request->input('remove_photos', []));
         $this->auditAdminUpdated($record, $before);
 
         return redirect()

@@ -13,7 +13,7 @@
             ];
         @endphp
         @foreach ($types as $key => [$label, $hint])
-            <a href="{{ route('admin.vendors.create', ['category' => $key]) }}"
+            <a href="{{ route('admin.partners.create', ['category' => $key]) }}"
                class="block rounded-xl bg-white ring-1 ring-gray-200 p-5 hover:ring-amber-300 hover:shadow-sm transition">
                 <h3 class="font-semibold text-gray-900">{{ $label }}</h3>
                 <p class="text-sm text-gray-500 mt-1">{{ $hint }}</p>

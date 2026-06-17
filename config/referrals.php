@@ -21,4 +21,10 @@ return [
         'interest',
         'penalty',
     ],
+
+    /** Placeholders: {brand}, {referrer_name}, {referral_code}, {referral_link}, {discount_percent} */
+    'messages' => [
+        'share_template' => 'Join {brand} with my referral code {referral_code}. Register here: {referral_link}',
+        'invite_sms'     => 'Use my {brand} referral link for {discount_percent}% off registration fees: {referral_link}',
+    ],
 ];

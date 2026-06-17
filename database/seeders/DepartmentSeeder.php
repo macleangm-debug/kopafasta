@@ -14,11 +14,14 @@ class DepartmentSeeder extends Seeder
             ?? Branch::query()->where('is_active', true)->value('id');
 
         $departments = [
-            ['code' => 'CS',  'name' => 'Customer Support'],
+            ['code' => 'OPS', 'name' => 'Operations'],
+            ['code' => 'CRD', 'name' => 'Credit'],
             ['code' => 'UND', 'name' => 'Underwriting'],
             ['code' => 'COL', 'name' => 'Collections'],
+            ['code' => 'CMP', 'name' => 'Compliance'],
             ['code' => 'FIN', 'name' => 'Finance'],
-            ['code' => 'OPS', 'name' => 'Operations'],
+            ['code' => 'CS',  'name' => 'Customer Support'],
+            ['code' => 'IT',  'name' => 'Information Technology'],
             ['code' => 'MGT', 'name' => 'Management'],
             ['code' => 'MKT', 'name' => 'Marketing'],
             ['code' => 'REC', 'name' => 'Recovery'],

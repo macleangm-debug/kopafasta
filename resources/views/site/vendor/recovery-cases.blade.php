@@ -22,7 +22,7 @@
 
     <div class="flex flex-wrap gap-2 mb-5">
         @foreach ($tabs as $k => $label)
-            <a href="{{ route('site.vendor.recovery-cases', $k === 'all' ? [] : ['status' => $k]) }}"
+            <a href="{{ route('site.partner.recovery-cases', $k === 'all' ? [] : ['status' => $k]) }}"
                class="px-3 py-1.5 rounded-full text-xs font-semibold border
                       {{ $current === $k ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50' }}">
                 {{ $label }}
@@ -80,12 +80,12 @@
                     </dl>
 
                     <div class="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
-                        <a href="{{ route('site.vendor.recovery-case', $assignment) }}"
+                        <a href="{{ route('site.partner.recovery-case', $assignment) }}"
                            class="inline-flex items-center rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700">
                             Open case
                         </a>
                         @if ($assignment->vendorTask)
-                            <a href="{{ route('site.vendor.task', $assignment->vendorTask) }}"
+                            <a href="{{ route('site.partner.task', $assignment->vendorTask) }}"
                                class="inline-flex items-center rounded-lg bg-white border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50">
                                 Linked task
                             </a>

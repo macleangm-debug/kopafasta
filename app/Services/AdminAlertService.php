@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Customer;
 use App\Models\LoanApplication;
 use App\Models\MembershipHistory;
+use App\Models\PartnerApplication;
 use Illuminate\Support\Collection;
 
 class AdminAlertService
@@ -47,6 +48,13 @@ class AdminAlertService
                 'count'    => MembershipHistory::pending()->count(),
                 'url'      => route('admin.membership-payments.index'),
                 'category' => 'customers',
+            ],
+            [
+                'key'      => 'affiliate_applications',
+                'label'    => 'Affiliate applications pending',
+                'count'    => PartnerApplication::where('status', 'pending')->count(),
+                'url'      => route('admin.partner-applications.index'),
+                'category' => 'partners',
             ],
         ]);
 

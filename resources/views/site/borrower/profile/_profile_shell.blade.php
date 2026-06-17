@@ -12,6 +12,10 @@
     'subtitle' => $subtitle,
 ])
 
+@if (! $wizardMode)
+    @include('site.borrower.profile._member_card', ['customer' => $customer])
+@endif
+
 @if ($wizardMode)
     @include('site.borrower.profile._kyc_progress', [
         'customer' => $customer,

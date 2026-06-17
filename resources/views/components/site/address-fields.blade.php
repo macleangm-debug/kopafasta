@@ -1,5 +1,6 @@
 @props([
     'prefix' => '',
+    'formKey' => null,
     'region' => '',
     'district' => '',
     'ward' => '',
@@ -9,13 +10,22 @@
 ])
 
 @php
-    $p = $prefix ? $prefix.'_' : '';
-    $regionName = $p.'region';
-    $districtName = $p.'district';
-    $wardName = $p.'ward';
-    $streetName = $p.'street';
-    $initialRegion = old($regionName, $region);
-    $initialDistrict = old($districtName, $district);
+    $fieldName = function (string $part) use ($prefix, $formKey): string {
+        $base = ($prefix ? $prefix.'_' : '').$part;
+
+        return $formKey ? "{$formKey}[{$base}]" : $base;
+    };
+    $oldKey = function (string $part) use ($prefix, $formKey): string {
+        $base = ($prefix ? $prefix.'_' : '').$part;
+
+        return $formKey ? "{$formKey}.{$base}" : $base;
+    };
+    $regionName = $fieldName('region');
+    $districtName = $fieldName('district');
+    $wardName = $fieldName('ward');
+    $streetName = $fieldName('street');
+    $initialRegion = old($oldKey('region'), $region);
+    $initialDistrict = old($oldKey('district'), $district);
 @endphp
 
 <div class="grid sm:grid-cols-2 gap-4" x-data="tzAddress(@js($locations), @js($initialRegion), @js($initialDistrict), @js([
@@ -45,13 +55,13 @@
     </div>
     <div>
         <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.ward') }}</label>
-        <input name="{{ $wardName }}" value="{{ old($wardName, $ward) }}"
+        <input name="{{ $wardName }}" value="{{ old($oldKey('ward'), $ward) }}"
                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm"
                placeholder="{{ __('borrower.profile.ward_placeholder') }}">
     </div>
     <div>
         <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.street') }} @if($required)<span class="text-red-500">*</span>@endif</label>
-        <input name="{{ $streetName }}" value="{{ old($streetName, $street) }}" @if($required) required @endif
+        <input name="{{ $streetName }}" value="{{ old($oldKey('street'), $street) }}" @if($required) required @endif
                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm"
                placeholder="{{ __('borrower.profile.street_placeholder') }}">
     </div>

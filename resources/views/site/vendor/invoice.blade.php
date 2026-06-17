@@ -1,7 +1,7 @@
 <x-site.vendor-layout title="Invoice" active="payments">
 
     <div class="mb-5 flex items-center justify-between">
-        <a href="{{ route('site.vendor.payments') }}" class="text-sm text-indigo-600 hover:underline">← Back to payments</a>
+        <a href="{{ route('site.partner.payments') }}" class="text-sm text-indigo-600 hover:underline">← Back to payments</a>
         <button onclick="window.print()" class="text-sm rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50">Print / Save PDF</button>
     </div>
 
@@ -13,7 +13,7 @@
             </div>
             <div class="text-right">
                 <p class="font-extrabold text-lg">Kopafasta</p>
-                <p class="text-xs text-gray-500">Vendor settlement</p>
+                <p class="text-xs text-gray-500">Partner settlement</p>
             </div>
         </div>
 
@@ -42,7 +42,7 @@
             <tbody>
                 <tr class="border-b border-gray-100">
                     <td class="py-3">
-                        {{ $payment->task ? ucfirst(str_replace('_',' ', $payment->task->task_type)) : 'Vendor service' }}
+                        {{ $payment->task ? ucfirst(str_replace('_',' ', $payment->task->task_type)) : 'Partner service' }}
                         @if ($payment->task)<div class="text-xs text-gray-500">Task #{{ $payment->task->id }} · {{ $payment->task->customer_name }}</div>@endif
                     </td>
                     <td class="py-3 text-right font-semibold">{{ $fmt($payment->amount) }}</td>

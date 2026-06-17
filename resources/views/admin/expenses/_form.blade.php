@@ -3,7 +3,7 @@
 
 <x-admin.step title="Details">
     <x-admin.select name="branch_id"      label="Branch"        :options="$branches" :value="$r?->branch_id" placeholder="— None —" />
-    <x-admin.select name="vendor_id"      label="Vendor"        :options="$vendors"  :value="$r?->vendor_id" placeholder="— None —" />
+    <x-admin.select name="vendor_id"      label="Partner"        :options="$vendors"  :value="$r?->vendor_id" placeholder="— None —" />
     <x-admin.input  name="category"       label="Category"      :value="$r?->category" required placeholder="e.g. Fuel, Rent, Towing" />
     <x-admin.select name="status"         label="Status"        :options="$statuses" :value="$r?->status ?? 'pending'" required />
     <div class="md:col-span-2">

@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.loans_page.title'))" active="loans" :portalMode="($isGuarantorPortal ?? false) ? 'guarantor' : 'borrower'">
+<x-site.borrower-layout :title="brand_title(__('borrower.loans_page.title'))" active="loans" content-width="wide" :portalMode="($isGuarantorPortal ?? false) ? 'guarantor' : 'borrower'">
 
     <h1 class="text-2xl font-bold mb-1">{{ __('borrower.loans_page.title') }}</h1>
     <p class="text-sm text-gray-500 mb-5">

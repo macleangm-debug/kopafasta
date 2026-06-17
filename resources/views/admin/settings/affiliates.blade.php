@@ -62,6 +62,32 @@
             </div>
         </div>
 
+        <div>
+            <h3 class="text-sm font-semibold text-gray-900 mb-3">Partner messages</h3>
+            <p class="text-xs text-gray-500 mb-4">Placeholders: <span class="font-mono">{brand}</span>, <span class="font-mono">{affiliate_name}</span>, <span class="font-mono">{affiliate_code}</span>, <span class="font-mono">{affiliate_link}</span>, <span class="font-mono">{registration_link}</span>, <span class="font-mono">{verify_link}</span></p>
+            <div class="space-y-4">
+                <x-admin.textarea name="message_share_template" label="Share message (portal copy)" rows="2"
+                                  :value="$values['message_share_template'] ?? ''" />
+                <x-admin.textarea name="message_referral_sms" label="Referral SMS template" rows="2"
+                                  :value="$values['message_referral_sms'] ?? ''" />
+                <x-admin.textarea name="message_verification_notice" label="Public verification notice" rows="2"
+                                  :value="$values['message_verification_notice'] ?? ''" />
+                <x-admin.textarea name="message_welcome_partner" label="Welcome message (new affiliates)" rows="2"
+                                  :value="$values['message_welcome_partner'] ?? ''" />
+            </div>
+        </div>
+
+        <div>
+            <h3 class="text-sm font-semibold text-gray-900 mb-3">Anti-fraud</h3>
+            <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                <input type="hidden" name="require_kyc_for_verification" value="0">
+                <input type="checkbox" name="require_kyc_for_verification" value="1"
+                       @checked((bool) ($values['require_kyc_for_verification'] ?? true))
+                       class="rounded border-gray-300 text-amber-600">
+                Require approved KYC before public affiliate verification badge
+            </label>
+        </div>
+
         <div class="flex justify-end">
             <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">
                 Save affiliate settings

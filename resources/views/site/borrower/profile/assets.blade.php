@@ -1,7 +1,7 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.profile.my_assets'))" active="profile">
+<x-site.borrower-layout :title="brand_title(__('borrower.profile.my_assets'))" active="profile" content-width="wide">
     @include('site.borrower.profile._tabs', ['active' => 'assets'])
 
-    <div class="max-w-3xl">
+    <div>
         @include('site.borrower.profile._heading', [
             'title' => __('borrower.profile.my_assets'),
             'subtitle' => __('borrower.profile.my_assets_hint'),
@@ -25,7 +25,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.asset_label') }}</label>
-                    <input type="text" name="label" value="{{ old('label') }}" required maxlength="150" class="w-full rounded-lg border-gray-300 text-sm" placeholder="e.g. Toyota RAV4 2018">
+                    <input type="text" name="label" value="{{ old('label') }}" required maxlength="150" class="w-full rounded-lg border-gray-300 text-sm" placeholder="{{ __('borrower.profile.asset_label_placeholder') }}">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.registration_number') }}</label>
@@ -63,7 +63,8 @@
                             <p class="text-sm text-gray-500 mt-2">{{ $asset->description }}</p>
                         @endif
                     </div>
-                    <form method="POST" action="{{ route('site.borrower.profile.assets.destroy', $asset) }}" onsubmit="return confirm('Remove this asset?')">
+                    <form method="POST" action="{{ route('site.borrower.profile.assets.destroy', $asset) }}"
+                          @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.remove_asset_confirm')), message: '', confirmLabel: @js(__('borrower.profile.remove_asset')), confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">
                         @csrf @method('DELETE')
                         <button type="submit" class="text-xs font-semibold text-rose-700 hover:underline">{{ __('borrower.profile.remove_asset') }}</button>
                     </form>

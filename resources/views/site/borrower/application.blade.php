@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title('Application '.$application->application_number)" active="loans">
+<x-site.borrower-layout :title="brand_title(__('borrower.application.page_title', ['number' => $application->application_number]))" active="loans" content-width="wide">
 
     @php
         $statusBadge = match (true) {
@@ -8,6 +8,10 @@
             default => 'bg-sky-100 text-sky-700',
         };
         $progress = $requiredCount > 0 ? round(($satisfiedCount / $requiredCount) * 100) : 100;
+        $requestTypes = __('borrower.application.request_types');
+        $requestStatuses = __('borrower.application.request_statuses');
+        $uploadStatuses = __('borrower.application.upload_statuses');
+        $guarantorLinkStatuses = __('borrower.application.guarantor_link_statuses');
     @endphp
 
     <div class="mb-4">
@@ -69,7 +73,7 @@
                     <li class="px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
                         <div>
                             <p class="text-sm font-medium text-gray-900">{{ $invite->invitee_name ?? __('borrower.application.guarantor_external') }}</p>
-                            <p class="text-xs text-gray-500">{{ ucfirst($invite->type ?? 'guarantor') }} · {{ $invite->contact }}</p>
+                            <p class="text-xs text-gray-500">{{ $requestTypes[$invite->type ?? 'guarantor'] ?? ucfirst($invite->type ?? 'guarantor') }} · {{ $invite->contact }}</p>
                         </div>
                         <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $gBadge }}">{{ $gLabel }}</span>
                     </li>
@@ -90,7 +94,7 @@
                             <p class="text-sm font-medium text-gray-900">{{ $link->displayName() }}</p>
                             <p class="text-xs text-gray-500">{{ __('borrower.application.guarantor_internal') }}</p>
                         </div>
-                        <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $gBadge }}">{{ ucfirst($link->status) }}</span>
+                        <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $gBadge }}">{{ $guarantorLinkStatuses[$link->status] ?? ucfirst($link->status) }}</span>
                     </li>
                 @endforeach
             </ul>
@@ -111,7 +115,7 @@
                         {{ __('borrower.application.offer_ready') }}
                     @endif
                 </p>
-                <p class="text-xs text-amber-800 mt-0.5">Reference: <span class="font-mono">{{ $offer->reference }}</span></p>
+                <p class="text-xs text-amber-800 mt-0.5">{{ __('borrower.application.offer_reference') }} <span class="font-mono">{{ $offer->reference }}</span></p>
             </div>
             <a href="{{ route('site.borrower.application.agreement', $application) }}"
                class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-4 py-2 rounded-lg">
@@ -166,8 +170,8 @@
                             <div>
                                 <p class="font-semibold text-gray-900">{{ $docReq->label }}</p>
                                 <p class="text-xs text-gray-500 mt-0.5">
-                                    {{ ucfirst($docReq->type) }}
-                                    @if ($docReq->due_at) · Due {{ $docReq->due_at->format('d M Y') }} @endif
+                                    {{ $requestTypes[$docReq->type] ?? ucfirst($docReq->type) }}
+                                    @if ($docReq->due_at) · {{ __('borrower.application.due_date', ['date' => $docReq->due_at->format('d M Y')]) }} @endif
                                 </p>
                                 @if ($docReq->instructions)
                                     <p class="text-sm text-gray-600 mt-2">{{ $docReq->instructions }}</p>
@@ -176,10 +180,10 @@
                                     <p class="text-xs text-red-700 bg-red-50 ring-1 ring-red-200 rounded-lg px-3 py-2 mt-2">{{ $docReq->admin_notes }}</p>
                                 @endif
                                 @if ($docReq->borrower_response && $docReq->status !== 'pending')
-                                    <p class="text-xs text-gray-500 mt-2">Your response: {{ $docReq->borrower_response }}</p>
+                                    <p class="text-xs text-gray-500 mt-2">{{ __('borrower.application.your_response') }} {{ $docReq->borrower_response }}</p>
                                 @endif
                             </div>
-                            <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $reqBadge }}">{{ ucfirst($docReq->status) }}</span>
+                            <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $reqBadge }}">{{ $requestStatuses[$docReq->status] ?? ucfirst($docReq->status) }}</span>
                         </div>
 
                         @if ($docReq->uploads->isNotEmpty())
@@ -245,8 +249,8 @@
                             default      => 'bg-gray-100 text-gray-600',
                         };
                         $label = $latest
-                            ? ucfirst(str_replace('_',' ', $latest->status))
-                            : ($req->is_required ? 'Required' : 'Optional');
+                            ? ($uploadStatuses[$latest->status] ?? ucfirst(str_replace('_', ' ', $latest->status)))
+                            : ($req->is_required ? __('borrower.application.status_required') : __('borrower.application.status_optional'));
                     @endphp
                     <li class="p-5">
                         <div class="flex items-start justify-between gap-3 mb-2 flex-wrap">
@@ -266,9 +270,9 @@
 
                         @if ($latest)
                             <div class="text-xs text-gray-500 mb-2">
-                                Last uploaded {{ \Carbon\Carbon::parse($latest->created_at)->diffForHumans() }}
+                                {{ __('borrower.application.last_uploaded', ['time' => \Carbon\Carbon::parse($latest->created_at)->diffForHumans()]) }}
                                 @if ($latest->file_path)
-                                    · <a href="{{ asset('storage/'.$latest->file_path) }}" target="_blank" class="text-amber-600 hover:underline">View file</a>
+                                    · <a href="{{ asset('storage/'.$latest->file_path) }}" target="_blank" class="text-amber-600 hover:underline">{{ __('borrower.application.view_file') }}</a>
                                 @endif
                             </div>
                             @if ($isRejected && $latest->notes)
@@ -282,7 +286,7 @@
                                 <input type="hidden" name="loan_product_requirement_id" value="{{ $req->id }}">
                                 <input type="file" name="file" accept="image/*,application/pdf" required class="w-full text-sm">
                                 <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2 rounded-full text-sm whitespace-nowrap">
-                                    {{ $latest ? 'Re-upload' : 'Upload' }}
+                                    {{ $latest ? __('borrower.application.re_upload') : __('borrower.application.upload') }}
                                 </button>
                             </form>
                         @endif
@@ -293,7 +297,7 @@
     </div>
 
     <p class="text-xs text-gray-500 mt-4 text-center">
-        Accepted formats: JPG, PNG, PDF · max 5 MB. Make sure the file is clear and readable.
+        {{ __('borrower.application.accepted_formats_note') }}
     </p>
 
 </x-site.borrower-layout>

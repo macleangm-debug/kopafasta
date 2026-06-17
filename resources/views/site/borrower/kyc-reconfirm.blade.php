@@ -1,6 +1,6 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.kyc.reconfirm_title'))" active="profile">
+<x-site.borrower-layout :title="brand_title(__('borrower.kyc.reconfirm_title'))" active="profile" content-width="wide">
 
-    <div class="max-w-3xl" x-data="{ residenceUnchanged: @js((bool) old('residence_unchanged')) }">
+    <div x-data="{ residenceUnchanged: @js((bool) old('residence_unchanged')) }">
         <h1 class="text-2xl font-bold mb-1">{{ __('borrower.kyc.reconfirm_title') }}</h1>
         <p class="text-sm text-gray-500 mb-6">{{ __('borrower.kyc.reconfirm_intro') }}</p>
 

@@ -32,14 +32,14 @@
     </div>
 
     <div class="rounded-xl bg-white ring-1 ring-gray-200 px-4 py-3 text-sm">
-        <label class="block text-xs font-semibold text-gray-600 mb-1">Promo code (optional)</label>
-        <input type="text" name="promo_code" value="{{ old('promo_code') }}" maxlength="40" class="w-full rounded-lg border-gray-300 text-sm font-mono uppercase" placeholder="PROMO2026">
+        <label class="block text-xs font-semibold text-gray-600 mb-1">{{ __('borrower.marketplace.promo_code_label') }}</label>
+        <input type="text" name="promo_code" value="{{ old('promo_code') }}" maxlength="40" class="w-full rounded-lg border-gray-300 text-sm font-mono uppercase" placeholder="{{ __('borrower.marketplace.promo_code_placeholder') }}">
     </div>
 
     @if (($feeQuote['wallet_allowed'] ?? false) && ($referralWallet->balance ?? 0) > 0)
         <label class="flex items-start gap-3 rounded-xl bg-indigo-50 ring-1 ring-indigo-200 px-4 py-3 text-sm cursor-pointer">
             <input type="checkbox" name="use_wallet" value="1" x-model="useWallet" class="mt-1 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
-            <span>Use referral wallet ({{ format_money($referralWallet->balance) }} available)</span>
+            <span>{{ __('borrower.marketplace.use_referral_wallet', ['balance' => format_money($referralWallet->balance)]) }}</span>
         </label>
     @endif
 
@@ -80,9 +80,12 @@
     <div x-show="channel === 'bank_transfer'" x-cloak class="space-y-3">
         @foreach ($bankAccounts ?? [] as $account)
             <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 p-4 text-sm">
-                <p class="font-semibold">{{ $account['bank_name'] ?? 'Bank' }}</p>
+                <p class="font-semibold">{{ $account['bank'] ?? $account['bank_name'] ?? 'Bank' }}</p>
                 <p class="font-mono text-xs mt-1">{{ $account['account_number'] ?? '—' }}</p>
                 <p class="text-xs text-gray-600 mt-1">{{ $account['account_name'] ?? '' }}</p>
+                @if (! empty($account['reference']))
+                    <p class="text-xs text-gray-500 mt-1">{{ __('borrower.membership.payment_reference') }}: <span class="font-mono">{{ $account['reference'] }}</span></p>
+                @endif
             </div>
         @endforeach
         <label class="block">

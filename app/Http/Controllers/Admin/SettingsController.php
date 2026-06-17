@@ -11,7 +11,7 @@ class SettingsController extends Controller
 {
     public function index()
     {
-        return redirect()->route('admin.settings.company');
+        return view('admin.settings.hub');
     }
 
     // ---------------- Company profile ----------------
@@ -214,6 +214,65 @@ class SettingsController extends Controller
 
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["kyc.$k" => $v])->all());
         return back()->with('status', 'KYC settings saved.');
+    }
+
+    public function crb()
+    {
+        $values = Setting::group('kyc');
+        $sample = config('crb_samples.scenarios.verified', []);
+        $billing = app(\App\Services\CrbBillingService::class);
+
+        return view('admin.settings.crb', [
+            'values'        => $values,
+            'driver'        => config('crb.driver'),
+            'usesStub'      => app(\App\Services\CrbService::class)->usesStub(),
+            'sampleNida'    => $sample['nida'] ?? '19810713-00001-23456-78',
+            'sampleLabel'   => $sample['label'] ?? 'Single hit (verified)',
+            'billingSummary'=> $billing->monthlySummary(),
+            'billingHistory'=> $billing->recentMonths(6),
+        ]);
+    }
+
+    public function saveCrb(Request $request)
+    {
+        $data = $request->validate([
+            'crb_check_required'    => ['nullable', 'boolean'],
+            'crb_sandbox'           => ['nullable', 'boolean'],
+            'crb_endpoint'          => ['nullable', 'url', 'max:255'],
+            'crb_email'             => ['nullable', 'string', 'max:150'],
+            'crb_freshness_days'    => ['required', 'integer', 'min:30', 'max:365'],
+            'crb_cost_per_request'  => ['nullable', 'numeric', 'min:0', 'max:999999'],
+        ]);
+
+        foreach (['crb_check_required', 'crb_sandbox'] as $key) {
+            $data[$key] = (bool) ($data[$key] ?? false);
+        }
+
+        Setting::setMany(collect($data)->mapWithKeys(fn ($value, $key) => ["kyc.$key" => $value])->all());
+
+        return back()->with('status', 'CRB settings saved.');
+    }
+
+    public function testCrbConnection()
+    {
+        $sample = config('crb_samples.scenarios.verified', []);
+        $nida = (string) ($sample['nida'] ?? '19810713-00001-23456-78');
+
+        $result = app(\App\Services\CrbService::class)->verifyConsumerIdentity(
+            $nida,
+            $sample['full_name'] ?? null,
+            $sample['date_of_birth'] ?? null,
+        );
+
+        if ($result->success) {
+            $driverLabel = $result->raw['driver'] ?? ($usesStub ? 'stub' : 'live');
+
+            return back()->with('status', 'CRB test succeeded ('.$driverLabel.'): '.$result->fullName);
+        }
+
+        return back()->withErrors([
+            'crb_test' => $result->message ?? 'CRB test failed.',
+        ]);
     }
 
     public function identityVerification()
@@ -420,6 +479,7 @@ class SettingsController extends Controller
             'gps_revenue_gl_account_id'               => ['nullable', 'exists:chart_of_accounts,id'],
             'asset_lending_revenue_gl_account_id'     => ['nullable', 'exists:chart_of_accounts,id'],
             'capital_partner_interest_share_percent'  => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'capital_allocation_strategy'             => ['nullable', 'in:proportional,round_robin,priority,manual'],
             'write_off_approval_required'             => ['nullable', 'boolean'],
         ]);
         $data['write_off_approval_required'] = $request->boolean('write_off_approval_required');
@@ -438,7 +498,11 @@ class SettingsController extends Controller
     public function saveAssetLending(Request $request)
     {
         $data = $request->validate([
-            'markup_base' => ['required', 'in:deposit,asset_price'],
+            'markup_base'                    => ['required', 'in:deposit,asset_price'],
+            'default_deposit_markup_percent' => ['required', 'numeric', 'min:0', 'max:100'],
+            'default_waiting_period_days'    => ['required', 'integer', 'min:0', 'max:90'],
+            'insurance_expiry_warning_days'  => ['required', 'integer', 'min:1', 'max:365'],
+            'default_monthly_rate_percent'   => ['required', 'numeric', 'min:0', 'max:100'],
         ]);
 
         Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["asset_lending.$k" => $v])->all());
@@ -486,6 +550,8 @@ class SettingsController extends Controller
             'discount_percent'       => ['required', 'numeric', 'min:0', 'max:100'],
             'commission_percent'     => ['required', 'numeric', 'min:0', 'max:100'],
             'wallet_max_fee_percent' => ['required', 'numeric', 'min:0', 'max:100'],
+            'message_share_template' => ['nullable', 'string', 'max:500'],
+            'message_invite_sms'     => ['nullable', 'string', 'max:500'],
         ]);
 
         Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["referrals.$k" => $v])->all());
@@ -510,6 +576,11 @@ class SettingsController extends Controller
             'commission_calculation_base'         => ['required', 'in:original_amount,discounted_amount'],
             'applies_to'                          => ['nullable', 'array'],
             'applies_to.*'                        => ['nullable', 'boolean'],
+            'message_share_template'              => ['nullable', 'string', 'max:500'],
+            'message_referral_sms'                => ['nullable', 'string', 'max:500'],
+            'message_verification_notice'         => ['nullable', 'string', 'max:500'],
+            'message_welcome_partner'             => ['nullable', 'string', 'max:500'],
+            'require_kyc_for_verification'        => ['nullable', 'boolean'],
         ]);
 
         $feeTypes = ['registration_fee', 'application_fee', 'post_approval_fee', 'interest', 'repayments'];
@@ -524,6 +595,13 @@ class SettingsController extends Controller
             'affiliates.default_commission_percent'          => $data['default_commission_percent'],
             'affiliates.commission_calculation_base'         => $data['commission_calculation_base'],
             'affiliates.applies_to'                          => $appliesTo,
+            'affiliates.messages'                            => [
+                'share_template'      => $data['message_share_template'] ?? '',
+                'referral_sms'        => $data['message_referral_sms'] ?? '',
+                'verification_notice' => $data['message_verification_notice'] ?? '',
+                'welcome_partner'     => $data['message_welcome_partner'] ?? '',
+            ],
+            'affiliates.require_kyc_for_verification'        => $request->boolean('require_kyc_for_verification'),
         ]);
 
         return back()->with('status', 'Affiliate settings saved.');

@@ -1,8 +1,8 @@
-<x-admin.layout title="Partner payments" heading="Partner payments queue" subheading="Approve vendor, supplier, and affiliate payouts before weekly batching">
+<x-admin.layout title="Partner payments" heading="Partner payments queue" subheading="Approve partner, supplier, and affiliate payouts before weekly batching">
     <div class="mb-4 flex flex-wrap gap-2 text-sm">
-        <a href="{{ route('admin.vendor-payments.index') }}" @class(['font-medium', 'text-amber-700' => $status === '', 'text-gray-500' => $status !== ''])>All</a>
+        <a href="{{ route('admin.partner-payments.index') }}" @class(['font-medium', 'text-amber-700' => $status === '', 'text-gray-500' => $status !== ''])>All</a>
         @foreach ($statuses as $item)
-            <a href="{{ route('admin.vendor-payments.index', ['status' => $item]) }}" @class(['font-medium capitalize', 'text-amber-700' => $status === $item, 'text-gray-500' => $status !== $item])>{{ $item }}</a>
+            <a href="{{ route('admin.partner-payments.index', ['status' => $item]) }}" @class(['font-medium capitalize', 'text-amber-700' => $status === $item, 'text-gray-500' => $status !== $item])>{{ $item }}</a>
         @endforeach
     </div>
 
@@ -28,11 +28,11 @@
                         <td class="px-4 py-3">{{ ucfirst($payment->status) }}</td>
                         <td class="px-4 py-3 text-right space-x-2">
                             @if ($payment->status === 'pending')
-                                <form method="post" action="{{ route('admin.vendor-payments.approve', $payment) }}" class="inline">
+                                <form method="post" action="{{ route('admin.partner-payments.approve', $payment) }}" class="inline">
                                     @csrf
                                     <button type="submit" class="text-emerald-700 hover:text-emerald-900">Approve</button>
                                 </form>
-                                <form method="post" action="{{ route('admin.vendor-payments.cancel', $payment) }}" class="inline">
+                                <form method="post" action="{{ route('admin.partner-payments.cancel', $payment) }}" class="inline">
                                     @csrf
                                     <button type="submit" class="text-red-700 hover:text-red-900">Cancel</button>
                                 </form>

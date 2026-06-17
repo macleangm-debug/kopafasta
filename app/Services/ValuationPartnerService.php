@@ -13,6 +13,23 @@ use Illuminate\Validation\ValidationException;
 
 class ValuationPartnerService
 {
+    public function __construct(
+        private readonly PartnerMatchingService $matching,
+    ) {}
+
+    public function suggestValuer(LoanApplication $application): ?Vendor
+    {
+        return $this->matching->suggestValuer($application);
+    }
+
+    /** @return \Illuminate\Support\Collection<int, Vendor> */
+    public function valuersForApplication(LoanApplication $application): \Illuminate\Support\Collection
+    {
+        $application->loadMissing('customer');
+
+        return $this->matching->valuersForRegion($application->customer?->region);
+    }
+
     public function assign(LoanApplication $application, Vendor $valuer, User $actor, ?string $notes = null): ValuationAssignment
     {
         if ($valuer->category !== 'valuer' && ! $valuer->hasPartnerRole('valuer')) {
@@ -39,16 +56,31 @@ class ValuationPartnerService
 
         return DB::transaction(function () use ($application, $valuer, $actor, $notes, $asset) {
             $customer = $application->customer;
+            $assetDescription = trim(collect([
+                $asset->description,
+                $asset->asset_type ? ucfirst(str_replace('_', ' ', $asset->asset_type)) : null,
+            ])->filter()->implode(' · '));
+
+            $location = trim(collect([
+                $customer->street ?? null,
+                $customer->district ?? null,
+                $customer->region ?? null,
+            ])->filter()->implode(', '));
 
             $task = VendorTask::create([
-                'vendor_id'      => $valuer->id,
-                'loan_id'        => $application->loan_id,
-                'task_type'      => 'asset_valuation',
-                'status'         => 'assigned',
-                'due_at'         => now()->addDays(5),
-                'customer_name'  => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
-                'customer_phone' => $customer->phone ?? null,
-                'notes'          => $notes,
+                'vendor_id'       => $valuer->id,
+                'loan_id'         => $application->loan_id,
+                'loan_application_id' => $application->id,
+                'task_type'       => 'asset_valuation',
+                'status'          => 'assigned',
+                'due_at'          => now()->addDays(5),
+                'customer_name'   => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
+                'customer_phone'  => $customer->phone ?? null,
+                'vehicle_details' => $assetDescription ?: null,
+                'location'        => $location ?: null,
+                'instructions'    => $notes ?: 'Inspect the asset physically, upload photos, and submit market and forced sale values.',
+                'notes'           => $notes,
+                'fee_amount'      => (int) round((float) ($valuer->partner_cost ?? 0)),
             ]);
 
             $assignment = ValuationAssignment::create([
@@ -117,7 +149,56 @@ class ValuationPartnerService
                 ],
             );
 
-            return $assignment->fresh(['application.asset']);
+            return $assignment->fresh(['application.collateralAsset']);
         });
+    }
+
+    public function markInProgress(ValuationAssignment $assignment): ValuationAssignment
+    {
+        if ($assignment->status !== ValuationAssignment::STATUS_ASSIGNED) {
+            return $assignment;
+        }
+
+        $assignment->update(['status' => ValuationAssignment::STATUS_IN_PROGRESS]);
+        $assignment->vendorTask?->update(['status' => 'in_progress', 'started_at' => now()]);
+
+        return $assignment->fresh();
+    }
+
+    /** @return array<string, mixed>|null */
+    public function reportForApplication(LoanApplication $application): ?array
+    {
+        $assignment = ValuationAssignment::query()
+            ->with(['vendor', 'vendorTask.documents', 'assigner'])
+            ->where('loan_application_id', $application->id)
+            ->latest('id')
+            ->first();
+
+        if (! $assignment) {
+            return null;
+        }
+
+        $asset = LoanApplicationAsset::query()->where('loan_application_id', $application->id)->first();
+        $photos = $assignment->vendorTask?->documents
+            ->map(fn ($doc) => [
+                'label' => $doc->label,
+                'url'   => asset('storage/'.$doc->file_path),
+            ])
+            ->values()
+            ->all() ?? [];
+
+        return [
+            'assignment'        => $assignment,
+            'status'            => $assignment->status,
+            'valuer_name'       => $assignment->vendor?->name,
+            'market_value'      => $assignment->market_value ?? $asset?->market_value,
+            'forced_sale_value' => $assignment->forced_sale_value ?? $asset?->forced_sale_value,
+            'max_loan_amount'   => $asset?->max_loan_amount,
+            'ltv_percent'       => $asset?->ltv_percent,
+            'notes'             => $assignment->notes ?? $asset?->valuer_notes,
+            'photos'            => $photos,
+            'assigned_at'       => $assignment->assigned_at,
+            'completed_at'      => $assignment->completed_at,
+        ];
     }
 }

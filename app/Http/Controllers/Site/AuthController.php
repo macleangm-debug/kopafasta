@@ -42,6 +42,7 @@ class AuthController extends Controller
             'defaultMethod' => 'pin',
             'biometricEnabled' => (bool) config('auth_portal.biometric_enabled', false),
             'clearedGuarantorContext' => $request->boolean('clear_guarantor'),
+            'partnerPortal' => $request->query('portal') === 'partner',
         ]);
     }
 
@@ -59,6 +60,7 @@ class AuthController extends Controller
         $data = $request->validate([
             'phone'        => ['required', 'string', 'max:20'],
             'pin'          => ['required', 'string', new FourDigitPin],
+            'partner_code' => ['nullable', 'string', 'max:50'],
             'remember'     => ['nullable', 'boolean'],
             'trust_device' => ['nullable', 'boolean'],
         ]);
@@ -91,6 +93,30 @@ class AuthController extends Controller
 
         if (! $this->pins->verify($data['pin'], $user->pin_hash)) {
             return $this->failedLogin($request, $phone, 'phone', 'Phone number or PIN is incorrect.', $user);
+        }
+
+        if (filled($data['partner_code'] ?? null)) {
+            $vendor = \App\Models\Vendor::query()
+                ->where('user_id', $user->id)
+                ->where('vendor_number', strtoupper(trim($data['partner_code'])))
+                ->first();
+
+            if (! $vendor) {
+                return back()
+                    ->withErrors(['partner_code' => 'Partner code does not match this account.'])
+                    ->withInput(['phone' => $phone, 'auth_method' => 'pin', 'partner_code' => $data['partner_code']]);
+            }
+
+            if (! $vendor->activated_at) {
+                return redirect()->route('site.partner.start')
+                    ->with('warning', 'Complete partner activation before signing in.');
+            }
+        } elseif ($user->role === 'vendor') {
+            $vendor = \App\Models\Vendor::query()->where('user_id', $user->id)->first();
+            if ($vendor && ! $vendor->activated_at) {
+                return redirect()->route('site.partner.start')
+                    ->with('warning', 'Complete partner activation before signing in.');
+            }
         }
 
         return $this->completeWebLogin($user, $request, $phone, (bool) ($data['trust_device'] ?? false));
@@ -567,14 +593,14 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('site.vendor.dashboard');
+        return redirect()->route('site.partner.dashboard');
     }
 
     public function redirectAfterLogin($user): RedirectResponse
     {
         return match ($user->role) {
             'borrower' => redirect()->route('site.borrower.dashboard'),
-            'vendor'   => redirect()->route('site.vendor.dashboard'),
+            'vendor'   => redirect()->route('site.partner.dashboard'),
             'investor' => redirect()->route('site.investor.dashboard'),
             default    => redirect()->route('admin.dashboard'),
         };

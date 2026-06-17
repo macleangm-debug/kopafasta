@@ -34,6 +34,27 @@ if (! function_exists('payment_channels_for_amount')) {
     }
 }
 
+if (! function_exists('product_includes_valuation_fee')) {
+    function product_includes_valuation_fee(?LoanProduct $product): bool
+    {
+        return $product && strtoupper((string) $product->code) === 'AB';
+    }
+}
+
+if (! function_exists('quoted_origination_fee')) {
+    /** Application fee plus valuation fee (asset-backed products only). */
+    function quoted_origination_fee(?Customer $customer, ?LoanProduct $product = null): int
+    {
+        $total = quoted_application_fee($customer, $product);
+
+        if (product_includes_valuation_fee($product)) {
+            $total += quoted_valuation_fee($customer);
+        }
+
+        return $total;
+    }
+}
+
 if (! function_exists('quoted_application_fee')) {
     function quoted_application_fee(?Customer $customer, ?LoanProduct $product = null): int
     {

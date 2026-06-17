@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\LoanProduct;
 use App\Models\LoanProductRateTier;
+use App\Support\RatePercent;
 
 class LoanRateTierTemplateService
 {
@@ -21,7 +22,7 @@ class LoanRateTierTemplateService
         $tierCount = (int) ($overrides['tier_count'] ?? app(UnderwritingSettingsService::class)->defaultRateTierCount());
         $tierCount = $this->resolveTierCount($minAmount, $maxAmount, $tierCount);
 
-        $maxRate = (float) ($product->interest_rate ?? 0);
+        $maxRate = RatePercent::toDecimal((float) ($product->interest_rate ?? 0));
         if ($maxRate <= 0) {
             $maxRate = 0.12;
         }

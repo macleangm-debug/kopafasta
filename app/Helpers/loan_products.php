@@ -95,6 +95,7 @@ if (! function_exists('loan_product_wizard_payload')) {
             'application_fee'   => loan_product_application_fee($customer, $product),
             'rate'              => (float) $rateService->displayedMonthlyRate($product),
             'rate_label'        => $rateService->formatBorrowerRateRange($product),
+            'rate_disclosure'   => $rateService->borrowerDisclosureLines($product, (float) $product->min_amount),
             'tiers'             => app(\App\Services\LoanRateTierService::class)->tiersForProduct($product),
             'min'               => (float) $product->min_amount,
             'max'               => (float) $product->max_amount,

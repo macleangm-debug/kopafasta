@@ -296,6 +296,22 @@
                         this.simpleMode = this.isDesktop;
                         this.ready = true;
                         this.notice = null;
+
+                        await this.startScan();
+                    },
+
+                    async cameraPermissionGranted() {
+                        if (! navigator.permissions?.query) {
+                            return false;
+                        }
+
+                        try {
+                            const status = await navigator.permissions.query({ name: 'camera' });
+
+                            return status.state === 'granted';
+                        } catch {
+                            return false;
+                        }
                     },
 
                     submitVerification() {

@@ -2,32 +2,50 @@
 @php
     $groups = [
         'Organization' => [
-            'company'    => ['Company', 'admin.settings.company'],
-            'departments'=> ['Departments', 'admin.departments.index'],
-            'users'      => ['Users', 'admin.users.index'],
+            'company'     => ['Company', 'admin.settings.company'],
+            'departments' => ['Departments', 'admin.departments.index'],
+            'users'       => ['Users', 'admin.users.index'],
+            'roles'       => ['Roles', 'admin.roles.index'],
         ],
         'Legal' => [
             'legal'       => ['Contracts & clauses', 'admin.settings.legal'],
             'signatories' => ['Signatories', 'admin.settings.signatories.index'],
         ],
         'Lending' => [
-            'loan-products' => ['Loan products', 'admin.settings.loan-products'],
-            'underwriting'  => ['Underwriting', 'admin.settings.underwriting'],
-            'loan-rules'    => ['Loan rules', 'admin.settings.loan-rules'],
-            'offer'         => ['Offer settings', 'admin.settings.offer'],
-            'asset-lending' => ['Asset lending', 'admin.settings.asset-lending'],
+            'loan-products'     => ['Loan products', 'admin.loan-products.index'],
+            'underwriting'      => ['Underwriting', 'admin.settings.underwriting'],
+            'loan-rules'        => ['Loan rules', 'admin.settings.loan-rules'],
+            'offer'             => ['Offer settings', 'admin.settings.offer'],
+            'asset-lending'     => ['Asset lending', 'admin.settings.asset-lending'],
+            'marketplace-assets'=> ['Marketplace assets', 'admin.marketplace-assets.index'],
         ],
         'Recovery' => [
             'recovery' => ['Recovery policy', 'admin.settings.recovery'],
         ],
         'Finance' => [
-            'finance' => ['Finance defaults', 'admin.settings.finance'],
-            'fees'    => ['Fees', 'admin.charges-fees.index'],
+            'finance'          => ['Finance defaults', 'admin.settings.finance'],
+            'fees'             => ['Fees', 'admin.charges-fees.index'],
+            'payment-accounts' => ['Payment accounts', 'admin.settings.payment-accounts'],
+            'disbursement'     => ['Disbursement accounts', 'admin.settings.payment-accounts'],
+        ],
+        'Reports' => [
+            'portfolio'   => ['Portfolio report', 'admin.reports.portfolio'],
+            'disbursements' => ['Disbursements report', 'admin.reports.disbursements'],
+            'par'         => ['PAR report', 'admin.reports.par'],
+        ],
+        'Capital' => [
+            'capital-funding' => ['Capital funding', 'admin.capital-funding.index'],
+            'lenders'         => ['Lenders', 'admin.lenders.index'],
         ],
         'Marketing' => [
             'membership' => ['Membership', 'admin.settings.membership'],
             'referrals'  => ['Referrals', 'admin.settings.referrals'],
             'affiliates' => ['Affiliates', 'admin.settings.affiliates'],
+            'campaigns'  => ['Campaigns', 'admin.promotions.index'],
+        ],
+        'Partners' => [
+            'partners-hub' => ['Partners hub', 'admin.partners.index'],
+            'partner-tasks'=> ['Partner tasks', 'admin.partners.tasks'],
         ],
         'Compliance' => [
             'kyc'           => ['KYC rules', 'admin.settings.kyc'],
@@ -37,7 +55,10 @@
             'countries'     => ['Countries', 'admin.settings.countries'],
         ],
         'Integrations' => [
-            'gateways' => ['SMS / Email', 'admin.settings.gateways'],
+            'gateways'                => ['SMS / Email', 'admin.settings.gateways'],
+            'identity'                => ['Identity verification', 'admin.settings.identity'],
+            'crb'                     => ['CRB integration', 'admin.settings.crb'],
+            'notification-templates'  => ['Notification templates', 'admin.notification-templates.index'],
         ],
     ];
 
@@ -45,15 +66,18 @@
 @endphp
 
 <div class="mb-6 space-y-3" x-data="{ group: @js($activeGroup) }">
-    <div class="flex flex-wrap gap-2 border-b border-gray-200 pb-3">
-        @foreach (array_keys($groups) as $groupName)
-            <button type="button"
-                    @click="group = @js($groupName)"
-                    :class="group === @js($groupName) ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50'"
-                    class="px-3 py-1.5 rounded-md text-sm font-medium transition">
-                {{ $groupName }}
-            </button>
-        @endforeach
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-3">
+        <div class="flex flex-wrap gap-2">
+            @foreach (array_keys($groups) as $groupName)
+                <button type="button"
+                        @click="group = @js($groupName)"
+                        :class="group === @js($groupName) ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50'"
+                        class="px-3 py-1.5 rounded-md text-sm font-medium transition">
+                    {{ $groupName }}
+                </button>
+            @endforeach
+        </div>
+        <a href="{{ route('admin.settings.index') }}" class="text-sm font-semibold text-amber-700 hover:underline">Settings hub →</a>
     </div>
 
     @foreach ($groups as $groupName => $tabs)

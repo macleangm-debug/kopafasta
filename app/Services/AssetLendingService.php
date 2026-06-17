@@ -14,10 +14,78 @@ class AssetLendingService
     {
         return array_merge(
             [
-                'markup_base' => config('asset_lending.markup_base', 'deposit'),
+                'markup_base'                    => config('asset_lending.markup_base', 'deposit'),
+                'default_deposit_markup_percent' => 10,
+                'default_waiting_period_days'    => 7,
+                'insurance_expiry_warning_days'  => 30,
+                'default_monthly_rate_percent'   => 12,
             ],
             Setting::group('asset_lending'),
         );
+    }
+
+    public function defaultDepositMarkupPercent(): float
+    {
+        return (float) ($this->settings()['default_deposit_markup_percent'] ?? 10);
+    }
+
+    public function defaultWaitingPeriodDays(): int
+    {
+        return max(0, (int) ($this->settings()['default_waiting_period_days'] ?? 7));
+    }
+
+    public function insuranceExpiryWarningDays(): int
+    {
+        return max(1, (int) ($this->settings()['insurance_expiry_warning_days'] ?? 30));
+    }
+
+    public function defaultMonthlyRate(): float
+    {
+        $percent = (float) ($this->settings()['default_monthly_rate_percent'] ?? config('asset_lending.default_monthly_rate', 0.12) * 100);
+
+        return max(0, min(1, $percent / 100));
+    }
+
+    /** @return array{status: string, label: string, tone: string, detail: string|null} */
+    public function insuranceStatus(?\DateTimeInterface $expiresAt): array
+    {
+        if (! $expiresAt) {
+            return [
+                'status' => 'missing',
+                'label'  => 'Insurance expiry not recorded',
+                'tone'   => 'amber',
+                'detail' => 'Add policy expiry on the marketplace asset before approval.',
+            ];
+        }
+
+        $expiry = \Illuminate\Support\Carbon::parse($expiresAt)->startOfDay();
+        $today = now()->startOfDay();
+        $warningDays = $this->insuranceExpiryWarningDays();
+
+        if ($expiry->lt($today)) {
+            return [
+                'status' => 'expired',
+                'label'  => 'Insurance expired',
+                'tone'   => 'red',
+                'detail' => 'Expired '.$expiry->format('d M Y').'. Request updated certificate from borrower.',
+            ];
+        }
+
+        if ($expiry->lte($today->copy()->addDays($warningDays))) {
+            return [
+                'status' => 'expiring',
+                'label'  => 'Insurance expiring soon',
+                'tone'   => 'amber',
+                'detail' => 'Expires '.$expiry->format('d M Y').' ('.$today->diffInDays($expiry).' days).',
+            ];
+        }
+
+        return [
+            'status' => 'valid',
+            'label'  => 'Insurance valid',
+            'tone'   => 'emerald',
+            'detail' => 'Expires '.$expiry->format('d M Y').'.',
+        ];
     }
 
     public function markupBase(): string

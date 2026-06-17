@@ -1,6 +1,6 @@
 <x-site.layout :title="brand_title($asset['title'])">
-    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <a href="{{ route('site.marketplace') }}" class="text-xs text-gray-500 hover:text-gray-700">← Back to marketplace</a>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <a href="{{ route('site.marketplace') }}" class="text-xs text-gray-500 hover:text-gray-700">{{ __('borrower.marketplace.back_to_marketplace') }}</a>
 
         <div class="grid lg:grid-cols-2 gap-8 mt-4">
             <div>
@@ -41,12 +41,14 @@
                     </div>
                 </div>
 
+                @include('site.marketplace._deposit-breakdown', ['asset' => $asset])
+
                 <div class="mt-8 rounded-2xl bg-amber-50 ring-1 ring-amber-200 p-5">
-                    <p class="text-sm text-gray-700 mb-4">Log in with your membership to reserve this asset, pay the deposit, and start your asset loan application.</p>
+                    <p class="text-sm text-gray-700 mb-4">{{ __('borrower.marketplace.public_apply_hint') }}</p>
                     <a href="{{ $loginUrl }}" class="inline-flex bg-gray-900 hover:bg-gray-800 text-white font-semibold px-6 py-3 rounded-full text-sm">
-                        Log in to apply →
+                        {{ __('borrower.marketplace.public_apply_login') }}
                     </a>
-                    <a href="{{ route('site.register.borrower') }}" class="inline-flex ml-3 text-sm font-semibold text-amber-800 hover:underline">Create account</a>
+                    <a href="{{ route('site.register.borrower') }}" class="inline-flex ml-3 text-sm font-semibold text-amber-800 hover:underline">{{ __('borrower.marketplace.public_apply_register') }}</a>
                 </div>
             </div>
         </div>

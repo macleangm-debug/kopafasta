@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title('Dashboard')" active="dashboard">
+<x-site.borrower-layout :title="brand_title('Dashboard')" active="dashboard" content-width="wide">
 
     @if (session('status'))
         <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">
@@ -15,6 +15,19 @@
     <x-site.borrower-dashboard-hero :hero="$dashboardHero ?? []" />
 
     <x-site.onboarding-hero-banner :banner="$onboardingBanner" />
+
+    @if (! empty($kycSectionsDue))
+        <div class="mb-6 rounded-xl bg-orange-50 ring-1 ring-orange-200 px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+                <p class="text-sm font-semibold text-orange-900">{{ __('borrower.dashboard.kyc_reconfirm_title') }}</p>
+                <p class="text-xs text-orange-800 mt-1">{{ __('borrower.dashboard.kyc_reconfirm_body') }}</p>
+            </div>
+            <a href="{{ route('site.borrower.kyc-reconfirm') }}"
+               class="inline-flex justify-center bg-orange-600 hover:bg-orange-700 text-white font-semibold px-5 py-2.5 rounded-full text-sm shrink-0">
+                {{ __('borrower.dashboard.kyc_reconfirm_cta') }}
+            </a>
+        </div>
+    @endif
 
     @if ($applyDraftResume ?? null)
         <div class="mb-6 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -72,7 +85,7 @@
                     <p class="text-sm text-indigo-100 mt-1">{{ __('borrower.dashboard.referral_wallet') }}: <span class="font-bold text-white">{{ format_money($referralWallet->balance ?? 0) }}</span></p>
                 </div>
                 <div class="flex flex-col sm:flex-row gap-3 shrink-0">
-                    <x-site.referral-share :link="$referralLink" :code="$referralCode" />
+                    <x-site.referral-share :link="$referralLink" :code="$referralCode" :message="$referralShareMessage ?? null" />
                     <a href="{{ route('site.borrower.referrals') }}" class="inline-flex justify-center bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-full text-sm ring-1 ring-white/20">
                         {{ __('borrower.nav.referrals') }} →
                     </a>
@@ -155,7 +168,7 @@
                 </div>
             </div>
         @else
-            <div class="text-sm text-gray-500">No loan products available at the moment.</div>
+            <div class="text-sm text-gray-500">{{ __('borrower.dashboard_page.no_products') }}</div>
         @endif
     </div>
 
@@ -166,7 +179,7 @@
             <a href="{{ route('site.borrower.notifications') }}" class="text-xs text-amber-600 hover:underline">All →</a>
         </div>
         @if ($notifications->isEmpty())
-            <div class="p-6 text-center text-sm text-gray-500">No messages yet.</div>
+            <div class="p-6 text-center text-sm text-gray-500">{{ __('borrower.dashboard_page.no_messages') }}</div>
         @else
             <ul class="divide-y divide-gray-100">
                 @foreach ($notifications as $n)

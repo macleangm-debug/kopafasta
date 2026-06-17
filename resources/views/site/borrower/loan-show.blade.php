@@ -1,6 +1,7 @@
 <x-site.borrower-layout
     :title="brand_title($loan->loan_number)"
-    active="loans">
+    active="loans"
+    content-width="wide">
 
     <div class="mb-4">
         <a href="{{ route('site.borrower.loans', ['tab' => 'active']) }}" class="text-xs text-gray-500 hover:text-gray-700">
@@ -161,7 +162,7 @@
                 @foreach ($recentRepayments as $payment)
                     <li class="py-3 flex items-center justify-between gap-3">
                         <div>
-                            <p class="font-medium">{{ $payment->reference ?? 'Payment' }}</p>
+                            <p class="font-medium">{{ $payment->reference ?? __('borrower.loan_servicing.recent_payment_fallback') }}</p>
                             <p class="text-xs text-gray-500">{{ optional($payment->paid_at)->format('d M Y, H:i') ?? '—' }}</p>
                         </div>
                         <span class="font-semibold">{{ format_money($payment->amount) }}</span>

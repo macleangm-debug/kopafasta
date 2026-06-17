@@ -136,6 +136,35 @@
         </div>
     </section>
 
+    @if (! empty($featuredAssets))
+    {{-- ===== ASSET MARKETPLACE ===== --}}
+    <section class="bg-gray-50 border-y border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+            <div class="flex flex-wrap items-end justify-between gap-4 mb-10">
+                <div>
+                    <p class="text-xs uppercase tracking-widest text-amber-600 mb-2">Asset marketplace</p>
+                    <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">Finance vehicles, equipment &amp; more.</h2>
+                    <p class="mt-3 text-gray-600 max-w-2xl">Browse supplier-listed assets with transparent deposits and weekly instalments. Sign in to apply or reserve a viewing.</p>
+                </div>
+                <a href="{{ route('site.marketplace') }}" class="inline-flex items-center gap-2 text-sm font-semibold text-amber-700 hover:text-amber-900">
+                    View all assets →
+                </a>
+            </div>
+
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                @foreach ($featuredAssets as $asset)
+                    @include('site.marketplace._asset-card', [
+                        'asset' => $asset,
+                        'categories' => $marketplaceCategories,
+                        'showUrl' => route('site.marketplace.show', $asset['id']),
+                        'authenticated' => false,
+                    ])
+                @endforeach
+            </div>
+        </div>
+    </section>
+    @endif
+
     {{-- ===== INVEST WITH US ===== --}}
     <section class="bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950 text-white">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
@@ -167,7 +196,7 @@
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <p class="text-xs uppercase tracking-widest text-amber-600 mb-2">For service partners</p>
         <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">Grow your business with Kopafasta.</h2>
-        <p class="mt-3 text-gray-600 max-w-2xl">GPS installers, valuers, insurers and yard partners — receive a steady stream of jobs nationwide with fast settlement and a mobile-first vendor portal.</p>
+        <p class="mt-3 text-gray-600 max-w-2xl">GPS installers, valuers, insurers and yard partners — receive a steady stream of jobs nationwide with fast settlement and a mobile-first partner portal.</p>
 
         <div class="mt-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
             @foreach ([
@@ -184,8 +213,8 @@
             @endforeach
         </div>
         <div class="mt-8">
-            <a href="{{ route('site.register.vendor') }}" class="inline-flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white font-semibold px-6 py-3 rounded-full">
-                Become a vendor
+            <a href="{{ route('site.register.partner') }}" class="inline-flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white font-semibold px-6 py-3 rounded-full">
+                Become a partner
                 <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
             </a>
         </div>

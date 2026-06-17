@@ -37,7 +37,7 @@
             ['key' => 'residence', 'label' => __('borrower.profile.residence'), 'complete' => (bool) ($sections['residence']['complete'] ?? false) && (! app(\App\Services\ProfileValidationService::class)->requiresResidenceLetter() || app(\App\Services\ProfileValidationService::class)->hasResidenceLetter($customer)), 'route' => route('site.borrower.profile', ['section' => 'residence'])],
             ['key' => 'activity', 'label' => __('borrower.profile.activity'), 'complete' => (bool) ($sections['activity']['complete'] ?? false), 'route' => route('site.borrower.profile', ['section' => 'activity'])],
             ['key' => 'documents', 'label' => __('borrower.profile.documents_proof'), 'complete' => $documentsComplete, 'route' => route('site.borrower.profile', ['section' => 'kyc'])],
-            ['key' => 'kin', 'label' => __('borrower.profile.kin'), 'complete' => app(\App\Services\ProfileValidationService::class)->isKinComplete($customer), 'route' => route('site.borrower.profile', ['section' => 'personal']).'#next-of-kin'],
+            ['key' => 'kin', 'label' => __('borrower.profile.kin'), 'complete' => app(\App\Services\ProfileValidationService::class)->isKinComplete($customer), 'route' => route('site.borrower.profile', ['section' => 'kin'])],
         ];
 
         $next = collect($steps)->first(fn (array $step) => ! $step['complete']);

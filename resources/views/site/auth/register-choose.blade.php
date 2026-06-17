@@ -28,22 +28,22 @@
                 </div>
             </a>
 
-            <a href="{{ route('site.register.vendor') }}"
+            <a href="{{ route('site.register.partner') }}"
                class="group relative overflow-hidden rounded-3xl border-2 border-gray-200 hover:border-gray-900 hover:-translate-y-1 hover:shadow-xl transition-all duration-200 p-8 bg-white">
                 <div class="absolute top-0 right-0 size-32 bg-gray-100 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div class="relative">
                     <div class="size-14 rounded-2xl bg-gradient-to-br from-gray-800 to-gray-900 text-amber-400 grid place-items-center mb-5 shadow-md">
                         <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7h18M3 12h18M3 17h18"/></svg>
                     </div>
-                    <h3 class="text-2xl font-bold text-gray-900">I'm a vendor</h3>
+                    <h3 class="text-2xl font-bold text-gray-900">I'm a partner</h3>
                     <p class="mt-2 text-sm text-gray-600 leading-relaxed">Partner with Kopafasta as a GPS installer, valuer, insurance provider, or yard partner.</p>
                     <ul class="mt-5 space-y-1.5 text-sm text-gray-600">
                         <li class="flex items-center gap-2"><svg class="w-4 h-4 text-gray-900" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg> Receive jobs across the country</li>
                         <li class="flex items-center gap-2"><svg class="w-4 h-4 text-gray-900" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg> Fast settlements</li>
-                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-gray-900" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg> Mobile-first vendor portal</li>
+                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-gray-900" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg> Mobile-first partner portal</li>
                     </ul>
                     <div class="mt-6 inline-flex items-center gap-1 text-sm font-bold text-gray-900 group-hover:gap-2 transition-all">
-                        Continue as vendor
+                        Continue as partner
                         <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
                     </div>
                 </div>

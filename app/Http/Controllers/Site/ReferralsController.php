@@ -20,6 +20,7 @@ class ReferralsController extends Controller
             'customer'         => $customer->fresh(),
             'referralCode'     => $customer->referral_code,
             'referralLink'     => $referrals->referralLink($customer),
+            'referralShareMessage' => $referrals->shareMessage($customer),
             'referralWallet'   => $referrals->wallet($customer),
             'referralSettings' => $referrals->settings(),
             'walletRules'      => $referrals->walletRules(),

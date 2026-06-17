@@ -1,5 +1,5 @@
 {{-- Professional 3-step vendor registration wizard --}}
-<x-site.layout title="Become a vendor — Kopafasta">
+<x-site.layout title="Become a partner — Kopafasta">
     <section class="min-h-screen grid lg:grid-cols-3 bg-gray-50">
         {{-- Sidebar with steps --}}
         <aside class="hidden lg:flex lg:col-span-1 relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 text-white p-10 flex-col">
@@ -11,7 +11,7 @@
             </a>
 
             <div class="relative mt-12">
-                <p class="text-xs uppercase tracking-widest text-amber-300 font-semibold">Vendor onboarding</p>
+                <p class="text-xs uppercase tracking-widest text-amber-300 font-semibold">Partner onboarding</p>
                 <h2 class="mt-2 text-3xl font-bold tracking-tight leading-tight">Partner with Tanzania's fastest lender.</h2>
                 <p class="mt-3 text-white/70 text-sm">Tell us about your business — our team will review your application and onboard you within 48 hours.</p>
             </div>

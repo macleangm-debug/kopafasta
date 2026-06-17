@@ -30,6 +30,6 @@ class BorrowerRefundController extends Controller
         $service->submitPayoutDetails($borrowerRefund, $customer, $request->all());
 
         return redirect()->route('site.borrower.payments.refund', $borrowerRefund)
-            ->with('status', 'Payout details submitted. We will process your refund shortly.');
+            ->with('status', __('borrower.payments_page.refund.details_submitted'));
     }
 }

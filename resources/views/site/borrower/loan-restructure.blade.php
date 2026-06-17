@@ -1,5 +1,5 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.loan_actions.restructure_title'))" active="loans">
-    <div class="max-w-2xl mx-auto">
+<x-site.borrower-layout :title="brand_title(__('borrower.loan_actions.restructure_title'))" active="loans" content-width="wide">
+    <div>
         <a href="{{ route('site.borrower.loans', ['tab' => 'active']) }}" class="text-sm font-semibold text-amber-700 hover:text-amber-800">← {{ __('borrower.loans_page.tab_active') }}</a>
         <h1 class="text-2xl font-bold mt-4 mb-2">{{ __('borrower.loan_actions.restructure_title') }}</h1>
         <p class="text-sm text-gray-500 mb-6">{{ $loan->loan_number }} · {{ $loan->product?->name }}</p>

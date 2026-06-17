@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title('Membership')" active="membership">
+<x-site.borrower-layout :title="brand_title('Membership')" active="membership" content-width="wide">
     @if (session('status'))
         <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
     @endif
@@ -7,9 +7,9 @@
     @endif
 
     <div class="mb-6">
-        <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">My membership</p>
-        <h1 class="text-2xl sm:text-3xl font-bold">KopaFasta Member Card</h1>
-        <p class="text-sm text-gray-500 mt-1">Your one-year membership keeps you eligible for loans, services and renewals.</p>
+        <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">{{ __('borrower.membership.card_eyebrow') }}</p>
+        <h1 class="text-2xl sm:text-3xl font-bold">{{ __('borrower.membership.card_title') }}</h1>
+        <p class="text-sm text-gray-500 mt-1">{{ __('borrower.membership.card_subtitle') }}</p>
     </div>
 
     @if ($customer)
@@ -17,62 +17,62 @@
 
         <div class="mt-8 grid gap-4 sm:grid-cols-2">
             <section class="bg-white rounded-xl ring-1 ring-gray-200 p-5">
-                <h2 class="font-semibold text-gray-900">Personal information</h2>
+                <h2 class="font-semibold text-gray-900">{{ __('borrower.membership_page.personal') }}</h2>
                 <dl class="mt-3 text-sm space-y-1">
-                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Name</dt><dd class="font-medium">{{ $customer->first_name }} {{ $customer->last_name }}</dd></div>
-                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Phone</dt><dd class="font-medium">{{ $customer->phone ?? '—' }}</dd></div>
-                    <div class="flex justify-between gap-2"><dt class="text-gray-500">NIDA</dt><dd class="font-medium">{{ $customer->national_id ?? '—' }}</dd></div>
+                    <div class="flex justify-between gap-2"><dt class="text-gray-500">{{ __('borrower.membership_page.name') }}</dt><dd class="font-medium">{{ $customer->first_name }} {{ $customer->last_name }}</dd></div>
+                    <div class="flex justify-between gap-2"><dt class="text-gray-500">{{ __('borrower.membership_page.phone') }}</dt><dd class="font-medium">{{ $customer->phone ?? '—' }}</dd></div>
+                    <div class="flex justify-between gap-2"><dt class="text-gray-500">{{ __('borrower.profile.fields.national_id') }}</dt><dd class="font-medium">{{ $customer->national_id ?? '—' }}</dd></div>
                 </dl>
-                <a href="{{ route('site.borrower.profile', ['section' => 'personal']) }}" class="mt-3 inline-block text-xs text-amber-600 font-semibold hover:underline">Edit →</a>
+                <a href="{{ route('site.borrower.profile', ['section' => 'personal']) }}" class="mt-3 inline-block text-xs text-amber-600 font-semibold hover:underline">{{ __('borrower.membership_page.edit') }}</a>
             </section>
             <section class="bg-white rounded-xl ring-1 ring-gray-200 p-5">
-                <h2 class="font-semibold text-gray-900">Activity information</h2>
+                <h2 class="font-semibold text-gray-900">{{ __('borrower.membership_page.activity') }}</h2>
                 <dl class="mt-3 text-sm space-y-1">
-                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Activity</dt><dd class="font-medium capitalize">{{ str_replace('_', ' ', $customer->activity_type ?? $customer->employment_type ?? '—') }}</dd></div>
-                    <div class="flex justify-between gap-2"><dt class="text-gray-500">Income</dt><dd class="font-medium">{{ $customer->income_range ? (income_range_label($customer->income_range) ?? '—') : ($customer->monthly_income ? 'TZS '.format_number($customer->monthly_income) : '—') }}</dd></div>
+                    <div class="flex justify-between gap-2"><dt class="text-gray-500">{{ __('borrower.membership_page.activity_label') }}</dt><dd class="font-medium capitalize">{{ str_replace('_', ' ', $customer->activity_type ?? $customer->employment_type ?? '—') }}</dd></div>
+                    <div class="flex justify-between gap-2"><dt class="text-gray-500">{{ __('borrower.membership_page.income') }}</dt><dd class="font-medium">{{ $customer->income_range ? (income_range_label($customer->income_range) ?? '—') : ($customer->monthly_income ? 'TZS '.format_number($customer->monthly_income) : '—') }}</dd></div>
                 </dl>
-                <a href="{{ route('site.borrower.profile', ['section' => 'activity']) }}" class="mt-3 inline-block text-xs text-amber-600 font-semibold hover:underline">Edit →</a>
+                <a href="{{ route('site.borrower.profile', ['section' => 'activity']) }}" class="mt-3 inline-block text-xs text-amber-600 font-semibold hover:underline">{{ __('borrower.membership_page.edit') }}</a>
             </section>
             <section class="bg-white rounded-xl ring-1 ring-gray-200 p-5">
-                <h2 class="font-semibold text-gray-900">Residence information</h2>
-                <p class="mt-3 text-sm text-gray-700">{{ $customer->street ?? $customer->address ?? 'Add your address in profile.' }}</p>
+                <h2 class="font-semibold text-gray-900">{{ __('borrower.membership_page.residence') }}</h2>
+                <p class="mt-3 text-sm text-gray-700">{{ $customer->street ?? $customer->address ?? __('borrower.membership_page.add_address_hint') }}</p>
                 @if ($customer->region)<p class="text-xs text-gray-500 mt-1">{{ $customer->ward ? $customer->ward.', ' : '' }}{{ $customer->district }}, {{ $customer->region }}</p>@endif
-                <a href="{{ route('site.borrower.profile', ['section' => 'residence']) }}" class="mt-3 inline-block text-xs text-amber-600 font-semibold hover:underline">Edit →</a>
+                <a href="{{ route('site.borrower.profile', ['section' => 'residence']) }}" class="mt-3 inline-block text-xs text-amber-600 font-semibold hover:underline">{{ __('borrower.membership_page.edit') }}</a>
             </section>
             <section class="bg-white rounded-xl ring-1 ring-gray-200 p-5">
-                <h2 class="font-semibold text-gray-900">KYC information</h2>
-                <p class="mt-3 text-sm text-gray-700">Verification status and documents.</p>
-                <a href="{{ route('site.borrower.profile', ['section' => 'kyc']) }}" class="mt-3 inline-block text-xs text-amber-600 font-semibold hover:underline">View KYC →</a>
+                <h2 class="font-semibold text-gray-900">{{ __('borrower.membership_page.kyc') }}</h2>
+                <p class="mt-3 text-sm text-gray-700">{{ __('borrower.membership_page.kyc_hint') }}</p>
+                <a href="{{ route('site.borrower.profile', ['section' => 'kyc']) }}" class="mt-3 inline-block text-xs text-amber-600 font-semibold hover:underline">{{ __('borrower.membership_page.view_kyc') }}</a>
             </section>
         </div>
 
         @if ($customer && $referralCode)
             <section class="mt-8 bg-gradient-to-br from-indigo-50 to-amber-50 rounded-xl ring-1 ring-indigo-100 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h2 class="font-semibold text-gray-900">Referral program</h2>
-                    <p class="text-sm text-gray-600 mt-1">Your code <span class="font-mono font-semibold">{{ $referralCode }}</span> · Wallet {{ format_money($referralWallet->balance ?? 0) }}</p>
+                    <h2 class="font-semibold text-gray-900">{{ __('borrower.membership_page.referral_program') }}</h2>
+                    <p class="text-sm text-gray-600 mt-1">{{ __('borrower.membership_page.referral_summary', ['code' => $referralCode, 'balance' => format_money($referralWallet->balance ?? 0)]) }}</p>
                 </div>
-                <a href="{{ route('site.borrower.referrals') }}" class="shrink-0 inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">Open referral hub →</a>
+                <a href="{{ route('site.borrower.referrals') }}" class="shrink-0 inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.membership_page.open_referrals') }}</a>
             </section>
         @endif
     @else
         <div class="rounded-lg bg-gray-50 ring-1 ring-gray-200 p-6 text-sm text-gray-700">
-            No customer profile linked to this account yet.
+            {{ __('borrower.membership_page.no_profile') }}
         </div>
     @endif
 
     <div class="mt-8">
-        <h2 class="text-lg font-semibold text-gray-900 mb-3">Membership history</h2>
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">{{ __('borrower.membership_page.history_title') }}</h2>
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
             <table class="min-w-full text-sm">
                 <thead class="bg-gray-50 text-xs uppercase text-gray-500">
                     <tr>
-                        <th class="px-4 py-2 text-left">Date</th>
-                        <th class="px-4 py-2 text-left">Event</th>
-                        <th class="px-4 py-2 text-left">Issued</th>
-                        <th class="px-4 py-2 text-left">Expires</th>
-                        <th class="px-4 py-2 text-left">Renewals</th>
-                        <th class="px-4 py-2 text-left">Payment ref</th>
+                        <th class="px-4 py-2 text-left">{{ __('borrower.membership_page.col_date') }}</th>
+                        <th class="px-4 py-2 text-left">{{ __('borrower.membership_page.col_event') }}</th>
+                        <th class="px-4 py-2 text-left">{{ __('borrower.membership_page.col_issued') }}</th>
+                        <th class="px-4 py-2 text-left">{{ __('borrower.membership_page.col_expires') }}</th>
+                        <th class="px-4 py-2 text-left">{{ __('borrower.membership_page.col_renewals') }}</th>
+                        <th class="px-4 py-2 text-left">{{ __('borrower.membership_page.col_payment_ref') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -86,7 +86,7 @@
                             <td class="px-4 py-2 font-mono text-xs">{{ $h->payment_reference ?? '—' }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="px-4 py-6 text-center text-gray-500 text-sm">No history yet.</td></tr>
+                        <tr><td colspan="6" class="px-4 py-6 text-center text-gray-500 text-sm">{{ __('borrower.membership_page.history_empty') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>

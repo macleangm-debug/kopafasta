@@ -6,7 +6,7 @@
                 @if ($invitation->status === 'rejected')
                     {{ __('borrower.guarantor_invite.decline_message') }}
                 @else
-                    This guarantor invitation has already been {{ str_replace('_', ' ', $invitation->status) }}.
+                    {{ __('borrower.guarantor_invite.already_responded', ['status' => str_replace('_', ' ', $invitation->status)]) }}
                 @endif
             </p>
 

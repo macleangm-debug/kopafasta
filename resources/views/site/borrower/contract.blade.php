@@ -1,6 +1,7 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.contract.page_title'))" active="loans">
+<x-site.borrower-layout :title="brand_title(__('borrower.contract.page_title'))" active="loans" content-width="wide">
 
-    <div class="max-w-4xl mx-auto">
+    <div>
+        @php $repaymentCadences = __('borrower.agreement.repayment_cadences'); @endphp
         <a href="{{ route('site.borrower.application', $application) }}" class="text-sm text-amber-700 hover:underline">&larr; {{ __('borrower.contract.back') }}</a>
 
         @if (session('status'))
@@ -31,7 +32,7 @@
                 </div>
                 <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-3">
                     <p class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.contract.repayment_frequency') }}</p>
-                    <p class="font-semibold text-gray-900 mt-1">{{ ucfirst($snap['repayment_cadence'] ?? 'weekly') }}</p>
+                    <p class="font-semibold text-gray-900 mt-1">{{ $repaymentCadences[$snap['repayment_cadence'] ?? 'weekly'] ?? ucfirst($snap['repayment_cadence'] ?? 'weekly') }}</p>
                 </div>
                 <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-3">
                     <p class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.contract.total_repayable') }}</p>

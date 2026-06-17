@@ -21,7 +21,27 @@ class ReferralService
             'discount_percent'       => (float) ($group['discount_percent'] ?? config('referrals.discount_percent', 10)),
             'commission_percent'     => (float) ($group['commission_percent'] ?? config('referrals.commission_percent', 10)),
             'wallet_max_fee_percent' => (float) ($group['wallet_max_fee_percent'] ?? config('referrals.wallet_max_fee_percent', 50)),
+            'message_share_template' => (string) ($group['message_share_template'] ?? config('referrals.messages.share_template', '')),
+            'message_invite_sms'     => (string) ($group['message_invite_sms'] ?? config('referrals.messages.invite_sms', '')),
         ];
+    }
+
+    public function shareMessage(Customer $customer): string
+    {
+        $settings = $this->settings();
+        $template = trim($settings['message_share_template'] ?? '')
+            ?: trim((string) config('referrals.messages.share_template'))
+            ?: 'Join {brand} with my referral code {referral_code}. Register here: {referral_link}';
+
+        $replacements = [
+            '{brand}'             => brand_name(),
+            '{referrer_name}'     => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
+            '{referral_code}'     => $this->ensureCode($customer),
+            '{referral_link}'     => $this->referralLink($customer),
+            '{discount_percent}'  => format_number($settings['discount_percent'], 0),
+        ];
+
+        return str_replace(array_keys($replacements), array_values($replacements), $template);
     }
 
     public function ensureCode(Customer $customer): string

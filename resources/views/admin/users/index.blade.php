@@ -1,4 +1,4 @@
-<x-admin.layout title="Users" heading="Users" subheading="All accounts — staff, borrowers, vendors, and investors">
+<x-admin.layout title="Users" heading="Users" subheading="All accounts — staff, borrowers, partners, and investors">
     @perm('users.view')
         @perm('users.manage')
             <x-admin.index-toolbar route="admin.users" label="New console user" />

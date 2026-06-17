@@ -10,7 +10,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <x-admin.input name="max_mismatch_attempts" label="Maximum verification attempts" type="number" min="1" max="10" :value="$values['max_mismatch_attempts'] ?? 3" required />
             @php
-                $lockDays = (int) ($values['lock_days'] ?? (isset($values['lock_hours']) ? max(1, (int) ceil($values['lock_hours'] / 24)) : 30));
+                $lockDays = (int) ($values['lock_days'] ?? (isset($values['lock_hours']) ? max(1, (int) ceil($values['lock_hours'] / 24)) : 1));
             @endphp
             <x-admin.input name="lock_days" label="Verification pause period (days)" type="number" min="1" max="365" :value="$lockDays" required />
         </div>

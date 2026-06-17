@@ -88,7 +88,7 @@ class PublicGuarantorController extends Controller
                 session(['login_redirect' => route('site.guarantor.show', $invitation->token)]);
 
                 return redirect()
-                    ->route('login')
+                    ->route('site.login')
                     ->with('status', __('borrower.guarantor_invite.login_to_respond'));
             }
 

@@ -103,7 +103,9 @@ class BorrowerApplicationsDashboardService
                 ? __('borrower.applications_list.draft_fee_pending')
                 : __('borrower.applications_list.draft_in_progress'),
             'action_url'         => $this->drafts->resumeUrl($customer, $draft),
-            'action_label'       => __('borrower.applications_list.open'),
+            'action_label'       => __('borrower.applications_list.view_application'),
+            'continue_url'       => $this->drafts->wizardApplyUrl($draft, $resumeTarget),
+            'continue_label'     => __('borrower.applications_list.continue_application'),
             'saved_at_human'     => optional($draft->saved_at)->diffForHumans(),
         ];
     }

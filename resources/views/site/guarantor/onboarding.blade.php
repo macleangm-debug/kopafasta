@@ -1,5 +1,5 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.guarantor.onboarding_title'))" active="loans" portal-mode="guarantor">
-    <div class="max-w-2xl mx-auto">
+<x-site.borrower-layout :title="brand_title(__('borrower.guarantor.onboarding_title'))" active="loans" portal-mode="guarantor" content-width="wide">
+    <div class="max-w-3xl mx-auto">
         <div class="mb-6">
             <p class="text-xs uppercase tracking-widest text-emerald-600 mb-1">{{ __('borrower.apply.non_member_guarantor') }}</p>
             <h1 class="text-2xl sm:text-3xl font-bold">{{ __('borrower.guarantor.onboarding_title') }}</h1>

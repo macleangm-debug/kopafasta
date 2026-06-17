@@ -28,6 +28,7 @@ class LenderController extends ResourceController
             'email'          => ['nullable', 'email', 'max:150'],
             'address'        => ['nullable', 'string', 'max:500'],
             'credit_limit'   => ['nullable', 'numeric', 'min:0'],
+            'allocation_priority' => ['nullable', 'integer', 'min:1', 'max:9999'],
             'status'         => ['required', 'in:active,inactive,suspended'],
         ];
     }

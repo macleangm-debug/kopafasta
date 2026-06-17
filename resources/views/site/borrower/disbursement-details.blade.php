@@ -1,6 +1,6 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.disbursement_details.page_title'))" active="loans">
+<x-site.borrower-layout :title="brand_title(__('borrower.disbursement_details.page_title'))" active="loans" content-width="wide">
 
-    <div class="max-w-2xl mx-auto">
+    <div>
         <a href="{{ route('site.borrower.application', $application) }}" class="text-sm text-amber-700 hover:underline">&larr; {{ __('borrower.disbursement_details.back') }}</a>
 
         @if (session('status'))

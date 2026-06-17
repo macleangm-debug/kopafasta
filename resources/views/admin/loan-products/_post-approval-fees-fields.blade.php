@@ -59,6 +59,7 @@
                         </label>
                     @endforeach
                 </div>
+                <p id="post-approval-catalog-count" class="text-xs font-medium text-gray-600 mt-3"></p>
             </div>
         @endif
 
@@ -143,11 +144,26 @@
                         </div>`;
                     host.insertAdjacentHTML('beforeend', html);
                 });
+
+                updateCatalogCount(selected.length);
+            }
+
+            function updateCatalogCount(count) {
+                const el = document.getElementById('post-approval-catalog-count');
+                if (!el) return;
+                const n = typeof count === 'number'
+                    ? count
+                    : document.querySelectorAll('input[name="post_approval_catalog[]"]:checked').length;
+                el.textContent = n === 0
+                    ? 'No post-approval fees selected for this product.'
+                    : `${n} post-approval fee(s) selected — active rows sync below.`;
             }
 
             document.querySelectorAll('input[name="post_approval_catalog[]"]').forEach((cb) => {
                 cb.addEventListener('change', syncCatalogRows);
             });
+
+            syncCatalogRows();
         });
     </script>
     @endpush

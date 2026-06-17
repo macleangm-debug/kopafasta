@@ -22,7 +22,7 @@ class ApplicationFeePaymentService
     /** @return array<string, mixed> */
     public function quote(Customer $customer, LoanProduct $product, bool $useWallet = false, ?string $promoCode = null): array
     {
-        $base = (float) quoted_application_fee($customer, $product);
+        $base = (float) quoted_origination_fee($customer, $product);
         $cfg = MembershipService::config();
 
         if ($base <= 0) {

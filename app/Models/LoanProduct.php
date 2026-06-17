@@ -74,4 +74,15 @@ class LoanProduct extends Model
     {
         return $this->hasMany(LoanProductRateTier::class);
     }
+
+    public function localizedName(?string $locale = null): string
+    {
+        $locale = $locale ?? app()->getLocale();
+
+        if ($locale === 'sw' && filled($this->name_sw)) {
+            return (string) $this->name_sw;
+        }
+
+        return (string) ($this->name ?? '');
+    }
 }

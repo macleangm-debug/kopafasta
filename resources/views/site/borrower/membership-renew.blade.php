@@ -1,5 +1,5 @@
-<x-site.borrower-layout :title="brand_title($isFirstTime ? __('borrower.membership.registration_fee') : __('borrower.membership.renewal_fee'))" active="membership">
-    <div class="max-w-2xl mx-auto" x-data="{ channel: '{{ old('channel', 'mobile_money') }}', phone: '{{ old('payment_phone', $customer->phone ?? '') }}', useWallet: {{ old('use_wallet') ? 'true' : 'false' }} }">
+<x-site.borrower-layout :title="brand_title($isFirstTime ? __('borrower.membership.registration_fee') : __('borrower.membership.renewal_fee'))" active="membership" content-width="wide">
+    <div x-data="{ channel: '{{ old('channel', 'mobile_money') }}', phone: '{{ old('payment_phone', $customer->phone ?? '') }}', useWallet: {{ old('use_wallet') ? 'true' : 'false' }} }">
         <div class="mb-6">
             <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">{{ $isFirstTime ? __('borrower.membership.first_time') : __('borrower.membership.renewal') }}</p>
             <h1 class="text-2xl sm:text-3xl font-bold">
@@ -21,14 +21,14 @@
                 <p class="text-[10px] uppercase tracking-widest text-white/80">{{ $isFirstTime ? __('borrower.membership.registration_fee') : __('borrower.membership.renewal_fee') }}</p>
                 <p class="mt-1 text-3xl font-extrabold">{{ $config['currency'] }} {{ format_number($feeAmount) }}</p>
             @endif
-            <p class="mt-3 text-xs text-white/90">Payment reference (auto-generated)</p>
+            <p class="mt-3 text-xs text-white/90">{{ __('borrower.membership.payment_reference_label') }}</p>
             <p class="mt-1 font-mono text-sm bg-white/15 inline-block px-3 py-1 rounded-lg">{{ $paymentReference }}</p>
         </div>
 
         @if ($isFirstTime)
             <div class="mb-6 rounded-xl bg-white ring-1 ring-gray-200 px-4 py-4 text-sm">
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Promo code (optional)</label>
-                <input type="text" name="promo_code" form="membership-renew-form" value="{{ old('promo_code') }}" maxlength="40" class="w-full rounded-lg border-gray-300 text-sm font-mono uppercase" placeholder="PROMO2026">
+                <label class="block text-xs font-semibold text-gray-600 mb-1">{{ __('borrower.membership.promo_code_label') }}</label>
+                <input type="text" name="promo_code" form="membership-renew-form" value="{{ old('promo_code') }}" maxlength="40" class="w-full rounded-lg border-gray-300 text-sm font-mono uppercase" placeholder="{{ __('borrower.membership.promo_code_placeholder') }}">
             </div>
         @endif
 
@@ -37,12 +37,17 @@
                 <label class="flex items-start gap-3 cursor-pointer">
                     <input type="checkbox" name="use_wallet" value="1" x-model="useWallet" form="membership-renew-form" class="mt-1 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
                     <span>
-                        Use referral wallet balance (<strong>{{ $config['currency'] }} {{ format_number($referralWallet->balance) }}</strong>).
-                        Up to {{ rtrim(rtrim(format_number($referralSettings['wallet_max_fee_percent'], 2), '0'), '.') }}% of this fee can be paid from your wallet.
+                        {{ __('borrower.membership.use_wallet_label', [
+                            'balance' => $config['currency'].' '.format_number($referralWallet->balance),
+                            'percent' => rtrim(rtrim(format_number($referralSettings['wallet_max_fee_percent'], 2), '0'), '.'),
+                        ]) }}
                     </span>
                 </label>
                 @if ($feeQuote['wallet_applied'] > 0)
-                    <p class="mt-3 text-xs">Wallet credit: <strong>{{ $config['currency'] }} {{ format_number($feeQuote['wallet_applied']) }}</strong> · Cash due: <strong>{{ $config['currency'] }} {{ format_number($feeQuote['cash_due']) }}</strong></p>
+                    <p class="mt-3 text-xs">{{ __('borrower.membership.wallet_credit_hint', [
+                        'wallet' => $config['currency'].' '.format_number($feeQuote['wallet_applied']),
+                        'cash' => $config['currency'].' '.format_number($feeQuote['cash_due']),
+                    ]) }}</p>
                 @endif
             </div>
         @endif
@@ -79,23 +84,23 @@
             <div x-show="channel === 'mobile_money'" x-transition class="space-y-3">
                 @if (! empty($mobileDetails['number']))
                     <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-xs text-sky-900">
-                        <p class="font-semibold">Pay to: {{ $mobileDetails['provider'] ?? 'Mobile Money' }}</p>
+                        <p class="font-semibold">{{ __('borrower.membership.pay_to', ['provider' => $mobileDetails['provider'] ?? __('borrower.membership.mobile_money')]) }}</p>
                         <p class="font-mono mt-1">{{ $mobileDetails['number'] }}</p>
                         <p class="mt-2 text-sky-800">{{ $mobileDetails['instructions'] }}</p>
                     </div>
                 @endif
                 <div>
-                    <label class="block text-xs uppercase tracking-wider text-gray-500 mb-1">Mobile money number</label>
+                    <label class="block text-xs uppercase tracking-wider text-gray-500 mb-1">{{ __('borrower.membership.mobile_number_label') }}</label>
                     <input type="tel" name="payment_phone" x-model="phone" required
                            class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500 text-sm"
                            placeholder="+255 7XX XXX XXX">
-                    <p class="mt-2 text-xs text-gray-500">You will receive a USSD push. Confirm on your phone — membership activates instantly.</p>
+                    <p class="mt-2 text-xs text-gray-500">{{ __('borrower.membership.mobile_ussd_hint') }}</p>
                 </div>
             </div>
 
             <div x-show="channel === 'bank'" x-cloak x-transition class="rounded-xl bg-sky-50 border border-sky-200 p-4 text-sm">
-                <p class="font-semibold text-sky-900 mb-2">Banking instructions</p>
-                <p class="text-sky-800 text-xs mb-3">Use reference <span class="font-mono font-bold">{{ $paymentReference }}</span> when paying. Activation after our team verifies the transfer.</p>
+                <p class="font-semibold text-sky-900 mb-2">{{ __('borrower.membership.bank_instructions_title') }}</p>
+                <p class="text-sky-800 text-xs mb-3">{{ __('borrower.membership.bank_reference_hint', ['ref' => $paymentReference]) }}</p>
                 @foreach ($bankAccounts as $acct)
                     <div class="mb-2 last:mb-0">
                         <p class="font-medium">{{ $acct['bank'] }}</p>
@@ -105,7 +110,7 @@
                         @endif
                     </div>
                 @endforeach
-                <p class="mt-3 text-xs text-amber-800 font-medium">⏳ Waiting for verification after you submit.</p>
+                <p class="mt-3 text-xs text-amber-800 font-medium">⏳ {{ __('borrower.membership.bank_waiting_hint') }}</p>
             </div>
 
             <button type="submit" class="w-full bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-3 rounded-full text-sm">

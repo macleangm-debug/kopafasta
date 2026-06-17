@@ -1,3 +1,3 @@
-<x-admin.layout title="Vendor Tasks" heading="Vendor Tasks" subheading="Field tasks assigned to vendors">
+<x-admin.layout title="Partner Tasks" heading="Partner tasks" subheading="Field tasks assigned to partners">
     @livewire('admin.vendor-tasks-table')
 </x-admin.layout>

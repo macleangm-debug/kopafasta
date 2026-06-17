@@ -7,6 +7,8 @@
     <x-admin.select name="type"           label="Type"            :options="$types"            :value="$r?->type ?? 'bank'" required />
     <x-admin.select name="status"         label="Status"          :options="$statuses"         :value="$r?->status ?? 'active'" required />
     <x-admin.input  name="credit_limit"   label="Credit limit (TZS)" :value="$r?->credit_limit" money />
+    <x-admin.input  name="allocation_priority" label="Allocation priority" type="number" min="1" max="9999"
+                    :value="$r?->allocation_priority" placeholder="1 = highest (priority strategy)" />
 </x-admin.step>
 
 <x-admin.step title="Contact">

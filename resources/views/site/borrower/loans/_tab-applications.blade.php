@@ -55,7 +55,7 @@
                             <td class="px-4 py-3">{{ $row['product_name'] }}</td>
                             <td class="px-4 py-3">
                                 @if ($row['profile_complete'] ?? false)
-                                    <span class="text-emerald-700 font-semibold text-xs">100%</span>
+                                    <span class="text-emerald-700 font-semibold text-xs">{{ __('borrower.applications_list.profile_complete_check') }}</span>
                                 @else
                                     <span class="font-semibold text-xs">{{ $row['profile_percent'] ?? 0 }}%</span>
                                 @endif
@@ -64,8 +64,13 @@
                                 <span class="font-semibold text-xs text-gray-900">{{ $row['application_percent'] ?? 0 }}%</span>
                                 <span class="block text-[11px] text-gray-500 mt-0.5">{{ $row['application_status'] ?? $row['status_label'] }}</span>
                             </td>
-                            <td class="px-4 py-3 text-right">
+                            <td class="px-4 py-3 text-right space-x-2">
                                 <a href="{{ $row['action_url'] }}" class="text-amber-600 font-semibold hover:underline text-xs">{{ $row['action_label'] }}</a>
+                                @if ($row['is_draft'] ?? false)
+                                    @if (! empty($row['continue_url']))
+                                        <a href="{{ $row['continue_url'] }}" class="text-gray-600 font-semibold hover:underline text-xs">{{ $row['continue_label'] ?? __('borrower.applications_list.continue_application') }}</a>
+                                    @endif
+                                @endif
                             </td>
                         </tr>
                     @endforeach
@@ -92,7 +97,7 @@
                         <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.profile') }}</p>
                         <p class="font-semibold text-sm mt-0.5">
                             @if ($row['profile_complete'] ?? false)
-                                <span class="text-emerald-700">✓ 100%</span>
+                                <span class="text-emerald-700">{{ __('borrower.applications_list.profile_complete_check') }}</span>
                             @else
                                 {{ $row['profile_percent'] ?? 0 }}%
                             @endif
@@ -109,11 +114,17 @@
                     <p class="text-xs {{ ($row['status'] ?? '') === 'rejected' ? 'text-red-600' : 'text-gray-600' }} mb-3">{{ $row['detail'] }}</p>
                 @endif
 
-                <div class="flex items-center gap-2 text-xs">
+                <div class="flex items-center gap-2 text-xs flex-wrap">
                     <a href="{{ $row['action_url'] }}" class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2 rounded-full text-sm">
                         {{ $row['action_label'] }}
                     </a>
-                    @if (! ($row['is_draft'] ?? false) && ! empty($row['receipt_url']))
+                    @if ($row['is_draft'] ?? false)
+                        @if (! empty($row['continue_url']))
+                            <a href="{{ $row['continue_url'] }}" class="inline-flex bg-white hover:bg-gray-50 text-gray-800 font-semibold px-4 py-2 rounded-full text-sm ring-1 ring-gray-200">
+                                {{ $row['continue_label'] ?? __('borrower.applications_list.continue_application') }}
+                            </a>
+                        @endif
+                    @elseif (! empty($row['receipt_url']))
                         <a href="{{ $row['receipt_url'] }}" class="text-gray-500 hover:text-gray-700">{{ __('borrower.applications_list.receipt') }}</a>
                     @endif
                 </div>

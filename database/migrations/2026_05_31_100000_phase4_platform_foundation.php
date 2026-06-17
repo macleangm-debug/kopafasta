@@ -59,6 +59,10 @@ return new class extends Migration
                 $table->foreignId('loan_product_id')->constrained()->cascadeOnDelete();
                 $table->decimal('min_amount', 15, 2);
                 $table->decimal('max_amount', 15, 2);
+                $table->decimal('bot_regulated_rate', 8, 4)->nullable();
+                $table->decimal('processing_fee_rate', 8, 4)->default(0);
+                $table->decimal('service_fee_rate', 8, 4)->default(0);
+                $table->decimal('administration_fee_rate', 8, 4)->default(0);
                 $table->decimal('monthly_rate', 8, 4);
                 $table->unsignedSmallInteger('sort_order')->default(0);
                 $table->timestamps();
@@ -103,18 +107,26 @@ return new class extends Migration
         if (! Schema::hasTable('marketplace_assets')) {
             Schema::create('marketplace_assets', function (Blueprint $table): void {
                 $table->id();
+                $table->foreignId('vendor_id')->nullable()->constrained()->nullOnDelete();
                 $table->string('slug', 60)->unique();
                 $table->string('category', 40);
                 $table->string('title');
                 $table->text('description')->nullable();
                 $table->string('supplier_name');
+                $table->string('serial_number', 80)->nullable();
+                $table->string('chassis_number', 80)->nullable();
+                $table->string('engine_number', 80)->nullable();
+                $table->string('insurance_policy_number', 80)->nullable();
+                $table->date('insurance_expires_at')->nullable();
                 $table->decimal('asset_value', 15, 2)->default(0);
                 $table->decimal('supplier_deposit', 15, 2)->default(0);
                 $table->decimal('deposit_markup_percent', 8, 2)->default(0);
                 $table->decimal('customer_deposit', 15, 2)->default(0);
                 $table->decimal('weekly_installment', 15, 2)->default(0);
                 $table->unsignedSmallInteger('max_tenure_months')->default(12);
+                $table->unsignedSmallInteger('waiting_period_days')->nullable();
                 $table->json('photos')->nullable();
+                $table->string('availability_status', 20)->default('available');
                 $table->boolean('is_active')->default(true);
                 $table->timestamps();
             });

@@ -1,7 +1,16 @@
 @props(['signatory' => null])
 
-<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <x-admin.input name="name" label="Name" :value="old('name', $signatory?->name)" required />
+@php
+    $signatoryTypes = [
+        'company'        => 'Company signatory',
+        'legal_advocate' => 'Legal advocate',
+    ];
+    $selectedType = old('signatory_type', $signatory?->signatory_type ?? 'company');
+@endphp
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4" x-data="{ signatoryType: @js($selectedType) }">
+    <x-admin.select name="signatory_type" label="Signatory type" :options="$signatoryTypes" :value="$selectedType" x-model="signatoryType" required />
+    <x-admin.input name="name" label="Full name" :value="old('name', $signatory?->name)" required />
     <x-admin.input name="position" label="Position" :value="old('position', $signatory?->position)" placeholder="Chief Executive Officer" />
     <x-admin.input name="email" label="Email" type="email" :value="old('email', $signatory?->email)" />
     <div class="flex items-center gap-2 pt-6">
@@ -39,4 +48,16 @@
             <p class="text-xs text-gray-500 mt-1">Transparent PNG recommended.</p>
         </div>
     </div>
+</div>
+
+<div class="mt-6 space-y-4" x-data="{ signatoryType: @js($selectedType) }" x-show="signatoryType === 'legal_advocate'" x-cloak>
+    <h4 class="text-sm font-semibold text-gray-900">Advocate stamp</h4>
+    <p class="text-xs text-gray-500">Required for legal advocates. This stamp is independent from the company stamp.</p>
+
+    @if ($signatory?->stamp_path)
+        <img src="{{ $signatory->stampPublicUrl() }}" alt="Current advocate stamp" class="h-24 object-contain border rounded-lg p-2 bg-white">
+    @endif
+
+    <input type="file" name="stamp_image" accept="image/png,image/jpeg,image/webp"
+           class="block w-full max-w-md text-sm text-gray-600">
 </div>

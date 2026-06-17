@@ -5,7 +5,7 @@
     <div class="grid lg:grid-cols-3 gap-6">
         <div class="rounded-2xl border border-gray-200 bg-white p-5">
             <h2 class="font-bold mb-3">Upload new</h2>
-            <form method="POST" action="{{ route('site.vendor.documents.store') }}" enctype="multipart/form-data" class="space-y-3">
+            <form method="POST" action="{{ route('site.partner.documents.store') }}" enctype="multipart/form-data" class="space-y-3">
                 @csrf
                 <div>
                     <label class="block text-xs text-gray-500 mb-1">Label</label>

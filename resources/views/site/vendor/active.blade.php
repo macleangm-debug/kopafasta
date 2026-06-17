@@ -7,7 +7,7 @@
     @else
         <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             @foreach ($tasks as $t)
-                <a href="{{ route('site.vendor.task', $t) }}" class="rounded-2xl border border-gray-200 bg-white p-5 hover:shadow-sm block">
+                <a href="{{ route('site.partner.task', $t) }}" class="rounded-2xl border border-gray-200 bg-white p-5 hover:shadow-sm block">
                     <div class="flex items-start justify-between">
                         <div>
                             <p class="font-bold">{{ ucfirst(str_replace('_',' ', $t->task_type)) }}</p>

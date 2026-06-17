@@ -119,7 +119,7 @@
                 </div>
 
                 {{-- Partners — login/register only on public site --}}
-                <a href="{{ route('site.register.vendor') }}"
+                <a href="{{ route('site.register.partner') }}"
                    class="px-3 py-2 rounded-lg hover:bg-gray-50 hover:text-gray-900 text-sm font-medium">
                     Partner login
                 </a>
@@ -146,7 +146,7 @@
 
             <div class="hidden md:flex items-center gap-3">
                 @auth
-                    <a href="{{ Auth::user()->role === 'vendor' ? route('site.vendor.dashboard') : (Auth::user()->role === 'investor' ? route('site.investor.dashboard') : route('site.borrower.dashboard')) }}"
+                    <a href="{{ Auth::user()->role === 'vendor' ? route('site.partner.dashboard') : (Auth::user()->role === 'investor' ? route('site.investor.dashboard') : route('site.borrower.dashboard')) }}"
                        class="text-sm font-medium text-gray-700 hover:text-amber-600">My account</a>
                     <form method="POST" action="{{ route('site.logout') }}">@csrf
                         <button class="text-sm text-gray-500 hover:text-gray-900">Log out</button>
@@ -182,7 +182,7 @@
                         <a href="{{ route('site.capital-partners') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">Capital partner</a>
 
                         <p class="text-[11px] uppercase tracking-widest text-gray-600 font-bold px-2 mt-4">Partners</p>
-                        <a href="{{ route('site.register.vendor') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">Become a vendor</a>
+                        <a href="{{ route('site.register.partner') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">Become a partner</a>
 
                         <p class="text-[11px] uppercase tracking-widest text-gray-600 font-bold px-2 mt-4">Company</p>
                         <a href="{{ route('site.about') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">About</a>
@@ -191,7 +191,7 @@
 
                         <div class="border-t border-gray-200 pt-3 mt-4 flex flex-col gap-2">
                             @auth
-                                <a href="{{ Auth::user()->role === 'vendor' ? route('site.vendor.dashboard') : (Auth::user()->role === 'investor' ? route('site.investor.dashboard') : route('site.borrower.dashboard')) }}" class="py-1.5">My account</a>
+                                <a href="{{ Auth::user()->role === 'vendor' ? route('site.partner.dashboard') : (Auth::user()->role === 'investor' ? route('site.investor.dashboard') : route('site.borrower.dashboard')) }}" class="py-1.5">My account</a>
                                 <form method="POST" action="{{ route('site.logout') }}">@csrf
                                     <button class="py-1.5 text-left text-gray-500 w-full">Log out</button>
                                 </form>
@@ -255,8 +255,9 @@
             <div>
                 <h4 class="text-xs uppercase tracking-widest text-gray-400 mb-3">Partners</h4>
                 <ul class="space-y-2 text-sm">
-                    <li><a href="{{ route('site.register.vendor') }}" class="hover:text-amber-400">Become a vendor</a></li>
-                    <li><a href="{{ route('site.login') }}" class="hover:text-amber-400">Vendor login</a></li>
+                    <li><a href="{{ route('site.register.partner') }}" class="hover:text-amber-400">Become a partner</a></li>
+                    <li><a href="{{ route('site.affiliate.apply') }}" class="hover:text-amber-400">Become an affiliate</a></li>
+                    <li><a href="{{ route('site.login') }}" class="hover:text-amber-400">Partner login</a></li>
                 </ul>
             </div>
             <div>

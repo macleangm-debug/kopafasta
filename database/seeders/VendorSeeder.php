@@ -20,7 +20,7 @@ class VendorSeeder extends Seeder
             ['name' => 'Sanlam General TZ',      'category' => 'insurance',     'status' => 'active',   'phone' => '+255712000010', 'email' => 'claims@sanlam.co.tz'],
             ['name' => 'Heritage Insurance',     'category' => 'insurance',     'status' => 'active',   'phone' => '+255712000011', 'email' => 'corp@heritage.co.tz'],
             ['name' => 'Jubilee Allianz',        'category' => 'insurance',     'status' => 'inactive', 'phone' => '+255712000012', 'email' => 'biz@jubilee.tz'],
-            ['name' => 'Copper Fasta Valuer',      'category' => 'valuer',        'status' => 'active',   'phone' => '+255712000023', 'email' => 'valuer@copperfasta.test'],
+            ['name' => 'Copper Fasta Valuer',      'category' => 'valuer',        'status' => 'active',   'phone' => '+255712000023', 'email' => 'valuer@copperfasta.test', 'regions' => ['Dar es Salaam', 'Pwani']],
             ['name' => 'Apex Valuers Ltd',       'category' => 'valuer',        'status' => 'active',   'phone' => '+255712000020', 'email' => 'reports@apex.tz'],
             ['name' => 'NovaCert Valuations',    'category' => 'valuer',        'status' => 'active',   'phone' => '+255712000021', 'email' => 'team@novacert.tz'],
             ['name' => 'PrimeAsset Valuers',     'category' => 'valuer',        'status' => 'inactive', 'phone' => '+255712000022', 'email' => 'info@primeasset.tz'],
@@ -33,7 +33,7 @@ class VendorSeeder extends Seeder
             Vendor::query()->updateOrCreate(
                 ['name' => $data['name']],
                 array_merge($data, [
-                    'vendor_number' => 'VND-DEMO-'.str_pad((string) ($i + 1), 3, '0', STR_PAD_LEFT),
+                    'vendor_number' => 'PTR-DEMO-'.str_pad((string) ($i + 1), 3, '0', STR_PAD_LEFT),
                     'address'       => 'Dar es Salaam, Tanzania',
                 ])
             );

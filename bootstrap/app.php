@@ -43,7 +43,7 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($user) {
                 return match ($user->role) {
                     'borrower' => route('site.borrower.dashboard'),
-                    'vendor'   => route('site.vendor.dashboard'),
+                    'vendor'   => route('site.partner.dashboard'),
                     'investor' => route('site.investor.dashboard'),
                     default    => route('admin.dashboard'),
                 };

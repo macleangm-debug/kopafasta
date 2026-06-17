@@ -1,6 +1,5 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.marketplace.reserve_title'))" active="marketplace">
+<x-site.borrower-layout :title="brand_title(__('borrower.marketplace.reserve_title'))" active="marketplace" content-width="wide">
 
-    <div class="max-w-4xl mx-auto">
     <div class="mb-4">
         <a href="{{ route('site.borrower.marketplace.show', $asset['id']) }}" class="text-xs text-gray-500 hover:text-gray-700">← {{ __('borrower.marketplace.back_to_asset') }}</a>
     </div>
@@ -71,12 +70,14 @@
         </div>
     </div>
 
-    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 max-w-2xl space-y-4">
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 space-y-4">
         <h2 class="font-semibold">{{ __('borrower.marketplace.next_action') }}</h2>
 
         @php
             $needsRequirements = in_array($reservation->status, ['interest_confirmed', 'reservation_fee_paid'], true)
                 && ! ($applyRequirements['can_apply'] ?? false);
+            $feePaid = $reservation->reservation_fee_status === 'paid';
+            $viewingOptional = $feePaid && ! $reservation->viewing_completed_at;
         @endphp
 
         @if ($needsRequirements)
@@ -101,29 +102,14 @@
         @endif
 
         @if ($reservation->status === 'application_started')
-            <div class="space-y-4">
-                <p class="text-sm text-gray-600">{{ __('borrower.marketplace.schedule_viewing_hint') }}</p>
-                <form method="POST" action="{{ route('site.borrower.marketplace.reserve.post', $asset['id']) }}" class="grid sm:grid-cols-2 gap-3">
-                    @csrf
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.viewing_date') }}</label>
-                        <input type="date" name="viewing_date" required min="{{ now()->addDay()->format('Y-m-d') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.viewing_time') }}</label>
-                        <input type="time" name="viewing_time" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm">
-                    </div>
-                    <div class="sm:col-span-2">
-                        <button class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.marketplace.schedule_viewing') }}</button>
-                    </div>
-                </form>
-                <form method="POST" action="{{ route('site.borrower.marketplace.reservation.advance', $asset['id']) }}">
-                    @csrf
-                    <input type="hidden" name="action" value="skip_viewing">
-                    <button type="submit" class="text-sm font-semibold text-gray-600 hover:text-gray-900 underline">{{ __('borrower.marketplace.skip_viewing') }}</button>
-                </form>
-            </div>
-        @elseif ($reservation->status === 'viewing_scheduled')
+            <p class="text-sm text-gray-600">{{ __('borrower.marketplace.confirm_interest_hint') }}</p>
+            <form method="POST" action="{{ route('site.borrower.marketplace.reservation.advance', $asset['id']) }}">
+                @csrf
+                <input type="hidden" name="action" value="confirm_interest">
+                <button class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.marketplace.confirm_interest') }}</button>
+            </form>
+        @elseif ($reservation->status === 'viewing_scheduled' && ! $feePaid)
+            {{-- Legacy in-flight reservations that scheduled viewing before the fee step --}}
             <p class="text-sm text-gray-600">{{ __('borrower.marketplace.viewing_scheduled_for', ['date' => optional($reservation->viewing_date)->format('d M Y') ?? '—', 'time' => $reservation->viewing_time ?? '—']) }}</p>
             <form method="POST" action="{{ route('site.borrower.marketplace.reservation.advance', $asset['id']) }}">
                 @csrf
@@ -152,7 +138,39 @@
                     'referralWallet' => $referralWallet ?? null,
                 ])
             @endif
-        @elseif ($reservation->status === 'reservation_fee_paid')
+        @elseif (in_array($reservation->status, ['reservation_fee_paid', 'viewing_scheduled'], true) && $feePaid)
+            @if ($viewingOptional && ! $reservation->viewing_date)
+                <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 p-4 space-y-4 mb-4">
+                    <p class="text-sm text-gray-700">{{ __('borrower.marketplace.schedule_viewing_after_fee_hint') }}</p>
+                    <form method="POST" action="{{ route('site.borrower.marketplace.reserve.post', $asset['id']) }}" class="grid sm:grid-cols-2 gap-3">
+                        @csrf
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.viewing_date') }}</label>
+                            <input type="date" name="viewing_date" required min="{{ now()->addDay()->format('Y-m-d') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.viewing_time') }}</label>
+                            <input type="time" name="viewing_time" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <button class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.marketplace.schedule_viewing') }}</button>
+                        </div>
+                    </form>
+                    <form method="POST" action="{{ route('site.borrower.marketplace.reservation.advance', $asset['id']) }}">
+                        @csrf
+                        <input type="hidden" name="action" value="skip_viewing">
+                        <button type="submit" class="text-sm font-semibold text-gray-600 hover:text-gray-900 underline">{{ __('borrower.marketplace.skip_viewing') }}</button>
+                    </form>
+                </div>
+            @elseif ($reservation->status === 'viewing_scheduled')
+                <p class="text-sm text-gray-600 mb-3">{{ __('borrower.marketplace.viewing_scheduled_for', ['date' => optional($reservation->viewing_date)->format('d M Y') ?? '—', 'time' => $reservation->viewing_time ?? '—']) }}</p>
+                <form method="POST" action="{{ route('site.borrower.marketplace.reservation.advance', $asset['id']) }}" class="mb-4">
+                    @csrf
+                    <input type="hidden" name="action" value="complete_viewing">
+                    <button class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.marketplace.mark_viewing_done') }}</button>
+                </form>
+            @endif
+
             @if ($applyRequirements['can_apply'] ?? false)
                 <p class="text-sm text-gray-600">{{ __('borrower.marketplace.pay_deposit_hint', ['amount' => format_number($reservation->deposit_amount)]) }}</p>
                 @include('site.borrower.marketplace._reservation-payment-form', [
@@ -207,7 +225,6 @@
             <p class="text-sm text-emerald-700 font-semibold">{{ __('borrower.marketplace.in_progress') }}</p>
             <a href="{{ route('site.borrower.loans') }}" class="text-sm font-semibold text-amber-700 hover:underline mt-2 inline-block">{{ __('borrower.dashboard.view_all') }}</a>
         @endif
-    </div>
     </div>
 
 </x-site.borrower-layout>

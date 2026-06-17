@@ -11,7 +11,7 @@
     @endphp
 
     <div class="mb-5">
-        <a href="{{ route('site.vendor.tasks') }}" class="text-sm text-indigo-600 hover:underline">← Back to tasks</a>
+        <a href="{{ route('site.partner.tasks') }}" class="text-sm text-indigo-600 hover:underline">← Back to tasks</a>
     </div>
 
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
@@ -46,12 +46,15 @@
             {{-- Upload proof --}}
             @if ($task->status !== 'completed' && $task->status !== 'cancelled')
                 <div class="rounded-2xl border border-gray-200 bg-white p-5">
-                    <h2 class="font-bold mb-3">Upload proof</h2>
-                    <form method="POST" action="{{ route('site.vendor.task.proof', $task) }}" enctype="multipart/form-data" class="space-y-3">
+                    <h2 class="font-bold mb-3">{{ $task->task_type === 'asset_valuation' ? 'Upload inspection photos' : 'Upload proof' }}</h2>
+                    <form method="POST" action="{{ route('site.partner.task.proof', $task) }}" enctype="multipart/form-data" class="space-y-3">
                         @csrf
                         <div>
-                            <label class="block text-xs text-gray-500 mb-1">What is it? (e.g. Installation photo)</label>
-                            <input name="label" required class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                            <label class="block text-xs text-gray-500 mb-1">
+                                {{ $task->task_type === 'asset_valuation' ? 'Photo label (e.g. Front view, Engine, Interior)' : 'What is it? (e.g. Installation photo)' }}
+                            </label>
+                            <input name="label" required class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                                   placeholder="{{ $task->task_type === 'asset_valuation' ? 'Asset photo' : 'Proof label' }}">
                         </div>
                         <div>
                             <label class="block text-xs text-gray-500 mb-1">File (image or PDF, max 5MB)</label>
@@ -74,8 +77,11 @@
 
                 {{-- Complete task --}}
                 <div class="rounded-2xl border border-gray-200 bg-white p-5">
-                    <h2 class="font-bold mb-3">Mark complete</h2>
-                    <form method="POST" action="{{ route('site.vendor.task.complete', $task) }}" class="space-y-3">
+                    <h2 class="font-bold mb-3">{{ $task->task_type === 'asset_valuation' ? 'Submit valuation report' : 'Mark complete' }}</h2>
+                    @if ($task->task_type === 'asset_valuation')
+                        <p class="text-xs text-gray-500 mb-4">Upload photos above, then enter market and forced sale values from your physical inspection.</p>
+                    @endif
+                    <form method="POST" action="{{ route('site.partner.task.complete', $task) }}" class="space-y-3">
                         @csrf
                         @if ($task->task_type === 'asset_valuation')
                             <div>
@@ -123,13 +129,13 @@
                 <h3 class="font-bold mb-3">Actions</h3>
                 <div class="space-y-2">
                     @if ($task->status === 'assigned')
-                        <form method="POST" action="{{ route('site.vendor.task.accept', $task) }}">
+                        <form method="POST" action="{{ route('site.partner.task.accept', $task) }}">
                             @csrf
                             <button class="w-full rounded-lg bg-indigo-600 text-white text-sm font-semibold py-2 hover:bg-indigo-700">Accept task</button>
                         </form>
                     @endif
                     @if (in_array($task->status, ['assigned', 'in_progress']))
-                        <form method="POST" action="{{ route('site.vendor.task.start', $task) }}">
+                        <form method="POST" action="{{ route('site.partner.task.start', $task) }}">
                             @csrf
                             <button class="w-full rounded-lg bg-gray-900 text-white text-sm font-semibold py-2 hover:bg-black">Start work</button>
                         </form>
@@ -149,7 +155,7 @@
                     <p class="text-sm"><span class="text-gray-500">Amount:</span> {{ format_money($task->payment->amount) }}</p>
                     @php $pc = $task->payment->status === 'paid' ? 'emerald' : 'amber'; @endphp
                     <p class="mt-1"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-{{ $pc }}-100 text-{{ $pc }}-700">{{ $task->payment->status }}</span></p>
-                    <a href="{{ route('site.vendor.invoice', $task->payment) }}" class="block mt-3 text-sm text-indigo-600 hover:underline">View invoice →</a>
+                    <a href="{{ route('site.partner.invoice', $task->payment) }}" class="block mt-3 text-sm text-indigo-600 hover:underline">View invoice →</a>
                 </div>
             @endif
         </div>

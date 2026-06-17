@@ -17,6 +17,7 @@
             <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                 <tr>
                     <th class="px-5 py-3">Name</th>
+                    <th class="px-5 py-3">Type</th>
                     <th class="px-5 py-3">Position</th>
                     <th class="px-5 py-3">Email</th>
                     <th class="px-5 py-3">Signature</th>
@@ -28,6 +29,7 @@
                 @forelse ($signatories as $signatory)
                     <tr class="hover:bg-gray-50">
                         <td class="px-5 py-3 font-medium">{{ $signatory->name }}</td>
+                        <td class="px-5 py-3 text-gray-600">{{ ucfirst(str_replace('_', ' ', $signatory->signatory_type ?? 'company')) }}</td>
                         <td class="px-5 py-3 text-gray-600">{{ $signatory->position ?? '—' }}</td>
                         <td class="px-5 py-3 text-gray-600">{{ $signatory->email ?? '—' }}</td>
                         <td class="px-5 py-3">
