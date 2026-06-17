@@ -44,12 +44,20 @@ class AssetLendingRepaymentService
             return null;
         }
 
-        return app(PartnerSettlementService::class)->accrue(
+        $payment = app(PartnerSettlementService::class)->accrue(
             $vendor,
             (int) round($principal),
             'managed_loan_repayment',
             $repayment->id,
             'Principal repayment · '.($loan->loan_number ?? 'loan #'.$loan->id),
         );
+
+        try {
+            app(AssetLendingRepaymentGlService::class)->postSupplierPrincipalLiability($loan, $repayment);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return $payment;
     }
 }

@@ -130,6 +130,12 @@ class RepaymentPostingService
                 report($e);
             }
 
+            try {
+                app(GroupLendingService::class)->recordSuccessfulRepayment($loan);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
             // 5) Post journal entry
             return $this->postJournal($repayment->fresh(), $loan);
         });

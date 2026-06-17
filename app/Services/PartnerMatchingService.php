@@ -23,6 +23,10 @@ class PartnerMatchingService
         }
 
         $matches = $query->get()->filter(function (Vendor $vendor) use ($region): bool {
+            if (($vendor->coverage_type ?? 'regions') === 'nationwide') {
+                return true;
+            }
+
             $regions = $vendor->regions ?? [];
 
             return $regions === [] || in_array($region, $regions, true);
@@ -46,6 +50,10 @@ class PartnerMatchingService
     /** @return list<string> */
     public function regionCoverage(Vendor $vendor): array
     {
+        if (($vendor->coverage_type ?? 'regions') === 'nationwide') {
+            return ['Nationwide'];
+        }
+
         return array_values($vendor->regions ?? []);
     }
 }

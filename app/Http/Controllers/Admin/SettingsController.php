@@ -366,6 +366,9 @@ class SettingsController extends Controller
             'payment_holiday_max_months'            => ['nullable', 'integer', 'min:1', 'max:12'],
             'group_min_members'                     => ['required', 'integer', 'min:2', 'max:100'],
             'group_max_members'                     => ['required', 'integer', 'min:2', 'max:200'],
+            'group_leader_unlock_repayments'        => ['required', 'integer', 'min:1', 'max:12'],
+            'group_application_fee_per_member'      => ['nullable', 'boolean'],
+            'group_post_approval_fee_per_group'     => ['nullable', 'boolean'],
         ]);
         $data['allow_asset_reuse'] = (bool) ($data['allow_asset_reuse'] ?? false);
         $data['payment_holiday_accrue_interest'] = (bool) ($data['payment_holiday_accrue_interest'] ?? false);
@@ -393,6 +396,9 @@ class SettingsController extends Controller
         }
         $data['group_min_members'] = $groupMin;
         $data['group_max_members'] = $groupMax;
+        $data['group_leader_unlock_repayments'] = max(1, (int) ($data['group_leader_unlock_repayments'] ?? 2));
+        $data['group_application_fee_per_member'] = (bool) ($data['group_application_fee_per_member'] ?? true);
+        $data['group_post_approval_fee_per_group'] = (bool) ($data['group_post_approval_fee_per_group'] ?? true);
 
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["loan.$k" => $v])->all());
         return back()->with('status', 'Loan rules saved.');
@@ -487,6 +493,8 @@ class SettingsController extends Controller
             'borrower_refunds_payable_gl_account_id'  => ['nullable', 'exists:chart_of_accounts,id'],
             'recovery_revenue_gl_account_id'          => ['nullable', 'exists:chart_of_accounts,id'],
             'recovery_partner_payable_gl_account_id'  => ['nullable', 'exists:chart_of_accounts,id'],
+            'supplier_payable_gl_account_id'          => ['nullable', 'exists:chart_of_accounts,id'],
+            'asset_lending_principal_clearing_gl_account_id' => ['nullable', 'exists:chart_of_accounts,id'],
             'valuation_revenue_gl_account_id'         => ['nullable', 'exists:chart_of_accounts,id'],
             'gps_revenue_gl_account_id'               => ['nullable', 'exists:chart_of_accounts,id'],
             'asset_lending_revenue_gl_account_id'     => ['nullable', 'exists:chart_of_accounts,id'],

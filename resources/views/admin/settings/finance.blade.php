@@ -27,6 +27,8 @@
                 ['borrower_refunds_payable_gl_account_id',  'Borrower refunds payable',         'Credited when auction surplus is owed to borrowers; debited on payout.'],
                 ['recovery_revenue_gl_account_id',          'Recovery revenue',                 'Company markup on recovery/repossession charges (not interest or penalty).'],
                 ['recovery_partner_payable_gl_account_id',  'Recovery partner payable',         'Partner cost accrual until payout.'],
+                ['supplier_payable_gl_account_id',          'Asset supplier payable',           'Principal repayments owed to managed-loan suppliers.'],
+                ['asset_lending_principal_clearing_gl_account_id', 'Asset lending principal clearing', 'Debit when principal is allocated to supplier payable (defaults to loan receivable).'],
                 ['valuation_revenue_gl_account_id',         'Valuation revenue',                'Company markup on valuation fees.'],
                 ['gps_revenue_gl_account_id',               'GPS revenue',                      'Company markup on GPS device and monitoring fees.'],
                 ['asset_lending_revenue_gl_account_id',     'Asset lending revenue',            'Deposit markup and asset-lending fees (not interest income).'],

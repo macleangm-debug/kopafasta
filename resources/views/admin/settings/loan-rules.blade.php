@@ -88,6 +88,19 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <x-admin.input name="group_min_members" label="Minimum group members" type="number" :value="$values['group_min_members'] ?? '5'" required />
                 <x-admin.input name="group_max_members" label="Maximum group members" type="number" :value="$values['group_max_members'] ?? '30'" required />
+                <x-admin.input name="group_leader_unlock_repayments" label="Leader repayments before next member unlocks" type="number" :value="$values['group_leader_unlock_repayments'] ?? '2'" required />
+            </div>
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
+                    <input type="hidden" name="group_application_fee_per_member" value="0">
+                    <input type="checkbox" name="group_application_fee_per_member" value="1" @checked(! isset($values['group_application_fee_per_member']) || ! empty($values['group_application_fee_per_member'])) class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                    <span class="text-gray-800">Charge application fee per group member</span>
+                </label>
+                <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
+                    <input type="hidden" name="group_post_approval_fee_per_group" value="0">
+                    <input type="checkbox" name="group_post_approval_fee_per_group" value="1" @checked(! isset($values['group_post_approval_fee_per_group']) || ! empty($values['group_post_approval_fee_per_group'])) class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                    <span class="text-gray-800">Charge post-approval fees once per group</span>
+                </label>
             </div>
         </div>
 

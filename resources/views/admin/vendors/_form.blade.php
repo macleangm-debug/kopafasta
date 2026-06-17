@@ -29,8 +29,16 @@
 
     <div x-show="['valuer','gps_installer','insurance','debt_collector','towing','auctioneer','legal_partner','supplier'].includes(category)" x-cloak>
         <x-admin.step title="Coverage regions">
-            <div class="md:col-span-2">
-                <p class="text-xs text-gray-500 mb-3">Select one or more regions this partner covers. The system assigns the nearest matching partner.</p>
+            <div class="md:col-span-2 space-y-3">
+                <p class="text-xs text-gray-500">Select regions, or mark the partner as nationwide for all regions.</p>
+                <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                    <input type="radio" name="coverage_type" value="regions" @checked(old('coverage_type', $r?->coverage_type ?? 'regions') !== 'nationwide') class="text-amber-600 focus:ring-amber-500">
+                    Specific regions
+                </label>
+                <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                    <input type="radio" name="coverage_type" value="nationwide" @checked(old('coverage_type', $r?->coverage_type ?? 'regions') === 'nationwide') class="text-amber-600 focus:ring-amber-500">
+                    Nationwide
+                </label>
                 <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-64 overflow-y-auto rounded-lg border border-gray-200 p-3">
                     @foreach ($regionOptions ?? [] as $region)
                         <label class="flex items-center gap-2 text-sm text-gray-700">

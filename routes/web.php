@@ -261,6 +261,24 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         Route::get('/vendor-portal', fn () => redirect()->route('site.partner.dashboard'));
         Route::get('/partner-portal', fn () => redirect()->route('site.partner.dashboard'));
 
+        Route::prefix('partner/supplier')->name('partner.supplier.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Site\SupplierController::class, 'dashboard'])->name('dashboard');
+            Route::get('/assets', [\App\Http\Controllers\Site\SupplierController::class, 'assets'])->name('assets');
+            Route::get('/assets/create', [\App\Http\Controllers\Site\SupplierController::class, 'createAsset'])->name('assets.create');
+            Route::post('/assets', [\App\Http\Controllers\Site\SupplierController::class, 'storeAsset'])->name('assets.store');
+            Route::get('/assets/{asset}/edit', [\App\Http\Controllers\Site\SupplierController::class, 'editAsset'])->name('assets.edit');
+            Route::put('/assets/{asset}', [\App\Http\Controllers\Site\SupplierController::class, 'updateAsset'])->name('assets.update');
+            Route::get('/requests', [\App\Http\Controllers\Site\SupplierController::class, 'requests'])->name('requests');
+            Route::get('/reservations', [\App\Http\Controllers\Site\SupplierController::class, 'reservations'])->name('reservations');
+            Route::get('/applications', [\App\Http\Controllers\Site\SupplierController::class, 'applications'])->name('applications');
+            Route::get('/delivered', [\App\Http\Controllers\Site\SupplierController::class, 'delivered'])->name('delivered');
+            Route::post('/reservations/{reservation}', [\App\Http\Controllers\Site\SupplierController::class, 'updateReservation'])->name('reservations.update');
+            Route::post('/requests/{assetRequest}', [\App\Http\Controllers\Site\SupplierController::class, 'updateRequest'])->name('requests.update');
+            Route::get('/settlements', [\App\Http\Controllers\Site\SupplierController::class, 'settlements'])->name('settlements');
+        });
+
+        Route::redirect('/supplier', '/partner/supplier');
+
         Route::prefix('supplier')->name('supplier.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Site\SupplierController::class, 'dashboard'])->name('dashboard');
             Route::get('/assets', [\App\Http\Controllers\Site\SupplierController::class, 'assets'])->name('assets');

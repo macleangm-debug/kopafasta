@@ -236,6 +236,9 @@ class Phase40FeatureTest extends TestCase
                 'restructure_cooldown_days' => 30,
                 'group_min_members'    => 8,
                 'group_max_members'    => 25,
+                'group_leader_unlock_repayments' => 2,
+                'group_application_fee_per_member' => 1,
+                'group_post_approval_fee_per_group' => 1,
             ])
             ->assertRedirect();
 

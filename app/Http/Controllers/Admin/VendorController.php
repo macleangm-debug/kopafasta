@@ -53,6 +53,7 @@ class VendorController extends ResourceController
             'recovery_markup_percent'        => ['nullable', 'numeric', 'min:0', 'max:100'],
             'regions'                        => ['nullable', 'array'],
             'regions.*'                      => ['string', 'max:100'],
+            'coverage_type'                  => ['nullable', 'in:regions,nationwide'],
         ];
     }
 
@@ -88,7 +89,7 @@ class VendorController extends ResourceController
             ],
             'roleOptions' => app(\App\Services\PartnerService::class)->roleOptions(),
             'defaultCategory' => request()->query('category'),
-            'regionOptions' => array_keys(config('tanzania_locations', [])),
+            'regionOptions' => partner_region_options(),
         ];
     }
 
@@ -140,9 +141,13 @@ class VendorController extends ResourceController
             return;
         }
 
+        if (($data['coverage_type'] ?? 'regions') === 'nationwide') {
+            return;
+        }
+
         if (array_filter($data['regions'] ?? []) === []) {
             throw \Illuminate\Validation\ValidationException::withMessages([
-                'regions' => 'Select at least one operating region for this partner type.',
+                'regions' => 'Select at least one operating region for this partner type, or mark coverage as nationwide.',
             ]);
         }
     }
@@ -186,6 +191,12 @@ class VendorController extends ResourceController
 
         if (array_key_exists('regions', $data)) {
             $data['regions'] = array_values(array_filter($data['regions'] ?? []));
+        }
+
+        $coverage = (string) ($data['coverage_type'] ?? 'regions');
+        $data['coverage_type'] = in_array($coverage, ['regions', 'nationwide'], true) ? $coverage : 'regions';
+        if ($data['coverage_type'] === 'nationwide') {
+            $data['regions'] = [];
         }
 
         return $data;

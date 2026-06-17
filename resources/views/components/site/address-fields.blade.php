@@ -6,7 +6,7 @@
     'ward' => '',
     'street' => '',
     'required' => true,
-    'locations' => config('tanzania_locations'),
+    'locations' => location_tree('TZ'),
 ])
 
 @php

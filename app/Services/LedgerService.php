@@ -207,4 +207,31 @@ class LedgerService
             ->orderBy('code')
             ->value('id');
     }
+
+    public function supplierPayableAccountId(): ?int
+    {
+        $id = (int) (Setting::get('finance.supplier_payable_gl_account_id') ?? 0);
+        if ($id > 0 && ChartOfAccount::whereKey($id)->exists()) {
+            return $id;
+        }
+
+        return ChartOfAccount::query()
+            ->where('type', 'liability')
+            ->where(function ($q) {
+                $q->where('name', 'like', '%supplier%payable%')
+                    ->orWhere('name', 'like', '%asset%supplier%');
+            })
+            ->orderBy('code')
+            ->value('id');
+    }
+
+    public function assetLendingPrincipalClearingAccountId(): ?int
+    {
+        $id = (int) (Setting::get('finance.asset_lending_principal_clearing_gl_account_id') ?? 0);
+        if ($id > 0 && ChartOfAccount::whereKey($id)->exists()) {
+            return $id;
+        }
+
+        return $this->loanReceivableAccountId();
+    }
 }

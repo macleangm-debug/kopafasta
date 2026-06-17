@@ -34,7 +34,10 @@ class LoanProductReadinessService
         $firstMissingUrl = collect($missing)
             ->first(fn (array $item) => ! empty($item['action_url']) && empty($item['application_step']))['action_url'] ?? null;
 
-        $applicationFee = quoted_application_fee($customer, $product);
+        $groupLending = app(GroupLendingService::class);
+        $applicationFee = $groupLending->isGroupProduct($product)
+            ? $groupLending->quotedApplicationFee($customer, $product, $groupLending->memberLimits()['min'])
+            : quoted_application_fee($customer, $product);
         $postApprovalSummary = $this->postApprovalFeeSummary($product);
         $displayedRate = app(DisplayedRateService::class);
 

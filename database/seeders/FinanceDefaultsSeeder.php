@@ -25,6 +25,8 @@ class FinanceDefaultsSeeder extends Seeder
             'finance.borrower_refunds_payable_gl_account_id' => '2100',
             'finance.deferred_fee_liability_gl_account_id'  => '2110',
             'finance.recovery_partner_payable_gl_account_id'=> '2120',
+            'finance.supplier_payable_gl_account_id'        => '2130',
+            'finance.asset_lending_principal_clearing_gl_account_id' => '1100',
             'finance.fee_income_gl_account_id'            => '4020',
             'finance.application_fee_income_gl_account_id'  => '4020',
             'finance.registration_fee_income_gl_account_id' => '4030',

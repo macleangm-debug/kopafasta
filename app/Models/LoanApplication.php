@@ -107,6 +107,11 @@ class LoanApplication extends Model
         return $this->hasOne(AssetReservation::class);
     }
 
+    public function loanGroup(): BelongsTo
+    {
+        return $this->belongsTo(LoanGroup::class);
+    }
+
     public function disbursementAccount(): BelongsTo
     {
         return $this->belongsTo(CustomerDisbursementAccount::class, 'disbursement_account_id');

@@ -36,7 +36,8 @@
             "app/Helpers/profile_labels.php",
             "app/Helpers/branding.php",
             "app/Helpers/payments.php",
-            "app/Helpers/loan_products.php"
+            "app/Helpers/loan_products.php",
+            "app/Helpers/locations.php"
         ]
     },
     "autoload-dev": {

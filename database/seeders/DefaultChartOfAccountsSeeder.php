@@ -19,6 +19,7 @@ class DefaultChartOfAccountsSeeder extends Seeder
             ['code' => '2100', 'name' => 'Borrower Refunds Payable', 'type' => 'liability'],
             ['code' => '2110', 'name' => 'Deferred Fee Liability', 'type' => 'liability'],
             ['code' => '2120', 'name' => 'Recovery Partner Payable', 'type' => 'liability'],
+            ['code' => '2130', 'name' => 'Asset Supplier Payable', 'type' => 'liability'],
             ['code' => '4000', 'name' => 'Interest Income', 'type' => 'income'],
             ['code' => '4010', 'name' => 'Penalty Income', 'type' => 'income'],
             ['code' => '4020', 'name' => 'Application Fee Income', 'type' => 'income'],
