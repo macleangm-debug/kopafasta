@@ -4,8 +4,17 @@ Checkpoint for phased UAT / product-review work on **kopafasta**.
 **Delivery arc complete** (Phases 3–38). Resume here only for deferred items or new scope.
 
 **Last updated:** 2026-06-18  
-**Test status:** **205/205** phase tests passing  
+**Test status:** **216/216** phase tests passing  
 **Do not commit** unless explicitly requested.
+
+---
+
+## Architecture gap closure (Phases 39–40)
+
+| Phase | Summary |
+|-------|---------|
+| **39** | Lock deposit markup to Settings only (supplier/admin cannot override); minimal public marketplace cards (deposit, weekly, tenure, view details); asset-lending settings “Markup rules” copy |
+| **40** | `AssetLendingRepaymentService` accrues principal to managed-loan suppliers on repayment; `managed_loan_repayment` auto-approve; group lending min/max members in loan rules; field partners require operating regions; `PartnerSettlementService::accrue` tap fix |
 
 ---
 
@@ -44,6 +53,8 @@ Checkpoint for phased UAT / product-review work on **kopafasta**.
 | **36** | Guarantors page full i18n + wide layout; membership page section/history/referral i18n |
 | **37** | Standalone KYC page i18n + wide layout; face verification rejected/approved banners i18n; dashboard empty-state i18n; marketplace reservation payment form promo/wallet i18n; nested `marketplace.fees.payment_note` key fix |
 | **38** | Swahili parity regression test (EN ↔ SW key count); delivery-arc spot checks; membership referral + guarantor confirm dialog + dashboard wide regressions |
+| **39** | Platform-only deposit markup; minimal marketplace list cards; markup rules admin copy |
+| **40** | Managed-loan supplier repayment accrual; group member limits; partner region validation |
 
 ---
 
@@ -63,7 +74,7 @@ Relevant migrations (if not yet applied in target env):
 ## Full phase test command
 
 ```bash
-php artisan test --filter="Phase38FeatureTest|Phase37FeatureTest|Phase36FeatureTest|Phase35FeatureTest|Phase34FeatureTest|Phase33FeatureTest|Phase32FeatureTest|Phase31FeatureTest|Phase30FeatureTest|Phase29FeatureTest|Phase28FeatureTest|Phase27FeatureTest|Phase26FeatureTest|Phase25FeatureTest|Phase24FeatureTest|Phase23FeatureTest|Phase22FeatureTest|Phase21FeatureTest|Phase20FeatureTest|Phase19FeatureTest|Phase18FeatureTest|Phase17FeatureTest|Phase16FeatureTest|Phase15FeatureTest|Phase14FeatureTest|Phase13FeatureTest|Phase12FeatureTest|Phase11FeatureTest|Phase10FeatureTest|Phase9FeatureTest|Phase8FeatureTest|Phase7FeatureTest|Phase6FeatureTest|Phase5FeatureTest|Phase4FeatureTest|Phase3FeatureTest|NidaVerificationLockoutTest|ValuationPartnerWorkflowTest|AssetDepositPaymentTest|CustomerDossierTest"
+php artisan test --filter="Phase40FeatureTest|Phase39FeatureTest|Phase38FeatureTest|Phase37FeatureTest|Phase36FeatureTest|Phase35FeatureTest|Phase34FeatureTest|Phase33FeatureTest|Phase32FeatureTest|Phase31FeatureTest|Phase30FeatureTest|Phase29FeatureTest|Phase28FeatureTest|Phase27FeatureTest|Phase26FeatureTest|Phase25FeatureTest|Phase24FeatureTest|Phase23FeatureTest|Phase22FeatureTest|Phase21FeatureTest|Phase20FeatureTest|Phase19FeatureTest|Phase18FeatureTest|Phase17FeatureTest|Phase16FeatureTest|Phase15FeatureTest|Phase14FeatureTest|Phase13FeatureTest|Phase12FeatureTest|Phase11FeatureTest|Phase10FeatureTest|Phase9FeatureTest|Phase8FeatureTest|Phase7FeatureTest|Phase6FeatureTest|Phase5FeatureTest|Phase4FeatureTest|Phase3FeatureTest|NidaVerificationLockoutTest|ValuationPartnerWorkflowTest|AssetDepositPaymentTest|CustomerDossierTest|PartnerSettlementServiceTest"
 ```
 
 ---
@@ -87,7 +98,8 @@ php artisan test --filter="Phase38FeatureTest|Phase37FeatureTest|Phase36FeatureT
 - `resources/views/site/borrower/guarantors.blade.php`, `membership.blade.php`, `kyc.blade.php`
 - `resources/views/site/borrower/membership-renew.blade.php`, `marketplace/reserve.blade.php`, `marketplace/_reservation-payment-form.blade.php`
 - `resources/views/site/borrower/notifications.blade.php`, `dashboard.blade.php`, `face-verification.blade.php`
-- `tests/Feature/Phase35FeatureTest.php` … `Phase38FeatureTest.php`
+- `tests/Feature/Phase35FeatureTest.php` … `Phase40FeatureTest.php`
+- `app/Services/AssetLendingRepaymentService.php`, `MarketplaceAssetService.php`, `PartnerSettlementService.php`
 
 ---
 

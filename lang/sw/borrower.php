@@ -677,6 +677,7 @@ return [
     'public_login_cta' => 'Ingia ili kuomba',
     'public_my_marketplace_cta' => 'Soko langu →',
     'back_to_marketplace' => '← Rudi kwenye soko',
+    'view_details' => 'Angalia maelezo →',
     'asset_value' => 'Thamani ya mali',
     'deposit' => 'Amana inayohitajika',
     'loan_amount' => 'Kiasi cha mkopo',

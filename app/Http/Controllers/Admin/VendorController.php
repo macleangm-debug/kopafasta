@@ -15,6 +15,18 @@ class VendorController extends ResourceController
     protected string $viewFolder = 'vendors';
     protected string $singular = 'partner';
 
+    /** @var list<string> */
+    private const REGION_REQUIRED_CATEGORIES = [
+        'gps_installer',
+        'insurance',
+        'valuer',
+        'supplier',
+        'debt_collector',
+        'towing',
+        'yard',
+        'auctioneer',
+    ];
+
     protected function rules(?Model $model = null): array
     {
         return [
@@ -84,6 +96,7 @@ class VendorController extends ResourceController
     {
         $data = $this->transform($request->validate($this->rules()));
         $this->validateAffiliateCode($data, null);
+        $this->validateRegions($data);
         $record = Vendor::create($data);
 
         if ($record->isAffiliate() && blank($record->affiliate_code)) {
@@ -107,11 +120,31 @@ class VendorController extends ResourceController
         $vendor = Vendor::findOrFail($id);
         $data = $this->transform($request->validate($this->rules($vendor)), $vendor);
         $this->validateAffiliateCode($data, $vendor);
+        $this->validateRegions($data);
         $vendor->update($data);
 
         return redirect()
             ->route("{$this->routePrefix}.show", $vendor)
             ->with('status', ucfirst($this->singular).' updated.');
+    }
+
+    /** @param array<string, mixed> $data */
+    private function validateRegions(array $data): void
+    {
+        $category = (string) ($data['category'] ?? '');
+        $roles = array_values(array_filter($data['roles'] ?? [$category]));
+        $requires = in_array($category, self::REGION_REQUIRED_CATEGORIES, true)
+            || collect($roles)->intersect(self::REGION_REQUIRED_CATEGORIES)->isNotEmpty();
+
+        if (! $requires) {
+            return;
+        }
+
+        if (array_filter($data['regions'] ?? []) === []) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'regions' => 'Select at least one operating region for this partner type.',
+            ]);
+        }
     }
 
     /** @param array<string, mixed> $data */

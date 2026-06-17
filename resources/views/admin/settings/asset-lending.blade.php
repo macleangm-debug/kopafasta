@@ -1,4 +1,4 @@
-<x-admin.layout title="Asset lending" heading="Asset lending" subheading="Deposit markup and marketplace policy">
+<x-admin.layout title="Asset lending" heading="Asset lending" subheading="Markup rules and marketplace policy">
     @include('admin.settings._tabs', ['active' => 'asset-lending'])
 
     @if (session('status'))
@@ -9,8 +9,8 @@
         @csrf @method('PUT')
 
         <div>
-            <p class="text-sm font-semibold text-gray-900 mb-2">Deposit markup base</p>
-            <p class="text-xs text-gray-500 mb-3">Controls how supplier markup is calculated on marketplace assets.</p>
+            <p class="text-sm font-semibold text-gray-900 mb-2">Markup rules</p>
+            <p class="text-xs text-gray-500 mb-3">Suppliers enter asset cost and deposit; the platform applies this markup to calculate customer price. Suppliers cannot override markup.</p>
             <div class="space-y-2">
                 <label class="flex items-center gap-2 text-sm">
                     <input type="radio" name="markup_base" value="deposit" @checked(($values['markup_base'] ?? 'deposit') === 'deposit')>

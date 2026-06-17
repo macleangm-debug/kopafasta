@@ -63,9 +63,8 @@
 
     <div x-show="category === 'supplier'" x-cloak>
         <x-admin.step title="Supplier settings">
-            <p class="md:col-span-2 text-xs text-gray-500 mb-2">Deposit markup base is configured under Settings → Asset lending.</p>
+            <p class="md:col-span-2 text-xs text-gray-500 mb-2">Deposit markup is controlled under Settings → Asset lending (not per supplier).</p>
             <x-admin.select name="supplier_type" label="Supplier type" :options="config('asset_lending.supplier_types')" :value="$r?->supplier_type ?? config('asset_lending.default_supplier_type')" />
-            <x-admin.input name="deposit_markup_percent" label="Deposit markup (%)" type="number" step="0.01" :value="$r?->deposit_markup_percent ?? $r?->markup_percent" />
         </x-admin.step>
     </div>
 

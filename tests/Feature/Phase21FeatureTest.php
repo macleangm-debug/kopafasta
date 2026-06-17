@@ -21,6 +21,7 @@ class Phase21FeatureTest extends TestCase
                 'category' => 'supplier',
                 'status'   => 'active',
                 'phone'    => '255712345815',
+                'regions'  => ['Dar es Salaam'],
             ])
             ->assertRedirect();
 

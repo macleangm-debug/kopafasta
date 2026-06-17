@@ -24,7 +24,7 @@ class PartnerSettlementService
             throw new \InvalidArgumentException('Settlement amount must be positive.');
         }
 
-        return VendorPayment::create([
+        $payment = VendorPayment::create([
             'vendor_id'       => $vendor->id,
             'vendor_task_id'  => $vendorTaskId,
             'invoice_number'  => 'INV-'.strtoupper(Str::random(8)),
@@ -33,11 +33,13 @@ class PartnerSettlementService
             'source_type'     => $sourceType,
             'source_id'       => $sourceId,
             'description'     => $description,
-        ])->tap(function (VendorPayment $payment) use ($vendor, $sourceType, $amount): void {
-            if ($this->shouldAutoApprove($vendor, $sourceType, $amount)) {
-                $this->approvePayment($payment, $this->systemUser());
-            }
-        });
+        ]);
+
+        if ($this->shouldAutoApprove($vendor, $sourceType, $amount)) {
+            $this->approvePayment($payment, $this->systemUser());
+        }
+
+        return $payment;
     }
 
     private function shouldAutoApprove(Vendor $vendor, string $sourceType, int $amount): bool

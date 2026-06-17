@@ -55,7 +55,7 @@ class PartnerSettlementServiceTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
         $service = app(PartnerSettlementService::class);
 
-        $payment = $service->accrue($vendor, 10_000, 'supplier_deposit', 5, 'Deposit payout');
+        $payment = $service->accrue($vendor, 10_000, 'vendor_task', 5, 'Task payout');
         $service->approvePayment($payment, $admin);
         $service->queueWeeklySettlements();
 

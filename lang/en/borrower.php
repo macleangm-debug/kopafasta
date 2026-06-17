@@ -584,6 +584,7 @@ return [
         'public_login_cta' => 'Log in to apply',
         'public_my_marketplace_cta' => 'My marketplace →',
         'back_to_marketplace' => '← Back to marketplace',
+        'view_details' => 'View details →',
         'reserve_title' => 'Apply for asset',
         'back_to_asset' => 'Back to asset',
         'asset_summary' => 'Asset summary',

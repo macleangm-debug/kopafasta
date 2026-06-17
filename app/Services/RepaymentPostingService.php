@@ -124,6 +124,12 @@ class RepaymentPostingService
             $capital->distributeInterest($loan, (float) $repayment->interest_component);
             $capital->reduceExposure($loan, (float) $repayment->principal_component);
 
+            try {
+                app(AssetLendingRepaymentService::class)->accruePrincipalPayout($loan, $repayment);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
             // 5) Post journal entry
             return $this->postJournal($repayment->fresh(), $loan);
         });

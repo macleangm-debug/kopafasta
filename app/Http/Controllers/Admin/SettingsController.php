@@ -364,6 +364,8 @@ class SettingsController extends Controller
             'top_up_min_successful_repayments'      => ['nullable', 'integer', 'min:0', 'max:60'],
             'payment_holiday_accrue_interest'       => ['nullable', 'boolean'],
             'payment_holiday_max_months'            => ['nullable', 'integer', 'min:1', 'max:12'],
+            'group_min_members'                     => ['required', 'integer', 'min:2', 'max:100'],
+            'group_max_members'                     => ['required', 'integer', 'min:2', 'max:200'],
         ]);
         $data['allow_asset_reuse'] = (bool) ($data['allow_asset_reuse'] ?? false);
         $data['payment_holiday_accrue_interest'] = (bool) ($data['payment_holiday_accrue_interest'] ?? false);
@@ -381,6 +383,16 @@ class SettingsController extends Controller
         $data['qualification_membership_inactive_factor'] = (float) ($data['qualification_membership_inactive_factor'] ?? 0);
         $data['qualification_kyc_incomplete_factor'] = (float) ($data['qualification_kyc_incomplete_factor'] ?? 0.5);
         $data['qualification_min_profile_percent'] = (int) ($data['qualification_min_profile_percent'] ?? 60);
+
+        $groupMin = (int) ($data['group_min_members'] ?? 5);
+        $groupMax = (int) ($data['group_max_members'] ?? 30);
+        if ($groupMax < $groupMin) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'group_max_members' => 'Maximum group members must be greater than or equal to the minimum.',
+            ]);
+        }
+        $data['group_min_members'] = $groupMin;
+        $data['group_max_members'] = $groupMax;
 
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["loan.$k" => $v])->all());
         return back()->with('status', 'Loan rules saved.');

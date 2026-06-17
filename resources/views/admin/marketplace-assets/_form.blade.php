@@ -17,8 +17,11 @@
 <x-admin.step title="Pricing">
     <x-admin.input name="asset_value" label="Asset value" money :decimals="2" :value="$r?->asset_value ?? ($prefill['asset_value'] ?? 0)" required />
     <x-admin.input name="supplier_deposit" label="Supplier deposit" money :decimals="2" :value="$r?->supplier_deposit ?? 0" required />
-    <x-admin.input name="deposit_markup_percent" label="Deposit markup (%)" type="number" step="0.01"
-                   :value="$r?->deposit_markup_percent ?? ($defaultDepositMarkupPercent ?? 10)" />
+    <p class="md:col-span-2 text-xs text-gray-500">
+        Deposit markup uses the platform default from Settings → Asset lending
+        (<strong>{{ rtrim(rtrim(number_format($defaultDepositMarkupPercent ?? 10, 2), '0'), '.') }}%</strong>).
+        Customer deposit is calculated automatically.
+    </p>
     <x-admin.input name="weekly_installment" label="Weekly installment" money :decimals="2" :value="$r?->weekly_installment ?? 0" required />
     <x-admin.input name="max_tenure_months" label="Max tenure (months)" type="number" :value="$r?->max_tenure_months ?? ($prefill['max_tenure_months'] ?? 12)" required />
     <x-admin.input name="waiting_period_days" label="Waiting period (days after deposit)" type="number"

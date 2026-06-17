@@ -12,14 +12,12 @@ class MarketplaceAssetService
 {
     public function syncDeposit(MarketplaceAsset $asset, ?Vendor $vendor = null): void
     {
-        $vendor ??= $asset->vendor;
-        $markup = (float) ($asset->deposit_markup_percent ?: $vendor?->deposit_markup_percent ?: $vendor?->markup_percent ?: 0);
-
-        if ($markup !== (float) $asset->deposit_markup_percent) {
-            $asset->deposit_markup_percent = $markup;
-        }
-
+        $asset->deposit_markup_percent = app(AssetLendingService::class)->defaultDepositMarkupPercent();
         $asset->customer_deposit = $asset->computeCustomerDeposit();
+
+        if ($asset->exists) {
+            $asset->save();
+        }
     }
 
     /** @param array<string, mixed> $data */
@@ -33,9 +31,6 @@ class MarketplaceAssetService
             $vendor = Vendor::find($data['vendor_id']);
             if ($vendor) {
                 $data['supplier_name'] = $data['supplier_name'] ?? $vendor->name;
-                if (empty($data['deposit_markup_percent'])) {
-                    $data['deposit_markup_percent'] = $vendor->deposit_markup_percent ?? $vendor->markup_percent ?? 0;
-                }
             }
         }
 
@@ -43,9 +38,7 @@ class MarketplaceAssetService
             $data['waiting_period_days'] = app(AssetLendingService::class)->defaultWaitingPeriodDays();
         }
 
-        if (blank($data['deposit_markup_percent'] ?? null)) {
-            $data['deposit_markup_percent'] = app(AssetLendingService::class)->defaultDepositMarkupPercent();
-        }
+        $data['deposit_markup_percent'] = app(AssetLendingService::class)->defaultDepositMarkupPercent();
 
         $asset = $existing ?? new MarketplaceAsset($data);
         $asset->fill($data);
@@ -120,8 +113,7 @@ class MarketplaceAssetService
             'insurance_expires_at'   => ['nullable', 'date'],
             'asset_value'            => ['required', 'numeric', 'min:0'],
             'supplier_deposit'       => ['required', 'numeric', 'min:0'],
-            'deposit_markup_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'weekly_installment'     => ['required', 'numeric', 'min:0'],
+            'weekly_installment'     => ['nullable', 'numeric', 'min:0'],
             'max_tenure_months'      => ['required', 'integer', 'min:1', 'max:120'],
             'waiting_period_days'    => ['nullable', 'integer', 'min:0', 'max:90'],
             'is_active'              => ['nullable', 'boolean'],
