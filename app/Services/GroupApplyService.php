@@ -68,12 +68,15 @@ class GroupApplyService
 
         $name = trim(($member->first_name ?? '').' '.($member->last_name ?? ''));
 
+        $status = app(GroupMemberProgressService::class)->statusFromCustomer($member);
+
         return [
             'ok'          => true,
             'customer_id' => $member->id,
             'name'        => $name,
             'phone'       => $member->phone,
             'label'       => trim($name.' · '.($member->customer_number ?: $member->phone)),
+            'status_key'  => $status['key'],
         ];
     }
 
@@ -137,6 +140,13 @@ class GroupApplyService
 
         $this->groups->validateMemberCount($members->count());
 
+        $targetCount = (int) ($group['target_member_count'] ?? 0);
+        if ($targetCount > 0 && $members->count() !== $targetCount) {
+            throw ValidationException::withMessages([
+                'group.members' => __('borrower.apply.group.members_required'),
+            ]);
+        }
+
         $total = $members->sum('requested_amount');
         if ($total < (float) $product->min_amount || $total > (float) $product->max_amount) {
             throw ValidationException::withMessages([
@@ -148,9 +158,11 @@ class GroupApplyService
         }
 
         return [
-            'name'    => $name,
-            'purpose' => $purpose,
-            'members' => $members->values()->all(),
+            'name'                => $name,
+            'purpose'             => $purpose,
+            'target_member_count' => $targetCount > 0 ? $targetCount : $members->count(),
+            'amount_per_member'   => (float) ($group['amount_per_member'] ?? $members->first()['requested_amount'] ?? 0),
+            'members'             => $members->values()->all(),
         ];
     }
 

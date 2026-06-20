@@ -38,14 +38,20 @@
     @include('admin.loan-applications.review._recommendation')
 
     <div x-data="{ tab: 'borrower' }" class="space-y-4">
-        <nav class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2" aria-label="Review sections">
-            @foreach ([
-                ['borrower', 'Borrower'],
-                ['documents', 'Documents'],
-                ['crb', 'CRB'],
-                ['guarantor', 'Guarantor'],
-                ['decision', 'Decision'],
-            ] as [$key, $label])
+        <nav class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2" aria-label="Review sections">
+            @php
+                $reviewTabs = [
+                    ['borrower', 'Borrower'],
+                    ['documents', 'Documents'],
+                    ['crb', 'CRB'],
+                    ['guarantor', 'Guarantor'],
+                ];
+                if ($groupReview ?? null) {
+                    $reviewTabs[] = ['group', 'Group loan'];
+                }
+                $reviewTabs[] = ['decision', 'Decision'];
+            @endphp
+            @foreach ($reviewTabs as [$key, $label])
                 <button type="button"
                         @click="tab = '{{ $key }}'"
                         :class="tab === '{{ $key }}' ? 'bg-gray-900 text-white ring-gray-900' : 'bg-white text-gray-700 ring-gray-200 hover:bg-gray-50'"
@@ -75,6 +81,12 @@
         <div x-show="tab === 'guarantor'" x-cloak class="space-y-6">
             @include('admin.loan-applications.review._guarantors')
         </div>
+
+        @if ($groupReview ?? null)
+            <div x-show="tab === 'group'" x-cloak class="space-y-6">
+                @include('admin.loan-applications.review._group')
+            </div>
+        @endif
 
         <div x-show="tab === 'decision'" x-cloak class="space-y-6">
             @include('admin.loan-applications._workflow')

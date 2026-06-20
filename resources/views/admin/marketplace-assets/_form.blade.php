@@ -1,5 +1,7 @@
-@php($r = $record ?? null)
-@php($prefill = $prefill ?? [])
+@php
+    $r = $record ?? null;
+    $prefill = $prefill ?? [];
+@endphp
 <x-admin.step title="Asset details">
     <x-admin.select name="vendor_id" label="Supplier" :options="$suppliers" :value="$r?->vendor_id" placeholder="— optional —" />
     <x-admin.select name="category" label="Category" :options="$categories" :value="$r?->category" required />

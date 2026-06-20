@@ -168,7 +168,7 @@ class LoanApplicationController extends ResourceController
     public function show($id): View
     {
         $record = LoanApplication::query()
-            ->with(['customer', 'product', 'loan', 'stageHistory.changedByUser', 'alternativeProduct', 'recommendedByUser', 'collateralAsset', 'assetReservation.asset.vendor', 'manualPostApprovalFees', 'valuationAssignments.vendor'])
+            ->with(['customer', 'product', 'loan', 'loanGroup.members.customer', 'loanGroup.leader', 'stageHistory.changedByUser', 'alternativeProduct', 'recommendedByUser', 'collateralAsset', 'assetReservation.asset.vendor', 'manualPostApprovalFees', 'valuationAssignments.vendor'])
             ->findOrFail($id);
 
         $workflow = app(LoanApplicationWorkflowService::class);
@@ -222,6 +222,7 @@ class LoanApplicationController extends ResourceController
 
         $gpsInstallers = app(\App\Services\GpsPartnerService::class)->installersForApplication($record);
         $suggestedGpsInstaller = app(\App\Services\GpsPartnerService::class)->suggestInstaller($record);
+        $groupReview = app(\App\Services\GroupLoanReviewService::class)->dossier($record);
 
         return view("admin.{$this->viewFolder}.show", compact(
             'record',
@@ -245,6 +246,7 @@ class LoanApplicationController extends ResourceController
             'externalLenders',
             'gpsInstallers',
             'suggestedGpsInstaller',
+            'groupReview',
         ));
     }
 
@@ -384,6 +386,39 @@ class LoanApplicationController extends ResourceController
         return back()->with(
             'status',
             $history ? 'CRB report refreshed and attached to this application.' : 'CRB refresh could not be completed.',
+        );
+    }
+
+    public function refreshGroupCrb(LoanApplication $loan_application, CrbCreditCheckService $crbCredit): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.view'), 403);
+
+        $loan_application->loadMissing('loanGroup.members.customer');
+        $group = $loan_application->loanGroup;
+        abort_unless($group, 404);
+
+        $refreshed = 0;
+        foreach ($group->members as $member) {
+            $customer = $member->customer;
+            if (! $customer) {
+                continue;
+            }
+            $history = $crbCredit->refreshCreditReport($customer);
+            if ($history) {
+                $crbCredit->attachToApplication($loan_application, $history, [
+                    'reused'    => false,
+                    'refreshed' => true,
+                    'member_id' => $member->id,
+                ]);
+                $refreshed++;
+            }
+        }
+
+        return back()->with(
+            'status',
+            $refreshed > 0
+                ? "CRB refreshed for {$refreshed} group member(s)."
+                : 'CRB refresh could not be completed for group members.',
         );
     }
 

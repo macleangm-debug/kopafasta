@@ -68,8 +68,13 @@ class GroupLendingService
     /**
      * @param  list<array{customer_id: int, role?: string, requested_amount?: float}>  $members
      */
-    public function createForApplication(LoanApplication $application, array $members, ?string $name = null, ?string $purpose = null): LoanGroup
-    {
+    public function createForApplication(
+        LoanApplication $application,
+        array $members,
+        ?string $name = null,
+        ?string $purpose = null,
+        ?int $targetMemberCount = null,
+    ): LoanGroup {
         $application->loadMissing('product', 'customer');
 
         if (! $this->isGroupProduct($application->product)) {
@@ -90,7 +95,7 @@ class GroupLendingService
             'primary_application_id' => $application->id,
             'status'                 => 'active',
             'recovery_stage'         => 'individual',
-            'target_member_count'    => count($members),
+            'target_member_count'    => $targetMemberCount ?: count($members),
         ]);
 
         foreach (array_values($members) as $index => $row) {

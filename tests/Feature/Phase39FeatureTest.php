@@ -89,4 +89,14 @@ class Phase39FeatureTest extends TestCase
             ->assertSee('Markup rules', false)
             ->assertSee('Suppliers cannot override markup', false);
     }
+
+    public function test_marketplace_asset_create_route_is_registered_before_show(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.marketplace-assets.create'))
+            ->assertOk()
+            ->assertSee('New marketplace asset', false);
+    }
 }

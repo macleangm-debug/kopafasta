@@ -2,7 +2,7 @@
 
 return [
     'min_members' => 5,
-    'max_members' => 30,
+    'max_members' => 10,
 
     'leader_unlock_repayments' => 2,
 
@@ -12,6 +12,6 @@ return [
         'external'        => 'External recovery partner',
     ],
 
-    'application_fee_per_member' => true,
+    'application_fee_per_member' => false,
     'post_approval_fee_per_group' => true,
 ];

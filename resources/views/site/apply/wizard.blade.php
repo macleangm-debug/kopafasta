@@ -85,6 +85,7 @@
                   products: @js($wizardProducts->map($wizardProductPayload)->values()->all()),
                   guarantorLookupUrl: @js(route('site.borrower.apply.guarantor-lookup')),
                   groupMemberLookupUrl: @js($groupMemberLookupUrl ?? route('site.borrower.apply.group-member-lookup')),
+                  groupMemberInviteUrl: @js($groupMemberInviteUrl ?? route('site.borrower.apply.group-member-invite')),
                   groupLimits: @js($groupMemberLimits ?? ['min' => 5, 'max' => 30]),
                   leaderCustomerId: {{ (int) ($leaderCustomerId ?? $customer->id) }},
                   leaderName: @js($leaderName ?? $customer->full_name),
@@ -157,6 +158,11 @@
                           'valuation_fee' => __('borrower.apply.steps.valuation_fee'),
                           'group_setup' => __('borrower.apply.steps.group_setup'),
                           'group_members' => __('borrower.apply.steps.group_members'),
+                      ],
+                      'groupProgress' => [
+                          'added' => __('borrower.apply.group.progress.added'),
+                          'profiles' => __('borrower.apply.group.progress.profiles'),
+                          'verified' => __('borrower.apply.group.progress.verified'),
                       ],
                       'alerts' => [
                           'loadProduct' => __('borrower.apply.alerts.load_product'),
@@ -978,7 +984,12 @@
                 leaderCustomerId: config.leaderCustomerId || null,
                 leaderName: config.leaderName || '',
                 leaderPhone: config.leaderPhone || '',
-                group: config.savedDraft?.group || { name: '', purpose: '', members: [] },
+                group: config.savedDraft?.group || { name: '', purpose: '', target_member_count: null, amount_per_member: 0, members: [] },
+                groupMemberMode: 'internal',
+                groupExternal: { first_name: '', last_name: '', phone: '' },
+                groupExternalInvite: null,
+                groupInviteLoading: false,
+                groupProgressLabels: @js(app(\App\Services\GroupMemberProgressService::class)->statusLabels()),
                 groupLookupPhone: '',
                 groupLookupLoading: false,
                 groupLookupError: '',
@@ -1670,17 +1681,123 @@
 
                 initGroupLeader() {
                     if (! this.leaderCustomerId) return;
+                    if (! this.group.target_member_count) {
+                        this.group.target_member_count = this.groupLimits.min;
+                    }
+                    if (! this.group.amount_per_member) {
+                        this.group.amount_per_member = Math.max(1000, Math.round((this.current?.min || 1000) / Math.max(1, this.groupLimits.min)));
+                    }
                     const exists = this.group.members.some(m => Number(m.customer_id) === Number(this.leaderCustomerId));
-                    if (exists) return;
-                    const defaultAmount = Math.max(1000, Math.round((this.current?.min || 1000) / Math.max(1, this.groupLimits.min)));
+                    if (exists) {
+                        this.syncGroupAmounts();
+                        return;
+                    }
                     this.group.members = [{
                         customer_id: this.leaderCustomerId,
                         name: this.leaderName,
                         phone: this.leaderPhone,
                         role: 'leader',
-                        requested_amount: defaultAmount,
+                        requested_amount: this.group.amount_per_member,
                     }];
-                    this.updateGroupTotal();
+                    this.syncGroupAmounts();
+                },
+
+                groupTargetCount() {
+                    return Number(this.group.target_member_count || this.groupLimits.min || 0);
+                },
+
+                groupTotalAmount() {
+                    const count = this.groupTargetCount();
+                    const perMember = Number(this.group.amount_per_member || 0);
+                    return count * perMember;
+                },
+
+                syncGroupAmounts() {
+                    const perMember = Math.max(1000, Number(this.group.amount_per_member || 0));
+                    this.group.amount_per_member = perMember;
+                    this.group.members = this.group.members.map((member) => ({
+                        ...member,
+                        requested_amount: perMember,
+                    }));
+                    this.form.requested_amount = this.group.members.reduce((sum, m) => sum + Number(m.requested_amount || 0), 0);
+                    if (this.group.purpose) this.form.purpose = this.group.purpose;
+                    this.updateQuote();
+                },
+
+                groupProgress() {
+                    const target = this.groupTargetCount();
+                    const added = this.group.members.length;
+                    const verified = this.group.members.filter(m => (m.status_key || 'verification_complete') === 'verification_complete').length;
+                    const profiles = this.group.members.filter(m => ['profile_complete', 'verification_complete'].includes(m.status_key || 'verification_complete')).length;
+                    const tpl = this.i18n.groupProgress || {};
+                    const fill = (text, vars) => Object.entries(vars).reduce((s, [k, v]) => s.replace(':' + k, String(v)), text || '');
+                    return {
+                        target,
+                        added,
+                        verified,
+                        profiles_complete: profiles,
+                        summary: [
+                            fill(tpl.added, { added, target }),
+                            fill(tpl.profiles, { done: profiles, target }),
+                            fill(tpl.verified, { done: verified, target }),
+                        ],
+                        can_submit: target > 0 && added === target && verified === target,
+                    };
+                },
+
+                memberStatusLabel(member) {
+                    const key = member.status_key || (member.invitation_id ? 'invitation_sent' : 'verification_complete');
+                    return this.groupProgressLabels?.[key] || key;
+                },
+
+                memberStatusClass(member) {
+                    const key = member.status_key || (member.invitation_id ? 'invitation_sent' : 'verification_complete');
+                    return key === 'verification_complete' ? 'text-emerald-700' : 'text-amber-700';
+                },
+
+                async inviteExternalGroupMember() {
+                    if (! this.groupMemberInviteUrl || ! this.current) return;
+                    this.groupLookupError = '';
+                    this.groupInviteLoading = true;
+                    try {
+                        const res = await fetch(this.groupMemberInviteUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({
+                                loan_product_id: this.current.id,
+                                first_name: this.groupExternal.first_name,
+                                last_name: this.groupExternal.last_name,
+                                phone: this.groupExternal.phone,
+                            }),
+                        });
+                        const data = await res.json();
+                        if (! res.ok || ! data.ok) {
+                            this.groupLookupError = data.message || @js(__('borrower.apply.group.lookup_not_found'));
+                            return;
+                        }
+                        this.groupExternalInvite = data.share;
+                        this.group.members.push({
+                            invitation_id: data.share.invitation_id,
+                            name: data.name,
+                            phone: data.phone,
+                            role: 'member',
+                            requested_amount: this.group.amount_per_member,
+                            status_key: 'invitation_sent',
+                        });
+                        this.groupExternal = { first_name: '', last_name: '', phone: '' };
+                        this.syncGroupAmounts();
+                        await this.persistDraft(true);
+                    } catch (e) {
+                        this.groupLookupError = @js(__('borrower.apply.group.lookup_not_found'));
+                    } finally {
+                        this.groupInviteLoading = false;
+                    }
                 },
 
                 updateGroupTotal() {
@@ -1698,7 +1815,7 @@
                         this.groupLookupError = @js(__('borrower.apply.group.lookup_invalid_phone'));
                         return;
                     }
-                    if (this.group.members.length >= this.groupLimits.max) {
+                    if (this.group.members.length >= this.groupTargetCount()) {
                         return;
                     }
                     this.groupLookupLoading = true;
@@ -1728,7 +1845,8 @@
                             name: data.name,
                             phone: data.phone,
                             role: 'member',
-                            requested_amount: Math.max(1000, Math.round((this.current?.min || 1000) / Math.max(1, this.groupLimits.min))),
+                            requested_amount: this.group.amount_per_member,
+                            status_key: data.status_key || 'profile_incomplete',
                         });
                         this.groupLookupPhone = '';
                         this.updateGroupTotal();
@@ -2523,14 +2641,25 @@
                             alert(@js(__('borrower.apply.group.name_required_step')));
                             return false;
                         }
+                        const count = this.groupTargetCount();
+                        if (! count || count < this.groupLimits.min || count > this.groupLimits.max) {
+                            alert(@js(__('borrower.apply.group.member_count_range')));
+                            return false;
+                        }
+                        if (! this.group.amount_per_member || Number(this.group.amount_per_member) < 1000) {
+                            alert(@js(__('borrower.apply.group.amount_required')));
+                            return false;
+                        }
                         if (! this.group.purpose) {
                             alert(@js(__('borrower.apply.group.purpose_required')));
                             return false;
                         }
+                        this.syncGroupAmounts();
                         this.form.purpose = this.group.purpose;
                     }
                     if (this.stepKey === 'group_members' && this.hasStep('group_members')) {
-                        if (this.group.members.length < this.groupLimits.min) {
+                        const target = this.groupTargetCount();
+                        if (this.group.members.length !== target) {
                             alert(@js(__('borrower.apply.group.members_required')));
                             return false;
                         }
@@ -2544,7 +2673,7 @@
                             alert(`Total group amount must be between ${this.formatTzs(this.current.min)} and ${this.formatTzs(this.current.max)}.`);
                             return false;
                         }
-                        this.updateGroupTotal();
+                        this.syncGroupAmounts();
                     }
                     if (this.stepKey === 'asset_details' && this.hasStep('asset_details')) {
                         if (! this.customerAssets.length) {
@@ -2817,6 +2946,10 @@
                         } else {
                             alert(@js(__('borrower.apply.kyc_incomplete_submit')));
                         }
+                        return;
+                    }
+                    if (this.isGroupProduct(this.current) && ! this.groupProgress().can_submit) {
+                        alert(@js(__('borrower.apply.group.members_not_verified')));
                         return;
                     }
                     const sigData = this.borrowerSignature?.signature_data || this.readSignatureFromPad(e.target);

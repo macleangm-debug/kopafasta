@@ -26,6 +26,8 @@ use App\Services\AssetBackedApplyService;
 use App\Services\CrbCreditCheckService;
 use App\Services\DisplayedRateService;
 use App\Services\GroupApplyService;
+use App\Services\GroupMemberInvitationService;
+use App\Services\GroupMemberProgressService;
 use App\Services\GroupLendingService;
 use App\Services\LoanApplicationDraftService;
 use App\Services\LoanPolicyService;
@@ -251,6 +253,7 @@ class ApplyController extends Controller
             ->with('activityTypes', activity_type_options())
             ->with('groupMemberLimits', app(GroupApplyService::class)->memberLimits())
             ->with('groupMemberLookupUrl', route('site.borrower.apply.group-member-lookup'))
+            ->with('groupMemberInviteUrl', route('site.borrower.apply.group-member-invite'))
             ->with('leaderCustomerId', $customer->id)
             ->with('leaderName', $customer->full_name)
             ->with('leaderPhone', $customer->phone);
@@ -335,6 +338,46 @@ class ApplyController extends Controller
             'name'        => $result['name'],
             'phone'       => $result['phone'],
             'label'       => $result['label'],
+            'status_key'  => $result['status_key'] ?? 'profile_incomplete',
+        ]);
+    }
+
+    public function prepareGroupMemberInvite(
+        Request $request,
+        GroupMemberInvitationService $invites,
+    ): \Illuminate\Http\JsonResponse {
+        $leader = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($leader, 403);
+
+        $data = $request->validate([
+            'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
+            'first_name'      => ['required', 'string', 'max:60'],
+            'last_name'       => ['required', 'string', 'max:80'],
+            'phone'           => ['required', 'string', 'max:20'],
+            'email'           => ['nullable', 'email', 'max:150'],
+        ]);
+
+        $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
+
+        try {
+            $share = $invites->prepareExternalInvitation(
+                $leader,
+                $product,
+                $data['first_name'],
+                null,
+                $data['last_name'],
+                $data['phone'],
+                $data['email'] ?? null,
+            );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'ok'   => true,
+            'name' => $share['name'],
+            'phone'=> $share['phone'],
+            'share'=> $share,
         ]);
     }
 
@@ -1303,6 +1346,7 @@ class ApplyController extends Controller
                 $groupData['members'],
                 $groupData['name'],
                 loan_purpose_label($groupData['purpose']) ?? $groupData['purpose'],
+                (int) ($groupData['target_member_count'] ?? count($groupData['members'])),
             );
         }
 

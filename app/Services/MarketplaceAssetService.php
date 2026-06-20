@@ -34,6 +34,10 @@ class MarketplaceAssetService
             }
         }
 
+        if (blank($data['supplier_name'] ?? null)) {
+            $data['supplier_name'] = trim((string) ($data['title'] ?? '')) ?: 'Marketplace supplier';
+        }
+
         if (blank($data['waiting_period_days'] ?? null)) {
             $data['waiting_period_days'] = app(AssetLendingService::class)->defaultWaitingPeriodDays();
         }

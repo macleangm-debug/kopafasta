@@ -89,6 +89,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
     Route::get('/guarantor-request/{token}/declined', [\App\Http\Controllers\Site\PublicGuarantorController::class, 'declined'])->name('guarantor.declined');
     Route::post('/guarantor-request/{token}/accept', [\App\Http\Controllers\Site\PublicGuarantorController::class, 'accept'])->name('guarantor.accept');
     Route::post('/guarantor-request/{token}/reject', [\App\Http\Controllers\Site\PublicGuarantorController::class, 'reject'])->name('guarantor.reject');
+    Route::get('/group-member-invite/{token}', [\App\Http\Controllers\Site\GroupMemberInviteController::class, 'show'])->name('group-member.invite');
     Route::get('/guarantor/{token}', fn (string $token) => redirect("/guarantor-request/{$token}", 301));
     Route::get('/g/{code}', [\App\Http\Controllers\Site\ShortLinkController::class, 'guarantor'])->name('short.guarantor');
 
@@ -140,6 +141,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::get('/borrower/apply/product/{product}/readiness', [\App\Http\Controllers\Site\ApplyController::class, 'productReadiness'])->name('borrower.apply.product-readiness');
                 Route::post('/borrower/apply/guarantor-lookup', [\App\Http\Controllers\Site\ApplyController::class, 'lookupGuarantor'])->name('borrower.apply.guarantor-lookup');
                 Route::post('/borrower/apply/group-member-lookup', [\App\Http\Controllers\Site\ApplyController::class, 'lookupGroupMember'])->name('borrower.apply.group-member-lookup');
+                Route::post('/borrower/apply/group-member-invite', [\App\Http\Controllers\Site\ApplyController::class, 'prepareGroupMemberInvite'])->name('borrower.apply.group-member-invite');
                 Route::get('/borrower/apply/previous-guarantors', [\App\Http\Controllers\Site\ApplyController::class, 'previousGuarantors'])->name('borrower.apply.previous-guarantors');
                 Route::post('/borrower/apply/previous-guarantor', [\App\Http\Controllers\Site\ApplyController::class, 'selectPreviousGuarantor'])->name('borrower.apply.previous-guarantor');
                 Route::post('/borrower/apply/guarantor-invite', [\App\Http\Controllers\Site\ApplyController::class, 'prepareExternalGuarantor'])->name('borrower.apply.guarantor-invite');
@@ -393,6 +395,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('loan-applications.documents.reject');
         Route::post('loan-applications/{loan_application}/refresh-crb', [LoanApplicationController::class, 'refreshCrb'])
             ->name('loan-applications.refresh-crb');
+        Route::post('loan-applications/{loan_application}/refresh-group-crb', [LoanApplicationController::class, 'refreshGroupCrb'])
+            ->name('loan-applications.refresh-group-crb');
         Route::post('loan-applications/{loan_application}/create-loan', [LoanApplicationController::class, 'createLoan'])
             ->name('loan-applications.create-loan');
         Route::post('loan-application-document-requests/{documentRequest}/satisfy', [LoanApplicationDocumentRequestController::class, 'satisfy'])
@@ -490,11 +494,15 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('partner-applications/{partnerApplication}', [\App\Http\Controllers\Admin\PartnerApplicationController::class, 'update'])->name('partner-applications.update');
         Route::middleware('permission:marketplace.view,marketplace.manage')->group(function (): void {
             Route::view('marketplace-assets', 'admin.marketplace-assets.index')->name('marketplace-assets.index');
-            Route::get('marketplace-assets/{marketplace_asset}', [\App\Http\Controllers\Admin\MarketplaceAssetController::class, 'show'])->name('marketplace-assets.show');
         });
         Route::middleware('permission:marketplace.manage')->group(function (): void {
             Route::get('marketplace-assets/create', [\App\Http\Controllers\Admin\MarketplaceAssetController::class, 'create'])->name('marketplace-assets.create');
             Route::post('marketplace-assets', [\App\Http\Controllers\Admin\MarketplaceAssetController::class, 'store'])->name('marketplace-assets.store');
+        });
+        Route::middleware('permission:marketplace.view,marketplace.manage')->group(function (): void {
+            Route::get('marketplace-assets/{marketplace_asset}', [\App\Http\Controllers\Admin\MarketplaceAssetController::class, 'show'])->name('marketplace-assets.show');
+        });
+        Route::middleware('permission:marketplace.manage')->group(function (): void {
             Route::get('marketplace-assets/{marketplace_asset}/edit', [\App\Http\Controllers\Admin\MarketplaceAssetController::class, 'edit'])->name('marketplace-assets.edit');
             Route::put('marketplace-assets/{marketplace_asset}', [\App\Http\Controllers\Admin\MarketplaceAssetController::class, 'update'])->name('marketplace-assets.update');
             Route::delete('marketplace-assets/{marketplace_asset}', [\App\Http\Controllers\Admin\MarketplaceAssetController::class, 'destroy'])->name('marketplace-assets.destroy');
