@@ -20,7 +20,7 @@ class VendorTaskController extends Controller
         $this->authorize('create', VendorTask::class);
 
         $data = $request->validate([
-            'vendor_id' => ['required', 'exists:vendors,id'],
+            'vendor_id' => ['required', 'exists:partners,id'],
             'loan_application_id' => ['nullable', 'exists:loan_applications,id'],
             'loan_id' => ['nullable', 'exists:loans,id'],
             'task_type' => ['required', 'string', 'max:100'],

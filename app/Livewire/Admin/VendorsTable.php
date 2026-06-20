@@ -50,14 +50,14 @@ class VendorsTable extends Component
                 $term = '%'.$this->search.'%';
                 $q->where(function ($qq) use ($term) {
                     $qq->where('name', 'like', $term)
-                       ->orWhere('vendor_number', 'like', $term)
+                       ->orWhere('partner_number', 'like', $term)
                        ->orWhere('phone', 'like', $term)
                        ->orWhere('affiliate_code', 'like', $term);
                 });
             })
             ->when($this->status !== '',   fn ($q) => $q->where('status', $this->status))
             ->when($this->category !== '', fn ($q) => $q->where('category', $this->category))
-            ->orderBy($this->sort, $this->direction)
+            ->orderBy($this->sort === 'vendor_number' ? 'partner_number' : $this->sort, $this->direction)
             ->paginate($this->perPage);
 
         $statuses   = ['active', 'inactive', 'suspended'];

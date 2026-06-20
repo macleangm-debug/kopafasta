@@ -22,7 +22,7 @@ class ExpenseController extends ResourceController
     {
         return [
             'branch_id'      => ['nullable', 'exists:branches,id'],
-            'vendor_id'      => ['nullable', 'exists:vendors,id'],
+            'vendor_id'      => ['nullable', 'exists:partners,id'],
             'gl_account_id'  => ['nullable', 'exists:chart_of_accounts,id'],
             'category'       => ['required', 'string', 'max:80'],
             'description'    => ['nullable', 'string', 'max:500'],

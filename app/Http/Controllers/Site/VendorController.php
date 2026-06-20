@@ -40,7 +40,7 @@ class VendorController extends Controller
 
     protected function tasksQuery(Vendor $vendor)
     {
-        return VendorTask::where('vendor_id', $vendor->id);
+        return VendorTask::where('partner_id', $vendor->id);
     }
 
     /* ------------------------------------------------------------------ */
@@ -56,9 +56,9 @@ class VendorController extends Controller
             'in_progress'   => $this->tasksQuery($vendor)->where('status', 'in_progress')->count(),
             'completed_mo'  => $this->tasksQuery($vendor)->where('status', 'completed')
                                 ->where('completed_at', '>=', now()->startOfMonth())->count(),
-            'payments_pend' => (int) VendorPayment::where('vendor_id', $vendor->id)
+            'payments_pend' => (int) VendorPayment::where('partner_id', $vendor->id)
                                 ->where('status', 'pending')->sum('amount'),
-            'earnings'      => (int) VendorPayment::where('vendor_id', $vendor->id)
+            'earnings'      => (int) VendorPayment::where('partner_id', $vendor->id)
                                 ->where('status', 'paid')->sum('amount'),
         ];
 
@@ -128,7 +128,7 @@ class VendorController extends Controller
 
         $query = \App\Models\RecoveryAssignment::query()
             ->with(['arrearCase.loan.customer', 'vendorTask'])
-            ->where('vendor_id', $vendor->id)
+            ->where('partner_id', $vendor->id)
             ->latest('assigned_at');
 
         if ($status !== '' && $status !== 'all') {
@@ -248,7 +248,7 @@ class VendorController extends Controller
         }
 
         $assignment = \App\Models\ValuationAssignment::query()
-            ->where('vendor_task_id', $task->id)
+            ->where('partner_task_id', $task->id)
             ->first();
 
         if ($assignment) {
@@ -270,7 +270,7 @@ class VendorController extends Controller
 
         if ($task->task_type === 'asset_valuation') {
             $assignment = \App\Models\ValuationAssignment::query()
-                ->where('vendor_task_id', $task->id)
+                ->where('partner_task_id', $task->id)
                 ->first();
 
             if ($assignment && filled($data['market_value'] ?? null) && filled($data['forced_sale_value'] ?? null)) {
@@ -353,7 +353,7 @@ class VendorController extends Controller
     public function documents()
     {
         $vendor = $this->vendor();
-        $documents = VendorDocument::where('vendor_id', $vendor->id)
+        $documents = VendorDocument::where('partner_id', $vendor->id)
             ->with('task')
             ->latest()->paginate(20);
         return view('site.vendor.documents', compact('vendor', 'documents'));
@@ -387,13 +387,13 @@ class VendorController extends Controller
     public function payments()
     {
         $vendor = $this->vendor();
-        $payments = VendorPayment::where('vendor_id', $vendor->id)
+        $payments = VendorPayment::where('partner_id', $vendor->id)
             ->with('task')->latest()->paginate(15);
 
         $totals = [
-            'paid'    => (int) VendorPayment::where('vendor_id', $vendor->id)->where('status', 'paid')->sum('amount'),
-            'pending' => (int) VendorPayment::where('vendor_id', $vendor->id)->where('status', 'pending')->sum('amount'),
-            'count'   => VendorPayment::where('vendor_id', $vendor->id)->count(),
+            'paid'    => (int) VendorPayment::where('partner_id', $vendor->id)->where('status', 'paid')->sum('amount'),
+            'pending' => (int) VendorPayment::where('partner_id', $vendor->id)->where('status', 'pending')->sum('amount'),
+            'count'   => VendorPayment::where('partner_id', $vendor->id)->count(),
         ];
 
         return view('site.vendor.payments', compact('vendor', 'payments', 'totals'));

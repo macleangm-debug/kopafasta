@@ -3,5 +3,5 @@
         <a href="{{ route('admin.partners.index') }}" class="text-sm font-semibold text-amber-700 hover:underline">← Partners hub</a>
     </div>
     <x-admin.index-toolbar route="admin.partners" label="New partner" />
-    @livewire('admin.vendors-table')
+    @livewire('admin.partners-table')
 </x-admin.layout>

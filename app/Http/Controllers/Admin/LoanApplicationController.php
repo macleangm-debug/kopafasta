@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\CustomerDocument;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
+use App\Models\Setting;
 use App\Services\CrbCreditCheckService;
 use App\Services\ApplicationDocumentReviewService;
 use App\Services\ApplicationOfferService;
@@ -210,6 +211,18 @@ class LoanApplicationController extends ResourceController
         $suggestedValuer = app(\App\Services\ValuationPartnerService::class)->suggestValuer($record);
         $valuationReport = app(\App\Services\ValuationPartnerService::class)->reportForApplication($record);
 
+        $externalLenders = \App\Models\Lender::query()
+            ->where('status', 'active')
+            ->when(
+                \Illuminate\Support\Facades\Schema::hasColumn('lenders', 'funding_source'),
+                fn ($q) => $q->where(fn ($inner) => $inner->where('funding_source', 'external')->orWhereNull('funding_source'))
+            )
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+
+        $gpsInstallers = app(\App\Services\GpsPartnerService::class)->installersForApplication($record);
+        $suggestedGpsInstaller = app(\App\Services\GpsPartnerService::class)->suggestInstaller($record);
+
         return view("admin.{$this->viewFolder}.show", compact(
             'record',
             'review',
@@ -229,6 +242,9 @@ class LoanApplicationController extends ResourceController
             'valuers',
             'suggestedValuer',
             'valuationReport',
+            'externalLenders',
+            'gpsInstallers',
+            'suggestedGpsInstaller',
         ));
     }
 
@@ -246,7 +262,18 @@ class LoanApplicationController extends ResourceController
             'offered_amount'           => ['nullable', 'numeric', 'min:0'],
             'offered_tenure_months'    => ['nullable', 'integer', 'min:1', 'max:120'],
             'alternative_product_id'   => ['nullable', 'integer', 'exists:loan_products,id'],
+            'funding_source'           => ['nullable', 'in:internal,external'],
+            'preferred_lender_id'      => ['nullable', 'integer', 'exists:lenders,id'],
         ]);
+
+        if ($data['action'] === 'approve' && application_needs_funding_choice($loan_application->product)) {
+            if (empty($data['funding_source'])) {
+                return back()->withErrors(['funding_source' => 'Select internal or external funding source.'])->withInput();
+            }
+            if ($data['funding_source'] === 'external' && empty($data['preferred_lender_id']) && (Setting::get('finance.capital_allocation_strategy') ?? 'proportional') === 'manual') {
+                return back()->withErrors(['preferred_lender_id' => 'Select a capital partner when allocation strategy is manual.'])->withInput();
+            }
+        }
 
         if ($data['action'] === 'reject' && empty(trim($data['rejection_reason_code'] ?? ''))) {
             return back()->withErrors(['rejection_reason_code' => 'Select a rejection reason.'])->withInput();
@@ -310,6 +337,15 @@ class LoanApplicationController extends ResourceController
             }
 
             if (! in_array($data['action'], ['suggest_asset_alternative', 'issue_offer'], true)) {
+                if ($data['action'] === 'approve' && application_needs_funding_choice($loan_application->product)) {
+                    $loan_application->update([
+                        'funding_source'        => $data['funding_source'],
+                        'preferred_lender_id'   => $data['funding_source'] === 'external'
+                            ? ($data['preferred_lender_id'] ?? null)
+                            : null,
+                    ]);
+                }
+
                 $workflow->transition(
                     $loan_application->fresh(),
                     auth()->user(),

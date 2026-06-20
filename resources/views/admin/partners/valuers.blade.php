@@ -1,3 +1,3 @@
 <x-admin.layout title="Valuers" heading="Valuers" subheading="Asset valuation partners">
-    @livewire('admin.vendors-table', ['category' => 'valuer', 'lockCategory' => true])
+    @livewire('admin.partners-table', ['category' => 'valuer', 'lockCategory' => true])
 </x-admin.layout>

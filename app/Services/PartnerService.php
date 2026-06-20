@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Partner;
 use App\Models\Vendor;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -28,12 +29,12 @@ class PartnerService
 
     public function filteredQuery(?string $role = null, ?string $search = null): Builder
     {
-        return Vendor::query()
+        return Partner::query()
             ->when(filled($search), function (Builder $q) use ($search): void {
                 $term = '%'.$search.'%';
                 $q->where(function (Builder $qq) use ($term): void {
                     $qq->where('name', 'like', $term)
-                        ->orWhere('vendor_number', 'like', $term)
+                        ->orWhere('partner_number', 'like', $term)
                         ->orWhere('phone', 'like', $term)
                         ->orWhere('affiliate_code', 'like', $term);
                 });

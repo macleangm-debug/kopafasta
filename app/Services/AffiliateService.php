@@ -124,7 +124,7 @@ class AffiliateService
 
     public function stats(Vendor $affiliate): array
     {
-        $events = AffiliateEvent::query()->where('vendor_id', $affiliate->id);
+        $events = AffiliateEvent::query()->where('partner_id', $affiliate->id);
 
         return [
             'clicks'        => (clone $events)->where('event_type', 'click')->count(),

@@ -126,6 +126,28 @@ class KycFreshnessService
             ->all();
     }
 
+    /** @return list<string> */
+    public function staleSectionLabels(Customer $customer): array
+    {
+        return collect($this->sectionsDueForRefresh($customer))
+            ->map(fn (string $section) => $this->sectionLabel($section))
+            ->values()
+            ->all();
+    }
+
+    public function sectionLabel(string $section): string
+    {
+        return match ($section) {
+            'residence' => __('borrower.kyc.residence'),
+            'activity'  => __('borrower.kyc.activity'),
+            'documents' => __('borrower.profile.proof_of_income_title'),
+            'kin'       => __('borrower.profile.kin_info'),
+            'face'      => __('borrower.profile.face'),
+            'nida'      => __('borrower.profile.nida_verification'),
+            default     => ucfirst(str_replace('_', ' ', $section)),
+        };
+    }
+
     public function sectionRequiresRefresh(Customer $customer, string $sectionKey): bool
     {
         return $this->isSectionStale($customer, $sectionKey);

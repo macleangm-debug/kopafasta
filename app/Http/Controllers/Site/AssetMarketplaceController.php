@@ -76,7 +76,7 @@ class AssetMarketplaceController extends Controller
 
         $reservation = null;
         if ($customer = auth()->user()?->customer) {
-            $model = $this->findModel($assetId);
+            $model = $this->resolveModel($assetId);
             if ($model) {
                 $reservation = app(AssetReservationService::class)->activeForCustomer($customer, $model);
             }
@@ -92,7 +92,7 @@ class AssetMarketplaceController extends Controller
         $customer = auth()->user()?->customer;
         abort_unless($customer, 403);
 
-        $model = $this->findModel($assetId);
+        $model = $this->resolveModel($assetId);
         abort_if(! $model, 404);
 
         app(AssetReservationService::class)->startApplication($customer, $model);
@@ -107,7 +107,7 @@ class AssetMarketplaceController extends Controller
         $customer = auth()->user()?->customer;
         abort_unless($customer, 403);
 
-        $model = $this->findModel($assetId);
+        $model = $this->resolveModel($assetId);
         abort_if(! $model, 404);
 
         $request->validate([
@@ -134,7 +134,7 @@ class AssetMarketplaceController extends Controller
         $customer = auth()->user()?->customer;
         abort_unless($customer, 403);
 
-        $model = $this->findModel($assetId);
+        $model = $this->resolveModel($assetId);
         abort_if(! $model, 404);
 
         $reservation = $reservations->activeForCustomer($customer, $model);
@@ -187,7 +187,7 @@ class AssetMarketplaceController extends Controller
         $customer = auth()->user()?->customer;
         abort_unless($customer, 403);
 
-        $model = $this->findModel($assetId);
+        $model = $this->resolveModel($assetId);
         abort_if(! $model, 404);
 
         $reservation = $reservations->activeForCustomer($customer, $model);
@@ -202,11 +202,6 @@ class AssetMarketplaceController extends Controller
             'use_wallet'     => ['nullable', 'boolean'],
             'promo_code'     => ['nullable', 'string', 'max:40'],
         ]);
-
-        $checklist = app(ApplicationRequirementsService::class)->checklist($customer);
-        if (! $checklist['can_apply']) {
-            return back()->with('error', __('borrower.marketplace.requirements_before_payment'));
-        }
 
         if ($data['payment_method'] === 'mobile_money' && ! empty($data['mobile_number'])) {
             if (! CustomerPaymentService::validateMobileNumber($data['mobile_number'])) {
@@ -258,7 +253,7 @@ class AssetMarketplaceController extends Controller
         $customer = auth()->user()?->customer;
         abort_unless($customer, 403);
 
-        $model = $this->findModel($assetId);
+        $model = $this->resolveModel($assetId);
         abort_if(! $model, 404);
 
         $reservation = $reservations->activeForCustomer($customer, $model);
@@ -393,6 +388,15 @@ class AssetMarketplaceController extends Controller
                 }
             })
             ->first();
+    }
+
+    private function resolveModel(string $assetId): ?MarketplaceAsset
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('marketplace_assets')) {
+            return null;
+        }
+
+        return app(\App\Services\MarketplaceAssetService::class)->resolveOrMaterialize($assetId);
     }
 
     private function findAsset(string $assetId): ?array

@@ -17,8 +17,8 @@ class QueuePartnerSettlements extends Command
             $count = \App\Models\VendorPayment::query()
                 ->where('status', 'approved')
                 ->whereNull('partner_settlement_id')
-                ->distinct('vendor_id')
-                ->count('vendor_id');
+                ->distinct('partner_id')
+                ->count('partner_id');
 
             $this->info("Dry run: would create up to {$count} settlement batch(es).");
 

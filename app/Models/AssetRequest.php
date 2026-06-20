@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\MapsLegacyPartnerId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AssetRequest extends Model
 {
+    use MapsLegacyPartnerId;
+
     protected $fillable = [
         'customer_id', 'vendor_id', 'asset_name', 'description', 'budget', 'preferred_tenure_months',
         'photo_path', 'additional_photos', 'status', 'admin_notes',
@@ -27,6 +30,6 @@ class AssetRequest extends Model
 
     public function vendor(): BelongsTo
     {
-        return $this->belongsTo(Vendor::class);
+        return $this->belongsTo(Vendor::class, 'partner_id');
     }
 }

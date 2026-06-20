@@ -98,7 +98,7 @@ class AuthController extends Controller
         if (filled($data['partner_code'] ?? null)) {
             $vendor = \App\Models\Vendor::query()
                 ->where('user_id', $user->id)
-                ->where('vendor_number', strtoupper(trim($data['partner_code'])))
+                ->where('partner_number', strtoupper(trim($data['partner_code'])))
                 ->first();
 
             if (! $vendor) {

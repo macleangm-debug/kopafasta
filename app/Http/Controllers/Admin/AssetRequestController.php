@@ -29,7 +29,7 @@ class AssetRequestController extends Controller
     {
         $data = $request->validate([
             'status'      => ['required', 'in:pending,reviewing,matched,closed'],
-            'vendor_id'   => ['nullable', 'exists:vendors,id'],
+            'vendor_id'   => ['nullable', 'exists:partners,id'],
             'admin_notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
@@ -48,7 +48,7 @@ class AssetRequestController extends Controller
             }
         }
 
-        if ($assetRequest->vendor_id && $assetRequest->wasChanged('vendor_id')) {
+        if ($assetRequest->vendor_id && $assetRequest->wasChanged('partner_id')) {
             $vendor = Vendor::find($assetRequest->vendor_id);
             if ($vendor?->email) {
                 app(NotificationService::class)->sendEmail(

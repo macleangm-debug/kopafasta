@@ -162,10 +162,10 @@ class Phase22FeatureTest extends TestCase
         $this->seed(\Database\Seeders\VendorSeeder::class);
 
         $this->assertTrue(
-            Vendor::query()->where('vendor_number', 'like', 'PTR-DEMO-%')->exists()
+            Vendor::query()->where('partner_number', 'like', 'PTR-DEMO-%')->exists()
         );
         $this->assertFalse(
-            Vendor::query()->where('vendor_number', 'like', 'VND-DEMO-%')->exists()
+            Vendor::query()->where('partner_number', 'like', 'VND-DEMO-%')->exists()
         );
     }
 }

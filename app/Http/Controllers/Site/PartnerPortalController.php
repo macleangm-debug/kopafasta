@@ -24,7 +24,7 @@ class PartnerPortalController extends Controller
         ]);
 
         $vendor = Vendor::query()
-            ->where('vendor_number', strtoupper(trim($data['partner_code'])))
+            ->where('partner_number', strtoupper(trim($data['partner_code'])))
             ->where('phone', $data['phone'])
             ->first();
 

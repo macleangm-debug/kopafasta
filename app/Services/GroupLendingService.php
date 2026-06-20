@@ -66,9 +66,9 @@ class GroupLendingService
     }
 
     /**
-     * @param  list<array{customer_id: int, role?: string}>  $members
+     * @param  list<array{customer_id: int, role?: string, requested_amount?: float}>  $members
      */
-    public function createForApplication(LoanApplication $application, array $members, ?string $name = null): LoanGroup
+    public function createForApplication(LoanApplication $application, array $members, ?string $name = null, ?string $purpose = null): LoanGroup
     {
         $application->loadMissing('product', 'customer');
 
@@ -85,6 +85,7 @@ class GroupLendingService
         $group = LoanGroup::create([
             'group_number'           => 'GRP-'.now()->format('ymd').'-'.Str::upper(Str::random(4)),
             'name'                   => $name ?: 'Group '.$application->application_number,
+            'purpose'                => $purpose,
             'leader_customer_id'     => $leaderId,
             'primary_application_id' => $application->id,
             'status'                 => 'active',
@@ -99,6 +100,7 @@ class GroupLendingService
                 'customer_id'         => (int) $row['customer_id'],
                 'loan_application_id' => (int) $row['customer_id'] === (int) $application->customer_id ? $application->id : null,
                 'role'                => $isLeader ? 'leader' : 'member',
+                'requested_amount'    => isset($row['requested_amount']) ? (float) $row['requested_amount'] : null,
                 'sort_order'          => $index + 1,
                 'disbursement_status' => $isLeader ? 'unlocked' : 'locked',
                 'disbursement_unlocked_at' => $isLeader ? now() : null,

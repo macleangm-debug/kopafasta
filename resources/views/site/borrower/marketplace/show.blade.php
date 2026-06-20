@@ -57,8 +57,6 @@
                 @endif
             </div>
 
-            @include('site.marketplace._deposit-breakdown', ['asset' => $asset])
-
             <p class="mt-4 text-xs text-gray-500">{{ config('asset_marketplace.ownership_note') }}</p>
 
             <div class="mt-6 flex flex-wrap gap-3" id="apply">

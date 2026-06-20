@@ -96,12 +96,17 @@ class ApplicationRequirementsService
         ];
 
         if (! $freshness->canApply($customer)) {
+            $staleSections = $freshness->sectionsDueForRefresh($customer);
+            $staleLabels = $freshness->staleSectionLabels($customer);
             $items[] = [
                 'key'        => 'kyc_freshness',
                 'label'      => 'Profile review due',
                 'complete'   => false,
                 'pending'    => true,
-                'detail'     => 'Confirm activity and residence details are current',
+                'detail'     => $staleLabels !== []
+                    ? __('borrower.kyc.stale_sections_detail', ['sections' => implode(', ', $staleLabels)])
+                    : 'Confirm activity and residence details are current',
+                'stale_sections' => $staleSections,
                 'action_url' => route('site.borrower.kyc-reconfirm'),
             ];
         }

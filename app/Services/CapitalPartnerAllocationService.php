@@ -25,14 +25,18 @@ class CapitalPartnerAllocationService
 
     public const COMPANY_INTEREST_SHARE = 40.0;
 
-    public function partnerInterestSharePercent(): float
+    public function partnerInterestSharePercent(?Lender $lender = null): float
     {
+        if ($lender && $lender->revenue_share_percent !== null && $lender->revenue_share_percent !== '') {
+            return (float) $lender->revenue_share_percent;
+        }
+
         return (float) (\App\Models\Setting::get('finance.capital_partner_interest_share_percent') ?? self::PARTNER_INTEREST_SHARE);
     }
 
-    public function companyInterestSharePercent(): float
+    public function companyInterestSharePercent(?Lender $lender = null): float
     {
-        return max(0, 100 - $this->partnerInterestSharePercent());
+        return max(0, 100 - $this->partnerInterestSharePercent($lender));
     }
 
     /**
@@ -42,9 +46,19 @@ class CapitalPartnerAllocationService
      */
     public function capitalReadinessForLoan(Loan $loan): array
     {
-        $loan->loadMissing(['product']);
+        $loan->loadMissing(['product', 'application']);
 
         if (! $loan->product || ! $this->productUsesCapitalPartner($loan->product)) {
+            return [
+                'ok'            => true,
+                'required'      => 0,
+                'available'     => 0,
+                'uses_capital'  => false,
+                'message'       => null,
+            ];
+        }
+
+        if ($loan->application && application_uses_internal_funding($loan->application)) {
             return [
                 'ok'            => true,
                 'required'      => 0,
@@ -72,10 +86,25 @@ class CapitalPartnerAllocationService
                 'available'     => $amount,
                 'uses_capital'  => true,
                 'message'       => null,
+                'manual_required' => false,
             ];
         }
 
-        $partners = $this->availablePartners();
+        if ($this->allocationStrategy() === 'manual') {
+            $partners = $this->availablePartners($loan->application?->preferred_lender_id);
+            $totalAvailable = (float) $partners->sum('available');
+
+            return [
+                'ok'              => false,
+                'required'        => $amount,
+                'available'       => $totalAvailable,
+                'uses_capital'    => true,
+                'message'         => 'Assign capital partners on this loan before disbursement.',
+                'manual_required' => true,
+            ];
+        }
+
+        $partners = $this->availablePartners($loan->application?->preferred_lender_id);
         if ($partners->isEmpty()) {
             return [
                 'ok'            => false,
@@ -246,12 +275,16 @@ class CapitalPartnerAllocationService
             return;
         }
 
+        if ($loan->application && application_uses_internal_funding($loan->application)) {
+            return;
+        }
+
         $amount = (float) $loan->principal_amount;
         if ($amount <= 0) {
             return;
         }
 
-        $partners = $this->availablePartners();
+        $partners = $this->availablePartners($loan->application?->preferred_lender_id);
         if ($partners->isEmpty()) {
             throw ValidationException::withMessages([
                 'capital' => 'No capital partner pool has available funds for this loan.',
@@ -269,7 +302,7 @@ class CapitalPartnerAllocationService
 
         if ($strategy === 'manual') {
             throw ValidationException::withMessages([
-                'capital' => 'Capital allocation is set to manual. Allocate this loan from the capital funding screen.',
+                'capital' => 'Manual allocation required. Assign capital partners on the loan page before disbursing.',
             ]);
         }
 
@@ -303,6 +336,153 @@ class CapitalPartnerAllocationService
                 ],
             );
         });
+    }
+
+    /**
+     * Manually assign capital partner(s) to a pending loan (when strategy = manual).
+     *
+     * @param  list<array{lender_id: int, amount: float|int|string}>  $rows
+     */
+    public function allocateManually(Loan $loan, array $rows): void
+    {
+        $loan->loadMissing(['product', 'application']);
+
+        if ($this->allocationStrategy() !== 'manual') {
+            throw ValidationException::withMessages([
+                'capital' => 'Manual allocation is only available when finance settings use the manual strategy.',
+            ]);
+        }
+
+        if ($loan->capitalAllocations()->exists()) {
+            throw ValidationException::withMessages([
+                'capital' => 'This loan already has capital allocations.',
+            ]);
+        }
+
+        if (! $loan->product || ! $this->productUsesCapitalPartner($loan->product)) {
+            throw ValidationException::withMessages([
+                'capital' => 'This loan product does not use capital partner funding.',
+            ]);
+        }
+
+        if ($loan->application && application_uses_internal_funding($loan->application)) {
+            throw ValidationException::withMessages([
+                'capital' => 'Internal funding was selected at approval — no partner allocation is needed.',
+            ]);
+        }
+
+        if (! in_array($loan->status, ['pending'], true)) {
+            throw ValidationException::withMessages([
+                'capital' => 'Capital can only be allocated while the loan is pending disbursement.',
+            ]);
+        }
+
+        $principal = (float) $loan->principal_amount;
+        if ($principal <= 0) {
+            throw ValidationException::withMessages([
+                'capital' => 'Loan principal must be greater than zero.',
+            ]);
+        }
+
+        $partners = $this->availablePartners($loan->application?->preferred_lender_id)
+            ->keyBy(fn (array $row) => $row['lender']->id);
+
+        $slices = [];
+        $total = 0.0;
+
+        foreach ($rows as $index => $row) {
+            $lenderId = (int) ($row['lender_id'] ?? 0);
+            $share = (float) ($row['amount'] ?? 0);
+
+            if ($share <= 0) {
+                continue;
+            }
+
+            $partner = $partners->get($lenderId);
+            if (! $partner) {
+                throw ValidationException::withMessages([
+                    "allocations.{$index}.lender_id" => 'Selected partner is unavailable or has no open pool.',
+                ]);
+            }
+
+            if ($share > (float) $partner['available'] + 0.01) {
+                throw ValidationException::withMessages([
+                    "allocations.{$index}.amount" => 'Amount exceeds available capital ('.format_money($partner['available']).').',
+                ]);
+            }
+
+            $total += $share;
+            $slices[] = [
+                'lender'  => $partner['lender'],
+                'pool'    => $partner['pool'],
+                'share'   => round($share, 2),
+                'percent' => round(($share / $principal) * 100, 4),
+            ];
+        }
+
+        if ($slices === []) {
+            throw ValidationException::withMessages([
+                'allocations' => 'Add at least one partner with an amount greater than zero.',
+            ]);
+        }
+
+        if (abs($total - $principal) > 0.01) {
+            throw ValidationException::withMessages([
+                'allocations' => 'Allocated total must equal loan principal ('.format_money($principal).').',
+            ]);
+        }
+
+        DB::transaction(function () use ($loan, $principal, $slices): void {
+            foreach ($slices as $slice) {
+                $this->persistAllocationSlice($loan, $slice, 'manual');
+            }
+
+            $this->audit->log(
+                $this->actor(),
+                'capital_partner.manual_allocation',
+                $loan,
+                [],
+                [
+                    'loan_number' => $loan->loan_number,
+                    'principal'   => $principal,
+                    'partners'    => count($slices),
+                ],
+            );
+        });
+    }
+
+    /** @return \Illuminate\Support\Collection<int, array{lender_id: int, lender_name: string, pool_name: string, available: float}> */
+    public function partnerOptionsForLoan(Loan $loan): \Illuminate\Support\Collection
+    {
+        $loan->loadMissing('application');
+
+        return $this->availablePartners($loan->application?->preferred_lender_id)
+            ->map(fn (array $row) => [
+                'lender_id'   => $row['lender']->id,
+                'lender_name' => $row['lender']->name,
+                'pool_name'   => $row['pool']->name,
+                'available'   => (float) $row['available'],
+            ])
+            ->values();
+    }
+
+    public function needsManualAllocation(Loan $loan): bool
+    {
+        if ($this->allocationStrategy() !== 'manual') {
+            return false;
+        }
+
+        $loan->loadMissing(['product', 'application']);
+
+        if (! $loan->product || ! $this->productUsesCapitalPartner($loan->product)) {
+            return false;
+        }
+
+        if ($loan->application && application_uses_internal_funding($loan->application)) {
+            return false;
+        }
+
+        return $loan->status === 'pending' && ! $loan->capitalAllocations()->exists();
     }
 
     public function allocationStrategy(): string
@@ -421,8 +601,8 @@ class CapitalPartnerAllocationService
             'lender_investment_id'           => $investment->id,
             'allocated_principal'            => $share,
             'allocation_percent'             => $percent,
-            'partner_interest_share_percent' => $this->partnerInterestSharePercent(),
-            'company_interest_share_percent' => self::COMPANY_INTEREST_SHARE,
+            'partner_interest_share_percent' => $this->partnerInterestSharePercent($slice['lender']),
+            'company_interest_share_percent' => $this->companyInterestSharePercent($slice['lender']),
             'outstanding_exposure'           => $share,
         ]);
 
@@ -561,10 +741,17 @@ class CapitalPartnerAllocationService
     /**
      * @return \Illuminate\Support\Collection<int, array{lender: Lender, pool: FundingPool, available: float}>
      */
-    protected function availablePartners()
+    protected function availablePartners(?int $preferredLenderId = null)
     {
         return Lender::query()
             ->where('status', 'active')
+            ->when(
+                \Illuminate\Support\Facades\Schema::hasColumn('lenders', 'funding_source'),
+                fn ($q) => $q->where(function ($inner): void {
+                    $inner->where('funding_source', 'external')->orWhereNull('funding_source');
+                })
+            )
+            ->when($preferredLenderId, fn ($q) => $q->where('id', $preferredLenderId))
             ->with(['pools' => fn ($q) => $q->where('status', 'open')])
             ->get()
             ->flatMap(function (Lender $lender) {

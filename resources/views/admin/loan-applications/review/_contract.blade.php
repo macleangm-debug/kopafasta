@@ -277,11 +277,38 @@
         @php $record->loadMissing('postApprovalFees'); @endphp
         <ul class="divide-y divide-gray-100 rounded-lg ring-1 ring-gray-200 overflow-hidden mb-4">
             @foreach ($record->postApprovalFees as $fee)
-                <li class="px-4 py-3 flex items-center justify-between text-sm">
-                    <span>{{ $fee->name }}</span>
-                    <span class="font-semibold {{ $fee->isPaid() ? 'text-emerald-700' : 'text-amber-700' }}">
-                        {{ format_money($fee->calculated_amount) }} · {{ ucfirst($fee->status) }}
-                    </span>
+                <li class="px-4 py-3 text-sm space-y-2">
+                    <div class="flex items-center justify-between gap-3">
+                        <span>{{ $fee->name }}</span>
+                        <span class="font-semibold {{ $fee->isPaid() ? 'text-emerald-700' : ($fee->isWaived() ? 'text-gray-500 line-through' : 'text-amber-700') }}">
+                            {{ format_money($fee->calculated_amount) }} · {{ ucfirst($fee->status) }}
+                        </span>
+                    </div>
+                    @if ($fee->override_reason)
+                        <p class="text-xs text-gray-500">Note: {{ $fee->override_reason }}</p>
+                    @endif
+                    @if (! $fee->isPaid() && ! $fee->isWaived() && in_array($record->current_stage, ['approval', 'disbursement'], true))
+                        <form method="POST" action="{{ route('admin.loan-applications.post-approval-fees.update', [$record, $fee]) }}" class="flex flex-wrap items-end gap-2 pt-1">
+                            @csrf
+                            <input type="hidden" name="action" value="update">
+                            <div>
+                                <label class="block text-[10px] uppercase text-gray-500">Override amount</label>
+                                <input type="number" name="amount" step="0.01" min="0" value="{{ $fee->calculated_amount }}" class="w-32 rounded border-gray-300 text-xs">
+                            </div>
+                            <div class="flex-1 min-w-[140px]">
+                                <label class="block text-[10px] uppercase text-gray-500">Reason</label>
+                                <input type="text" name="reason" maxlength="500" placeholder="Optional" class="w-full rounded border-gray-300 text-xs">
+                            </div>
+                            <button type="submit" class="text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg">Update</button>
+                        </form>
+                        <form method="POST" action="{{ route('admin.loan-applications.post-approval-fees.update', [$record, $fee]) }}" class="inline"
+                              onsubmit="return confirm('Waive this fee for the borrower?');">
+                            @csrf
+                            <input type="hidden" name="action" value="waive">
+                            <input type="hidden" name="reason" value="Waived by loan officer">
+                            <button type="submit" class="text-xs font-semibold text-gray-600 hover:text-red-700 underline">Waive fee</button>
+                        </form>
+                    @endif
                 </li>
             @endforeach
         </ul>

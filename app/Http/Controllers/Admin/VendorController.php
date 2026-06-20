@@ -12,7 +12,7 @@ class VendorController extends ResourceController
 {
     protected string $model = Vendor::class;
     protected string $routePrefix = 'admin.partners';
-    protected string $viewFolder = 'vendors';
+    protected string $viewFolder = 'partners';
     protected string $singular = 'partner';
 
     /** @var list<string> */
@@ -64,7 +64,7 @@ class VendorController extends ResourceController
         }
 
         if (! request()->query('category')) {
-            return view('admin.vendors.choose-type', $this->formData());
+            return view('admin.partners.choose-type', $this->formData());
         }
 
         return view("admin.{$this->viewFolder}.create", $this->formData());

@@ -21,6 +21,7 @@ class RoleSeeder extends Seeder
         'customer'       => 'Borrower portal account (legacy customer code).',
         'vendor'         => 'Partner portal account.',
         'investor'       => 'Investor / capital partner portal account.',
+        'asset_manager'  => 'Manages asset lending marketplace listings and borrower asset requests.',
     ];
 
     public function run(): void

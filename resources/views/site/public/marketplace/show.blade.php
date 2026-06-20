@@ -41,8 +41,6 @@
                     </div>
                 </div>
 
-                @include('site.marketplace._deposit-breakdown', ['asset' => $asset])
-
                 <div class="mt-8 rounded-2xl bg-amber-50 ring-1 ring-amber-200 p-5">
                     <p class="text-sm text-gray-700 mb-4">{{ __('borrower.marketplace.public_apply_hint') }}</p>
                     <a href="{{ $loginUrl }}" class="inline-flex bg-gray-900 hover:bg-gray-800 text-white font-semibold px-6 py-3 rounded-full text-sm">

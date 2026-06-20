@@ -35,12 +35,19 @@ class AssetBackedApplyService
     public function validateAssetDetails(Customer $customer, array $form): void
     {
         $customerAsset = $this->resolveCustomerAsset($customer, $form);
-        $type = $customerAsset?->asset_type ?? (string) ($form['asset_type'] ?? '');
+
+        if (! $customerAsset) {
+            throw ValidationException::withMessages([
+                'customer_asset_id' => 'Select an asset from your profile. Add one under Profile → Assets if you have not yet.',
+            ]);
+        }
+
+        $type = $customerAsset->asset_type;
         $options = $this->assets->assetTypeOptions();
 
         if ($type === '' || ! array_key_exists($type, $options)) {
             throw ValidationException::withMessages([
-                'asset_type' => 'Select a valid asset type.',
+                'customer_asset_id' => 'The selected profile asset has an invalid type. Update it on your profile.',
             ]);
         }
 

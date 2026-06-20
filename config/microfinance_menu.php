@@ -21,8 +21,8 @@ return [
         'restructuring',
     ],
     'VENDORS' => [
-        'vendors',
-        'vendor_tasks',
+        'partners',
+        'partner_tasks',
         'gps_installation',
         'insurance',
         'valuation',

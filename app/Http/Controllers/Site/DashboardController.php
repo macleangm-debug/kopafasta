@@ -24,7 +24,7 @@ class DashboardController extends Controller
     public function vendor(): View
     {
         $vendor = Vendor::where('user_id', Auth::id())->first();
-        $tasks  = $vendor ? VendorTask::where('vendor_id', $vendor->id)->latest()->get() : collect();
+        $tasks  = $vendor ? VendorTask::where('partner_id', $vendor->id)->latest()->get() : collect();
         return view('site.vendor.dashboard', compact('vendor', 'tasks'));
     }
 }

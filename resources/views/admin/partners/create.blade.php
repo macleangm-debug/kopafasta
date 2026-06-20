@@ -5,5 +5,5 @@
     :action="route('admin.partners.store')"
     :cancelUrl="route('admin.partners.all')"
     submitLabel="Create partner">
-    @include('admin.vendors._form', ['record' => null])
+    @include('admin.partners._form', ['record' => null])
 </x-admin.create-page>

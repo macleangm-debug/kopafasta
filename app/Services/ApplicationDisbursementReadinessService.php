@@ -359,7 +359,11 @@ class ApplicationDisbursementReadinessService
         if ($capital) {
             $checklist['capital'] = [
                 'label'    => __('borrower.contract.checklist.capital'),
-                'status'   => $capital['ok'] ? 'available' : 'insufficient',
+                'status'   => match (true) {
+                    $capital['ok'] => 'available',
+                    ! empty($capital['manual_required']) => 'pending',
+                    default => 'insufficient',
+                },
                 'complete' => $capital['ok'],
             ];
         }

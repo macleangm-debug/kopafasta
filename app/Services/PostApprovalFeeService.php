@@ -6,7 +6,9 @@ use App\Models\LoanApplication;
 use App\Models\LoanApplicationPostApprovalFee;
 use App\Models\LoanProductPostApprovalFee;
 use App\Models\ManualPostApprovalFee;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class PostApprovalFeeService
 {
@@ -97,6 +99,71 @@ class PostApprovalFeeService
                 'status'                            => 'pending',
             ]);
         }
+    }
+
+    public function amountDue(LoanApplicationPostApprovalFee $fee): float
+    {
+        if ($fee->status === 'waived') {
+            return 0.0;
+        }
+
+        return (float) $fee->calculated_amount;
+    }
+
+    public function updateApplicationFee(
+        LoanApplicationPostApprovalFee $fee,
+        ?float $amount,
+        ?string $reason,
+        User $actor,
+    ): LoanApplicationPostApprovalFee {
+        if ($fee->isPaid()) {
+            throw ValidationException::withMessages(['fee' => 'Paid fees cannot be changed.']);
+        }
+
+        if ($fee->status === 'waived') {
+            throw ValidationException::withMessages(['fee' => 'Waived fees cannot be changed.']);
+        }
+
+        $updates = ['override_reason' => $reason];
+
+        if ($amount !== null) {
+            $updates['calculated_amount'] = max(0, round($amount, 2));
+        }
+
+        $fee->update($updates);
+
+        return $fee->refresh();
+    }
+
+    public function waiveApplicationFee(LoanApplicationPostApprovalFee $fee, User $actor, ?string $reason = null): LoanApplicationPostApprovalFee
+    {
+        if ($fee->isPaid()) {
+            throw ValidationException::withMessages(['fee' => 'Paid fees cannot be waived.']);
+        }
+
+        $fee->update([
+            'status'          => 'waived',
+            'calculated_amount' => 0,
+            'amount_paid'     => 0,
+            'override_reason' => $reason,
+            'waived_at'       => now(),
+            'waived_by'       => $actor->id,
+        ]);
+
+        if ($fee->manual_post_approval_fee_id) {
+            ManualPostApprovalFee::where('id', $fee->manual_post_approval_fee_id)->update([
+                'status'          => 'waived',
+                'borrower_amount' => 0,
+            ]);
+        }
+
+        $application = $fee->application()->first();
+        if ($application && $this->allPaid($application->fresh(['postApprovalFees']))) {
+            app(ApplicationDisbursementReadinessService::class)->syncBorrowerProgress($application->fresh());
+            app(LoanAgreementService::class)->ensureLoanContractAfterFees($application->fresh());
+        }
+
+        return $fee->refresh();
     }
 
     public function addManualFee(
@@ -204,7 +271,7 @@ class PostApprovalFeeService
     public function totalDue(LoanApplication $application): float
     {
         return (float) LoanApplicationPostApprovalFee::where('loan_application_id', $application->id)
-            ->where('status', '!=', 'paid')
+            ->where('status', 'pending')
             ->sum('calculated_amount');
     }
 
@@ -215,7 +282,7 @@ class PostApprovalFeeService
             return true;
         }
 
-        return $fees->every(fn (LoanApplicationPostApprovalFee $f) => $f->isPaid());
+        return $fees->every(fn (LoanApplicationPostApprovalFee $f) => $f->isPaid() || $f->status === 'waived');
     }
 
     public function markAllPaid(LoanApplication $application, ?\App\Models\Customer $payer = null, bool $useWallet = false): array

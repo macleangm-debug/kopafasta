@@ -137,10 +137,14 @@ class SmartLoanApplicationWizardService
         $profileKeys = ['personal', 'residence', 'kin', 'activity'];
         $isAssetLending = is_marketplace_loan_product($productCode);
         $isAssetBacked = $productCode && strtoupper((string) $productCode) === 'AB';
+        $isGroupLending = $product && is_group_loan_product($product);
 
         $steps = [];
 
-        if ($isAssetBacked) {
+        if ($isGroupLending) {
+            $steps[] = ['key' => 'group_setup', 'label' => __('borrower.apply.steps.group_setup'), 'skippable' => false, 'skipped' => false];
+            $steps[] = ['key' => 'group_members', 'label' => __('borrower.apply.steps.group_members'), 'skippable' => false, 'skipped' => false];
+        } elseif ($isAssetBacked) {
             $steps[] = ['key' => 'asset_details', 'label' => __('borrower.apply.steps.asset_details'), 'skippable' => false, 'skipped' => false];
         } elseif (! $isAssetLending) {
             $steps[] = ['key' => 'quote', 'label' => __('borrower.apply.steps.quote'), 'skippable' => false, 'skipped' => false];

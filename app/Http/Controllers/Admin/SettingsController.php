@@ -501,8 +501,12 @@ class SettingsController extends Controller
             'capital_partner_interest_share_percent'  => ['nullable', 'numeric', 'min:0', 'max:100'],
             'capital_allocation_strategy'             => ['nullable', 'in:proportional,round_robin,priority,manual'],
             'write_off_approval_required'             => ['nullable', 'boolean'],
+            'repayment_approval_required'           => ['nullable', 'boolean'],
+            'collections_gateway_only'              => ['nullable', 'boolean'],
         ]);
         $data['write_off_approval_required'] = $request->boolean('write_off_approval_required');
+        $data['repayment_approval_required'] = $request->boolean('repayment_approval_required');
+        $data['collections_gateway_only'] = $request->boolean('collections_gateway_only');
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["finance.$k" => $v])->all());
         return back()->with('status', 'Finance defaults saved.');
     }

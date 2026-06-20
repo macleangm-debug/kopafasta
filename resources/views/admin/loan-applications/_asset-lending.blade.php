@@ -40,6 +40,29 @@
 
         <div class="flex flex-wrap gap-2 border-t border-gray-100 pt-4">
             @if (($reqs['gps_required'] ?? false) && ! in_array($reservation->status, ['gps_installation', 'insurance_active', 'released'], true))
+                <div class="w-full rounded-lg bg-sky-50 ring-1 ring-sky-200 p-4 mb-2 space-y-3">
+                    <p class="text-xs font-semibold text-sky-900">Assign GPS installer</p>
+                    <form method="POST" action="{{ route('admin.loan-applications.assign-gps', $application) }}" class="flex flex-wrap gap-3 items-end">
+                        @csrf
+                        <div class="min-w-[200px]">
+                            <label class="block text-[10px] uppercase text-gray-500 mb-1">Installer</label>
+                            <select name="vendor_id" class="w-full rounded-lg border-gray-300 text-sm">
+                                <option value="">— Select installer —</option>
+                                @foreach (($gpsInstallers ?? collect()) as $installer)
+                                    <option value="{{ $installer->id }}" @selected(($suggestedGpsInstaller?->id ?? null) === $installer->id)>
+                                        {{ $installer->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <button type="submit" class="bg-sky-700 hover:bg-sky-600 text-white font-semibold px-4 py-2 rounded-lg text-sm">Assign selected</button>
+                    </form>
+                    <form method="POST" action="{{ route('admin.loan-applications.assign-gps', $application) }}">
+                        @csrf
+                        <input type="hidden" name="auto" value="1">
+                        <button type="submit" class="text-xs font-semibold text-sky-800 underline">Auto-match by region</button>
+                    </form>
+                </div>
                 <form method="POST" action="{{ route('admin.loan-applications.reservation-advance', $application) }}">
                     @csrf
                     <input type="hidden" name="action" value="gps_installation">

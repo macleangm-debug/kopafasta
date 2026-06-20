@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\MapsLegacyPartnerId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Expense extends Model
 {
+    use MapsLegacyPartnerId;
+
     protected function casts(): array
     {
         return [
@@ -22,7 +25,7 @@ class Expense extends Model
 
     public function vendor(): BelongsTo
     {
-        return $this->belongsTo(Vendor::class);
+        return $this->belongsTo(Vendor::class, 'partner_id');
     }
 
     public function recordedBy(): BelongsTo

@@ -12,11 +12,16 @@
                         Collection case #{{ $arrearCase->id }}
                     </a>
                 @endif
-                @if (in_array($loan->status, ['active', 'arrears', 'defaulted'], true) && (float) $loan->outstanding_balance > 0)
+                @if (admin_repayment_recording_allowed() && in_array($loan->status, ['active', 'arrears', 'defaulted'], true) && (float) $loan->outstanding_balance > 0)
                     <a href="{{ route('admin.repayments.create', ['loan_id' => $loan->id]) }}"
                        class="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg">
                         Record repayment
                     </a>
+                @elseif (collections_gateway_only() && in_array($loan->status, ['active', 'arrears', 'defaulted'], true))
+                    <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 bg-gray-100 px-3 py-1.5 rounded-lg ring-1 ring-gray-200"
+                          title="Manual recording disabled — repayments must come through the payment gateway">
+                        Gateway-only collections
+                    </span>
                 @endif
                 <a href="{{ route('admin.repayments.index') }}?loan={{ $loan->loan_number }}"
                    class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg">

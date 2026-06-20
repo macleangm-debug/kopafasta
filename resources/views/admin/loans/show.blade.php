@@ -9,6 +9,12 @@
         </div>
     @endif
 
+    @if (session('error'))
+        <div class="mb-4 rounded-lg bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">
+            {{ session('error') }}
+        </div>
+    @endif
+
         @if (! empty($disbursementBlocking) && $loan->status === 'pending')
             <div class="mb-4 rounded-lg bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">
                 <p class="font-semibold">Disbursement blocked</p>
@@ -304,7 +310,9 @@
         @include('admin.loans._servicing')
     @endif
 
-    @if ($loan->capitalAllocations->isNotEmpty())
+    @include('admin.loans._manual-capital-allocation')
+
+    @if ($loan->capitalAllocations->isNotEmpty() && ! in_array($loan->status, ['pending'], true))
         <div class="mt-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <h3 class="text-sm font-semibold text-gray-700 mb-1">Capital partner funding</h3>
             <p class="text-xs text-gray-500 mb-4">Capital allocated at disbursement · interest split {{ format_number(app(\App\Services\CapitalPartnerAllocationService::class)->partnerInterestSharePercent(), 0) }}% partner / {{ format_number(app(\App\Services\CapitalPartnerAllocationService::class)->companyInterestSharePercent(), 0) }}% company</p>
@@ -343,9 +351,9 @@
                 </table>
             </div>
         </div>
-    @elseif ($loan->product && ($loan->product->uses_capital_partner ?? true))
+    @elseif ($loan->status === 'pending' && $loan->product && ($loan->product->uses_capital_partner ?? true) && ! ($needsManualCapitalAllocation ?? false) && $loan->capitalAllocations->isEmpty() && ! ($loan->application && application_uses_internal_funding($loan->application)))
         <div class="mt-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">
-            This product uses capital partner funding. Capital will be allocated from partner pools when this loan is disbursed.
+            This product uses capital partner funding. Capital will be allocated automatically when this loan is disbursed.
         </div>
     @endif
 

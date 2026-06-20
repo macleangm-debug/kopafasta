@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\MapsLegacyPartnerId;
 use App\Services\AssetLendingService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MarketplaceAsset extends Model
 {
+    use MapsLegacyPartnerId;
+
     protected $fillable = [
         'slug', 'category', 'title', 'serial_number', 'chassis_number', 'engine_number',
         'insurance_policy_number', 'description', 'supplier_name', 'vendor_id',
@@ -37,7 +40,7 @@ class MarketplaceAsset extends Model
 
     public function vendor(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return $this->belongsTo(Vendor::class);
+        return $this->belongsTo(Vendor::class, 'partner_id');
     }
 
     public function reservations(): HasMany

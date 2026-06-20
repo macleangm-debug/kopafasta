@@ -99,6 +99,55 @@ class MarketplaceAssetService
         $asset->update(['photos' => $photos->values()->take(4)->all()]);
     }
 
+    /**
+     * Resolve a marketplace asset from DB, or materialize a config/demo asset into the DB
+     * so reservation and payment flows work for the same IDs shown on browse/detail pages.
+     */
+    public function resolveOrMaterialize(string $assetId): ?MarketplaceAsset
+    {
+        $existing = MarketplaceAsset::query()
+            ->where('is_active', true)
+            ->where(fn ($q) => $q->whereNull('availability_status')->orWhere('availability_status', 'available'))
+            ->where(function ($q) use ($assetId): void {
+                $q->where('slug', $assetId);
+                if (is_numeric($assetId)) {
+                    $q->orWhere('id', (int) $assetId);
+                }
+            })
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $config = collect(config('asset_marketplace.assets', []))->firstWhere('id', $assetId);
+        if (! $config) {
+            return null;
+        }
+
+        $supplierDeposit = (float) ($config['deposit'] ?? 0);
+        $assetValue = (float) ($config['asset_value'] ?? ($supplierDeposit * 1.4));
+
+        $prepared = $this->prepareForSave([
+            'slug'               => $config['id'],
+            'category'           => $config['category'] ?? 'other',
+            'title'              => $config['title'] ?? 'Marketplace asset',
+            'description'        => $config['description'] ?? null,
+            'supplier_name'      => $config['vendor'] ?? ($config['supplier'] ?? 'Demo supplier'),
+            'asset_value'        => $assetValue,
+            'supplier_deposit'   => $supplierDeposit,
+            'weekly_installment' => (float) ($config['weekly_installment'] ?? 0),
+            'max_tenure_months'  => (int) ($config['max_tenure_months'] ?? 12),
+            'photos'             => $config['photos'] ?? [],
+            'is_active'          => true,
+        ]);
+
+        return MarketplaceAsset::updateOrCreate(
+            ['slug' => $prepared['slug']],
+            $prepared,
+        );
+    }
+
     /** @return array<string, mixed> */
     public function validationRules(?MarketplaceAsset $existing = null): array
     {

@@ -42,7 +42,7 @@ class RecoveryPartnersTable extends Component
     {
         $rows = $partners->filteredQuery($this->partnerType, $this->search)
             ->when($this->status !== '', fn ($q) => $q->where('status', $this->status))
-            ->orderBy($this->sort, $this->direction)
+            ->orderBy($this->sort === 'vendor_number' ? 'partner_number' : $this->sort, $this->direction)
             ->paginate($this->perPage);
 
         $stats = [];

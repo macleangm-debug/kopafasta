@@ -22,6 +22,7 @@
     .charges td { padding: 4px 6px; border: 1px solid #e5e7eb; }
     .charges td:first-child { background: #f9fafb; width: 38%; font-weight: 600; }
     .signbox { margin-top: 20px; padding: 12px; border: 1px dashed #b45309; background: #fffbeb; }
+    .sign-row { display: table; width: 100%; table-layout: fixed; }
     .sign-col { width: 24%; display: inline-block; vertical-align: bottom; padding-right: 1%; }
     .sig-img { max-height: 72px; max-width: 180px; }
     .stamp-img { max-height: 72px; max-width: 72px; margin-top: 4px; }
@@ -123,17 +124,43 @@
 </ol>
 
 <div class="signbox">
-    <div>
+    <div class="sign-row">
         <div class="sign-col">
             <strong>Borrower</strong>
             @if (!empty($snapshot['borrower_signature']))
                 <div style="margin-top:4px"><img src="{{ $snapshot['borrower_signature']->signature_data }}" class="sig-img"></div>
+                <div class="muted">{{ $snapshot['borrower_signature']->signer_name ?? $snapshot['customer_name'] }}</div>
+            @else
+                <div class="muted" style="margin-top:8px">{{ $snapshot['customer_name'] ?? '—' }}</div>
+            @endif
+        </div>
+        <div class="sign-col">
+            <strong>Guarantor</strong>
+            @if (!empty($snapshot['guarantor_signature']))
+                <div style="margin-top:4px"><img src="{{ $snapshot['guarantor_signature']->signature_data }}" class="sig-img"></div>
+                <div class="muted">{{ $snapshot['guarantor_signature']->signer_name }}</div>
+            @elseif (! empty($snapshot['guarantor_name']))
+                <div class="muted" style="margin-top:8px">If applicable</div>
+            @else
+                <div class="muted" style="margin-top:8px">—</div>
             @endif
         </div>
         <div class="sign-col">
             <strong>{{ brand('legal_name') }}</strong>
             @if (! empty($snapshot['company_signature_path']))
                 <div style="margin-top:4px"><img src="{{ $snapshot['company_signature_path'] }}" class="sig-img"></div>
+            @endif
+            <div class="muted" style="margin-top:4px">{{ $snapshot['company_signatory_name'] ?? brand('legal_name') }}</div>
+            @if (! empty($snapshot['company_signatory_title']))
+                <div class="muted">{{ $snapshot['company_signatory_title'] }}</div>
+            @endif
+        </div>
+        <div class="sign-col" style="text-align:center">
+            <strong>Company stamp</strong>
+            @if (! empty($snapshot['company_stamp_path']))
+                <div><img src="{{ $snapshot['company_stamp_path'] }}" class="stamp-img" alt="Stamp"></div>
+            @else
+                <div class="muted" style="margin-top:12px">—</div>
             @endif
         </div>
     </div>

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasMembership;
+use App\Models\Concerns\MapsLegacyAffiliatePartnerId;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 class Customer extends Model
 {
     use HasMembership;
+    use MapsLegacyAffiliatePartnerId;
 
     protected $guarded = [];
 
@@ -96,7 +98,7 @@ class Customer extends Model
 
     public function affiliateVendor(): BelongsTo
     {
-        return $this->belongsTo(Vendor::class, 'affiliate_vendor_id');
+        return $this->belongsTo(Vendor::class, 'affiliate_partner_id');
     }
 
     public function assetReservations(): HasMany

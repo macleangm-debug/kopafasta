@@ -44,7 +44,8 @@
 
     {{-- Member card --}}
     <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br {{ $bgGradient }} text-white shadow-lg p-6"
-         x-data="{ copied: false, shareCopied: false, copyNo: @js($memberNoRaw), shareText: @js($shareText) }">
+         x-data="memberCardActions(@js($memberNoRaw), @js($shareText), @js($verifyUrl))"
+         x-ref="cardCapture">
         <div class="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/10"></div>
         <div class="absolute -left-10 -bottom-16 h-40 w-40 rounded-full bg-white/10"></div>
 
@@ -125,7 +126,15 @@
                     </a>
                 @endif
                 <button type="button"
-                        onclick="if (navigator.share) { navigator.share({ title: @js(brand_name().' membership'), text: shareText, url: @js($verifyUrl) }); } else { navigator.clipboard.writeText(shareText); }"
+                        @click="saveCardImage()"
+                        :disabled="saving"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-white/15 hover:bg-white/25 ring-1 ring-white/25 px-3 py-2 text-xs font-semibold disabled:opacity-60">
+                    <span x-show="!saving && !saved">Save to Photos</span>
+                    <span x-show="saving" x-cloak>Saving…</span>
+                    <span x-show="saved && !saving" x-cloak>Saved</span>
+                </button>
+                <button type="button"
+                        @click="shareMembership()"
                         class="inline-flex items-center gap-1.5 rounded-lg bg-white/15 hover:bg-white/25 ring-1 ring-white/25 px-3 py-2 text-xs font-semibold">
                     Share
                 </button>
@@ -133,6 +142,92 @@
             <p x-show="shareCopied" x-cloak class="mt-2 text-xs text-emerald-100">Share text copied.</p>
         @endif
     </div>
+
+    @once
+        @push('scripts')
+            <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+            <script>
+                document.addEventListener('alpine:init', function () {
+                    Alpine.data('memberCardActions', function (copyNo, shareText, verifyUrl) {
+                        return {
+                            copied: false,
+                            shareCopied: false,
+                            saving: false,
+                            saved: false,
+                            copyNo: copyNo,
+                            shareText: shareText,
+                            verifyUrl: verifyUrl,
+                            async saveCardImage() {
+                                if (typeof html2canvas !== 'function') {
+                                    alert('Unable to save image on this device. Try Download PDF instead.');
+                                    return;
+                                }
+
+                                this.saving = true;
+                                this.saved = false;
+
+                                try {
+                                    const canvas = await html2canvas(this.$refs.cardCapture, {
+                                        scale: window.devicePixelRatio > 1 ? 2 : 1,
+                                        backgroundColor: null,
+                                        useCORS: true,
+                                    });
+
+                                    const blob = await new Promise(function (resolve) {
+                                        canvas.toBlob(resolve, 'image/png');
+                                    });
+
+                                    if (!blob) {
+                                        throw new Error('Could not create image');
+                                    }
+
+                                    const filename = 'kopafasta-membership.png';
+                                    const file = new File([blob], filename, { type: 'image/png' });
+
+                                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                                        await navigator.share({ files: [file], title: 'Membership card' });
+                                        this.saved = true;
+                                        return;
+                                    }
+
+                                    const url = URL.createObjectURL(blob);
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.download = filename;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    link.remove();
+                                    URL.revokeObjectURL(url);
+                                    this.saved = true;
+                                } catch (e) {
+                                    if (!e || e.name !== 'AbortError') {
+                                        alert('Could not save image. Try Download PDF instead.');
+                                    }
+                                } finally {
+                                    this.saving = false;
+                                    if (this.saved) {
+                                        var self = this;
+                                        setTimeout(function () { self.saved = false; }, 2500);
+                                    }
+                                }
+                            },
+                            shareMembership() {
+                                var title = @js(brand_name().' membership');
+                                if (navigator.share) {
+                                    navigator.share({ title: title, text: this.shareText, url: this.verifyUrl });
+                                } else {
+                                    navigator.clipboard.writeText(this.shareText);
+                                    this.shareCopied = true;
+                                    var self = this;
+                                    setTimeout(function () { self.shareCopied = false; }, 2500);
+                                }
+                            },
+                        };
+                    });
+                });
+            </script>
+        @endpush
+    @endonce
 
     {{-- Circular status widget --}}
     <div class="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-6 flex flex-col items-center justify-center min-h-[220px]">

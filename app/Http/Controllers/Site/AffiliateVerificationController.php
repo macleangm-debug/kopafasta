@@ -15,7 +15,7 @@ class AffiliateVerificationController extends Controller
             ->where('category', 'affiliate')
             ->where(function ($q) use ($code): void {
                 $q->where('affiliate_code', strtoupper(trim($code)))
-                    ->orWhere('vendor_number', strtoupper(trim($code)));
+                    ->orWhere('partner_number', strtoupper(trim($code)));
             })
             ->first();
 

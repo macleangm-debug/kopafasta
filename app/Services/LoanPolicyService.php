@@ -40,6 +40,10 @@ class LoanPolicyService
 
     public function requiresGuarantorForApplication(LoanProduct $product, float $requestedAmount): bool
     {
+        if (is_group_loan_product($product)) {
+            return false;
+        }
+
         if ($product->requires_guarantor) {
             return true;
         }

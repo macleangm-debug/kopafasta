@@ -4,10 +4,12 @@ namespace Tests\Unit;
 
 use App\Models\Setting;
 use App\Services\CapitalPartnerAllocationService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class CapitalPartnerInterestSplitTest extends TestCase
 {
+    use RefreshDatabase;
     public function test_default_interest_split_is_sixty_forty(): void
     {
         Setting::set('finance.capital_partner_interest_share_percent', 60);
@@ -30,5 +32,23 @@ class CapitalPartnerInterestSplitTest extends TestCase
         $this->assertEqualsWithDelta(600.0, $partnerShare, 0.001);
         $this->assertEqualsWithDelta(400.0, $companyShare, 0.001);
         $this->assertEqualsWithDelta($interest, $partnerShare + $companyShare, 0.001);
+    }
+
+    public function test_lender_override_revenue_share_percent(): void
+    {
+        Setting::set('finance.capital_partner_interest_share_percent', 60);
+
+        $lender = \App\Models\Lender::create([
+            'code'                  => 'UNIT-SPLIT',
+            'name'                  => 'Override Partner',
+            'type'                  => 'bank',
+            'status'                => 'active',
+            'revenue_share_percent' => 75,
+        ]);
+
+        $service = app(CapitalPartnerAllocationService::class);
+
+        $this->assertEqualsWithDelta(75.0, $service->partnerInterestSharePercent($lender), 0.001);
+        $this->assertEqualsWithDelta(25.0, $service->companyInterestSharePercent($lender), 0.001);
     }
 }

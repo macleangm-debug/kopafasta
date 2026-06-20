@@ -28,7 +28,7 @@ class LoanAgreementService
             return $existing;
         }
 
-        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors']);
+        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors.guarantor']);
 
         $snapshot = $this->snapshotFromApplication($application);
 
@@ -91,7 +91,7 @@ class LoanAgreementService
             return $existing;
         }
 
-        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors']);
+        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors.guarantor']);
         $snapshot = $this->snapshotFromApplication($application);
 
         $agreement = $existing ?: new LoanAgreement([
@@ -137,7 +137,7 @@ class LoanAgreementService
     /** Re-render agreement PDFs after guarantor signature without clearing borrower signatures. */
     public function refreshGuarantorOnDocuments(LoanApplication $application): void
     {
-        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors']);
+        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors.guarantor']);
         $snapshot = $this->snapshotFromApplication($application);
 
         foreach (['offer_letter', 'loan_contract'] as $documentType) {
@@ -178,6 +178,11 @@ class LoanAgreementService
             }
 
             $agreement->save();
+        }
+
+        $loan = $application->loan;
+        if ($loan?->disbursement_date) {
+            $this->generateFinalLoanContract($loan->fresh(), regenerate: true);
         }
     }
 
@@ -396,7 +401,7 @@ class LoanAgreementService
             ->latest('id')
             ->first();
 
-        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors']);
+        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors.guarantor']);
         $snapshot = $this->snapshotFromApplication($application);
         $snapshot['disbursement_date'] = $loan->disbursement_date?->toDateString();
         $snapshot['first_due_date'] = $schedules->first()?->due_date?->toDateString();

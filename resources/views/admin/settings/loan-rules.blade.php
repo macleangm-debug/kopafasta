@@ -83,8 +83,8 @@
         </div>
 
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
-            <h3 class="text-sm font-semibold text-gray-700 mb-4">Group lending (foundation)</h3>
-            <p class="text-xs text-gray-500 mb-4">Member count limits for future group loan products. Applications are not enabled yet.</p>
+            <h3 class="text-sm font-semibold text-gray-700 mb-4">Group lending</h3>
+            <p class="text-xs text-gray-500 mb-4">Member limits and fee rules for group loan products. Borrower apply wizard for groups is in progress — backend recovery and staggered disbursement are active.</p>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <x-admin.input name="group_min_members" label="Minimum group members" type="number" :value="$values['group_min_members'] ?? '5'" required />
                 <x-admin.input name="group_max_members" label="Maximum group members" type="number" :value="$values['group_max_members'] ?? '30'" required />

@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\MapsLegacyPartnerId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PartnerSettlement extends Model
 {
+    use MapsLegacyPartnerId;
+
     protected $fillable = [
         'vendor_id',
         'reference',
@@ -35,7 +38,7 @@ class PartnerSettlement extends Model
 
     public function vendor(): BelongsTo
     {
-        return $this->belongsTo(Vendor::class);
+        return $this->belongsTo(Vendor::class, 'partner_id');
     }
 
     public function approvedByUser(): BelongsTo

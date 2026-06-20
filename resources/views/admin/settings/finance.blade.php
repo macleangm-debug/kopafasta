@@ -72,6 +72,28 @@
                     Require manager and finance approval before write-off
                 </label>
             </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Repayment maker-checker</label>
+                <input type="hidden" name="repayment_approval_required" value="0">
+                <label class="inline-flex items-center gap-2 text-sm text-gray-800 mt-2">
+                    <input type="checkbox" name="repayment_approval_required" value="1"
+                           @checked(! empty($values['repayment_approval_required']))
+                           class="rounded border-gray-300 text-amber-600">
+                    Require supervisor approval before admin-recorded repayments post to ledger
+                </label>
+                <p class="text-xs text-gray-500 mt-1">When enabled, the recorder and approver must be different users.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Collections security</label>
+                <input type="hidden" name="collections_gateway_only" value="0">
+                <label class="inline-flex items-center gap-2 text-sm text-gray-800 mt-2">
+                    <input type="checkbox" name="collections_gateway_only" value="1"
+                           @checked(! empty($values['collections_gateway_only']))
+                           class="rounded border-gray-300 text-amber-600">
+                    Gateway-only repayments (disable manual admin recording)
+                </label>
+                <p class="text-xs text-gray-500 mt-1">When enabled, repayments must arrive via borrower/gateway channels — staff cannot type cash payments into the ledger.</p>
+            </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

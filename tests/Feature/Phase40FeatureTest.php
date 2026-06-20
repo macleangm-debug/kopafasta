@@ -214,7 +214,7 @@ class Phase40FeatureTest extends TestCase
         $payment = app(AssetLendingRepaymentService::class)->accruePrincipalPayout($loan, $repayment);
 
         $this->assertNull($payment);
-        $this->assertDatabaseCount('vendor_payments', 0);
+        $this->assertDatabaseCount('partner_payments', 0);
     }
 
     public function test_loan_rules_save_group_member_limits(): void
@@ -271,7 +271,7 @@ class Phase40FeatureTest extends TestCase
             ])
             ->assertRedirect();
 
-        $this->assertDatabaseHas('vendors', [
+        $this->assertDatabaseHas('partners', [
             'name' => 'Regional Valuer',
         ]);
     }
@@ -289,7 +289,7 @@ class Phase40FeatureTest extends TestCase
             ])
             ->assertRedirect();
 
-        $this->assertDatabaseHas('vendors', [
+        $this->assertDatabaseHas('partners', [
             'name'     => 'Nationwide Affiliate',
             'category' => 'affiliate',
         ]);

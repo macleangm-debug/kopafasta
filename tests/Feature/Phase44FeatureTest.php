@@ -71,7 +71,7 @@ class Phase44FeatureTest extends TestCase
             ])
             ->assertRedirect();
 
-        $this->assertDatabaseHas('vendors', [
+        $this->assertDatabaseHas('partners', [
             'name'     => 'Nationwide Affiliate 44',
             'category' => 'affiliate',
         ]);

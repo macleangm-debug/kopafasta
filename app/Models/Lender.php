@@ -12,10 +12,22 @@ class Lender extends Model
     protected function casts(): array
     {
         return [
-            'credit_limit'      => 'decimal:2',
-            'available_balance' => 'decimal:2',
-            'auto_invest'       => 'boolean',
+            'credit_limit'         => 'decimal:2',
+            'available_balance'    => 'decimal:2',
+            'auto_invest'          => 'boolean',
+            'revenue_share_percent'=> 'decimal:2',
+            'kyc_verified_at'      => 'datetime',
         ];
+    }
+
+    public function isExternalPartner(): bool
+    {
+        return ($this->funding_source ?? 'external') === 'external';
+    }
+
+    public function kycVerified(): bool
+    {
+        return ($this->kyc_status ?? 'pending') === 'verified';
     }
 
     public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo

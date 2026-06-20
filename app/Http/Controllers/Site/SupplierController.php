@@ -32,10 +32,10 @@ class SupplierController extends Controller
         return view('site.supplier.dashboard', [
             'vendor' => $vendor,
             'stats'  => [
-                'assets'       => MarketplaceAsset::where('vendor_id', $vendor->id)->count(),
-                'reservations' => AssetReservation::whereHas('asset', fn ($q) => $q->where('vendor_id', $vendor->id))->whereNotIn('status', ['released', 'cancelled'])->count(),
-                'requests'     => AssetRequest::where('vendor_id', $vendor->id)->where('status', '!=', 'closed')->count(),
-                'pending_pay'  => (int) VendorPayment::where('vendor_id', $vendor->id)->where('status', 'pending')->sum('amount'),
+                'assets'       => MarketplaceAsset::where('partner_id', $vendor->id)->count(),
+                'reservations' => AssetReservation::whereHas('asset', fn ($q) => $q->where('partner_id', $vendor->id))->whereNotIn('status', ['released', 'cancelled'])->count(),
+                'requests'     => AssetRequest::where('partner_id', $vendor->id)->where('status', '!=', 'closed')->count(),
+                'pending_pay'  => (int) VendorPayment::where('partner_id', $vendor->id)->where('status', 'pending')->sum('amount'),
             ],
         ]);
     }
@@ -43,7 +43,7 @@ class SupplierController extends Controller
     public function assets(): View
     {
         $vendor = $this->supplier();
-        $assets = MarketplaceAsset::query()->where('vendor_id', $vendor->id)->latest()->paginate(20);
+        $assets = MarketplaceAsset::query()->where('partner_id', $vendor->id)->latest()->paginate(20);
 
         return view('site.supplier.assets.index', compact('vendor', 'assets'));
     }
@@ -113,7 +113,7 @@ class SupplierController extends Controller
     public function requests(): View
     {
         $vendor = $this->supplier();
-        $requests = AssetRequest::query()->where('vendor_id', $vendor->id)->latest()->paginate(20);
+        $requests = AssetRequest::query()->where('partner_id', $vendor->id)->latest()->paginate(20);
 
         return view('site.supplier.requests', compact('vendor', 'requests'));
     }
@@ -123,7 +123,7 @@ class SupplierController extends Controller
         $vendor = $this->supplier();
         $reservations = AssetReservation::query()
             ->with(['asset', 'customer', 'loanApplication'])
-            ->whereHas('asset', fn ($q) => $q->where('vendor_id', $vendor->id))
+            ->whereHas('asset', fn ($q) => $q->where('partner_id', $vendor->id))
             ->latest()
             ->paginate(20);
 
@@ -135,7 +135,7 @@ class SupplierController extends Controller
         $vendor = $this->supplier();
         $payments = VendorPayment::query()
             ->with('partnerSettlement')
-            ->where('vendor_id', $vendor->id)
+            ->where('partner_id', $vendor->id)
             ->latest()
             ->paginate(20);
 
@@ -147,7 +147,7 @@ class SupplierController extends Controller
         $vendor = $this->supplier();
         $applications = \App\Models\LoanApplication::query()
             ->with(['customer', 'product', 'assetReservation.asset', 'loan'])
-            ->whereHas('assetReservation.asset', fn ($q) => $q->where('vendor_id', $vendor->id))
+            ->whereHas('assetReservation.asset', fn ($q) => $q->where('partner_id', $vendor->id))
             ->whereNotIn('status', ['withdrawn'])
             ->latest()
             ->paginate(20);
@@ -160,7 +160,7 @@ class SupplierController extends Controller
         $vendor = $this->supplier();
         $reservations = AssetReservation::query()
             ->with(['asset', 'customer', 'loanApplication.loan'])
-            ->whereHas('asset', fn ($q) => $q->where('vendor_id', $vendor->id))
+            ->whereHas('asset', fn ($q) => $q->where('partner_id', $vendor->id))
             ->whereIn('status', ['released'])
             ->latest('released_at')
             ->paginate(20);

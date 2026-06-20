@@ -41,14 +41,17 @@
             <h3 class="text-sm font-semibold text-gray-800 mb-4">Revenue share (interest)</h3>
             <dl class="grid sm:grid-cols-2 gap-4 text-sm">
                 <div class="rounded-lg bg-emerald-50 ring-1 ring-emerald-200 p-4">
-                    <dt class="text-xs text-emerald-800">Partner share ({{ \App\Services\CapitalPartnerAllocationService::PARTNER_INTEREST_SHARE }}%)</dt>
+                    <dt class="text-xs text-emerald-800">Partner share ({{ format_number($partnerSharePercent, 2) }}%)</dt>
                     <dd class="mt-1 text-xl font-bold text-emerald-900">{{ format_money($metrics['interest_earned_partner']) }}</dd>
                 </div>
                 <div class="rounded-lg bg-sky-50 ring-1 ring-sky-200 p-4">
-                    <dt class="text-xs text-sky-800">Company share ({{ \App\Services\CapitalPartnerAllocationService::COMPANY_INTEREST_SHARE }}%)</dt>
+                    <dt class="text-xs text-sky-800">Company share ({{ format_number($companySharePercent, 2) }}%)</dt>
                     <dd class="mt-1 text-xl font-bold text-sky-900">{{ format_money($metrics['interest_earned_company']) }}</dd>
                 </div>
             </dl>
+            @if ($record->revenue_share_percent !== null)
+                <p class="mt-3 text-xs text-gray-500">This partner uses a custom revenue share. New loan allocations will use {{ format_number($partnerSharePercent, 2) }}% / {{ format_number($companySharePercent, 2) }}%.</p>
+            @endif
         </div>
 
         <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6">
@@ -56,6 +59,22 @@
             <dl class="space-y-2 text-sm">
                 <div class="flex justify-between gap-4"><dt class="text-gray-500">{{ __('admin.capital_partner.reference') }}</dt><dd class="font-mono font-medium">{{ $record->code }}</dd></div>
                 <div class="flex justify-between gap-4"><dt class="text-gray-500">Type</dt><dd class="font-medium capitalize">{{ $record->type }}</dd></div>
+                <div class="flex justify-between gap-4"><dt class="text-gray-500">Funding source</dt><dd class="font-medium capitalize">{{ ($record->funding_source ?? 'external') === 'internal' ? 'Internal (balance sheet)' : 'External (partner)' }}</dd></div>
+                @if ($record->isExternalPartner())
+                    <div class="flex justify-between gap-4"><dt class="text-gray-500">KYC status</dt><dd class="font-medium capitalize">{{ $record->kyc_status ?? 'pending' }}</dd></div>
+                    @if ($record->registration_number)
+                        <div class="flex justify-between gap-4"><dt class="text-gray-500">Registration</dt><dd class="font-medium font-mono text-xs">{{ $record->registration_number }}</dd></div>
+                    @endif
+                    @if ($record->tax_id)
+                        <div class="flex justify-between gap-4"><dt class="text-gray-500">TIN</dt><dd class="font-medium font-mono text-xs">{{ $record->tax_id }}</dd></div>
+                    @endif
+                    @if ($record->license_number)
+                        <div class="flex justify-between gap-4"><dt class="text-gray-500">License</dt><dd class="font-medium font-mono text-xs">{{ $record->license_number }}</dd></div>
+                    @endif
+                    @if ($record->kyc_verified_at)
+                        <div class="flex justify-between gap-4"><dt class="text-gray-500">KYC verified</dt><dd class="font-medium">{{ $record->kyc_verified_at->format('d M Y') }}</dd></div>
+                    @endif
+                @endif
                 <div class="flex justify-between gap-4"><dt class="text-gray-500">Status</dt><dd class="font-medium capitalize">{{ $record->status }}</dd></div>
                 <div class="flex justify-between gap-4"><dt class="text-gray-500">Contact</dt><dd class="font-medium">{{ $record->contact_person ?: '—' }}</dd></div>
             </dl>

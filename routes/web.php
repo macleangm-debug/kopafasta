@@ -46,6 +46,7 @@ use App\Http\Controllers\Admin\RepaymentController;
 use App\Http\Controllers\Admin\RepaymentMethodController;
 use App\Http\Controllers\Admin\RiskScoringRuleController;
 use App\Http\Controllers\Admin\RoleController;
+use App\Http\Controllers\Admin\LocationMasterController;
 use App\Http\Controllers\Admin\SignatoryController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\SettlementController;
@@ -138,6 +139,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::get('/borrower/apply',  [\App\Http\Controllers\Site\ApplyController::class, 'show'])->name('borrower.apply');
                 Route::get('/borrower/apply/product/{product}/readiness', [\App\Http\Controllers\Site\ApplyController::class, 'productReadiness'])->name('borrower.apply.product-readiness');
                 Route::post('/borrower/apply/guarantor-lookup', [\App\Http\Controllers\Site\ApplyController::class, 'lookupGuarantor'])->name('borrower.apply.guarantor-lookup');
+                Route::post('/borrower/apply/group-member-lookup', [\App\Http\Controllers\Site\ApplyController::class, 'lookupGroupMember'])->name('borrower.apply.group-member-lookup');
                 Route::get('/borrower/apply/previous-guarantors', [\App\Http\Controllers\Site\ApplyController::class, 'previousGuarantors'])->name('borrower.apply.previous-guarantors');
                 Route::post('/borrower/apply/previous-guarantor', [\App\Http\Controllers\Site\ApplyController::class, 'selectPreviousGuarantor'])->name('borrower.apply.previous-guarantor');
                 Route::post('/borrower/apply/guarantor-invite', [\App\Http\Controllers\Site\ApplyController::class, 'prepareExternalGuarantor'])->name('borrower.apply.guarantor-invite');
@@ -427,6 +429,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('loans/wizard-data/{customer}', [LoanController::class, 'wizardCustomerData'])->name('loans.wizard-data');
         $registerResource('loans',      'loan',      LoanController::class);
         Route::post('loans/{loan}/disburse', [LoanController::class, 'disburse'])->name('loans.disburse');
+        Route::post('loans/{loan}/allocate-capital', [LoanController::class, 'allocateCapital'])->name('loans.allocate-capital');
+        Route::post('loans/{loan}/clear-capital-allocation', [LoanController::class, 'clearCapitalAllocation'])->name('loans.clear-capital-allocation');
         Route::post('loans/{loan}/reverse-disbursement', [LoanController::class, 'reverseDisbursement'])->name('loans.reverse-disbursement');
         Route::post('loans/{loan}/collection-actions', [LoanController::class, 'addCollectionAction'])->name('loans.collection-actions');
         Route::get('arrear-cases', [ArrearCaseController::class, 'index'])->name('arrear-cases.index');
@@ -444,7 +448,9 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('recovery/partners/{type}', [RecoveryPartnerController::class, 'byType'])->name('recovery.partners.type');
         Route::get('origination/valuation-partners', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'valuationIndex'])->name('origination.valuation-partners');
         Route::post('loan-applications/{loan_application}/assign-valuer', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'assignValuer'])->name('loan-applications.assign-valuer');
+        Route::post('loan-applications/{loan_application}/assign-gps', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'assignGpsInstaller'])->name('loan-applications.assign-gps');
         Route::post('loan-applications/{loan_application}/manual-fee', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'addManualFee'])->name('loan-applications.manual-fee');
+        Route::post('loan-applications/{loan_application}/post-approval-fees/{fee}', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'updatePostApprovalFee'])->name('loan-applications.post-approval-fees.update');
         Route::post('loan-applications/{loan_application}/reservation-advance', [LoanApplicationController::class, 'advanceReservation'])->name('loan-applications.reservation-advance');
         Route::put('loan-applications/{loan_application}/asset-identifiers', [LoanApplicationController::class, 'updateAssetIdentifiers'])->name('loan-applications.asset-identifiers');
         Route::get('recovery/assignments', [RecoveryAssignmentController::class, 'index'])->name('recovery.assignments.index');
@@ -458,6 +464,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('loans/{loan}/write-off',  [LoanController::class, 'writeOffForm'])->name('loans.write-off-form');
         Route::post('loans/{loan}/write-off', [LoanController::class, 'writeOff'])->name('loans.write-off');
         $registerResource('repayments', 'repayment', RepaymentController::class);
+        Route::post('repayments/{repayment}/approve', [RepaymentController::class, 'approve'])->name('repayments.approve');
 
         // Loan Products
         Route::view('loan-products/interest-fees',  'admin.loan-products.interest-fees') ->name('loan-products.interest-fees');
@@ -477,11 +484,21 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::redirect('vendors/suppliers', '/admin/partners/suppliers')->name('vendors.suppliers');
         Route::redirect('vendors/affiliates', '/admin/partners/affiliates')->name('vendors.affiliates');
         Route::redirect('vendors/tasks', '/admin/partners/tasks')->name('vendors.tasks');
-        Route::get('asset-requests', [\App\Http\Controllers\Admin\AssetRequestController::class, 'index'])->name('asset-requests.index');
-        Route::put('asset-requests/{assetRequest}', [\App\Http\Controllers\Admin\AssetRequestController::class, 'update'])->name('asset-requests.update');
+        Route::get('asset-requests', [\App\Http\Controllers\Admin\AssetRequestController::class, 'index'])->name('asset-requests.index')->middleware('permission:marketplace.view,marketplace.manage');
+        Route::put('asset-requests/{assetRequest}', [\App\Http\Controllers\Admin\AssetRequestController::class, 'update'])->name('asset-requests.update')->middleware('permission:marketplace.manage');
         Route::get('partner-applications', [\App\Http\Controllers\Admin\PartnerApplicationController::class, 'index'])->name('partner-applications.index');
         Route::put('partner-applications/{partnerApplication}', [\App\Http\Controllers\Admin\PartnerApplicationController::class, 'update'])->name('partner-applications.update');
-        $registerResource('marketplace-assets', 'marketplace_asset', \App\Http\Controllers\Admin\MarketplaceAssetController::class);
+        Route::middleware('permission:marketplace.view,marketplace.manage')->group(function (): void {
+            Route::view('marketplace-assets', 'admin.marketplace-assets.index')->name('marketplace-assets.index');
+            Route::get('marketplace-assets/{marketplace_asset}', [\App\Http\Controllers\Admin\MarketplaceAssetController::class, 'show'])->name('marketplace-assets.show');
+        });
+        Route::middleware('permission:marketplace.manage')->group(function (): void {
+            Route::get('marketplace-assets/create', [\App\Http\Controllers\Admin\MarketplaceAssetController::class, 'create'])->name('marketplace-assets.create');
+            Route::post('marketplace-assets', [\App\Http\Controllers\Admin\MarketplaceAssetController::class, 'store'])->name('marketplace-assets.store');
+            Route::get('marketplace-assets/{marketplace_asset}/edit', [\App\Http\Controllers\Admin\MarketplaceAssetController::class, 'edit'])->name('marketplace-assets.edit');
+            Route::put('marketplace-assets/{marketplace_asset}', [\App\Http\Controllers\Admin\MarketplaceAssetController::class, 'update'])->name('marketplace-assets.update');
+            Route::delete('marketplace-assets/{marketplace_asset}', [\App\Http\Controllers\Admin\MarketplaceAssetController::class, 'destroy'])->name('marketplace-assets.destroy');
+        });
         Route::redirect('vendors', '/admin/partners/all')->name('vendors.index');
         Route::redirect('vendors/create', '/admin/partners/create')->name('vendors.create');
         Route::post('vendors', [VendorController::class, 'store'])->name('vendors.store');
@@ -658,6 +675,12 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('settings/signatories/{signatory}/edit', [SignatoryController::class, 'edit'])->name('settings.signatories.edit');
         Route::put('settings/signatories/{signatory}', [SignatoryController::class, 'update'])->name('settings.signatories.update');
         Route::delete('settings/signatories/{signatory}', [SignatoryController::class, 'destroy'])->name('settings.signatories.destroy');
+        Route::get('settings/locations', [LocationMasterController::class, 'index'])->name('settings.locations.index');
+        Route::get('settings/locations/create', [LocationMasterController::class, 'create'])->name('settings.locations.create');
+        Route::post('settings/locations', [LocationMasterController::class, 'store'])->name('settings.locations.store');
+        Route::get('settings/locations/{location}/edit', [LocationMasterController::class, 'edit'])->name('settings.locations.edit');
+        Route::put('settings/locations/{location}', [LocationMasterController::class, 'update'])->name('settings.locations.update');
+        Route::delete('settings/locations/{location}', [LocationMasterController::class, 'destroy'])->name('settings.locations.destroy');
         Route::get('settings/credit-policy',    [SettingsController::class, 'creditPolicy'])  ->name('settings.credit-policy');
         Route::put('settings/credit-policy',    [SettingsController::class, 'saveCreditPolicy'])->name('settings.credit-policy.save');
         Route::get('settings/loan-products',    [SettingsController::class, 'loanProducts']) ->name('settings.loan-products');

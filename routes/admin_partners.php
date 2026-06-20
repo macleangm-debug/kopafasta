@@ -4,14 +4,14 @@ use App\Http\Controllers\Admin\VendorController;
 use Illuminate\Support\Facades\Route;
 
 return function (): void {
-    Route::view('partners/all', 'admin.vendors.index')->name('partners.all');
-    Route::view('partners/applications', 'admin.vendors.applications')->name('partners.applications');
-    Route::view('partners/gps-installers', 'admin.vendors.gps-installers')->name('partners.gps-installers');
-    Route::view('partners/insurance-providers', 'admin.vendors.insurance-providers')->name('partners.insurance-providers');
-    Route::view('partners/valuers', 'admin.vendors.valuers')->name('partners.valuers');
-    Route::view('partners/suppliers', 'admin.vendors.suppliers')->name('partners.suppliers');
-    Route::view('partners/affiliates', 'admin.vendors.affiliates')->name('partners.affiliates');
-    Route::view('partners/tasks', 'admin.vendors.tasks')->name('partners.tasks');
+    Route::view('partners/all', 'admin.partners.all')->name('partners.all');
+    Route::view('partners/applications', 'admin.partners.applications')->name('partners.applications');
+    Route::view('partners/gps-installers', 'admin.partners.gps-installers')->name('partners.gps-installers');
+    Route::view('partners/insurance-providers', 'admin.partners.insurance-providers')->name('partners.insurance-providers');
+    Route::view('partners/valuers', 'admin.partners.valuers')->name('partners.valuers');
+    Route::view('partners/suppliers', 'admin.partners.suppliers')->name('partners.suppliers');
+    Route::view('partners/affiliates', 'admin.partners.affiliates')->name('partners.affiliates');
+    Route::view('partners/tasks', 'admin.partners.tasks')->name('partners.tasks');
 
     Route::get('partners/create', [VendorController::class, 'create'])->name('partners.create');
     Route::post('partners', [VendorController::class, 'store'])->name('partners.store');

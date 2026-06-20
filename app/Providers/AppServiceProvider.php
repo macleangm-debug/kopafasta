@@ -12,6 +12,7 @@ use App\Models\LoanProduct;
 use App\Models\LoanTopUpRequest;
 use App\Models\Repayment;
 use App\Models\RestructureRequest;
+use App\Models\Partner;
 use App\Models\Vendor;
 use App\Models\VendorTask;
 use App\Observers\CustomerKycObserver;
@@ -77,6 +78,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(LoanProduct::class, LoanProductPolicy::class);
         Gate::policy(Repayment::class, RepaymentPolicy::class);
         Gate::policy(Vendor::class, VendorPolicy::class);
+        Gate::policy(Partner::class, VendorPolicy::class);
 
         CustomerKyc::observe(CustomerKycObserver::class);
         Gate::policy(VendorTask::class, VendorTaskPolicy::class);

@@ -87,6 +87,16 @@ return [
             'users_filter'       => true,
             'api_capabilities'   => ['audit'],
         ],
+        'asset_manager' => [
+            'label'              => 'Asset manager',
+            'console_access'     => true,
+            'staff'              => true,
+            'permission_bypass'  => false,
+            'policy_bypass'      => false,
+            'user_form'          => true,
+            'users_filter'       => true,
+            'api_capabilities'   => [],
+        ],
         'borrower' => [
             'label'              => 'Borrower',
             'console_access'     => false,

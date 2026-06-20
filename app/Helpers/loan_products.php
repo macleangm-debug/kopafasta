@@ -79,6 +79,19 @@ if (! function_exists('is_asset_backed_loan_product')) {
     }
 }
 
+if (! function_exists('is_group_loan_product')) {
+    function is_group_loan_product(LoanProduct|string|null $productOrCode): bool
+    {
+        if ($productOrCode instanceof LoanProduct) {
+            return app(\App\Services\GroupLendingService::class)->isGroupProduct($productOrCode);
+        }
+
+        $code = strtoupper((string) $productOrCode);
+
+        return $code === 'GL';
+    }
+}
+
 if (! function_exists('loan_product_wizard_payload')) {
     /** @return array<string, mixed> */
     function loan_product_wizard_payload(LoanProduct $product, ?Customer $customer = null): array
@@ -105,6 +118,7 @@ if (! function_exists('loan_product_wizard_payload')) {
             'requires_guarantor' => (bool) $product->requires_guarantor,
             'guarantor_required_above' => (float) ($policy->settings()['guarantor_required_above'] ?? 0),
             'frequency'         => $product->repayment_cadence ?? 'weekly',
+            'is_group'          => is_group_loan_product($product),
         ];
     }
 }

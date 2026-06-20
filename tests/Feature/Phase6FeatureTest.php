@@ -73,9 +73,9 @@ class Phase6FeatureTest extends TestCase
         $this->assertContains('New Asset Photo', $presets);
     }
 
-    public function test_public_marketplace_shows_deposit_breakdown(): void
+    public function test_public_marketplace_hides_internal_deposit_breakdown(): void
     {
-        $asset = MarketplaceAsset::create([
+        MarketplaceAsset::create([
             'slug'                   => 'p6-truck',
             'title'                  => 'Isuzu Truck',
             'category'               => 'vehicle',
@@ -89,11 +89,12 @@ class Phase6FeatureTest extends TestCase
             'is_active'              => true,
         ]);
 
-        $this->get(route('site.marketplace.show', $asset->slug))
+        $this->get(route('site.marketplace.show', 'p6-truck'))
             ->assertOk()
-            ->assertSee('Deposit breakdown', false)
-            ->assertSee('Supplier deposit', false)
-            ->assertSee('Company markup', false);
+            ->assertSee('Isuzu Truck', false)
+            ->assertDontSee('Deposit breakdown', false)
+            ->assertDontSee('Company markup', false)
+            ->assertDontSee('Supplier deposit', false);
     }
 
     public function test_affiliate_dashboard_prompts_for_kyc_before_sharing(): void

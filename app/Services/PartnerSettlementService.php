@@ -100,11 +100,11 @@ class PartnerSettlementService
             ->where('status', 'approved')
             ->whereNull('partner_settlement_id')
             ->distinct()
-            ->pluck('vendor_id');
+            ->pluck('partner_id');
 
         foreach ($vendorIds as $vendorId) {
             $payments = VendorPayment::query()
-                ->where('vendor_id', $vendorId)
+                ->where('partner_id', $vendorId)
                 ->where('status', 'approved')
                 ->whereNull('partner_settlement_id')
                 ->lockForUpdate()

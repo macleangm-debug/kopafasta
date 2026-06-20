@@ -6,5 +6,5 @@
     :destroyAction="route('admin.partners.destroy', $record)"
     :cancelUrl="route('admin.partners.show', $record)"
     submitLabel="Save changes">
-    @include('admin.vendors._form')
+    @include('admin.partners._form')
 </x-admin.edit-page>

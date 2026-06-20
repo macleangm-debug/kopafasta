@@ -9,8 +9,8 @@ class LoanApplicationPostApprovalFee extends Model
 {
     protected $fillable = [
         'loan_application_id', 'loan_product_post_approval_fee_id', 'manual_post_approval_fee_id',
-        'code', 'name', 'fee_type', 'configured_amount', 'calculated_amount',
-        'amount_paid', 'status', 'paid_at',
+        'code', 'name', 'fee_type', 'configured_amount', 'calculated_amount', 'override_reason',
+        'amount_paid', 'status', 'paid_at', 'waived_at', 'waived_by',
     ];
 
     protected function casts(): array
@@ -20,7 +20,13 @@ class LoanApplicationPostApprovalFee extends Model
             'calculated_amount' => 'decimal:2',
             'amount_paid'       => 'decimal:2',
             'paid_at'           => 'datetime',
+            'waived_at'         => 'datetime',
         ];
+    }
+
+    public function isWaived(): bool
+    {
+        return $this->status === 'waived';
     }
 
     public function application(): BelongsTo

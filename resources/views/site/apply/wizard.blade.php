@@ -35,8 +35,11 @@
                                 <span>•</span>
                                 <span>
                                     {{ $item['label'] }}
+                                    @if (! empty($item['detail']))
+                                        <span class="block text-xs text-amber-700 mt-0.5">{{ $item['detail'] }}</span>
+                                    @endif
                                     @if (! empty($item['action_url']))
-                                        — <a href="{{ $item['action_url'] }}" class="font-semibold underline">{{ __('borrower.apply.details.complete_missing') }}</a>
+                                        <a href="{{ $item['action_url'] }}" class="font-semibold underline">{{ __('borrower.apply.details.complete_missing') }}</a>
                                     @endif
                                 </span>
                             </li>
@@ -81,6 +84,11 @@
         <div x-data="applyWizard({
                   products: @js($wizardProducts->map($wizardProductPayload)->values()->all()),
                   guarantorLookupUrl: @js(route('site.borrower.apply.guarantor-lookup')),
+                  groupMemberLookupUrl: @js($groupMemberLookupUrl ?? route('site.borrower.apply.group-member-lookup')),
+                  groupLimits: @js($groupMemberLimits ?? ['min' => 5, 'max' => 30]),
+                  leaderCustomerId: {{ (int) ($leaderCustomerId ?? $customer->id) }},
+                  leaderName: @js($leaderName ?? $customer->full_name),
+                  leaderPhone: @js($leaderPhone ?? $customer->phone),
                   guarantorInviteUrl: @js(route('site.borrower.apply.guarantor-invite')),
                   previousGuarantorsUrl: @js(route('site.borrower.apply.previous-guarantors')),
                   selectPreviousGuarantorUrl: @js(route('site.borrower.apply.previous-guarantor')),
@@ -147,6 +155,8 @@
                           'asset_tenure' => __('borrower.apply.steps.asset_tenure'),
                           'asset_details' => __('borrower.apply.steps.asset_details'),
                           'valuation_fee' => __('borrower.apply.steps.valuation_fee'),
+                          'group_setup' => __('borrower.apply.steps.group_setup'),
+                          'group_members' => __('borrower.apply.steps.group_members'),
                       ],
                       'alerts' => [
                           'loadProduct' => __('borrower.apply.alerts.load_product'),
@@ -356,6 +366,8 @@
                     </template>
                 </div>
 
+                @include('site.apply._group-steps')
+
                 {{-- Asset lending tenure --}}
                 <div x-show="stepKey === 'asset_tenure'" class="p-6 sm:p-8">
                     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.asset_tenure.title') }}</h2>
@@ -379,42 +391,44 @@
                     </template>
                 </div>
 
-                {{-- Asset-backed collateral details --}}
+                {{-- Asset-backed collateral — profile assets only --}}
                 <div x-show="stepKey === 'asset_details'" class="p-6 sm:p-8">
                     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.asset_details.title') }}</h2>
                     <p class="text-sm text-gray-600 mb-5">{{ __('borrower.apply.asset_details.subtitle') }}</p>
                     <template x-if="current">
                         <div class="space-y-5">
-                            <div x-show="customerAssets.length" class="rounded-xl bg-sky-50 ring-1 ring-sky-200 p-4">
-                                <p class="text-sm font-semibold text-sky-900 mb-2">{{ __('borrower.apply.asset_details.choose_existing') }}</p>
-                                <select x-model="form.customer_asset_id" @change="applyExistingAsset()" class="w-full rounded-lg border-gray-300 text-sm">
-                                    <option value="">{{ __('borrower.apply.asset_details.new_asset') }}</option>
-                                    <template x-for="asset in customerAssets" :key="asset.id">
-                                        <option :value="asset.id" x-text="asset.label + (asset.registration_number ? ' · ' + asset.registration_number : '')"></option>
-                                    </template>
-                                </select>
+                            <div x-show="!customerAssets.length" class="rounded-xl bg-amber-50 ring-1 ring-amber-200 p-5">
+                                <p class="text-sm font-semibold text-amber-900">{{ __('borrower.apply.asset_details.no_assets_title') }}</p>
+                                <p class="text-sm text-amber-800 mt-2">{{ __('borrower.apply.asset_details.no_assets_body') }}</p>
+                                <a href="{{ route('site.borrower.profile', ['section' => 'assets']) }}" class="inline-flex mt-4 text-sm font-semibold text-amber-900 underline">
+                                    {{ __('borrower.apply.asset_details.add_asset_link') }} →
+                                </a>
                             </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.asset_details.asset_type') }} <span class="text-rose-500">*</span></label>
-                                <select name="asset_type" x-model="form.asset_type" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                                    <option value="">{{ __('borrower.profile.select') }}</option>
-                                    @foreach ($assetTypeOptions ?? [] as $key => $label)
-                                        <option value="{{ $key }}">{{ $label }}</option>
-                                    @endforeach
-                                </select>
+                            <div x-show="customerAssets.length" class="space-y-4">
+                                <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 p-4">
+                                    <label class="block text-sm font-semibold text-sky-900 mb-2">{{ __('borrower.apply.asset_details.choose_existing') }} <span class="text-rose-500">*</span></label>
+                                    <select x-model="form.customer_asset_id" @change="applyExistingAsset()" required class="w-full rounded-lg border-gray-300 text-sm">
+                                        <option value="">{{ __('borrower.profile.select') }}</option>
+                                        <template x-for="asset in customerAssets" :key="asset.id">
+                                            <option :value="asset.id" x-text="asset.label + (asset.registration_number ? ' · ' + asset.registration_number : '')"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div x-show="selectedCustomerAsset()" class="rounded-xl bg-gray-50 ring-1 ring-gray-200 p-4 text-sm space-y-2">
+                                    <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ __('borrower.apply.asset_details.selected_asset') }}</p>
+                                    <div class="flex justify-between gap-3"><span class="text-gray-500">{{ __('borrower.apply.asset_details.asset_type') }}</span><span class="font-semibold" x-text="assetTypeOptions[form.asset_type] || form.asset_type || '—'"></span></div>
+                                    <div class="flex justify-between gap-3" x-show="selectedCustomerAsset()?.registration_number"><span class="text-gray-500">Registration</span><span class="font-semibold" x-text="selectedCustomerAsset()?.registration_number"></span></div>
+                                    <div x-show="selectedCustomerAsset()?.description"><span class="text-gray-500 block text-xs">Description</span><span x-text="selectedCustomerAsset()?.description"></span></div>
+                                </div>
                             </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.asset_details.description') }}</label>
-                                <textarea name="asset_description" x-model="form.asset_description" rows="3" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" placeholder="{{ __('borrower.apply.asset_details.description_hint') }}"></textarea>
-                            </div>
-                            <div class="bg-gray-50 rounded-xl p-5">
+                            <div x-show="customerAssets.length && form.customer_asset_id" class="bg-gray-50 rounded-xl p-5">
                                 <div class="flex justify-between text-sm mb-2"><span class="text-gray-600">{{ __('borrower.apply.quote.loan_amount') }}</span><span class="font-bold" x-text="formatTzs(form.requested_amount)"></span></div>
                                 <input type="range" :min="current.min" :max="current.max" step="50000" x-model.number="form.requested_amount" @input="updateQuote()" class="w-full accent-amber-500">
                                 <div class="flex justify-between text-sm mb-2 mt-4"><span class="text-gray-600">{{ __('borrower.apply.quote.tenure') }}</span><span class="font-bold"><span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.quote.months') }}</span></div>
                                 <input type="range" :min="current.tmin" :max="current.tmax" step="1" x-model.number="form.requested_tenure_months" @input="updateQuote()" class="w-full accent-amber-500">
                                 <p class="text-xs text-amber-700 mt-3">{{ __('borrower.apply.asset_details.ltv_note') }}</p>
                             </div>
-                            <div>
+                            <div x-show="customerAssets.length && form.customer_asset_id">
                                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.quote.purpose') }}</label>
                                 <select x-model="form.purpose" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                                     <option value="">{{ __('borrower.apply.quote.select_purpose') }}</option>
@@ -422,18 +436,6 @@
                                         <option value="{{ $key }}">{{ $label }}</option>
                                     @endforeach
                                 </select>
-                            </div>
-                            <div>
-                                <p class="text-xs font-semibold text-gray-700 mb-2">{{ __('borrower.apply.asset_details.documents') }}</p>
-                                <div class="space-y-3">
-                                    @foreach ($assetDocumentLabels ?? [] as $code => $label)
-                                        <div class="flex flex-col sm:flex-row sm:items-center gap-2 rounded-lg ring-1 ring-gray-200 px-3 py-2">
-                                            <span class="text-sm text-gray-700 flex-1">{{ $label }}</span>
-                                            <span x-show="assetDocuments['{{ $code }}']" x-cloak class="text-xs text-emerald-700 font-medium">{{ __('borrower.apply.asset_details.uploaded') }}</span>
-                                            <input type="file" accept=".jpg,.jpeg,.png,.pdf" @change="uploadAssetDocument('{{ $code }}', $event)" class="text-xs">
-                                        </div>
-                                    @endforeach
-                                </div>
                             </div>
                         </div>
                     </template>
@@ -655,15 +657,6 @@
                 </div>
 
                 @php $membershipCfg = \App\Services\MembershipService::config(); @endphp
-                <x-site.valuation-fee-step
-                    :fee-quote="$valuationFeeQuote ?? null"
-                    :bank-accounts="$bankAccounts ?? []"
-                    :currency="$membershipCfg['currency'] ?? 'TZS'"
-                    :payment-reference="$valuationFeePaymentRef ?? null"
-                    :referral-wallet="$referralWallet ?? null"
-                    :referral-settings="$referralSettings ?? []"
-                    :payment-gateway-dummy="$paymentGatewayDummy ?? payment_gateway_is_dummy()"
-                />
                 <x-site.application-fee-step
                     :fee-quote="$feeQuote ?? null"
                     :bank-accounts="$bankAccounts ?? []"
@@ -728,6 +721,9 @@
                                     @if (! ($item['complete'] ?? false))
                                         <li>
                                             {{ $item['label'] }}
+                                            @if (! empty($item['detail']))
+                                                <span class="block text-xs text-amber-700">{{ $item['detail'] }}</span>
+                                            @endif
                                             @if (! empty($item['action_url']))
                                                 — <a href="{{ $item['action_url'] }}" class="font-semibold underline">{{ __('borrower.apply.details.complete_missing') }}</a>
                                             @endif
@@ -756,6 +752,8 @@
                             </div>
                         </template>
                         <div class="px-4 py-3" x-show="hasStep('quote')"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.purpose') }}</span><span class="font-medium" x-text="purposeLabels[form.purpose] || form.purpose || '—'"></span></div>
+                        <div class="px-4 py-3" x-show="hasStep('group_setup')"><span class="text-gray-500 block">{{ __('borrower.apply.group_setup.name') }}</span><span class="font-medium" x-text="group.name || '—'"></span></div>
+                        <div class="px-4 py-3" x-show="hasStep('group_setup')"><span class="text-gray-500 block">{{ __('borrower.apply.group_setup.purpose') }}</span><span class="font-medium" x-text="purposeLabels[group.purpose] || group.purpose || '—'"></span></div>
                     </div>
 
                     <h3 class="text-sm font-semibold text-gray-900 mb-2">{{ __('borrower.apply.review_step.borrower_section') }}</h3>
@@ -770,17 +768,17 @@
 
                     <h3 class="text-sm font-semibold text-gray-900 mb-2">{{ __('borrower.apply.review_step.loan_section') }}</h3>
                     <div class="rounded-xl border border-gray-200 divide-y divide-gray-200 mb-5 text-sm">
-                        <div class="px-4 py-3 flex justify-between gap-3" x-show="hasStep('quote') || hasStep('asset_tenure') || hasStep('asset_details')">
+                        <div class="px-4 py-3 flex justify-between gap-3" x-show="hasStep('quote') || hasStep('asset_tenure') || hasStep('asset_details') || hasStep('group_members')">
                             <div><span class="text-gray-500 block">{{ __('borrower.apply.review_step.loan_amount') }}</span><span class="font-medium" x-text="formatTzs(form.requested_amount)"></span></div>
-                            <button type="button" @click="gotoKey(hasStep('asset_details') ? 'asset_details' : (hasStep('quote') ? 'quote' : 'asset_tenure'))" class="text-xs text-amber-700 shrink-0">{{ __('borrower.apply.edit') }}</button>
+                            <button type="button" @click="gotoKey(hasStep('asset_details') ? 'asset_details' : (hasStep('group_members') ? 'group_members' : (hasStep('quote') ? 'quote' : 'asset_tenure')))" class="text-xs text-amber-700 shrink-0">{{ __('borrower.apply.edit') }}</button>
+                        </div>
+                        <div class="px-4 py-3" x-show="hasStep('group_members')">
+                            <span class="text-gray-500 block">{{ __('borrower.apply.group_members.title') }}</span>
+                            <span class="font-medium"><span x-text="group.members.length"></span> members</span>
                         </div>
                         <div class="px-4 py-3" x-show="hasStep('asset_details')">
-                            <span class="text-gray-500 block">{{ __('borrower.apply.asset_details.asset_type') }}</span>
-                            <span class="font-medium" x-text="assetTypeOptions[form.asset_type] || form.asset_type || '—'"></span>
-                        </div>
-                        <div class="px-4 py-3" x-show="hasStep('valuation_fee')">
-                            <span class="text-gray-500 block">{{ __('borrower.apply.review_step.valuation_fee') }}</span>
-                            <span class="font-medium" x-text="valuationFeePaid ? formatTzs(effectiveValuationFeeAmount()) : @js(__('borrower.apply.valuation_fee.pending'))"></span>
+                            <span class="text-gray-500 block">{{ __('borrower.apply.asset_details.selected_asset') }}</span>
+                            <span class="font-medium" x-text="selectedCustomerAsset()?.label || assetTypeOptions[form.asset_type] || form.asset_type || '—'"></span>
                         </div>
                         <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.duration') }}</span><span class="font-medium"><span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.browse.months_short') }}</span></div>
                         <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.interest_rate') }}</span><span class="font-medium" x-text="reviewSummary.monthly_rate_pct ? (reviewSummary.monthly_rate_pct + '% / month') : '—'"></span></div>
@@ -975,6 +973,15 @@
                 incomeVerification: config.incomeVerification,
                 readinessUrl: config.readinessUrl,
                 guarantorLookupUrl: config.guarantorLookupUrl || '',
+                groupMemberLookupUrl: config.groupMemberLookupUrl || '',
+                groupLimits: config.groupLimits || { min: 5, max: 30 },
+                leaderCustomerId: config.leaderCustomerId || null,
+                leaderName: config.leaderName || '',
+                leaderPhone: config.leaderPhone || '',
+                group: config.savedDraft?.group || { name: '', purpose: '', members: [] },
+                groupLookupPhone: '',
+                groupLookupLoading: false,
+                groupLookupError: '',
                 guarantorInviteUrl: config.guarantorInviteUrl || '',
                 previousGuarantorsUrl: config.previousGuarantorsUrl || '',
                 selectPreviousGuarantorUrl: config.selectPreviousGuarantorUrl || '',
@@ -1051,6 +1058,8 @@
                 scheduleLoading: false,
                 stepIcons: {
                     quote: '💰',
+                    group_setup: '👥',
+                    group_members: '📋',
                     asset_details: '🚗',
                     valuation_fee: '📋',
                     asset_tenure: '📅',
@@ -1096,9 +1105,6 @@
                     this.$watch('stepKey', (key) => {
                         if (key === 'application_fee') {
                             this.enterApplicationFeeStep();
-                        }
-                        if (key === 'valuation_fee') {
-                            this.enterValuationFeeStep();
                         }
                         if (key === 'guarantor') {
                             this.loadPreviousGuarantors();
@@ -1179,6 +1185,7 @@
                         external_guarantor: this.externalGuarantor,
                         borrower_signature: this.borrowerSignature,
                         declaration_accepted: this.declarationAccepted,
+                        group: this.group,
                     };
                 },
 
@@ -1379,6 +1386,12 @@
                     this.scheduleDraftSave();
                 },
 
+                selectedCustomerAsset() {
+                    const id = String(this.form.customer_asset_id || '');
+                    if (! id) return null;
+                    return (this.customerAssets || []).find(a => String(a.id) === id) || null;
+                },
+
                 async uploadAssetDocument(code, event) {
                     const file = event.target?.files?.[0];
                     if (! file || ! this.assetDocumentUploadUrl || ! this.form.loan_product_id) return;
@@ -1428,6 +1441,9 @@
                         });
                         if (this.feePromoCode) {
                             params.set('promo_code', this.feePromoCode);
+                        }
+                        if (this.isGroupProduct(this.current)) {
+                            params.set('member_count', String(Math.max(1, this.group.members.length || 1)));
                         }
                         const url = `${this.applicationFeeQuoteUrl}?${params.toString()}`;
                         const res = await fetch(url, {
@@ -1606,6 +1622,7 @@
                     if (draft.external_guarantor) this.externalGuarantor = draft.external_guarantor;
                     if (draft.borrower_signature) this.borrowerSignature = draft.borrower_signature;
                     if (draft.declaration_accepted || draft.borrower_signature) this.declarationAccepted = true;
+                    if (draft.group) this.group = draft.group;
                     if (draft.draft_reference) this.draftReference = draft.draft_reference;
                     this.syncFeePaidState();
                     this.syncValuationFeePaidState();
@@ -1651,6 +1668,91 @@
                 isMarketplaceProduct(product) {
                     const code = (product?.code || '').toUpperCase();
                     return this.marketplaceOnlyCodes.map(c => c.toUpperCase()).includes(code);
+                },
+
+                isGroupProduct(product) {
+                    if (! product) return false;
+                    if (product.is_group) return true;
+                    const code = (product.code || '').toUpperCase();
+                    return code === 'GL';
+                },
+
+                initGroupLeader() {
+                    if (! this.leaderCustomerId) return;
+                    const exists = this.group.members.some(m => Number(m.customer_id) === Number(this.leaderCustomerId));
+                    if (exists) return;
+                    const defaultAmount = Math.max(1000, Math.round((this.current?.min || 1000) / Math.max(1, this.groupLimits.min)));
+                    this.group.members = [{
+                        customer_id: this.leaderCustomerId,
+                        name: this.leaderName,
+                        phone: this.leaderPhone,
+                        role: 'leader',
+                        requested_amount: defaultAmount,
+                    }];
+                    this.updateGroupTotal();
+                },
+
+                updateGroupTotal() {
+                    const total = this.group.members.reduce((sum, m) => sum + Number(m.requested_amount || 0), 0);
+                    this.form.requested_amount = total;
+                    if (this.group.purpose) this.form.purpose = this.group.purpose;
+                    this.updateQuote();
+                },
+
+                async lookupGroupMember() {
+                    if (! this.groupMemberLookupUrl) return;
+                    this.groupLookupError = '';
+                    const phone = (this.groupLookupPhone || '').trim();
+                    if (! phone) {
+                        this.groupLookupError = @js(__('borrower.apply.group.lookup_invalid_phone'));
+                        return;
+                    }
+                    if (this.group.members.length >= this.groupLimits.max) {
+                        return;
+                    }
+                    this.groupLookupLoading = true;
+                    try {
+                        const res = await fetch(this.groupMemberLookupUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({ phone }),
+                        });
+                        const data = await res.json();
+                        if (! res.ok || ! data.ok) {
+                            this.groupLookupError = data.message || @js(__('borrower.apply.group.lookup_not_found'));
+                            return;
+                        }
+                        if (this.group.members.some(m => Number(m.customer_id) === Number(data.customer_id))) {
+                            this.groupLookupError = @js(__('borrower.apply.group_members.duplicate'));
+                            return;
+                        }
+                        this.group.members.push({
+                            customer_id: data.customer_id,
+                            name: data.name,
+                            phone: data.phone,
+                            role: 'member',
+                            requested_amount: Math.max(1000, Math.round((this.current?.min || 1000) / Math.max(1, this.groupLimits.min))),
+                        });
+                        this.groupLookupPhone = '';
+                        this.updateGroupTotal();
+                    } catch (e) {
+                        this.groupLookupError = @js(__('borrower.apply.group.lookup_not_found'));
+                    } finally {
+                        this.groupLookupLoading = false;
+                    }
+                },
+
+                removeGroupMember(index) {
+                    const member = this.group.members[index];
+                    if (! member || member.role === 'leader') return;
+                    this.group.members.splice(index, 1);
+                    this.updateGroupTotal();
                 },
 
                 beginReservationApplication() {
@@ -1775,7 +1877,10 @@
                     } else {
                         const stepLabels = this.i18n.steps;
                         const steps = [];
-                        if (this.isAssetBackedProduct(this.current)) {
+                        if (this.isGroupProduct(this.current)) {
+                            steps.push({ key: 'group_setup', label: stepLabels.group_setup || @js(__('borrower.apply.steps.group_setup')) });
+                            steps.push({ key: 'group_members', label: stepLabels.group_members || @js(__('borrower.apply.steps.group_members')) });
+                        } else if (this.isAssetBackedProduct(this.current)) {
                             steps.push({ key: 'asset_details', label: stepLabels.asset_details || @js(__('borrower.apply.steps.asset_details')) });
                         } else if (! this.isMarketplaceProduct(this.current)) {
                             steps.push({ key: 'quote', label: stepLabels.quote });
@@ -1807,6 +1912,10 @@
                     if (! this.form.requested_amount || this.form.requested_amount < p.min) this.form.requested_amount = p.min;
                     if (! this.form.requested_tenure_months || this.form.requested_tenure_months < p.tmin) this.form.requested_tenure_months = p.tmin;
                     if (this.isAssetBackedProduct(p) && ! this.form.purpose) this.form.purpose = 'asset_financing';
+                    if (this.isGroupProduct(p)) {
+                        this.initGroupLeader();
+                        if (! this.group.purpose && this.form.purpose) this.group.purpose = this.form.purpose;
+                    }
                     if (! this.requiresGuarantor()) this.form.guarantor_mode = 'none';
                     else if (this.form.guarantor_mode === 'none') this.form.guarantor_mode = 'previous';
                     this.updateQuote();
@@ -1852,6 +1961,7 @@
                 },
 
                 requiresGuarantor() {
+                    if (this.isGroupProduct(this.current)) return false;
                     if (! this.current) return false;
                     if (this.current.requires_guarantor) return true;
                     const threshold = Number(this.current.guarantor_required_above || 0);
@@ -2417,9 +2527,41 @@
                             return false;
                         }
                     }
+                    if (this.stepKey === 'group_setup' && this.hasStep('group_setup')) {
+                        if (! (this.group.name || '').trim()) {
+                            alert(@js(__('borrower.apply.group.name_required_step')));
+                            return false;
+                        }
+                        if (! this.group.purpose) {
+                            alert(@js(__('borrower.apply.group.purpose_required')));
+                            return false;
+                        }
+                        this.form.purpose = this.group.purpose;
+                    }
+                    if (this.stepKey === 'group_members' && this.hasStep('group_members')) {
+                        if (this.group.members.length < this.groupLimits.min) {
+                            alert(@js(__('borrower.apply.group.members_required')));
+                            return false;
+                        }
+                        const invalidAmount = this.group.members.some(m => ! m.requested_amount || Number(m.requested_amount) < 1000);
+                        if (invalidAmount) {
+                            alert(@js(__('borrower.apply.group.amount_required')));
+                            return false;
+                        }
+                        const total = this.group.members.reduce((sum, m) => sum + Number(m.requested_amount || 0), 0);
+                        if (this.current && (total < this.current.min || total > this.current.max)) {
+                            alert(`Total group amount must be between ${this.formatTzs(this.current.min)} and ${this.formatTzs(this.current.max)}.`);
+                            return false;
+                        }
+                        this.updateGroupTotal();
+                    }
                     if (this.stepKey === 'asset_details' && this.hasStep('asset_details')) {
-                        if (! this.form.asset_type) {
-                            alert(@js(__('borrower.apply.asset_details.type_required')));
+                        if (! this.customerAssets.length) {
+                            alert(@js(__('borrower.apply.asset_details.no_assets_title')));
+                            return false;
+                        }
+                        if (! this.form.customer_asset_id) {
+                            alert(@js(__('borrower.apply.asset_details.asset_required')));
                             return false;
                         }
                         if (! this.form.requested_amount || this.form.requested_amount < (this.current?.min || 1000)) {
@@ -2432,25 +2574,6 @@
                         }
                         if (! this.form.purpose) {
                             this.form.purpose = 'asset_financing';
-                        }
-                    }
-                    if (this.stepKey === 'valuation_fee') {
-                        if (this.effectiveValuationFeeAmount() > 0) {
-                            const st = this.valuationFeeState?.status || '';
-                            if (! ['paid', 'waived', 'pending'].includes(st)) {
-                                alert(@js(__('borrower.apply.valuation_fee.required_before_continue')));
-                                return false;
-                            }
-                        } else if (! this.valuationFeePaid) {
-                            this.valuationFeeState = {
-                                status: 'waived',
-                                reference: null,
-                                channel: 'waived',
-                                amount: 0,
-                                paid_at: new Date().toISOString(),
-                            };
-                            this.syncValuationFeePaidState();
-                            await this.persistDraft(true);
                         }
                     }
                     if (this.stepKey === 'guarantor' && this.hasStep('guarantor')) {
@@ -2498,17 +2621,9 @@
                         alert(@js(__('borrower.apply.application_fee.required_before_continue')));
                         return false;
                     }
-                    if (! this.valuationFeeGateSatisfied() && this.valuationGateRequiredForStep(this.stepKey)) {
-                        alert(@js(__('borrower.apply.valuation_fee.required_before_continue')));
-                        return false;
-                    }
                     const nextKey = this.steps[this.step + 1]?.key;
                     if (nextKey && this.feeGateRequiredForStep(nextKey) && ! this.feeGateSatisfied()) {
                         alert(@js(__('borrower.apply.application_fee.required_before_continue')));
-                        return false;
-                    }
-                    if (nextKey && this.valuationGateRequiredForStep(nextKey) && ! this.valuationFeeGateSatisfied()) {
-                        alert(@js(__('borrower.apply.valuation_fee.required_before_continue')));
                         return false;
                     }
                     return true;

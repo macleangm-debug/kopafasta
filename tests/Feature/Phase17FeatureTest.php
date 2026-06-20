@@ -76,7 +76,7 @@ class Phase17FeatureTest extends TestCase
             'outstanding_balance' => $principal,
             'interest_rate'       => 0.15,
             'tenure_months'       => 12,
-            'status'              => 'pending_disbursement',
+            'status'              => 'pending',
         ]);
 
         return compact('lender', 'loan');
@@ -90,6 +90,39 @@ class Phase17FeatureTest extends TestCase
 
         $this->expectException(\Illuminate\Validation\ValidationException::class);
         app(CapitalPartnerAllocationService::class)->allocateForLoan($loan);
+    }
+
+    public function test_manual_allocation_can_be_assigned_then_disbursed(): void
+    {
+        Setting::set('finance.capital_allocation_strategy', 'manual');
+
+        ['lender' => $lender, 'loan' => $loan] = $this->capitalLoanFixtures(500_000);
+
+        app(CapitalPartnerAllocationService::class)->allocateManually($loan, [
+            ['lender_id' => $lender->id, 'amount' => 500_000],
+        ]);
+
+        $this->assertSame(1, $loan->fresh()->capitalAllocations()->count());
+        $this->assertEqualsWithDelta(500_000.0, (float) $loan->fresh()->capitalAllocations()->sum('allocated_principal'), 0.01);
+
+        app(CapitalPartnerAllocationService::class)->allocateForLoan($loan->fresh());
+        $this->assertSame(1, $loan->fresh()->capitalAllocations()->count());
+    }
+
+    public function test_manual_allocation_rejects_totals_not_matching_principal(): void
+    {
+        Setting::set('finance.capital_allocation_strategy', 'manual');
+
+        ['lender' => $lender, 'loan' => $loan] = $this->capitalLoanFixtures(500_000);
+
+        try {
+            app(CapitalPartnerAllocationService::class)->allocateManually($loan, [
+                ['lender_id' => $lender->id, 'amount' => 400_000],
+            ]);
+            $this->fail('Expected validation exception for mismatched total.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->assertArrayHasKey('allocations', $e->errors());
+        }
     }
 
     public function test_round_robin_allocation_assigns_full_loan_to_one_partner_when_possible(): void

@@ -57,7 +57,7 @@ class RecoveryEscalationService
         $vendor = $this->partners
             ->activePartnersForType($nextType)
             ->sortBy(fn ($partner) => RecoveryAssignment::query()
-                ->where('vendor_id', $partner->id)
+                ->where('partner_id', $partner->id)
                 ->whereIn('status', [RecoveryAssignment::STATUS_ASSIGNED, RecoveryAssignment::STATUS_IN_PROGRESS])
                 ->count())
             ->first();

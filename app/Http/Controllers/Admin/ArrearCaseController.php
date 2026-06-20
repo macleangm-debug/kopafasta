@@ -164,7 +164,7 @@ class ArrearCaseController extends Controller
         $this->authorize('update', $arrearCase);
 
         $data = $request->validate([
-            'vendor_id'    => ['required', 'exists:vendors,id'],
+            'vendor_id'    => ['required', 'exists:partners,id'],
             'partner_type' => ['required', 'string', 'in:call_center,debt_collector,auctioneer,legal_partner,gps_partner'],
             'notes'        => ['nullable', 'string', 'max:2000'],
         ]);

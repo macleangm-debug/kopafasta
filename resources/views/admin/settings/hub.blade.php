@@ -40,6 +40,7 @@
             ['Credit policy', 'admin.settings.credit-policy'],
             ['AML thresholds', 'admin.settings.aml'],
             ['Countries', 'admin.settings.countries'],
+            ['Location master', 'admin.settings.locations.index'],
         ],
         'Integrations' => [
             ['SMS / Email', 'admin.settings.gateways'],

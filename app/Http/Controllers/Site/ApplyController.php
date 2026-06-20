@@ -25,6 +25,8 @@ use App\Services\ApplicationTrackingShareService;
 use App\Services\AssetBackedApplyService;
 use App\Services\CrbCreditCheckService;
 use App\Services\DisplayedRateService;
+use App\Services\GroupApplyService;
+use App\Services\GroupLendingService;
 use App\Services\LoanApplicationDraftService;
 use App\Services\LoanPolicyService;
 use App\Services\LoanProductReadinessService;
@@ -246,7 +248,12 @@ class ApplyController extends Controller
             ->with('marketplaceOnlyCodes', marketplace_only_loan_codes())
             ->with('marketplaceUrl', route('site.borrower.marketplace'))
             ->with('incomeRanges', config('income_ranges'))
-            ->with('activityTypes', activity_type_options());
+            ->with('activityTypes', activity_type_options())
+            ->with('groupMemberLimits', app(GroupApplyService::class)->memberLimits())
+            ->with('groupMemberLookupUrl', route('site.borrower.apply.group-member-lookup'))
+            ->with('leaderCustomerId', $customer->id)
+            ->with('leaderName', $customer->full_name)
+            ->with('leaderPhone', $customer->phone);
     }
 
     public function productReadiness(LoanProduct $product, LoanProductReadinessService $readiness): \Illuminate\Http\JsonResponse
@@ -301,6 +308,33 @@ class ApplyController extends Controller
             'ok'    => true,
             'name'  => $result['name'],
             'label' => $result['label'],
+        ]);
+    }
+
+    public function lookupGroupMember(Request $request, GroupApplyService $groups): \Illuminate\Http\JsonResponse
+    {
+        $leader = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($leader, 403);
+
+        $data = $request->validate([
+            'phone' => ['required', 'string', 'max:20'],
+        ]);
+
+        $result = $groups->lookupMemberByPhone($leader, $data['phone']);
+
+        if (! $result['ok']) {
+            return response()->json([
+                'ok'      => false,
+                'message' => $result['message'] ?? __('borrower.apply.group.lookup_not_found'),
+            ], 422);
+        }
+
+        return response()->json([
+            'ok'          => true,
+            'customer_id' => $result['customer_id'],
+            'name'        => $result['name'],
+            'phone'       => $result['phone'],
+            'label'       => $result['label'],
         ]);
     }
 
@@ -779,9 +813,14 @@ class ApplyController extends Controller
 
         $useWallet = $request->boolean('use_wallet');
         $promoCode = $request->query('promo_code');
+        $memberCount = max(1, (int) $request->query('member_count', 1));
+
+        $amount = app(GroupLendingService::class)->isGroupProduct($product)
+            ? app(GroupLendingService::class)->quotedApplicationFee($customer, $product, $memberCount)
+            : quoted_origination_fee($customer, $product);
 
         return response()->json([
-            'amount' => quoted_origination_fee($customer, $product),
+            'amount' => $amount,
             'quote'  => $fees->quote($customer, $product, $useWallet, $promoCode),
         ]);
     }
@@ -907,10 +946,12 @@ class ApplyController extends Controller
 
         $isMarketplaceProduct = is_marketplace_loan_product($loanProduct->code);
         $isAssetBackedProduct = is_asset_backed_loan_product($loanProduct->code);
+        $isGroupProduct = is_group_loan_product($loanProduct);
 
         $draftPayload = $draft?->payload ?? [];
         $storedSignature = $draftPayload['borrower_signature'] ?? null;
         $declarationAccepted = (bool) ($draftPayload['declaration_accepted'] ?? false);
+        $groupData = null;
 
         if ($storedSignature && ! $request->filled('signature_data')) {
             $request->merge([
@@ -938,7 +979,7 @@ class ApplyController extends Controller
             'loan_product_id'         => ['required', 'exists:loan_products,id'],
             'requested_amount'        => ['required', 'numeric', 'min:1000'],
             'requested_tenure_months' => ['required', 'integer', 'min:1', 'max:60'],
-            'purpose'                 => [$isMarketplaceProduct || $isAssetBackedProduct ? 'nullable' : 'required', 'string', 'max:100'],
+            'purpose'                 => [$isMarketplaceProduct || $isAssetBackedProduct || $isGroupProduct ? 'nullable' : 'required', 'string', 'max:100'],
             'asset_type'              => [$isAssetBackedProduct ? 'required' : 'nullable', 'string', 'max:40'],
             'asset_description'       => ['nullable', 'string', 'max:500'],
             'first_name'              => ['required', 'string', 'max:60'],
@@ -994,6 +1035,21 @@ class ApplyController extends Controller
             $data['purpose'] = 'asset_financing';
         }
 
+        if ($isGroupProduct) {
+            $groupDraft = $draftPayload['group'] ?? [];
+            try {
+                $groupData = app(GroupApplyService::class)->validateGroupPayload($customer, $loanProduct, is_array($groupDraft) ? $groupDraft : []);
+            } catch (ValidationException $e) {
+                return $this->wizardSubmitRedirect($request, $draft)
+                    ->withInput()
+                    ->withErrors($e->errors());
+            }
+
+            $data['purpose'] = $groupData['purpose'];
+            $data['requested_amount'] = collect($groupData['members'])->sum('requested_amount');
+            $amount = (float) $data['requested_amount'];
+        }
+
         if ($isAssetBackedProduct) {
             if (blank($data['purpose'] ?? null)) {
                 $data['purpose'] = 'asset_financing';
@@ -1029,7 +1085,7 @@ class ApplyController extends Controller
 
                 if (! $appFeeService->isFeeSatisfied($appFeeState, $originationDue)) {
                     return $this->wizardSubmitRedirect($request, $draft)->withInput()->withErrors([
-                        'valuation_fee' => __('borrower.apply.valuation_fee.required_before_submit'),
+                        'application_fee' => __('borrower.apply.application_fee.required_before_submit'),
                     ]);
                 }
             }
@@ -1153,7 +1209,9 @@ class ApplyController extends Controller
         $status = 'submitted';
         $submittedAt = now();
 
-        $appFee = quoted_application_fee($customer, $loanProduct);
+        $appFee = $isGroupProduct && $groupData
+            ? app(GroupLendingService::class)->quotedApplicationFee($customer, $loanProduct, count($groupData['members']))
+            : quoted_application_fee($customer, $loanProduct);
         $feeState = ($draft?->payload ?? [])['application_fee'] ?? null;
         $feeService = app(ApplicationFeePaymentService::class);
 
@@ -1237,6 +1295,15 @@ class ApplyController extends Controller
                     'requested_tenure_months' => $data['requested_tenure_months'],
                 ]),
             ]));
+        }
+
+        if ($isGroupProduct) {
+            app(GroupLendingService::class)->createForApplication(
+                $app,
+                $groupData['members'],
+                $groupData['name'],
+                loan_purpose_label($groupData['purpose']) ?? $groupData['purpose'],
+            );
         }
 
         app(AffiliateService::class)->trackApplication($app);

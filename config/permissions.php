@@ -13,6 +13,7 @@ return [
         'finance'      => 'Finance',
         'reports'      => 'Reports & analytics',
         'settings'     => 'Settings & admin',
+        'marketplace'  => 'Asset marketplace',
     ],
 
     'permissions' => [
@@ -54,6 +55,10 @@ return [
 
         // Support
         'support.tickets'                => ['label' => 'Manage support tickets', 'module' => 'support'],
+
+        // Asset marketplace
+        'marketplace.view'               => ['label' => 'View marketplace assets & requests', 'module' => 'marketplace'],
+        'marketplace.manage'             => ['label' => 'Create & edit marketplace assets', 'module' => 'marketplace'],
     ],
 
     /** Fallback when roles table has no row for users.role */
@@ -72,6 +77,7 @@ return [
             'customers.view', 'customers.edit', 'kyc.review', 'membership.approve_payments',
             'loans.view', 'loans.disburse', 'users.view',
             'finance.accounts', 'finance.methods', 'finance.operations', 'finance.reports',
+            'marketplace.view', 'marketplace.manage',
             'reports.view',
         ],
         'credit_analyst' => [
@@ -89,6 +95,9 @@ return [
         ],
         'auditor' => [
             'audit.view', 'finance.reports', 'reports.view',
+        ],
+        'asset_manager' => [
+            'marketplace.view', 'marketplace.manage',
         ],
         'borrower' => [],
         'customer' => [],

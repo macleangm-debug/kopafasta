@@ -66,7 +66,7 @@ class RecoveryPartnerService
                 $term = '%'.$search.'%';
                 $q->where(function (Builder $qq) use ($term): void {
                     $qq->where('name', 'like', $term)
-                        ->orWhere('vendor_number', 'like', $term)
+                        ->orWhere('partner_number', 'like', $term)
                         ->orWhere('phone', 'like', $term)
                         ->orWhere('email', 'like', $term);
                 });
@@ -76,7 +76,7 @@ class RecoveryPartnerService
     /** @return array<string, int|float> */
     public function statsForVendor(Vendor $vendor): array
     {
-        $assignments = RecoveryAssignment::query()->where('vendor_id', $vendor->id);
+        $assignments = RecoveryAssignment::query()->where('partner_id', $vendor->id);
 
         return [
             'assignments'       => (int) $assignments->count(),

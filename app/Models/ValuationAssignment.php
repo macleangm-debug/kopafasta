@@ -2,11 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\MapsLegacyPartnerId;
+use App\Models\Concerns\MapsLegacyPartnerTaskId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ValuationAssignment extends Model
 {
+    use MapsLegacyPartnerId;
+    use MapsLegacyPartnerTaskId;
+
     public const STATUS_ASSIGNED = 'assigned';
     public const STATUS_IN_PROGRESS = 'in_progress';
     public const STATUS_COMPLETED = 'completed';
@@ -42,12 +47,17 @@ class ValuationAssignment extends Model
 
     public function vendor(): BelongsTo
     {
-        return $this->belongsTo(Vendor::class);
+        return $this->belongsTo(Vendor::class, 'partner_id');
     }
 
     public function vendorTask(): BelongsTo
     {
-        return $this->belongsTo(VendorTask::class);
+        return $this->belongsTo(PartnerTask::class, 'partner_task_id');
+    }
+
+    public function partnerTask(): BelongsTo
+    {
+        return $this->vendorTask();
     }
 
     public function assigner(): BelongsTo

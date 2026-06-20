@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\MapsLegacyPartnerId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AffiliateEvent extends Model
 {
+    use MapsLegacyPartnerId;
+
     protected $fillable = [
         'vendor_id',
         'event_type',
@@ -26,7 +29,7 @@ class AffiliateEvent extends Model
 
     public function vendor(): BelongsTo
     {
-        return $this->belongsTo(Vendor::class);
+        return $this->belongsTo(Vendor::class, 'partner_id');
     }
 
     public function customer(): BelongsTo

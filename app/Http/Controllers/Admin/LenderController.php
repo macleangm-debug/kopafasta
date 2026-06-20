@@ -29,15 +29,64 @@ class LenderController extends ResourceController
             'address'        => ['nullable', 'string', 'max:500'],
             'credit_limit'   => ['nullable', 'numeric', 'min:0'],
             'allocation_priority' => ['nullable', 'integer', 'min:1', 'max:9999'],
+            'funding_source'      => ['required', 'in:internal,external'],
+            'revenue_share_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'registration_number' => ['nullable', 'string', 'max:80'],
+            'tax_id'              => ['nullable', 'string', 'max:40'],
+            'license_number'      => ['nullable', 'string', 'max:80'],
+            'kyc_status'          => ['nullable', 'in:pending,submitted,verified,rejected'],
+            'kyc_verified_at'     => ['nullable', 'date'],
+            'kyc_notes'           => ['nullable', 'string', 'max:2000'],
             'status'         => ['required', 'in:active,inactive,suspended'],
         ];
     }
 
+    protected function transform(array $data, ?Model $existing = null): array
+    {
+        $data = parent::transform($data, $existing);
+
+        if (($data['funding_source'] ?? 'external') === 'internal') {
+            $data['kyc_status'] = null;
+            $data['kyc_verified_at'] = null;
+            $data['registration_number'] = null;
+            $data['tax_id'] = null;
+            $data['license_number'] = null;
+            $data['kyc_notes'] = null;
+        } else {
+            $data['kyc_status'] = $data['kyc_status'] ?? 'pending';
+            if (($data['kyc_status'] ?? '') === 'verified' && empty($data['kyc_verified_at'])) {
+                $data['kyc_verified_at'] = now();
+            }
+            if (($data['kyc_status'] ?? '') !== 'verified') {
+                $data['kyc_verified_at'] = null;
+            }
+        }
+
+        if (blank($data['revenue_share_percent'] ?? null)) {
+            $data['revenue_share_percent'] = null;
+        }
+
+        return $data;
+    }
+
     protected function formData(?Model $record = null): array
     {
+        $allocation = app(\App\Services\CapitalPartnerAllocationService::class);
+
         return [
             'types'    => ['bank' => 'Bank', 'institutional' => 'Institutional', 'individual' => 'Individual', 'sacco' => 'SACCO', 'other' => 'Other'],
             'statuses' => ['active' => 'Active', 'inactive' => 'Inactive', 'suspended' => 'Suspended'],
+            'fundingSources' => [
+                'external' => 'External (capital partner — participates in loan allocation)',
+                'internal' => 'Internal (company balance sheet — excluded from partner allocation)',
+            ],
+            'kycStatuses' => [
+                'pending'   => 'Pending',
+                'submitted' => 'Submitted for review',
+                'verified'  => 'Verified',
+                'rejected'  => 'Rejected',
+            ],
+            'defaultRevenueSharePercent' => $allocation->partnerInterestSharePercent(),
         ];
     }
 
@@ -57,6 +106,10 @@ class LenderController extends ResourceController
             ->latest('id')
             ->get();
 
+        $allocationService = app(\App\Services\CapitalPartnerAllocationService::class);
+        $partnerSharePercent = $allocationService->partnerInterestSharePercent($record);
+        $companySharePercent = $allocationService->companyInterestSharePercent($record);
+
         return view('admin.lenders.show', compact(
             'record',
             'metrics',
@@ -66,6 +119,8 @@ class LenderController extends ResourceController
             'fundingHistory',
             'auditTrail',
             'pendingWithdrawals',
+            'partnerSharePercent',
+            'companySharePercent',
         ));
     }
 

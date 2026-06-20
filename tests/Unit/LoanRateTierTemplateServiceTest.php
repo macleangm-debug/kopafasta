@@ -4,10 +4,12 @@ namespace Tests\Unit;
 
 use App\Models\LoanProduct;
 use App\Services\LoanRateTierTemplateService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class LoanRateTierTemplateServiceTest extends TestCase
 {
+    use RefreshDatabase;
     public function test_tiers_span_product_limits_with_interest_rate_as_maximum(): void
     {
         $product = new LoanProduct([

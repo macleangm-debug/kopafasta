@@ -15,7 +15,18 @@ class Repayment extends Model
             'interest_component' => 'decimal:2',
             'penalty_component' => 'decimal:2',
             'paid_at' => 'datetime',
+            'approved_at' => 'datetime',
         ];
+    }
+
+    public function recordedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'recorded_by');
+    }
+
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 
     public function loan(): BelongsTo

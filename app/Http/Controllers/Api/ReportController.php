@@ -99,14 +99,14 @@ class ReportController extends Controller
     public function vendors()
     {
         $rows = Vendor::query()
-            ->leftJoin('vendor_tasks', 'vendors.id', '=', 'vendor_tasks.vendor_id')
-            ->groupBy('vendors.id', 'vendors.name', 'vendors.category')
+            ->leftJoin('partner_tasks', 'partners.id', '=', 'partner_tasks.partner_id')
+            ->groupBy('partners.id', 'partners.name', 'partners.category')
             ->select([
-                'vendors.id',
-                'vendors.name',
-                'vendors.category',
-                DB::raw('COUNT(vendor_tasks.id) as tasks_count'),
-                DB::raw("SUM(CASE WHEN vendor_tasks.status = 'completed' THEN 1 ELSE 0 END) as completed_tasks"),
+                'partners.id',
+                'partners.name',
+                'partners.category',
+                DB::raw('COUNT(partner_tasks.id) as tasks_count'),
+                DB::raw("SUM(CASE WHEN partner_tasks.status = 'completed' THEN 1 ELSE 0 END) as completed_tasks"),
             ])
             ->get();
 

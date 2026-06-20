@@ -10,5 +10,5 @@
         </a>
     </div>
 
-    @livewire('admin.vendors-table', ['category' => 'affiliate', 'lockCategory' => true, 'affiliateMode' => true])
+    @livewire('admin.partners-table', ['category' => 'affiliate', 'lockCategory' => true, 'affiliateMode' => true])
 </x-admin.layout>

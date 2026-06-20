@@ -35,7 +35,7 @@ class AssetLendingRepaymentService
         }
 
         $exists = VendorPayment::query()
-            ->where('vendor_id', $vendor->id)
+            ->where('partner_id', $vendor->id)
             ->where('source_type', 'managed_loan_repayment')
             ->where('source_id', $repayment->id)
             ->exists();

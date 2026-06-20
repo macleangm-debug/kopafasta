@@ -169,6 +169,11 @@ class LoanController extends Controller
         $orchestrator = app(LoanDisbursementOrchestrator::class);
         $canReverseDisbursement = $orchestrator->canReverseDisbursement($loan);
         $reverseBlocking = $orchestrator->reverseBlockingMessages($loan);
+        $capitalService = app(CapitalPartnerAllocationService::class);
+        $needsManualCapitalAllocation = $capitalService->needsManualAllocation($loan);
+        $capitalPartnerOptions = $needsManualCapitalAllocation
+            ? $capitalService->partnerOptionsForLoan($loan)
+            : collect();
 
         $servicing = null;
         $arrearCase = null;
@@ -209,6 +214,8 @@ class LoanController extends Controller
             'recentRepayments',
             'restructureRequests',
             'topUpRequests',
+            'needsManualCapitalAllocation',
+            'capitalPartnerOptions',
         ));
     }
 
@@ -250,7 +257,7 @@ class LoanController extends Controller
     public function disburse(Loan $loan, LoanDisbursementOrchestrator $orchestrator)
     {
         try {
-            $loan = $orchestrator->disburse($loan, auth()->user());
+            $loan = $orchestrator->disburse($loan, auth('admin')->user());
         } catch (\Illuminate\Validation\ValidationException $e) {
             return back()->withErrors($e->errors());
         }
@@ -266,6 +273,49 @@ class LoanController extends Controller
         return redirect()
             ->route('admin.loans.show', $loan)
             ->with('status', 'Loan disbursed. '.$feesCount.' fee(s) applied · '.$installments.' installment(s) scheduled.');
+    }
+
+    public function allocateCapital(Request $request, Loan $loan, CapitalPartnerAllocationService $capital): RedirectResponse
+    {
+        abort_unless(auth('admin')->user()?->hasPermission('loans.disburse') || auth('admin')->user()?->hasPermission('applications.disburse'), 403);
+
+        $data = $request->validate([
+            'allocations'             => ['required', 'array', 'min:1'],
+            'allocations.*.lender_id' => ['required', 'integer', 'exists:lenders,id'],
+            'allocations.*.amount'    => ['required', 'numeric', 'min:0'],
+        ]);
+
+        try {
+            $capital->allocateManually($loan, $data['allocations']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        }
+
+        $this->auditAdmin('admin.loans.capital_allocated', $loan, [
+            'partners' => count(array_filter($data['allocations'], fn ($row) => (float) ($row['amount'] ?? 0) > 0)),
+        ]);
+
+        return redirect()
+            ->route('admin.loans.show', $loan)
+            ->with('status', 'Capital partners assigned. You can disburse when other prerequisites are met.');
+    }
+
+    public function clearCapitalAllocation(Loan $loan, CapitalPartnerAllocationService $capital): RedirectResponse
+    {
+        abort_unless(auth('admin')->user()?->hasPermission('loans.disburse') || auth('admin')->user()?->hasPermission('applications.disburse'), 403);
+        abort_unless($loan->status === 'pending', 422, 'Only pending loans can have allocations cleared.');
+
+        if (! $loan->capitalAllocations()->exists()) {
+            return back()->with('error', 'This loan has no capital allocations to clear.');
+        }
+
+        $capital->releaseAllocationForLoan($loan);
+
+        $this->auditAdmin('admin.loans.capital_allocation_cleared', $loan);
+
+        return redirect()
+            ->route('admin.loans.show', $loan)
+            ->with('status', 'Capital allocation cleared. Re-assign partners before disbursement.');
     }
 
     public function reverseDisbursement(Request $request, Loan $loan, LoanDisbursementOrchestrator $orchestrator)

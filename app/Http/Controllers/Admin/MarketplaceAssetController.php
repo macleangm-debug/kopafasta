@@ -18,7 +18,7 @@ class MarketplaceAssetController extends ResourceController
     protected function rules(?Model $model = null): array
     {
         return array_merge(app(MarketplaceAssetService::class)->validationRules(), [
-            'vendor_id' => ['nullable', 'exists:vendors,id'],
+            'vendor_id' => ['nullable', 'exists:partners,id'],
             'slug'      => ['nullable', 'string', 'max:60'],
         ]);
     }

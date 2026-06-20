@@ -41,7 +41,7 @@ class PartnerSettlementServiceTest extends TestCase
 
         $this->assertSame(1, $created);
         $this->assertDatabaseHas('partner_settlements', [
-            'vendor_id'    => $vendor->id,
+            'partner_id'   => $vendor->id,
             'total_amount' => 75_000,
             'status'       => 'pending',
         ]);
@@ -59,7 +59,7 @@ class PartnerSettlementServiceTest extends TestCase
         $service->approvePayment($payment, $admin);
         $service->queueWeeklySettlements();
 
-        $settlement = PartnerSettlement::query()->where('vendor_id', $vendor->id)->first();
+        $settlement = PartnerSettlement::query()->where('partner_id', $vendor->id)->first();
 
         $this->assertNotNull($settlement);
 

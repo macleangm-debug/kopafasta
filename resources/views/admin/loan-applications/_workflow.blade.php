@@ -281,6 +281,45 @@
                                 </div>
                             </form>
                         </dialog>
+                    @elseif ($action['key'] === 'approve' && application_needs_funding_choice($record->product))
+                        <button type="button"
+                                data-open-dialog="approve-application-{{ $record->id }}"
+                                class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-5 py-2.5 rounded-lg shadow-sm ring-1 ring-amber-700/20 transition">
+                            {{ $action['label'] }}
+                        </button>
+                        <dialog id="approve-application-{{ $record->id }}"
+                                class="rounded-xl shadow-xl ring-1 ring-gray-200 w-full max-w-lg p-0 backdrop:bg-black/40 open:flex open:flex-col">
+                            <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="p-6 space-y-4">
+                                @csrf
+                                <input type="hidden" name="action" value="approve">
+                                <h4 class="font-semibold text-gray-900">Final approve — funding source</h4>
+                                <p class="text-sm text-gray-600">Choose whether this loan is funded from company balance or an external capital partner pool.</p>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Funding source</label>
+                                    <select name="funding_source" required class="w-full rounded-lg border-gray-300 text-sm">
+                                        <option value="">Select…</option>
+                                        <option value="internal">Internal (company funds)</option>
+                                        <option value="external">External capital partner</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Preferred capital partner (optional)</label>
+                                    <select name="preferred_lender_id" class="w-full rounded-lg border-gray-300 text-sm">
+                                        <option value="">Auto-allocate at disbursement</option>
+                                        @foreach (($externalLenders ?? collect()) as $lender)
+                                            <option value="{{ $lender->id }}">{{ $lender->name }} ({{ $lender->code }})</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="flex justify-end gap-2 pt-1">
+                                    <button type="button" data-close-dialog="approve-application-{{ $record->id }}"
+                                            class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">Cancel</button>
+                                    <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-4 py-2 rounded-lg">
+                                        Approve application
+                                    </button>
+                                </div>
+                            </form>
+                        </dialog>
                     @else
                         <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}">
                             @csrf
