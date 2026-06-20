@@ -1579,10 +1579,6 @@
                     });
                 },
 
-                profileHasGaps() {
-                    return (this.readiness?.missing || []).some(item => ! item.application_step);
-                },
-
                 restoreDraft(draft) {
                     const product = this.products.find(p => p.id == draft.loan_product_id);
                     if (! product) {
@@ -1631,15 +1627,10 @@
                     const resumeKey = target.step_key ?? draft.step_key ?? '';
 
                     return this.loadReadiness(product.id).then(() => {
-                        const profileIncomplete = this.profileHasGaps() || target.reason === 'profile_incomplete';
-
-                        if (profileIncomplete) {
-                            const profileUrl = this.readiness?.missing_action_url;
-                            if (profileUrl) {
-                                window.location.href = profileUrl;
-                                return true;
-                            }
-                            this.phase = 'details';
+                        this.phase = target.phase === 'application' || target.phase === 'details'
+                            ? target.phase
+                            : 'application';
+                        if (this.phase !== 'application') {
                             return true;
                         }
 

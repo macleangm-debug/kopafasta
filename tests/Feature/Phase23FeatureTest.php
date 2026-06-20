@@ -112,7 +112,7 @@ class Phase23FeatureTest extends TestCase
         $this->assertEqualsWithDelta(1_000_000.0, $shareA + $shareB, 0.01);
     }
 
-    public function test_apply_wizard_shows_requirements_before_fee_copy_when_profile_incomplete(): void
+    public function test_apply_wizard_shows_submit_requirements_hint_when_profile_incomplete(): void
     {
         $user = User::factory()->create(['role' => 'borrower']);
         app(PinService::class)->setPin($user, '1234');
@@ -143,7 +143,7 @@ class Phase23FeatureTest extends TestCase
         $this->actingAs($user)
             ->get(route('site.borrower.apply'))
             ->assertOk()
-            ->assertSee(__('borrower.apply.application_fee.requirements_before_fee'), false);
+            ->assertSee(__('borrower.apply.kyc_incomplete_hint'), false);
     }
 
     public function test_swahili_application_fee_strings_are_available(): void

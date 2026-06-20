@@ -32,23 +32,10 @@ class LoanApplicationDraftService
             return ['phase' => 'browse', 'step_key' => null, 'step' => 0, 'reason' => 'missing_product'];
         }
 
-        $assessment = app(LoanProductReadinessService::class)->assess($customer, $product);
-        $profileIncomplete = collect($assessment['requirements'] ?? [])
-            ->contains(fn (array $requirement) => empty($requirement['application_step']) && empty($requirement['complete']));
-
         $payload = $draft->payload ?? [];
         $stepKey = $payload['step_key'] ?? null;
         $step = (int) $draft->step;
         $applicationStarted = (bool) ($payload['application_started'] ?? $draft->phase === 'application');
-
-        if ($profileIncomplete) {
-            return [
-                'phase'    => 'details',
-                'step_key' => null,
-                'step'     => 0,
-                'reason'   => 'profile_incomplete',
-            ];
-        }
 
         if ($draft->phase === 'details' && ! $applicationStarted && ! $stepKey && $step === 0) {
             return [

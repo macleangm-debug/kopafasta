@@ -9,7 +9,13 @@ use Illuminate\Http\Request;
 
 class ApplicationRequirementsService
 {
-    /** @return array{can_apply: bool, items: list<array{key: string, label: string, complete: bool, action_url: string|null, detail: string}>} */
+    /** Whether the borrower may submit a loan application (profile/KYC must be complete). */
+    public function canSubmit(Customer $customer): bool
+    {
+        return $this->checklist($customer)['can_apply'];
+    }
+
+    /** @return array{can_apply: bool, can_submit: bool, items: list<array{key: string, label: string, complete: bool, action_url: string|null, detail: string}>} */
     public function checklist(Customer $customer): array
     {
         $nida = app(NidaVerificationService::class);
@@ -134,6 +140,7 @@ class ApplicationRequirementsService
 
         return [
             'can_apply'            => $canApply,
+            'can_submit'           => $canApply,
             'items'                => $items,
             'completion_percent'   => $total > 0 ? (int) round(($completed / $total) * 100) : 0,
             'profile_percent'      => $profileResult['percent'],

@@ -15,7 +15,8 @@
 
     @if ($applyRequirements && ! ($applyRequirements['can_apply'] ?? true))
         <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 text-sm text-amber-900 mb-6">
-            <p class="font-semibold">{{ __('borrower.apply.application_fee.requirements_before_fee') }}</p>
+            <p class="font-semibold">{{ __('borrower.apply.kyc_incomplete_title') }}</p>
+            <p class="mt-1 text-amber-800">{{ __('borrower.apply.kyc_incomplete_hint') }}</p>
             <ul class="mt-2 space-y-1 text-amber-800">
                 @foreach (($applyRequirements['items'] ?? []) as $item)
                     @if (! ($item['complete'] ?? false))

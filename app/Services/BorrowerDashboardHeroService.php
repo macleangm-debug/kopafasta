@@ -102,15 +102,11 @@ class BorrowerDashboardHeroService
             'title'     => __('borrower.dashboard.hero.no_loan_title'),
             'subtitle'  => ($requirements['can_apply'] ?? false)
                 ? __('borrower.dashboard.hero.no_loan_subtitle_ready')
-                : __('borrower.dashboard.hero.no_loan_subtitle_profile'),
+                : __('borrower.apply.kyc_incomplete_hint'),
             'amount'    => null,
             'meta'      => null,
-            'cta_label' => ($requirements['can_apply'] ?? false)
-                ? __('borrower.dashboard.hero.apply_now')
-                : __('borrower.dashboard.hero.complete_profile'),
-            'cta_url'   => ($requirements['can_apply'] ?? false)
-                ? route('site.borrower.apply')
-                : route('site.borrower.profile'),
+            'cta_label' => __('borrower.dashboard.hero.apply_now'),
+            'cta_url'   => route('site.borrower.apply'),
         ];
     }
 }
