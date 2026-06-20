@@ -44,7 +44,7 @@ class MembershipController extends Controller
             return redirect()->route('site.borrower.dashboard');
         }
 
-        if ($redirect = app(GuarantorOnboardingService::class)->redirectIfPending($request, $customer)) {
+        if ($redirect = app(\App\Services\PortalOnboardingResumeService::class)->redirectIfPending($request, $customer)) {
             return $redirect;
         }
 
@@ -181,7 +181,7 @@ class MembershipController extends Controller
                 ->with('confetti', true)
                 ->with('status', $message);
 
-            if ($next = app(GuarantorOnboardingService::class)->redirectIfPending($request, $customer->fresh())) {
+            if ($next = app(\App\Services\PortalOnboardingResumeService::class)->redirectIfPending($request, $customer->fresh())) {
                 return $next;
             }
 

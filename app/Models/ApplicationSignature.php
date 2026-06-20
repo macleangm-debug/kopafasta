@@ -14,6 +14,7 @@ class ApplicationSignature extends Model
         'signature_data',
         'signed_at',
         'guarantor_invitation_id',
+        'group_member_invitation_id',
     ];
 
     protected function casts(): array
@@ -31,5 +32,10 @@ class ApplicationSignature extends Model
     public function invitation(): BelongsTo
     {
         return $this->belongsTo(GuarantorInvitation::class, 'guarantor_invitation_id');
+    }
+
+    public function groupMemberInvitation(): BelongsTo
+    {
+        return $this->belongsTo(GroupMemberInvitation::class, 'group_member_invitation_id');
     }
 }

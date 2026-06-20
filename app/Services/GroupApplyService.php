@@ -105,17 +105,21 @@ class GroupApplyService
         }
 
         $rawMembers = collect($group['members'] ?? [])
-            ->filter(fn ($row) => is_array($row) && filled($row['customer_id'] ?? null))
+            ->filter(fn ($row) => is_array($row) && (filled($row['customer_id'] ?? null) || filled($row['invitation_id'] ?? null)))
             ->values();
 
-        if (! $rawMembers->contains(fn ($row) => (int) ($row['customer_id'] ?? 0) === (int) $leader->id)) {
+        $hasLeader = $rawMembers->contains(fn ($row) => (int) ($row['customer_id'] ?? 0) === (int) $leader->id)
+            || $rawMembers->contains(fn ($row) => ($row['role'] ?? '') === 'leader');
+
+        if (! $hasLeader) {
             throw ValidationException::withMessages([
                 'group.members' => __('borrower.apply.group.leader_required'),
             ]);
         }
 
         $members = $rawMembers->map(function (array $row) use ($leader): array {
-            $customerId = (int) $row['customer_id'];
+            $invitationId = (int) ($row['invitation_id'] ?? 0);
+            $customerId = (int) ($row['customer_id'] ?? 0);
             $amount = (float) ($row['requested_amount'] ?? 0);
 
             if ($amount < 1000) {
@@ -124,15 +128,57 @@ class GroupApplyService
                 ]);
             }
 
-            return [
-                'customer_id'      => $customerId,
-                'role'             => $customerId === (int) $leader->id ? 'leader' : 'member',
+            if ($invitationId > 0) {
+                $invitation = \App\Models\GroupMemberInvitation::query()
+                    ->where('id', $invitationId)
+                    ->where('leader_customer_id', $leader->id)
+                    ->first();
+
+                if (! $invitation) {
+                    throw ValidationException::withMessages([
+                        'group.members' => __('borrower.apply.group.invite_not_found'),
+                    ]);
+                }
+
+                if ($invitation->customer_id) {
+                    $customerId = (int) $invitation->customer_id;
+                }
+            }
+
+            if ($customerId <= 0 && $invitationId <= 0) {
+                throw ValidationException::withMessages([
+                    'group.members' => __('borrower.apply.group.member_incomplete'),
+                ]);
+            }
+
+            $resolved = [
                 'requested_amount' => $amount,
+                'role'             => $customerId === (int) $leader->id ? 'leader' : 'member',
             ];
+
+            if ($customerId > 0) {
+                $resolved['customer_id'] = $customerId;
+            }
+            if ($invitationId > 0) {
+                $resolved['invitation_id'] = $invitationId;
+            }
+
+            return $resolved;
         });
 
-        $duplicateIds = $members->pluck('customer_id')->duplicates();
+        $duplicateIds = $members->filter(fn ($row) => isset($row['customer_id']))
+            ->pluck('customer_id')
+            ->duplicates();
         if ($duplicateIds->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'group.members' => __('borrower.apply.group.duplicate_member'),
+            ]);
+        }
+
+        $duplicateInvites = $members->filter(fn ($row) => isset($row['invitation_id']))
+            ->pluck('invitation_id')
+            ->duplicates();
+        if ($duplicateInvites->isNotEmpty()) {
             throw ValidationException::withMessages([
                 'group.members' => __('borrower.apply.group.duplicate_member'),
             ]);

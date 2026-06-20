@@ -51,13 +51,28 @@ class GroupMemberProgressService
         if ($invitation->customer_id) {
             $customer = Customer::find($invitation->customer_id);
 
-            return $customer
-                ? $this->statusFromCustomer($customer)
-                : $this->wrapStatus('registered');
+            if ($customer) {
+                $base = $this->statusFromCustomer($customer);
+                if ($base['complete'] && $invitation->status === 'completed' && app(GroupMemberSignatureService::class)->hasSignature($invitation)) {
+                    return $this->wrapStatus('verification_complete', true);
+                }
+
+                if ($base['complete'] && $invitation->status !== 'completed') {
+                    return $this->wrapStatus('profile_complete');
+                }
+
+                return $base;
+            }
+
+            return $this->wrapStatus('registered');
         }
 
         if ($invitation->status === 'pending') {
             return $this->wrapStatus('invitation_sent');
+        }
+
+        if ($invitation->status === 'accepted') {
+            return $this->wrapStatus('registered');
         }
 
         return $this->wrapStatus('pending_invitation');

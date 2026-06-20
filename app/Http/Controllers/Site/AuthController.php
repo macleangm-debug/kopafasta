@@ -35,7 +35,7 @@ class AuthController extends Controller
     public function showLogin(Request $request): View
     {
         if ($request->boolean('clear_guarantor')) {
-            $request->session()->forget(['guarantor_invite_token', 'login_redirect']);
+            $request->session()->forget(['guarantor_invite_token', 'group_member_invite_token', 'login_redirect']);
         }
 
         return view('site.auth.login', [
@@ -182,7 +182,7 @@ class AuthController extends Controller
 
         $this->pins->setPin($user, $data['pin']);
 
-        if ($user->customer && ($guarantorRedirect = app(\App\Services\GuarantorOnboardingService::class)->redirectIfPending($request, $user->customer))) {
+        if ($user->customer && ($guarantorRedirect = app(\App\Services\PortalOnboardingResumeService::class)->redirectIfPending($request, $user->customer))) {
             return $guarantorRedirect;
         }
 
@@ -291,7 +291,7 @@ class AuthController extends Controller
         }
 
         if ($user->role === 'borrower' && $user->customer) {
-            if ($guarantorRedirect = app(\App\Services\GuarantorOnboardingService::class)->redirectIfPending($request, $user->customer)) {
+            if ($guarantorRedirect = app(\App\Services\PortalOnboardingResumeService::class)->redirectIfPending($request, $user->customer)) {
                 return $guarantorRedirect;
             }
         }
@@ -373,9 +373,15 @@ class AuthController extends Controller
             session(['affiliate_code' => strtoupper(trim($code))]);
         }
 
-        $onboarding = app(\App\Services\GuarantorOnboardingService::class);
-        $invitation = $onboarding->invitationFromSession($request);
-        $guarantorRegistration = $onboarding->registrationPrefill($invitation);
+        $guarantorOnboarding = app(\App\Services\GuarantorOnboardingService::class);
+        $groupOnboarding = app(\App\Services\GroupMemberOnboardingService::class);
+        $groupOnboarding->seedInvitationFromQuery($request);
+
+        $guarantorInvitation = $guarantorOnboarding->invitationFromSession($request);
+        $groupInvitation = $guarantorInvitation ? null : $groupOnboarding->invitationFromSession($request);
+
+        $guarantorRegistration = $guarantorOnboarding->registrationPrefill($guarantorInvitation)
+            ?? $groupOnboarding->registrationPrefill($groupInvitation);
 
         $registrationCountries = app(\App\Services\CountrySettingsService::class)->forRegistration();
         $defaultCountry = app(\App\Services\CountrySettingsService::class)->defaultCountryCode();
@@ -394,9 +400,14 @@ class AuthController extends Controller
 
     public function registerBorrower(Request $request, ReferralService $referrals): RedirectResponse
     {
-        $onboarding = app(\App\Services\GuarantorOnboardingService::class);
-        $invitation = $onboarding->invitationFromSession($request);
-        $guarantorPrefill = $onboarding->registrationPrefill($invitation);
+        $guarantorOnboarding = app(\App\Services\GuarantorOnboardingService::class);
+        $groupOnboarding = app(\App\Services\GroupMemberOnboardingService::class);
+
+        $guarantorInvitation = $guarantorOnboarding->invitationFromSession($request);
+        $groupInvitation = $guarantorInvitation ? null : $groupOnboarding->invitationFromSession($request);
+
+        $guarantorPrefill = $guarantorOnboarding->registrationPrefill($guarantorInvitation)
+            ?? $groupOnboarding->registrationPrefill($groupInvitation);
         $isGuarantorRegistration = $guarantorPrefill !== null;
 
         $countryService = app(\App\Services\CountrySettingsService::class);
@@ -430,11 +441,17 @@ class AuthController extends Controller
                 : 'This phone number is already registered.',
         ]);
 
-        if ($isGuarantorRegistration && $invitation) {
-            if (! $onboarding->phoneMatchesInvitation($invitation, $data['phone'])) {
+        if ($isGuarantorRegistration && $guarantorInvitation) {
+            if (! $guarantorOnboarding->phoneMatchesInvitation($guarantorInvitation, $data['phone'])) {
                 return back()
                     ->withInput()
                     ->withErrors(['phone' => __('borrower.guarantor_invite.register_phone_mismatch')]);
+            }
+        } elseif ($isGuarantorRegistration && $groupInvitation) {
+            if (! $groupOnboarding->phoneMatchesInvitation($groupInvitation, $data['phone'])) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['phone' => __('borrower.apply.group.invite_phone_mismatch')]);
             }
         }
 
@@ -484,11 +501,19 @@ class AuthController extends Controller
                 $data['affiliate_code'] ?? session('affiliate_code')
             );
 
-            $onboarding = app(\App\Services\GuarantorOnboardingService::class);
+            $guarantorOnboarding = app(\App\Services\GuarantorOnboardingService::class);
             if ($token = request()->session()->get('guarantor_invite_token')) {
-                $invitation = $onboarding->findByToken($token);
+                $invitation = $guarantorOnboarding->findByToken($token);
                 if ($invitation) {
-                    $onboarding->linkInvitee($invitation, $customer, fromTrustedSession: true);
+                    $guarantorOnboarding->linkInvitee($invitation, $customer, fromTrustedSession: true);
+                }
+            }
+
+            $groupOnboarding = app(\App\Services\GroupMemberOnboardingService::class);
+            if ($token = request()->session()->get('group_member_invite_token')) {
+                $invitation = $groupOnboarding->findByToken($token);
+                if ($invitation) {
+                    $groupOnboarding->linkInvitee($invitation, $customer, fromTrustedSession: true);
                 }
             }
 
@@ -502,13 +527,18 @@ class AuthController extends Controller
         $request->session()->put('locale', $defaultLocale);
         app()->setLocale($defaultLocale);
 
-        $onboarding = app(\App\Services\GuarantorOnboardingService::class);
-        if ($user->customer && ($invitation = $onboarding->pendingInvitationForCustomer($user->customer))) {
-            $onboarding->rememberInvitation($request, $invitation);
+        $guarantorOnboarding = app(\App\Services\GuarantorOnboardingService::class);
+        $groupOnboarding = app(\App\Services\GroupMemberOnboardingService::class);
+        if ($user->customer && ($invitation = $guarantorOnboarding->pendingInvitationForCustomer($user->customer))) {
+            $guarantorOnboarding->rememberInvitation($request, $invitation);
+        } elseif ($user->customer && ($invitation = $groupOnboarding->pendingInvitationForCustomer($user->customer))) {
+            $groupOnboarding->rememberInvitation($request, $invitation);
         }
 
         $welcome = $isGuarantorRegistration
-            ? __('borrower.guarantor_invite.continue_after_pin')
+            ? ($guarantorInvitation
+                ? __('borrower.guarantor_invite.continue_after_pin')
+                : __('borrower.apply.group.continue_after_pin'))
             : 'Welcome! Create your 4-digit PIN to secure your account.';
 
         return redirect()->route('site.borrower.setup-pin')

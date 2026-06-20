@@ -422,6 +422,57 @@ class LoanApplicationController extends ResourceController
         );
     }
 
+    public function reviewGroupMember(
+        Request $request,
+        LoanApplication $loan_application,
+        \App\Models\LoanGroupMember $loan_group_member,
+        \App\Services\GroupLoanMemberReviewService $review,
+    ): RedirectResponse {
+        abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+
+        $loan_application->loadMissing('loanGroup');
+        abort_unless(
+            $loan_application->loanGroup
+            && (int) $loan_group_member->loan_group_id === (int) $loan_application->loanGroup->id,
+            404,
+        );
+
+        $data = $request->validate([
+            'underwriting_status' => ['required', 'string', 'in:'.implode(',', $review->allowedStatuses())],
+            'underwriting_notes'  => ['nullable', 'string', 'max:2000'],
+            'leader_feedback'     => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $review->reviewMember(
+            $loan_group_member,
+            $data['underwriting_status'],
+            $data['underwriting_notes'] ?? null,
+            $data['leader_feedback'] ?? null,
+            auth()->user(),
+        );
+
+        return back()->with('status', 'Group member review saved.')->withFragment('review-group');
+    }
+
+    public function updateGroupLeaderFeedback(
+        Request $request,
+        LoanApplication $loan_application,
+        \App\Services\GroupLoanMemberReviewService $review,
+    ): RedirectResponse {
+        abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+
+        $group = $loan_application->loanGroup;
+        abort_unless($group, 404);
+
+        $data = $request->validate([
+            'leader_feedback' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $review->updateGroupFeedback($group, $data['leader_feedback'] ?? null, auth()->user());
+
+        return back()->with('status', 'Group feedback for leader saved.')->withFragment('review-group');
+    }
+
     public function verifyDocument(LoanApplication $loan_application, CustomerDocument $document, ApplicationDocumentReviewService $review): RedirectResponse
     {
         abort_unless(auth()->user()?->hasPermission('applications.review'), 403);

@@ -90,8 +90,11 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
     Route::post('/guarantor-request/{token}/accept', [\App\Http\Controllers\Site\PublicGuarantorController::class, 'accept'])->name('guarantor.accept');
     Route::post('/guarantor-request/{token}/reject', [\App\Http\Controllers\Site\PublicGuarantorController::class, 'reject'])->name('guarantor.reject');
     Route::get('/group-member-invite/{token}', [\App\Http\Controllers\Site\GroupMemberInviteController::class, 'show'])->name('group-member.invite');
+    Route::get('/group-member-invite/{token}/declined', [\App\Http\Controllers\Site\GroupMemberInviteController::class, 'declined'])->name('group-member.declined');
+    Route::post('/group-member-invite/{token}/accept', [\App\Http\Controllers\Site\GroupMemberInviteController::class, 'accept'])->name('group-member.accept');
+    Route::post('/group-member-invite/{token}/reject', [\App\Http\Controllers\Site\GroupMemberInviteController::class, 'reject'])->name('group-member.reject');
     Route::get('/guarantor/{token}', fn (string $token) => redirect("/guarantor-request/{$token}", 301));
-    Route::get('/g/{code}', [\App\Http\Controllers\Site\ShortLinkController::class, 'guarantor'])->name('short.guarantor');
+    Route::get('/g/{code}', [\App\Http\Controllers\Site\ShortLinkController::class, 'resolve'])->name('short.guarantor');
 
     // Guest auth (explicit web guard)
     Route::middleware('guest:web')->group(function () {
@@ -142,6 +145,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::post('/borrower/apply/guarantor-lookup', [\App\Http\Controllers\Site\ApplyController::class, 'lookupGuarantor'])->name('borrower.apply.guarantor-lookup');
                 Route::post('/borrower/apply/group-member-lookup', [\App\Http\Controllers\Site\ApplyController::class, 'lookupGroupMember'])->name('borrower.apply.group-member-lookup');
                 Route::post('/borrower/apply/group-member-invite', [\App\Http\Controllers\Site\ApplyController::class, 'prepareGroupMemberInvite'])->name('borrower.apply.group-member-invite');
+                Route::post('/borrower/apply/group-member-statuses', [\App\Http\Controllers\Site\ApplyController::class, 'refreshGroupMemberStatuses'])->name('borrower.apply.group-member-statuses');
                 Route::get('/borrower/apply/previous-guarantors', [\App\Http\Controllers\Site\ApplyController::class, 'previousGuarantors'])->name('borrower.apply.previous-guarantors');
                 Route::post('/borrower/apply/previous-guarantor', [\App\Http\Controllers\Site\ApplyController::class, 'selectPreviousGuarantor'])->name('borrower.apply.previous-guarantor');
                 Route::post('/borrower/apply/guarantor-invite', [\App\Http\Controllers\Site\ApplyController::class, 'prepareExternalGuarantor'])->name('borrower.apply.guarantor-invite');
@@ -225,6 +229,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/guaranteed/{customerGuarantor}', [\App\Http\Controllers\Site\BorrowerController::class, 'showGuaranteedLoan'])->name('borrower.guaranteed.show');
             Route::get('/borrower/guarantor/onboarding', [\App\Http\Controllers\Site\GuarantorOnboardingController::class, 'show'])->name('guarantor.onboarding');
             Route::post('/borrower/guarantor/onboarding', [\App\Http\Controllers\Site\GuarantorOnboardingController::class, 'complete'])->name('guarantor.onboarding.complete');
+            Route::get('/borrower/group-member/onboarding', [\App\Http\Controllers\Site\GroupMemberOnboardingController::class, 'show'])->name('group-member.onboarding');
+            Route::post('/borrower/group-member/onboarding', [\App\Http\Controllers\Site\GroupMemberOnboardingController::class, 'complete'])->name('group-member.onboarding.complete');
             Route::get('/borrower/applications/{application}/post-approval-fees', [\App\Http\Controllers\Site\BorrowerController::class, 'postApprovalFees'])->name('borrower.application.post-approval-fees');
             Route::post('/borrower/applications/{application}/post-approval-fees', [\App\Http\Controllers\Site\BorrowerController::class, 'payPostApprovalFees'])->name('borrower.application.post-approval-fees.pay');
             Route::get('/borrower/applications/{application}/disbursement-details', [\App\Http\Controllers\Site\BorrowerController::class, 'disbursementDetails'])->name('borrower.application.disbursement-details');
@@ -397,6 +403,10 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('loan-applications.refresh-crb');
         Route::post('loan-applications/{loan_application}/refresh-group-crb', [LoanApplicationController::class, 'refreshGroupCrb'])
             ->name('loan-applications.refresh-group-crb');
+        Route::post('loan-applications/{loan_application}/group-members/{loan_group_member}/review', [LoanApplicationController::class, 'reviewGroupMember'])
+            ->name('loan-applications.review-group-member');
+        Route::post('loan-applications/{loan_application}/group-feedback', [LoanApplicationController::class, 'updateGroupLeaderFeedback'])
+            ->name('loan-applications.group-feedback');
         Route::post('loan-applications/{loan_application}/create-loan', [LoanApplicationController::class, 'createLoan'])
             ->name('loan-applications.create-loan');
         Route::post('loan-application-document-requests/{documentRequest}/satisfy', [LoanApplicationDocumentRequestController::class, 'satisfy'])

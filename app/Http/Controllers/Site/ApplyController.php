@@ -254,6 +254,7 @@ class ApplyController extends Controller
             ->with('groupMemberLimits', app(GroupApplyService::class)->memberLimits())
             ->with('groupMemberLookupUrl', route('site.borrower.apply.group-member-lookup'))
             ->with('groupMemberInviteUrl', route('site.borrower.apply.group-member-invite'))
+            ->with('groupMemberStatusesUrl', route('site.borrower.apply.group-member-statuses'))
             ->with('leaderCustomerId', $customer->id)
             ->with('leaderName', $customer->full_name)
             ->with('leaderPhone', $customer->phone);
@@ -378,6 +379,53 @@ class ApplyController extends Controller
             'name' => $share['name'],
             'phone'=> $share['phone'],
             'share'=> $share,
+        ]);
+    }
+
+    public function refreshGroupMemberStatuses(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $leader = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($leader, 403);
+
+        $data = $request->validate([
+            'members' => ['required', 'array'],
+        ]);
+
+        $progress = app(GroupMemberProgressService::class);
+        $members = collect($data['members'])->map(function (array $row) use ($progress, $leader) {
+            $invitationId = (int) ($row['invitation_id'] ?? 0);
+            if ($invitationId > 0) {
+                $invitation = \App\Models\GroupMemberInvitation::query()
+                    ->where('id', $invitationId)
+                    ->where('leader_customer_id', $leader->id)
+                    ->first();
+                if ($invitation) {
+                    $status = $progress->statusFromInvitation($invitation);
+                    $row['status_key'] = $status['key'];
+                    $row['status_label'] = $status['label'];
+                    if ($invitation->customer_id) {
+                        $row['customer_id'] = $invitation->customer_id;
+                    }
+                }
+            } elseif (filled($row['customer_id'] ?? null)) {
+                $customer = Customer::find((int) $row['customer_id']);
+                if ($customer) {
+                    $status = $progress->statusFromCustomer($customer);
+                    $row['status_key'] = $status['key'];
+                    $row['status_label'] = $status['label'];
+                }
+            }
+
+            return $row;
+        })->values();
+
+        $target = (int) ($request->input('target_member_count') ?: $members->count());
+        $summary = $progress->summarize($members->all(), max(1, $target));
+
+        return response()->json([
+            'ok'      => true,
+            'members' => $members,
+            'summary' => $summary,
         ]);
     }
 
@@ -1082,10 +1130,18 @@ class ApplyController extends Controller
             $groupDraft = $draftPayload['group'] ?? [];
             try {
                 $groupData = app(GroupApplyService::class)->validateGroupPayload($customer, $loanProduct, is_array($groupDraft) ? $groupDraft : []);
+                $groupData['members'] = app(GroupMemberInvitationService::class)->resolveMembersForSubmit(
+                    $customer,
+                    $groupData['members'],
+                );
             } catch (ValidationException $e) {
                 return $this->wizardSubmitRedirect($request, $draft)
                     ->withInput()
                     ->withErrors($e->errors());
+            } catch (\InvalidArgumentException $e) {
+                return $this->wizardSubmitRedirect($request, $draft)
+                    ->withInput()
+                    ->withErrors(['group.members' => $e->getMessage()]);
             }
 
             $data['purpose'] = $groupData['purpose'];
@@ -1348,6 +1404,9 @@ class ApplyController extends Controller
                 loan_purpose_label($groupData['purpose']) ?? $groupData['purpose'],
                 (int) ($groupData['target_member_count'] ?? count($groupData['members'])),
             );
+
+            $crbCredit->attachGroupMemberCrbs($app, $groupData['members']);
+            app(GroupMemberInvitationService::class)->attachSignaturesToApplication($app, $groupData['members']);
         }
 
         app(AffiliateService::class)->trackApplication($app);

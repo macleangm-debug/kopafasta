@@ -37,6 +37,11 @@ class LoanGroupMember extends Model
         return $this->belongsTo(Loan::class);
     }
 
+    public function groupMemberInvitation(): BelongsTo
+    {
+        return $this->belongsTo(GroupMemberInvitation::class, 'group_member_invitation_id');
+    }
+
     public function isLeader(): bool
     {
         return $this->role === 'leader';

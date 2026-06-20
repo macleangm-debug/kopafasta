@@ -22,13 +22,17 @@ class GroupMemberInvitation extends Model
         'status',
         'expires_at',
         'responded_at',
+        'member_signer_name',
+        'member_signature_data',
+        'member_signed_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'expires_at'   => 'datetime',
-            'responded_at' => 'datetime',
+            'expires_at'       => 'datetime',
+            'responded_at'     => 'datetime',
+            'member_signed_at' => 'datetime',
         ];
     }
 

@@ -189,6 +189,40 @@ class CrbCreditCheckService
         $application->update(['credit_appraisal_payload' => $payload]);
     }
 
+    /**
+     * @param  list<array{customer_id: int, invitation_id?: int}>  $members
+     */
+    public function attachGroupMemberCrbs(LoanApplication $application, array $members): void
+    {
+        $payload = $application->credit_appraisal_payload ?? [];
+        $rows = [];
+
+        foreach ($members as $member) {
+            $customer = Customer::find((int) ($member['customer_id'] ?? 0));
+            if (! $customer) {
+                continue;
+            }
+
+            $meta = $this->ensureFreshForSubmission($customer);
+            $history = $meta['history'] ?? null;
+
+            $rows[] = [
+                'customer_id'       => $customer->id,
+                'invitation_id'     => $member['invitation_id'] ?? null,
+                'credit_history_id' => $history?->id,
+                'checked_at'        => $history?->checked_at?->toIso8601String(),
+                'score'             => $history?->score,
+                'risk_grade'        => $history?->risk_grade,
+                'reused'            => (bool) ($meta['reused'] ?? false),
+                'refreshed'         => (bool) ($meta['refreshed'] ?? false),
+                'error'             => $meta['error'] ?? null,
+            ];
+        }
+
+        $payload['group_member_crb'] = $rows;
+        $application->update(['credit_appraisal_payload' => $payload]);
+    }
+
     /** @return array<string, mixed> */
     public function summaryForCustomer(Customer $customer, ?LoanApplication $application = null): array
     {

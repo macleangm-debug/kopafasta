@@ -66,6 +66,25 @@
 
     @include('site.borrower.loan-profile._handover_milestones', ['profile' => $profile])
 
+    @if (! empty($groupFeedback ?? null))
+        <div class="bg-white rounded-2xl border border-amber-200 p-5 mb-6">
+            <h2 class="font-semibold mb-2">{{ __('borrower.apply.group.leader_feedback_title') }}</h2>
+            <p class="text-xs text-gray-500 mb-4">{{ __('borrower.apply.group.leader_feedback_hint') }}</p>
+            @if (filled($groupFeedback['group_feedback'] ?? null))
+                <div class="rounded-lg bg-amber-50 p-4 text-sm text-gray-800 mb-4 whitespace-pre-wrap">{{ $groupFeedback['group_feedback'] }}</div>
+            @endif
+            @foreach ($groupFeedback['members'] ?? [] as $memberFeedback)
+                <div class="border-t border-gray-100 pt-3 mt-3 text-sm">
+                    <p class="font-semibold">{{ $memberFeedback['name'] }} <span class="text-xs text-gray-500 capitalize">({{ $memberFeedback['role'] }})</span></p>
+                    @if (filled($memberFeedback['status'] ?? null) && $memberFeedback['status'] !== 'pending')
+                        <p class="text-xs text-gray-500 mt-1 capitalize">{{ str_replace('_', ' ', $memberFeedback['status']) }}</p>
+                    @endif
+                    <p class="mt-1 text-gray-700 whitespace-pre-wrap">{{ $memberFeedback['feedback'] }}</p>
+                </div>
+            @endforeach
+        </div>
+    @endif
+
     {{-- Application summary --}}
     <div class="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
         <h2 class="font-semibold mb-4">{{ __('borrower.loan_profile.summary_title') }}</h2>

@@ -66,7 +66,7 @@ class GroupLendingService
     }
 
     /**
-     * @param  list<array{customer_id: int, role?: string, requested_amount?: float}>  $members
+     * @param  list<array{customer_id: int, role?: string, requested_amount?: float, invitation_id?: int}>  $members
      */
     public function createForApplication(
         LoanApplication $application,
@@ -99,16 +99,20 @@ class GroupLendingService
         ]);
 
         foreach (array_values($members) as $index => $row) {
-            $isLeader = (int) $row['customer_id'] === (int) $leaderId;
+            $customerId = (int) ($row['customer_id'] ?? 0);
+            $isLeader = $customerId === (int) $leaderId;
             LoanGroupMember::create([
-                'loan_group_id'       => $group->id,
-                'customer_id'         => (int) $row['customer_id'],
-                'loan_application_id' => (int) $row['customer_id'] === (int) $application->customer_id ? $application->id : null,
-                'role'                => $isLeader ? 'leader' : 'member',
-                'requested_amount'    => isset($row['requested_amount']) ? (float) $row['requested_amount'] : null,
-                'sort_order'          => $index + 1,
-                'disbursement_status' => $isLeader ? 'unlocked' : 'locked',
-                'disbursement_unlocked_at' => $isLeader ? now() : null,
+                'loan_group_id'              => $group->id,
+                'customer_id'                => $customerId,
+                'group_member_invitation_id' => isset($row['invitation_id']) ? (int) $row['invitation_id'] : null,
+                'loan_application_id'        => $customerId === (int) $application->customer_id ? $application->id : null,
+                'role'                       => $isLeader ? 'leader' : 'member',
+                'requested_amount'           => isset($row['requested_amount']) ? (float) $row['requested_amount'] : null,
+                'sort_order'                 => $index + 1,
+                'disbursement_status'        => $isLeader ? 'unlocked' : 'locked',
+                'disbursement_unlocked_at'   => $isLeader ? now() : null,
+                'onboarding_status'          => 'complete',
+                'underwriting_status'        => 'pending',
             ]);
         }
 

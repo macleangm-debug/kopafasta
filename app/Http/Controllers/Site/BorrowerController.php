@@ -95,7 +95,7 @@ class BorrowerController extends Controller
     ): View|RedirectResponse {
         $customer = $this->customer();
 
-        if ($redirect = app(\App\Services\GuarantorOnboardingService::class)->redirectIfPending($request, $customer)) {
+        if ($redirect = app(\App\Services\PortalOnboardingResumeService::class)->redirectIfPending($request, $customer)) {
             return $redirect;
         }
 
@@ -188,8 +188,9 @@ class BorrowerController extends Controller
         abort_if($application->customer_id !== $customer->id, 404);
 
         $profile = app(\App\Services\LoanApplicationProfileService::class)->forApplication($customer, $application);
+        $groupFeedback = app(\App\Services\GroupLoanMemberReviewService::class)->leaderFeedbackSummary($application);
 
-        return view('site.borrower.loan-profile', compact('customer', 'profile'));
+        return view('site.borrower.loan-profile', compact('customer', 'profile', 'groupFeedback'));
     }
 
     public function applicationOffer(LoanApplication $application): View
@@ -1498,7 +1499,7 @@ class BorrowerController extends Controller
 
     private function redirectWithGuarantorResume(Request $request, Customer $customer, RedirectResponse $default): RedirectResponse
     {
-        if ($redirect = app(GuarantorOnboardingService::class)->redirectIfPending($request, $customer)) {
+        if ($redirect = app(\App\Services\PortalOnboardingResumeService::class)->redirectIfPending($request, $customer)) {
             return $redirect;
         }
 

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\GroupMemberInvitation;
+use App\Models\LoanApplication;
 use App\Models\LoanProduct;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -124,5 +125,70 @@ class GroupMemberInvitationService
                 ? 'mailto:'.$invitation->invitee_email.'?subject='.urlencode(__('borrower.apply.group.invite_subject')).'&body='.urlencode($message)
                 : null,
         ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $memberRows
+     * @return list<array{customer_id: int, role?: string, requested_amount?: float, invitation_id?: int}>
+     */
+    public function resolveMembersForSubmit(Customer $leader, array $memberRows): array
+    {
+        return collect($memberRows)->map(function (array $row) use ($leader): array {
+            $invitationId = (int) ($row['invitation_id'] ?? 0);
+            if ($invitationId > 0) {
+                $invitation = GroupMemberInvitation::query()
+                    ->where('id', $invitationId)
+                    ->where('leader_customer_id', $leader->id)
+                    ->firstOrFail();
+
+                if (! $invitation->customer_id) {
+                    throw new \InvalidArgumentException(__('borrower.apply.group.member_not_registered', [
+                        'name' => $invitation->displayName(),
+                    ]));
+                }
+
+                if ($invitation->status !== 'completed') {
+                    throw new \InvalidArgumentException(__('borrower.apply.group.member_not_ready', [
+                        'name' => $invitation->displayName(),
+                    ]));
+                }
+
+                if (! app(GroupMemberSignatureService::class)->hasSignature($invitation)) {
+                    throw new \InvalidArgumentException(__('borrower.apply.group.member_signature_missing', [
+                        'name' => $invitation->displayName(),
+                    ]));
+                }
+
+                return [
+                    'customer_id'      => (int) $invitation->customer_id,
+                    'role'             => 'member',
+                    'requested_amount' => (float) ($row['requested_amount'] ?? 0),
+                    'invitation_id'    => $invitation->id,
+                ];
+            }
+
+            return [
+                'customer_id'      => (int) ($row['customer_id'] ?? 0),
+                'role'             => ($row['role'] ?? '') === 'leader' || (int) ($row['customer_id'] ?? 0) === (int) $leader->id ? 'leader' : 'member',
+                'requested_amount' => (float) ($row['requested_amount'] ?? 0),
+            ];
+        })->values()->all();
+    }
+
+    public function attachSignaturesToApplication(LoanApplication $application, array $memberRows): void
+    {
+        $signatures = app(GroupMemberSignatureService::class);
+
+        foreach ($memberRows as $row) {
+            $invitationId = (int) ($row['invitation_id'] ?? 0);
+            if ($invitationId <= 0) {
+                continue;
+            }
+
+            $invitation = GroupMemberInvitation::find($invitationId);
+            if ($invitation) {
+                $signatures->attachToApplication($application, $invitation);
+            }
+        }
     }
 }

@@ -86,6 +86,7 @@
                   guarantorLookupUrl: @js(route('site.borrower.apply.guarantor-lookup')),
                   groupMemberLookupUrl: @js($groupMemberLookupUrl ?? route('site.borrower.apply.group-member-lookup')),
                   groupMemberInviteUrl: @js($groupMemberInviteUrl ?? route('site.borrower.apply.group-member-invite')),
+                  groupMemberStatusesUrl: @js($groupMemberStatusesUrl ?? route('site.borrower.apply.group-member-statuses')),
                   groupLimits: @js($groupMemberLimits ?? ['min' => 5, 'max' => 30]),
                   leaderCustomerId: {{ (int) ($leaderCustomerId ?? $customer->id) }},
                   leaderName: @js($leaderName ?? $customer->full_name),
@@ -1746,13 +1747,39 @@
                 },
 
                 memberStatusLabel(member) {
-                    const key = member.status_key || (member.invitation_id ? 'invitation_sent' : 'verification_complete');
+                    const key = member.status_key || (member.invitation_id ? 'invitation_sent' : 'profile_incomplete');
                     return this.groupProgressLabels?.[key] || key;
                 },
 
                 memberStatusClass(member) {
-                    const key = member.status_key || (member.invitation_id ? 'invitation_sent' : 'verification_complete');
+                    const key = member.status_key || (member.invitation_id ? 'invitation_sent' : 'profile_incomplete');
                     return key === 'verification_complete' ? 'text-emerald-700' : 'text-amber-700';
+                },
+
+                async refreshGroupMemberStatuses() {
+                    if (! this.groupMemberStatusesUrl || ! this.group.members.length) return;
+                    try {
+                        const res = await fetch(this.groupMemberStatusesUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({
+                                members: this.group.members,
+                                target_member_count: this.groupTargetCount(),
+                            }),
+                        });
+                        const data = await res.json();
+                        if (res.ok && data.ok && Array.isArray(data.members)) {
+                            this.group.members = data.members;
+                        }
+                    } catch (e) {
+                        // Non-blocking refresh
+                    }
                 },
 
                 async inviteExternalGroupMember() {
@@ -2658,6 +2685,7 @@
                         this.form.purpose = this.group.purpose;
                     }
                     if (this.stepKey === 'group_members' && this.hasStep('group_members')) {
+                        await this.refreshGroupMemberStatuses();
                         const target = this.groupTargetCount();
                         if (this.group.members.length !== target) {
                             alert(@js(__('borrower.apply.group.members_required')));
