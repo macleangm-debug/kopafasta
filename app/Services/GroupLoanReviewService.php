@@ -18,7 +18,9 @@ class GroupLoanReviewService
             return null;
         }
 
-        $members = $group->members->map(function (LoanGroupMember $member) use ($application) {
+        $members = $group->members
+            ->filter(fn (LoanGroupMember $member) => ($member->member_status ?? 'active') === 'active')
+            ->map(function (LoanGroupMember $member) use ($application) {
             $customer = $member->customer;
             $requirements = $customer
                 ? app(ApplicationRequirementsService::class)->checklist($customer)
@@ -56,6 +58,10 @@ class GroupLoanReviewService
                 'underwriting_status'   => $member->underwriting_status ?? 'pending',
                 'underwriting_notes'    => $member->underwriting_notes,
                 'leader_feedback'       => $member->leader_feedback,
+                'contract_signature_status' => $member->contract_signature_status ?? 'pending',
+                'can_request_replacement'   => ! $member->isLeader()
+                    && ($member->member_status ?? 'active') === 'active'
+                    && ($member->underwriting_status ?? 'pending') !== 'replacement_requested',
             ];
         })->values();
 
@@ -74,6 +80,7 @@ class GroupLoanReviewService
             'total_amount'        => $total,
             'members'             => $members->all(),
             'verified_count'      => $members->where('kyc_complete', true)->count(),
+            'contract_signatures' => app(GroupContractSignatureService::class)->progress($application),
             'statuses'            => app(GroupLoanMemberReviewService::class)->allowedStatuses(),
         ];
     }

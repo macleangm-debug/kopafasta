@@ -115,6 +115,55 @@ class NotificationTemplateSeeder extends Seeder
                 'subject' => 'Document needed for {{ application_number }}',
                 'body'    => 'Hi {{ name }}, additional documents are required for application {{ application_number }}. {{ instructions }} Please log in to KopaFasta to upload by {{ due_date }}.',
             ],
+            [
+                'code' => 'group_member_replacement_requested',
+                'name' => 'Group Member Replacement Requested',
+                'channel' => 'all',
+                'subject' => 'Replace group member — {{ application_number }}',
+                'body'    => 'Hi {{ name }}, underwriting requires a replacement for {{ member_name }} on group application {{ application_number }}. {{ feedback }} Log in to add a replacement: {{ application_url }} — KopaFasta',
+            ],
+            [
+                'code' => 'group_member_review_feedback',
+                'name' => 'Group Member Review Feedback',
+                'channel' => 'all',
+                'subject' => 'Group member update — {{ application_number }}',
+                'body'    => 'Hi {{ name }}, update for {{ member_name }} on application {{ application_number }}: {{ feedback }} View: {{ application_url }} — KopaFasta',
+            ],
+            [
+                'code' => 'group_application_review_feedback',
+                'name' => 'Group Application Review Feedback',
+                'channel' => 'all',
+                'subject' => 'Group application update — {{ application_number }}',
+                'body'    => 'Hi {{ name }}, update on your group application {{ application_number }}: {{ feedback }} View: {{ application_url }} — KopaFasta',
+            ],
+            [
+                'code' => 'group_contract_member_declined',
+                'name' => 'Group Contract Declined by Member',
+                'channel' => 'all',
+                'subject' => 'Member declined contract — {{ application_number }}',
+                'body'    => 'Hi {{ name }}, {{ member_name }} declined to sign the group loan contract for {{ application_number }}. Add a replacement member to continue: {{ application_url }} — KopaFasta',
+            ],
+            [
+                'code' => 'group_contract_sign_required',
+                'name' => 'Group Contract Signature Required',
+                'channel' => 'all',
+                'subject' => 'Sign group contract — {{ application_number }}',
+                'body'    => 'Hi {{ name }}, {{ leader_name }}\'s group loan ({{ application_number }}) needs your contract signature. Sign here: {{ contract_url }} — KopaFasta',
+            ],
+            [
+                'code' => 'group_member_consent_required',
+                'name' => 'Group Membership Consent Required',
+                'channel' => 'all',
+                'subject' => 'Join group loan application',
+                'body'    => 'Hi {{ name }}, {{ leader_name }} added you to a group loan application. Complete your membership consent: {{ onboarding_url }} — KopaFasta',
+            ],
+            [
+                'code' => 'group_contract_member_signed',
+                'name' => 'Group Contract Signed by Member',
+                'channel' => 'all',
+                'subject' => 'Member signed contract — {{ application_number }}',
+                'body'    => 'Hi {{ name }}, {{ member_name }} signed the group loan contract for {{ application_number }}. View progress: {{ application_url }} — KopaFasta',
+            ],
         ];
 
         foreach ($templates as $t) {

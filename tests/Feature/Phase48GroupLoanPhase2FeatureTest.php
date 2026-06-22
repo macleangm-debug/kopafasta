@@ -219,4 +219,81 @@ class Phase48GroupLoanPhase2FeatureTest extends TestCase
         $response = $this->get('/g/GRPSHORT');
         $response->assertRedirect(route('site.group-member.invite', $invitation->token));
     }
+
+    public function test_internal_member_invitation_requires_signature_for_verification(): void
+    {
+        Setting::setMany(['loan.group_min_members' => 2, 'loan.group_max_members' => 10]);
+
+        $leader = Customer::create([
+            'customer_number'       => 'CU-P48-L5',
+            'type'                  => 'individual',
+            'status'                => 'active',
+            'first_name'            => 'Leader',
+            'last_name'             => 'Five',
+            'phone'                 => '255712345908',
+            'membership_expires_at' => now()->addYear(),
+            'onboarded_at'          => now(),
+        ]);
+
+        $member = Customer::create([
+            'customer_number'       => 'CU-P48-M5',
+            'type'                  => 'individual',
+            'status'                => 'active',
+            'first_name'            => 'Internal',
+            'last_name'             => 'Member',
+            'phone'                 => '255712345909',
+            'membership_expires_at' => now()->addYear(),
+            'onboarded_at'          => now(),
+        ]);
+
+        $product = $this->groupProduct();
+        $service = app(GroupMemberInvitationService::class);
+
+        $share = $service->prepareInternalInvitation($leader, $product, $member);
+        $this->assertArrayHasKey('invitation_id', $share);
+
+        $invitation = GroupMemberInvitation::find($share['invitation_id']);
+        $this->assertSame('accepted', $invitation->status);
+        $this->assertSame($member->id, $invitation->customer_id);
+
+        $status = app(GroupMemberProgressService::class)->statusFromInvitation($invitation);
+        $this->assertSame('profile_incomplete', $status['key']);
+        $this->assertFalse($status['complete']);
+    }
+
+    public function test_previous_group_members_lists_prior_invitees(): void
+    {
+        $leader = Customer::create([
+            'customer_number' => 'CU-P48-L6',
+            'type'            => 'individual',
+            'status'          => 'active',
+            'first_name'      => 'Leader',
+            'last_name'       => 'Six',
+            'phone'           => '255712345910',
+        ]);
+
+        $member = Customer::create([
+            'customer_number' => 'CU-P48-M6',
+            'type'            => 'individual',
+            'status'          => 'active',
+            'first_name'      => 'Past',
+            'last_name'       => 'Member',
+            'phone'           => '255712345911',
+        ]);
+
+        GroupMemberInvitation::create([
+            'leader_customer_id' => $leader->id,
+            'loan_product_id'    => $this->groupProduct()->id,
+            'customer_id'        => $member->id,
+            'invitee_first_name' => 'Past',
+            'invitee_last_name'  => 'Member',
+            'invitee_phone'      => '255712345911',
+            'token'              => 'past-member-token-123456789012345678901',
+            'status'             => 'completed',
+        ]);
+
+        $items = app(GroupMemberInvitationService::class)->previousMembersForLeader($leader);
+        $this->assertCount(1, $items);
+        $this->assertSame($member->id, $items[0]['customer_id']);
+    }
 }

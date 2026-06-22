@@ -14,6 +14,8 @@ class LoanGroupMember extends Model
         return [
             'disbursement_unlocked_at' => 'datetime',
             'disbursed_at'             => 'datetime',
+            'contract_signed_at'       => 'datetime',
+            'contract_declined_at'     => 'datetime',
         ];
     }
 

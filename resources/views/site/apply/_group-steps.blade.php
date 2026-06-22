@@ -98,6 +98,19 @@
         </div>
 
         <div x-show="groupMemberMode === 'internal'" class="space-y-3">
+            <div x-show="previousGroupMembers.length" x-cloak class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-4 space-y-3">
+                <p class="text-sm font-semibold text-sky-900">{{ __('borrower.apply.group_members.previous_title') }}</p>
+                <p class="text-xs text-sky-800">{{ __('borrower.apply.group_members.previous_hint') }}</p>
+                <div class="space-y-2">
+                    <template x-for="item in previousGroupMembers" :key="item.customer_id">
+                        <button type="button" @click="selectPreviousGroupMember(item.customer_id)"
+                                :disabled="groupLookupLoading || group.members.some(m => Number(m.customer_id) === Number(item.customer_id))"
+                                class="w-full text-left rounded-lg bg-white ring-1 ring-sky-200 px-3 py-2 text-sm hover:bg-sky-50 disabled:opacity-50">
+                            <span class="font-medium" x-text="item.label || item.name"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
             <label class="block text-xs font-medium text-gray-600">{{ __('borrower.apply.group_members.lookup_phone') }}</label>
             <div class="flex gap-2">
                 <input type="tel" x-model="groupLookupPhone" inputmode="numeric" placeholder="712345678"
@@ -108,6 +121,7 @@
                 </button>
             </div>
             <p class="text-xs text-gray-500">{{ __('borrower.apply.group_members.lookup_hint') }}</p>
+            <p class="text-xs text-amber-800">{{ __('borrower.apply.group_members.internal_consent_hint') }}</p>
         </div>
 
         <div x-show="groupMemberMode === 'external'" class="grid sm:grid-cols-2 gap-3">

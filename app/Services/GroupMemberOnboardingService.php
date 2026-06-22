@@ -278,6 +278,8 @@ class GroupMemberOnboardingService
             'responded_at' => $invitation->responded_at ?? now(),
         ]);
 
+        app(GroupMemberReplacementService::class)->attachReplacementFromInvitation($invitation->fresh());
+
         $this->forgetInvitation($request);
 
         $leader = $invitation->leader;

@@ -189,8 +189,9 @@ class BorrowerController extends Controller
 
         $profile = app(\App\Services\LoanApplicationProfileService::class)->forApplication($customer, $application);
         $groupFeedback = app(\App\Services\GroupLoanMemberReviewService::class)->leaderFeedbackSummary($application);
+        $groupContract = app(\App\Services\GroupMemberReplacementService::class)->leaderDashboard($application, $customer);
 
-        return view('site.borrower.loan-profile', compact('customer', 'profile', 'groupFeedback'));
+        return view('site.borrower.loan-profile', compact('customer', 'profile', 'groupFeedback', 'groupContract'));
     }
 
     public function applicationOffer(LoanApplication $application): View

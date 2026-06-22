@@ -255,6 +255,8 @@ class ApplyController extends Controller
             ->with('groupMemberLookupUrl', route('site.borrower.apply.group-member-lookup'))
             ->with('groupMemberInviteUrl', route('site.borrower.apply.group-member-invite'))
             ->with('groupMemberStatusesUrl', route('site.borrower.apply.group-member-statuses'))
+            ->with('previousGroupMembersUrl', route('site.borrower.apply.previous-group-members'))
+            ->with('selectPreviousGroupMemberUrl', route('site.borrower.apply.previous-group-member'))
             ->with('leaderCustomerId', $customer->id)
             ->with('leaderName', $customer->full_name)
             ->with('leaderPhone', $customer->phone);
@@ -321,8 +323,12 @@ class ApplyController extends Controller
         abort_unless($leader, 403);
 
         $data = $request->validate([
-            'phone' => ['required', 'string', 'max:20'],
+            'phone'           => ['required', 'string', 'max:20'],
+            'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
         ]);
+
+        $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
+        abort_unless(app(GroupLendingService::class)->isGroupProduct($product), 422);
 
         $result = $groups->lookupMemberByPhone($leader, $data['phone']);
 
@@ -333,14 +339,61 @@ class ApplyController extends Controller
             ], 422);
         }
 
+        $member = Customer::findOrFail((int) $result['customer_id']);
+
+        try {
+            $share = app(GroupMemberInvitationService::class)->prepareInternalInvitation($leader, $product, $member);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
+        }
+
         return response()->json([
-            'ok'          => true,
-            'customer_id' => $result['customer_id'],
-            'name'        => $result['name'],
-            'phone'       => $result['phone'],
-            'label'       => $result['label'],
-            'status_key'  => $result['status_key'] ?? 'profile_incomplete',
+            'ok'            => true,
+            'customer_id'   => $share['customer_id'],
+            'name'          => $share['name'],
+            'phone'         => $share['phone'],
+            'label'         => $result['label'],
+            'invitation_id' => $share['invitation_id'],
+            'status_key'    => $share['status_key'],
+            'share'         => $share,
         ]);
+    }
+
+    public function previousGroupMembers(GroupMemberInvitationService $invites): \Illuminate\Http\JsonResponse
+    {
+        $leader = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($leader, 403);
+
+        return response()->json([
+            'members' => $invites->previousMembersForLeader($leader),
+        ]);
+    }
+
+    public function selectPreviousGroupMember(
+        Request $request,
+        GroupMemberInvitationService $invites,
+    ): \Illuminate\Http\JsonResponse {
+        $leader = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($leader, 403);
+
+        $data = $request->validate([
+            'customer_id'     => ['required', 'integer', 'exists:customers,id'],
+            'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
+        ]);
+
+        $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
+        abort_unless(app(GroupLendingService::class)->isGroupProduct($product), 422);
+
+        $result = $invites->preparePreviousMember($leader, $product, (int) $data['customer_id']);
+
+        if (! ($result['ok'] ?? false)) {
+            return response()->json([
+                'ok'      => false,
+                'message' => $result['message'] ?? __('borrower.apply.group.lookup_not_found'),
+            ], 422);
+        }
+
+        return response()->json($result);
     }
 
     public function prepareGroupMemberInvite(
@@ -937,7 +990,7 @@ class ApplyController extends Controller
         $amount = (float) $data['requested_amount'];
         $tenure = (int) $data['requested_tenure_months'];
         $rate = app(DisplayedRateService::class)->displayedMonthlyRate($product, $amount);
-        $cadence = $product->repayment_cadence ?? 'weekly';
+        $cadence = app(GroupLendingService::class)->effectiveRepaymentCadence($product);
         $rows = $schedules->preview($amount, $rate, $tenure, $cadence);
 
         $balance = $amount;

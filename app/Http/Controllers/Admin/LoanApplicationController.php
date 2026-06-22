@@ -398,20 +398,27 @@ class LoanApplicationController extends ResourceController
         abort_unless($group, 404);
 
         $refreshed = 0;
+        $memberRows = [];
+
         foreach ($group->members as $member) {
             $customer = $member->customer;
             if (! $customer) {
                 continue;
             }
+
             $history = $crbCredit->refreshCreditReport($customer);
             if ($history) {
-                $crbCredit->attachToApplication($loan_application, $history, [
-                    'reused'    => false,
-                    'refreshed' => true,
-                    'member_id' => $member->id,
-                ]);
                 $refreshed++;
             }
+
+            $memberRows[] = [
+                'customer_id'   => $customer->id,
+                'invitation_id' => $member->group_member_invitation_id,
+            ];
+        }
+
+        if ($memberRows !== []) {
+            $crbCredit->attachGroupMemberCrbs($loan_application, $memberRows);
         }
 
         return back()->with(
@@ -471,6 +478,49 @@ class LoanApplicationController extends ResourceController
         $review->updateGroupFeedback($group, $data['leader_feedback'] ?? null, auth()->user());
 
         return back()->with('status', 'Group feedback for leader saved.')->withFragment('review-group');
+    }
+
+    public function groupContractProgress(
+        LoanApplication $loan_application,
+        \App\Services\GroupLoanReviewService $review,
+    ): \Illuminate\Http\JsonResponse {
+        abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+
+        $dossier = $review->dossier($loan_application);
+        abort_unless($dossier, 404);
+
+        return response()->json([
+            'ok'                  => true,
+            'contract_signatures' => $dossier['contract_signatures'] ?? null,
+        ]);
+    }
+
+    public function requestGroupMemberReplacement(
+        Request $request,
+        LoanApplication $loan_application,
+        \App\Models\LoanGroupMember $loan_group_member,
+        \App\Services\GroupLoanMemberReviewService $review,
+    ): RedirectResponse {
+        abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+
+        $loan_application->loadMissing('loanGroup');
+        abort_unless(
+            $loan_application->loanGroup
+            && (int) $loan_group_member->loan_group_id === (int) $loan_application->loanGroup->id,
+            404,
+        );
+
+        $data = $request->validate([
+            'reason' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $review->requestReplacement(
+            $loan_group_member,
+            auth()->user(),
+            $data['reason'] ?? null,
+        );
+
+        return back()->with('status', 'Replacement requested. The group leader has been notified.')->withFragment('review-group');
     }
 
     public function verifyDocument(LoanApplication $loan_application, CustomerDocument $document, ApplicationDocumentReviewService $review): RedirectResponse

@@ -37,7 +37,16 @@ class GroupLendingService
 
         return array_key_exists('group_application_fee_per_member', $loan)
             ? (bool) $loan['group_application_fee_per_member']
-            : (bool) config('group_lending.application_fee_per_member', true);
+            : (bool) config('group_lending.application_fee_per_member', false);
+    }
+
+    public function effectiveRepaymentCadence(?LoanProduct $product): string
+    {
+        if ($this->isGroupProduct($product)) {
+            return 'monthly';
+        }
+
+        return $product->repayment_cadence ?? 'weekly';
     }
 
     public function postApprovalFeePerGroup(): bool

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\GroupMemberInvitation;
 use App\Models\LoanApplication;
 use App\Models\LoanGroup;
 use App\Models\LoanGroupMember;
@@ -124,6 +125,19 @@ class Phase47FeatureTest extends TestCase
             'phone'           => '255712345883',
         ]);
 
+        $invitation = GroupMemberInvitation::create([
+            'leader_customer_id' => $leader->id,
+            'loan_product_id'    => $product->id,
+            'customer_id'        => $member->id,
+            'invitee_first_name' => 'Member',
+            'invitee_last_name'  => 'Apply',
+            'invitee_phone'      => '255712345883',
+            'token'              => 'p47-member-invite-token-123456789012345678',
+            'status'             => 'completed',
+            'member_signature_data' => 'data:image/png;base64,abc',
+            'member_signed_at'   => now(),
+        ]);
+
         $application = LoanApplication::create([
             'customer_id'             => $leader->id,
             'loan_product_id'         => $product->id,
@@ -139,7 +153,7 @@ class Phase47FeatureTest extends TestCase
             'purpose' => 'business',
             'members' => [
                 ['customer_id' => $leader->id, 'requested_amount' => 300_000],
-                ['customer_id' => $member->id, 'requested_amount' => 300_000],
+                ['customer_id' => $member->id, 'invitation_id' => $invitation->id, 'requested_amount' => 300_000],
             ],
         ]);
 

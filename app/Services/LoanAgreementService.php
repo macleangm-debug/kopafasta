@@ -624,6 +624,8 @@ class LoanAgreementService
                     __('borrower.loan_profile.actions.view_contract'),
                 );
             }
+
+            app(GroupContractSignatureService::class)->notifyPendingMembers($application);
         }
 
         return $contract;
@@ -636,7 +638,7 @@ class LoanAgreementService
         $rateBreakdown = app(DisplayedRateService::class)->breakdown($product, $amount);
         $monthlyRate = $rateBreakdown['displayed_monthly_rate'];
         $tenure = (int) ($a->offered_tenure_months ?? $a->approved_tenure_months ?? $a->requested_tenure_months ?? $product->default_tenure_months ?? 0);
-        $cadence = $a->product->repayment_cadence ?? 'weekly';
+        $cadence = app(GroupLendingService::class)->effectiveRepaymentCadence($a->product);
 
         $schedule = app(RepaymentScheduleGenerator::class)->previewEstimate($amount, $monthlyRate, $tenure, $cadence);
         $instalment = $schedule[0]['total_due'] ?? 0.0;
@@ -669,6 +671,50 @@ class LoanAgreementService
 
         $activityLabel = display_label($customer?->activity_type, 'activity_type')
             ?: ($customer?->business_name ?? $customer?->employment_type);
+
+        $groupLending = app(GroupLendingService::class);
+        $isGroupLoan = $groupLending->isGroupProduct($a->product);
+        $groupMembers = [];
+        $groupName = null;
+        $totalGroupLiability = null;
+
+        if ($isGroupLoan) {
+            $a->loadMissing('loanGroup.members.customer', 'signatures');
+            $group = $a->loanGroup;
+            if ($group) {
+                $groupName = $group->name;
+                $groupMembers = $group->members
+                    ->filter(fn ($member) => ($member->member_status ?? 'active') === 'active')
+                    ->map(function ($member) use ($a) {
+                    $memberCustomer = $member->customer;
+                    $signature = $a->signatures
+                        ->where('signer_type', 'group_member')
+                        ->first(fn ($sig) => (int) ($sig->group_member_invitation_id ?? 0) === (int) ($member->group_member_invitation_id ?? 0)
+                            || ($member->role === 'leader' && $sig->signer_type === 'borrower'));
+
+                    if ($member->role === 'leader') {
+                        $signature = $a->signatures->firstWhere('signer_type', 'borrower') ?: $signature;
+                    }
+
+                    $contractStatus = $member->contract_signature_status ?: 'pending';
+                    if ($contractStatus === 'pending' && $signature) {
+                        $contractStatus = 'signed';
+                    }
+
+                    return [
+                        'name'              => $memberCustomer?->full_name ?? '—',
+                        'customer_number'   => $memberCustomer?->customer_number,
+                        'national_id'       => $memberCustomer?->national_id,
+                        'phone'             => $memberCustomer?->phone,
+                        'role'              => $member->role,
+                        'requested_amount'  => (float) ($member->requested_amount ?? 0),
+                        'signature'         => $signature,
+                        'signature_status'  => $contractStatus,
+                    ];
+                })->values()->all();
+                $totalGroupLiability = collect($groupMembers)->sum('requested_amount');
+            }
+        }
 
         return [
             'application_number'   => $a->application_number,
@@ -733,6 +779,10 @@ class LoanAgreementService
             'collateral_forced_sale_value' => $collateral?->forced_sale_value,
             'collateral_gps_required' => (bool) ($collateral?->gps_required ?? false),
             'collateral_ltv_percent' => $collateral?->ltv_percent,
+            'is_group_loan'        => $isGroupLoan,
+            'group_name'           => $groupName,
+            'group_members'        => $groupMembers,
+            'total_group_liability'=> $totalGroupLiability,
         ];
     }
 

@@ -50,7 +50,11 @@ class ApplicationDisbursementReadinessService
     {
         $contract = $this->loanContract($application);
 
-        return $contract && $contract->isSigned();
+        if (! $contract || ! $contract->isSigned()) {
+            return false;
+        }
+
+        return app(GroupContractSignatureService::class)->allMembersSigned($application);
     }
 
     public function hasPostApprovalFees(LoanApplication $application): bool
@@ -255,8 +259,10 @@ class ApplicationDisbursementReadinessService
         if (($this->feesPaid($application) || ! $this->hasPostApprovalFees($application)) && ! $this->contractSigned($application)) {
             if (! $this->loanContract($application)) {
                 $messages[] = 'Loan contract must be generated after post-approval fees are paid.';
-            } else {
+            } elseif (! ($this->loanContract($application)?->isSigned())) {
                 $messages[] = 'Borrower must accept the loan contract.';
+            } else {
+                $messages[] = 'All group members must sign the loan contract before disbursement.';
             }
         }
 
@@ -419,7 +425,10 @@ class ApplicationDisbursementReadinessService
             default => 'not_generated',
         };
 
-        return [
+        $groupContractProgress = app(GroupContractSignatureService::class)->progress($application);
+        $groupSignaturesComplete = ! $groupContractProgress || ($groupContractProgress['all_signed'] ?? false);
+
+        $checklist = [
             'offer' => [
                 'label'    => __('borrower.contract.checklist.offer'),
                 'status'   => $offerSigned ? 'accepted' : 'pending',
@@ -440,12 +449,23 @@ class ApplicationDisbursementReadinessService
                 'status'   => $contractStatus,
                 'complete' => $contractSigned,
             ],
-            'disbursement' => [
-                'label'    => __('borrower.contract.checklist.disbursement'),
-                'status'   => $disbursed ? 'complete' : ($canDisburse ? 'pending' : 'locked'),
-                'complete' => $disbursed,
-            ],
         ];
+
+        if ($groupContractProgress) {
+            $checklist['group_signatures'] = [
+                'label'    => __('borrower.apply.group.contract_checklist_label'),
+                'status'   => $groupSignaturesComplete ? 'accepted' : 'pending',
+                'complete' => $groupSignaturesComplete,
+            ];
+        }
+
+        $checklist['disbursement'] = [
+            'label'    => __('borrower.contract.checklist.disbursement'),
+            'status'   => $disbursed ? 'complete' : ($canDisburse ? 'pending' : 'locked'),
+            'complete' => $disbursed,
+        ];
+
+        return $checklist;
     }
 
     public function resolveBorrowerStageAfterOfferAcceptance(LoanApplication $application): string

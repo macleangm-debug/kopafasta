@@ -163,6 +163,14 @@ class GroupApplyService
                 $resolved['invitation_id'] = $invitationId;
             }
 
+            if ($customerId > 0
+                && $customerId !== (int) $leader->id
+                && $invitationId <= 0) {
+                throw ValidationException::withMessages([
+                    'group.members' => __('borrower.apply.group.member_consent_required'),
+                ]);
+            }
+
             return $resolved;
         });
 

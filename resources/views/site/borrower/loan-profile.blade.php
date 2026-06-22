@@ -64,6 +64,10 @@
         @include('site.borrower.loan-profile._disbursement_checklist', ['checklist' => $profile['disbursement_checklist']])
     @endif
 
+    @if (! empty($groupContract ?? null) && ! empty($application))
+        @include('site.borrower.loan-profile._group_contract_progress', ['groupContract' => $groupContract, 'application' => $application])
+    @endif
+
     @include('site.borrower.loan-profile._handover_milestones', ['profile' => $profile])
 
     @if (! empty($groupFeedback ?? null))

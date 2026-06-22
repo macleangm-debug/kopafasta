@@ -38,37 +38,40 @@ class GroupLoanMemberReviewService
         $application = $member->group?->primaryApplication;
         $leader = $member->group?->leader;
 
-        if ($leader && filled($leaderFeedback)) {
-            app(NotificationService::class)->notifyInApp(
+        if ($leader && filled($leaderFeedback) && $application) {
+            app(GroupLoanNotificationService::class)->notifyLeaderMemberFeedback(
                 $leader,
-                __('borrower.apply.group.underwriter_member_feedback', [
-                    'name' => $member->customer?->full_name ?? 'Member',
-                    'feedback' => $leaderFeedback,
-                ]),
-                'group_loan',
-                'group_member_review',
+                $application,
+                $member->customer?->full_name ?? 'Member',
+                $leaderFeedback,
+                $status,
             );
         }
 
         return $member->fresh();
     }
 
-    public function updateGroupFeedback(LoanGroup $group, ?string $leaderFeedback, ?User $reviewer = null): LoanGroup
-    {
-        $group->update(['leader_feedback' => $leaderFeedback]);
-
-        if ($leader = $group->leader) {
-            if (filled($leaderFeedback)) {
-                app(NotificationService::class)->notifyInApp(
-                    $leader,
-                    __('borrower.apply.group.underwriter_group_feedback', ['feedback' => $leaderFeedback]),
-                    'group_loan',
-                    'group_application_review',
-                );
-            }
+    public function requestReplacement(
+        LoanGroupMember $member,
+        ?User $reviewer = null,
+        ?string $reason = null,
+    ): LoanGroupMember {
+        if ($member->isLeader()) {
+            throw new \InvalidArgumentException('The group leader cannot be marked for replacement.');
         }
 
-        return $group->fresh();
+        $name = $member->customer?->full_name ?? 'Member';
+        $feedback = filled($reason)
+            ? $reason
+            : __('borrower.apply.group.admin_replacement_default_feedback', ['name' => $name]);
+
+        return $this->reviewMember(
+            $member,
+            'replacement_requested',
+            null,
+            $feedback,
+            $reviewer,
+        );
     }
 
     /** @return array<string, mixed>|null */
@@ -100,5 +103,25 @@ class GroupLoanMemberReviewService
             'group_feedback' => $group->leader_feedback,
             'members'        => $memberFeedback,
         ];
+    }
+
+    public function updateGroupFeedback(LoanGroup $group, ?string $leaderFeedback, ?User $reviewer = null): LoanGroup
+    {
+        $group->update(['leader_feedback' => $leaderFeedback]);
+
+        if ($leader = $group->leader) {
+            if (filled($leaderFeedback)) {
+                $application = $group->primaryApplication;
+                if ($application) {
+                    app(GroupLoanNotificationService::class)->notifyLeaderGroupFeedback(
+                        $leader,
+                        $application,
+                        $leaderFeedback,
+                    );
+                }
+            }
+        }
+
+        return $group->fresh();
     }
 }

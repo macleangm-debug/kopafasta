@@ -1,41 +1,41 @@
 @if ($groupReview ?? null)
     <div id="review-group" class="bg-white rounded-xl ring-1 ring-gray-200 overflow-hidden">
         <div class="px-5 py-4 border-b border-gray-100">
-            <h3 class="font-semibold text-gray-900">Group loan review</h3>
+            <h3 class="font-semibold text-gray-900">{{ __('admin.group_review.title') }}</h3>
             <p class="text-sm text-gray-500 mt-1">{{ $groupReview['name'] }} · {{ $groupReview['group_number'] }}</p>
         </div>
         <div class="px-5 py-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm border-b border-gray-100">
-            <div><span class="text-gray-500 block">Leader</span><span class="font-semibold">{{ $groupReview['leader'] ?? '—' }}</span></div>
-            <div><span class="text-gray-500 block">Members</span><span class="font-semibold">{{ $groupReview['member_count'] }} / {{ $groupReview['target_member_count'] }}</span></div>
-            <div><span class="text-gray-500 block">Per member</span><span class="font-semibold">{{ format_money($groupReview['amount_per_member']) }}</span></div>
-            <div><span class="text-gray-500 block">Total group amount</span><span class="font-semibold">{{ format_money($groupReview['total_amount']) }}</span></div>
+            <div><span class="text-gray-500 block">{{ __('admin.group_review.leader') }}</span><span class="font-semibold">{{ $groupReview['leader'] ?? '—' }}</span></div>
+            <div><span class="text-gray-500 block">{{ __('admin.group_review.members') }}</span><span class="font-semibold">{{ $groupReview['member_count'] }} / {{ $groupReview['target_member_count'] }}</span></div>
+            <div><span class="text-gray-500 block">{{ __('admin.group_review.per_member') }}</span><span class="font-semibold">{{ format_money($groupReview['amount_per_member']) }}</span></div>
+            <div><span class="text-gray-500 block">{{ __('admin.group_review.total_amount') }}</span><span class="font-semibold">{{ format_money($groupReview['total_amount']) }}</span></div>
         </div>
 
         @if (filled($groupReview['leader_feedback'] ?? null))
             <div class="px-5 py-4 border-b border-gray-100 bg-amber-50 text-sm">
-                <p class="text-xs uppercase tracking-widest text-amber-800 font-semibold mb-1">Leader-visible group feedback</p>
+                <p class="text-xs uppercase tracking-widest text-amber-800 font-semibold mb-1">{{ __('admin.group_review.leader_feedback_heading') }}</p>
                 <p class="text-gray-800 whitespace-pre-wrap">{{ $groupReview['leader_feedback'] }}</p>
             </div>
         @endif
 
         <form method="POST" action="{{ route('admin.loan-applications.group-feedback', $record) }}" class="px-5 py-4 border-b border-gray-100 space-y-3">
             @csrf
-            <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500">Feedback visible to group leader</label>
-            <textarea name="leader_feedback" rows="3" class="w-full rounded-lg border-gray-200 text-sm" placeholder="Overall group application feedback for the leader…">{{ old('leader_feedback', $groupReview['leader_feedback'] ?? '') }}</textarea>
-            <button type="submit" class="inline-flex bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-sm">Save group feedback</button>
+            <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500">{{ __('admin.group_review.leader_feedback_label') }}</label>
+            <textarea name="leader_feedback" rows="3" class="w-full rounded-lg border-gray-200 text-sm" placeholder="{{ __('admin.group_review.leader_feedback_placeholder') }}">{{ old('leader_feedback', $groupReview['leader_feedback'] ?? '') }}</textarea>
+            <button type="submit" class="inline-flex bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-sm">{{ __('admin.group_review.save_group_feedback') }}</button>
         </form>
 
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                     <tr>
-                        <th class="px-4 py-3">Member</th>
-                        <th class="px-4 py-3">ID / phone</th>
-                        <th class="px-4 py-3">Amount</th>
-                        <th class="px-4 py-3">KYC</th>
-                        <th class="px-4 py-3">CRB</th>
-                        <th class="px-4 py-3">Exposure</th>
-                        <th class="px-4 py-3">Review</th>
+                        <th class="px-4 py-3">{{ __('admin.group_review.col_member') }}</th>
+                        <th class="px-4 py-3">{{ __('admin.group_review.col_id_phone') }}</th>
+                        <th class="px-4 py-3">{{ __('admin.group_review.col_amount') }}</th>
+                        <th class="px-4 py-3">{{ __('admin.group_review.col_kyc') }}</th>
+                        <th class="px-4 py-3">{{ __('admin.group_review.col_crb') }}</th>
+                        <th class="px-4 py-3">{{ __('admin.group_review.col_exposure') }}</th>
+                        <th class="px-4 py-3">{{ __('admin.group_review.col_review') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -54,12 +54,12 @@
                             <td class="px-4 py-3 align-top">{{ format_money($member['requested_amount']) }}</td>
                             <td class="px-4 py-3 align-top">
                                 <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium {{ $member['kyc_complete'] ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">
-                                    {{ $member['kyc_complete'] ? 'Complete' : 'Incomplete' }}
+                                    {{ $member['kyc_complete'] ? __('admin.group_review.kyc_complete') : __('admin.group_review.kyc_incomplete') }}
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-xs align-top">
                                 <p>{{ $member['crb_score'] ?? '—' }}</p>
-                                <p class="text-gray-500">{{ $member['crb_status'] ?? 'Not checked' }}</p>
+                                <p class="text-gray-500">{{ $member['crb_status'] ?? __('admin.group_review.crb_not_checked') }}</p>
                             </td>
                             <td class="px-4 py-3 align-top">{{ format_money($member['existing_exposure']) }}</td>
                             <td class="px-4 py-3 align-top min-w-[16rem]">
@@ -67,13 +67,24 @@
                                     @csrf
                                     <select name="underwriting_status" class="w-full rounded-lg border-gray-200 text-xs">
                                         @foreach ($groupReview['statuses'] as $status)
-                                            <option value="{{ $status }}" @selected(($member['underwriting_status'] ?? 'pending') === $status)>{{ str_replace('_', ' ', ucfirst($status)) }}</option>
+                                            <option value="{{ $status }}" @selected(($member['underwriting_status'] ?? 'pending') === $status)>
+                                                {{ __('admin.group_review.underwriting_status.'.$status) }}
+                                            </option>
                                         @endforeach
                                     </select>
-                                    <textarea name="underwriting_notes" rows="2" class="w-full rounded-lg border-gray-200 text-xs" placeholder="Internal notes">{{ $member['underwriting_notes'] ?? '' }}</textarea>
-                                    <textarea name="leader_feedback" rows="2" class="w-full rounded-lg border-gray-200 text-xs" placeholder="Feedback visible to leader">{{ $member['leader_feedback'] ?? '' }}</textarea>
-                                    <button type="submit" class="text-xs font-semibold text-gray-900 underline">Save member review</button>
+                                    <textarea name="underwriting_notes" rows="2" class="w-full rounded-lg border-gray-200 text-xs" placeholder="{{ __('admin.group_review.internal_notes_placeholder') }}">{{ $member['underwriting_notes'] ?? '' }}</textarea>
+                                    <textarea name="leader_feedback" rows="2" class="w-full rounded-lg border-gray-200 text-xs" placeholder="{{ __('admin.group_review.leader_notes_placeholder') }}">{{ $member['leader_feedback'] ?? '' }}</textarea>
+                                    <button type="submit" class="text-xs font-semibold text-gray-900 underline">{{ __('admin.group_review.save_member_review') }}</button>
                                 </form>
+                                @if ($member['can_request_replacement'] ?? false)
+                                    <form method="POST" action="{{ route('admin.loan-applications.request-group-member-replacement', [$record, $member['id']]) }}" class="mt-2 space-y-2">
+                                        @csrf
+                                        <textarea name="reason" rows="2" class="w-full rounded-lg border-amber-200 text-xs" placeholder="{{ __('admin.group_review.replacement_reason_placeholder') }}"></textarea>
+                                        <button type="submit" class="inline-flex text-xs font-semibold text-amber-800 underline" onclick="return confirm(@js(__('admin.group_review.replacement_confirm')))">
+                                            {{ __('admin.group_review.request_replacement') }}
+                                        </button>
+                                    </form>
+                                @endif
                             </td>
                         </tr>
                     @endforeach
@@ -84,9 +95,80 @@
             <form method="POST" action="{{ route('admin.loan-applications.refresh-group-crb', $record) }}">
                 @csrf
                 <button type="submit" class="inline-flex bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-sm">
-                    Refresh CRB for all members
+                    {{ __('admin.group_review.refresh_crb') }}
                 </button>
             </form>
         </div>
+
+        @if ($groupReview['contract_signatures'] ?? null)
+            <div id="group-contract-signatures" class="px-5 py-4 border-t border-gray-100"
+                 x-data="{
+                    signatures: @js($groupReview['contract_signatures']),
+                    polling: null,
+                    async refresh() {
+                        try {
+                            const res = await fetch(@js(route('admin.loan-applications.group-contract-progress', $record)), {
+                                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                                credentials: 'same-origin',
+                            });
+                            if (! res.ok) return;
+                            const data = await res.json();
+                            if (data.ok && data.contract_signatures) this.signatures = data.contract_signatures;
+                        } catch (e) {}
+                    },
+                    startPolling() {
+                        this.polling = setInterval(() => this.refresh(), 20000);
+                    },
+                    statusClass(status) {
+                        if (status === 'signed') return 'bg-emerald-100 text-emerald-800';
+                        if (status === 'declined') return 'bg-red-100 text-red-800';
+                        return 'bg-amber-100 text-amber-800';
+                    },
+                 }"
+                 x-init="startPolling()"
+                 @destroy.window="if (polling) clearInterval(polling)">
+                <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                    <h4 class="text-xs font-semibold uppercase tracking-widest text-gray-500">{{ __('admin.group_review.contract_signatures') }}</h4>
+                    <span class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('admin.group_review.auto_refresh') }}</span>
+                </div>
+                <div class="mb-3 text-sm space-y-1">
+                    <template x-for="(line, index) in (signatures.summary || [])" :key="'sig-summary-' + index">
+                        <p class="font-medium text-gray-800" x-text="line"></p>
+                    </template>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
+                            <tr>
+                                <th class="px-4 py-2">{{ __('admin.group_review.col_member') }}</th>
+                                <th class="px-4 py-2">{{ __('admin.group_review.col_amount') }}</th>
+                                <th class="px-4 py-2">{{ __('admin.group_review.col_status') }}</th>
+                                <th class="px-4 py-2">{{ __('admin.group_review.col_signed_at') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <template x-for="sigMember in (signatures.members || [])" :key="sigMember.id">
+                                <tr>
+                                    <td class="px-4 py-2">
+                                        <p class="font-medium" x-text="sigMember.name"></p>
+                                        <p class="text-xs text-gray-500 capitalize" x-text="sigMember.role"></p>
+                                    </td>
+                                    <td class="px-4 py-2" x-text="new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', maximumFractionDigits: 0 }).format(sigMember.requested_amount || 0)"></td>
+                                    <td class="px-4 py-2">
+                                        <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium"
+                                              :class="statusClass(sigMember.signature_status || 'pending')"
+                                              x-text="sigMember.signature_label || sigMember.signature_status"></span>
+                                    </td>
+                                    <td class="px-4 py-2 text-xs text-gray-500">
+                                        <span x-show="sigMember.signed_at" x-text="new Date(sigMember.signed_at).toLocaleString()"></span>
+                                        <span x-show="! sigMember.signed_at">—</span>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
     </div>
 @endif

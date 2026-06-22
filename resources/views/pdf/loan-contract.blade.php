@@ -74,6 +74,36 @@
 @endif
 @endif
 
+@if (!empty($snapshot['is_group_loan']) && !empty($snapshot['group_members']))
+<h2>{{ __('borrower.loan_contract.pdf.group_heading') }}</h2>
+<table class="kv">
+    <tr><td class="label">{{ __('borrower.loan_contract.pdf.group_name') }}</td><td class="value">{{ $snapshot['group_name'] ?? '—' }}</td></tr>
+    <tr><td class="label">{{ __('borrower.loan_contract.pdf.total_group_liability') }}</td><td class="value">{{ format_money($snapshot['total_group_liability'] ?? 0) }}</td></tr>
+</table>
+<table class="schedule" style="margin-top:8px">
+    <thead>
+        <tr>
+            <th>{{ __('borrower.loan_contract.pdf.name') }}</th>
+            <th>{{ __('borrower.loan_contract.pdf.nida_number') }}</th>
+            <th>{{ __('borrower.loan_contract.pdf.phone') }}</th>
+            <th>{{ __('borrower.loan_contract.pdf.member_allocation') }}</th>
+            <th>{{ __('borrower.loan_contract.pdf.signature_status') }}</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach ($snapshot['group_members'] as $groupMember)
+        <tr>
+            <td>{{ $groupMember['name'] }} @if(($groupMember['role'] ?? '') === 'leader') ({{ __('borrower.loan_contract.pdf.group_leader') }}) @endif</td>
+            <td>{{ $groupMember['national_id'] ?? '—' }}</td>
+            <td>{{ $groupMember['phone'] ?? '—' }}</td>
+            <td>{{ format_money($groupMember['requested_amount'] ?? 0) }}</td>
+            <td>{{ ucfirst($groupMember['signature_status'] ?? 'pending') }}</td>
+        </tr>
+        @endforeach
+    </tbody>
+</table>
+@endif
+
 @if ($show('loan_terms'))
 <h2>{{ __('borrower.loan_contract.pdf.facility_heading') }}</h2>
 <table class="kv">

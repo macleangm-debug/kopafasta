@@ -144,6 +144,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::get('/borrower/apply/product/{product}/readiness', [\App\Http\Controllers\Site\ApplyController::class, 'productReadiness'])->name('borrower.apply.product-readiness');
                 Route::post('/borrower/apply/guarantor-lookup', [\App\Http\Controllers\Site\ApplyController::class, 'lookupGuarantor'])->name('borrower.apply.guarantor-lookup');
                 Route::post('/borrower/apply/group-member-lookup', [\App\Http\Controllers\Site\ApplyController::class, 'lookupGroupMember'])->name('borrower.apply.group-member-lookup');
+                Route::get('/borrower/apply/previous-group-members', [\App\Http\Controllers\Site\ApplyController::class, 'previousGroupMembers'])->name('borrower.apply.previous-group-members');
+                Route::post('/borrower/apply/previous-group-member', [\App\Http\Controllers\Site\ApplyController::class, 'selectPreviousGroupMember'])->name('borrower.apply.previous-group-member');
                 Route::post('/borrower/apply/group-member-invite', [\App\Http\Controllers\Site\ApplyController::class, 'prepareGroupMemberInvite'])->name('borrower.apply.group-member-invite');
                 Route::post('/borrower/apply/group-member-statuses', [\App\Http\Controllers\Site\ApplyController::class, 'refreshGroupMemberStatuses'])->name('borrower.apply.group-member-statuses');
                 Route::get('/borrower/apply/previous-guarantors', [\App\Http\Controllers\Site\ApplyController::class, 'previousGuarantors'])->name('borrower.apply.previous-guarantors');
@@ -231,6 +233,12 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/guarantor/onboarding', [\App\Http\Controllers\Site\GuarantorOnboardingController::class, 'complete'])->name('guarantor.onboarding.complete');
             Route::get('/borrower/group-member/onboarding', [\App\Http\Controllers\Site\GroupMemberOnboardingController::class, 'show'])->name('group-member.onboarding');
             Route::post('/borrower/group-member/onboarding', [\App\Http\Controllers\Site\GroupMemberOnboardingController::class, 'complete'])->name('group-member.onboarding.complete');
+            Route::get('/borrower/applications/{application}/group-contract', [\App\Http\Controllers\Site\GroupContractController::class, 'show'])->name('borrower.group-contract.show');
+            Route::get('/borrower/applications/{application}/group-contract-progress', [\App\Http\Controllers\Site\GroupContractProgressController::class, 'borrower'])->name('borrower.group-contract.progress');
+            Route::post('/borrower/applications/{application}/group-contract/sign', [\App\Http\Controllers\Site\GroupContractController::class, 'sign'])->name('borrower.group-contract.sign');
+            Route::post('/borrower/applications/{application}/group-contract/decline', [\App\Http\Controllers\Site\GroupContractController::class, 'decline'])->name('borrower.group-contract.decline');
+            Route::post('/borrower/applications/{application}/group-members/{loan_group_member}/replace-internal', [\App\Http\Controllers\Site\GroupMemberReplacementController::class, 'replaceInternal'])->name('borrower.group-member.replace-internal');
+            Route::post('/borrower/applications/{application}/group-members/{loan_group_member}/replace-external', [\App\Http\Controllers\Site\GroupMemberReplacementController::class, 'replaceExternal'])->name('borrower.group-member.replace-external');
             Route::get('/borrower/applications/{application}/post-approval-fees', [\App\Http\Controllers\Site\BorrowerController::class, 'postApprovalFees'])->name('borrower.application.post-approval-fees');
             Route::post('/borrower/applications/{application}/post-approval-fees', [\App\Http\Controllers\Site\BorrowerController::class, 'payPostApprovalFees'])->name('borrower.application.post-approval-fees.pay');
             Route::get('/borrower/applications/{application}/disbursement-details', [\App\Http\Controllers\Site\BorrowerController::class, 'disbursementDetails'])->name('borrower.application.disbursement-details');
@@ -407,6 +415,10 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('loan-applications.review-group-member');
         Route::post('loan-applications/{loan_application}/group-feedback', [LoanApplicationController::class, 'updateGroupLeaderFeedback'])
             ->name('loan-applications.group-feedback');
+        Route::get('loan-applications/{loan_application}/group-contract-progress', [LoanApplicationController::class, 'groupContractProgress'])
+            ->name('loan-applications.group-contract-progress');
+        Route::post('loan-applications/{loan_application}/group-members/{loan_group_member}/request-replacement', [LoanApplicationController::class, 'requestGroupMemberReplacement'])
+            ->name('loan-applications.request-group-member-replacement');
         Route::post('loan-applications/{loan_application}/create-loan', [LoanApplicationController::class, 'createLoan'])
             ->name('loan-applications.create-loan');
         Route::post('loan-application-document-requests/{documentRequest}/satisfy', [LoanApplicationDocumentRequestController::class, 'satisfy'])

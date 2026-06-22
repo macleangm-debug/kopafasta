@@ -397,8 +397,8 @@ class SettingsController extends Controller
         $data['group_min_members'] = $groupMin;
         $data['group_max_members'] = $groupMax;
         $data['group_leader_unlock_repayments'] = max(1, (int) ($data['group_leader_unlock_repayments'] ?? 2));
-        $data['group_application_fee_per_member'] = (bool) ($data['group_application_fee_per_member'] ?? true);
-        $data['group_post_approval_fee_per_group'] = (bool) ($data['group_post_approval_fee_per_group'] ?? true);
+        $data['group_application_fee_per_member'] = (bool) ($data['group_application_fee_per_member'] ?? config('group_lending.application_fee_per_member', false));
+        $data['group_post_approval_fee_per_group'] = (bool) ($data['group_post_approval_fee_per_group'] ?? config('group_lending.post_approval_fee_per_group', true));
 
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["loan.$k" => $v])->all());
         return back()->with('status', 'Loan rules saved.');
