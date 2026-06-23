@@ -323,14 +323,21 @@ class ApplyController extends Controller
         abort_unless($leader, 403);
 
         $data = $request->validate([
-            'phone'           => ['required', 'string', 'max:20'],
-            'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
+            'member_no'         => ['required', 'string', 'max:40'],
+            'phone'             => ['required', 'string', 'max:20'],
+            'name'              => ['nullable', 'string', 'max:120'],
+            'loan_product_id'   => ['required', 'integer', 'exists:loan_products,id'],
         ]);
 
         $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
         abort_unless(app(GroupLendingService::class)->isGroupProduct($product), 422);
 
-        $result = $groups->lookupMemberByPhone($leader, $data['phone']);
+        $result = $groups->lookupMemberByMembershipAndPhone(
+            $leader,
+            $data['member_no'],
+            $data['phone'],
+            $data['name'] ?? '',
+        );
 
         if (! $result['ok']) {
             return response()->json([
@@ -428,10 +435,11 @@ class ApplyController extends Controller
         }
 
         return response()->json([
-            'ok'   => true,
-            'name' => $share['name'],
-            'phone'=> $share['phone'],
-            'share'=> $share,
+            'ok'            => true,
+            'invitation_id' => $share['invitation_id'],
+            'name'          => $share['name'],
+            'phone'         => $share['phone'],
+            'share'         => $share,
         ]);
     }
 
@@ -705,7 +713,15 @@ class ApplyController extends Controller
         ]);
 
         $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
-        $amount = quoted_origination_fee($customer, $product);
+        $draft = $drafts->find($customer, $product->id);
+        $groups = app(GroupLendingService::class);
+        $memberCount = $groups->isGroupProduct($product)
+            ? $groups->memberCountFromPayload($draft?->payload['group'] ?? null)
+            : 1;
+
+        $amount = $groups->isGroupProduct($product)
+            ? $groups->quotedApplicationFee($customer, $product, $memberCount)
+            : quoted_origination_fee($customer, $product);
 
         if ($amount <= 0) {
             $feeState = ['status' => 'waived', 'reference' => null, 'channel' => 'waived', 'amount' => 0, 'paid_at' => now()->toIso8601String()];
@@ -732,6 +748,7 @@ class ApplyController extends Controller
                 $paymentReference,
                 $request->boolean('use_wallet'),
                 $data['promo_code'] ?? null,
+                $groups->isGroupProduct($product) ? $memberCount : null,
             );
             $drafts->saveApplicationFee($customer, $product->id, $feeState);
             if (product_includes_valuation_fee($product)) {
@@ -756,6 +773,7 @@ class ApplyController extends Controller
             $paymentReference,
             $request->boolean('use_wallet'),
             $data['promo_code'] ?? null,
+            $groups->isGroupProduct($product) ? $memberCount : null,
         );
         $drafts->saveApplicationFee($customer, $product->id, $feeState);
         if (product_includes_valuation_fee($product)) {
@@ -958,14 +976,24 @@ class ApplyController extends Controller
         $useWallet = $request->boolean('use_wallet');
         $promoCode = $request->query('promo_code');
         $memberCount = max(1, (int) $request->query('member_count', 1));
+        $groups = app(GroupLendingService::class);
 
-        $amount = app(GroupLendingService::class)->isGroupProduct($product)
-            ? app(GroupLendingService::class)->quotedApplicationFee($customer, $product, $memberCount)
+        $amount = $groups->isGroupProduct($product)
+            ? $groups->quotedApplicationFee($customer, $product, $memberCount)
             : quoted_origination_fee($customer, $product);
 
         return response()->json([
             'amount' => $amount,
-            'quote'  => $fees->quote($customer, $product, $useWallet, $promoCode),
+            'quote'  => $fees->quote(
+                $customer,
+                $product,
+                $useWallet,
+                $promoCode,
+                $groups->isGroupProduct($product) ? $memberCount : null,
+            ),
+            'breakdown' => $groups->isGroupProduct($product)
+                ? $groups->applicationFeeBreakdown($customer, $product, $memberCount)
+                : null,
         ]);
     }
 

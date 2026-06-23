@@ -20,9 +20,19 @@ class ApplicationFeePaymentService
     }
 
     /** @return array<string, mixed> */
-    public function quote(Customer $customer, LoanProduct $product, bool $useWallet = false, ?string $promoCode = null): array
-    {
-        $base = (float) quoted_origination_fee($customer, $product);
+    public function quote(
+        Customer $customer,
+        LoanProduct $product,
+        bool $useWallet = false,
+        ?string $promoCode = null,
+        ?int $groupMemberCount = null,
+    ): array {
+        $groups = app(GroupLendingService::class);
+        if ($groups->isGroupProduct($product) && $groupMemberCount) {
+            $base = (float) $groups->quotedApplicationFee($customer, $product, $groupMemberCount);
+        } else {
+            $base = (float) quoted_origination_fee($customer, $product);
+        }
         $cfg = MembershipService::config();
 
         if ($base <= 0) {
@@ -58,8 +68,9 @@ class ApplicationFeePaymentService
         string $paymentReference,
         bool $useWallet = false,
         ?string $promoCode = null,
+        ?int $groupMemberCount = null,
     ): array {
-        $quote = $this->quote($customer, $product, $useWallet, $promoCode);
+        $quote = $this->quote($customer, $product, $useWallet, $promoCode, $groupMemberCount);
         $cashDue = (int) ($quote['cash_due'] ?? $quote['after_discount']);
 
         if ($cashDue <= 0) {
@@ -102,8 +113,9 @@ class ApplicationFeePaymentService
         string $paymentReference,
         bool $useWallet = false,
         ?string $promoCode = null,
+        ?int $groupMemberCount = null,
     ): array {
-        $quote = $this->quote($customer, $product, $useWallet, $promoCode);
+        $quote = $this->quote($customer, $product, $useWallet, $promoCode, $groupMemberCount);
         $cashDue = (int) ($quote['cash_due'] ?? $quote['after_discount']);
 
         if ($cashDue <= 0) {

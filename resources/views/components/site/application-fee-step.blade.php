@@ -61,6 +61,12 @@
     </div>
 
     <div x-show="showsApplicationFeePayment()" x-cloak>
+        <div x-show="isGroupProduct(current) && groupFeeBreakdown()" x-cloak class="rounded-xl ring-1 ring-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950 mb-6 space-y-2">
+            <p class="text-xs font-semibold uppercase tracking-widest text-amber-800">{{ __('borrower.apply.group.fee_breakdown.settings_note') }}</p>
+            <div class="flex justify-between gap-4"><span>{{ __('borrower.apply.group.fee_breakdown.per_member') }}</span><span class="font-mono font-semibold" x-text="formatTzs(groupFeeBreakdown().per_member)"></span></div>
+            <div class="flex justify-between gap-4"><span>{{ __('borrower.apply.group.fee_breakdown.members') }}</span><span class="font-semibold" x-text="groupFeeBreakdown().member_count"></span></div>
+            <div class="flex justify-between gap-4 pt-2 border-t border-amber-200 font-semibold"><span>{{ __('borrower.apply.group.fee_breakdown.total') }}</span><span class="font-mono" x-text="formatTzs(groupFeeBreakdown().total)"></span></div>
+        </div>
         <div class="rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white p-6 shadow-lg mb-6">
             <template x-if="feeQuoteData && feeQuoteData.base > 0">
                 <div class="mb-3 text-sm space-y-1.5">

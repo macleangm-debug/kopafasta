@@ -78,6 +78,7 @@
                 <div class="rounded-xl ring-1 ring-amber-200 bg-amber-50 p-4 space-y-3"
                      x-data="{
                         mode: 'internal',
+                        member_no: '',
                         phone: '',
                         first_name: '',
                         last_name: '',
@@ -91,7 +92,7 @@
                                     method: 'POST',
                                     headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '', 'X-Requested-With': 'XMLHttpRequest' },
                                     credentials: 'same-origin',
-                                    body: JSON.stringify({ phone: this.phone }),
+                                    body: JSON.stringify({ member_no: this.member_no, phone: this.phone }),
                                 });
                                 const data = await res.json();
                                 if (! res.ok || ! data.ok) { this.error = data.message || 'Failed'; return; }
@@ -123,12 +124,18 @@
                         <label class="inline-flex items-center gap-2"><input type="radio" value="external" x-model="mode" class="text-amber-500"> {{ __('borrower.apply.group_members.mode_external') }}</label>
                     </div>
 
-                    <div x-show="mode === 'internal'" class="flex gap-2">
+                    <div x-show="mode === 'internal'" class="space-y-2">
+                        <div class="flex rounded-lg ring-1 ring-gray-200 overflow-hidden">
+                            <span class="inline-flex items-center px-3 bg-gray-100 text-sm font-mono text-gray-600 border-r border-gray-200">KPF-TZ-</span>
+                            <input type="text" x-model="member_no" placeholder="ABC12345" class="flex-1 border-0 px-3 py-2 text-sm font-mono focus:ring-0">
+                        </div>
+                        <div class="flex gap-2">
                         <input type="tel" x-model="phone" placeholder="{{ __('borrower.apply.group_members.lookup_phone') }}" class="flex-1 rounded-lg border-gray-300 text-sm">
                         <button type="button" @click="replaceInternal()" :disabled="loading"
                                 class="shrink-0 rounded-full bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2 text-xs disabled:opacity-50">
                             {{ __('borrower.apply.group.replacement_add') }}
                         </button>
+                        </div>
                     </div>
 
                     <div x-show="mode === 'external'" class="grid sm:grid-cols-2 gap-2">

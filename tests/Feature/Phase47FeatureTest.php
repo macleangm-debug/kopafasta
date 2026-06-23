@@ -66,7 +66,7 @@ class Phase47FeatureTest extends TestCase
         );
     }
 
-    public function test_group_member_lookup_by_phone(): void
+    public function test_group_member_lookup_by_membership_and_phone(): void
     {
         $leader = Customer::create([
             'customer_number'       => 'CU-P47-L',
@@ -76,6 +76,7 @@ class Phase47FeatureTest extends TestCase
             'last_name'             => 'Leader',
             'phone'                 => '255712345880',
             'membership_expires_at' => now()->addYear(),
+            'member_no'             => 'KPF-TZ-P47LEAD',
         ]);
 
         $member = Customer::create([
@@ -86,15 +87,16 @@ class Phase47FeatureTest extends TestCase
             'last_name'             => 'Member',
             'phone'                 => '255712345881',
             'membership_expires_at' => now()->addYear(),
+            'member_no'             => 'KPF-TZ-P47MEMB',
         ]);
 
         $service = app(GroupApplyService::class);
 
-        $found = $service->lookupMemberByPhone($leader, '0712345881');
+        $found = $service->lookupMemberByMembershipAndPhone($leader, 'P47MEMB', '0712345881', 'Group Member');
         $this->assertTrue($found['ok']);
         $this->assertSame($member->id, $found['customer_id']);
 
-        $self = $service->lookupMemberByPhone($leader, '0712345880');
+        $self = $service->lookupMemberByMembershipAndPhone($leader, 'P47LEAD', '0712345880');
         $this->assertFalse($self['ok']);
     }
 
@@ -149,8 +151,10 @@ class Phase47FeatureTest extends TestCase
         ]);
 
         $validated = app(GroupApplyService::class)->validateGroupPayload($leader, $product, [
-            'name'    => 'VICOBA group',
-            'purpose' => 'business',
+            'name'                => 'VICOBA group',
+            'purpose'             => 'business',
+            'target_member_count' => 2,
+            'amount_per_member'   => 300_000,
             'members' => [
                 ['customer_id' => $leader->id, 'requested_amount' => 300_000],
                 ['customer_id' => $member->id, 'invitation_id' => $invitation->id, 'requested_amount' => 300_000],

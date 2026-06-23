@@ -163,6 +163,7 @@ class Phase62GroupNotificationsAndAdminI18nFeatureTest extends TestCase
             'last_name'             => 'Member',
             'phone'                 => '255712345963',
             'membership_expires_at' => now()->addYear(),
+            'member_no'             => 'KPF-TZ-P62MEMB',
         ]);
 
         $product = $this->groupProduct();

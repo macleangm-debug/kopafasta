@@ -20,69 +20,52 @@ class GroupApplyService
     }
 
     /**
-     * @return array{ok: bool, message?: string, customer_id?: int, name?: string, phone?: string, label?: string}
+     * @return array{ok: bool, message?: string, customer_id?: int, name?: string, phone?: string, label?: string, status_key?: string}
      */
-    public function lookupMemberByPhone(Customer $leader, string $phone): array
-    {
-        $normalized = $this->guarantors->normalizePhone($phone);
-        if ($normalized === '') {
+    public function lookupMemberByMembershipAndPhone(
+        Customer $leader,
+        string $membershipId,
+        string $phone,
+        string $name = '',
+    ): array {
+        $verified = $this->guarantors->verifyInternalMember($leader, $membershipId, $phone, $name);
+
+        if (! ($verified['ok'] ?? false)) {
             return [
                 'ok'      => false,
-                'message' => __('borrower.apply.group.lookup_invalid_phone'),
+                'message' => $verified['message'] ?? __('borrower.apply.group.lookup_not_found'),
             ];
         }
 
-        $member = Customer::query()
-            ->where('status', 'active')
-            ->whereNotNull('phone')
-            ->get()
-            ->first(fn (Customer $customer) => $this->guarantors->normalizePhone($customer->phone) === $normalized);
-
-        if (! $member) {
+        $member = $verified['member'] ?? Customer::find((int) ($verified['customer_id'] ?? 0));
+        if (! $member instanceof Customer) {
             return [
                 'ok'      => false,
                 'message' => __('borrower.apply.group.lookup_not_found'),
             ];
         }
 
-        if ((int) $member->id === (int) $leader->id) {
-            return [
-                'ok'      => false,
-                'message' => __('borrower.apply.group.lookup_self'),
-            ];
-        }
-
-        if (! $member->hasMembership()) {
-            return [
-                'ok'      => false,
-                'message' => __('borrower.apply.group.lookup_not_member'),
-            ];
-        }
-
-        if (! $member->isMembershipActive() && ! $member->isMembershipInGrace()) {
-            return [
-                'ok'      => false,
-                'message' => __('borrower.apply.group.lookup_inactive'),
-            ];
-        }
-
-        $name = trim(($member->first_name ?? '').' '.($member->last_name ?? ''));
-
         $status = app(GroupMemberProgressService::class)->statusFromCustomer($member);
 
         return [
             'ok'          => true,
             'customer_id' => $member->id,
-            'name'        => $name,
+            'name'        => $verified['name'] ?? $member->full_name,
             'phone'       => $member->phone,
-            'label'       => trim($name.' · '.($member->customer_number ?: $member->phone)),
+            'label'       => $verified['label'] ?? trim(($member->full_name).' · '.($member->customer_number ?: $member->phone)),
             'status_key'  => $status['key'],
         ];
     }
 
+    /** @deprecated Use lookupMemberByMembershipAndPhone() */
+    public function lookupMemberByPhone(Customer $leader, string $phone): array
+    {
+        return $this->lookupMemberByMembershipAndPhone($leader, '', $phone);
+    }
+
     /**
-     * @param  array{name?: string, purpose?: string, members?: list<array<string, mixed>>}  $group
-     * @return array{name: string, purpose: string, members: list<array{customer_id: int, role?: string, requested_amount?: float}>}
+     * @param  array{name?: string, purpose?: string, members?: list<array<string, mixed>>, target_member_count?: int, amount_per_member?: float}  $group
+     * @return array{name: string, purpose: string, target_member_count: int, amount_per_member: float, members: list<array{customer_id?: int, invitation_id?: int, role?: string, requested_amount?: float}>}
      */
     public function validateGroupPayload(Customer $leader, LoanProduct $product, array $group): array
     {
@@ -104,6 +87,14 @@ class GroupApplyService
             ]);
         }
 
+        $targetCount = max(1, (int) ($group['target_member_count'] ?? 0));
+        $amountPerMember = (float) ($group['amount_per_member'] ?? 0);
+        if ($amountPerMember < 1000) {
+            throw ValidationException::withMessages([
+                'group.amount_per_member' => __('borrower.apply.group.amount_required'),
+            ]);
+        }
+
         $rawMembers = collect($group['members'] ?? [])
             ->filter(fn ($row) => is_array($row) && (filled($row['customer_id'] ?? null) || filled($row['invitation_id'] ?? null)))
             ->values();
@@ -117,16 +108,9 @@ class GroupApplyService
             ]);
         }
 
-        $members = $rawMembers->map(function (array $row) use ($leader): array {
+        $members = $rawMembers->map(function (array $row) use ($leader, $amountPerMember): array {
             $invitationId = (int) ($row['invitation_id'] ?? 0);
             $customerId = (int) ($row['customer_id'] ?? 0);
-            $amount = (float) ($row['requested_amount'] ?? 0);
-
-            if ($amount < 1000) {
-                throw ValidationException::withMessages([
-                    'group.members' => __('borrower.apply.group.amount_required'),
-                ]);
-            }
 
             if ($invitationId > 0) {
                 $invitation = \App\Models\GroupMemberInvitation::query()
@@ -152,7 +136,7 @@ class GroupApplyService
             }
 
             $resolved = [
-                'requested_amount' => $amount,
+                'requested_amount' => $amountPerMember,
                 'role'             => $customerId === (int) $leader->id ? 'leader' : 'member',
             ];
 
@@ -192,16 +176,15 @@ class GroupApplyService
             ]);
         }
 
-        $this->groups->validateMemberCount($members->count());
-
-        $targetCount = (int) ($group['target_member_count'] ?? 0);
-        if ($targetCount > 0 && $members->count() !== $targetCount) {
+        if ($members->count() !== $targetCount) {
             throw ValidationException::withMessages([
                 'group.members' => __('borrower.apply.group.members_required'),
             ]);
         }
 
-        $total = $members->sum('requested_amount');
+        $this->groups->validateMemberCount($members->count());
+
+        $total = $amountPerMember * $targetCount;
         if ($total < (float) $product->min_amount || $total > (float) $product->max_amount) {
             throw ValidationException::withMessages([
                 'group.members' => __('borrower.apply.group.total_out_of_range', [
@@ -214,8 +197,8 @@ class GroupApplyService
         return [
             'name'                => $name,
             'purpose'             => $purpose,
-            'target_member_count' => $targetCount > 0 ? $targetCount : $members->count(),
-            'amount_per_member'   => (float) ($group['amount_per_member'] ?? $members->first()['requested_amount'] ?? 0),
+            'target_member_count' => $targetCount,
+            'amount_per_member'   => $amountPerMember,
             'members'             => $members->values()->all(),
         ];
     }

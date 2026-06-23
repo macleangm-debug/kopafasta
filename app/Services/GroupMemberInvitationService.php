@@ -89,6 +89,16 @@ class GroupMemberInvitationService
 
             $share = $this->sharePayload($invitation->fresh());
 
+            app(NotificationService::class)->sendSms(
+                $phone,
+                __('borrower.apply.group.invite_message', [
+                    'leader' => $leader->full_name ?? brand_name(),
+                    'url'    => $share['short_url'],
+                ]),
+                null,
+                'group_member_external_invite',
+            );
+
             return array_merge($share, [
                 'name'  => $displayName,
                 'phone' => $phone,
@@ -156,6 +166,7 @@ class GroupMemberInvitationService
                 'invitee_last_name'   => $member->last_name,
                 'invitee_phone'       => $this->guarantors->normalizePhone($member->phone ?? ''),
                 'invitee_email'       => $member->email,
+                'membership_id'       => \App\Support\MemberNumberFormatter::lookupKey($member->member_no ?? ''),
                 'token'               => Str::random(48),
                 'short_code'          => Str::upper(Str::random(8)),
                 'status'              => 'accepted',

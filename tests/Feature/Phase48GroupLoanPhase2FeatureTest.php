@@ -103,7 +103,7 @@ class Phase48GroupLoanPhase2FeatureTest extends TestCase
         ]);
 
         $status = app(GroupMemberProgressService::class)->statusFromInvitation($invitation);
-        $this->assertSame('profile_incomplete', $status['key']);
+        $this->assertSame('registration_complete', $status['key']);
         $this->assertFalse($status['complete']);
     }
 
@@ -257,7 +257,7 @@ class Phase48GroupLoanPhase2FeatureTest extends TestCase
         $this->assertSame($member->id, $invitation->customer_id);
 
         $status = app(GroupMemberProgressService::class)->statusFromInvitation($invitation);
-        $this->assertSame('profile_incomplete', $status['key']);
+        $this->assertSame('registration_complete', $status['key']);
         $this->assertFalse($status['complete']);
     }
 

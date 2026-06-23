@@ -23,6 +23,9 @@ class GroupMemberInvitation extends Model
         'status',
         'expires_at',
         'responded_at',
+        'link_opened_at',
+        'registration_started_at',
+        'membership_id',
         'member_signer_name',
         'member_signature_data',
         'member_signed_at',
@@ -31,9 +34,11 @@ class GroupMemberInvitation extends Model
     protected function casts(): array
     {
         return [
-            'expires_at'       => 'datetime',
-            'responded_at'     => 'datetime',
-            'member_signed_at' => 'datetime',
+            'expires_at'              => 'datetime',
+            'responded_at'            => 'datetime',
+            'link_opened_at'          => 'datetime',
+            'registration_started_at' => 'datetime',
+            'member_signed_at'        => 'datetime',
         ];
     }
 

@@ -12,6 +12,6 @@ return [
         'external'        => 'External recovery partner',
     ],
 
-    'application_fee_per_member' => false,
+    'application_fee_per_member' => true,
     'post_approval_fee_per_group' => true,
 ];

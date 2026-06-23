@@ -14,7 +14,7 @@
                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.group_setup.member_count') }}</label>
                 <input type="number" x-model.number="group.target_member_count"
                        :min="groupLimits.min" :max="groupLimits.max" step="1"
-                       @change="syncGroupAmounts()"
+                       @change="syncGroupAmounts(); refreshApplicationFeeQuote()"
                        class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                 <p class="mt-1 text-xs text-gray-500">{{ __('borrower.apply.group_setup.member_count_hint', ['min' => ($groupMemberLimits['min'] ?? 5), 'max' => ($groupMemberLimits['max'] ?? 10)]) }}</p>
             </div>
@@ -34,15 +34,22 @@
                     @endforeach
                 </select>
             </div>
-            <div class="bg-gray-50 rounded-xl p-5">
-                <div class="flex justify-between text-sm mb-2">
+            <div class="bg-gray-50 rounded-xl p-5 space-y-3">
+                <div class="flex justify-between text-sm">
                     <span class="text-gray-600">{{ __('borrower.apply.group_setup.tenure') }}</span>
                     <span class="font-bold"><span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.quote.months') }}</span>
                 </div>
-                <input type="range" :min="current.tmin" :max="current.tmax" step="1"
-                       x-model.number="form.requested_tenure_months" @input="updateQuote()"
-                       class="w-full accent-amber-500">
-                <p class="mt-2 text-xs text-gray-500">{{ __('borrower.apply.group_setup.monthly_repayment_only') }}</p>
+                <div class="flex flex-wrap gap-2" x-show="(current.tenure_options || []).length">
+                    <template x-for="months in (current.tenure_options || [])" :key="months">
+                        <button type="button"
+                                @click="selectGroupTenure(months)"
+                                class="rounded-full px-4 py-2 text-sm font-semibold ring-1 transition"
+                                :class="Number(form.requested_tenure_months) === Number(months) ? 'bg-amber-500 text-gray-900 ring-amber-500' : 'bg-white text-gray-700 ring-gray-200 hover:ring-amber-300'">
+                            <span x-text="months"></span> {{ __('borrower.apply.quote.months') }}
+                        </button>
+                    </template>
+                </div>
+                <p class="text-xs text-gray-500">{{ __('borrower.apply.group_setup.monthly_repayment_only') }}</p>
             </div>
             <div class="rounded-xl ring-1 ring-amber-200 bg-amber-50 p-4 text-sm">
                 <div class="flex justify-between gap-3">
@@ -56,25 +63,48 @@
 
 <div x-show="stepKey === 'group_members'" class="p-6 sm:p-8">
     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.group_members.title') }}</h2>
-    <p class="text-sm text-gray-600 mb-2">{{ __('borrower.apply.group_members.subtitle') }}</p>
+    <p class="text-sm text-gray-600 mb-4">{{ __('borrower.apply.group_members.subtitle') }}</p>
 
-    <div class="rounded-xl ring-1 ring-gray-200 bg-gray-50 p-4 mb-5 text-sm space-y-1">
-        <template x-for="(line, idx) in groupProgress().summary" :key="idx">
-            <p class="font-medium text-gray-800" x-text="line"></p>
-        </template>
+    <div class="rounded-xl ring-1 ring-gray-200 bg-white p-4 mb-5">
+        <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">{{ __('borrower.apply.group.dashboard.title') }}</p>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 text-sm">
+            <template x-for="(line, idx) in groupProgress().summary" :key="idx">
+                <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 px-3 py-2 font-medium text-gray-800" x-text="line"></div>
+            </template>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="text-left text-xs uppercase text-gray-500 border-b border-gray-100">
+                    <tr>
+                        <th class="py-2 pr-3">{{ __('borrower.apply.group.dashboard.member_name') }}</th>
+                        <th class="py-2">{{ __('borrower.apply.group.dashboard.status') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="(member, index) in group.members" :key="member.customer_id || member.invitation_id || index">
+                        <tr class="border-b border-gray-50 last:border-0">
+                            <td class="py-2.5 pr-3">
+                                <p class="font-medium" x-text="member.name"></p>
+                                <p class="text-xs text-gray-500" x-text="member.phone"></p>
+                                <p x-show="member.role === 'leader'" class="mt-0.5 text-[10px] uppercase tracking-widest text-amber-700 font-semibold">{{ __('borrower.apply.group_members.leader_badge') }}</p>
+                            </td>
+                            <td class="py-2.5">
+                                <span class="text-xs font-semibold" :class="memberStatusClass(member)" x-text="memberStatusLabel(member)"></span>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <div class="space-y-4 mb-6">
-        <template x-for="(member, index) in group.members" :key="member.customer_id || member.invitation_id || index">
+        <template x-for="(member, index) in group.members" :key="'card-' + (member.customer_id || member.invitation_id || index)">
             <div class="rounded-xl ring-1 ring-gray-200 bg-gray-50 p-4 space-y-3">
                 <div class="flex items-start justify-between gap-3">
                     <div>
                         <p class="font-semibold text-sm" x-text="member.name"></p>
                         <p class="text-xs text-gray-500" x-text="member.phone"></p>
-                        <p x-show="member.role === 'leader'" class="mt-1 text-[10px] uppercase tracking-widest text-amber-700 font-semibold">{{ __('borrower.apply.group_members.leader_badge') }}</p>
-                        <p class="mt-1 text-xs font-medium"
-                           :class="memberStatusClass(member)"
-                           x-text="memberStatusLabel(member)"></p>
                     </div>
                     <button type="button" x-show="member.role !== 'leader'" @click="removeGroupMember(index)"
                             class="text-xs text-red-700 font-medium shrink-0">{{ __('borrower.apply.group_members.remove') }}</button>
@@ -111,14 +141,27 @@
                     </template>
                 </div>
             </div>
-            <label class="block text-xs font-medium text-gray-600">{{ __('borrower.apply.group_members.lookup_phone') }}</label>
-            <div class="flex gap-2">
-                <input type="tel" x-model="groupLookupPhone" inputmode="numeric" placeholder="712345678"
-                       class="flex-1 rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                <button type="button" @click="lookupGroupMember()" :disabled="groupLookupLoading"
-                        class="shrink-0 rounded-full bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2 text-sm disabled:opacity-50">
-                    {{ __('borrower.apply.group_members.add_member') }}
-                </button>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.group_members.lookup_membership') }}</label>
+                <div class="flex rounded-lg ring-1 ring-gray-200 overflow-hidden">
+                    <span class="inline-flex items-center px-3 bg-gray-100 text-sm font-mono text-gray-600 border-r border-gray-200">KPF-TZ-</span>
+                    <input type="text" x-model="groupLookupMemberNo" placeholder="ABC12345"
+                           class="flex-1 border-0 px-3 py-2.5 text-sm font-mono focus:ring-0">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.group_members.lookup_phone') }}</label>
+                <div class="flex gap-2">
+                    <div class="flex flex-1 rounded-lg ring-1 ring-gray-200 overflow-hidden">
+                        <span class="inline-flex items-center px-3 bg-gray-100 text-sm text-gray-600 border-r border-gray-200">+255</span>
+                        <input type="tel" x-model="groupLookupPhone" inputmode="numeric" placeholder="712345678"
+                               class="flex-1 border-0 px-3 py-2.5 text-sm focus:ring-0">
+                    </div>
+                    <button type="button" @click="lookupGroupMember()" :disabled="groupLookupLoading"
+                            class="shrink-0 rounded-full bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2 text-sm disabled:opacity-50">
+                        {{ __('borrower.apply.group_members.add_member') }}
+                    </button>
+                </div>
             </div>
             <p class="text-xs text-gray-500">{{ __('borrower.apply.group_members.lookup_hint') }}</p>
             <p class="text-xs text-amber-800">{{ __('borrower.apply.group_members.internal_consent_hint') }}</p>

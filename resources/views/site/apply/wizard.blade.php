@@ -166,6 +166,7 @@
                           'added' => __('borrower.apply.group.progress.added'),
                           'profiles' => __('borrower.apply.group.progress.profiles'),
                           'verified' => __('borrower.apply.group.progress.verified'),
+                          'invitations_pending' => __('borrower.apply.group.progress.invitations_pending'),
                       ],
                       'alerts' => [
                           'loadProduct' => __('borrower.apply.alerts.load_product'),
@@ -997,6 +998,9 @@
                 groupExternalInvite: null,
                 groupInviteLoading: false,
                 groupProgressLabels: @js(app(\App\Services\GroupMemberProgressService::class)->statusLabels()),
+                groupProgressSummary: null,
+                groupFeeBreakdownData: null,
+                groupLookupMemberNo: '',
                 groupLookupPhone: '',
                 groupLookupLoading: false,
                 groupLookupError: '',
@@ -1466,7 +1470,7 @@
                             params.set('promo_code', this.feePromoCode);
                         }
                         if (this.isGroupProduct(this.current)) {
-                            params.set('member_count', String(Math.max(1, this.group.members.length || 1)));
+                            params.set('member_count', String(Math.max(1, this.groupTargetCount())));
                         }
                         const url = `${this.applicationFeeQuoteUrl}?${params.toString()}`;
                         const res = await fetch(url, {
@@ -1480,6 +1484,9 @@
                         }
                         if (data.quote) {
                             this.feeQuoteData = data.quote;
+                        }
+                        if (data.breakdown) {
+                            this.groupFeeBreakdownData = data.breakdown;
                         }
                     } catch (e) {
                         console.warn('application fee quote failed', e);
@@ -1724,6 +1731,24 @@
                     return count * perMember;
                 },
 
+                groupFeeBreakdown() {
+                    if (this.groupFeeBreakdownData) {
+                        return this.groupFeeBreakdownData;
+                    }
+                    const perMember = Number(this.current?.application_fee || 0);
+                    const count = this.groupTargetCount();
+                    return {
+                        per_member: perMember,
+                        member_count: count,
+                        total: perMember * count,
+                    };
+                },
+
+                selectGroupTenure(months) {
+                    this.form.requested_tenure_months = Number(months);
+                    this.updateQuote();
+                },
+
                 syncGroupAmounts() {
                     const perMember = Math.max(1000, Number(this.group.amount_per_member || 0));
                     this.group.amount_per_member = perMember;
@@ -1737,10 +1762,16 @@
                 },
 
                 groupProgress() {
+                    if (this.groupProgressSummary) {
+                        return this.groupProgressSummary;
+                    }
                     const target = this.groupTargetCount();
                     const added = this.group.members.length;
-                    const verified = this.group.members.filter(m => (m.status_key || 'verification_complete') === 'verification_complete').length;
-                    const profiles = this.group.members.filter(m => ['profile_complete', 'verification_complete'].includes(m.status_key || 'verification_complete')).length;
+                    const verified = this.group.members.filter(m => (m.status_key || '') === 'kyc_complete').length;
+                    const profiles = this.group.members.filter(m => ['profile_complete', 'kyc_complete'].includes(m.status_key || '')).length;
+                    const invitationsPending = this.group.members.filter(m => [
+                        'invitation_sent', 'link_opened', 'registration_started', 'registration_complete', 'profile_incomplete',
+                    ].includes(m.status_key || (m.invitation_id ? 'invitation_sent' : ''))).length;
                     const tpl = this.i18n.groupProgress || {};
                     const fill = (text, vars) => Object.entries(vars).reduce((s, [k, v]) => s.replace(':' + k, String(v)), text || '');
                     return {
@@ -1748,10 +1779,12 @@
                         added,
                         verified,
                         profiles_complete: profiles,
+                        invitations_pending: invitationsPending,
                         summary: [
                             fill(tpl.added, { added, target }),
                             fill(tpl.profiles, { done: profiles, target }),
                             fill(tpl.verified, { done: verified, target }),
+                            fill(tpl.invitations_pending, { count: invitationsPending }),
                         ],
                         can_submit: target > 0 && added === target && verified === target,
                     };
@@ -1764,7 +1797,7 @@
 
                 memberStatusClass(member) {
                     const key = member.status_key || (member.invitation_id ? 'invitation_sent' : 'profile_incomplete');
-                    return key === 'verification_complete' ? 'text-emerald-700' : 'text-amber-700';
+                    return key === 'kyc_complete' ? 'text-emerald-700' : 'text-amber-700';
                 },
 
                 async refreshGroupMemberStatuses() {
@@ -1785,8 +1818,13 @@
                             }),
                         });
                         const data = await res.json();
-                        if (res.ok && data.ok && Array.isArray(data.members)) {
-                            this.group.members = data.members;
+                        if (res.ok && data.ok) {
+                            if (data.summary) {
+                                this.groupProgressSummary = data.summary;
+                            }
+                            if (Array.isArray(data.members)) {
+                                this.group.members = data.members;
+                            }
                         }
                     } catch (e) {
                         // Non-blocking refresh
@@ -1821,7 +1859,7 @@
                         }
                         this.groupExternalInvite = data.share;
                         this.group.members.push({
-                            invitation_id: data.share.invitation_id,
+                            invitation_id: data.invitation_id || data.share?.invitation_id,
                             name: data.name,
                             phone: data.phone,
                             role: 'member',
@@ -1830,6 +1868,7 @@
                         });
                         this.groupExternal = { first_name: '', last_name: '', phone: '' };
                         this.syncGroupAmounts();
+                        this.groupProgressSummary = null;
                         await this.persistDraft(true);
                     } catch (e) {
                         this.groupLookupError = @js(__('borrower.apply.group.lookup_not_found'));
@@ -1906,7 +1945,12 @@
                 async lookupGroupMember() {
                     if (! this.groupMemberLookupUrl) return;
                     this.groupLookupError = '';
+                    const memberNo = (this.groupLookupMemberNo || '').trim();
                     const phone = (this.groupLookupPhone || '').trim();
+                    if (! memberNo) {
+                        this.groupLookupError = @js(__('borrower.apply.alerts.guarantor_membership'));
+                        return;
+                    }
                     if (! phone) {
                         this.groupLookupError = @js(__('borrower.apply.group.lookup_invalid_phone'));
                         return;
@@ -1925,7 +1969,11 @@
                                 'X-Requested-With': 'XMLHttpRequest',
                             },
                             credentials: 'same-origin',
-                            body: JSON.stringify({ phone, loan_product_id: this.current?.id }),
+                            body: JSON.stringify({
+                                member_no: memberNo,
+                                phone,
+                                loan_product_id: this.current?.id,
+                            }),
                         });
                         const data = await res.json();
                         if (! res.ok || ! data.ok) {
@@ -1945,7 +1993,9 @@
                             requested_amount: this.group.amount_per_member,
                             status_key: data.status_key || 'profile_incomplete',
                         });
+                        this.groupLookupMemberNo = '';
                         this.groupLookupPhone = '';
+                        this.groupProgressSummary = null;
                         this.updateGroupTotal();
                         await this.persistDraft(true);
                     } catch (e) {
@@ -2121,7 +2171,15 @@
                     if (this.isAssetBackedProduct(p) && ! this.form.purpose) this.form.purpose = 'asset_financing';
                     if (this.isGroupProduct(p)) {
                         this.initGroupLeader();
+                        const tenureOptions = p.tenure_options || [];
+                        if (tenureOptions.length) {
+                            const currentTenure = Number(this.form.requested_tenure_months);
+                            if (! tenureOptions.includes(currentTenure)) {
+                                this.form.requested_tenure_months = tenureOptions[0];
+                            }
+                        }
                         if (! this.group.purpose && this.form.purpose) this.group.purpose = this.form.purpose;
+                        this.refreshApplicationFeeQuote();
                     }
                     if (! this.requiresGuarantor()) this.form.guarantor_mode = 'none';
                     else if (this.form.guarantor_mode === 'none') this.form.guarantor_mode = 'previous';
@@ -2770,10 +2828,6 @@
                         const total = this.group.members.reduce((sum, m) => sum + Number(m.requested_amount || 0), 0);
                         if (this.current && (total < this.current.min || total > this.current.max)) {
                             alert(`Total group amount must be between ${this.formatTzs(this.current.min)} and ${this.formatTzs(this.current.max)}.`);
-                            return false;
-                        }
-                        if (! this.groupProgress().can_submit) {
-                            alert(@js(__('borrower.apply.group.members_not_verified')));
                             return false;
                         }
                         this.syncGroupAmounts();

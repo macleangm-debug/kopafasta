@@ -632,8 +632,9 @@ return [
       'title' => 'Wanachama wa kikundi',
       'subtitle' => 'Ongeza wanachama hai kwa nambari ya simu. Wewe umejumuishwa kama kiongozi.',
       'leader_badge' => 'Kiongozi (wewe)',
+      'lookup_membership' => 'Nambari ya uanachama',
       'lookup_phone' => 'Nambari ya simu ya mwanachama',
-      'lookup_hint' => 'Tafuta wanachama hai wa KopaFasta kwa nambari ya simu iliyosajiliwa.',
+      'lookup_hint' => 'Tafuta wanachama hai wa KopaFasta kwa nambari ya uanachama na simu iliyosajiliwa.',
       'add_member' => 'Ongeza mwanachama',
       'member_amount' => 'Kiasi cha mkopo (TZS)',
       'remove' => 'Ondoa',
@@ -678,16 +679,40 @@ return [
       [
         'pending_invitation' => 'Mwaliko unasubiri',
         'invitation_sent' => 'Mwaliko umetumwa',
+        'link_opened' => 'Kiungo kimefunguliwa',
+        'registration_started' => 'Usajili umeanza',
+        'registration_complete' => 'Usajili umekamilika',
         'registered' => 'Amesajiliwa',
         'profile_incomplete' => 'Wasifu haujakamilika',
         'profile_complete' => 'Wasifu umekamilika',
+        'kyc_complete' => 'KYC imekamilika',
         'verification_complete' => 'Uthibitisho umekamilika',
       ],
       'progress' =>
       [
         'added' => 'Wanachama :added kati ya :target wameongezwa',
         'profiles' => 'Wasifu :done kati ya :target umekamilika',
-        'verified' => 'Uthibitisho :done kati ya :target umekamilika',
+        'verified' => 'KYC :done kati ya :target imethibitishwa',
+        'invitations_pending' => 'Wanachama :count bado wanakamilisha mwaliko au usajili',
+      ],
+      'headline' =>
+      [
+        'per_member' => 'Kiasi cha mkopo kwa kila mwanachama',
+        'total_loan' => 'Jumla ya mkopo wa kikundi',
+        'total_fee' => 'Jumla ya ada ya maombi inayolipwa',
+      ],
+      'fee_breakdown' =>
+      [
+        'per_member' => 'Ada ya maombi kwa kila mwanachama',
+        'members' => 'Idadi ya wanachama',
+        'total' => 'Jumla ya ada ya maombi',
+        'settings_note' => 'Ada imewekwa kwenye Mipangilio na haiwezi kubadilishwa hapa.',
+      ],
+      'dashboard' =>
+      [
+        'title' => 'Maendeleo ya kikundi',
+        'member_name' => 'Jina la mwanachama',
+        'status' => 'Hali',
       ],
       'contract_progress' =>
       [

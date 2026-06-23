@@ -39,6 +39,10 @@ class GroupMemberInviteController extends Controller
             return view('site.group-member.responded', compact('invitation'));
         }
 
+        if (! $invitation->link_opened_at) {
+            $invitation->update(['link_opened_at' => now()]);
+        }
+
         return view('site.group-member.invite', compact('invitation'));
     }
 
@@ -58,8 +62,9 @@ class GroupMemberInviteController extends Controller
 
         $onboarding->rememberInvitation($request, $invitation);
         $invitation->update([
-            'status'       => 'accepted',
-            'responded_at' => now(),
+            'status'                  => 'accepted',
+            'responded_at'            => now(),
+            'registration_started_at' => $invitation->registration_started_at ?? now(),
         ]);
 
         $this->auditBorrower('group_member_invitation.accepted', $invitation, [

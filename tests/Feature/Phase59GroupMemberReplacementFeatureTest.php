@@ -70,6 +70,7 @@ class Phase59GroupMemberReplacementFeatureTest extends TestCase
             'last_name'             => 'Member',
             'phone'                 => '255712345932',
             'membership_expires_at' => now()->addYear(),
+            'member_no'             => 'KPF-TZ-P59REPL',
         ]);
 
         $product = $this->groupProduct();
@@ -147,7 +148,9 @@ class Phase59GroupMemberReplacementFeatureTest extends TestCase
 
         $this->actingAs($user)
             ->postJson(route('site.borrower.group-member.replace-internal', [$application, $oldMember]), [
-                'phone' => '0712345932',
+                'member_no' => 'P59REPL',
+                'phone'     => '0712345932',
+                'name'      => 'Replacement Member',
             ])
             ->assertOk()
             ->assertJson(['ok' => true]);

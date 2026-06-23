@@ -25,10 +25,17 @@ class GroupMemberReplacementController extends Controller
         $leader = $this->leaderOrFail($application);
 
         $data = $request->validate([
-            'phone' => ['required', 'string', 'max:20'],
+            'member_no' => ['required', 'string', 'max:40'],
+            'phone'     => ['required', 'string', 'max:20'],
+            'name'      => ['nullable', 'string', 'max:120'],
         ]);
 
-        $lookup = $groups->lookupMemberByPhone($leader, $data['phone']);
+        $lookup = $groups->lookupMemberByMembershipAndPhone(
+            $leader,
+            $data['member_no'],
+            $data['phone'],
+            $data['name'] ?? '',
+        );
         if (! ($lookup['ok'] ?? false)) {
             return response()->json(['ok' => false, 'message' => $lookup['message'] ?? __('borrower.apply.group.lookup_not_found')], 422);
         }

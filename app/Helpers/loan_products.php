@@ -99,6 +99,8 @@ if (! function_exists('loan_product_wizard_payload')) {
         $rateService = app(\App\Services\DisplayedRateService::class);
         $policy = app(\App\Services\LoanPolicyService::class);
 
+        $groups = app(\App\Services\GroupLendingService::class);
+
         return [
             'id'                => $product->id,
             'code'              => $product->code,
@@ -106,6 +108,9 @@ if (! function_exists('loan_product_wizard_payload')) {
             'loan_type'         => loan_product_type_label($product),
             'features'          => loan_product_features($product),
             'application_fee'   => loan_product_application_fee($customer, $product),
+            'application_fee_per_member' => $groups->isGroupProduct($product)
+                ? loan_product_application_fee($customer, $product)
+                : null,
             'rate'              => (float) $rateService->displayedMonthlyRate($product),
             'rate_label'        => $rateService->formatBorrowerRateRange($product),
             'rate_disclosure'   => $rateService->borrowerDisclosureLines($product, (float) $product->min_amount),
@@ -114,10 +119,11 @@ if (! function_exists('loan_product_wizard_payload')) {
             'max'               => (float) $product->max_amount,
             'tmin'              => (int) $product->tenure_min_months,
             'tmax'              => (int) $product->tenure_max_months,
+            'tenure_options'    => $groups->tenureOptions($product),
             'desc'              => $product->description,
             'requires_guarantor' => (bool) $product->requires_guarantor,
             'guarantor_required_above' => (float) ($policy->settings()['guarantor_required_above'] ?? 0),
-            'frequency'         => app(\App\Services\GroupLendingService::class)->effectiveRepaymentCadence($product),
+            'frequency'         => $groups->effectiveRepaymentCadence($product),
             'is_group'          => is_group_loan_product($product),
         ];
     }

@@ -84,7 +84,7 @@
 
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <h3 class="text-sm font-semibold text-gray-700 mb-4">Group lending</h3>
-            <p class="text-xs text-gray-500 mb-4">Member limits and fee rules for group loan products. Application fee defaults to one charge per group unless "per member" is enabled.</p>
+            <p class="text-xs text-gray-500 mb-4">Member limits and fee rules for group loan products. Group loans always charge the application fee per member (configured on the product or APP_FEE charge).</p>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <x-admin.input name="group_min_members" label="Minimum group members" type="number" :value="$values['group_min_members'] ?? '5'" required />
                 <x-admin.input name="group_max_members" label="Maximum group members" type="number" :value="$values['group_max_members'] ?? '30'" required />
@@ -94,7 +94,7 @@
                 <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
                     <input type="hidden" name="group_application_fee_per_member" value="0">
                     <input type="checkbox" name="group_application_fee_per_member" value="1" @checked(! empty($values['group_application_fee_per_member'])) class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
-                    <span class="text-gray-800">Charge application fee per group member (when unchecked, one fee per group)</span>
+                    <span class="text-gray-800">Per member application fee (group loans always multiply fee × members)</span>
                 </label>
                 <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
                     <input type="hidden" name="group_post_approval_fee_per_group" value="0">

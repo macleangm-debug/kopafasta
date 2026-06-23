@@ -11,12 +11,14 @@ class GroupMemberProgressService
     public function statusLabels(): array
     {
         return [
-            'pending_invitation'  => __('borrower.apply.group.status.pending_invitation'),
-            'invitation_sent'     => __('borrower.apply.group.status.invitation_sent'),
-            'registered'          => __('borrower.apply.group.status.registered'),
-            'profile_incomplete'  => __('borrower.apply.group.status.profile_incomplete'),
-            'profile_complete'    => __('borrower.apply.group.status.profile_complete'),
-            'verification_complete' => __('borrower.apply.group.status.verification_complete'),
+            'pending_invitation'    => __('borrower.apply.group.status.pending_invitation'),
+            'invitation_sent'       => __('borrower.apply.group.status.invitation_sent'),
+            'link_opened'           => __('borrower.apply.group.status.link_opened'),
+            'registration_started'  => __('borrower.apply.group.status.registration_started'),
+            'registration_complete' => __('borrower.apply.group.status.registration_complete'),
+            'profile_complete'      => __('borrower.apply.group.status.profile_complete'),
+            'kyc_complete'          => __('borrower.apply.group.status.kyc_complete'),
+            'profile_incomplete'    => __('borrower.apply.group.status.profile_incomplete'),
         ];
     }
 
@@ -43,7 +45,7 @@ class GroupMemberProgressService
 
         return $customer
             ? $this->statusFromCustomer($customer)
-            : $this->wrapStatus('registered');
+            : $this->wrapStatus('registration_complete');
     }
 
     public function statusFromInvitation(GroupMemberInvitation $invitation): array
@@ -53,26 +55,36 @@ class GroupMemberProgressService
 
             if ($customer) {
                 $base = $this->statusFromCustomer($customer);
-                if ($base['complete'] && $invitation->status === 'completed' && app(GroupMemberSignatureService::class)->hasSignature($invitation)) {
-                    return $this->wrapStatus('verification_complete', true);
+                if ($base['key'] === 'kyc_complete'
+                    && $invitation->status === 'completed'
+                    && app(GroupMemberSignatureService::class)->hasSignature($invitation)) {
+                    return $this->wrapStatus('kyc_complete', true);
                 }
 
-                if ($base['complete'] && $invitation->status !== 'completed') {
+                if ($base['key'] === 'profile_complete' && $invitation->status !== 'completed') {
                     return $this->wrapStatus('profile_complete');
+                }
+
+                if ($base['key'] === 'profile_incomplete') {
+                    return $this->wrapStatus('registration_complete');
                 }
 
                 return $base;
             }
 
-            return $this->wrapStatus('registered');
+            return $this->wrapStatus('registration_started');
         }
 
         if ($invitation->status === 'pending') {
+            if ($invitation->link_opened_at) {
+                return $this->wrapStatus('link_opened');
+            }
+
             return $this->wrapStatus('invitation_sent');
         }
 
         if ($invitation->status === 'accepted') {
-            return $this->wrapStatus('registered');
+            return $this->wrapStatus('registration_started');
         }
 
         return $this->wrapStatus('pending_invitation');
@@ -83,7 +95,7 @@ class GroupMemberProgressService
         $requirements = app(ApplicationRequirementsService::class)->checklist($customer);
 
         if ($requirements['can_apply'] ?? false) {
-            return $this->wrapStatus('verification_complete', true);
+            return $this->wrapStatus('kyc_complete', true);
         }
 
         $profile = app(ProfileCompletionService::class);
@@ -101,6 +113,7 @@ class GroupMemberProgressService
      *     added: int,
      *     verified: int,
      *     profiles_complete: int,
+     *     invitations_pending: int,
      *     pending: int,
      *     members: list<array<string, mixed>>,
      *     can_submit: bool,
@@ -113,15 +126,22 @@ class GroupMemberProgressService
             $status = $this->resolveMemberStatus($member);
 
             return array_merge($member, [
-                'status_key'   => $status['key'],
-                'status_label' => $status['label'],
+                'status_key'      => $status['key'],
+                'status_label'    => $status['label'],
                 'status_complete' => $status['complete'],
             ]);
         })->values();
 
         $added = $rows->count();
-        $verified = $rows->where('status_key', 'verification_complete')->count();
-        $profilesComplete = $rows->whereIn('status_key', ['profile_complete', 'verification_complete'])->count();
+        $verified = $rows->where('status_key', 'kyc_complete')->count();
+        $profilesComplete = $rows->whereIn('status_key', ['profile_complete', 'kyc_complete'])->count();
+        $invitationsPending = $rows->whereIn('status_key', [
+            'invitation_sent',
+            'link_opened',
+            'registration_started',
+            'registration_complete',
+            'profile_incomplete',
+        ])->count();
         $pending = max(0, $targetCount - $added);
 
         $canSubmit = $targetCount > 0
@@ -132,17 +152,19 @@ class GroupMemberProgressService
             __('borrower.apply.group.progress.added', ['added' => $added, 'target' => $targetCount]),
             __('borrower.apply.group.progress.profiles', ['done' => $profilesComplete, 'target' => $targetCount]),
             __('borrower.apply.group.progress.verified', ['done' => $verified, 'target' => $targetCount]),
+            __('borrower.apply.group.progress.invitations_pending', ['count' => $invitationsPending]),
         ];
 
         return [
-            'target'            => $targetCount,
-            'added'             => $added,
-            'verified'          => $verified,
-            'profiles_complete' => $profilesComplete,
-            'pending'           => $pending,
-            'members'           => $rows->all(),
-            'can_submit'        => $canSubmit,
-            'summary'           => $summary,
+            'target'                => $targetCount,
+            'added'                 => $added,
+            'verified'              => $verified,
+            'profiles_complete'     => $profilesComplete,
+            'invitations_pending'   => $invitationsPending,
+            'pending'               => $pending,
+            'members'               => $rows->all(),
+            'can_submit'            => $canSubmit,
+            'summary'               => $summary,
         ];
     }
 
@@ -154,7 +176,7 @@ class GroupMemberProgressService
         return [
             'key'      => $key,
             'label'    => $labels[$key] ?? ucfirst(str_replace('_', ' ', $key)),
-            'complete' => $complete || $key === 'verification_complete',
+            'complete' => $complete || $key === 'kyc_complete',
         ];
     }
 }

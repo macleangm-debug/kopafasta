@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Customer;
 use App\Models\Loan;
 use App\Models\LoanApplication;
 use App\Models\LoanGroup;
@@ -33,11 +34,58 @@ class GroupLendingService
 
     public function applicationFeePerMember(): bool
     {
-        $loan = Setting::group('loan');
+        return true;
+    }
 
-        return array_key_exists('group_application_fee_per_member', $loan)
-            ? (bool) $loan['group_application_fee_per_member']
-            : (bool) config('group_lending.application_fee_per_member', false);
+    /** @return list<int> */
+    public function tenureOptions(LoanProduct $product): array
+    {
+        if (! $this->isGroupProduct($product)) {
+            return range(
+                (int) $product->tenure_min_months,
+                (int) $product->tenure_max_months,
+            );
+        }
+
+        $candidates = [3, 6, 9, 12];
+        $min = (int) $product->tenure_min_months;
+        $max = (int) $product->tenure_max_months;
+
+        $options = array_values(array_filter(
+            $candidates,
+            fn (int $months) => $months >= $min && $months <= $max,
+        ));
+
+        if ($options === []) {
+            return [$min > 0 ? $min : 3];
+        }
+
+        return $options;
+    }
+
+    /** @return array{per_member: int, member_count: int, total: int} */
+    public function applicationFeeBreakdown(?Customer $customer, LoanProduct $product, int $memberCount): array
+    {
+        $perMember = quoted_application_fee($customer, $product);
+        $count = max(1, $memberCount);
+
+        return [
+            'per_member'   => $perMember,
+            'member_count' => $count,
+            'total'        => $this->quotedApplicationFee($customer, $product, $count),
+        ];
+    }
+
+    public function memberCountFromPayload(?array $groupPayload): int
+    {
+        if (! is_array($groupPayload)) {
+            return 1;
+        }
+
+        $target = (int) ($groupPayload['target_member_count'] ?? 0);
+        $added = count($groupPayload['members'] ?? []);
+
+        return max(1, $target ?: $added);
     }
 
     public function effectiveRepaymentCadence(?LoanProduct $product): string
@@ -182,7 +230,7 @@ class GroupLendingService
     {
         $base = quoted_application_fee($customer, $product);
 
-        if (! $this->isGroupProduct($product) || ! $this->applicationFeePerMember()) {
+        if (! $this->isGroupProduct($product)) {
             return $base;
         }
 
