@@ -8,6 +8,16 @@
             'cancelled'   => 'bg-gray-100 text-gray-600',
             default       => 'bg-gray-100 text-gray-600',
         };
+        $priority = $task->priorityMeta();
+        $priorityBadge = match ($priority['tone']) {
+            'red'    => 'bg-red-100 text-red-700',
+            'amber'  => 'bg-amber-100 text-amber-700',
+            'indigo' => 'bg-indigo-100 text-indigo-700',
+            default  => 'bg-gray-100 text-gray-600',
+        };
+        $loan = $task->loan;
+        $application = $task->loanApplication;
+        $asset = $application?->assetReservation?->asset;
     @endphp
 
     <div class="mb-5">
@@ -19,12 +29,53 @@
             <h1 class="text-2xl font-extrabold">{{ ucfirst(str_replace('_',' ', $task->task_type)) }}</h1>
             <p class="text-xs text-gray-500">Task #{{ $task->id }} · Created {{ $task->created_at->format('d M Y') }}</p>
         </div>
-        <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $badge }}">{{ str_replace('_',' ', $task->status) }}</span>
+        <div class="flex items-center gap-2">
+            <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $priorityBadge }}">{{ $priority['label'] }} priority</span>
+            <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $badge }}">{{ str_replace('_',' ', $task->status) }}</span>
+        </div>
     </div>
 
     <div class="grid lg:grid-cols-3 gap-6">
         {{-- Left: details --}}
         <div class="lg:col-span-2 space-y-4">
+            <div class="rounded-2xl border border-gray-200 bg-white p-5">
+                <h2 class="font-bold mb-3">Task overview</h2>
+                <dl class="grid grid-cols-2 gap-3 text-sm">
+                    <div><dt class="text-gray-500 text-xs">Task type</dt><dd class="font-medium">{{ ucfirst(str_replace('_', ' ', $task->task_type)) }}</dd></div>
+                    <div><dt class="text-gray-500 text-xs">Status</dt><dd class="font-medium capitalize">{{ str_replace('_', ' ', $task->status) }}</dd></div>
+                    <div><dt class="text-gray-500 text-xs">Due date</dt><dd class="font-medium">{{ $task->due_at ? $task->due_at->format('d M Y H:i') : '—' }}</dd></div>
+                    <div><dt class="text-gray-500 text-xs">Priority</dt><dd class="font-medium">{{ $priority['label'] }}</dd></div>
+                    <div><dt class="text-gray-500 text-xs">Fee</dt><dd class="font-medium">{{ format_money($task->fee_amount) }}</dd></div>
+                    <div><dt class="text-gray-500 text-xs">Completion</dt><dd class="font-medium">{{ $task->completed_at ? $task->completed_at->format('d M Y H:i') : 'Not completed' }}</dd></div>
+                </dl>
+            </div>
+
+            @if ($loan || $application)
+                <div class="rounded-2xl border border-gray-200 bg-white p-5">
+                    <h2 class="font-bold mb-3">Related loan information</h2>
+                    <dl class="grid grid-cols-2 gap-3 text-sm">
+                        @if ($loan)
+                            <div><dt class="text-gray-500 text-xs">Loan ID</dt><dd class="font-medium font-mono">{{ $loan->loan_number ?? '#'.$loan->id }}</dd></div>
+                            <div><dt class="text-gray-500 text-xs">Loan status</dt><dd class="font-medium capitalize">{{ str_replace('_', ' ', $loan->status) }}</dd></div>
+                            <div><dt class="text-gray-500 text-xs">Customer</dt><dd class="font-medium">{{ $loan->customer?->name ?? $task->customer_name ?? '—' }}</dd></div>
+                            <div><dt class="text-gray-500 text-xs">Customer phone</dt><dd class="font-medium">{{ $loan->customer?->phone ?? $task->customer_phone ?? '—' }}</dd></div>
+                            <div><dt class="text-gray-500 text-xs">Loan amount</dt><dd class="font-medium">{{ format_money($loan->approved_amount ?? $loan->principal_amount) }}</dd></div>
+                            <div><dt class="text-gray-500 text-xs">Outstanding balance</dt><dd class="font-medium">{{ format_money($loan->outstanding_balance) }}</dd></div>
+                        @elseif ($application)
+                            <div><dt class="text-gray-500 text-xs">Application ID</dt><dd class="font-medium">#{{ $application->id }}</dd></div>
+                            <div><dt class="text-gray-500 text-xs">Application stage</dt><dd class="font-medium capitalize">{{ str_replace('_', ' ', $application->status) }}</dd></div>
+                            <div><dt class="text-gray-500 text-xs">Customer</dt><dd class="font-medium">{{ $application->customer?->name ?? $task->customer_name ?? '—' }}</dd></div>
+                            <div><dt class="text-gray-500 text-xs">Requested amount</dt><dd class="font-medium">{{ format_money($application->requested_amount) }}</dd></div>
+                        @endif
+                        @if ($asset)
+                            <div class="col-span-2"><dt class="text-gray-500 text-xs">Asset financed</dt><dd class="font-medium">{{ $asset->title }} · {{ format_money($asset->asset_value) }}</dd></div>
+                        @elseif ($task->vehicle_details)
+                            <div class="col-span-2"><dt class="text-gray-500 text-xs">Asset / vehicle</dt><dd class="font-medium">{{ $task->vehicle_details }}</dd></div>
+                        @endif
+                    </dl>
+                </div>
+            @endif
+
             <div class="rounded-2xl border border-gray-200 bg-white p-5">
                 <h2 class="font-bold mb-3">Customer & location</h2>
                 <dl class="grid grid-cols-2 gap-3 text-sm">
@@ -37,8 +88,27 @@
                 </dl>
                 @if ($task->instructions)
                     <div class="mt-4 pt-4 border-t border-gray-100">
-                        <p class="text-xs text-gray-500 mb-1">Instructions</p>
+                        <p class="text-xs text-gray-500 mb-1">Action required</p>
                         <p class="text-sm whitespace-pre-line">{{ $task->instructions }}</p>
+                    </div>
+                @endif
+                @if ($task->due_at)
+                    <div class="mt-4 pt-4 border-t border-gray-100">
+                        <p class="text-xs text-gray-500 mb-1">Submission deadline</p>
+                        <p class="text-sm font-medium">{{ $task->due_at->format('d M Y H:i') }}</p>
+                    </div>
+                @endif
+                @if ($task->documents->isNotEmpty())
+                    <div class="mt-4 pt-4 border-t border-gray-100">
+                        <p class="text-xs text-gray-500 mb-2">Required documents submitted</p>
+                        <ul class="space-y-1 text-sm">
+                            @foreach ($task->documents as $d)
+                                <li class="flex items-center justify-between gap-2">
+                                    <span>{{ $d->label }}</span>
+                                    <a href="{{ asset('storage/'.$d->file_path) }}" target="_blank" class="text-indigo-600 hover:underline text-xs">View</a>
+                                </li>
+                            @endforeach
+                        </ul>
                     </div>
                 @endif
             </div>

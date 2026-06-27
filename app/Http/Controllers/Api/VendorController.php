@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Vendor;
+use App\Services\PartnerCodeService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class VendorController extends Controller
 {
@@ -30,7 +30,7 @@ class VendorController extends Controller
             'metadata' => ['nullable', 'array'],
         ]);
 
-        $data['vendor_number'] = 'PTR-'.strtoupper(Str::random(8));
+        $data['vendor_number'] = app(PartnerCodeService::class)->generate((string) ($data['category'] ?? 'supplier'));
 
         return response()->json(Vendor::create($data), 201);
     }

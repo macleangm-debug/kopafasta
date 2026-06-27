@@ -55,4 +55,29 @@ class PartnerTask extends Model
     {
         return $this->belongsTo(Loan::class);
     }
+
+    /** @return array{label: string, tone: string} */
+    public function priorityMeta(): array
+    {
+        if (! $this->due_at) {
+            return ['label' => 'Normal', 'tone' => 'gray'];
+        }
+
+        $due = $this->due_at;
+        $now = now();
+
+        if ($due->isPast() && ! in_array($this->status, ['completed', 'cancelled'], true)) {
+            return ['label' => 'Urgent', 'tone' => 'red'];
+        }
+
+        if ($due->lte($now->copy()->addDays(2))) {
+            return ['label' => 'High', 'tone' => 'amber'];
+        }
+
+        if ($due->lte($now->copy()->addDays(7))) {
+            return ['label' => 'Normal', 'tone' => 'indigo'];
+        }
+
+        return ['label' => 'Low', 'tone' => 'gray'];
+    }
 }

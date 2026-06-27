@@ -42,8 +42,9 @@
                 <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
                     <tr>
                         <th class="text-left px-4 py-3">Task</th>
+                        <th class="text-left px-4 py-3">Priority</th>
                         <th class="text-left px-4 py-3">Customer</th>
-                        <th class="text-left px-4 py-3">Location</th>
+                        <th class="text-left px-4 py-3">Loan</th>
                         <th class="text-left px-4 py-3">Due</th>
                         <th class="text-left px-4 py-3">Status</th>
                         <th class="px-4 py-3"></th>
@@ -51,10 +52,30 @@
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @foreach ($tasks as $t)
+                        @php
+                            $priority = $t->priorityMeta();
+                            $priorityBadge = match ($priority['tone']) {
+                                'red'    => 'bg-red-100 text-red-700',
+                                'amber'  => 'bg-amber-100 text-amber-700',
+                                'indigo' => 'bg-indigo-100 text-indigo-700',
+                                default  => 'bg-gray-100 text-gray-600',
+                            };
+                        @endphp
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3 font-semibold">{{ ucfirst(str_replace('_',' ', $t->task_type)) }}<div class="text-[11px] text-gray-400">#{{ $t->id }}</div></td>
-                            <td class="px-4 py-3">{{ $t->customer_name ?: '—' }}<div class="text-[11px] text-gray-400">{{ $t->customer_phone }}</div></td>
-                            <td class="px-4 py-3 text-gray-600">{{ $t->location ?: '—' }}</td>
+                            <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold {{ $priorityBadge }}">{{ $priority['label'] }}</span></td>
+                            <td class="px-4 py-3">{{ $t->customer_name ?: ($t->loanApplication?->customer?->name ?? '—') }}<div class="text-[11px] text-gray-400">{{ $t->customer_phone ?: ($t->loanApplication?->customer?->phone ?? '') }}</div></td>
+                            <td class="px-4 py-3 text-gray-600">
+                                @if ($t->loan)
+                                    <span class="font-mono text-xs">{{ $t->loan->loan_number ?? '#'.$t->loan->id }}</span>
+                                    <div class="text-[11px] text-gray-400">{{ str_replace('_', ' ', $t->loan->status) }}</div>
+                                @elseif ($t->loanApplication)
+                                    <span class="text-xs">App #{{ $t->loanApplication->id }}</span>
+                                    <div class="text-[11px] text-gray-400">{{ str_replace('_', ' ', $t->loanApplication->status) }}</div>
+                                @else
+                                    —
+                                @endif
+                            </td>
                             <td class="px-4 py-3 text-gray-600">{{ $t->due_at ? $t->due_at->format('d M Y H:i') : '—' }}</td>
                             <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold {{ $badge($t->status) }}">{{ str_replace('_',' ', $t->status) }}</span></td>
                             <td class="px-4 py-3 text-right"><a href="{{ route('site.partner.task', $t) }}" class="text-indigo-600 hover:underline text-sm font-semibold">Open</a></td>
@@ -66,13 +87,25 @@
 
         <div class="lg:hidden space-y-3">
             @foreach ($tasks as $t)
+                @php
+                    $priority = $t->priorityMeta();
+                    $priorityBadge = match ($priority['tone']) {
+                        'red'    => 'bg-red-100 text-red-700',
+                        'amber'  => 'bg-amber-100 text-amber-700',
+                        'indigo' => 'bg-indigo-100 text-indigo-700',
+                        default  => 'bg-gray-100 text-gray-600',
+                    };
+                @endphp
                 <a href="{{ route('site.partner.task', $t) }}" class="block rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-sm">
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0">
                             <p class="font-semibold text-sm">{{ ucfirst(str_replace('_',' ', $t->task_type)) }}</p>
-                            <p class="text-xs text-gray-500 truncate">{{ $t->customer_name ?: '—' }} · {{ $t->location ?: '—' }}</p>
+                            <p class="text-xs text-gray-500 truncate">{{ $t->customer_name ?: ($t->loanApplication?->customer?->name ?? '—') }} · {{ $t->location ?: '—' }}</p>
                         </div>
-                        <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold {{ $badge($t->status) }} shrink-0">{{ str_replace('_',' ', $t->status) }}</span>
+                        <div class="flex flex-col items-end gap-1 shrink-0">
+                            <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold {{ $badge($t->status) }}">{{ str_replace('_',' ', $t->status) }}</span>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold {{ $priorityBadge }}">{{ $priority['label'] }}</span>
+                        </div>
                     </div>
                     <div class="mt-2 text-xs text-gray-500">Due {{ $t->due_at ? $t->due_at->format('d M H:i') : '—' }}</div>
                 </a>

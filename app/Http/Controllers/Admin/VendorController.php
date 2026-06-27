@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Models\Vendor;
 use App\Services\AffiliateService;
+use App\Services\PartnerCodeService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class VendorController extends ResourceController
 {
@@ -30,7 +30,7 @@ class VendorController extends ResourceController
     protected function rules(?Model $model = null): array
     {
         return [
-            'vendor_number'                  => ['nullable', 'string', 'max:50'],
+            'vendor_number'                  => ['prohibited'],
             'name'                           => ['required', 'string', 'max:150'],
             'category'                       => ['required', 'in:gps_installer,insurance,valuer,towing,yard,auctioneer,supplier,affiliate,call_center,debt_collector,legal_partner'],
             'roles'                          => ['nullable', 'array'],
@@ -173,8 +173,10 @@ class VendorController extends ResourceController
 
     protected function transform(array $data, ?Model $existing = null): array
     {
-        if (empty($data['vendor_number'])) {
-            $data['vendor_number'] = 'PTR-'.now()->format('ymd').'-'.Str::upper(Str::random(4));
+        unset($data['vendor_number']);
+
+        if (! $existing instanceof Vendor) {
+            $data['vendor_number'] = app(PartnerCodeService::class)->generate((string) ($data['category'] ?? 'supplier'));
         }
 
         if (($data['category'] ?? '') === 'affiliate' && empty($data['affiliate_code']) && $existing instanceof Vendor) {

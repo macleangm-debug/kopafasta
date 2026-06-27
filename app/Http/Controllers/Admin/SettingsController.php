@@ -514,7 +514,10 @@ class SettingsController extends Controller
     public function assetLending()
     {
         return view('admin.settings.asset-lending', [
-            'values'     => Setting::group('asset_lending'),
+            'values'     => array_merge(
+                Setting::group('asset_lending'),
+                Setting::group('partners'),
+            ),
             'categories' => config('asset_lending.categories', []),
         ]);
     }
@@ -527,9 +530,21 @@ class SettingsController extends Controller
             'default_waiting_period_days'    => ['required', 'integer', 'min:0', 'max:90'],
             'insurance_expiry_warning_days'  => ['required', 'integer', 'min:1', 'max:365'],
             'default_monthly_rate_percent'   => ['required', 'numeric', 'min:0', 'max:100'],
+            'max_asset_photos'               => ['required', 'integer', 'min:1', 'max:20'],
+            'code_prefix'                    => ['required', 'string', 'max:10'],
+            'default_country_code'           => ['required', 'string', 'size:2'],
         ]);
 
-        Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["asset_lending.$k" => $v])->all());
+        Setting::setMany([
+            'asset_lending.markup_base'                    => $data['markup_base'],
+            'asset_lending.default_deposit_markup_percent' => $data['default_deposit_markup_percent'],
+            'asset_lending.default_waiting_period_days'    => $data['default_waiting_period_days'],
+            'asset_lending.insurance_expiry_warning_days'  => $data['insurance_expiry_warning_days'],
+            'asset_lending.default_monthly_rate_percent'   => $data['default_monthly_rate_percent'],
+            'asset_lending.max_asset_photos'               => $data['max_asset_photos'],
+            'partners.code_prefix'                         => strtoupper($data['code_prefix']),
+            'partners.default_country_code'                => strtoupper($data['default_country_code']),
+        ]);
 
         return back()->with('status', 'Asset lending settings saved.');
     }

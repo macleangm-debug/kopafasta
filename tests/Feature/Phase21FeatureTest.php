@@ -11,7 +11,7 @@ class Phase21FeatureTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_new_partner_gets_ptr_code_prefix(): void
+    public function test_new_partner_gets_pt_code_format(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
 
@@ -28,7 +28,7 @@ class Phase21FeatureTest extends TestCase
         $partner = Vendor::query()->where('name', 'Phase 21 Partner')->first();
 
         $this->assertNotNull($partner);
-        $this->assertStringStartsWith('PTR-', $partner->vendor_number);
+        $this->assertMatchesRegularExpression('/^PT-SP-TZ-[A-Z0-9]{4}$/', $partner->vendor_number);
     }
 
     public function test_legacy_vendors_index_redirects_to_partners_hub(): void

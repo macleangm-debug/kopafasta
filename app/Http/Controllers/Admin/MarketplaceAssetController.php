@@ -17,21 +17,21 @@ class MarketplaceAssetController extends ResourceController
 
     protected function rules(?Model $model = null): array
     {
-        return array_merge(app(MarketplaceAssetService::class)->validationRules(), [
-            'vendor_id' => ['nullable', 'exists:partners,id'],
-            'slug'      => ['nullable', 'string', 'max:60'],
+        return array_merge(app(MarketplaceAssetService::class)->validationRules($model instanceof MarketplaceAsset ? $model : null, true), [
+            'slug' => ['nullable', 'string', 'max:60'],
         ]);
     }
 
     protected function formData(?Model $record = null): array
     {
         $lending = app(\App\Services\AssetLendingService::class);
+        $assetService = app(MarketplaceAssetService::class);
 
         return [
-            'suppliers'                   => Vendor::query()->where('category', 'supplier')->where('status', 'active')->orderBy('name')->pluck('name', 'id'),
+            'suppliers'                   => Vendor::query()->where('category', 'supplier')->orderBy('name')->pluck('name', 'id'),
             'categories'                  => config('asset_marketplace.categories', []),
             'defaultDepositMarkupPercent' => $lending->defaultDepositMarkupPercent(),
-            'defaultWaitingPeriodDays'    => $lending->defaultWaitingPeriodDays(),
+            'maxAssetPhotos'              => $assetService->maxPhotos(),
             'prefill'                     => [
                 'title'               => request()->query('title'),
                 'asset_value'         => request()->query('asset_value'),
@@ -51,6 +51,7 @@ class MarketplaceAssetController extends ResourceController
     public function store(Request $request)
     {
         $service = app(MarketplaceAssetService::class);
+        $service->normalizeRequest($request);
         $validated = $request->validate($this->rules());
         $data = $this->transform($validated);
         $record = MarketplaceAsset::create($data);
@@ -66,6 +67,8 @@ class MarketplaceAssetController extends ResourceController
     {
         $service = app(MarketplaceAssetService::class);
         $record = MarketplaceAsset::findOrFail($id);
+        $service->normalizeRequest($request);
+        $service->validateMinimumPhotos($record, $request->file('photos', []), $request->input('remove_photos', []));
         $before = app(\App\Services\AuditService::class)->snapshot($record);
         $validated = $request->validate($this->rules($record));
         $data = $this->transform($validated, $record);

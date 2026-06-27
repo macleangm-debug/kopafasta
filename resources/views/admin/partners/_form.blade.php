@@ -17,7 +17,12 @@
     </x-admin.step>
 
     <x-admin.step title="Basic info">
-        <x-admin.input  name="vendor_number" label="Partner code" :value="$r?->vendor_number" placeholder="Auto-generated if blank" />
+        @if ($r)
+            <div>
+                <p class="text-xs font-semibold text-gray-700 mb-1">Partner code</p>
+                <p class="text-sm font-mono text-gray-900">{{ $r->vendor_number }}</p>
+            </div>
+        @endif
         <x-admin.input  name="name"          label="Name"          :value="$r?->name"          required />
         <x-admin.select name="category"      label="Category"      :options="$categories"      :value="$category" required x-model="category"
                         @if (! $r && ($defaultCategory ?? null)) disabled @endif />
@@ -72,7 +77,11 @@
     <div x-show="category === 'supplier'" x-cloak>
         <x-admin.step title="Supplier settings">
             <p class="md:col-span-2 text-xs text-gray-500 mb-2">Deposit markup is controlled under Settings → Asset lending (not per supplier).</p>
-            <x-admin.select name="supplier_type" label="Supplier type" :options="config('asset_lending.supplier_types')" :value="$r?->supplier_type ?? config('asset_lending.default_supplier_type')" />
+            <x-admin.select name="supplier_type" label="Supplier payment mode" :options="config('asset_lending.supplier_types')" :value="$r?->supplier_type ?? config('asset_lending.default_supplier_type')" />
+            <p class="md:col-span-2 text-xs text-gray-500">
+                <strong>Direct repayment</strong> — supplier receives principal from customer repayments.
+                <strong>Full upfront payment</strong> — entire asset value is paid to supplier on loan approval; future repayments are managed under capital financing.
+            </p>
         </x-admin.step>
     </div>
 

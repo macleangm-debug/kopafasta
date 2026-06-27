@@ -58,13 +58,14 @@ class SupplierController extends Controller
             'asset'                       => null,
             'categories'                  => config('asset_marketplace.categories', []),
             'defaultDepositMarkupPercent' => $lending->defaultDepositMarkupPercent(),
-            'defaultWaitingPeriodDays'    => $lending->defaultWaitingPeriodDays(),
+            'maxAssetPhotos'              => app(MarketplaceAssetService::class)->maxPhotos(),
         ]);
     }
 
     public function storeAsset(Request $request, MarketplaceAssetService $assets): RedirectResponse
     {
         $vendor = $this->supplier();
+        $assets->normalizeRequest($request);
         $validated = $request->validate($assets->validationRules());
 
         $data = $assets->prepareForSave(array_merge($validated, [
@@ -90,7 +91,7 @@ class SupplierController extends Controller
             'asset'                       => $asset,
             'categories'                  => config('asset_marketplace.categories', []),
             'defaultDepositMarkupPercent' => $lending->defaultDepositMarkupPercent(),
-            'defaultWaitingPeriodDays'    => $lending->defaultWaitingPeriodDays(),
+            'maxAssetPhotos'              => app(MarketplaceAssetService::class)->maxPhotos(),
         ]);
     }
 
@@ -99,6 +100,8 @@ class SupplierController extends Controller
         $vendor = $this->supplier();
         abort_unless($asset->vendor_id === $vendor->id, 404);
 
+        $assets->normalizeRequest($request);
+        $assets->validateMinimumPhotos($asset, $request->file('photos', []), $request->input('remove_photos', []));
         $validated = $request->validate($assets->validationRules($asset));
         $data = $assets->prepareForSave(array_merge($validated, [
             'is_active' => $request->boolean('is_active', true),

@@ -9,8 +9,8 @@ return [
     'markup_base' => env('ASSET_LENDING_MARKUP_BASE', 'deposit'),
 
     'supplier_types' => [
-        'managed_loan'        => 'Managed loan (supplier owns asset, receives installments)',
-        'upfront_settlement'  => 'Upfront settlement (company pays supplier on approval)',
+        'managed_loan'        => 'Direct repayment (supplier receives principal from installments)',
+        'upfront_settlement'  => 'Full upfront payment (company pays supplier on approval)',
     ],
 
     /** Default supplier type for new suppliers. */

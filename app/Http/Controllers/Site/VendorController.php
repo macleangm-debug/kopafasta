@@ -8,6 +8,7 @@ use App\Models\Vendor;
 use App\Models\VendorDocument;
 use App\Models\VendorPayment;
 use App\Models\VendorTask;
+use App\Services\PartnerCodeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -26,7 +27,7 @@ class VendorController extends Controller
         $vendor = Vendor::where('user_id', $user->id)->first();
         if (! $vendor) {
             $vendor = Vendor::create([
-                'vendor_number' => 'PTR-'.strtoupper(Str::random(6)),
+                'vendor_number' => app(PartnerCodeService::class)->generate('gps_installer'),
                 'name'          => $user->name,
                 'category'      => 'gps_installer',
                 'phone'         => $user->phone,
@@ -40,7 +41,8 @@ class VendorController extends Controller
 
     protected function tasksQuery(Vendor $vendor)
     {
-        return VendorTask::where('partner_id', $vendor->id);
+        return VendorTask::where('partner_id', $vendor->id)
+            ->with(['loan.customer', 'loanApplication.customer', 'loanApplication.assetReservation.asset']);
     }
 
     /* ------------------------------------------------------------------ */
@@ -217,7 +219,13 @@ class VendorController extends Controller
     {
         $vendor = $this->vendor();
         abort_unless($task->vendor_id === $vendor->id, 404);
-        $task->load(['documents', 'payment', 'loan', 'loanApplication']);
+        $task->load([
+            'documents',
+            'payment',
+            'loan.customer',
+            'loanApplication.customer',
+            'loanApplication.assetReservation.asset',
+        ]);
         return view('site.vendor.task', compact('vendor', 'task'));
     }
 

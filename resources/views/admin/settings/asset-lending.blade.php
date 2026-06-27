@@ -32,8 +32,19 @@
                            :value="$values['default_waiting_period_days'] ?? 7" required />
             <x-admin.input name="insurance_expiry_warning_days" label="Insurance expiry warning (days before)" type="number"
                            :value="$values['insurance_expiry_warning_days'] ?? 30" required />
+            <x-admin.input name="max_asset_photos" label="Max asset photos per listing" type="number"
+                           :value="$values['max_asset_photos'] ?? 4" required />
         </div>
-        <p class="text-xs text-gray-500">Waiting period is shown to borrowers between deposit and loan application. The monthly rate drives auto-calculated weekly installments on marketplace assets. Insurance warning appears in underwriting when policy expiry is near or past due.</p>
+        <p class="text-xs text-gray-500">Waiting period is shown to borrowers between deposit and loan application. The monthly rate drives auto-calculated weekly installments during loan processing. Insurance warning appears in underwriting when policy expiry is near or past due.</p>
+
+        <div class="border-t border-gray-100 pt-6">
+            <p class="text-sm font-semibold text-gray-900 mb-2">Partner code format</p>
+            <p class="text-xs text-gray-500 mb-3">Auto-generated codes follow <span class="font-mono">{prefix}-{type}-{country}-{id}</span> (e.g. PT-SP-TZ-1AV3).</p>
+            <div class="grid md:grid-cols-2 gap-4">
+                <x-admin.input name="code_prefix" label="Code prefix" :value="$values['code_prefix'] ?? 'PT'" required />
+                <x-admin.input name="default_country_code" label="Default country code" :value="$values['default_country_code'] ?? 'TZ'" required maxlength="2" />
+            </div>
+        </div>
 
         <button class="rounded-lg bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 text-sm">Save settings</button>
     </form>
