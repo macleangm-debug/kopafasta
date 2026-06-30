@@ -29,6 +29,17 @@ class RecoveryPolicyService
         return max(1, (int) Setting::get('recovery.grace_period_days', 2));
     }
 
+    public function gracePeriodDaysForLoan(?\App\Models\Loan $loan): int
+    {
+        if (! $loan) {
+            return $this->gracePeriodDays();
+        }
+
+        $loan->loadMissing('product');
+
+        return max(1, (int) app(LoanPenaltyPolicy::class)->for($loan)['default_grace_days']);
+    }
+
     public function feeBase(): string
     {
         $base = (string) Setting::get('recovery.fee_base', config('recovery.default_fee_base', 'principal'));
@@ -97,6 +108,84 @@ class RecoveryPolicyService
     public function autoEscalate(): bool
     {
         return (bool) Setting::get('recovery.auto_escalate', true);
+    }
+
+    public function priorityForType(string $type): int
+    {
+        $stored = Setting::get("recovery.priority.{$type}");
+
+        if ($stored !== null && $stored !== '') {
+            return max(1, (int) $stored);
+        }
+
+        return max(1, (int) ($this->partnerTypes()[$type]['default_priority'] ?? 99));
+    }
+
+    public function loanTypesScopeForType(string $type): string
+    {
+        $stored = Setting::get("recovery.loan_types.{$type}");
+
+        if ($stored === null || $stored === '') {
+            return (string) ($this->partnerTypes()[$type]['default_loan_types'] ?? 'all');
+        }
+
+        return (string) $stored;
+    }
+
+    public function collateralScopeForType(string $type): string
+    {
+        $stored = Setting::get("recovery.collateral_scope.{$type}");
+        $default = (string) ($this->partnerTypes()[$type]['default_collateral_scope'] ?? 'all');
+
+        return in_array($stored, ['all', 'secured', 'unsecured'], true) ? $stored : $default;
+    }
+
+    public function autoEscalateForType(string $type): bool
+    {
+        $stored = Setting::get("recovery.auto_escalate_type.{$type}");
+
+        if ($stored !== null && $stored !== '') {
+            return (bool) $stored;
+        }
+
+        return (bool) ($this->partnerTypes()[$type]['default_auto_escalate'] ?? $this->autoEscalate());
+    }
+
+    public function partnerTypeAppliesToLoan(string $type, \App\Models\Loan $loan): bool
+    {
+        $loan->loadMissing('product', 'application.collateralAsset');
+
+        $loanTypes = trim($this->loanTypesScopeForType($type));
+        if ($loanTypes !== '' && strtolower($loanTypes) !== 'all') {
+            $allowed = collect(explode(',', strtoupper($loanTypes)))
+                ->map(fn (string $code) => trim($code))
+                ->filter()
+                ->all();
+            $productCode = strtoupper((string) ($loan->product?->code ?? ''));
+
+            if ($productCode !== '' && ! in_array($productCode, $allowed, true)) {
+                return false;
+            }
+        }
+
+        $isSecured = (bool) ($loan->product?->requires_collateral ?? false)
+            || $loan->application?->collateralAsset !== null;
+
+        return match ($this->collateralScopeForType($type)) {
+            'secured'   => $isSecured,
+            'unsecured' => ! $isSecured,
+            default     => true,
+        };
+    }
+
+    /** @return list<string> */
+    public function partnerTypesForLoan(\App\Models\Loan $loan): array
+    {
+        return collect(array_keys($this->partnerTypes()))
+            ->filter(fn (string $type) => $this->partnerTypeAppliesToLoan($type, $loan))
+            ->sortBy(fn (string $type) => $this->priorityForType($type))
+            ->values()
+            ->all();
     }
 
     public function autoAssignCallCenter(): bool

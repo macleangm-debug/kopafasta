@@ -26,8 +26,9 @@
                     <input type="email" name="email" value="{{ old('email') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.phone') }}</label>
-                    <input name="phone" value="{{ old('phone') }}" required placeholder="+255…" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                    <x-site.phone-input name="phone" :label="__('site.affiliate_apply.phone')" :value="old('phone')" :required="true"
+                        select-class="w-28 shrink-0 rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:border-amber-500 focus:ring-amber-500"
+                        input-class="flex-1 rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:border-amber-500 focus:ring-amber-500" />
                 </div>
             </div>
             <div class="grid sm:grid-cols-2 gap-4">

@@ -1,4 +1,6 @@
 <x-site.vendor-layout title="Recovery cases" active="recovery">
+    @include('site.vendor._recovery-kpi', ['kpi' => $recoveryKpi, 'wallet' => $recoveryWallet, 'compact' => true])
+
     @php
         $tabs = [
             'all'         => 'All',

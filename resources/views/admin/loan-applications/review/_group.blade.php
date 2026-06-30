@@ -2,8 +2,51 @@
     <div id="review-group" class="bg-white rounded-xl ring-1 ring-gray-200 overflow-hidden">
         <div class="px-5 py-4 border-b border-gray-100">
             <h3 class="font-semibold text-gray-900">{{ __('admin.group_review.title') }}</h3>
-            <p class="text-sm text-gray-500 mt-1">{{ $groupReview['name'] }} · {{ $groupReview['group_number'] }}</p>
+            <div class="flex flex-wrap items-center gap-3 mt-1">
+                <p class="text-sm text-gray-500">{{ $groupReview['name'] }} · {{ $groupReview['group_number'] }}</p>
+                @if ($groupReview['application_status'] ?? null)
+                    @php
+                        $appStatus = $groupReview['application_status'];
+                        $statusTone = match ($appStatus['tone'] ?? 'gray') {
+                            'emerald' => 'bg-emerald-100 text-emerald-800',
+                            'amber'   => 'bg-amber-100 text-amber-800',
+                            'blue'    => 'bg-blue-100 text-blue-800',
+                            'red'     => 'bg-red-100 text-red-800',
+                            default   => 'bg-gray-100 text-gray-700',
+                        };
+                    @endphp
+                    <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold {{ $statusTone }}">
+                        {{ $appStatus['label'] }}
+                    </span>
+                @endif
+            </div>
         </div>
+        @if ($groupReview['scoring'] ?? null)
+            @php $scoring = $groupReview['scoring']; @endphp
+            <div class="px-5 py-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm border-b border-gray-100 bg-slate-50">
+                <div>
+                    <span class="text-gray-500 block text-xs uppercase tracking-widest">{{ __('admin.group_review.scoring.completion') }}</span>
+                    <span class="font-semibold text-gray-900">{{ number_format($scoring['member_completion_percent'] ?? 0, 1) }}%</span>
+                </div>
+                <div>
+                    <span class="text-gray-500 block text-xs uppercase tracking-widest">{{ __('admin.group_review.scoring.avg_credit') }}</span>
+                    <span class="font-semibold text-gray-900">{{ isset($scoring['average_credit_score']) ? number_format($scoring['average_credit_score'], 0) : '—' }}</span>
+                </div>
+                <div>
+                    <span class="text-gray-500 block text-xs uppercase tracking-widest">{{ __('admin.group_review.scoring.avg_income') }}</span>
+                    <span class="font-semibold text-gray-900">{{ isset($scoring['average_income']) ? format_money($scoring['average_income']) : '—' }}</span>
+                </div>
+                <div>
+                    <span class="text-gray-500 block text-xs uppercase tracking-widest">{{ __('admin.group_review.scoring.risk_score') }}</span>
+                    <span class="font-semibold text-gray-900">
+                        {{ $scoring['group_risk_score'] ?? '—' }}
+                        @if (! empty($scoring['risk_band']))
+                            <span class="text-xs font-medium text-gray-500">({{ __('admin.group_review.scoring.risk_band.'.$scoring['risk_band']) }})</span>
+                        @endif
+                    </span>
+                </div>
+            </div>
+        @endif
         <div class="px-5 py-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm border-b border-gray-100">
             <div><span class="text-gray-500 block">{{ __('admin.group_review.leader') }}</span><span class="font-semibold">{{ $groupReview['leader'] ?? '—' }}</span></div>
             <div><span class="text-gray-500 block">{{ __('admin.group_review.members') }}</span><span class="font-semibold">{{ $groupReview['member_count'] }} / {{ $groupReview['target_member_count'] }}</span></div>

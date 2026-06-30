@@ -11,6 +11,13 @@ class GroupMemberInvitation extends Model
         'leader_customer_id',
         'loan_product_id',
         'loan_application_draft_id',
+        'draft_reference',
+        'invitation_reason',
+        'group_name',
+        'group_purpose',
+        'amount_per_member',
+        'requested_tenure_months',
+        'repayment_cadence',
         'replaces_loan_group_member_id',
         'customer_id',
         'invitee_first_name',
@@ -55,6 +62,11 @@ class GroupMemberInvitation extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(LoanProduct::class, 'loan_product_id');
+    }
+
+    public function draft(): BelongsTo
+    {
+        return $this->belongsTo(LoanApplicationDraft::class, 'loan_application_draft_id');
     }
 
     public function replacesMember(): BelongsTo

@@ -16,6 +16,14 @@
     @endif
     <div class="p-5 flex-1 flex flex-col">
         <h2 class="font-semibold text-gray-900 leading-snug">{{ $asset['title'] }}</h2>
+        @if (! empty($asset['vendor']))
+            <p class="text-xs text-gray-500 mt-1">
+                {{ $asset['vendor'] }}
+                @if (! empty($asset['supplier_region']))
+                    <span class="text-gray-400">· {{ $asset['supplier_region'] }}</span>
+                @endif
+            </p>
+        @endif
         <dl class="mt-4 space-y-2 text-sm flex-1">
             <div class="flex justify-between gap-3">
                 <dt class="text-gray-500">{{ __('borrower.marketplace.deposit') }}</dt>

@@ -16,6 +16,22 @@
 
     <x-site.onboarding-hero-banner :banner="$onboardingBanner" />
 
+    @if (! empty($groupInviteBanner['show']))
+        <div class="mb-6 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 to-white p-5 sm:p-6">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div>
+                    <p class="text-xs uppercase tracking-widest text-amber-700 font-semibold mb-1">{{ __('borrower.apply.group.onboarding_label') }}</p>
+                    <h2 class="text-lg font-bold text-gray-900">{{ $groupInviteBanner['title'] }}</h2>
+                    <p class="text-sm text-gray-600 mt-1">{{ $groupInviteBanner['message'] }}</p>
+                </div>
+                <a href="{{ $groupInviteBanner['cta_url'] }}"
+                   class="inline-flex items-center justify-center bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-3 rounded-full text-sm shrink-0">
+                    {{ $groupInviteBanner['cta_label'] }}
+                </a>
+            </div>
+        </div>
+    @endif
+
     @if (! empty($kycSectionsDue))
         <div class="mb-6 rounded-xl bg-orange-50 ring-1 ring-orange-200 px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>

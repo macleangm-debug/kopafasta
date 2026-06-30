@@ -5,6 +5,7 @@ $nav = [
     ['key' => 'dashboard',     'label' => 'Dashboard',      'route' => 'site.partner.dashboard',       'icon' => 'home'],
     ['key' => 'tasks',         'label' => 'Assigned Tasks', 'route' => 'site.partner.tasks',           'icon' => 'clipboard'],
     ['key' => 'recovery',      'label' => 'Recovery Cases', 'route' => 'site.partner.recovery-cases',  'icon' => 'alert'],
+    ['key' => 'recovery_wallet','label' => 'Commission Wallet', 'route' => 'site.partner.recovery-wallet', 'icon' => 'wallet'],
     ['key' => 'active',        'label' => 'Active Jobs',    'route' => 'site.partner.tasks.active',    'icon' => 'play'],
     ['key' => 'completed',     'label' => 'Completed Jobs', 'route' => 'site.partner.tasks.completed', 'icon' => 'check'],
     ['key' => 'documents',     'label' => 'Documents',      'route' => 'site.partner.documents',       'icon' => 'folder'],
@@ -22,7 +23,7 @@ $showRecoveryNav = $portalVendor
     && app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($portalVendor);
 
 if (! $showRecoveryNav) {
-    $nav = array_values(array_filter($nav, fn (array $item) => $item['key'] !== 'recovery'));
+    $nav = array_values(array_filter($nav, fn (array $item) => ! in_array($item['key'], ['recovery', 'recovery_wallet'], true)));
 }
 
 $icon = function (string $name) {

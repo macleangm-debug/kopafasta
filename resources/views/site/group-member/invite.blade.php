@@ -8,8 +8,23 @@
                     'name' => $invitation->displayName(),
                 ]) }}
             </p>
+            @if ($invitation->draft_reference)
+                <p class="text-sm"><span class="text-gray-500">{{ __('borrower.apply.group.reference') }}:</span> <span class="font-mono font-semibold">{{ $invitation->draft_reference }}</span></p>
+            @endif
             @if ($invitation->product)
                 <p class="text-sm text-gray-500">{{ __('borrower.apply.group.invite_product', ['product' => $invitation->product->name]) }}</p>
+            @endif
+            @if ($invitation->amount_per_member)
+                <p class="text-sm text-gray-700">{{ __('borrower.apply.group_setup.amount_per_member') }}: <strong>{{ format_money((float) $invitation->amount_per_member) }}</strong></p>
+            @endif
+            @if ($invitation->requested_tenure_months)
+                <p class="text-sm text-gray-700">{{ __('borrower.apply.group_setup.tenure') }}: <strong>{{ $invitation->requested_tenure_months }} {{ __('borrower.apply.quote.months') }}</strong></p>
+            @endif
+            @if ($invitation->invitation_reason)
+                <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3 text-sm">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">{{ __('borrower.apply.group.invitation_reason') }}</p>
+                    <p>{{ $invitation->invitation_reason }}</p>
+                </div>
             @endif
             <div class="flex flex-col sm:flex-row gap-3 pt-2">
                 <form method="POST" action="{{ route('site.group-member.accept', $invitation->token) }}">

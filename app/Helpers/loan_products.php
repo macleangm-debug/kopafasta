@@ -124,6 +124,7 @@ if (! function_exists('loan_product_wizard_payload')) {
             'requires_guarantor' => (bool) $product->requires_guarantor,
             'guarantor_required_above' => (float) ($policy->settings()['guarantor_required_above'] ?? 0),
             'frequency'         => $groups->effectiveRepaymentCadence($product),
+            'group_cadence_label' => $groups->groupRepaymentCadenceLabel($product),
             'is_group'          => is_group_loan_product($product),
         ];
     }

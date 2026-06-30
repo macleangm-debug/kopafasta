@@ -266,6 +266,10 @@ class LoanApplicationWorkflowService
             'remarks'       => $remarks,
         ]);
 
+        if ($application->loan_group_id) {
+            app(GroupApplicationStatusService::class)->syncApplication($application->fresh(['loanGroup', 'loan']));
+        }
+
         return $application->fresh(['stageHistory.changedByUser', 'customer', 'product']);
     }
 

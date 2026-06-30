@@ -21,4 +21,7 @@ return function (): void {
     Route::delete('partners/{vendor}', [VendorController::class, 'destroy'])->name('partners.destroy');
     Route::post('partners/{vendor}/affiliate-kyc/approve', [VendorController::class, 'approveAffiliateKyc'])->name('partners.affiliate-kyc.approve');
     Route::post('partners/{vendor}/affiliate-kyc/reject', [VendorController::class, 'rejectAffiliateKyc'])->name('partners.affiliate-kyc.reject');
+    Route::post('partners/{vendor}/affiliate-lifecycle', [VendorController::class, 'updateAffiliateLifecycle'])->name('partners.affiliate-lifecycle.update');
+    Route::post('partners/{vendor}/affiliate-fraud/scan', [VendorController::class, 'scanAffiliateFraud'])->name('partners.affiliate-fraud.scan');
+    Route::post('partners/{vendor}/affiliate-risk-flag', [VendorController::class, 'updateAffiliateRiskFlag'])->name('partners.affiliate-risk-flag.update');
 };

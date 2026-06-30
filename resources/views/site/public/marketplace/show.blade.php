@@ -4,19 +4,18 @@
 
         <div class="grid lg:grid-cols-2 gap-8 mt-4">
             <div>
-                @if (! empty($asset['photos']))
-                    @foreach ($asset['photos'] as $photo)
-                        <img src="{{ Storage::url($photo) }}" alt="" class="w-full rounded-2xl aspect-[4/3] object-cover bg-slate-100 mb-3">
-                    @endforeach
-                @else
-                    <div class="aspect-[4/3] rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 grid place-items-center text-6xl">🚗</div>
-                @endif
+                @include('site.marketplace._photo-slider', ['photos' => $asset['photos'] ?? [], 'category' => $asset['category'] ?? 'other'])
             </div>
             <div>
                 <p class="text-xs uppercase tracking-widest text-amber-600">{{ config('asset_marketplace.categories.'.$asset['category']) }}</p>
                 <h1 class="text-3xl font-bold mt-1">{{ $asset['title'] }}</h1>
                 @if (! empty($asset['vendor']))
-                    <p class="text-sm text-gray-500 mt-2">{{ __('borrower.marketplace.supplier') }}: {{ $asset['vendor'] }}</p>
+                    <p class="text-sm text-gray-500 mt-2">
+                        {{ __('borrower.marketplace.supplier') }}: {{ $asset['vendor'] }}
+                        @if (! empty($asset['supplier_region']))
+                            <span class="text-gray-400">· {{ $asset['supplier_region'] }}</span>
+                        @endif
+                    </p>
                 @endif
                 @if (! empty($asset['description']))
                     <p class="text-sm text-gray-600 mt-4">{{ $asset['description'] }}</p>

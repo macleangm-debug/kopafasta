@@ -12,17 +12,30 @@
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.group_setup.member_count') }}</label>
-                <input type="number" x-model.number="group.target_member_count"
+                <input type="range"
+                       x-model.number="group.target_member_count"
                        :min="groupLimits.min" :max="groupLimits.max" step="1"
-                       @change="syncGroupAmounts(); refreshApplicationFeeQuote()"
-                       class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                <p class="mt-1 text-xs text-gray-500">{{ __('borrower.apply.group_setup.member_count_hint', ['min' => ($groupMemberLimits['min'] ?? 5), 'max' => ($groupMemberLimits['max'] ?? 10)]) }}</p>
+                       @change="clampGroupAmountPerMember(); syncGroupAmounts(); refreshApplicationFeeQuote()"
+                       class="w-full accent-amber-500">
+                <div class="flex justify-between text-xs text-gray-500 mt-1">
+                    <span x-text="groupLimits.min"></span>
+                    <span class="font-semibold text-gray-900" x-text="group.target_member_count || groupLimits.min"></span>
+                    <span x-text="groupLimits.max"></span>
+                </div>
+                <p class="mt-1 text-xs text-gray-500">{{ __('borrower.apply.group_setup.member_count_hint', ['min' => ($groupMemberLimits['min'] ?? 3), 'max' => ($groupMemberLimits['max'] ?? 10)]) }}</p>
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.group_setup.amount_per_member') }}</label>
-                <input type="number" min="1000" step="1000" x-model.number="group.amount_per_member"
+                <input type="range"
+                       :min="groupAmountPerMemberMin()" :max="groupAmountPerMemberMax()" step="1000"
+                       x-model.number="group.amount_per_member"
                        @input="syncGroupAmounts()"
-                       class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                       class="w-full accent-amber-500">
+                <div class="flex justify-between text-xs text-gray-500 mt-1">
+                    <span x-text="formatTzs(groupAmountPerMemberMin())"></span>
+                    <span class="font-semibold text-gray-900" x-text="formatTzs(group.amount_per_member || 0)"></span>
+                    <span x-text="formatTzs(groupAmountPerMemberMax())"></span>
+                </div>
                 <p class="mt-1 text-xs text-gray-500">{{ __('borrower.apply.group_setup.amount_per_member_hint') }}</p>
             </div>
             <div>
@@ -49,7 +62,15 @@
                         </button>
                     </template>
                 </div>
-                <p class="text-xs text-gray-500">{{ __('borrower.apply.group_setup.monthly_repayment_only') }}</p>
+                <input type="range"
+                       x-show="(current.tenure_options || []).length >= 1"
+                       :min="0"
+                       :max="Math.max(0, (current.tenure_options || []).length - 1)"
+                       step="1"
+                       :value="Math.max(0, (current.tenure_options || []).indexOf(Number(form.requested_tenure_months)))"
+                       @input="selectGroupTenure((current.tenure_options || [])[Number($event.target.value)] || form.requested_tenure_months)"
+                       class="w-full accent-amber-500 mt-2">
+                <p class="text-xs text-gray-500" x-text="current.group_cadence_label || @js(__('borrower.apply.group_setup.weekly_repayment'))"></p>
             </div>
             <div class="rounded-xl ring-1 ring-amber-200 bg-amber-50 p-4 text-sm">
                 <div class="flex justify-between gap-3">
@@ -64,6 +85,42 @@
 <div x-show="stepKey === 'group_members'" class="p-6 sm:p-8">
     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.group_members.title') }}</h2>
     <p class="text-sm text-gray-600 mb-4">{{ __('borrower.apply.group_members.subtitle') }}</p>
+
+    <div class="rounded-xl ring-1 ring-gray-200 bg-white p-4 mb-5" x-show="groupApplicationStatus">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">{{ __('borrower.apply.group.application_status.title') }}</p>
+            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                  :class="{
+                      'bg-emerald-100 text-emerald-800': ['ready_for_submission', 'approved', 'disbursed'].includes(groupApplicationStatus?.key),
+                      'bg-amber-100 text-amber-800': ['inviting_members', 'member_completion'].includes(groupApplicationStatus?.key),
+                      'bg-blue-100 text-blue-800': groupApplicationStatus?.key === 'under_review',
+                      'bg-red-100 text-red-800': groupApplicationStatus?.key === 'rejected',
+                      'bg-gray-100 text-gray-700': !groupApplicationStatus || ['draft', 'cancelled'].includes(groupApplicationStatus?.key),
+                  }"
+                  x-text="groupApplicationStatus?.label || ''"></span>
+        </div>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm" x-show="groupScoring">
+            <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 px-3 py-2">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.apply.group.scoring.completion') }}</p>
+                <p class="font-bold text-gray-900" x-text="(groupScoring?.member_completion_percent ?? 0) + '%'"></p>
+            </div>
+            <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 px-3 py-2">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.apply.group.scoring.avg_credit') }}</p>
+                <p class="font-bold text-gray-900" x-text="groupScoring?.average_credit_score != null ? Math.round(groupScoring.average_credit_score) : '—'"></p>
+            </div>
+            <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 px-3 py-2">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.apply.group.scoring.avg_income') }}</p>
+                <p class="font-bold text-gray-900" x-text="groupScoring?.average_income != null ? formatTzs(groupScoring.average_income) : '—'"></p>
+            </div>
+            <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 px-3 py-2">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.apply.group.scoring.risk_score') }}</p>
+                <p class="font-bold text-gray-900">
+                    <span x-text="groupScoring?.group_risk_score ?? '—'"></span>
+                    <span class="text-xs font-medium text-gray-500" x-show="groupScoring?.risk_band" x-text="'(' + (groupScoringRiskBandLabel(groupScoring?.risk_band) || '') + ')'"></span>
+                </p>
+            </div>
+        </div>
+    </div>
 
     <div class="rounded-xl ring-1 ring-gray-200 bg-white p-4 mb-5">
         <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">{{ __('borrower.apply.group.dashboard.title') }}</p>

@@ -10,6 +10,13 @@ class LoanGroup extends Model
 {
     protected $guarded = [];
 
+    protected function casts(): array
+    {
+        return [
+            'scoring_snapshot' => 'array',
+        ];
+    }
+
     public function leader(): BelongsTo
     {
         return $this->belongsTo(Customer::class, 'leader_customer_id');

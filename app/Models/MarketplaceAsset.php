@@ -38,6 +38,24 @@ class MarketplaceAsset extends Model
         return app(AssetLendingService::class)->computeCustomerDeposit($this);
     }
 
+    public function depositPercent(): float
+    {
+        $value = (float) ($this->asset_value ?? 0);
+        if ($value <= 0) {
+            return 0.0;
+        }
+
+        return round(((float) ($this->supplier_deposit ?? 0) / $value) * 100, 2);
+    }
+
+    public function resolveRouteBinding($value, $field = null)
+    {
+        return static::query()
+            ->where('id', $value)
+            ->orWhere('slug', $value)
+            ->first();
+    }
+
     public function vendor(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Vendor::class, 'partner_id');

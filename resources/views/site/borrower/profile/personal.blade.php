@@ -312,8 +312,7 @@
             <h3 class="font-semibold mb-4">{{ __('borrower.profile.contact_details') }}</h3>
             <div class="grid sm:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.phone') }}</label>
-                    <input name="phone" value="{{ old('phone', $customer->phone) }}" class="{{ $editable }}">
+                    <x-site.phone-input name="phone" :label="__('borrower.profile.fields.phone')" :value="old('phone', $customer->phone)" :input-class="$editable" />
                 </div>
                 <div>
                     <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.email') }}</label>

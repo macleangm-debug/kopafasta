@@ -26,9 +26,11 @@ use App\Services\AssetBackedApplyService;
 use App\Services\CrbCreditCheckService;
 use App\Services\DisplayedRateService;
 use App\Services\GroupApplyService;
+use App\Services\GroupApplicationStatusService;
 use App\Services\GroupMemberInvitationService;
 use App\Services\GroupMemberProgressService;
 use App\Services\GroupLendingService;
+use App\Services\GroupScoringService;
 use App\Services\LoanApplicationDraftService;
 use App\Services\LoanPolicyService;
 use App\Services\LoanProductReadinessService;
@@ -416,9 +418,23 @@ class ApplyController extends Controller
             'last_name'       => ['required', 'string', 'max:80'],
             'phone'           => ['required', 'string', 'max:20'],
             'email'           => ['nullable', 'email', 'max:150'],
+            'group'           => ['nullable', 'array'],
+            'invitation_reason' => ['nullable', 'string', 'max:500'],
         ]);
 
         $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
+        $group = is_array($data['group'] ?? null) ? $data['group'] : [];
+        $groups = app(GroupLendingService::class);
+
+        $context = [
+            'group_name'              => $group['name'] ?? null,
+            'group_purpose'           => $group['purpose'] ?? null,
+            'amount_per_member'       => $group['amount_per_member'] ?? null,
+            'requested_tenure_months' => $group['requested_tenure_months'] ?? ($group['tenure_months'] ?? null),
+            'repayment_cadence'       => $groups->effectiveRepaymentCadence($product),
+            'invitation_reason'       => $data['invitation_reason'] ?? null,
+            'loan_product_id'         => $product->id,
+        ];
 
         try {
             $share = $invites->prepareExternalInvitation(
@@ -429,6 +445,8 @@ class ApplyController extends Controller
                 $data['last_name'],
                 $data['phone'],
                 $data['email'] ?? null,
+                null,
+                $context,
             );
         } catch (\InvalidArgumentException $e) {
             return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
@@ -449,7 +467,9 @@ class ApplyController extends Controller
         abort_unless($leader, 403);
 
         $data = $request->validate([
-            'members' => ['required', 'array'],
+            'members'             => ['required', 'array'],
+            'target_member_count' => ['nullable', 'integer', 'min:1'],
+            'group'               => ['nullable', 'array'],
         ]);
 
         $progress = app(GroupMemberProgressService::class);
@@ -483,10 +503,19 @@ class ApplyController extends Controller
         $target = (int) ($request->input('target_member_count') ?: $members->count());
         $summary = $progress->summarize($members->all(), max(1, $target));
 
+        $groupPayload = is_array($data['group'] ?? null) ? $data['group'] : [];
+        $groupPayload['members'] = $members->all();
+        $groupPayload['target_member_count'] = max(1, $target);
+
+        $applicationStatus = app(GroupApplicationStatusService::class)->resolveFromDraftPayload($groupPayload);
+        $scoring = app(GroupScoringService::class)->scoreFromDraftPayload($groupPayload);
+
         return response()->json([
-            'ok'      => true,
-            'members' => $members,
-            'summary' => $summary,
+            'ok'                 => true,
+            'members'            => $members,
+            'summary'            => $summary,
+            'application_status' => $applicationStatus,
+            'scoring'            => $scoring,
         ]);
     }
 
@@ -676,6 +705,7 @@ class ApplyController extends Controller
             'external_guarantor'   => ['nullable', 'array'],
             'borrower_signature'   => ['nullable', 'array'],
             'declaration_accepted' => ['nullable', 'boolean'],
+            'group'                => ['nullable', 'array'],
         ]);
 
         if ($data['phase'] === 'browse' || empty($data['loan_product_id'])) {
@@ -1488,6 +1518,13 @@ class ApplyController extends Controller
 
             $crbCredit->attachGroupMemberCrbs($app, $groupData['members']);
             app(GroupMemberInvitationService::class)->attachSignaturesToApplication($app, $groupData['members']);
+
+            $scoring = app(GroupScoringService::class)->score(
+                $groupData['members'],
+                (int) ($groupData['target_member_count'] ?? count($groupData['members'])),
+                $app->fresh(),
+            );
+            app(GroupApplicationStatusService::class)->syncApplication($app->fresh(['loanGroup']), $scoring);
         }
 
         app(AffiliateService::class)->trackApplication($app);

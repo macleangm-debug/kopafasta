@@ -31,6 +31,49 @@ class AffiliateSettingsService
         return in_array($base, ['original_amount', 'discounted_amount'], true) ? $base : 'discounted_amount';
     }
 
+    public function commissionMode(): string
+    {
+        $mode = (string) Setting::get('affiliates.commission_mode', config('affiliates.commission_mode', 'percentage'));
+
+        return in_array($mode, ['percentage', 'fixed', 'tiered', 'hybrid'], true) ? $mode : 'percentage';
+    }
+
+    /** @return array<string, float> */
+    public function fixedCommissionAmounts(): array
+    {
+        $defaults = config('affiliates.fixed_commission_amounts', []);
+        $stored = Setting::get('affiliates.fixed_commission_amounts');
+
+        if (! is_array($stored)) {
+            return $defaults;
+        }
+
+        return array_merge($defaults, $stored);
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function commissionTiers(): array
+    {
+        $defaults = config('affiliates.commission_tiers', []);
+        $stored = Setting::get('affiliates.commission_tiers');
+
+        if (! is_array($stored) || $stored === []) {
+            return $defaults;
+        }
+
+        return $stored;
+    }
+
+    public function hybridFixedAmount(?\App\Models\Vendor $affiliate = null): float
+    {
+        return (float) Setting::get('affiliates.hybrid_fixed_amount', config('affiliates.hybrid_fixed_amount', 0));
+    }
+
+    public function hybridPercent(?\App\Models\Vendor $affiliate = null): float
+    {
+        return (float) Setting::get('affiliates.hybrid_percent', config('affiliates.hybrid_percent', 0));
+    }
+
     /** @return array<string, mixed> */
     public function forForm(): array
     {
@@ -41,6 +84,13 @@ class AffiliateSettingsService
             'default_registration_discount_percent' => Setting::get('affiliates.default_registration_discount_percent', config('affiliates.default_registration_discount_percent')),
             'default_application_discount_percent'  => Setting::get('affiliates.default_application_discount_percent', config('affiliates.default_application_discount_percent')),
             'default_commission_percent'          => Setting::get('affiliates.default_commission_percent', config('affiliates.default_commission_percent')),
+            'commission_mode'                     => $this->commissionMode(),
+            'fixed_commission_amounts'            => $this->fixedCommissionAmounts(),
+            'commission_tiers'                    => $this->commissionTiers(),
+            'hybrid_fixed_amount'               => $this->hybridFixedAmount(),
+            'hybrid_percent'                    => $this->hybridPercent(),
+            'evaluation'                        => $this->evaluationSettings(),
+            'fraud'                             => $this->fraudSettings(),
             'commission_calculation_base'         => $this->commissionCalculationBase(),
             'applies_to'                          => $this->appliesTo(),
             'message_share_template'              => $messages['share_template'],
@@ -82,5 +132,122 @@ class AffiliateSettingsService
         return $stored === null
             ? (bool) config('affiliates.require_kyc_for_verification', true)
             : (bool) $stored;
+    }
+
+    /** @return array<string, mixed> */
+    public function evaluationSettings(): array
+    {
+        $defaults = config('affiliates.evaluation', []);
+        $stored = Setting::get('affiliates.evaluation');
+
+        if (! is_array($stored)) {
+            return $defaults;
+        }
+
+        $merged = array_merge($defaults, $stored);
+        $merged['weights'] = array_merge($defaults['weights'] ?? [], $stored['weights'] ?? []);
+
+        return $merged;
+    }
+
+    public function autoApplyActions(): bool
+    {
+        return (bool) ($this->evaluationSettings()['auto_apply_actions'] ?? true);
+    }
+
+    public function evaluationPeriodDays(): int
+    {
+        return max(1, (int) ($this->evaluationSettings()['period_days'] ?? 30));
+    }
+
+    public function minEventsForScoring(): int
+    {
+        return max(1, (int) ($this->evaluationSettings()['min_events_for_scoring'] ?? 3));
+    }
+
+    public function watchlistRiskScore(): float
+    {
+        return (float) ($this->evaluationSettings()['watchlist_risk_score'] ?? 60);
+    }
+
+    public function watchlistFraudScore(): float
+    {
+        return (float) ($this->evaluationSettings()['watchlist_fraud_score'] ?? 50);
+    }
+
+    public function suspendRiskScore(): float
+    {
+        return (float) ($this->evaluationSettings()['suspend_risk_score'] ?? 80);
+    }
+
+    public function suspendFraudScore(): float
+    {
+        return (float) ($this->evaluationSettings()['suspend_fraud_score'] ?? 75);
+    }
+
+    public function duplicateIpRegistrationThreshold(): int
+    {
+        return max(1, (int) ($this->evaluationSettings()['duplicate_ip_registration_threshold'] ?? 3));
+    }
+
+    public function lowConversionThreshold(): float
+    {
+        return (float) ($this->evaluationSettings()['low_conversion_threshold'] ?? 5);
+    }
+
+    public function highClickThreshold(): int
+    {
+        return max(1, (int) ($this->evaluationSettings()['high_click_threshold'] ?? 50));
+    }
+
+    /** @return array{volume: float, conversion: float, commission: float} */
+    public function evaluationWeights(): array
+    {
+        $weights = $this->evaluationSettings()['weights'] ?? [];
+
+        return [
+            'volume'     => (float) ($weights['volume'] ?? 0.3),
+            'conversion' => (float) ($weights['conversion'] ?? 0.4),
+            'commission' => (float) ($weights['commission'] ?? 0.3),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    public function fraudSettings(): array
+    {
+        $defaults = config('affiliates.fraud', []);
+        $stored = Setting::get('affiliates.fraud');
+
+        return is_array($stored) ? array_merge($defaults, $stored) : $defaults;
+    }
+
+    public function mediumFraudScore(): int
+    {
+        return (int) ($this->fraudSettings()['medium_score'] ?? 20);
+    }
+
+    public function highFraudScore(): int
+    {
+        return (int) ($this->fraudSettings()['high_score'] ?? 50);
+    }
+
+    public function blockedFraudScore(): int
+    {
+        return (int) ($this->fraudSettings()['blocked_score'] ?? 80);
+    }
+
+    public function sharedPhoneCustomerThreshold(): int
+    {
+        return max(1, (int) ($this->fraudSettings()['shared_phone_customer_threshold'] ?? 2));
+    }
+
+    public function sharedDeviceRegistrationThreshold(): int
+    {
+        return max(1, (int) ($this->fraudSettings()['shared_device_registration_threshold'] ?? 2));
+    }
+
+    public function multiAccountDeviceThreshold(): int
+    {
+        return max(1, (int) ($this->fraudSettings()['multi_account_device_threshold'] ?? 2));
     }
 }

@@ -44,6 +44,20 @@ class RecoveryEscalationService
             return null;
         }
 
+        $arrearCase->loadMissing('loan.product', 'loan.application.collateralAsset');
+        $loan = $arrearCase->loan;
+        if (! $loan || ! $this->policy->partnerTypeAppliesToLoan($nextType, $loan)) {
+            $this->collectionActions->logForCase(
+                $arrearCase,
+                $actor,
+                'escalation',
+                'Recovery stage '.$this->policy->partnerTypeLabel($nextType).' skipped — loan does not match partner scope.',
+                'scope_skipped',
+            );
+
+            return null;
+        }
+
         $alreadyOpen = RecoveryAssignment::query()
             ->where('arrear_case_id', $arrearCase->id)
             ->where('partner_type', $nextType)
@@ -129,6 +143,10 @@ class RecoveryEscalationService
         $advanced = 0;
 
         foreach ($breaches as $assignment) {
+            if (! $this->policy->autoEscalateForType($assignment->partner_type)) {
+                continue;
+            }
+
             $this->assignments->escalate(
                 $assignment,
                 $actor,

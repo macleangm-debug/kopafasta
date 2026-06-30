@@ -18,11 +18,21 @@ class AffiliateService
             return null;
         }
 
-        return Vendor::query()
+        $affiliate = Vendor::query()
             ->where('category', 'affiliate')
             ->where('status', 'active')
             ->where('affiliate_code', strtoupper(trim($code)))
             ->first();
+
+        if (! $affiliate || ! app(AffiliateLifecycleService::class)->canReceiveReferrals($affiliate)) {
+            return null;
+        }
+
+        if (app(AffiliateFraudDetectionService::class)->referralsBlocked($affiliate)) {
+            return null;
+        }
+
+        return $affiliate;
     }
 
     public function affiliateLink(Vendor $affiliate): string
@@ -65,12 +75,12 @@ class AffiliateService
 
     public function trackClick(Vendor $affiliate, Request $request): void
     {
-        AffiliateEvent::create([
+        $attribution = app(AffiliateAttributionService::class)->mergeIntoSession($request);
+
+        AffiliateEvent::create(array_merge([
             'vendor_id'  => $affiliate->id,
             'event_type' => 'click',
-            'ip_address' => $request->ip(),
-            'user_agent' => Str::limit((string) $request->userAgent(), 255, ''),
-        ]);
+        ], app(AffiliateAttributionService::class)->attributesForEvent($attribution)));
     }
 
     public function attachAffiliate(Customer $customer, ?string $code): void
@@ -84,13 +94,19 @@ class AffiliateService
             return;
         }
 
+        $attribution = app(AffiliateAttributionService::class)->attributesForEvent();
+
         $customer->update(['affiliate_vendor_id' => $affiliate->id]);
 
-        AffiliateEvent::create([
+        AffiliateEvent::create(array_merge([
             'vendor_id'   => $affiliate->id,
             'event_type'  => 'registration',
             'customer_id' => $customer->id,
-        ]);
+        ], $attribution));
+
+        app(AffiliateAttributionService::class)->clearSession();
+
+        app(AffiliateFraudDetectionService::class)->scanAndPersist($affiliate);
     }
 
     public function trackApplication(LoanApplication $application): void
@@ -163,11 +179,55 @@ class AffiliateService
         return Vendor::query()->find($customer->affiliate_vendor_id);
     }
 
+    public function attributionBreakdown(Vendor $affiliate): array
+    {
+        $base = AffiliateEvent::query()->where('partner_id', $affiliate->id);
+
+        $bySource = (clone $base)
+            ->whereNotNull('utm_source')
+            ->selectRaw('utm_source, count(*) as total')
+            ->groupBy('utm_source')
+            ->orderByDesc('total')
+            ->limit(8)
+            ->pluck('total', 'utm_source')
+            ->all();
+
+        $byDevice = (clone $base)
+            ->whereNotNull('device_type')
+            ->selectRaw('device_type, count(*) as total')
+            ->groupBy('device_type')
+            ->pluck('total', 'device_type')
+            ->all();
+
+        $byCampaign = (clone $base)
+            ->whereNotNull('utm_campaign')
+            ->selectRaw('utm_campaign, count(*) as total')
+            ->groupBy('utm_campaign')
+            ->orderByDesc('total')
+            ->limit(8)
+            ->pluck('total', 'utm_campaign')
+            ->all();
+
+        return [
+            'utm_sources'  => $bySource,
+            'devices'      => $byDevice,
+            'utm_campaigns'=> $byCampaign,
+        ];
+    }
+
+    public function recentEvents(Vendor $affiliate, int $limit = 20): \Illuminate\Support\Collection
+    {
+        return AffiliateEvent::query()
+            ->where('partner_id', $affiliate->id)
+            ->with('customer')
+            ->latest()
+            ->limit($limit)
+            ->get();
+    }
+
     public function commissionPercent(Vendor $affiliate): float
     {
-        return (float) ($affiliate->affiliate_commission_percent
-            ?? app(AffiliateSettingsService::class)->forForm()['default_commission_percent']
-            ?? config('affiliates.default_commission_percent', 10));
+        return app(AffiliateCommissionCalculatorService::class)->percentFor($affiliate);
     }
 
     public function codeIsUnique(string $code, ?int $exceptVendorId = null): bool
@@ -221,7 +281,7 @@ class AffiliateService
         $commissionBase = app(AffiliateSettingsService::class)->commissionCalculationBase() === 'discounted_amount'
             ? $afterDiscount
             : $baseAmount;
-        $commission = round($commissionBase * ($this->commissionPercent($affiliate) / 100), 2);
+        $commission = app(AffiliateCommissionCalculatorService::class)->calculate($affiliate, $commissionBase, $feeType);
 
         return [
             'base'           => round($baseAmount, 2),

@@ -50,22 +50,7 @@
                     <input type="hidden" name="auth_method" :value="method">
 
                     <div x-show="method === 'pin'" x-cloak>
-                        <div x-data="{ prefix: '+255', localPhone: @js(old('local_phone', '')) }">
-                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Phone number</label>
-                            <div class="flex gap-2">
-                                <select x-model="prefix" class="w-28 shrink-0 px-3 py-3 rounded-xl bg-white border border-gray-300 text-sm outline-none">
-                                    <option value="+255">🇹🇿 +255</option>
-                                    <option value="+254">🇰🇪 +254</option>
-                                    <option value="+256">🇺🇬 +256</option>
-                                </select>
-                                <input type="tel" x-model="localPhone" inputmode="numeric" autocomplete="tel"
-                                       :required="method === 'pin'"
-                                       placeholder="7XXXXXXXX"
-                                       class="flex-1 px-3 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none">
-                            </div>
-                            <input type="hidden" name="phone" :value="prefix + localPhone.replace(/^0+/, '').replace(/\s+/g, '')">
-                            <p class="mt-1.5 text-xs text-gray-500">Enter your number without the leading zero — we add the country code automatically.</p>
-                        </div>
+                        <x-site.phone-input name="phone" label="Phone number" :value="old('phone')" variant="rounded" :required="true" />
                         <div class="mt-4">
                             <div class="flex items-center justify-between mb-1.5">
                                 <label class="block text-sm font-medium text-gray-700">4-digit PIN</label>

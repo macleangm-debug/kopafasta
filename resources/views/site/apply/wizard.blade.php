@@ -168,6 +168,11 @@
                           'verified' => __('borrower.apply.group.progress.verified'),
                           'invitations_pending' => __('borrower.apply.group.progress.invitations_pending'),
                       ],
+                      'groupScoringRiskBand' => [
+                          'low' => __('borrower.apply.group.scoring.risk_band.low'),
+                          'medium' => __('borrower.apply.group.scoring.risk_band.medium'),
+                          'high' => __('borrower.apply.group.scoring.risk_band.high'),
+                      ],
                       'alerts' => [
                           'loadProduct' => __('borrower.apply.alerts.load_product'),
                           'selectPurpose' => __('borrower.apply.alerts.select_purpose'),
@@ -999,6 +1004,8 @@
                 groupInviteLoading: false,
                 groupProgressLabels: @js(app(\App\Services\GroupMemberProgressService::class)->statusLabels()),
                 groupProgressSummary: null,
+                groupApplicationStatus: null,
+                groupScoring: null,
                 groupFeeBreakdownData: null,
                 groupLookupMemberNo: '',
                 groupLookupPhone: '',
@@ -1704,7 +1711,9 @@
                         this.group.target_member_count = this.groupLimits.min;
                     }
                     if (! this.group.amount_per_member) {
-                        this.group.amount_per_member = Math.max(1000, Math.round((this.current?.min || 1000) / Math.max(1, this.groupLimits.min)));
+                        this.group.amount_per_member = this.groupAmountPerMemberMin();
+                    } else {
+                        this.clampGroupAmountPerMember();
                     }
                     const exists = this.group.members.some(m => Number(m.customer_id) === Number(this.leaderCustomerId));
                     if (exists) {
@@ -1723,6 +1732,25 @@
 
                 groupTargetCount() {
                     return Number(this.group.target_member_count || this.groupLimits.min || 0);
+                },
+
+                groupAmountPerMemberMin() {
+                    const totalMin = Number(this.current?.min || 1000);
+                    const members = Math.max(this.groupLimits.min, this.groupTargetCount() || this.groupLimits.min);
+                    return Math.max(1000, Math.ceil(totalMin / members));
+                },
+
+                groupAmountPerMemberMax() {
+                    const totalMax = Number(this.current?.max || 5000000);
+                    const members = Math.max(this.groupLimits.min, this.groupTargetCount() || this.groupLimits.min);
+                    return Math.max(this.groupAmountPerMemberMin(), Math.floor(totalMax / members));
+                },
+
+                clampGroupAmountPerMember() {
+                    const min = this.groupAmountPerMemberMin();
+                    const max = this.groupAmountPerMemberMax();
+                    const value = Number(this.group.amount_per_member || min);
+                    this.group.amount_per_member = Math.min(max, Math.max(min, value));
                 },
 
                 groupTotalAmount() {
@@ -1750,8 +1778,8 @@
                 },
 
                 syncGroupAmounts() {
-                    const perMember = Math.max(1000, Number(this.group.amount_per_member || 0));
-                    this.group.amount_per_member = perMember;
+                    this.clampGroupAmountPerMember();
+                    const perMember = Number(this.group.amount_per_member || 0);
                     this.group.members = this.group.members.map((member) => ({
                         ...member,
                         requested_amount: perMember,
@@ -1800,6 +1828,18 @@
                     return key === 'kyc_complete' ? 'text-emerald-700' : 'text-amber-700';
                 },
 
+                groupScoringRiskBandLabel(band) {
+                    return this.i18n.groupScoringRiskBand?.[band] || band || '';
+                },
+
+                groupStatusPayload() {
+                    return {
+                        name: this.group.name || '',
+                        purpose: this.group.purpose || '',
+                        target_member_count: this.groupTargetCount(),
+                    };
+                },
+
                 async refreshGroupMemberStatuses() {
                     if (! this.groupMemberStatusesUrl || ! this.group.members.length) return;
                     try {
@@ -1815,12 +1855,19 @@
                             body: JSON.stringify({
                                 members: this.group.members,
                                 target_member_count: this.groupTargetCount(),
+                                group: this.groupStatusPayload(),
                             }),
                         });
                         const data = await res.json();
                         if (res.ok && data.ok) {
                             if (data.summary) {
                                 this.groupProgressSummary = data.summary;
+                            }
+                            if (data.application_status) {
+                                this.groupApplicationStatus = data.application_status;
+                            }
+                            if (data.scoring) {
+                                this.groupScoring = data.scoring;
                             }
                             if (Array.isArray(data.members)) {
                                 this.group.members = data.members;
@@ -1850,6 +1897,14 @@
                                 first_name: this.groupExternal.first_name,
                                 last_name: this.groupExternal.last_name,
                                 phone: this.groupExternal.phone,
+                                invitation_reason: this.group.invitation_reason || null,
+                                group: {
+                                    name: this.group.name,
+                                    purpose: this.group.purpose,
+                                    amount_per_member: this.group.amount_per_member,
+                                    requested_tenure_months: this.form.requested_tenure_months,
+                                    target_member_count: this.group.target_member_count,
+                                },
                             }),
                         });
                         const data = await res.json();
@@ -2463,9 +2518,12 @@
                     }
                     this.scheduleLoading = true;
                     try {
+                        const previewAmount = this.isGroupProduct(this.current)
+                            ? (this.group.amount_per_member || this.form.requested_amount)
+                            : this.form.requested_amount;
                         const params = new URLSearchParams({
                             loan_product_id: String(this.form.loan_product_id),
-                            requested_amount: String(this.form.requested_amount),
+                            requested_amount: String(previewAmount),
                             requested_tenure_months: String(this.form.requested_tenure_months),
                         });
                         const res = await fetch(`${this.repaymentPreviewUrl}?${params}`, {

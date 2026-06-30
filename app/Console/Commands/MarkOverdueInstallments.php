@@ -33,11 +33,25 @@ class MarkOverdueInstallments extends Command
             ->update(['status' => 'arrears']);
 
         $sync = app(\App\Services\ArrearCaseSyncService::class);
+        $groupLending = app(\App\Services\GroupLendingService::class);
 
         Loan::query()
             ->where('status', 'arrears')
-            ->with(['customer', 'repaymentSchedules'])
-            ->each(fn (Loan $loan) => $sync->syncForLoan($loan));
+            ->with(['customer', 'repaymentSchedules', 'product', 'application.loanGroup.members'])
+            ->each(function (Loan $loan) use ($sync, $groupLending): void {
+                $sync->syncForLoan($loan);
+
+                if (! $groupLending->isGroupProduct($loan->product)) {
+                    return;
+                }
+
+                $member = $loan->application?->loanGroup?->members
+                    ?->firstWhere('customer_id', $loan->customer_id);
+
+                if ($member) {
+                    $groupLending->onMemberMissedPayment($member);
+                }
+            });
 
         if ($loansInArrears > 0) {
             $notifier = app(GuarantorNotificationService::class);

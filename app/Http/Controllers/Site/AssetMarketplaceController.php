@@ -355,7 +355,7 @@ class AssetMarketplaceController extends Controller
                 default      => $query->orderBy('title'),
             };
 
-            return $query->get()
+            return $query->with('vendor')->get()
                 ->map(fn (MarketplaceAsset $a) => $this->normalizeAsset($a))
                 ->values();
         }
@@ -396,7 +396,20 @@ class AssetMarketplaceController extends Controller
             return null;
         }
 
-        return app(\App\Services\MarketplaceAssetService::class)->resolveOrMaterialize($assetId);
+        $model = app(\App\Services\MarketplaceAssetService::class)->resolveOrMaterialize($assetId);
+        if ($model) {
+            return $model;
+        }
+
+        return MarketplaceAsset::query()
+            ->where('is_active', true)
+            ->where(function ($q) use ($assetId): void {
+                $q->where('slug', $assetId);
+                if (is_numeric($assetId)) {
+                    $q->orWhere('id', (int) $assetId);
+                }
+            })
+            ->first();
     }
 
     private function findAsset(string $assetId): ?array
@@ -417,13 +430,15 @@ class AssetMarketplaceController extends Controller
         $assetValue = (float) ($asset->asset_value ?: ($deposit * 1.4));
         $remainingLoan = max(0, round($assetValue - $deposit, 2));
         $supplierDeposit = (float) $asset->supplier_deposit;
+        $vendor = $asset->relationLoaded('vendor') ? $asset->vendor : $asset->vendor()->first();
 
         return [
             'id'                     => $asset->slug ?: (string) $asset->id,
             'category'               => $asset->category,
             'title'                  => $asset->title,
-            'vendor'                 => $asset->supplier_name,
-            'supplier'               => $asset->supplier_name,
+            'vendor'                 => $vendor?->name ?: $asset->supplier_name,
+            'supplier'               => $vendor?->name ?: $asset->supplier_name,
+            'supplier_region'        => $vendor?->coverageLabel(),
             'description'            => $asset->description,
             'asset_value'            => $assetValue,
             'deposit'                => $deposit,

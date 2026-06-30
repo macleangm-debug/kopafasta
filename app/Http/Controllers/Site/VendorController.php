@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Controller;
 use App\Models\NotificationLog;
+use App\Models\PartnerPayment;
 use App\Models\Vendor;
 use App\Models\VendorDocument;
 use App\Models\VendorPayment;
@@ -75,6 +76,13 @@ class VendorController extends Controller
         $affiliateStats = null;
         $affiliateShare = null;
         $affiliateLinks = null;
+        $recoveryKpi = null;
+        $recoveryWallet = null;
+
+        if (app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
+            $recoveryKpi = app(\App\Services\RecoveryPartnerKpiService::class)->kpis($vendor);
+            $recoveryWallet = app(\App\Services\RecoveryCommissionWalletService::class)->summary($vendor);
+        }
 
         if ($vendor->category === 'affiliate') {
             $affiliateService = app(\App\Services\AffiliateService::class);
@@ -88,6 +96,7 @@ class VendorController extends Controller
         return view('site.vendor.dashboard', compact(
             'vendor', 'stats', 'upcoming', 'notifications',
             'affiliateStats', 'affiliateShare', 'affiliateLinks',
+            'recoveryKpi', 'recoveryWallet',
         ));
     }
 
@@ -139,7 +148,74 @@ class VendorController extends Controller
 
         $assignments = $query->paginate(15)->withQueryString();
 
-        return view('site.vendor.recovery-cases', compact('vendor', 'assignments', 'status'));
+        $recoveryKpi = app(\App\Services\RecoveryPartnerKpiService::class)->kpis($vendor);
+        $recoveryWallet = app(\App\Services\RecoveryCommissionWalletService::class)->summary($vendor);
+
+        return view('site.vendor.recovery-cases', compact('vendor', 'assignments', 'status', 'recoveryKpi', 'recoveryWallet'));
+    }
+
+    public function recoveryWallet(Request $request)
+    {
+        $vendor = $this->vendor();
+
+        if (! app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
+            abort(403, 'Recovery partner access only.');
+        }
+
+        $wallet = app(\App\Services\RecoveryCommissionWalletService::class);
+        $summary = $wallet->summary($vendor);
+        $payments = $wallet->paginated($vendor, 15);
+        $recoveryKpi = app(\App\Services\RecoveryPartnerKpiService::class)->kpis($vendor);
+
+        return view('site.vendor.recovery-wallet', compact('vendor', 'summary', 'payments', 'recoveryKpi'));
+    }
+
+    public function disputeRecoveryPayment(Request $request, PartnerPayment $payment)
+    {
+        $vendor = $this->vendor();
+
+        if (! app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
+            abort(403, 'Recovery partner access only.');
+        }
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        try {
+            app(\App\Services\RecoveryCommissionWalletService::class)->dispute($payment, $vendor, $data['reason']);
+        } catch (\InvalidArgumentException $e) {
+            return back()->withErrors(['reason' => $e->getMessage()]);
+        }
+
+        return back()->with('status', 'Commission dispute submitted for review.');
+    }
+
+    public function requestRecoveryPayout(Request $request)
+    {
+        $vendor = $this->vendor();
+
+        if (! app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
+            abort(403, 'Recovery partner access only.');
+        }
+
+        $data = $request->validate([
+            'amount' => ['required', 'numeric', 'min:1'],
+            'notes'  => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        try {
+            app(\App\Services\PartnerPayoutRequestService::class)->request(
+                $vendor,
+                'recovery_commission',
+                (float) $data['amount'],
+                $data['notes'] ?? null,
+            );
+        } catch (\InvalidArgumentException $e) {
+            return back()->withErrors(['amount' => $e->getMessage()]);
+        }
+
+        return back()->with('status', 'Payout request submitted for admin approval.');
     }
 
     public function recoveryCase(\App\Models\RecoveryAssignment $recoveryAssignment)

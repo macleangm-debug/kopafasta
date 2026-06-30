@@ -39,6 +39,7 @@
         </div>
     </div>
     <input type="hidden" @if ($includeInForm) name="{{ $name }}" @endif x-ref="hidden" :value="dataUrl">
+    <input type="hidden" name="signature_touched" value="0" x-ref="touched">
 </div>
 
 @once
@@ -97,6 +98,9 @@
                     },
                     startDraw(e) {
                         this.drawing = true;
+                        if (this.$refs.touched) {
+                            this.$refs.touched.value = '1';
+                        }
                         this.lastPoint = this.pos(e);
                         this.ctx.beginPath();
                         this.ctx.moveTo(this.lastPoint.x, this.lastPoint.y);
@@ -116,8 +120,10 @@
                         this.ctx.quadraticCurveTo(this.lastPoint.x, this.lastPoint.y, mid.x, mid.y);
                         this.ctx.stroke();
                         this.lastPoint = p;
-                        this.dataUrl = this.$refs.canvas.toDataURL('image/png');
-                        this.syncInput();
+                        if (this.$refs.touched?.value === '1') {
+                            this.dataUrl = this.$refs.canvas.toDataURL('image/png');
+                            this.syncInput();
+                        }
                     },
                     endDraw() {
                         if (this.drawing && this.lastPoint) {
@@ -126,13 +132,18 @@
                         }
                         this.drawing = false;
                         this.lastPoint = null;
-                        this.dataUrl = this.$refs.canvas.toDataURL('image/png');
-                        this.syncInput();
+                        if (this.$refs.touched?.value === '1') {
+                            this.dataUrl = this.$refs.canvas.toDataURL('image/png');
+                            this.syncInput();
+                        }
                     },
                     clear() {
                         const canvas = this.$refs.canvas;
                         this.ctx.clearRect(0, 0, canvas.width, canvas.height);
                         this.dataUrl = '';
+                        if (this.$refs.touched) {
+                            this.$refs.touched.value = '0';
+                        }
                         this.syncInput();
                     },
                 }));

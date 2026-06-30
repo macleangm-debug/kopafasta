@@ -20,8 +20,8 @@ class GroupLendingService
         $loan = Setting::group('loan');
 
         return [
-            'min' => max(2, (int) ($loan['group_min_members'] ?? config('group_lending.min_members', 5))),
-            'max' => max(2, (int) ($loan['group_max_members'] ?? config('group_lending.max_members', 30))),
+            'min' => max(3, (int) ($loan['group_min_members'] ?? config('group_lending.min_members', 3))),
+            'max' => max(3, (int) ($loan['group_max_members'] ?? config('group_lending.max_members', 10))),
         ];
     }
 
@@ -91,10 +91,20 @@ class GroupLendingService
     public function effectiveRepaymentCadence(?LoanProduct $product): string
     {
         if ($this->isGroupProduct($product)) {
-            return 'monthly';
+            $loan = Setting::group('loan');
+            $cadence = (string) ($loan['group_repayment_cadence'] ?? config('group_lending.repayment_cadence', 'weekly'));
+
+            return in_array($cadence, ['weekly', 'monthly'], true) ? $cadence : 'weekly';
         }
 
         return $product->repayment_cadence ?? 'weekly';
+    }
+
+    public function groupRepaymentCadenceLabel(?LoanProduct $product): string
+    {
+        return $this->effectiveRepaymentCadence($product) === 'weekly'
+            ? __('borrower.apply.group_setup.weekly_repayment')
+            : __('borrower.apply.group_setup.monthly_repayment');
     }
 
     public function postApprovalFeePerGroup(): bool

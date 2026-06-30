@@ -17,7 +17,7 @@ class Phase43FeatureTest extends TestCase
     public function test_group_recovery_advances_through_stages(): void
     {
         \App\Models\Setting::setMany([
-            'loan.group_min_members' => 2,
+            'loan.group_min_members' => 3,
             'loan.group_max_members' => 10,
         ]);
 
@@ -51,6 +51,15 @@ class Phase43FeatureTest extends TestCase
             'phone'           => '255712345871',
         ]);
 
+        $member2 = Customer::create([
+            'customer_number' => 'CU-P43-M2',
+            'type'            => 'individual',
+            'status'          => 'active',
+            'first_name'      => 'Member',
+            'last_name'       => 'Two',
+            'phone'           => '255712345872',
+        ]);
+
         $application = LoanApplication::create([
             'customer_id'             => $leader->id,
             'loan_product_id'         => $product->id,
@@ -64,6 +73,7 @@ class Phase43FeatureTest extends TestCase
         $group = app(GroupLendingService::class)->createForApplication($application, [
             ['customer_id' => $leader->id, 'role' => 'leader'],
             ['customer_id' => $member->id],
+            ['customer_id' => $member2->id],
         ], 'Recovery test group');
 
         $defaultingMember = LoanGroupMember::query()->where('customer_id', $member->id)->firstOrFail();

@@ -10,11 +10,13 @@ use App\Models\Vendor;
 use App\Rules\FourDigitPin;
 use App\Rules\ValidNationalId;
 use App\Support\NationalIdValidator;
+use App\Support\PhoneNumber;
 use App\Services\NotificationService;
 use App\Services\PinService;
 use App\Services\ReferralService;
 use App\Services\TrustedDeviceService;
 use App\Services\WebLoginThrottle;
+use App\Services\WebTwoFactorAuthService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -35,7 +37,11 @@ class AuthController extends Controller
     public function showLogin(Request $request): View
     {
         if ($request->boolean('clear_guarantor')) {
-            $request->session()->forget(['guarantor_invite_token', 'group_member_invite_token', 'login_redirect']);
+            $request->session()->forget(['guarantor_invite_token', 'login_redirect']);
+        }
+
+        if ($request->boolean('clear_group_invite')) {
+            $request->session()->forget(['group_member_invite_token', 'login_redirect']);
         }
 
         return view('site.auth.login', [
@@ -260,12 +266,16 @@ class AuthController extends Controller
     private function completeWebLogin(User $user, Request $request, string $identifier, bool $trustDevice): RedirectResponse
     {
         if (! in_array($user->role, ['borrower', 'vendor', 'investor'], true)) {
-            return redirect()->route('admin.login')
-                ->withErrors(['email' => 'Staff accounts must sign in from the admin console.']);
+            return redirect()->route('staff.login')
+                ->withErrors(['email' => 'Staff accounts must sign in from the staff workspace.']);
         }
 
         if (! ($user->is_active ?? true)) {
             return back()->withErrors(['login' => 'This account is inactive.']);
+        }
+
+        if ($user->role === 'vendor' && ($twoFactorRedirect = $this->partnerTwoFactorGate($user, $request))) {
+            return $twoFactorRedirect;
         }
 
         $this->throttle->clear($identifier, $request);
@@ -360,6 +370,7 @@ class AuthController extends Controller
     public function logout(Request $request): RedirectResponse
     {
         Auth::logout();
+        app(WebTwoFactorAuthService::class)->clearSessionVerification($request);
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
@@ -373,6 +384,8 @@ class AuthController extends Controller
             session(['affiliate_code' => strtoupper(trim($code))]);
         }
 
+        app(\App\Services\AffiliateAttributionService::class)->mergeIntoSession($request);
+
         $guarantorOnboarding = app(\App\Services\GuarantorOnboardingService::class);
         $groupOnboarding = app(\App\Services\GroupMemberOnboardingService::class);
         $groupOnboarding->seedInvitationFromQuery($request);
@@ -382,6 +395,7 @@ class AuthController extends Controller
 
         $guarantorRegistration = $guarantorOnboarding->registrationPrefill($guarantorInvitation)
             ?? $groupOnboarding->registrationPrefill($groupInvitation);
+        $isGroupInviteRegistration = $groupInvitation !== null && $guarantorInvitation === null;
 
         $registrationCountries = app(\App\Services\CountrySettingsService::class)->forRegistration();
         $defaultCountry = app(\App\Services\CountrySettingsService::class)->defaultCountryCode();
@@ -391,7 +405,8 @@ class AuthController extends Controller
             'referralCode'            => $request->query('ref'),
             'affiliateCode'           => $request->query('aff') ?? session('affiliate_code'),
             'guarantorRegistration'   => $guarantorRegistration,
-            'isGuarantorRegistration' => $guarantorRegistration !== null,
+            'isGuarantorRegistration' => $guarantorRegistration !== null && ! $isGroupInviteRegistration,
+            'isGroupInviteRegistration' => $isGroupInviteRegistration,
             'registrationCountries'   => $registrationCountries,
             'defaultCountry'          => $defaultCountry,
             'defaultDialPrefix'       => $defaultDialPrefix,
@@ -576,7 +591,7 @@ class AuthController extends Controller
                 'country' => $data['country'],
                 'step' => 1,
                 'waitlist_email' => $data['email'],
-                'waitlist_phone' => $data['phone'] ?? '',
+                'waitlist_local_phone' => PhoneNumber::split($data['phone'] ?? '')['local'] ?? '',
             ]);
     }
 
@@ -642,7 +657,27 @@ class AuthController extends Controller
      */
     public function staffHint(): RedirectResponse
     {
-        return redirect()->route('admin.login');
+        return redirect()->route('staff.login');
+    }
+
+    private function partnerTwoFactorGate(User $user, Request $request): ?RedirectResponse
+    {
+        $twoFactor = app(WebTwoFactorAuthService::class);
+        $redirectTo = route('site.partner.dashboard');
+
+        if ($twoFactor->mustEnroll($user, 'partner')) {
+            $twoFactor->storePendingLogin($request, $user, 'web', 'partner', $redirectTo, $request->boolean('remember'));
+
+            return redirect()->route('auth.two-factor.setup', ['context' => 'partner']);
+        }
+
+        if ($twoFactor->needsChallenge($user, $request, 'partner')) {
+            $twoFactor->storePendingLogin($request, $user, 'web', 'partner', $redirectTo, $request->boolean('remember'));
+
+            return redirect()->route('auth.two-factor.challenge', ['context' => 'partner']);
+        }
+
+        return null;
     }
 
     public function showRegisterInvestor(): View

@@ -32,7 +32,12 @@ class PaymentGateService
         string $feeType,
         bool $useWallet = false,
         ?string $promoCode = null,
+        ?string $affiliateCode = null,
     ): array {
+        if (filled($affiliateCode) && ! app(ReferralService::class)->referrer($customer) && ! $customer->affiliate_partner_id) {
+            app(AffiliateService::class)->attachAffiliate($customer, $affiliateCode);
+            $customer->refresh();
+        }
         $referrals = app(ReferralService::class);
         $affiliates = app(AffiliateService::class);
         $promotions = app(PromotionService::class);

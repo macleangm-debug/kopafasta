@@ -34,6 +34,19 @@ class RecoveryAssignmentService
             ]);
         }
 
+        $loan = $arrearCase->loan;
+        if (! $loan) {
+            throw ValidationException::withMessages([
+                'loan' => 'Collection case is not linked to a loan.',
+            ]);
+        }
+
+        if (! $this->policy->partnerTypeAppliesToLoan($partnerType, $loan)) {
+            throw ValidationException::withMessages([
+                'partner_type' => 'This partner type is not configured for this loan product or collateral type.',
+            ]);
+        }
+
         $expectedCategory = $this->policy->vendorCategoryForType($partnerType);
         if ($expectedCategory && ! $vendor->hasPartnerRole($expectedCategory) && $vendor->category !== $expectedCategory) {
             throw ValidationException::withMessages([
@@ -50,13 +63,6 @@ class RecoveryAssignmentService
         if ($open) {
             throw ValidationException::withMessages([
                 'partner_type' => 'This case already has an open assignment for that partner type.',
-            ]);
-        }
-
-        $loan = $arrearCase->loan;
-        if (! $loan) {
-            throw ValidationException::withMessages([
-                'loan' => 'Collection case is not linked to a loan.',
             ]);
         }
 

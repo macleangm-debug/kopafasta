@@ -127,5 +127,16 @@ return [
             'flagged'               => 'Flagged',
             'replacement_requested' => 'Replacement requested',
         ],
+        'scoring' => [
+            'completion'  => 'Member completion',
+            'avg_credit'  => 'Avg credit score',
+            'avg_income'  => 'Avg monthly income',
+            'risk_score'  => 'Group risk score',
+            'risk_band'   => [
+                'low'    => 'Low risk',
+                'medium' => 'Medium risk',
+                'high'   => 'High risk',
+            ],
+        ],
     ],
 ];

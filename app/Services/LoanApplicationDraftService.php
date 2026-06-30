@@ -96,6 +96,7 @@ class LoanApplicationDraftService
             'external_guarantor'   => $this->refreshExternalGuarantorPayload($customer, $payload['external_guarantor'] ?? null),
             'borrower_signature'   => $payload['borrower_signature'] ?? null,
             'declaration_accepted' => (bool) ($payload['declaration_accepted'] ?? false),
+            'group'                => $payload['group'] ?? null,
             'draft_reference'      => $draft->draft_reference,
         ];
     }
@@ -241,6 +242,7 @@ class LoanApplicationDraftService
             'declaration_accepted' => array_key_exists('declaration_accepted', $data)
                 ? (bool) $data['declaration_accepted']
                 : (bool) ($existing?->payload['declaration_accepted'] ?? false),
+            'group'                => $data['group'] ?? ($existing?->payload['group'] ?? null),
         ];
 
         $product = LoanProduct::find((int) $productId);

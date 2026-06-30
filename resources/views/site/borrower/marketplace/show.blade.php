@@ -6,29 +6,19 @@
 
     <div class="grid lg:grid-cols-2 gap-6">
         <div>
-            @if (! empty($asset['photos']))
-                <div class="space-y-3">
-                    @foreach ($asset['photos'] as $photo)
-                        <img src="{{ Storage::url($photo) }}" alt="" class="w-full rounded-2xl aspect-[4/3] object-cover bg-slate-100">
-                    @endforeach
-                </div>
-            @else
-                <div class="aspect-[4/3] rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 grid place-items-center text-6xl">
-                    @switch($asset['category'])
-                        @case('vehicles') 🚗 @break
-                        @case('motorcycles') 🏍️ @break
-                        @case('equipment') 🧰 @break
-                        @default 🏭
-                    @endswitch
-                </div>
-            @endif
+            @include('site.marketplace._photo-slider', ['photos' => $asset['photos'] ?? [], 'category' => $asset['category'] ?? 'other'])
         </div>
 
         <div>
             <p class="text-xs uppercase tracking-widest text-amber-600">{{ config('asset_marketplace.categories.'.$asset['category']) }}</p>
             <h1 class="text-2xl font-bold mt-1">{{ $asset['title'] }}</h1>
             @if (! empty($asset['vendor']))
-                <p class="text-sm text-gray-500 mt-2">{{ __('borrower.marketplace.supplier') }}: {{ $asset['vendor'] }}</p>
+                <p class="text-sm text-gray-500 mt-2">
+                    {{ __('borrower.marketplace.supplier') }}: {{ $asset['vendor'] }}
+                    @if (! empty($asset['supplier_region']))
+                        <span class="text-gray-400">· {{ $asset['supplier_region'] }}</span>
+                    @endif
+                </p>
             @endif
             <p class="text-sm text-gray-600 mt-4">{{ $asset['description'] }}</p>
 
@@ -60,10 +50,12 @@
             <p class="mt-4 text-xs text-gray-500">{{ config('asset_marketplace.ownership_note') }}</p>
 
             <div class="mt-6 flex flex-wrap gap-3" id="apply">
-                <form method="POST" action="{{ route('site.borrower.marketplace.apply', $asset['id']) }}">
+                <form method="POST" action="{{ route('site.borrower.marketplace.apply', $asset['id']) }}" x-data="{ submitting: false }" @submit="submitting = true">
                     @csrf
-                    <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                        {{ __('borrower.marketplace.apply_asset') }}
+                    <button type="submit" :disabled="submitting"
+                            class="bg-amber-500 hover:bg-amber-400 disabled:opacity-70 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                        <span x-show="!submitting">{{ __('borrower.marketplace.apply_asset') }}</span>
+                        <span x-show="submitting" x-cloak>{{ __('borrower.marketplace.apply_asset') }}…</span>
                     </button>
                 </form>
                 @if ($reservation)

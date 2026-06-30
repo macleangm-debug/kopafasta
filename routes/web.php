@@ -32,6 +32,7 @@ use App\Http\Controllers\Admin\LoanProductController;
 use App\Http\Controllers\Admin\LoanTopUpRequestController;
 use App\Http\Controllers\Admin\MembershipPaymentController;
 use App\Http\Controllers\Admin\PaymentAccountSettingsController;
+use App\Http\Controllers\Admin\AffiliateReportsController;
 use App\Http\Controllers\Admin\LoanReportsController;
 use App\Http\Controllers\Admin\PaymentVerificationController;
 use App\Http\Controllers\Admin\RestructureRequestController;
@@ -58,6 +59,9 @@ use App\Http\Controllers\Admin\VendorController;
 use App\Http\Controllers\Admin\VendorPaymentController;
 use App\Http\Controllers\Admin\WriteOffRequestController;
 use App\Http\Controllers\Admin\WriteOffRuleController;
+use App\Http\Controllers\Auth\WebTwoFactorController;
+use App\Http\Controllers\Staff\AuthController as StaffAuthController;
+use App\Http\Controllers\Staff\StaffPortalController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -124,6 +128,9 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         Route::post('/partner/start', [\App\Http\Controllers\Site\PartnerPortalController::class, 'lookup'])->name('partner.start.lookup');
 
         Route::redirect('/partner/login', '/login?portal=partner');
+        Route::redirect('/partners', '/login?portal=partner');
+        Route::redirect('/partners/login', '/login?portal=partner');
+        Route::get('/staff-login', [\App\Http\Controllers\Site\AuthController::class, 'staffHint'])->name('staff-login');
         Route::get('/register/partner', fn () => redirect()->route('site.register.vendor'))->name('register.partner');
         Route::redirect('/partner/register', '/register/partner');
     });
@@ -231,6 +238,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/guaranteed/{customerGuarantor}', [\App\Http\Controllers\Site\BorrowerController::class, 'showGuaranteedLoan'])->name('borrower.guaranteed.show');
             Route::get('/borrower/guarantor/onboarding', [\App\Http\Controllers\Site\GuarantorOnboardingController::class, 'show'])->name('guarantor.onboarding');
             Route::post('/borrower/guarantor/onboarding', [\App\Http\Controllers\Site\GuarantorOnboardingController::class, 'complete'])->name('guarantor.onboarding.complete');
+            Route::get('/borrower/group-member/application', [\App\Http\Controllers\Site\GroupMemberApplicationController::class, 'show'])->name('group-member.application');
             Route::get('/borrower/group-member/onboarding', [\App\Http\Controllers\Site\GroupMemberOnboardingController::class, 'show'])->name('group-member.onboarding');
             Route::post('/borrower/group-member/onboarding', [\App\Http\Controllers\Site\GroupMemberOnboardingController::class, 'complete'])->name('group-member.onboarding.complete');
             Route::get('/borrower/applications/{application}/group-contract', [\App\Http\Controllers\Site\GroupContractController::class, 'show'])->name('borrower.group-contract.show');
@@ -271,31 +279,54 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/refunds/{borrowerRefund}/details', [\App\Http\Controllers\Site\BorrowerRefundController::class, 'submitDetails'])->name('borrower.refunds.details');
         });
 
-        // ---- Partner portal (/partner primary, /vendor legacy) ----
         $registerPartnerPortal = require base_path('routes/partner_portal.php');
-        $registerPartnerPortal('partner', 'partner.', registerDashboard: false);
-        $registerPartnerPortal('vendor', 'vendor.');
 
-        Route::get('/vendor-portal', fn () => redirect()->route('site.partner.dashboard'));
-        Route::get('/partner-portal', fn () => redirect()->route('site.partner.dashboard'));
+        // ---- Partner portal (/partner primary, /vendor legacy) ----
+        Route::middleware('two_factor:partner')->group(function () use ($registerPartnerPortal) {
+            $registerPartnerPortal('partner', 'partner.', registerDashboard: false);
+            $registerPartnerPortal('vendor', 'vendor.');
 
-        Route::prefix('partner/supplier')->name('partner.supplier.')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Site\SupplierController::class, 'dashboard'])->name('dashboard');
-            Route::get('/assets', [\App\Http\Controllers\Site\SupplierController::class, 'assets'])->name('assets');
-            Route::get('/assets/create', [\App\Http\Controllers\Site\SupplierController::class, 'createAsset'])->name('assets.create');
-            Route::post('/assets', [\App\Http\Controllers\Site\SupplierController::class, 'storeAsset'])->name('assets.store');
-            Route::get('/assets/{asset}/edit', [\App\Http\Controllers\Site\SupplierController::class, 'editAsset'])->name('assets.edit');
-            Route::put('/assets/{asset}', [\App\Http\Controllers\Site\SupplierController::class, 'updateAsset'])->name('assets.update');
-            Route::get('/requests', [\App\Http\Controllers\Site\SupplierController::class, 'requests'])->name('requests');
-            Route::get('/reservations', [\App\Http\Controllers\Site\SupplierController::class, 'reservations'])->name('reservations');
-            Route::get('/applications', [\App\Http\Controllers\Site\SupplierController::class, 'applications'])->name('applications');
-            Route::get('/delivered', [\App\Http\Controllers\Site\SupplierController::class, 'delivered'])->name('delivered');
-            Route::post('/reservations/{reservation}', [\App\Http\Controllers\Site\SupplierController::class, 'updateReservation'])->name('reservations.update');
-            Route::post('/requests/{assetRequest}', [\App\Http\Controllers\Site\SupplierController::class, 'updateRequest'])->name('requests.update');
-            Route::get('/settlements', [\App\Http\Controllers\Site\SupplierController::class, 'settlements'])->name('settlements');
+            Route::get('/vendor-portal', fn () => redirect()->route('site.partner.dashboard'));
+            Route::get('/partner-portal', fn () => redirect()->route('site.partner.dashboard'));
+
+            Route::prefix('partner/supplier')->name('partner.supplier.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Site\SupplierController::class, 'dashboard'])->name('dashboard');
+                Route::get('/assets', [\App\Http\Controllers\Site\SupplierController::class, 'assets'])->name('assets');
+                Route::get('/assets/create', [\App\Http\Controllers\Site\SupplierController::class, 'createAsset'])->name('assets.create');
+                Route::post('/assets', [\App\Http\Controllers\Site\SupplierController::class, 'storeAsset'])->name('assets.store');
+                Route::get('/assets/{asset}/edit', [\App\Http\Controllers\Site\SupplierController::class, 'editAsset'])->name('assets.edit');
+                Route::put('/assets/{asset}', [\App\Http\Controllers\Site\SupplierController::class, 'updateAsset'])->name('assets.update');
+                Route::get('/requests', [\App\Http\Controllers\Site\SupplierController::class, 'requests'])->name('requests');
+                Route::get('/reservations', [\App\Http\Controllers\Site\SupplierController::class, 'reservations'])->name('reservations');
+                Route::get('/applications', [\App\Http\Controllers\Site\SupplierController::class, 'applications'])->name('applications');
+                Route::get('/delivered', [\App\Http\Controllers\Site\SupplierController::class, 'delivered'])->name('delivered');
+                Route::post('/reservations/{reservation}', [\App\Http\Controllers\Site\SupplierController::class, 'updateReservation'])->name('reservations.update');
+                Route::post('/requests/{assetRequest}', [\App\Http\Controllers\Site\SupplierController::class, 'updateRequest'])->name('requests.update');
+                Route::get('/settlements', [\App\Http\Controllers\Site\SupplierController::class, 'settlements'])->name('settlements');
+            });
+
+            Route::redirect('/supplier', '/partner/supplier');
+
+            Route::prefix('partner/affiliate')->name('partner.affiliate.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Site\AffiliateController::class, 'dashboard'])->name('dashboard');
+                Route::get('/referrals', [\App\Http\Controllers\Site\AffiliateController::class, 'referrals'])->name('referrals');
+                Route::get('/wallet', [\App\Http\Controllers\Site\AffiliateController::class, 'wallet'])->name('wallet');
+                Route::post('/wallet/{payment}/dispute', [\App\Http\Controllers\Site\AffiliateController::class, 'disputePayment'])->name('wallet.dispute');
+            Route::post('/wallet/payout-request', [\App\Http\Controllers\Site\AffiliateController::class, 'requestPayout'])->name('wallet.payout-request');
+                Route::get('/profile', [\App\Http\Controllers\Site\AffiliateController::class, 'profile'])->name('profile');
+            });
         });
 
-        Route::redirect('/supplier', '/partner/supplier');
+        Route::prefix('affiliate')->name('affiliate.')->middleware('two_factor:partner')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Site\AffiliateController::class, 'dashboard'])->name('dashboard');
+            Route::get('/referrals', [\App\Http\Controllers\Site\AffiliateController::class, 'referrals'])->name('referrals');
+            Route::get('/wallet', [\App\Http\Controllers\Site\AffiliateController::class, 'wallet'])->name('wallet');
+            Route::post('/wallet/{payment}/dispute', [\App\Http\Controllers\Site\AffiliateController::class, 'disputePayment'])->name('wallet.dispute');
+            Route::post('/wallet/payout-request', [\App\Http\Controllers\Site\AffiliateController::class, 'requestPayout'])->name('wallet.payout-request');
+            Route::get('/profile', [\App\Http\Controllers\Site\AffiliateController::class, 'profile'])->name('profile');
+        });
+
+        Route::redirect('/partner/affiliate-portal', '/partner/affiliate');
 
         Route::prefix('supplier')->name('supplier.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Site\SupplierController::class, 'dashboard'])->name('dashboard');
@@ -336,6 +367,26 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
     });
 });
 
+Route::prefix('auth/two-factor')->name('auth.two-factor.')->group(function () {
+    Route::get('challenge', [WebTwoFactorController::class, 'challenge'])->name('challenge');
+    Route::post('verify', [WebTwoFactorController::class, 'verifyChallenge'])->name('verify');
+    Route::get('setup', [WebTwoFactorController::class, 'setup'])->name('setup');
+    Route::post('confirm-setup', [WebTwoFactorController::class, 'confirmSetup'])->name('confirm-setup');
+});
+
+Route::prefix('staff')->name('staff.')->group(function () {
+    Route::middleware('guest:admin')->group(function () {
+        Route::get('login', [StaffAuthController::class, 'showLogin'])->name('login');
+        Route::post('login', [StaffAuthController::class, 'login']);
+    });
+
+    Route::middleware(['auth:admin', 'staff', 'two_factor:staff'])->group(function () {
+        Route::post('logout', [StaffAuthController::class, 'logout'])->name('logout');
+        Route::get('/', [StaffPortalController::class, 'dashboard'])->name('dashboard');
+        Route::get('security', [StaffPortalController::class, 'security'])->name('security');
+    });
+});
+
 /*
 |--------------------------------------------------------------------------
 | Console (Tailwind + Livewire admin)
@@ -368,10 +419,10 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
     });
 
     // Authenticated
-    Route::middleware('auth:admin')->group(function () use ($registerResource) {
+    Route::middleware(['auth:admin', 'two_factor:admin'])->group(function () use ($registerResource) {
         Route::post('logout', [AuthController::class, 'logout'])->name('logout');
 
-        Route::get('/', DashboardController::class)->name('dashboard');
+        Route::get('/', DashboardController::class)->middleware('console')->name('dashboard');
 
         // Applications
         Route::view('loan-applications/pipeline/under-review',  'admin.loan-applications.pipeline-under-review') ->name('loan-applications.pipeline.under-review');
@@ -591,6 +642,9 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             Route::get('reports/partner-performance', fn () => redirect()->route('admin.reports.vendor-performance'))->name('reports.partner-performance');
             Route::view('reports/vendor-performance', 'admin.reports.vendor-performance')->name('reports.vendor-performance');
             Route::get('reports/customers', [FinanceReportsController::class, 'customers'])->name('reports.customers');
+            Route::get('reports/affiliate-marketing-attribution', [AffiliateReportsController::class, 'marketingAttribution'])->name('reports.affiliate-marketing-attribution');
+            Route::get('reports/affiliate-capital-attribution', [AffiliateReportsController::class, 'capitalAttribution'])->name('reports.affiliate-capital-attribution');
+            Route::get('reports/affiliate-fraud', [AffiliateReportsController::class, 'fraudOverview'])->name('reports.affiliate-fraud');
         });
 
         Route::middleware('permission:finance.reports')->group(function (): void {
@@ -682,6 +736,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('settings',                  [SettingsController::class, 'index'])         ->name('settings.index');
         Route::get('settings/company',          [SettingsController::class, 'company'])       ->name('settings.company');
         Route::put('settings/company',          [SettingsController::class, 'saveCompany'])   ->name('settings.company.save');
+        Route::get('settings/auth-portal',      [SettingsController::class, 'authPortal'])   ->name('settings.auth-portal');
+        Route::put('settings/auth-portal',      [SettingsController::class, 'saveAuthPortal'])->name('settings.auth-portal.save');
         Route::get('settings/gateways',         [SettingsController::class, 'gateways'])      ->name('settings.gateways');
         Route::put('settings/gateways',         [SettingsController::class, 'saveGateways'])  ->name('settings.gateways.save');
         Route::get('settings/kyc',              [SettingsController::class, 'kyc'])           ->name('settings.kyc');

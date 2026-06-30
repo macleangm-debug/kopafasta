@@ -82,6 +82,9 @@ class GroupLoanReviewService
             'verified_count'      => $members->where('kyc_complete', true)->count(),
             'contract_signatures' => app(GroupContractSignatureService::class)->progress($application),
             'statuses'            => app(GroupLoanMemberReviewService::class)->allowedStatuses(),
+            'application_status'  => app(GroupApplicationStatusService::class)->resolveForGroup($group, $application),
+            'scoring'             => $group->scoring_snapshot
+                ?: app(GroupScoringService::class)->scoreForGroup($group, $application),
         ];
     }
 }

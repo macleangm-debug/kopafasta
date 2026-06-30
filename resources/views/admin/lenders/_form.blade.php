@@ -15,7 +15,7 @@
 
 <x-admin.step title="Contact">
     <x-admin.input  name="contact_person" label="Contact person"  :value="$r?->contact_person" />
-    <x-admin.input  name="phone"          label="Phone"           :value="$r?->phone"          placeholder="+255…" />
+    <x-admin.phone-input name="phone" label="Phone" :value="$r?->phone" />
     <x-admin.input  name="email"          label="Email"           :value="$r?->email"          type="email" />
     <div class="md:col-span-2">
         <x-admin.textarea name="address" label="Address" :value="$r?->address" rows="2" />

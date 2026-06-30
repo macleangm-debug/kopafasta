@@ -40,7 +40,6 @@
             name:     @js(old('name', '')),
             category: @js(old('category', '')),
             email:    @js(old('email', '')),
-            phone:    @js(old('phone', '')),
             address:  @js(old('address', '')),
         })">
             <div class="w-full max-w-xl">
@@ -107,10 +106,7 @@
                                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Business email <span class="text-red-500">*</span></label>
                                     <input type="email" name="email" x-model="form.email" required placeholder="hello@yourcompany.com" class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-gray-900 focus:ring-4 focus:ring-gray-900/10 text-sm outline-none transition">
                                 </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Business phone <span class="text-red-500">*</span></label>
-                                    <input name="phone" x-model="form.phone" required placeholder="+255 7XX XXX XXX" class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-gray-900 focus:ring-4 focus:ring-gray-900/10 text-sm outline-none transition">
-                                </div>
+                                <x-site.phone-input name="phone" label="Business phone" :value="old('phone')" variant="rounded" required id="vendor-register-phone" />
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Physical address <span class="text-gray-400 font-normal">(optional)</span></label>
                                     <input name="address" x-model="form.address" placeholder="Street, ward, city" class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-gray-900 focus:ring-4 focus:ring-gray-900/10 text-sm outline-none transition">
@@ -181,7 +177,8 @@
                         if (!this.form.name || !this.form.category) return alert('Please complete your business details.');
                     }
                     if (this.step === 2) {
-                        if (!this.form.email || !this.form.phone) return alert('Email and phone are required.');
+                        const phone = document.querySelector('#vendor-register-phone input[type=\"hidden\"][name=\"phone\"]')?.value || '';
+                        if (!this.form.email || phone.length < 10) return alert('Email and phone are required.');
                     }
                     if (this.step < 3) this.step++;
                     window.scrollTo({ top: 0, behavior: 'smooth' });

@@ -28,7 +28,7 @@ class GroupMemberOnboardingController extends Controller
         }
 
         if (! $onboarding->canFinalize($customer, $invitation)) {
-            return redirect()->route('site.borrower.dashboard')
+            return redirect()->route('site.group-member.application')
                 ->with('warning', __('borrower.apply.group.complete_profile_first'));
         }
 

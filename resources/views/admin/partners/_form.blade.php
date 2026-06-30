@@ -59,7 +59,7 @@
     </div>
 
     <x-admin.step title="Contact">
-        <x-admin.input  name="phone"         label="Phone"         :value="$r?->phone"         placeholder="+255…" />
+        <x-admin.phone-input name="phone" label="Phone" :value="$r?->phone" />
         <x-admin.input  name="email"         label="Email"         :value="$r?->email"         type="email" />
         <div class="md:col-span-2" x-show="category !== 'valuer'" x-cloak>
             <x-admin.textarea name="address" label="Address / coverage area" :value="$r?->address" rows="2"

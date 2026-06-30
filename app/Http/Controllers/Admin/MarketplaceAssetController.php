@@ -15,11 +15,17 @@ class MarketplaceAssetController extends ResourceController
     protected string $viewFolder = 'marketplace-assets';
     protected string $singular = 'marketplace asset';
 
+    protected function findRecord(string|int $id): MarketplaceAsset
+    {
+        return MarketplaceAsset::query()
+            ->where('id', $id)
+            ->orWhere('slug', $id)
+            ->firstOrFail();
+    }
+
     protected function rules(?Model $model = null): array
     {
-        return array_merge(app(MarketplaceAssetService::class)->validationRules($model instanceof MarketplaceAsset ? $model : null, true), [
-            'slug' => ['nullable', 'string', 'max:60'],
-        ]);
+        return app(MarketplaceAssetService::class)->validationRules($model instanceof MarketplaceAsset ? $model : null, true);
     }
 
     protected function formData(?Model $record = null): array
@@ -48,6 +54,20 @@ class MarketplaceAssetController extends ResourceController
         return app(MarketplaceAssetService::class)->prepareForSave($data, $existing instanceof MarketplaceAsset ? $existing : null);
     }
 
+    public function show($id)
+    {
+        $record = $this->findRecord($id);
+
+        return view("admin.{$this->viewFolder}.show", ['record' => $record]);
+    }
+
+    public function edit($id)
+    {
+        $record = $this->findRecord($id);
+
+        return view("admin.{$this->viewFolder}.edit", ['record' => $record] + $this->formData($record));
+    }
+
     public function store(Request $request)
     {
         $service = app(MarketplaceAssetService::class);
@@ -66,7 +86,7 @@ class MarketplaceAssetController extends ResourceController
     public function update(Request $request, $id)
     {
         $service = app(MarketplaceAssetService::class);
-        $record = MarketplaceAsset::findOrFail($id);
+        $record = $this->findRecord($id);
         $service->normalizeRequest($request);
         $service->validateMinimumPhotos($record, $request->file('photos', []), $request->input('remove_photos', []));
         $before = app(\App\Services\AuditService::class)->snapshot($record);
@@ -79,5 +99,16 @@ class MarketplaceAssetController extends ResourceController
         return redirect()
             ->route("{$this->routePrefix}.show", $record)
             ->with('status', ucfirst($this->singular).' updated.');
+    }
+
+    public function destroy($id)
+    {
+        $record = $this->findRecord($id);
+        $this->auditAdminDeleted($record);
+        $record->delete();
+
+        return redirect()
+            ->route("{$this->routePrefix}.index")
+            ->with('status', ucfirst($this->singular).' deleted.');
     }
 }

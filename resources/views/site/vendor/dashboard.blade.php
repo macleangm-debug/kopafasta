@@ -70,6 +70,10 @@
         </div>
     @endif
 
+    @if ($recoveryKpi ?? null)
+        @include('site.vendor._recovery-kpi', ['kpi' => $recoveryKpi, 'wallet' => $recoveryWallet ?? null])
+    @endif
+
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
             <h1 class="text-2xl font-extrabold tracking-tight">Hi, {{ $vendor->name }}</h1>

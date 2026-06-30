@@ -23,9 +23,16 @@ return Application::configure(basePath: dirname(__DIR__))
             'borrower.pin' => \App\Http\Middleware\EnsureBorrowerPin::class,
             'role' => EnsureUserRole::class,
             'permission' => \App\Http\Middleware\EnsurePermission::class,
+            'staff' => \App\Http\Middleware\EnsureStaffUser::class,
+            'console' => \App\Http\Middleware\EnsureConsoleAccess::class,
+            'two_factor' => \App\Http\Middleware\EnsureTwoFactorVerified::class,
         ]);
 
         $middleware->redirectGuestsTo(function ($request) {
+            if ($request->is('staff', 'staff/*')) {
+                return route('staff.login');
+            }
+
             if ($request->is('borrower*', 'apply*', 'login', 'register*')) {
                 return route('site.login');
             }
@@ -34,6 +41,10 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $middleware->redirectUsersTo(function ($request) {
+            if ($request->is('staff', 'staff/*')) {
+                return route('staff.dashboard');
+            }
+
             if ($request->is('admin', 'admin/*')) {
                 return route('admin.dashboard');
             }

@@ -15,7 +15,15 @@ class RecoveryAutoAssignmentService
         private readonly LoanCollectionActionService $collectionActions,
     ) {}
 
-    /** Day past due when call center should be auto-assigned (2 days before grace ends by default). */
+    /** Day past due when call center should be auto-assigned (after grace, minus lead days). */
+    public function callCenterAssignmentDayForCase(ArrearCase $case): int
+    {
+        $case->loadMissing('loan.product');
+
+        return max(1, $this->policy->gracePeriodDaysForLoan($case->loan) - $this->policy->callCenterLeadDays() + 1);
+    }
+
+    /** @deprecated Use callCenterAssignmentDayForCase() */
     public function callCenterAssignmentDay(): int
     {
         return max(1, $this->policy->gracePeriodDays() - $this->policy->callCenterLeadDays());
@@ -31,7 +39,13 @@ class RecoveryAutoAssignmentService
             return null;
         }
 
-        if ((int) $case->days_past_due < $this->callCenterAssignmentDay()) {
+        if ((int) $case->days_past_due < $this->callCenterAssignmentDayForCase($case)) {
+            return null;
+        }
+
+        $case->loadMissing('loan.product', 'loan.application.collateralAsset');
+        $loan = $case->loan;
+        if (! $loan || ! $this->policy->partnerTypeAppliesToLoan('call_center', $loan)) {
             return null;
         }
 

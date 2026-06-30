@@ -21,7 +21,7 @@ class Phase39FeatureTest extends TestCase
             'category'               => 'vehicle',
             'title'                  => 'Locked Markup Truck',
             'asset_value'            => 5_000_000,
-            'supplier_deposit'       => 1_000_000,
+            'deposit_percent'        => 20,
             'deposit_markup_percent' => 99,
             'max_tenure_months'      => 12,
             'is_active'              => true,

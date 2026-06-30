@@ -26,7 +26,7 @@ class SignatoryController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $this->validated($request);
+        $data = $this->payload($request);
         $data['signature_path'] = $this->storeSignature($request);
         $data['stamp_path'] = $this->storeStamp($request);
 
@@ -43,16 +43,26 @@ class SignatoryController extends Controller
 
     public function update(Request $request, CompanySignatory $signatory): RedirectResponse
     {
-        $data = $this->validated($request);
+        $data = $this->payload($request);
 
-        if ($path = $this->storeSignature($request)) {
+        if ($request->boolean('remove_signature')) {
+            if ($signatory->signature_path) {
+                Storage::disk('public')->delete($signatory->signature_path);
+            }
+            $data['signature_path'] = null;
+        } elseif ($path = $this->storeSignature($request)) {
             if ($signatory->signature_path) {
                 Storage::disk('public')->delete($signatory->signature_path);
             }
             $data['signature_path'] = $path;
         }
 
-        if ($path = $this->storeStamp($request)) {
+        if ($request->boolean('remove_stamp')) {
+            if ($signatory->stamp_path) {
+                Storage::disk('public')->delete($signatory->stamp_path);
+            }
+            $data['stamp_path'] = null;
+        } elseif ($path = $this->storeStamp($request)) {
             if ($signatory->stamp_path) {
                 Storage::disk('public')->delete($signatory->stamp_path);
             }
@@ -89,8 +99,26 @@ class SignatoryController extends Controller
             'email'          => ['nullable', 'email', 'max:150'],
             'signatory_type' => ['required', 'in:company,legal_advocate'],
             'is_active'      => ['nullable', 'boolean'],
+            'signature_image'=> ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'stamp_image'    => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'remove_signature' => ['nullable', 'boolean'],
+            'remove_stamp'     => ['nullable', 'boolean'],
         ]) + ['is_active' => $request->boolean('is_active', true)];
+    }
+
+    /** @return array<string, mixed> */
+    private function payload(Request $request): array
+    {
+        $data = $this->validated($request);
+
+        unset(
+            $data['signature_image'],
+            $data['stamp_image'],
+            $data['remove_signature'],
+            $data['remove_stamp'],
+        );
+
+        return $data;
     }
 
     private function storeStamp(Request $request): ?string
@@ -106,6 +134,10 @@ class SignatoryController extends Controller
     {
         if ($request->hasFile('signature_image')) {
             return $request->file('signature_image')->store('signatories', 'public');
+        }
+
+        if (! $request->boolean('signature_touched')) {
+            return null;
         }
 
         $dataUrl = (string) $request->input('signature_data', '');

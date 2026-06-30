@@ -68,8 +68,9 @@
                                 <input type="email" name="email" value="{{ old('email') }}" required class="w-full px-3.5 py-3 rounded-xl bg-white border border-slate-300 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10 text-sm outline-none" />
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Phone</label>
-                                <input name="phone" value="{{ old('phone') }}" required placeholder="+255 7XX XXX XXX" class="w-full px-3.5 py-3 rounded-xl bg-white border border-slate-300 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10 text-sm outline-none" />
+                                <x-site.phone-input name="phone" label="Phone" :value="old('phone')" variant="rounded" :required="true"
+                                    select-class="w-28 shrink-0 px-3.5 py-3 rounded-xl bg-white border border-slate-300 text-sm outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10"
+                                    input-class="flex-1 px-3.5 py-3 rounded-xl bg-white border border-slate-300 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10 text-sm outline-none transition" />
                             </div>
                         </div>
 

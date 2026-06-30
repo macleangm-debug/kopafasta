@@ -1,10 +1,12 @@
 @php
     $prefill = $guarantorRegistration ?? null;
     $isGuarantorRegistration = $isGuarantorRegistration ?? false;
-    $initialStep = $isGuarantorRegistration && ! empty($prefill['local_phone']) ? 2 : (int) old('step', 1);
+    $isGroupInviteRegistration = $isGroupInviteRegistration ?? false;
+    $isInviteRegistration = $isGuarantorRegistration || $isGroupInviteRegistration;
+    $initialStep = $isInviteRegistration && ! empty($prefill['local_phone']) ? 2 : (int) old('step', 1);
 @endphp
 {{-- Professional 3-step borrower registration wizard --}}
-<x-site.layout :title="$isGuarantorRegistration ? brand_title(__('borrower.guarantor_invite.create_account')) : 'Register as borrower — Kopafasta'">
+<x-site.layout :title="$isGuarantorRegistration ? brand_title(__('borrower.guarantor_invite.create_account')) : ($isGroupInviteRegistration ? brand_title(__('borrower.apply.group.register_title')) : 'Register as borrower — Kopafasta')">
     <section class="min-h-screen grid lg:grid-cols-3 bg-gray-50">
         {{-- Sidebar with steps --}}
         <aside class="hidden lg:flex lg:col-span-1 relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-amber-900 text-white p-10 flex-col">
@@ -20,6 +22,10 @@
                     <p class="text-xs uppercase tracking-widest text-amber-300 font-semibold">{{ __('borrower.guarantor_invite.create_account') }}</p>
                     <h2 class="mt-2 text-3xl font-bold tracking-tight leading-tight">{{ __('borrower.guarantor_invite.register_welcome') }}</h2>
                     <p class="mt-3 text-white/70 text-sm">{{ __('borrower.guarantor_invite.register_welcome_hint') }}</p>
+                @elseif ($isGroupInviteRegistration)
+                    <p class="text-xs uppercase tracking-widest text-amber-300 font-semibold">{{ __('borrower.apply.group.onboarding_label') }}</p>
+                    <h2 class="mt-2 text-3xl font-bold tracking-tight leading-tight">{{ __('borrower.apply.group.register_welcome') }}</h2>
+                    <p class="mt-3 text-white/70 text-sm">{{ __('borrower.apply.group.register_welcome_hint', ['leader' => $prefill['borrower_name'] ?? brand_name()]) }}</p>
                 @else
                     <p class="text-xs uppercase tracking-widest text-amber-300 font-semibold">Borrower onboarding</p>
                     <h2 class="mt-2 text-3xl font-bold tracking-tight leading-tight">Just a few details to get you started.</h2>
@@ -47,6 +53,8 @@
                 Already registered? <a href="{{ route('site.login') }}" class="text-amber-300 hover:underline">Log in</a>
                 @if ($isGuarantorRegistration)
                     · <a href="{{ route('site.login', ['clear_guarantor' => 1]) }}" class="text-amber-300 hover:underline">{{ __('borrower.guarantor_invite.login_different_account') }}</a>
+                @elseif ($isGroupInviteRegistration)
+                    · <a href="{{ route('site.login', ['clear_group_invite' => 1]) }}" class="text-amber-300 hover:underline">{{ __('borrower.apply.group.login_different_account') }}</a>
                 @endif
             </p>
         </aside>
@@ -65,7 +73,7 @@
             lockIdentity: false,
             borrowerName: @js($prefill['borrower_name'] ?? ''),
             waitlist_email: @js(old('waitlist_email', '')),
-            waitlist_phone: @js(old('waitlist_phone', '')),
+            waitlist_local_phone: @js(old('waitlist_local_phone', '')),
         })">
             <div class="w-full max-w-xl">
                 <a href="{{ route('site.home') }}" class="lg:hidden inline-flex items-center gap-2 font-bold text-gray-900 mb-6">
@@ -169,8 +177,12 @@
                                                     </div>
                                                     <div>
                                                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Phone (optional)</label>
-                                                        <input type="tel" name="phone" x-model="waitlist_phone" placeholder="+255 7XX XXXX XX"
-                                                               class="w-full rounded-2xl border border-gray-300 bg-white px-3.5 py-3 text-sm outline-none transition focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10" />
+                                                        <div class="flex gap-2">
+                                                            <span class="inline-flex items-center px-3.5 py-3 rounded-2xl border border-gray-300 bg-gray-50 text-sm font-semibold text-gray-900" x-text="activeCountry.prefix"></span>
+                                                            <input type="tel" inputmode="numeric" name="waitlist_local_phone" x-model="waitlist_local_phone" placeholder="7XX XXX XXX"
+                                                                   class="flex-1 rounded-2xl border border-gray-300 bg-white px-3.5 py-3 text-sm outline-none transition focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10" />
+                                                        </div>
+                                                        <input type="hidden" name="phone" :value="waitlist_local_phone ? activeCountry.prefix.replace(/\D/g, '') + waitlist_local_phone.replace(/\D/g, '').replace(/^0+/, '') : ''">
                                                     </div>
                                                     <button type="submit"
                                                             class="w-full inline-flex items-center justify-center gap-2 rounded-full bg-gray-900 px-4 py-3 text-sm font-semibold text-white hover:bg-gray-800 transition">
@@ -326,7 +338,8 @@
                 isGuarantor: initial.isGuarantor || false,
                 lockIdentity: initial.lockIdentity || false,
                 borrowerName: initial.borrowerName || '',
-                countries: @js($registrationCountries ?? []),
+                waitlist_email: initial.waitlist_email || '',
+                waitlist_local_phone: initial.waitlist_local_phone || '',
                 form: {
                     country: initial.country || @js($defaultCountry ?? 'TZ'),
                     dial_code: initial.dial_code || @js($defaultDialPrefix ?? '+255'),
@@ -337,9 +350,8 @@
                     email: initial.email || '',
                     password: '',
                     password_confirmation: '',
-                    waitlist_email: initial.waitlist_email || '',
-                    waitlist_phone: initial.waitlist_phone || '',
                 },
+                countries: @js($registrationCountries ?? []),
                 errors: { phone: '', email: '', password: '', password_confirmation: '' },
                 get activeCountry() {
                     return this.countries.find(c => c.code === this.form.country) ?? this.countries[0];

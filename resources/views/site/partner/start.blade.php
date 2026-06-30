@@ -16,8 +16,7 @@
                 <input type="text" name="partner_code" value="{{ old('partner_code') }}" required class="w-full rounded-lg border-gray-300 px-3 py-2 text-sm font-mono uppercase">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Phone number</label>
-                <input type="text" name="phone" value="{{ old('phone') }}" required class="w-full rounded-lg border-gray-300 px-3 py-2 text-sm" placeholder="255712345678">
+                <x-site.phone-input name="phone" label="Phone number" :value="old('phone')" required id="partner-start-phone" />
             </div>
             <p class="text-xs text-gray-500">Use the phone number registered on your partner account.</p>
             <button type="submit" class="w-full bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-3 rounded-full text-sm">

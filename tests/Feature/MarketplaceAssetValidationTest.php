@@ -34,7 +34,7 @@ class MarketplaceAssetValidationTest extends TestCase
                 'title'            => 'Test Asset',
                 'insurance_available' => '0',
                 'asset_value'      => '1,500,000.00',
-                'supplier_deposit' => '300,000.00',
+                'deposit_percent'  => '20',
                 'max_tenure_months'=> 12,
                 'is_active'        => '1',
                 'photos'           => [
@@ -46,8 +46,9 @@ class MarketplaceAssetValidationTest extends TestCase
         $response->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('marketplace_assets', [
-            'title'       => 'Test Asset',
-            'asset_value' => 1500000.00,
+            'title'            => 'Test Asset',
+            'asset_value'      => 1500000.00,
+            'supplier_deposit' => 300000.00,
         ]);
     }
 }

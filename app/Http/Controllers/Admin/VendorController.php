@@ -105,6 +105,11 @@ class VendorController extends ResourceController
             $record->refresh();
         }
 
+        if ($record->isAffiliate()) {
+            app(\App\Services\AffiliateLifecycleService::class)->initializeNewAffiliate($record);
+            $record->refresh();
+        }
+
         if (app(\App\Services\PartnerActivationService::class)->requiresActivation($record)) {
             app(\App\Services\PartnerActivationService::class)->sendActivationInvite($record);
         }
@@ -214,14 +219,70 @@ class VendorController extends ResourceController
         $affiliateStats = $record->isAffiliate()
             ? app(AffiliateService::class)->stats($record)
             : null;
+        $affiliateEvaluations = $record->isAffiliate()
+            ? $record->affiliateEvaluations()->latest('evaluated_at')->limit(6)->get()
+            : collect();
         $recoveryStats = $record->isRecoveryPartner()
             ? app(\App\Services\RecoveryPartnerService::class)->statsForVendor($record)
             : null;
 
         return view("admin.{$this->viewFolder}.show", array_merge(
-            ['record' => $record, 'affiliateStats' => $affiliateStats, 'recoveryStats' => $recoveryStats],
+            ['record' => $record, 'affiliateStats' => $affiliateStats, 'affiliateEvaluations' => $affiliateEvaluations, 'recoveryStats' => $recoveryStats],
             $this->formData($record),
         ));
+    }
+
+    public function updateAffiliateLifecycle(Request $request, Vendor $vendor): \Illuminate\Http\RedirectResponse
+    {
+        abort_unless($vendor->isAffiliate(), 404);
+
+        $data = $request->validate([
+            'status' => ['required', 'in:'.implode(',', app(\App\Services\AffiliateLifecycleService::class)->statuses())],
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        app(\App\Services\AffiliateLifecycleService::class)->transition(
+            $vendor,
+            $data['status'],
+            $data['reason'] ?? null,
+            $request->user(),
+        );
+
+        $this->auditAdmin('vendor.affiliate_lifecycle.updated', $vendor);
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $vendor)
+            ->with('status', 'Affiliate lifecycle status updated.');
+    }
+
+    public function scanAffiliateFraud(Vendor $vendor): \Illuminate\Http\RedirectResponse
+    {
+        abort_unless($vendor->isAffiliate(), 404);
+
+        $result = app(\App\Services\AffiliateFraudDetectionService::class)->scanAndPersist($vendor);
+
+        $this->auditAdmin('vendor.affiliate_fraud.scanned', $vendor);
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $vendor)
+            ->with('status', 'Fraud scan complete. Risk flag: '.$result['risk_flag'].'.');
+    }
+
+    public function updateAffiliateRiskFlag(Request $request, Vendor $vendor): \Illuminate\Http\RedirectResponse
+    {
+        abort_unless($vendor->isAffiliate(), 404);
+
+        $data = $request->validate([
+            'risk_flag' => ['required', 'in:'.implode(',', app(\App\Services\AffiliateFraudDetectionService::class)->flags())],
+        ]);
+
+        $vendor->update(['affiliate_risk_flag' => $data['risk_flag']]);
+
+        $this->auditAdmin('vendor.affiliate_risk_flag.updated', $vendor);
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $vendor)
+            ->with('status', 'Affiliate risk flag updated.');
     }
 
     public function edit($id)
@@ -245,6 +306,8 @@ class VendorController extends ResourceController
         $vendor->update([
             'affiliate_kyc_status' => 'verified',
         ]);
+
+        app(\App\Services\AffiliateLifecycleService::class)->syncFromKyc($vendor->refresh());
 
         $this->auditAdmin('vendor.affiliate_kyc.approved', $vendor);
 

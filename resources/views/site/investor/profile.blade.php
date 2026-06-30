@@ -16,8 +16,9 @@
                         <input type="email" name="email" value="{{ old('email', $lender->email) }}" required class="w-full mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm" />
                     </div>
                     <div>
-                        <label class="text-xs uppercase text-slate-500 font-semibold">Phone</label>
-                        <input type="text" name="phone" value="{{ old('phone', $lender->phone) }}" class="w-full mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                        <x-site.phone-input name="phone" label="Phone" :value="old('phone', $lender->phone)"
+                            select-class="w-28 shrink-0 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                            input-class="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm" />
                     </div>
                     <div>
                         <label class="text-xs uppercase text-slate-500 font-semibold">Address</label>

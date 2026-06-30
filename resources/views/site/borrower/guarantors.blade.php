@@ -22,8 +22,9 @@
                 </div>
             </div>
 
-            <label class="block text-xs text-gray-600 mb-1 mt-3">{{ __('borrower.profile.fields.phone') }}</label>
-            <input name="phone" required placeholder="+255..." class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2 text-sm">
+            <div class="mt-3">
+                <x-site.phone-input name="phone" :label="__('borrower.profile.fields.phone')" :value="old('phone')" :required="true" />
+            </div>
 
             <label class="block text-xs text-gray-600 mb-1 mt-3">{{ __('borrower.guarantors_page.email_optional') }}</label>
             <input type="email" name="email" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2 text-sm">

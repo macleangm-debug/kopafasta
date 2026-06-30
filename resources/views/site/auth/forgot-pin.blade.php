@@ -17,9 +17,7 @@
                 <form method="POST" action="{{ route('site.forgot-pin.send') }}" class="mt-6 space-y-4">
                     @csrf
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Phone number</label>
-                        <input type="tel" name="phone" value="{{ old('phone') }}" required
-                               class="w-full rounded-xl border-gray-300 px-3 py-3 text-sm" placeholder="+2557XXXXXXXX">
+                        <x-site.phone-input name="phone" label="Phone number" :value="old('phone')" variant="rounded" :required="true" />
                     </div>
                     <button class="w-full bg-amber-500 hover:bg-amber-400 text-gray-900 font-bold py-3 rounded-full">Send verification code</button>
                 </form>

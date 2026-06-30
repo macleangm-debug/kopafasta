@@ -4,14 +4,17 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Services\RoleService;
+use App\Services\WebTwoFactorAuthService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    public function __construct(private RoleService $roles)
-    {
+    public function __construct(
+        private RoleService $roles,
+        private WebTwoFactorAuthService $twoFactor,
+    ) {
     }
 
     public function showLogin()
@@ -33,15 +36,29 @@ class AuthController extends Controller
         }
 
         $user = Auth::guard('admin')->user();
+        Auth::guard('admin')->logout();
 
         if (! $this->roles->hasConsoleAccess($user)) {
-            Auth::guard('admin')->logout();
             throw ValidationException::withMessages([
-                'email' => 'You are not authorised to access the admin.',
+                'email' => 'Your role uses the staff workspace. Sign in at '.route('staff.login'),
             ]);
         }
 
+        if ($this->twoFactor->mustEnroll($user, 'admin')) {
+            $this->twoFactor->storePendingLogin($request, $user, 'admin', 'admin', route('admin.dashboard'), $request->boolean('remember'));
+
+            return redirect()->route('auth.two-factor.setup', ['context' => 'admin']);
+        }
+
+        if ($this->twoFactor->needsChallenge($user, $request, 'admin')) {
+            $this->twoFactor->storePendingLogin($request, $user, 'admin', 'admin', route('admin.dashboard'), $request->boolean('remember'));
+
+            return redirect()->route('auth.two-factor.challenge', ['context' => 'admin']);
+        }
+
+        Auth::guard('admin')->login($user, $request->boolean('remember'));
         $request->session()->regenerate();
+        $this->twoFactor->markSessionVerified($request);
 
         return redirect()->intended(route('admin.dashboard'));
     }
@@ -49,6 +66,7 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         Auth::guard('admin')->logout();
+        $this->twoFactor->clearSessionVerification($request);
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 

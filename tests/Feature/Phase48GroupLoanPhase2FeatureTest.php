@@ -138,7 +138,7 @@ class Phase48GroupLoanPhase2FeatureTest extends TestCase
 
     public function test_admin_can_save_group_member_review_with_leader_feedback(): void
     {
-        Setting::setMany(['loan.group_min_members' => 2, 'loan.group_max_members' => 10]);
+        Setting::setMany(['loan.group_min_members' => 3, 'loan.group_max_members' => 10]);
 
         $leader = Customer::create([
             'customer_number' => 'CU-P48-L4',
@@ -158,6 +158,15 @@ class Phase48GroupLoanPhase2FeatureTest extends TestCase
             'phone'           => '255712345907',
         ]);
 
+        $member2 = Customer::create([
+            'customer_number' => 'CU-P48-M5',
+            'type'            => 'individual',
+            'status'          => 'active',
+            'first_name'      => 'Member',
+            'last_name'       => 'Five',
+            'phone'           => '255712345908',
+        ]);
+
         $product = $this->groupProduct();
         $application = LoanApplication::create([
             'customer_id'             => $leader->id,
@@ -174,6 +183,7 @@ class Phase48GroupLoanPhase2FeatureTest extends TestCase
             [
                 ['customer_id' => $leader->id, 'requested_amount' => 300_000, 'role' => 'leader'],
                 ['customer_id' => $member->id, 'requested_amount' => 300_000, 'role' => 'member'],
+                ['customer_id' => $member2->id, 'requested_amount' => 300_000, 'role' => 'member'],
             ],
             'Test group',
             'Business',
@@ -222,7 +232,7 @@ class Phase48GroupLoanPhase2FeatureTest extends TestCase
 
     public function test_internal_member_invitation_requires_signature_for_verification(): void
     {
-        Setting::setMany(['loan.group_min_members' => 2, 'loan.group_max_members' => 10]);
+        Setting::setMany(['loan.group_min_members' => 3, 'loan.group_max_members' => 10]);
 
         $leader = Customer::create([
             'customer_number'       => 'CU-P48-L5',

@@ -5,6 +5,9 @@
         <x-admin.th :sort="$sort" :direction="$direction" col="name"          label="Name" />
         @if ($affiliateMode ?? false)
             <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Affiliate code</th>
+            <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Lifecycle</th>
+            <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Risk</th>
+            <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">KPI</th>
             <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Commission</th>
             <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Tracking link</th>
         @else
@@ -23,6 +26,13 @@
                 </td>
                 @if ($affiliateMode ?? false)
                     <td class="px-5 py-3 font-mono text-xs">{{ $r->affiliate_code ?: '—' }}</td>
+                    <td class="px-5 py-3 text-xs text-gray-700">
+                        {{ app(\App\Services\AffiliateLifecycleService::class)->label(app(\App\Services\AffiliateLifecycleService::class)->statusFor($r)) }}
+                    </td>
+                    <td class="px-5 py-3 text-xs capitalize font-semibold">{{ $r->affiliate_risk_flag ?? 'low' }}</td>
+                    <td class="px-5 py-3 text-sm">
+                        {{ number_format((float) (($r->affiliate_evaluation_snapshot ?? [])['kpi_score'] ?? 0), 1) }}
+                    </td>
                     <td class="px-5 py-3 text-sm">{{ format_number((float) ($r->affiliate_commission_percent ?? config('affiliates.default_commission_percent', 0)), 1) }}%</td>
                     <td class="px-5 py-3 text-xs text-gray-600 max-w-[14rem] truncate">
                         @if ($r->affiliate_code)
@@ -47,7 +57,7 @@
                 </td>
             </tr>
         @empty
-            <tr><td colspan="{{ ($affiliateMode ?? false) ? 8 : 6 }}" class="px-5 py-12 text-center text-gray-500">{{ ($affiliateMode ?? false) ? 'No affiliate partners found.' : 'No partners found.' }}</td></tr>
+            <tr><td colspan="{{ ($affiliateMode ?? false) ? 11 : 6 }}" class="px-5 py-12 text-center text-gray-500">{{ ($affiliateMode ?? false) ? 'No affiliate partners found.' : 'No partners found.' }}</td></tr>
         @endforelse
     </x-slot:rows>
 </x-admin.table-shell>

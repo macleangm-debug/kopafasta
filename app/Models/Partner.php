@@ -18,6 +18,8 @@ class Partner extends Model
             'metadata' => 'array',
             'roles'    => 'array',
             'regions'  => 'array',
+            'affiliate_evaluation_snapshot' => 'array',
+            'affiliate_fraud_snapshot' => 'array',
         ];
     }
 
@@ -68,6 +70,11 @@ class Partner extends Model
         return $this->hasMany(AffiliateEvent::class, 'partner_id');
     }
 
+    public function affiliateEvaluations(): HasMany
+    {
+        return $this->hasMany(AffiliateEvaluation::class, 'partner_id');
+    }
+
     public function isSupplier(): bool
     {
         return $this->category === 'supplier';
@@ -96,5 +103,16 @@ class Partner extends Model
     public function recoveryAssignments(): HasMany
     {
         return $this->hasMany(RecoveryAssignment::class, 'partner_id');
+    }
+
+    public function coverageLabel(): string
+    {
+        if (($this->coverage_type ?? 'regions') === 'nationwide') {
+            return 'Nationwide';
+        }
+
+        $regions = array_values(array_filter($this->regions ?? []));
+
+        return $regions === [] ? 'Regional' : implode(', ', $regions);
     }
 }

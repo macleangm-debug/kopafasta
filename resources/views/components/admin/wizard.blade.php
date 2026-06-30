@@ -50,7 +50,8 @@
             <button type="submit"
                     data-wizard-submit
                     hidden
-                    class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-5 py-2 rounded-lg shadow-sm transition">
+                    data-submit-label="{{ $submitLabel }}"
+                    class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-70 disabled:cursor-wait px-5 py-2 rounded-lg shadow-sm transition">
                 {{ $submitLabel }}
             </button>
         </div>
@@ -201,6 +202,23 @@
 
                 render();
                 root.dataset.ready = '1';
+
+                const form = root.closest('form');
+                if (form && ! form.dataset.submitGuard) {
+                    form.dataset.submitGuard = '1';
+                    form.addEventListener('submit', function () {
+                        const activeSubmit = root.querySelector('[data-wizard-submit]');
+                        [activeSubmit, nextBtn].forEach(function (button) {
+                            if (! button || button.hidden) {
+                                return;
+                            }
+                            button.disabled = true;
+                            if (button === activeSubmit) {
+                                button.textContent = (activeSubmit.dataset.submitLabel || 'Save') + '…';
+                            }
+                        });
+                    });
+                }
             }
 
             function boot() {

@@ -121,6 +121,7 @@ class BorrowerController extends Controller
         $eligibility = $qualification->calculate($customer);
         $applyRequirements = $requirements->checklist($customer);
         $onboardingBanner = $requirements->onboardingBanner($customer);
+        $groupInviteBanner = app(\App\Services\GroupMemberApplicationService::class)->dashboardBanner($customer);
         $applyDraftResume = app(\App\Services\LoanApplicationDraftService::class)->resumeSummary($customer);
 
         $activeApplications = LoanApplication::with('product')
@@ -153,7 +154,7 @@ class BorrowerController extends Controller
         return view('site.borrower.dashboard', compact(
             'customer','activeLoan','nextDue','applicationsCount',
             'notifications','eligibility',
-            'products','applyRequirements','onboardingBanner','applyDraftResume','activeApplications','activeApplicationRows','unreadNotificationCount',
+            'products','applyRequirements','onboardingBanner','groupInviteBanner','applyDraftResume','activeApplications','activeApplicationRows','unreadNotificationCount',
             'openDocumentRequests','referralCode','referralLink','referralShareMessage','referralWallet','dashboardHero','kycSectionsDue',
         ));
     }

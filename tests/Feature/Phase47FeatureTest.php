@@ -103,7 +103,7 @@ class Phase47FeatureTest extends TestCase
     public function test_group_apply_service_validates_and_creates_group_on_submit_payload(): void
     {
         Setting::setMany([
-            'loan.group_min_members' => 2,
+            'loan.group_min_members' => 3,
             'loan.group_max_members' => 10,
         ]);
 
@@ -127,6 +127,15 @@ class Phase47FeatureTest extends TestCase
             'phone'           => '255712345883',
         ]);
 
+        $member2 = Customer::create([
+            'customer_number' => 'CU-P47-M3',
+            'type'            => 'individual',
+            'status'          => 'active',
+            'first_name'      => 'Member',
+            'last_name'       => 'Three',
+            'phone'           => '255712345884',
+        ]);
+
         $invitation = GroupMemberInvitation::create([
             'leader_customer_id' => $leader->id,
             'loan_product_id'    => $product->id,
@@ -135,6 +144,19 @@ class Phase47FeatureTest extends TestCase
             'invitee_last_name'  => 'Apply',
             'invitee_phone'      => '255712345883',
             'token'              => 'p47-member-invite-token-123456789012345678',
+            'status'             => 'completed',
+            'member_signature_data' => 'data:image/png;base64,abc',
+            'member_signed_at'   => now(),
+        ]);
+
+        $invitation2 = GroupMemberInvitation::create([
+            'leader_customer_id' => $leader->id,
+            'loan_product_id'    => $product->id,
+            'customer_id'        => $member2->id,
+            'invitee_first_name' => 'Member',
+            'invitee_last_name'  => 'Three',
+            'invitee_phone'      => '255712345884',
+            'token'              => 'p47-member-invite-token-223456789012345678',
             'status'             => 'completed',
             'member_signature_data' => 'data:image/png;base64,abc',
             'member_signed_at'   => now(),
@@ -153,17 +175,18 @@ class Phase47FeatureTest extends TestCase
         $validated = app(GroupApplyService::class)->validateGroupPayload($leader, $product, [
             'name'                => 'VICOBA group',
             'purpose'             => 'business',
-            'target_member_count' => 2,
+            'target_member_count' => 3,
             'amount_per_member'   => 300_000,
             'members' => [
                 ['customer_id' => $leader->id, 'requested_amount' => 300_000],
                 ['customer_id' => $member->id, 'invitation_id' => $invitation->id, 'requested_amount' => 300_000],
+                ['customer_id' => $member2->id, 'invitation_id' => $invitation2->id, 'requested_amount' => 300_000],
             ],
         ]);
 
         $this->assertSame('VICOBA group', $validated['name']);
         $this->assertSame('business', $validated['purpose']);
-        $this->assertCount(2, $validated['members']);
+        $this->assertCount(3, $validated['members']);
 
         $group = app(GroupLendingService::class)->createForApplication(
             $application,

@@ -19,8 +19,9 @@ class PartnerPayment extends Model
     protected function casts(): array
     {
         return [
-            'paid_at'     => 'datetime',
-            'approved_at' => 'datetime',
+            'paid_at'      => 'datetime',
+            'approved_at'  => 'datetime',
+            'disputed_at'  => 'datetime',
         ];
     }
 

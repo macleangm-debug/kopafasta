@@ -1,8 +1,10 @@
 <?php
 
 return [
-    'min_members' => 5,
+    'min_members' => 3,
     'max_members' => 10,
+
+    'repayment_cadence' => 'weekly',
 
     'leader_unlock_repayments' => 2,
 

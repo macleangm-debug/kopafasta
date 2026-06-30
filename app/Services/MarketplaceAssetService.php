@@ -24,13 +24,25 @@ class MarketplaceAssetService
         $request->merge($this->normalizeInput($request->all()));
     }
 
+    public function computeCustomerDepositPreview(float $assetValue, float $depositPercent): float
+    {
+        $supplierDeposit = round($assetValue * ($depositPercent / 100), 2);
+        $markupPercent = app(AssetLendingService::class)->defaultDepositMarkupPercent();
+
+        return round($supplierDeposit + ($supplierDeposit * ($markupPercent / 100)), 2);
+    }
+
     /** @param array<string, mixed> $input */
     public function normalizeInput(array $input): array
     {
-        foreach (['asset_value', 'supplier_deposit'] as $key) {
+        foreach (['asset_value'] as $key) {
             if (array_key_exists($key, $input) && $input[$key] !== null && $input[$key] !== '') {
                 $input[$key] = MoneyFormat::toNumber($input[$key]);
             }
+        }
+
+        if (array_key_exists('deposit_percent', $input) && $input['deposit_percent'] !== null && $input['deposit_percent'] !== '') {
+            $input['deposit_percent'] = MoneyFormat::toNumber($input['deposit_percent']);
         }
 
         $insuranceAvailable = ($input['insurance_available'] ?? '1') === '1'
@@ -64,6 +76,12 @@ class MarketplaceAssetService
 
         if (empty($data['slug']) && ! empty($data['title'])) {
             $data['slug'] = Str::slug($data['title']).'-'.Str::lower(Str::random(4));
+        }
+
+        if (isset($data['deposit_percent'])) {
+            $assetValue = (float) ($data['asset_value'] ?? 0);
+            $data['supplier_deposit'] = round($assetValue * ((float) $data['deposit_percent'] / 100), 2);
+            unset($data['deposit_percent']);
         }
 
         if (! empty($data['vendor_id'])) {
@@ -163,9 +181,11 @@ class MarketplaceAssetService
      */
     public function resolveOrMaterialize(string $assetId): ?MarketplaceAsset
     {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('marketplace_assets')) {
+            return null;
+        }
+
         $existing = MarketplaceAsset::query()
-            ->where('is_active', true)
-            ->where(fn ($q) => $q->whereNull('availability_status')->orWhere('availability_status', 'available'))
             ->where(function ($q) use ($assetId): void {
                 $q->where('slug', $assetId);
                 if (is_numeric($assetId)) {
@@ -185,6 +205,7 @@ class MarketplaceAssetService
 
         $supplierDeposit = (float) ($config['deposit'] ?? 0);
         $assetValue = (float) ($config['asset_value'] ?? ($supplierDeposit * 1.4));
+        $depositPercent = $assetValue > 0 ? round(($supplierDeposit / $assetValue) * 100, 2) : 0;
 
         $prepared = $this->prepareForSave([
             'slug'               => $config['id'],
@@ -193,7 +214,7 @@ class MarketplaceAssetService
             'description'        => $config['description'] ?? null,
             'supplier_name'      => $config['vendor'] ?? ($config['supplier'] ?? 'Demo supplier'),
             'asset_value'        => $assetValue,
-            'supplier_deposit'   => $supplierDeposit,
+            'deposit_percent'    => $depositPercent,
             'weekly_installment' => (float) ($config['weekly_installment'] ?? 0),
             'max_tenure_months'  => (int) ($config['max_tenure_months'] ?? 12),
             'photos'             => $config['photos'] ?? [],
@@ -222,7 +243,7 @@ class MarketplaceAssetService
             'insurance_policy_number'=> ['nullable', 'string', 'max:80'],
             'insurance_expires_at'   => ['nullable', 'date'],
             'asset_value'            => ['required', 'numeric', 'min:0'],
-            'supplier_deposit'       => ['required', 'numeric', 'min:0'],
+            'deposit_percent'        => ['required', 'numeric', 'min:0.01', 'max:100'],
             'max_tenure_months'      => ['required', 'integer', 'min:1', 'max:120'],
             'is_active'              => ['nullable', 'boolean'],
             'photos'                 => [$existing ? 'nullable' : 'required', 'array', 'min:'.($existing ? 0 : 1), 'max:'.$maxPhotos],

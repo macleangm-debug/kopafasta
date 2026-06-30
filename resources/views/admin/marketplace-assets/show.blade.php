@@ -8,7 +8,7 @@
         'Category' => config('asset_marketplace.categories.'.$record->category, $record->category),
         'Supplier' => $record->supplier_name,
         'Asset value' => format_money($record->asset_value),
-        'Supplier deposit' => format_money($record->supplier_deposit),
+        'Deposit' => rtrim(rtrim(number_format($record->depositPercent(), 2), '0'), '.').'% ('.format_money($record->supplier_deposit).')',
         'Markup %' => $record->deposit_markup_percent,
         'Company markup' => format_money(app(\App\Services\AssetLendingService::class)->depositMarkupAmount($record)),
         'Customer deposit' => format_money($record->customer_deposit ?: $record->computeCustomerDeposit()),

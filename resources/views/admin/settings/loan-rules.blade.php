@@ -86,9 +86,16 @@
             <h3 class="text-sm font-semibold text-gray-700 mb-4">Group lending</h3>
             <p class="text-xs text-gray-500 mb-4">Member limits and fee rules for group loan products. Group loans always charge the application fee per member (configured on the product or APP_FEE charge).</p>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <x-admin.input name="group_min_members" label="Minimum group members" type="number" :value="$values['group_min_members'] ?? '5'" required />
-                <x-admin.input name="group_max_members" label="Maximum group members" type="number" :value="$values['group_max_members'] ?? '30'" required />
+                <x-admin.input name="group_min_members" label="Minimum group members" type="number" :value="$values['group_min_members'] ?? '3'" required />
+                <x-admin.input name="group_max_members" label="Maximum group members" type="number" :value="$values['group_max_members'] ?? '10'" required />
                 <x-admin.input name="group_leader_unlock_repayments" label="Leader repayments before next member unlocks" type="number" :value="$values['group_leader_unlock_repayments'] ?? '2'" required />
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Group repayment cadence</label>
+                    <select name="group_repayment_cadence" class="w-full rounded-lg border-gray-300 text-sm">
+                        <option value="weekly" @selected(($values['group_repayment_cadence'] ?? 'weekly') === 'weekly')>Weekly</option>
+                        <option value="monthly" @selected(($values['group_repayment_cadence'] ?? '') === 'monthly')>Monthly</option>
+                    </select>
+                </div>
             </div>
             <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                 <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">

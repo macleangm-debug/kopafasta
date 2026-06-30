@@ -4,7 +4,7 @@
 <x-admin.step title="Identity">
     <x-admin.input  name="name"            label="Full name"      :value="$r?->name"  required />
     <x-admin.input  name="email"           label="Email"          :value="$r?->email" type="email" required />
-    <x-admin.input  name="phone"           label="Phone"          :value="$r?->phone" placeholder="+255…" />
+    <x-admin.phone-input name="phone" label="Phone" :value="$r?->phone" />
     <x-admin.input  name="password"        label="{{ $r ? 'New password (leave blank to keep)' : 'Password' }}" type="password" :required="! $r" />
 </x-admin.step>
 

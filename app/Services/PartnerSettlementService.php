@@ -89,6 +89,21 @@ class PartnerSettlementService
         return $payment->refresh();
     }
 
+    public function disputePayment(VendorPayment $payment, ?string $reason = null): VendorPayment
+    {
+        if (! in_array($payment->status, ['pending', 'approved'], true)) {
+            throw new \InvalidArgumentException('Only pending or approved payments can be disputed.');
+        }
+
+        $payment->update([
+            'status'         => 'disputed',
+            'dispute_reason' => $reason,
+            'disputed_at'    => now(),
+        ]);
+
+        return $payment->refresh();
+    }
+
     /** Group approved, unbatched vendor payments into weekly settlement batches. */
     public function queueWeeklySettlements(?CarbonImmutable $periodEnd = null): int
     {
@@ -181,6 +196,14 @@ class PartnerSettlementService
                     'channel' => $channel,
                     'reference' => $reference,
                 ]);
+
+            VendorPayment::query()
+                ->where('partner_settlement_id', $settlement->id)
+                ->where('status', 'paid')
+                ->where('source_type', RecoveryCommissionWalletService::SOURCE_TYPE)
+                ->each(function (VendorPayment $payment): void {
+                    app(RecoveryCommissionWalletService::class)->syncAssignmentCommissionPaid($payment->fresh());
+                });
 
             return $settlement->refresh();
         });

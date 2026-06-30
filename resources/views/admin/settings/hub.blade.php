@@ -2,6 +2,7 @@
     $groups = [
         'Organization' => [
             ['Company', 'admin.settings.company'],
+            ['Authentication', 'admin.settings.auth-portal'],
             ['Departments', 'admin.departments.index'],
             ['Users', 'admin.users.index'],
             ['Roles', 'admin.roles.index'],

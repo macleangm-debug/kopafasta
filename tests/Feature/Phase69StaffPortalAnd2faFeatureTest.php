@@ -1,0 +1,175 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\User;
+use App\Models\Vendor;
+use App\Services\TotpService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
+use Tests\TestCase;
+
+class Phase69StaffPortalAnd2faFeatureTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Config::set('auth_portal.require_2fa_admin', true);
+        Config::set('auth_portal.require_2fa_staff', true);
+        Config::set('auth_portal.require_2fa_partner', true);
+    }
+
+    public function test_collector_can_sign_in_to_staff_workspace(): void
+    {
+        $collector = User::factory()->create([
+            'email'    => 'collector@example.com',
+            'password' => bcrypt('password'),
+            'role'     => 'collector',
+        ]);
+
+        $this->post(route('staff.login'), [
+            'email'    => 'collector@example.com',
+            'password' => 'password',
+        ])->assertRedirect(route('auth.two-factor.setup', ['context' => 'staff']));
+    }
+
+    public function test_collector_reaches_dashboard_after_2fa_enrollment(): void
+    {
+        $collector = User::factory()->create([
+            'email'    => 'collector2@example.com',
+            'password' => bcrypt('password'),
+            'role'     => 'collector',
+        ]);
+
+        $this->post(route('staff.login'), [
+            'email'    => 'collector2@example.com',
+            'password' => 'password',
+        ])->assertRedirect(route('auth.two-factor.setup', ['context' => 'staff']));
+
+        $this->get(route('auth.two-factor.setup', ['context' => 'staff']))->assertOk();
+
+        $secret = $collector->fresh()->two_factor_secret;
+        $this->assertNotEmpty($secret);
+
+        $code = app(TotpService::class)->currentCode((string) $secret);
+
+        $this->post(route('auth.two-factor.confirm-setup'), [
+            'code'    => $code,
+            'context' => 'staff',
+        ])->assertRedirect(route('staff.dashboard'));
+
+        $this->actingAs($collector->fresh(), 'admin')
+            ->withSession(['two_factor_verified_at' => now()->timestamp])
+            ->get(route('staff.dashboard'))
+            ->assertOk()
+            ->assertSee('Loans', false);
+    }
+
+    public function test_collector_is_redirected_away_from_admin_dashboard(): void
+    {
+        $secret = app(TotpService::class)->generateSecret();
+
+        $collector = User::factory()->create([
+            'role'                    => 'collector',
+            'two_factor_secret'       => $secret,
+            'two_factor_confirmed_at' => now(),
+        ]);
+
+        $this->actingAs($collector, 'admin')
+            ->withSession(['two_factor_verified_at' => now()->timestamp])
+            ->get(route('admin.dashboard'))
+            ->assertRedirect(route('staff.dashboard'));
+    }
+
+    public function test_admin_login_requires_2fa_challenge_when_enrolled(): void
+    {
+        $secret = app(TotpService::class)->generateSecret();
+
+        User::factory()->create([
+            'email'                   => 'admin2fa@example.com',
+            'password'                => bcrypt('password'),
+            'role'                    => 'admin',
+            'two_factor_secret'       => $secret,
+            'two_factor_confirmed_at' => now(),
+        ]);
+
+        $this->post(route('admin.login'), [
+            'email'    => 'admin2fa@example.com',
+            'password' => 'password',
+        ])->assertRedirect(route('auth.two-factor.challenge', ['context' => 'admin']));
+    }
+
+    public function test_partner_password_login_requires_2fa_when_enrolled(): void
+    {
+        $secret = app(TotpService::class)->generateSecret();
+
+        $user = User::factory()->create([
+            'email'                   => 'partner2fa@example.com',
+            'password'                => bcrypt('password'),
+            'role'                    => 'vendor',
+            'two_factor_secret'       => $secret,
+            'two_factor_confirmed_at' => now(),
+        ]);
+
+        Vendor::create([
+            'user_id'        => $user->id,
+            'vendor_number'  => 'V-P69',
+            'name'           => 'Partner P69',
+            'category'       => 'recovery',
+            'status'         => 'active',
+            'phone'          => '255712340069',
+            'activated_at'   => now(),
+        ]);
+
+        $this->post(route('site.login.post'), [
+            'login'       => 'partner2fa@example.com',
+            'password'    => 'password',
+            'auth_method' => 'password',
+        ])->assertRedirect(route('auth.two-factor.challenge', ['context' => 'partner']));
+    }
+
+    public function test_staff_login_hint_redirects_to_staff_portal(): void
+    {
+        $this->get(route('site.staff-login'))
+            ->assertRedirect(route('staff.login'));
+    }
+
+    public function test_admin_settings_can_disable_staff_2fa_requirement(): void
+    {
+        \App\Models\Setting::set('auth_portal.require_2fa_admin', false);
+
+        $admin = User::factory()->create([
+            'email'    => 'settings-admin@example.com',
+            'password' => bcrypt('password'),
+            'role'     => 'admin',
+        ]);
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.settings.auth-portal.save'), [
+                'require_2fa_admin'        => '1',
+                'require_2fa_staff'        => '0',
+                'require_2fa_partner'      => '1',
+                'two_factor_session_hours' => 8,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('status');
+
+        $this->assertFalse(app(\App\Services\AuthPortalSettingsService::class)->require2faStaff());
+        $this->assertTrue(app(\App\Services\AuthPortalSettingsService::class)->require2faAdmin());
+        $this->assertSame(8, app(\App\Services\AuthPortalSettingsService::class)->twoFactorSessionHours());
+
+        User::factory()->create([
+            'email'    => 'collector3@example.com',
+            'password' => bcrypt('password'),
+            'role'     => 'collector',
+        ]);
+
+        $this->post(route('staff.login'), [
+            'email'    => 'collector3@example.com',
+            'password' => 'password',
+        ])->assertRedirect(route('staff.dashboard'));
+    }
+}

@@ -89,6 +89,28 @@ class GroupMemberOnboardingService
             && substr($inviteDigits, -9) === substr($inputDigits, -9);
     }
 
+    public function emailMatchesInvitation(GroupMemberInvitation $invitation, ?string $email): bool
+    {
+        if (blank($email) || blank($invitation->invitee_email)) {
+            return false;
+        }
+
+        return strcasecmp(trim((string) $invitation->invitee_email), trim((string) $email)) === 0;
+    }
+
+    public function customerMatchesInvitation(GroupMemberInvitation $invitation, Customer $customer): bool
+    {
+        if ($invitation->customer_id && (int) $invitation->customer_id === (int) $customer->id) {
+            return true;
+        }
+
+        if ($this->phoneMatchesInvitation($invitation, $customer->phone ?? '')) {
+            return true;
+        }
+
+        return $this->emailMatchesInvitation($invitation, $customer->email);
+    }
+
     public function invitationFromSession(Request $request): ?GroupMemberInvitation
     {
         return $this->findByToken($request->session()->get('group_member_invite_token'));
@@ -108,20 +130,26 @@ class GroupMemberOnboardingService
 
         $phone = app(GuarantorInvitationService::class)->normalizePhone($customer->phone ?? '');
 
+        if ($phone === '' && blank($customer->email)) {
+            return null;
+        }
+
         return GroupMemberInvitation::query()
             ->whereNull('customer_id')
             ->whereIn('status', ['pending', 'accepted'])
             ->where(function ($query) use ($customer, $phone): void {
+                $matched = false;
                 if ($phone !== '') {
                     $query->where('invitee_phone', $phone);
+                    $matched = true;
                 }
                 if ($customer->email) {
-                    $query->orWhere('invitee_email', $customer->email);
+                    $matched ? $query->orWhere('invitee_email', $customer->email) : $query->where('invitee_email', $customer->email);
                 }
             })
             ->latest('id')
             ->get()
-            ->first(fn (GroupMemberInvitation $invitation) => $this->phoneMatchesInvitation($invitation, $customer->phone ?? ''));
+            ->first(fn (GroupMemberInvitation $invitation) => $this->customerMatchesInvitation($invitation, $customer));
     }
 
     public function resolveInvitation(Request $request, Customer $customer): ?GroupMemberInvitation
@@ -179,7 +207,7 @@ class GroupMemberOnboardingService
 
         if (! $fromTrustedSession
             && ! $invitation->customer_id
-            && ! $this->phoneMatchesInvitation($invitation, $customer->phone ?? '')) {
+            && ! $this->customerMatchesInvitation($invitation, $customer)) {
             throw new \InvalidArgumentException(__('borrower.apply.group.invite_phone_mismatch'));
         }
 
@@ -239,8 +267,8 @@ class GroupMemberOnboardingService
                 ->with('status', __('borrower.apply.group.continue_after_pin'));
         }
 
-        if (! $customer->hasMembership()) {
-            if ($request->routeIs('site.membership.*', 'site.borrower.setup-pin', 'site.borrower.setup-pin.post')) {
+        if (! $customer->isMembershipActive() && ! $customer->isMembershipInGrace()) {
+            if ($request->routeIs('site.membership.*', 'site.borrower.setup-pin', 'site.borrower.setup-pin.post', 'site.borrower.dashboard', 'site.group-member.application')) {
                 return null;
             }
 
@@ -248,20 +276,23 @@ class GroupMemberOnboardingService
                 ->with('status', __('borrower.apply.group.continue_after_membership'));
         }
 
+        if ($request->routeIs('site.borrower.dashboard', 'site.group-member.application', 'site.group-member.onboarding', 'site.borrower.profile', 'site.borrower.profile.*')) {
+            return null;
+        }
+
         if (! $this->memberRequirementsMet($customer)) {
             $status = app(ProfileCompletionService::class)->calculate($customer);
-            $url = app(ProfileWizardService::class)->resumeUrl($customer);
 
-            return redirect()->to($url)
+            return redirect()->route('site.group-member.application')
                 ->with('status', __('borrower.apply.group.continue_after_profile', ['percent' => $status['percent'] ?? 0]));
         }
 
         if ($this->canFinalize($customer, $invitation->fresh())) {
-            return redirect()->route('site.group-member.onboarding')
+            return redirect()->route('site.group-member.application')
                 ->with('status', __('borrower.apply.group.continue_final_step'));
         }
 
-        return redirect()->route('site.borrower.dashboard')
+        return redirect()->route('site.group-member.application')
             ->with('status', __('borrower.apply.group.continue_in_portal'));
     }
 
@@ -306,6 +337,17 @@ class GroupMemberOnboardingService
             return null;
         }
 
+        if ($request->routeIs(
+            'site.borrower.dashboard',
+            'site.group-member.application',
+            'site.group-member.onboarding',
+            'site.borrower.profile',
+            'site.borrower.profile.*',
+            'site.membership.*',
+        )) {
+            return null;
+        }
+
         return $this->redirectToContinue($request, $customer, $invitation);
     }
 
@@ -324,6 +366,6 @@ class GroupMemberOnboardingService
             return (int) $invitation->customer_id === (int) $customer->id;
         }
 
-        return $this->phoneMatchesInvitation($invitation, $customer->phone ?? '');
+        return $this->customerMatchesInvitation($invitation, $customer);
     }
 }

@@ -71,31 +71,82 @@
         </div>
 
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
-            <h3 class="text-sm font-semibold text-gray-900 mb-4">Partner SLAs &amp; rates</h3>
-            <p class="text-xs text-gray-500 mb-4">Each partner supports percentage or fixed recovery fee plus company markup. Fixed example: 10,000 fee + 10% markup → borrower pays 11,000.</p>
-            <div class="space-y-4">
-                @foreach ($types as $type => $meta)
-                    <div class="rounded-lg border border-gray-200 p-4">
-                        <p class="text-sm font-semibold text-gray-900 mb-3">{{ $meta['label'] }}</p>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                            <x-admin.input :name="'sla_days_'.$type" label="SLA (days)" type="number" min="1" max="90"
-                                           :value="$values['sla_days'][$type] ?? $meta['default_sla_days']" />
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Fee type</label>
-                                <select name="fee_type_{{ $type }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                                    <option value="percentage" @selected(($values['fee_type'][$type] ?? 'percentage') === 'percentage')>Percentage</option>
-                                    <option value="fixed" @selected(($values['fee_type'][$type] ?? '') === 'fixed')>Fixed amount</option>
-                                </select>
-                            </div>
-                            <x-admin.input :name="'commission_percent_'.$type" label="Commission %" type="number" step="0.1" min="0" max="100"
-                                           :value="$values['commission_percent'][$type] ?? $meta['default_commission_percent']" />
-                            <x-admin.input :name="'fixed_amount_'.$type" label="Fixed fee" type="number" step="1" min="0"
-                                           :value="$values['fixed_amount'][$type] ?? ''" />
-                            <x-admin.input :name="'markup_percent_'.$type" label="Company markup %" type="number" step="0.1" min="0" max="100"
-                                           :value="$values['markup_percent'][$type] ?? $meta['default_markup_percent']" />
-                        </div>
-                    </div>
-                @endforeach
+            <h3 class="text-sm font-semibold text-gray-900 mb-2">Partner SLA matrix</h3>
+            <p class="text-xs text-gray-500 mb-4">Configure priority, loan scope, collateral scope, SLA, commission, and per-stage auto-escalation. Loan types: <code class="text-[11px]">all</code> or comma-separated product codes (e.g. <code class="text-[11px]">GL,IL,AB</code>).</p>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                        <tr>
+                            <th class="px-3 py-2">Partner</th>
+                            <th class="px-3 py-2">Priority</th>
+                            <th class="px-3 py-2">Loan types</th>
+                            <th class="px-3 py-2">Collateral</th>
+                            <th class="px-3 py-2">SLA days</th>
+                            <th class="px-3 py-2">Fee type</th>
+                            <th class="px-3 py-2">Commission %</th>
+                            <th class="px-3 py-2">Fixed fee</th>
+                            <th class="px-3 py-2">Markup %</th>
+                            <th class="px-3 py-2">Auto escalate</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach ($types as $type => $meta)
+                            <tr>
+                                <td class="px-3 py-3 font-semibold text-gray-900 whitespace-nowrap">{{ $meta['label'] }}</td>
+                                <td class="px-3 py-3">
+                                    <input type="number" name="priority_{{ $type }}" min="1" max="99" step="1"
+                                           value="{{ $values['priority'][$type] ?? $meta['default_priority'] ?? 99 }}"
+                                           class="w-16 rounded-lg border-gray-300 text-sm">
+                                </td>
+                                <td class="px-3 py-3">
+                                    <input type="text" name="loan_types_{{ $type }}"
+                                           value="{{ $values['loan_types'][$type] ?? 'all' }}"
+                                           placeholder="all"
+                                           class="w-28 rounded-lg border-gray-300 text-sm font-mono">
+                                </td>
+                                <td class="px-3 py-3">
+                                    <select name="collateral_scope_{{ $type }}" class="rounded-lg border-gray-300 text-sm">
+                                        @foreach (['all' => 'All', 'secured' => 'Secured', 'unsecured' => 'Unsecured'] as $scope => $label)
+                                            <option value="{{ $scope }}" @selected(($values['collateral_scope'][$type] ?? 'all') === $scope)>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </td>
+                                <td class="px-3 py-3">
+                                    <input type="number" name="sla_days_{{ $type }}" min="1" max="90"
+                                           value="{{ $values['sla_days'][$type] ?? $meta['default_sla_days'] }}"
+                                           class="w-16 rounded-lg border-gray-300 text-sm">
+                                </td>
+                                <td class="px-3 py-3">
+                                    <select name="fee_type_{{ $type }}" class="rounded-lg border-gray-300 text-sm">
+                                        <option value="percentage" @selected(($values['fee_type'][$type] ?? 'percentage') === 'percentage')>%</option>
+                                        <option value="fixed" @selected(($values['fee_type'][$type] ?? '') === 'fixed')>Fixed</option>
+                                    </select>
+                                </td>
+                                <td class="px-3 py-3">
+                                    <input type="number" name="commission_percent_{{ $type }}" step="0.1" min="0" max="100"
+                                           value="{{ $values['commission_percent'][$type] ?? $meta['default_commission_percent'] }}"
+                                           class="w-20 rounded-lg border-gray-300 text-sm">
+                                </td>
+                                <td class="px-3 py-3">
+                                    <input type="number" name="fixed_amount_{{ $type }}" step="1" min="0"
+                                           value="{{ $values['fixed_amount'][$type] ?? '' }}"
+                                           class="w-24 rounded-lg border-gray-300 text-sm">
+                                </td>
+                                <td class="px-3 py-3">
+                                    <input type="number" name="markup_percent_{{ $type }}" step="0.1" min="0" max="100"
+                                           value="{{ $values['markup_percent'][$type] ?? $meta['default_markup_percent'] }}"
+                                           class="w-20 rounded-lg border-gray-300 text-sm">
+                                </td>
+                                <td class="px-3 py-3 text-center">
+                                    <input type="hidden" name="auto_escalate_type_{{ $type }}" value="0">
+                                    <input type="checkbox" name="auto_escalate_type_{{ $type }}" value="1"
+                                           @checked((bool) ($values['auto_escalate_type'][$type] ?? true))
+                                           class="rounded border-gray-300 text-amber-600">
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
         </div>
 

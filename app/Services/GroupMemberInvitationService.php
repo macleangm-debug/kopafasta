@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Customer;
 use App\Models\GroupMemberInvitation;
 use App\Models\LoanApplication;
+use App\Models\LoanApplicationDraft;
 use App\Models\LoanProduct;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -16,6 +17,7 @@ class GroupMemberInvitationService
     ) {}
 
     /**
+     * @param  array<string, mixed>|null  $context
      * @return array{invitation_id: int, invitation_url: string, short_url: string, whatsapp_url: string|null, sms_url: string|null, name: string, phone: string}
      */
     public function prepareExternalInvitation(
@@ -27,6 +29,7 @@ class GroupMemberInvitationService
         string $phone,
         ?string $email = null,
         ?int $existingInvitationId = null,
+        ?array $context = null,
     ): array {
         $phone = $this->guarantors->normalizePhone($phone);
         if ($phone === '') {
@@ -51,7 +54,23 @@ class GroupMemberInvitationService
             $email,
             $displayName,
             $existingInvitationId,
+            $context,
         ): array {
+            $context = is_array($context) ? $context : [];
+            $draft = $this->resolveDraftForContext($leader, $product, $context);
+
+            $invitationAttrs = [
+                'loan_product_id'         => $product->id,
+                'loan_application_draft_id' => $draft?->id,
+                'draft_reference'         => $draft?->draft_reference ?? ($context['draft_reference'] ?? null),
+                'invitation_reason'       => $context['invitation_reason'] ?? null,
+                'group_name'              => $context['group_name'] ?? null,
+                'group_purpose'           => $context['group_purpose'] ?? null,
+                'amount_per_member'       => isset($context['amount_per_member']) ? (float) $context['amount_per_member'] : null,
+                'requested_tenure_months' => isset($context['requested_tenure_months']) ? (int) $context['requested_tenure_months'] : null,
+                'repayment_cadence'       => $context['repayment_cadence'] ?? null,
+            ];
+
             $invitation = null;
             if ($existingInvitationId) {
                 $invitation = GroupMemberInvitation::query()
@@ -62,9 +81,8 @@ class GroupMemberInvitationService
             }
 
             if (! $invitation) {
-                $invitation = GroupMemberInvitation::create([
+                $invitation = GroupMemberInvitation::create(array_merge([
                     'leader_customer_id' => $leader->id,
-                    'loan_product_id'    => $product->id,
                     'invitee_first_name' => $firstName,
                     'invitee_middle_name'=> $middleName,
                     'invitee_last_name'  => $lastName,
@@ -74,9 +92,9 @@ class GroupMemberInvitationService
                     'short_code'         => Str::upper(Str::random(8)),
                     'status'             => 'pending',
                     'expires_at'         => now()->addDays(14),
-                ]);
+                ], $invitationAttrs));
             } else {
-                $invitation->update([
+                $invitation->update(array_merge([
                     'invitee_first_name' => $firstName,
                     'invitee_middle_name'=> $middleName,
                     'invitee_last_name'  => $lastName,
@@ -84,7 +102,7 @@ class GroupMemberInvitationService
                     'invitee_email'      => $email,
                     'status'             => 'pending',
                     'expires_at'         => now()->addDays(14),
-                ]);
+                ], $invitationAttrs));
             }
 
             $share = $this->sharePayload($invitation->fresh());
@@ -115,8 +133,12 @@ class GroupMemberInvitationService
             : $url;
 
         $message = __('borrower.apply.group.invite_message', [
-            'leader' => $invitation->leader?->full_name ?? brand_name(),
-            'url'    => $shortUrl,
+            'leader'    => $invitation->leader?->full_name ?? brand_name(),
+            'reference' => $invitation->draft_reference ?: __('borrower.apply.group.loan_label'),
+            'amount'    => $invitation->amount_per_member ? format_money((float) $invitation->amount_per_member) : '—',
+            'tenure'    => $invitation->requested_tenure_months ?: '—',
+            'reason'    => $invitation->invitation_reason ?: __('borrower.apply.group.loan_label'),
+            'url'       => $shortUrl,
         ]);
 
         $phoneDigits = preg_replace('/\D/', '', $invitation->invitee_phone) ?? '';
@@ -358,5 +380,18 @@ class GroupMemberInvitationService
                 $signatures->attachToApplication($application, $invitation);
             }
         }
+    }
+
+    /** @param  array<string, mixed>  $context */
+    private function resolveDraftForContext(Customer $leader, LoanProduct $product, array $context): ?LoanApplicationDraft
+    {
+        if (! empty($context['loan_application_draft_id'])) {
+            return LoanApplicationDraft::query()
+                ->where('id', (int) $context['loan_application_draft_id'])
+                ->where('customer_id', $leader->id)
+                ->first();
+        }
+
+        return app(LoanApplicationDraftService::class)->find($leader, (int) $product->id);
     }
 }

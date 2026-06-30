@@ -13,10 +13,7 @@
             <input name="name" value="{{ old('name', $vendor->name) }}" required class="w-full rounded-lg border-gray-300 text-sm">
         </div>
         <div class="grid sm:grid-cols-2 gap-3">
-            <div>
-                <label class="block text-xs text-gray-500 mb-1">Phone</label>
-                <input name="phone" value="{{ old('phone', $vendor->phone) }}" class="w-full rounded-lg border-gray-300 text-sm">
-            </div>
+            <x-site.phone-input name="phone" label="Phone" :value="old('phone', $vendor->phone)" />
             <div>
                 <label class="block text-xs text-gray-500 mb-1">Email</label>
                 <input name="email" type="email" value="{{ old('email', $vendor->email) }}" class="w-full rounded-lg border-gray-300 text-sm">

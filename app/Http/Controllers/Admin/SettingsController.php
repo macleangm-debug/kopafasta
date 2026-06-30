@@ -328,6 +328,32 @@ class SettingsController extends Controller
         return back()->with('status', 'Offer settings saved.');
     }
 
+    public function authPortal()
+    {
+        return view('admin.settings.auth-portal', [
+            'values' => app(\App\Services\AuthPortalSettingsService::class)->forForm(),
+        ]);
+    }
+
+    public function saveAuthPortal(Request $request)
+    {
+        $data = $request->validate([
+            'require_2fa_admin'        => ['nullable', 'boolean'],
+            'require_2fa_staff'        => ['nullable', 'boolean'],
+            'require_2fa_partner'      => ['nullable', 'boolean'],
+            'two_factor_session_hours' => ['required', 'integer', 'min:1', 'max:168'],
+        ]);
+
+        Setting::setMany([
+            'auth_portal.require_2fa_admin'        => $request->boolean('require_2fa_admin'),
+            'auth_portal.require_2fa_staff'        => $request->boolean('require_2fa_staff'),
+            'auth_portal.require_2fa_partner'      => $request->boolean('require_2fa_partner'),
+            'auth_portal.two_factor_session_hours' => (int) $data['two_factor_session_hours'],
+        ]);
+
+        return back()->with('status', 'Authentication settings saved.');
+    }
+
     public function loanProducts()
     {
         return redirect()->route('admin.loan-products.index');
@@ -364,8 +390,9 @@ class SettingsController extends Controller
             'top_up_min_successful_repayments'      => ['nullable', 'integer', 'min:0', 'max:60'],
             'payment_holiday_accrue_interest'       => ['nullable', 'boolean'],
             'payment_holiday_max_months'            => ['nullable', 'integer', 'min:1', 'max:12'],
-            'group_min_members'                     => ['required', 'integer', 'min:2', 'max:100'],
-            'group_max_members'                     => ['required', 'integer', 'min:2', 'max:200'],
+            'group_min_members'                     => ['required', 'integer', 'min:3', 'max:100'],
+            'group_max_members'                     => ['required', 'integer', 'min:3', 'max:200'],
+            'group_repayment_cadence'               => ['required', 'in:weekly,monthly'],
             'group_leader_unlock_repayments'        => ['required', 'integer', 'min:1', 'max:12'],
             'group_application_fee_per_member'      => ['nullable', 'boolean'],
             'group_post_approval_fee_per_group'     => ['nullable', 'boolean'],
@@ -387,8 +414,8 @@ class SettingsController extends Controller
         $data['qualification_kyc_incomplete_factor'] = (float) ($data['qualification_kyc_incomplete_factor'] ?? 0.5);
         $data['qualification_min_profile_percent'] = (int) ($data['qualification_min_profile_percent'] ?? 60);
 
-        $groupMin = (int) ($data['group_min_members'] ?? 5);
-        $groupMax = (int) ($data['group_max_members'] ?? 30);
+        $groupMin = (int) ($data['group_min_members'] ?? 3);
+        $groupMax = (int) ($data['group_max_members'] ?? 10);
         if ($groupMax < $groupMin) {
             throw \Illuminate\Validation\ValidationException::withMessages([
                 'group_max_members' => 'Maximum group members must be greater than or equal to the minimum.',
@@ -612,6 +639,18 @@ class SettingsController extends Controller
             'default_registration_discount_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'default_application_discount_percent'  => ['required', 'numeric', 'min:0', 'max:100'],
             'default_commission_percent'          => ['required', 'numeric', 'min:0', 'max:100'],
+            'commission_mode'                     => ['required', 'in:percentage,fixed,tiered,hybrid'],
+            'hybrid_fixed_amount'                 => ['nullable', 'numeric', 'min:0'],
+            'hybrid_percent'                      => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'fixed_commission_default'            => ['nullable', 'numeric', 'min:0'],
+            'fixed_commission_registration_fee'   => ['nullable', 'numeric', 'min:0'],
+            'fixed_commission_application_fee'    => ['nullable', 'numeric', 'min:0'],
+            'fixed_commission_post_approval_fee'  => ['nullable', 'numeric', 'min:0'],
+            'commission_tiers'                    => ['nullable', 'array'],
+            'commission_tiers.*.min_count'        => ['nullable', 'integer', 'min:0'],
+            'commission_tiers.*.max_count'        => ['nullable', 'integer', 'min:0'],
+            'commission_tiers.*.type'             => ['nullable', 'in:fixed,percentage'],
+            'commission_tiers.*.amount'           => ['nullable', 'numeric', 'min:0'],
             'commission_calculation_base'         => ['required', 'in:original_amount,discounted_amount'],
             'applies_to'                          => ['nullable', 'array'],
             'applies_to.*'                        => ['nullable', 'boolean'],
@@ -620,6 +659,22 @@ class SettingsController extends Controller
             'message_verification_notice'         => ['nullable', 'string', 'max:500'],
             'message_welcome_partner'             => ['nullable', 'string', 'max:500'],
             'require_kyc_for_verification'        => ['nullable', 'boolean'],
+            'eval_auto_apply_actions'             => ['nullable', 'boolean'],
+            'eval_period_days'                    => ['nullable', 'integer', 'min:1', 'max:365'],
+            'eval_min_events_for_scoring'         => ['nullable', 'integer', 'min:1', 'max:1000'],
+            'eval_watchlist_risk_score'           => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'eval_watchlist_fraud_score'          => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'eval_suspend_risk_score'             => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'eval_suspend_fraud_score'            => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'eval_duplicate_ip_threshold'         => ['nullable', 'integer', 'min:1', 'max:100'],
+            'eval_low_conversion_threshold'       => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'eval_high_click_threshold'           => ['nullable', 'integer', 'min:1', 'max:100000'],
+            'fraud_medium_score'                  => ['nullable', 'integer', 'min:0', 'max:100'],
+            'fraud_high_score'                    => ['nullable', 'integer', 'min:0', 'max:100'],
+            'fraud_blocked_score'                 => ['nullable', 'integer', 'min:0', 'max:100'],
+            'fraud_shared_phone_threshold'        => ['nullable', 'integer', 'min:1', 'max:100'],
+            'fraud_shared_device_threshold'       => ['nullable', 'integer', 'min:1', 'max:100'],
+            'fraud_multi_account_threshold'       => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
         $feeTypes = ['registration_fee', 'application_fee', 'post_approval_fee', 'interest', 'repayments'];
@@ -627,11 +682,56 @@ class SettingsController extends Controller
             ->mapWithKeys(fn (string $type) => [$type => $request->boolean("applies_to.$type")])
             ->all();
 
+        $tiers = collect($data['commission_tiers'] ?? [])
+            ->map(function (array $tier): array {
+                $max = $tier['max_count'] ?? null;
+
+                return [
+                    'min_count' => (int) ($tier['min_count'] ?? 1),
+                    'max_count' => filled($max) ? (int) $max : null,
+                    'type'      => (string) ($tier['type'] ?? 'fixed'),
+                    'amount'    => (float) ($tier['amount'] ?? 0),
+                ];
+            })
+            ->filter(fn (array $tier) => $tier['amount'] > 0)
+            ->values()
+            ->all();
+
         Setting::setMany([
             'affiliates.code_prefix'                         => $data['code_prefix'],
             'affiliates.default_registration_discount_percent' => $data['default_registration_discount_percent'],
             'affiliates.default_application_discount_percent'  => $data['default_application_discount_percent'],
             'affiliates.default_commission_percent'          => $data['default_commission_percent'],
+            'affiliates.commission_mode'                     => $data['commission_mode'],
+            'affiliates.hybrid_fixed_amount'                 => (float) ($data['hybrid_fixed_amount'] ?? 0),
+            'affiliates.hybrid_percent'                      => (float) ($data['hybrid_percent'] ?? 0),
+            'affiliates.fixed_commission_amounts'            => [
+                'default'           => (float) ($data['fixed_commission_default'] ?? 0),
+                'registration_fee'  => (float) ($data['fixed_commission_registration_fee'] ?? 0),
+                'application_fee'   => (float) ($data['fixed_commission_application_fee'] ?? 0),
+                'post_approval_fee' => (float) ($data['fixed_commission_post_approval_fee'] ?? 0),
+            ],
+            'affiliates.commission_tiers'                    => $tiers,
+            'affiliates.evaluation'                          => [
+                'auto_apply_actions'                  => $request->boolean('eval_auto_apply_actions'),
+                'period_days'                         => (int) ($data['eval_period_days'] ?? 30),
+                'min_events_for_scoring'              => (int) ($data['eval_min_events_for_scoring'] ?? 3),
+                'watchlist_risk_score'                => (float) ($data['eval_watchlist_risk_score'] ?? 60),
+                'watchlist_fraud_score'               => (float) ($data['eval_watchlist_fraud_score'] ?? 50),
+                'suspend_risk_score'                  => (float) ($data['eval_suspend_risk_score'] ?? 80),
+                'suspend_fraud_score'                 => (float) ($data['eval_suspend_fraud_score'] ?? 75),
+                'duplicate_ip_registration_threshold' => (int) ($data['eval_duplicate_ip_threshold'] ?? 3),
+                'low_conversion_threshold'            => (float) ($data['eval_low_conversion_threshold'] ?? 5),
+                'high_click_threshold'                => (int) ($data['eval_high_click_threshold'] ?? 50),
+            ],
+            'affiliates.fraud'                               => [
+                'medium_score'                         => (int) ($data['fraud_medium_score'] ?? 20),
+                'high_score'                           => (int) ($data['fraud_high_score'] ?? 50),
+                'blocked_score'                        => (int) ($data['fraud_blocked_score'] ?? 80),
+                'shared_phone_customer_threshold'      => (int) ($data['fraud_shared_phone_threshold'] ?? 2),
+                'shared_device_registration_threshold' => (int) ($data['fraud_shared_device_threshold'] ?? 2),
+                'multi_account_device_threshold'       => (int) ($data['fraud_multi_account_threshold'] ?? 2),
+            ],
             'affiliates.commission_calculation_base'         => $data['commission_calculation_base'],
             'affiliates.applies_to'                          => $appliesTo,
             'affiliates.messages'                            => [
@@ -767,6 +867,10 @@ class SettingsController extends Controller
             'markup_percent'    => [],
             'fee_type'          => [],
             'fixed_amount'      => [],
+            'priority'          => [],
+            'loan_types'        => [],
+            'collateral_scope'  => [],
+            'auto_escalate_type'=> [],
             'repossession_charges' => Setting::get('repossession.charges') ?? [],
         ];
 
@@ -776,6 +880,10 @@ class SettingsController extends Controller
             $values['markup_percent'][$type] = $raw["markup_percent.{$type}"] ?? $meta['default_markup_percent'];
             $values['fee_type'][$type] = $raw["fee_type.{$type}"] ?? ($meta['default_fee_type'] ?? 'percentage');
             $values['fixed_amount'][$type] = $raw["fixed_amount.{$type}"] ?? $meta['default_fixed_amount'];
+            $values['priority'][$type] = $raw["priority.{$type}"] ?? ($meta['default_priority'] ?? 99);
+            $values['loan_types'][$type] = $raw["loan_types.{$type}"] ?? ($meta['default_loan_types'] ?? 'all');
+            $values['collateral_scope'][$type] = $raw["collateral_scope.{$type}"] ?? ($meta['default_collateral_scope'] ?? 'all');
+            $values['auto_escalate_type'][$type] = (bool) ($raw["auto_escalate_type.{$type}"] ?? ($meta['default_auto_escalate'] ?? true));
         }
 
         return view('admin.settings.recovery', compact('values', 'types'));
@@ -799,6 +907,10 @@ class SettingsController extends Controller
             $rules["markup_percent_{$type}"] = ['required', 'numeric', 'min:0', 'max:100'];
             $rules["fee_type_{$type}"] = ['required', 'in:percentage,fixed'];
             $rules["fixed_amount_{$type}"] = ['nullable', 'numeric', 'min:0'];
+            $rules["priority_{$type}"] = ['required', 'integer', 'min:1', 'max:99'];
+            $rules["loan_types_{$type}"] = ['nullable', 'string', 'max:120'];
+            $rules["collateral_scope_{$type}"] = ['required', 'in:all,secured,unsecured'];
+            $rules["auto_escalate_type_{$type}"] = ['nullable', 'boolean'];
         }
 
         foreach (array_keys(config('repossession_charges.asset_types', [])) as $assetType) {
@@ -823,6 +935,12 @@ class SettingsController extends Controller
             $settings["recovery.markup_percent.{$type}"] = $data["markup_percent_{$type}"];
             $settings["recovery.fee_type.{$type}"] = $data["fee_type_{$type}"];
             $settings["recovery.fixed_amount.{$type}"] = $data["fixed_amount_{$type}"] ?? null;
+            $settings["recovery.priority.{$type}"] = $data["priority_{$type}"];
+            $settings["recovery.loan_types.{$type}"] = filled($data["loan_types_{$type}"] ?? null)
+                ? strtoupper(trim((string) $data["loan_types_{$type}"]))
+                : 'all';
+            $settings["recovery.collateral_scope.{$type}"] = $data["collateral_scope_{$type}"];
+            $settings["recovery.auto_escalate_type.{$type}"] = $request->boolean("auto_escalate_type_{$type}");
         }
 
         $repossession = [];

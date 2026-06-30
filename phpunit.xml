@@ -33,5 +33,8 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <env name="REQUIRE_2FA_ADMIN" value="false"/>
+        <env name="REQUIRE_2FA_STAFF" value="false"/>
+        <env name="REQUIRE_2FA_PARTNER" value="false"/>
     </php>
 </phpunit>
