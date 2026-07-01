@@ -102,6 +102,15 @@
                     </label>
                 @endforeach
             </div>
+            <label class="block text-xs font-semibold text-gray-600 mb-2">Profile / identity re-upload</label>
+            <div class="grid sm:grid-cols-2 gap-2 mb-4">
+                @foreach (['Updated National ID', 'New National ID photo', 'New face verification photo', 'Identity verification photo', 'Image Not Clear'] as $preset)
+                    <label class="flex items-start gap-2 text-sm text-gray-700 bg-sky-50 rounded-lg px-3 py-2 ring-1 ring-sky-100">
+                        <input type="checkbox" name="presets[]" value="{{ $preset }}" class="mt-0.5 rounded border-gray-300 text-amber-600">
+                        <span>{{ $preset }}</span>
+                    </label>
+                @endforeach
+            </div>
             <label class="block text-xs font-semibold text-gray-600 mb-2">Other common requests</label>
             <div class="grid sm:grid-cols-2 gap-2">
                 @foreach ($generalPresets as $preset)

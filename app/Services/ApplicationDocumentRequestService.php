@@ -54,6 +54,9 @@ class ApplicationDocumentRequestService
             'New Ownership Document'         => 'Please upload the ownership or logbook document for this asset.',
             'New Asset Photo'                => 'Please upload a clear, recent photo of the asset.',
             'Updated National ID'            => 'Please upload a clear copy of your national ID.',
+            'New National ID photo'          => 'Underwriting needs a clearer national ID photo. Please upload again from your profile.',
+            'New face verification photo'    => 'Underwriting needs new face verification photos. Please recapture them in your profile.',
+            'Identity verification photo'    => 'Please upload a new identity verification photo holding your national ID.',
             'Image Not Clear'                => 'The uploaded image is not clear enough. Please re-upload a sharper photo.',
             'Ownership Certificate Missing Page' => 'The ownership certificate appears incomplete. Please upload all pages.',
         ];
@@ -83,6 +86,7 @@ class ApplicationDocumentRequestService
 
         $this->syncApplicationStatus($application->fresh());
         $this->notifyBorrower($request);
+        app(ProfileRevisionService::class)->applyForDocumentRequest($application->fresh(), $request);
 
         return $request;
     }
@@ -127,6 +131,7 @@ class ApplicationDocumentRequestService
 
         if ($created->isNotEmpty()) {
             $this->notifyBorrowerBatch($application->loadMissing('customer'), $created);
+            app(ProfileRevisionService::class)->applyForLabels($application, $labels);
         }
 
         return $created;

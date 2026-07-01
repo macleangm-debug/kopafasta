@@ -89,7 +89,14 @@ if (! function_exists('loan_purpose_label')) {
 
         return $translated !== 'activity.loan_purposes.'.$key
             ? $translated
-            : (config('loan_purposes.'.$key) ?? $key);
+            : (function () use ($key) {
+                $apply = __('borrower.apply.purposes.'.$key);
+                if ($apply !== 'borrower.apply.purposes.'.$key) {
+                    return $apply;
+                }
+
+                return config('loan_purposes.'.$key) ?? display_label($key, 'loan_purpose');
+            })();
     }
 }
 

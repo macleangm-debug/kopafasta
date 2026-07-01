@@ -8,6 +8,8 @@ return [
 
     'leader_unlock_repayments' => 2,
 
+    'payout_order' => 'leader_first',
+
     'recovery_stages' => [
         'individual'      => 'Individual recovery',
         'group_liability' => 'Group liability',

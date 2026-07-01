@@ -176,6 +176,12 @@ class CustomerDisbursementDetailsService
 
     public function createAccount(Customer $customer, array $data): CustomerDisbursementAccount
     {
+        if (($data['type'] ?? '') === self::METHOD_MOBILE && filled($data['mobile_number'] ?? null)) {
+            $data['mobile_number'] = $this->assertValidMobileNumber(
+                $this->normalizeMobileNumber((string) $data['mobile_number'], $customer)
+            );
+        }
+
         if (! $this->accountNameMatchesBorrower(
             new CustomerDisbursementAccount(['account_name' => $data['account_name'] ?? '']),
             $customer,
@@ -356,7 +362,7 @@ class CustomerDisbursementDetailsService
             return [
                 'type'             => ['required', 'in:'.self::METHOD_MOBILE],
                 'mobile_provider'  => ['required', 'in:'.implode(',', array_keys(self::MOBILE_PROVIDERS))],
-                'mobile_number'    => ['required', 'string', 'regex:/^255\d{9}$/'],
+                'mobile_number'    => ['required', 'string', 'max:20'],
                 'account_name'     => $borrowerNameRule,
             ];
         }
@@ -439,5 +445,46 @@ class CustomerDisbursementDetailsService
         $name = preg_replace('/\s+/', ' ', $name) ?? '';
 
         return $name;
+    }
+
+    public function normalizeMobileNumber(string $phone, ?Customer $customer = null): string
+    {
+        $digits = preg_replace('/\D/', '', $phone) ?? '';
+
+        if ($digits === '') {
+            return $phone;
+        }
+
+        if (str_starts_with($digits, '255') && strlen($digits) === 12) {
+            return $digits;
+        }
+
+        if (str_starts_with($digits, '0') && strlen($digits) === 10) {
+            return '255'.substr($digits, 1);
+        }
+
+        if (strlen($digits) === 9) {
+            return '255'.$digits;
+        }
+
+        if (strlen($digits) > 12 && str_ends_with($digits, substr($digits, -9))) {
+            return '255'.substr($digits, -9);
+        }
+
+        return $digits;
+    }
+
+    /** @throws \Illuminate\Validation\ValidationException */
+    public function assertValidMobileNumber(string $phone): string
+    {
+        $normalized = $this->normalizeMobileNumber($phone);
+
+        if (! preg_match('/^255\d{9}$/', $normalized)) {
+            throw ValidationException::withMessages([
+                'mobile_number' => __('borrower.payment_details.invalid_mobile'),
+            ]);
+        }
+
+        return $normalized;
     }
 }

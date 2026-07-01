@@ -49,6 +49,13 @@ class LoanDisbursementOrchestrator
                 }
             }
 
+            $payoutBlock = app(GroupPayoutService::class)->blockingMessageForLoan($loan);
+            if ($payoutBlock) {
+                throw ValidationException::withMessages([
+                    'disburse' => $payoutBlock,
+                ]);
+            }
+
             $this->capital->allocateForLoan($loan);
 
             $loan->update([
@@ -105,6 +112,8 @@ class LoanDisbursementOrchestrator
                     app(AssetReservationService::class)->syncFromApplication($application->fresh());
                 }
             }
+
+            app(GroupPayoutService::class)->markMemberDisbursed($loan->fresh());
 
             app(LoanDisbursementNotificationService::class)->notifyDisbursement($loan->fresh(['application.customer', 'product', 'repaymentSchedules']));
 

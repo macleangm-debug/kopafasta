@@ -84,13 +84,18 @@
                                 </div>
                             </fieldset>
 
+                            <div class="mb-4">
+                                <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.account_name') }}</label>
+                                <input type="text" name="account_name" value="{{ old('account_name', $borrowerLegalName ?? '') }}" class="w-full rounded-lg border-gray-300 text-sm">
+                            </div>
+
                             <div x-show="type === 'mobile_money'" x-cloak class="space-y-4 border-t border-gray-100 pt-4">
                                 <fieldset>
                                     <legend class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">{{ __('borrower.payment_details.provider') }}</legend>
                                     <div class="grid sm:grid-cols-2 gap-3">
                                         @foreach ($providers as $key => $label)
                                             <label class="inline-flex items-center gap-2 cursor-pointer text-sm">
-                                                <input type="radio" name="mobile_provider" value="{{ $key }}" @checked(old('mobile_provider') === $key) class="text-amber-600">
+                                                <input type="radio" name="mobile_provider" value="{{ $key }}" @checked(old('mobile_provider') === $key) class="text-amber-600" :disabled="type !== 'mobile_money'">
                                                 <span>{{ $label }}</span>
                                             </label>
                                         @endforeach
@@ -98,30 +103,23 @@
                                 </fieldset>
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.phone_number') }}</label>
-                                    <input type="text" name="mobile_number" value="{{ old('mobile_number') }}" placeholder="255XXXXXXXXX" class="w-full rounded-lg border-gray-300 text-sm">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.account_name') }}</label>
-                                    <input type="text" name="account_name" value="{{ old('account_name', $borrowerLegalName ?? '') }}" class="w-full rounded-lg border-gray-300 text-sm">
+                                    <input type="text" name="mobile_number" value="{{ old('mobile_number') }}" placeholder="0712345678 or 255712345678" class="w-full rounded-lg border-gray-300 text-sm" :disabled="type !== 'mobile_money'">
+                                    <p class="text-xs text-gray-500 mt-1">{{ __('borrower.payment_details.mobile_prefix_hint') }}</p>
                                 </div>
                             </div>
 
                             <div x-show="type === 'bank'" x-cloak class="space-y-4 border-t border-gray-100 pt-4">
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.bank_name') }}</label>
-                                    <input type="text" name="bank_name" value="{{ old('bank_name') }}" class="w-full rounded-lg border-gray-300 text-sm">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.account_name') }}</label>
-                                    <input type="text" name="account_name" value="{{ old('account_name', $borrowerLegalName ?? '') }}" class="w-full rounded-lg border-gray-300 text-sm">
+                                    <input type="text" name="bank_name" value="{{ old('bank_name') }}" class="w-full rounded-lg border-gray-300 text-sm" :disabled="type !== 'bank'">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.account_number') }}</label>
-                                    <input type="text" name="account_number" value="{{ old('account_number') }}" class="w-full rounded-lg border-gray-300 text-sm">
+                                    <input type="text" name="account_number" value="{{ old('account_number') }}" class="w-full rounded-lg border-gray-300 text-sm" :disabled="type !== 'bank'">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.branch') }} <span class="text-gray-400 font-normal">({{ __('borrower.payment_details.optional') }})</span></label>
-                                    <input type="text" name="bank_branch" value="{{ old('bank_branch') }}" class="w-full rounded-lg border-gray-300 text-sm">
+                                    <input type="text" name="bank_branch" value="{{ old('bank_branch') }}" class="w-full rounded-lg border-gray-300 text-sm" :disabled="type !== 'bank'">
                                 </div>
                             </div>
                         </div>

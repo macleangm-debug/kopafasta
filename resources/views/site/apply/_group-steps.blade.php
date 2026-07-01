@@ -134,6 +134,7 @@
                 <thead class="text-left text-xs uppercase text-gray-500 border-b border-gray-100">
                     <tr>
                         <th class="py-2 pr-3">{{ __('borrower.apply.group.dashboard.member_name') }}</th>
+                        <th class="py-2 pr-3">{{ __('borrower.apply.group.progress_steps') }}</th>
                         <th class="py-2">{{ __('borrower.apply.group.dashboard.status') }}</th>
                     </tr>
                 </thead>
@@ -144,6 +145,18 @@
                                 <p class="font-medium" x-text="member.name"></p>
                                 <p class="text-xs text-gray-500" x-text="member.phone"></p>
                                 <p x-show="member.role === 'leader'" class="mt-0.5 text-[10px] uppercase tracking-widest text-amber-700 font-semibold">{{ __('borrower.apply.group_members.leader_badge') }}</p>
+                            </td>
+                            <td class="py-2.5 pr-3">
+                                <div class="flex flex-wrap gap-1.5" x-show="(member.progress_steps || []).length">
+                                    <template x-for="step in (member.progress_steps || [])" :key="step.key">
+                                        <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1"
+                                              :class="step.complete ? 'bg-emerald-50 text-emerald-800 ring-emerald-200' : 'bg-gray-50 text-gray-600 ring-gray-200'"
+                                              :title="step.label">
+                                            <span x-text="step.complete ? '✓' : '○'"></span>
+                                            <span x-text="step.label"></span>
+                                        </span>
+                                    </template>
+                                </div>
                             </td>
                             <td class="py-2.5">
                                 <span class="text-xs font-semibold" :class="memberStatusClass(member)" x-text="memberStatusLabel(member)"></span>

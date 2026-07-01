@@ -376,7 +376,11 @@ class LoanApplicationController extends ResourceController
         $customer = $loan_application->customer;
         abort_unless($customer, 404);
 
-        $history = $crbCredit->refreshCreditReport($customer);
+        $history = $crbCredit->refreshCreditReport($customer, app(\App\Services\CrbBillingService::class)->auditContext(
+            $loan_application,
+            auth()->user(),
+            'admin_refresh',
+        ));
         $crbCredit->attachToApplication($loan_application, $history, [
             'reused'    => false,
             'refreshed' => true,
@@ -406,7 +410,11 @@ class LoanApplicationController extends ResourceController
                 continue;
             }
 
-            $history = $crbCredit->refreshCreditReport($customer);
+            $history = $crbCredit->refreshCreditReport($customer, app(\App\Services\CrbBillingService::class)->auditContext(
+                $loan_application,
+                auth()->user(),
+                'admin_group_refresh',
+            ));
             if ($history) {
                 $refreshed++;
             }

@@ -68,6 +68,10 @@
         @include('site.borrower.loan-profile._group_contract_progress', ['groupContract' => $groupContract, 'application' => $application])
     @endif
 
+    @if (! empty($groupPayout ?? null))
+        @include('site.borrower.loan-profile._group_payout_queue', ['groupPayout' => $groupPayout])
+    @endif
+
     @include('site.borrower.loan-profile._handover_milestones', ['profile' => $profile])
 
     @if (! empty($groupFeedback ?? null))

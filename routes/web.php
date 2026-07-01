@@ -724,6 +724,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('compliance/aml-reports', [ComplianceController::class, 'amlReports'])->name('compliance.aml-reports');
         Route::get('compliance/kyc-reports', [ComplianceController::class, 'kycReports'])->name('compliance.kyc-reports');
         Route::get('compliance/exports',     [ComplianceController::class, 'exports'])   ->name('compliance.exports');
+        Route::get('compliance/crb-audit', [ComplianceController::class, 'crbAudit'])->name('compliance.crb-audit');
+        Route::get('compliance/crb-audit/export', [ComplianceController::class, 'crbAuditExport'])->name('compliance.crb-audit.export');
         Route::get('compliance/large-transactions', [ComplianceController::class, 'largeTransactions'])->name('compliance.large-transactions');
         Route::get('compliance/bot-portfolio-export', [ComplianceController::class, 'botPortfolioExport'])->name('compliance.bot-portfolio-export');
         Route::get('compliance/suspicious-activities/{activity}', [ComplianceController::class, 'suspiciousShow'])->name('compliance.suspicious.show');

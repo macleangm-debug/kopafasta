@@ -1672,7 +1672,7 @@
                         }
 
                         this.phase = 'application';
-                        this.rebuildSteps();
+                        this.rebuildSteps(resumeKey);
                         this.step = this.resolveStepIndex(resumeKey, resumeStep);
                         this.updateQuote();
                         this.syncStepKey();
@@ -1942,7 +1942,14 @@
                 async loadPreviousGroupMembers() {
                     if (! this.previousGroupMembersUrl) return;
                     try {
-                        const response = await fetch(this.previousGroupMembersUrl, { headers: { Accept: 'application/json' } });
+                        const excludeIds = (this.group?.members || [])
+                            .map(m => m.customer_id)
+                            .filter(Boolean)
+                            .join(',');
+                        const url = excludeIds
+                            ? `${this.previousGroupMembersUrl}?exclude=${encodeURIComponent(excludeIds)}`
+                            : this.previousGroupMembersUrl;
+                        const response = await fetch(url, { headers: { Accept: 'application/json' } });
                         const data = await response.json();
                         this.previousGroupMembers = data.members || [];
                     } catch (e) {
@@ -2128,17 +2135,15 @@
                         .then(res => res.ok ? res.json() : Promise.reject(res))
                         .then(data => {
                             this.readiness = data;
-                            if (this.phase === 'application' && this.current) {
+                            if (this.phase === 'application' && this.current && ! this.resumeLoading) {
                                 this.rebuildSteps();
-                                if (! this.resumeLoading) {
-                                    this.enforceStepRequirements(this.isResume);
-                                }
+                                this.enforceStepRequirements(this.isResume);
+                                this.syncStepKey();
                             }
                             if (data.fees?.application !== undefined) {
                                 this.applicationFee = data.fees.application;
                                 this.syncFeePaidState();
                             }
-                            this.syncStepKey();
                             return data;
                         })
                         .catch(() => {
@@ -2180,8 +2185,8 @@
                     return { ...step, icon: this.stepIcons[step.key] || '' };
                 },
 
-                rebuildSteps() {
-                    const prevKey = this.stepKey || this.steps[this.step]?.key || '';
+                rebuildSteps(preserveStepKey = null) {
+                    const prevKey = preserveStepKey || this.stepKey || this.steps[this.step]?.key || '';
                     if (this.readiness?.step_plan?.length) {
                         this.steps = this.readiness.step_plan.map(s => this.withStepIcon(s));
                     } else if (this.initialPlan?.length) {

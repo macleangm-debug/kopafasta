@@ -368,13 +368,19 @@ class ApplyController extends Controller
         ]);
     }
 
-    public function previousGroupMembers(GroupMemberInvitationService $invites): \Illuminate\Http\JsonResponse
+    public function previousGroupMembers(Request $request, GroupMemberInvitationService $invites): \Illuminate\Http\JsonResponse
     {
         $leader = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
         abort_unless($leader, 403);
 
+        $exclude = collect(explode(',', (string) $request->query('exclude', '')))
+            ->map(fn ($id) => (int) trim($id))
+            ->filter(fn ($id) => $id > 0)
+            ->values()
+            ->all();
+
         return response()->json([
-            'members' => $invites->previousMembersForLeader($leader),
+            'members' => $invites->previousMembersForLeader($leader, $exclude),
         ]);
     }
 
@@ -496,6 +502,8 @@ class ApplyController extends Controller
                     $row['status_label'] = $status['label'];
                 }
             }
+
+            $row['progress_steps'] = $progress->stepsForMemberRow($row);
 
             return $row;
         })->values();

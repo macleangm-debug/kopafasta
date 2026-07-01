@@ -122,7 +122,7 @@ class CrbCreditCheckService
         }
     }
 
-    public function refreshCreditReport(Customer $customer): ?CreditHistory
+    public function refreshCreditReport(Customer $customer, array $auditContext = []): ?CreditHistory
     {
         if (! filled($customer->national_id)) {
             return null;
@@ -153,6 +153,10 @@ class CrbCreditCheckService
             'search_score' => $identityResult->searchScore,
             'identity_raw' => $identityResult->raw,
         ]);
+
+        if ($auditContext !== []) {
+            $payload['audit'] = $auditContext;
+        }
 
         return CreditHistory::create([
             'customer_id' => $customer->id,

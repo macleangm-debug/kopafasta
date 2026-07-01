@@ -288,8 +288,13 @@ class SettingsController extends Controller
             'max_mismatch_attempts' => ['required', 'integer', 'min:1', 'max:10'],
             'lock_days'             => ['required', 'integer', 'min:1', 'max:365'],
             'require_dob'           => ['nullable', 'boolean'],
+            'require_facial'        => ['nullable', 'boolean'],
+            'require_nida'          => ['nullable', 'boolean'],
+            'verification_stage'    => ['required', 'in:profile_creation,underwriting'],
         ]);
         $data['require_dob'] = (bool) ($data['require_dob'] ?? false);
+        $data['require_facial'] = (bool) ($data['require_facial'] ?? true);
+        $data['require_nida'] = (bool) ($data['require_nida'] ?? true);
 
         Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["identity_verification.$k" => $v])->all());
 
@@ -394,6 +399,7 @@ class SettingsController extends Controller
             'group_max_members'                     => ['required', 'integer', 'min:3', 'max:200'],
             'group_repayment_cadence'               => ['required', 'in:weekly,monthly'],
             'group_leader_unlock_repayments'        => ['required', 'integer', 'min:1', 'max:12'],
+            'group_payout_order'                    => ['required', 'in:leader_first,leader_last,manual,random,rotation,committee'],
             'group_application_fee_per_member'      => ['nullable', 'boolean'],
             'group_post_approval_fee_per_group'     => ['nullable', 'boolean'],
         ]);
@@ -424,6 +430,9 @@ class SettingsController extends Controller
         $data['group_min_members'] = $groupMin;
         $data['group_max_members'] = $groupMax;
         $data['group_leader_unlock_repayments'] = max(1, (int) ($data['group_leader_unlock_repayments'] ?? 2));
+        $data['group_payout_order'] = in_array($data['group_payout_order'] ?? '', ['leader_first', 'leader_last', 'manual', 'random', 'rotation', 'committee'], true)
+            ? $data['group_payout_order']
+            : 'leader_first';
         $data['group_application_fee_per_member'] = (bool) ($data['group_application_fee_per_member'] ?? config('group_lending.application_fee_per_member', false));
         $data['group_post_approval_fee_per_group'] = (bool) ($data['group_post_approval_fee_per_group'] ?? config('group_lending.post_approval_fee_per_group', true));
 

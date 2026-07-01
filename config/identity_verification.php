@@ -5,4 +5,7 @@ return [
     'lock_hours'            => env('NIDA_LOCK_HOURS') !== null ? (int) env('NIDA_LOCK_HOURS') : 24,
     'lock_days'             => (int) env('NIDA_LOCK_DAYS', 1),
     'require_dob'           => (bool) env('NIDA_REQUIRE_DOB', true),
+    'require_facial'        => true,
+    'require_nida'          => true,
+    'verification_stage'    => 'underwriting',
 ];

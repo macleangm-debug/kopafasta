@@ -158,6 +158,8 @@ class ApplicationProgressService
     public function requirements(Customer $customer, ?LoanProduct $product, ?LoanApplicationDraft $draft = null): array
     {
         $items = [];
+        $identityPolicy = app(IdentityVerificationPolicyService::class);
+        $requireIdentityDuringProfile = $identityPolicy->requiredDuringProfileCreation();
 
         $items[] = [
             'key'        => 'personal',
@@ -166,19 +168,23 @@ class ApplicationProgressService
             'action_url' => route('site.borrower.profile', ['section' => 'personal']),
         ];
 
-        $items[] = [
-            'key'        => 'nida_docs',
-            'label'      => __('borrower.profile.nida_front'),
-            'complete'   => $this->profileValidation->nationalIdUploadsComplete($customer),
-            'action_url' => route('site.borrower.profile', ['section' => 'personal']),
-        ];
+        if ($requireIdentityDuringProfile || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'nida_docs')) {
+            $items[] = [
+                'key'        => 'nida_docs',
+                'label'      => __('borrower.profile.nida_front'),
+                'complete'   => app(ProfileRevisionService::class)->nidaStepComplete($customer),
+                'action_url' => route('site.borrower.profile', ['section' => 'personal']),
+            ];
+        }
 
-        $items[] = [
-            'key'        => 'face',
-            'label'      => __('borrower.nida.face_title'),
-            'complete'   => $this->face->profileStepComplete($customer),
-            'action_url' => route('site.borrower.face-verification'),
-        ];
+        if ($requireIdentityDuringProfile || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'face')) {
+            $items[] = [
+                'key'        => 'face',
+                'label'      => __('borrower.nida.face_title'),
+                'complete'   => app(ProfileRevisionService::class)->faceStepComplete($customer),
+                'action_url' => route('site.borrower.face-verification'),
+            ];
+        }
 
         $items[] = [
             'key'        => 'kin',

@@ -32,6 +32,11 @@ class GroupLendingService
         return max(1, (int) ($loan['group_leader_unlock_repayments'] ?? config('group_lending.leader_unlock_repayments', 2)));
     }
 
+    public function payoutOrder(): string
+    {
+        return app(GroupPayoutService::class)->payoutOrder();
+    }
+
     public function applicationFeePerMember(): bool
     {
         return true;
@@ -150,9 +155,11 @@ class GroupLendingService
 
         $this->validateMemberCount(count($members));
 
-        $leaderId = collect($members)->firstWhere('role', 'leader')['customer_id']
+        $leaderId = (int) (collect($members)->firstWhere('role', 'leader')['customer_id']
             ?? $members[0]['customer_id']
-            ?? $application->customer_id;
+            ?? $application->customer_id);
+
+        $orderedMembers = app(GroupPayoutService::class)->orderedMembersForCreation($members, $leaderId);
 
         $group = LoanGroup::create([
             'group_number'           => 'GRP-'.now()->format('ymd').'-'.Str::upper(Str::random(4)),
@@ -165,9 +172,10 @@ class GroupLendingService
             'target_member_count'    => $targetMemberCount ?: count($members),
         ]);
 
-        foreach (array_values($members) as $index => $row) {
+        foreach (array_values($orderedMembers) as $index => $row) {
             $customerId = (int) ($row['customer_id'] ?? 0);
-            $isLeader = $customerId === (int) $leaderId;
+            $isLeader = $customerId === $leaderId;
+            $isFirstInQueue = $index === 0;
             LoanGroupMember::create([
                 'loan_group_id'              => $group->id,
                 'customer_id'                => $customerId,
@@ -176,8 +184,8 @@ class GroupLendingService
                 'role'                       => $isLeader ? 'leader' : 'member',
                 'requested_amount'           => isset($row['requested_amount']) ? (float) $row['requested_amount'] : null,
                 'sort_order'                 => $index + 1,
-                'disbursement_status'        => $isLeader ? 'unlocked' : 'locked',
-                'disbursement_unlocked_at'   => $isLeader ? now() : null,
+                'disbursement_status'        => $isFirstInQueue ? 'unlocked' : 'locked',
+                'disbursement_unlocked_at'   => $isFirstInQueue ? now() : null,
                 'onboarding_status'          => 'complete',
                 'underwriting_status'        => 'pending',
             ]);
@@ -214,8 +222,8 @@ class GroupLendingService
     {
         $group->loadMissing('members');
 
-        $leader = $group->members->firstWhere('role', 'leader');
-        if (! $leader || $leader->successful_repayments < $this->leaderUnlockRepayments()) {
+        $gatekeeper = app(GroupPayoutService::class)->gatekeeperMember($group);
+        if (! $gatekeeper || (int) $gatekeeper->successful_repayments < $this->leaderUnlockRepayments()) {
             return null;
         }
 

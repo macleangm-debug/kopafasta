@@ -271,8 +271,10 @@
                         default      => 'bg-gray-100 text-gray-600',
                     };
                     $label = $latest
-                        ? ucfirst(str_replace('_',' ', $latest->status))
-                        : ($req->is_required ? 'Required' : 'Optional');
+                        ? (__('borrower.application.upload_statuses.'.$latest->status) !== 'borrower.application.upload_statuses.'.$latest->status
+                            ? __('borrower.application.upload_statuses.'.$latest->status)
+                            : display_label($latest->status, 'record_status'))
+                        : ($req->is_required ? __('borrower.application.status_required') : __('borrower.application.status_optional'));
                 @endphp
                 <li id="requirement-{{ $req->id }}" class="p-5">
                     <div class="flex items-start justify-between gap-3 mb-2 flex-wrap">

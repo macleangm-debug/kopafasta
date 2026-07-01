@@ -50,6 +50,10 @@ class BorrowerApplicationsDashboardService
             $items[] = $this->formatSubmitted($application);
         }
 
+        foreach (app(GroupMemberApplicationService::class)->applicationRowsForCustomer($customer) as $row) {
+            $items[] = $row;
+        }
+
         return collect($items)
             ->sortByDesc(fn (array $row) => $row['sort_at'])
             ->values()

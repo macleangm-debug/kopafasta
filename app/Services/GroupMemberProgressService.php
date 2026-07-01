@@ -129,6 +129,7 @@ class GroupMemberProgressService
                 'status_key'      => $status['key'],
                 'status_label'    => $status['label'],
                 'status_complete' => $status['complete'],
+                'progress_steps'  => $this->stepsForMemberRow($member),
             ]);
         })->values();
 
@@ -165,6 +166,58 @@ class GroupMemberProgressService
             'members'               => $rows->all(),
             'can_submit'            => $canSubmit,
             'summary'               => $summary,
+        ];
+    }
+
+    /** @return list<array{key: string, label: string, complete: bool, pending: bool}> */
+    public function stepsForMemberRow(array $memberRow): array
+    {
+        $customer = null;
+        $invitationId = (int) ($memberRow['invitation_id'] ?? 0);
+        if ($invitationId > 0) {
+            $invitation = GroupMemberInvitation::find($invitationId);
+            if ($invitation?->customer_id) {
+                $customer = Customer::find($invitation->customer_id);
+            }
+        }
+        if (! $customer && filled($memberRow['customer_id'] ?? null)) {
+            $customer = Customer::find((int) $memberRow['customer_id']);
+        }
+
+        if (! $customer) {
+            return [
+                $this->step('profile', false),
+                $this->step('documents', false),
+                $this->step('verification', false),
+            ];
+        }
+
+        $requirements = app(ApplicationRequirementsService::class)->checklist($customer);
+        $profileComplete = app(ProfileCompletionService::class)->isFullyComplete($customer);
+        $itemRows = collect($requirements['items'] ?? []);
+        $documentsComplete = $itemRows
+            ->filter(fn (array $item) => in_array($item['key'] ?? '', ['documents', 'supporting_documents', 'income_proof'], true)
+                || str_contains((string) ($item['key'] ?? ''), 'document'))
+            ->every(fn (array $item) => (bool) ($item['complete'] ?? false));
+        if ($itemRows->isEmpty()) {
+            $documentsComplete = $profileComplete;
+        }
+
+        return [
+            $this->step('profile', $profileComplete),
+            $this->step('documents', $documentsComplete),
+            $this->step('verification', (bool) ($requirements['can_apply'] ?? false)),
+        ];
+    }
+
+    /** @return array{key: string, label: string, complete: bool, pending: bool} */
+    private function step(string $key, bool $complete): array
+    {
+        return [
+            'key'      => $key,
+            'label'    => __('borrower.apply.group.progress_step.'.$key),
+            'complete' => $complete,
+            'pending'  => ! $complete,
         ];
     }
 

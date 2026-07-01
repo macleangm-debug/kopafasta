@@ -68,6 +68,55 @@
             <button type="submit" class="inline-flex bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-sm">{{ __('admin.group_review.save_group_feedback') }}</button>
         </form>
 
+        @if ($groupReview['payout_queue'] ?? null)
+            @php $payout = $groupReview['payout_queue']; @endphp
+            <div class="px-5 py-4 border-b border-gray-100 bg-slate-50">
+                <h4 class="text-xs font-semibold uppercase tracking-widest text-gray-600 mb-3">{{ __('admin.group_review.payout.title') }}</h4>
+                <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm mb-4">
+                    <div>
+                        <span class="text-gray-500 block text-xs">{{ __('admin.group_review.payout.order') }}</span>
+                        <span class="font-semibold">{{ __('admin.group_review.payout.orders.'.$payout['payout_order']) }}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 block text-xs">{{ __('admin.group_review.payout.installments_between') }}</span>
+                        <span class="font-semibold">{{ $payout['installments_between'] }}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 block text-xs">{{ __('admin.group_review.payout.current') }}</span>
+                        <span class="font-semibold">{{ $payout['current_recipient']['name'] ?? '—' }}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 block text-xs">{{ __('admin.group_review.payout.next') }}</span>
+                        <span class="font-semibold">{{ $payout['next_recipient']['name'] ?? '—' }}</span>
+                    </div>
+                </div>
+                <div class="overflow-x-auto rounded-lg ring-1 ring-gray-200 bg-white">
+                    <table class="w-full text-xs">
+                        <thead class="bg-gray-50 text-left uppercase text-gray-500">
+                            <tr>
+                                <th class="px-3 py-2">#</th>
+                                <th class="px-3 py-2">{{ __('admin.group_review.col_member') }}</th>
+                                <th class="px-3 py-2">{{ __('admin.group_review.payout.queue_status') }}</th>
+                                <th class="px-3 py-2">{{ __('admin.group_review.payout.repayments') }}</th>
+                                <th class="px-3 py-2">{{ __('admin.group_review.payout.outstanding') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @foreach ($payout['members'] ?? [] as $row)
+                                <tr>
+                                    <td class="px-3 py-2">{{ $row['sort_order'] }}</td>
+                                    <td class="px-3 py-2">{{ $row['name'] }}</td>
+                                    <td class="px-3 py-2">{{ $row['disbursement_label'] }}</td>
+                                    <td class="px-3 py-2">{{ $row['repayments_made'] }} / {{ $row['repayments_required'] }}</td>
+                                    <td class="px-3 py-2">{{ isset($row['outstanding_balance']) ? format_money($row['outstanding_balance']) : '—' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
+
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">

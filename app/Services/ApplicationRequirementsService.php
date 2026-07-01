@@ -22,7 +22,10 @@ class ApplicationRequirementsService
         $face = app(FaceVerificationService::class);
         $freshness = app(KycFreshnessService::class);
         $profile = app(ProfileCompletionService::class);
-        $requireNida = (bool) (Setting::group('kyc')['require_nida'] ?? true);
+        $identityPolicy = app(IdentityVerificationPolicyService::class);
+        $requireNida = (bool) (Setting::group('kyc')['require_nida'] ?? true)
+            && $identityPolicy->requiredDuringProfileCreation()
+            && $identityPolicy->nidaRequired();
 
         $items = [
             [
@@ -64,32 +67,38 @@ class ApplicationRequirementsService
         $faceStatus = $customer->face_verification_status ?? 'incomplete';
         $faceSubmitted = in_array($faceStatus, ['pending', 'verified'], true);
 
-        $items[] = [
-            'key'        => 'face_submitted',
-            'label'      => 'Face verification submitted',
-            'complete'   => $faceSubmitted,
-            'pending'    => false,
-            'detail'     => match ($faceStatus) {
-                'verified', 'pending' => 'Photos captured and uploaded',
-                'rejected' => 'Rejected — please recapture photos',
-                default    => 'Complete the 4-step face capture',
-            },
-            'action_url' => $faceSubmitted ? null : route('site.borrower.face-verification'),
-        ];
+        if ($identityPolicy->requiredDuringProfileCreation() && $identityPolicy->facialRequired()) {
+            $items[] = [
+                'key'        => 'face_submitted',
+                'label'      => 'Face verification submitted',
+                'complete'   => $faceSubmitted,
+                'pending'    => false,
+                'detail'     => match ($faceStatus) {
+                    'verified', 'pending' => 'Photos captured and uploaded',
+                    'rejected' => 'Rejected — please recapture photos',
+                    'revision_required' => 'Underwriting requested new photos',
+                    default    => 'Complete the 4-step face capture',
+                },
+                'action_url' => $faceSubmitted ? null : route('site.borrower.face-verification'),
+            ];
 
-        $items[] = [
-            'key'        => 'face_approval',
-            'label'      => 'Face verification approval',
-            'complete'   => $face->canApply($customer),
-            'pending'    => $faceStatus === 'pending',
-            'detail'     => match ($faceStatus) {
-                'verified' => 'Approved by underwriting',
-                'pending'  => 'Awaiting loan officer review',
-                'rejected' => 'Rejected — please recapture photos',
-                default    => 'Submit face photos first',
-            },
-            'action_url' => $faceStatus === 'rejected' ? route('site.borrower.face-verification') : null,
-        ];
+            $items[] = [
+                'key'        => 'face_approval',
+                'label'      => 'Face verification approval',
+                'complete'   => $face->canApply($customer),
+                'pending'    => $faceStatus === 'pending',
+                'detail'     => match ($faceStatus) {
+                    'verified' => 'Approved by underwriting',
+                    'pending'  => 'Awaiting loan officer review',
+                    'rejected' => 'Rejected — please recapture photos',
+                    'revision_required' => 'Underwriting requested new photos',
+                    default    => 'Submit face photos first',
+                },
+                'action_url' => in_array($faceStatus, ['rejected', 'revision_required'], true)
+                    ? route('site.borrower.face-verification')
+                    : null,
+            ];
+        }
 
         $profileResult = $profile->calculate($customer);
         $items[] = [

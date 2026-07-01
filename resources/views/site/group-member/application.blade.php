@@ -59,8 +59,8 @@
                                     <thead class="bg-gray-50 text-xs uppercase text-gray-500">
                                         <tr>
                                             <th class="text-left px-3 py-2">#</th>
-                                            <th class="text-left px-3 py-2">{{ __('borrower.apply.review.due_date') }}</th>
-                                            <th class="text-right px-3 py-2">{{ __('borrower.apply.review.installment') }}</th>
+                                            <th class="text-left px-3 py-2">{{ __('borrower.apply.review_step.col_due_date') }}</th>
+                                            <th class="text-right px-3 py-2">{{ __('borrower.apply.review_step.col_total') }}</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-gray-100">
@@ -111,6 +111,10 @@
                         </table>
                     </div>
                 </section>
+
+                @if (! empty($group_payout ?? null))
+                    @include('site.borrower.loan-profile._group_payout_queue', ['groupPayout' => $group_payout])
+                @endif
             </div>
 
             <aside class="space-y-4">

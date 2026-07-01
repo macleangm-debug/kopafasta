@@ -212,10 +212,15 @@ class GroupMemberInvitationService
     /**
      * @return list<array{customer_id: int, name: string, phone: string, label: string}>
      */
-    public function previousMembersForLeader(Customer $leader): array
+    public function previousMembersForLeader(Customer $leader, array $excludeCustomerIds = []): array
     {
         $seen = [];
         $items = [];
+        $exclude = collect($excludeCustomerIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->flip()
+            ->all();
 
         $invitations = GroupMemberInvitation::query()
             ->where('leader_customer_id', $leader->id)
@@ -233,7 +238,7 @@ class GroupMemberInvitationService
             }
 
             $key = (string) $member->id;
-            if (isset($seen[$key])) {
+            if (isset($seen[$key]) || isset($exclude[$member->id])) {
                 continue;
             }
             $seen[$key] = true;

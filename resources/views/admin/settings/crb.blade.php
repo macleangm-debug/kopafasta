@@ -69,7 +69,10 @@
     </div>
 
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 mb-6 overflow-hidden">
-        <h3 class="text-sm font-semibold text-gray-900 mb-4">Monthly usage (last 6 months)</h3>
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h3 class="text-sm font-semibold text-gray-900">Monthly usage (last 6 months)</h3>
+            <a href="{{ route('admin.compliance.crb-audit') }}" class="text-sm font-semibold text-amber-700 hover:text-amber-800">Full audit &amp; billing report →</a>
+        </div>
         <table class="min-w-full text-sm">
             <thead class="text-left text-xs uppercase tracking-wider text-gray-500 border-b border-gray-100">
                 <tr>

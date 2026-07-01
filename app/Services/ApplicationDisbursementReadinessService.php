@@ -278,6 +278,14 @@ class ApplicationDisbursementReadinessService
             $messages[] = 'Guarantor must sign before disbursement.';
         }
 
+        $application->loadMissing(['loan', 'loanGroup']);
+        if ($application->loan && $application->loan_group_id) {
+            $payoutBlock = app(GroupPayoutService::class)->blockingMessageForLoan($application->loan);
+            if ($payoutBlock) {
+                $messages[] = $payoutBlock;
+            }
+        }
+
         $capital = $this->capitalReadiness($application);
         if ($capital && ! $capital['ok'] && $capital['message']) {
             $messages[] = $capital['message'];

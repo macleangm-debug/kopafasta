@@ -134,6 +134,8 @@ class BorrowerController extends Controller
         $applicationsDashboard = app(\App\Services\BorrowerApplicationsDashboardService::class);
         $activeApplicationRows = $activeApplications
             ->map(fn (LoanApplication $app) => $applicationsDashboard->formatSubmitted($app))
+            ->merge(collect(app(\App\Services\GroupMemberApplicationService::class)->applicationRowsForCustomer($customer)))
+            ->values()
             ->all();
 
         // Active loan products — public catalogue order
@@ -191,8 +193,13 @@ class BorrowerController extends Controller
         $profile = app(\App\Services\LoanApplicationProfileService::class)->forApplication($customer, $application);
         $groupFeedback = app(\App\Services\GroupLoanMemberReviewService::class)->leaderFeedbackSummary($application);
         $groupContract = app(\App\Services\GroupMemberReplacementService::class)->leaderDashboard($application, $customer);
+        $groupPayout = null;
+        $application->loadMissing('loanGroup');
+        if ($application->loanGroup) {
+            $groupPayout = app(\App\Services\GroupPayoutService::class)->queueForGroup($application->loanGroup);
+        }
 
-        return view('site.borrower.loan-profile', compact('customer', 'profile', 'groupFeedback', 'groupContract'));
+        return view('site.borrower.loan-profile', compact('customer', 'profile', 'groupFeedback', 'groupContract', 'groupPayout'));
     }
 
     public function applicationOffer(LoanApplication $application): View

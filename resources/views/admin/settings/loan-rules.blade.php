@@ -88,7 +88,19 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <x-admin.input name="group_min_members" label="Minimum group members" type="number" :value="$values['group_min_members'] ?? '3'" required />
                 <x-admin.input name="group_max_members" label="Maximum group members" type="number" :value="$values['group_max_members'] ?? '10'" required />
-                <x-admin.input name="group_leader_unlock_repayments" label="Leader repayments before next member unlocks" type="number" :value="$values['group_leader_unlock_repayments'] ?? '2'" required />
+                <x-admin.input name="group_leader_unlock_repayments" label="Installments before next payout unlocks" type="number" :value="$values['group_leader_unlock_repayments'] ?? '2'" required />
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Payout order</label>
+                    @php $payoutOrder = $values['group_payout_order'] ?? 'leader_first'; @endphp
+                    <select name="group_payout_order" class="w-full rounded-lg border-gray-300 text-sm">
+                        <option value="leader_first" @selected($payoutOrder === 'leader_first')>Leader first</option>
+                        <option value="leader_last" @selected($payoutOrder === 'leader_last')>Leader last</option>
+                        <option value="manual" @selected($payoutOrder === 'manual')>Manual (wizard member order)</option>
+                        <option value="random" @selected($payoutOrder === 'random')>Random (fixed at submission)</option>
+                        <option value="rotation" @selected($payoutOrder === 'rotation')>Rotation</option>
+                        <option value="committee" @selected($payoutOrder === 'committee')>Committee (alphabetical)</option>
+                    </select>
+                </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Group repayment cadence</label>
                     <select name="group_repayment_cadence" class="w-full rounded-lg border-gray-300 text-sm">

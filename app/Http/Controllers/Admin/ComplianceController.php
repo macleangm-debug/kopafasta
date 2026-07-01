@@ -12,6 +12,7 @@ use App\Models\SystemSetting;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -180,5 +181,82 @@ class ComplianceController extends Controller
     {
         $v = optional(SystemSetting::where('key', 'aml.large_txn_threshold')->first())->value;
         return is_numeric($v) ? (float) $v : 10_000_000.0;
+    }
+
+    public function crbAudit(Request $request)
+    {
+        $from = $request->filled('from')
+            ? Carbon::parse($request->input('from'))->startOfDay()
+            : now()->startOfMonth();
+        $to = $request->filled('to')
+            ? Carbon::parse($request->input('to'))->endOfDay()
+            : now()->endOfDay();
+
+        $billing = app(\App\Services\CrbBillingService::class);
+        $report = $billing->auditReport(CarbonImmutable::parse($from), CarbonImmutable::parse($to));
+
+        return view('admin.compliance.crb-audit', [
+            'report' => $report,
+            'from'   => $from->toDateString(),
+            'to'     => $to->toDateString(),
+            'cost'   => $billing->costPerRequest(),
+        ]);
+    }
+
+    public function crbAuditExport(Request $request)
+    {
+        $from = $request->filled('from')
+            ? CarbonImmutable::parse($request->input('from'))->startOfDay()
+            : CarbonImmutable::now()->startOfMonth();
+        $to = $request->filled('to')
+            ? CarbonImmutable::parse($request->input('to'))->endOfDay()
+            : CarbonImmutable::now()->endOfDay();
+
+        $rows = app(\App\Services\CrbBillingService::class)->auditReport($from, $to)['rows'];
+
+        $filename = 'crb-audit-'.$from->format('Y-m-d').'-to-'.$to->format('Y-m-d').'.csv';
+        $headers = [
+            'Content-Type'        => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ];
+
+        $callback = static function () use ($rows): void {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, [
+                'Request Date',
+                'Request Time',
+                'Customer Name',
+                'NIDA',
+                'Application ID',
+                'Group/Individual',
+                'Provider',
+                'Request Status',
+                'Response Status',
+                'Cost',
+                'Invoice Status',
+                'Requested By',
+                'Reference Number',
+            ]);
+            foreach ($rows as $row) {
+                fputcsv($handle, [
+                    $row['request_date'],
+                    $row['request_time'],
+                    $row['customer_name'],
+                    $row['national_id'],
+                    $row['application_id'],
+                    $row['application_type'],
+                    $row['provider'],
+                    $row['request_status'],
+                    $row['response_status'],
+                    $row['cost'],
+                    $row['invoice_status'],
+                    $row['requested_by'],
+                    $row['reference_number'],
+                ]);
+            }
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }
