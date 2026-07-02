@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Setting;
+use App\Models\User;
 
 class AuthPortalSettingsService
 {
@@ -29,6 +30,32 @@ class AuthPortalSettingsService
             'partner' => $this->require2faPartner(),
             default   => false,
         };
+    }
+
+    public function twoFactorContextForUser(User $user): ?string
+    {
+        $roles = app(RoleService::class);
+
+        if ($user->role === 'vendor') {
+            return 'partner';
+        }
+
+        if ($roles->isStaff($user->role)) {
+            return $roles->hasConsoleAccess($user) ? 'admin' : 'staff';
+        }
+
+        if ($roles->hasConsoleAccess($user)) {
+            return 'admin';
+        }
+
+        return null;
+    }
+
+    public function isRequiredForUser(User $user): bool
+    {
+        $context = $this->twoFactorContextForUser($user);
+
+        return $context !== null && $this->isRequired($context);
     }
 
     public function twoFactorSessionHours(): int

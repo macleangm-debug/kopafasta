@@ -9,7 +9,7 @@
         <div class="mb-4 rounded-lg bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">{{ session('warning') }}</div>
     @endif
 
-    @if (! $twoFactorOn)
+    @if ($twoFactorRequired && ! $twoFactorOn)
         <div class="mb-6 rounded-xl bg-amber-50 ring-1 ring-amber-200 p-4 text-sm text-amber-900">
             Two-factor authentication is required for staff accounts.
             <a href="{{ route('staff.security') }}" class="font-semibold underline ml-1">Set up 2FA</a>

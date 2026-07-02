@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use App\Models\User;
 use App\Services\TotpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -55,6 +56,8 @@ class TwoFactorAuthTest extends TestCase
 
     public function test_login_requires_2fa_code_when_enabled(): void
     {
+        Config::set('auth_portal.require_2fa_admin', true);
+
         $secret = app(TotpService::class)->generateSecret();
         $user = User::factory()->create([
             'email' => 'tfa@example.com',
@@ -73,6 +76,8 @@ class TwoFactorAuthTest extends TestCase
 
     public function test_login_succeeds_with_valid_2fa_code(): void
     {
+        Config::set('auth_portal.require_2fa_admin', true);
+
         $secret = app(TotpService::class)->generateSecret();
         $code = app(TotpService::class)->currentCode($secret);
 
@@ -94,6 +99,8 @@ class TwoFactorAuthTest extends TestCase
 
     public function test_login_accepts_recovery_code_and_consumes_it(): void
     {
+        Config::set('auth_portal.require_2fa_admin', true);
+
         $secret = app(TotpService::class)->generateSecret();
         $user = User::factory()->create([
             'email' => 'tfa@example.com',
@@ -117,6 +124,8 @@ class TwoFactorAuthTest extends TestCase
 
     public function test_login_with_wrong_2fa_code_fails_and_audits(): void
     {
+        Config::set('auth_portal.require_2fa_admin', true);
+
         $secret = app(TotpService::class)->generateSecret();
         User::factory()->create([
             'email' => 'tfa@example.com',

@@ -20,7 +20,8 @@ class StaffPortalController extends Controller
             'shortcuts'    => $portal->shortcuts($user),
             'roleLabel'    => $roles->label($user->role),
             'hasConsole'   => $roles->hasConsoleAccess($user),
-            'twoFactorOn'  => app(WebTwoFactorAuthService::class)->isEnabled($user),
+            'twoFactorOn'       => app(WebTwoFactorAuthService::class)->isEnabled($user),
+            'twoFactorRequired' => app(WebTwoFactorAuthService::class)->isRequired('staff'),
         ]);
     }
 

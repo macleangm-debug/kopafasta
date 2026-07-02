@@ -7,6 +7,7 @@ use App\Models\TrustedDevice;
 use App\Models\User;
 use App\Services\TotpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -16,6 +17,8 @@ class TrustedDevicesTest extends TestCase
 
     private function user2fa(): array
     {
+        Config::set('auth_portal.require_2fa_admin', true);
+
         $secret = app(TotpService::class)->generateSecret();
         $user = User::factory()->create([
             'email' => 'td@example.com',

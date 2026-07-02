@@ -129,7 +129,8 @@ class AuthController extends Controller
             ], 423);
         }
 
-        if ($user->two_factor_confirmed_at && $user->two_factor_secret) {
+        if ($user->two_factor_confirmed_at && $user->two_factor_secret
+            && app(\App\Services\AuthPortalSettingsService::class)->isRequiredForUser($user)) {
             $trustedToken = $this->extractTrustedDeviceToken($request);
             $trustedRow = $trustedToken ? $this->findTrustedDevice($user, $trustedToken) : null;
 
