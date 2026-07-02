@@ -82,6 +82,7 @@ class GroupMemberApplicationService
         }
 
         return app(GroupPayoutService::class)->queueForGroup($groupMember->group);
+    }
 
     /** @return array{show: bool, title: string, message: string, cta_label: string, cta_url: string, reference: string|null}|null */
     public function dashboardBanner(Customer $customer): ?array
