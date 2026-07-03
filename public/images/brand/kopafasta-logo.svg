@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 40" role="img" aria-label="kopafasta">
+  <g>
+    <circle cx="20" cy="20" r="20" fill="#111111"/>
+    <path d="M7 11v18l9-9-9-9z" fill="#5f6f2f"/>
+    <path d="M13 11v18l9-9-9-9z" fill="#a8d948"/>
+    <path d="M19 11v18l12-9-12-9z" fill="#f5b731"/>
+  </g>
+  <text x="48" y="28" fill="#111111" font-family="Instrument Sans, ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="700">kopafasta</text>
+</svg>

@@ -17,7 +17,9 @@ class PageController extends Controller
         $featuredAssets = app(\App\Http\Controllers\Site\AssetMarketplaceController::class)->homepageFeatured(6);
         $marketplaceCategories = config('asset_marketplace.categories', []);
 
-        return view('site.home', compact('products', 'rateFromLabel', 'featuredAssets', 'marketplaceCategories'));
+        $regions = array_keys(config('tanzania_locations', []));
+
+        return view('site.home', compact('products', 'rateFromLabel', 'featuredAssets', 'marketplaceCategories', 'regions'));
     }
 
     public function products(): View

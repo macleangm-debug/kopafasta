@@ -1,152 +1,316 @@
-<x-site.layout title="Kopafasta — Capital that moves at your pace">
+<x-site.layout title="{{ brand_name() }} — Capital that moves at your pace">
+
+    @php
+        $productIcons = [
+            'business' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 .414-.336.75-.75.75h-4.5a.75.75 0 01-.75-.75v-4.25m0 0h4.125c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9m9 9H9.375c-.621 0-1.125.504-1.125 1.125v3.375m0 0h4.125c.621 0 1.125.504 1.125 1.125v4.125c0 .621-.504 1.125-1.125 1.125H9.375a1.125 1.125 0 01-1.125-1.125v-4.125c0-.621.504-1.125 1.125-1.125z"/></svg>',
+            'individual' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0"/></svg>',
+            'asset' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></svg>',
+            'group' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>',
+            'default' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3"/></svg>',
+        ];
+        $featuredProducts = $products->take(4);
+    @endphp
 
     {{-- ===== HERO ===== --}}
-    <section class="relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-amber-900">
-        <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 20% 20%, #f59e0b 0%, transparent 40%), radial-gradient(circle at 80% 70%, #fbbf24 0%, transparent 40%);"></div>
-        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28 grid lg:grid-cols-2 gap-12 items-center">
-            <div class="text-white">
-                <p class="text-xs uppercase tracking-widest text-amber-300 mb-4">Trusted microfinance · Tanzania</p>
-                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
-                    Capital that moves <br><span class="text-amber-400">at your pace.</span>
-                </h1>
-                <p class="mt-6 text-lg text-gray-300 max-w-xl">
-                    From your first individual loan to asset-backed financing — monthly rates from {{ $rateFromLabel ?? '12%' }}, fully disclosed before you sign, disbursed in hours.
-                </p>
-                <div class="mt-8 flex flex-wrap gap-3">
-                    <a href="{{ route('site.register.borrower') }}" class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-3 rounded-full shadow-lg transition">
-                        Apply for a loan
-                        <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
-                    </a>
-                    <a href="{{ route('site.products') }}" class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur text-white font-semibold px-6 py-3 rounded-full border border-white/20 transition">
-                        Browse products
-                    </a>
-                </div>
-                <div class="mt-8 flex flex-wrap gap-6 text-xs text-gray-400">
-                    <span class="inline-flex items-center gap-1.5"><span class="size-1.5 rounded-full bg-emerald-400"></span> Secure & encrypted</span>
-                    <span class="inline-flex items-center gap-1.5"><span class="size-1.5 rounded-full bg-amber-400"></span> Disbursed in hours</span>
-                    <span class="inline-flex items-center gap-1.5"><span class="size-1.5 rounded-full bg-sky-400"></span> 12,400+ members</span>
-                </div>
-            </div>
+    <section class="relative overflow-hidden bg-[#faf8f5]">
+        <div class="absolute inset-0 bg-cover bg-center opacity-[0.12] blur-[2px]"
+             style="background-image: url('https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1600&q=80');"></div>
+        <div class="absolute inset-0 bg-gradient-to-r from-[#faf8f5] via-[#faf8f5]/95 to-transparent"></div>
 
-            {{-- Loan calculator --}}
-            <div class="bg-white rounded-2xl shadow-2xl p-6 lg:p-8"
-                 x-data="loanCalc({{ $products->first()?->id ?? 0 }}, {{ json_encode($products->map(function ($p) {
-                    $rates = app(\App\Services\DisplayedRateService::class);
-                    return [
-                        'id' => $p->id,
-                        'code' => $p->code,
-                        'name' => $p->name,
-                        'rate' => (float) $rates->displayedMonthlyRate($p),
-                        'rate_label' => $rates->formatBorrowerRateRange($p),
-                        'tiers' => app(\App\Services\LoanRateTierService::class)->tiersForProduct($p),
-                        'min' => (float) $p->min_amount,
-                        'max' => (float) $p->max_amount,
-                        'tmin' => (int) $p->tenure_min_months,
-                        'tmax' => (int) $p->tenure_max_months,
-                    ];
-                 })) }})">
-                <p class="text-xs uppercase tracking-widest text-amber-600 mb-2">Live quote · TZS</p>
-                <h3 class="text-xl font-semibold mb-4">Loan calculator</h3>
-
-                <label class="block text-xs font-medium text-gray-600 mb-1">Product</label>
-                <select x-model="productId" @change="onProduct()" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm mb-4">
-                    <template x-for="p in products" :key="p.id">
-                        <option :value="p.id" x-text="p.name + ' (' + (p.rate_label || ((p.rate*100).toFixed(1) + '%')) + ')'"></option>
-                    </template>
-                </select>
-
-                <div class="flex items-center justify-between text-sm mb-1">
-                    <span class="text-gray-600">Loan amount</span>
-                    <span class="font-semibold" x-text="formatTzs(amount)"></span>
-                </div>
-                <input type="range" :min="current.min" :max="current.max" step="50000" x-model.number="amount" class="w-full accent-amber-500 mb-1">
-                <div class="flex justify-between text-[11px] text-gray-500 mb-4">
-                    <span x-text="formatTzs(current.min)"></span><span x-text="formatTzs(current.max)"></span>
-                </div>
-
-                <div class="flex items-center justify-between text-sm mb-1">
-                    <span class="text-gray-600">Duration</span>
-                    <span class="font-semibold"><span x-text="tenure"></span> months</span>
-                </div>
-                <input type="range" :min="current.tmin" :max="current.tmax" step="1" x-model.number="tenure" class="w-full accent-amber-500 mb-1">
-                <div class="flex justify-between text-[11px] text-gray-500 mb-6">
-                    <span x-text="current.tmin + ' mo'"></span><span x-text="current.tmax + ' mo'"></span>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3 mb-6">
-                    <div class="bg-amber-50 rounded-lg p-3">
-                        <div class="text-[11px] uppercase tracking-wider text-amber-700">Monthly payment</div>
-                        <div class="text-lg font-bold text-gray-900" x-text="formatTzs(monthly)"></div>
+        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20">
+            <div class="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+                <div>
+                    <span class="inline-flex items-center gap-2 rounded-full bg-white border border-gray-200 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-gray-600 shadow-sm">
+                        <svg class="w-3.5 h-3.5 text-brand" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 01.894.553l1.618 3.28 3.622.526a1 1 0 01.554 1.705l-2.62 2.554.618 3.607a1 1 0 01-1.451 1.054L10 13.347l-3.235 1.702a1 1 0 01-1.451-1.054l.618-3.607-2.62-2.554a1 1 0 01.554-1.705l3.622-.526L9.106 2.553A1 1 0 0110 2z"/></svg>
+                        Microfinance solutions
+                    </span>
+                    <h1 class="mt-5 text-4xl sm:text-5xl lg:text-[3.25rem] font-bold tracking-tight leading-[1.1] text-brand">
+                        Capital that moves at your pace.
+                    </h1>
+                    <p class="mt-5 text-base sm:text-lg text-gray-600 max-w-lg leading-relaxed">
+                        Flexible loans designed to help you grow your business, manage your expenses, and build a better tomorrow.
+                    </p>
+                    <div class="mt-8 flex flex-wrap gap-3">
+                        <a href="{{ route('site.register.borrower') }}"
+                           class="inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3 rounded-lg shadow-md transition">
+                            Get Started
+                            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
+                        </a>
+                        <a href="{{ route('site.how-it-works') }}"
+                           class="inline-flex items-center gap-2 bg-white hover:bg-gray-50 text-brand font-semibold px-6 py-3 rounded-lg border border-brand/20 transition">
+                            Learn More
+                        </a>
                     </div>
-                    <div class="bg-gray-50 rounded-lg p-3">
-                        <div class="text-[11px] uppercase tracking-wider text-gray-600">Total repayment</div>
-                        <div class="text-lg font-bold text-gray-900" x-text="formatTzs(total)"></div>
+                    <div class="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-gray-600">
+                        <span class="inline-flex items-center gap-2">
+                            <span class="size-8 rounded-full bg-brand-muted text-brand grid place-items-center">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"/></svg>
+                            </span>
+                            Quick approval
+                        </span>
+                        <span class="inline-flex items-center gap-2">
+                            <span class="size-8 rounded-full bg-brand-muted text-brand grid place-items-center">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
+                            </span>
+                            Flexible repayment
+                        </span>
+                        <span class="inline-flex items-center gap-2">
+                            <span class="size-8 rounded-full bg-brand-muted text-brand grid place-items-center">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>
+                            </span>
+                            Trusted by thousands
+                        </span>
                     </div>
                 </div>
 
-                <a :href="current.status === 'coming_soon' ? '#' : '{{ route('site.apply.show') }}?product=' + current.id"
-                   :class="current.status === 'coming_soon' ? 'cursor-not-allowed bg-slate-400 hover:bg-slate-400' : 'bg-gray-900 hover:bg-gray-800'"
-                   class="block text-center w-full text-white font-semibold py-3 rounded-full transition"
-                   :aria-disabled="current.status === 'coming_soon'"
-                   :tabindex="current.status === 'coming_soon' ? -1 : 0">
-                    <span x-text="current.status === 'coming_soon' ? 'Coming soon' : 'Apply with these terms'"></span>
-                </a>
-                <p class="text-[11px] text-gray-500 mt-3 text-center">Estimates only. Final terms confirmed during application.</p>
-            </div>
-        </div>
-    </section>
+                <div class="relative lg:min-h-[32rem]">
+                    <div class="relative rounded-2xl overflow-hidden shadow-2xl aspect-[4/5] lg:aspect-auto lg:h-[32rem] bg-brand-muted">
+                        <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80"
+                             alt="Small business owner"
+                             class="absolute inset-0 w-full h-full object-cover object-top">
+                        <div class="absolute inset-0 bg-gradient-to-t from-brand/20 to-transparent"></div>
+                    </div>
 
-    {{-- ===== TRUST STRIP ===== --}}
-    <section class="bg-white border-b border-gray-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-            <div><div class="text-2xl font-bold text-gray-900">TZS 14.2B</div><div class="text-xs text-gray-500 uppercase tracking-widest mt-1">Disbursed</div></div>
-            <div><div class="text-2xl font-bold text-gray-900">12,400+</div><div class="text-xs text-gray-500 uppercase tracking-widest mt-1">Active members</div></div>
-            <div><div class="text-2xl font-bold text-emerald-700">17.4%</div><div class="text-xs text-gray-500 uppercase tracking-widest mt-1">Net investor yield</div></div>
-            <div><div class="text-2xl font-bold text-gray-900">96.3%</div><div class="text-xs text-gray-500 uppercase tracking-widest mt-1">On-time repayment</div></div>
+                    @guest
+                    <div class="absolute -left-4 sm:left-4 top-8 sm:top-12 w-[min(100%,20rem)] bg-white rounded-2xl shadow-2xl border border-gray-100 p-6 z-10"
+                         x-data="{ tab: 'login' }">
+                        <p class="text-lg font-bold text-gray-900">Welcome back 👋</p>
+                        <p class="text-xs text-gray-500 mt-0.5">Sign in to manage your loans</p>
+
+                        <div class="mt-4 inline-flex rounded-lg ring-1 ring-gray-200 bg-gray-50 p-1 text-sm w-full">
+                            <button type="button" @click="tab = 'login'"
+                                    :class="tab === 'login' ? 'bg-white text-brand shadow-sm font-semibold' : 'text-gray-500'"
+                                    class="flex-1 rounded-md py-2 transition">Login</button>
+                            <button type="button" @click="tab = 'register'"
+                                    :class="tab === 'register' ? 'bg-white text-brand shadow-sm font-semibold' : 'text-gray-500'"
+                                    class="flex-1 rounded-md py-2 transition">Register</button>
+                        </div>
+
+                        <div x-show="tab === 'login'" x-cloak class="mt-4 space-y-3">
+                            <form method="POST" action="{{ route('site.login.post') }}" class="space-y-3">
+                                @csrf
+                                <input type="hidden" name="auth_method" value="pin">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Mobile number</label>
+                                    <input type="tel" name="phone" autocomplete="tel"
+                                           class="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-brand focus:ring-1 focus:ring-brand outline-none"
+                                           placeholder="0712 345 678">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">PIN</label>
+                                    <input type="password" name="pin" inputmode="numeric" maxlength="4"
+                                           class="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-brand focus:ring-1 focus:ring-brand outline-none"
+                                           placeholder="••••">
+                                </div>
+                                <button class="w-full bg-brand hover:bg-brand-light text-white font-semibold py-2.5 rounded-lg transition text-sm">
+                                    Log In
+                                </button>
+                            </form>
+                        </div>
+
+                        <div x-show="tab === 'register'" x-cloak class="mt-4 space-y-3">
+                            <p class="text-sm text-gray-600">Create your account in minutes — phone and PIN is all you need.</p>
+                            <a href="{{ route('site.register.borrower') }}"
+                               class="block w-full text-center bg-brand hover:bg-brand-light text-white font-semibold py-2.5 rounded-lg transition text-sm">
+                                Register now
+                            </a>
+                        </div>
+
+                        <div class="mt-4 pt-4 border-t border-gray-100">
+                            <p class="text-[11px] text-center text-gray-400 mb-2">Or continue with</p>
+                            <div class="flex gap-2">
+                                <button type="button" disabled class="flex-1 flex items-center justify-center gap-2 rounded-lg border border-gray-200 py-2 text-xs text-gray-400 cursor-not-allowed">
+                                    <svg class="w-4 h-4" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                                    Google
+                                </button>
+                                <button type="button" disabled class="flex-1 flex items-center justify-center gap-2 rounded-lg border border-gray-200 py-2 text-xs text-gray-400 cursor-not-allowed">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98 1.04 7.22-.87 2.12-2.02 4.22-4.09 4.19zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
+                                    Apple
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    @endguest
+                </div>
+            </div>
         </div>
     </section>
 
     {{-- ===== PRODUCTS ===== --}}
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <p class="text-xs uppercase tracking-widest text-amber-600 mb-2">Products</p>
-        @php $productCount = active_loan_product_count(); @endphp
-        <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">{{ $productCount }} loan {{ $productCount === 1 ? 'product' : 'products' }}. <span class="text-gray-500">One account.</span></h2>
-        <p class="mt-3 text-gray-600 max-w-2xl">From TZS 50,000 starter loans to asset-backed capital. Every product shares the same secure account, the same honest pricing, the same mobile experience.</p>
+    <section class="bg-white py-16 lg:py-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-2">Our products</p>
+            <h2 class="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">Financial solutions for every need</h2>
+            <p class="mt-3 text-gray-600 max-w-2xl mx-auto">
+                From your first individual loan to asset-backed financing — transparent pricing, disbursed in hours.
+            </p>
 
-        <div class="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            @foreach ($products as $product)
-                <a href="{{ route('site.product', $product->code) }}"
-                   class="group block rounded-2xl border border-gray-200 hover:border-amber-400 hover:shadow-lg transition p-6 bg-white">
-                    <div class="flex items-start justify-between mb-3 gap-3">
-                        <span class="inline-flex items-center text-[11px] font-mono font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded">{{ $product->code }}</span>
-                        <span class="inline-flex items-center rounded-full text-[11px] font-semibold px-2.5 py-1.5 text-white {{ $product->status === 'coming_soon' ? 'bg-slate-500' : 'bg-emerald-600' }}">
-                            {{ ucfirst(str_replace('_', ' ', $product->status)) }}
+            <div class="mt-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-5 text-left">
+                @foreach ($featuredProducts as $product)
+                    @php
+                        $category = strtolower((string) ($product->category ?? 'default'));
+                        $iconKey = match (true) {
+                            str_contains($category, 'business') => 'business',
+                            str_contains($category, 'individual') || str_contains($category, 'education') || str_contains($category, 'emergency') => 'individual',
+                            str_contains($category, 'asset') || str_contains($category, 'agriculture') => 'asset',
+                            str_contains($category, 'group') => 'group',
+                            default => 'default',
+                        };
+                    @endphp
+                    <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md hover:border-brand/30 transition">
+                        <div class="size-11 rounded-full bg-brand-muted text-brand grid place-items-center mb-4">
+                            {!! $productIcons[$iconKey] ?? $productIcons['default'] !!}
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900">{{ $product->name }}</h3>
+                        <p class="mt-2 text-sm text-gray-600 line-clamp-3 leading-relaxed">{{ $product->description }}</p>
+                        <span class="inline-block mt-4 rounded-md bg-brand-gold/20 text-brand px-3 py-1 text-xs font-semibold">
+                            Up to TZS {{ format_number($product->max_amount) }}
                         </span>
-                        @php $homeRate = app(\App\Services\DisplayedRateService::class)->formatBorrowerRateRange($product); @endphp
-                        <span class="text-xs text-gray-500"><span class="font-bold text-gray-900">{{ $homeRate }}</span> / mo</span>
+                        <a href="{{ route('site.product', $product->code) }}"
+                           class="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand hover:gap-2 transition-all">
+                            Learn More
+                            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
+                        </a>
                     </div>
-                    <h3 class="text-lg font-semibold group-hover:text-amber-700">{{ $product->name }}</h3>
-                    <p class="mt-1 text-sm text-gray-600 line-clamp-2">{{ $product->description }}</p>
-                    <div class="mt-4 text-xs text-gray-500 flex items-center justify-between">
-                        <span>{{ format_number($product->min_amount / 1000) }}k – {{ format_number($product->max_amount / 1000000, 0) }}M TZS</span>
-                        <span>{{ $product->tenure_min_months }}–{{ $product->tenure_max_months }} mo</span>
-                    </div>
+                @endforeach
+            </div>
+
+            <div class="mt-10">
+                <a href="{{ route('site.products') }}"
+                   class="inline-flex items-center gap-2 rounded-lg border border-brand/30 text-brand hover:bg-brand-muted font-semibold px-6 py-3 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/></svg>
+                    View All Products
                 </a>
+            </div>
+        </div>
+    </section>
+
+    {{-- ===== STATISTICS ===== --}}
+    <section class="bg-brand text-white py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-2 lg:grid-cols-4 gap-8">
+            @foreach ([
+                ['icon' => 'users', 'value' => '12,400+', 'label' => 'Happy customers'],
+                ['icon' => 'money', 'value' => 'TZS 14.2B+', 'label' => 'Loans disbursed'],
+                ['icon' => 'check', 'value' => '96%', 'label' => 'Approval rate'],
+                ['icon' => 'clock', 'value' => '24hrs', 'label' => 'Quick disbursement'],
+            ] as $stat)
+                <div class="text-center lg:text-left flex flex-col items-center lg:items-start gap-2">
+                    <span class="size-10 rounded-full bg-brand-gold/20 text-brand-gold grid place-items-center">
+                        @if ($stat['icon'] === 'users')
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
+                        @elseif ($stat['icon'] === 'money')
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.745.39 1.51.617 2.298.622h.003c1.014 0 1.964-.258 2.787-.712M2.25 18.75V12a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0120.25 12v6.75"/></svg>
+                        @elseif ($stat['icon'] === 'check')
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        @else
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        @endif
+                    </span>
+                    <div class="text-2xl sm:text-3xl font-bold">{{ $stat['value'] }}</div>
+                    <div class="text-sm text-white/70">{{ $stat['label'] }}</div>
+                </div>
             @endforeach
+        </div>
+    </section>
+
+    {{-- ===== AFFILIATE ===== --}}
+    <section id="affiliate" class="bg-[#faf8f5] py-16 lg:py-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid lg:grid-cols-2 gap-12 items-start">
+                <div>
+                    <h2 class="text-3xl sm:text-4xl font-bold tracking-tight text-brand">Earn more. Empower more.</h2>
+                    <p class="mt-4 text-gray-600 max-w-lg leading-relaxed">
+                        Join our affiliate programme and earn commissions by referring customers to {{ brand_name() }}. Help your community access flexible finance while building your own income stream.
+                    </p>
+                    <ul class="mt-6 space-y-3">
+                        @foreach (['Easy registration', 'Real-time tracking', 'Weekly payouts', 'Marketing support'] as $item)
+                            <li class="flex items-center gap-3 text-sm text-gray-700">
+                                <span class="size-6 rounded-full bg-brand text-white grid place-items-center shrink-0">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                                </span>
+                                {{ $item }}
+                            </li>
+                        @endforeach
+                    </ul>
+                    <a href="{{ route('site.affiliate.apply') }}"
+                       class="mt-8 inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3 rounded-lg transition">
+                        Become an Affiliate
+                        <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 5v10m-5-5h10"/></svg>
+                    </a>
+
+                    <div class="relative mt-10 max-w-sm">
+                        <div class="rounded-2xl overflow-hidden shadow-lg aspect-[4/3] bg-brand-muted">
+                            <img src="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=600&q=80"
+                                 alt="Affiliate checking earnings on phone"
+                                 class="w-full h-full object-cover">
+                        </div>
+                        <div class="absolute -bottom-4 -right-2 sm:right-4 bg-white rounded-xl shadow-xl border border-gray-100 p-4 w-48">
+                            <p class="text-[10px] uppercase tracking-wider text-gray-500">Your earnings</p>
+                            <p class="text-lg font-bold text-brand mt-0.5">TZS 2,450,000</p>
+                            <div class="mt-2 h-8 flex items-end gap-0.5">
+                                @foreach ([40, 55, 45, 70, 60, 85, 75] as $h)
+                                    <span class="flex-1 rounded-sm bg-brand/80" style="height: {{ $h }}%"></span>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-brand rounded-2xl shadow-2xl p-6 sm:p-8 text-white">
+                    <h3 class="text-xl font-bold">Affiliate Registration</h3>
+                    <p class="text-sm text-white/70 mt-1">Start earning by referring customers today.</p>
+
+                    @if (session('status'))
+                        <div class="mt-4 rounded-lg bg-white/10 border border-white/20 px-4 py-3 text-sm">{{ session('status') }}</div>
+                    @endif
+
+                    <form method="POST" action="{{ route('site.affiliate.apply.post') }}" class="mt-6 space-y-4">
+                        @csrf
+                        <div>
+                            <label class="block text-xs font-medium text-white/80 mb-1">Full name</label>
+                            <input name="full_name" value="{{ old('full_name') }}" required
+                                   class="w-full rounded-lg bg-white text-gray-900 border-0 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-gold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-white/80 mb-1">Mobile number</label>
+                            <input type="tel" name="phone" value="{{ old('phone') }}" required
+                                   class="w-full rounded-lg bg-white text-gray-900 border-0 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-gold"
+                                   placeholder="0712 345 678">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-white/80 mb-1">Email address</label>
+                            <input type="email" name="email" value="{{ old('email') }}" required
+                                   class="w-full rounded-lg bg-white text-gray-900 border-0 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-gold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-white/80 mb-1">Business name <span class="text-white/50">(optional)</span></label>
+                            <input name="business_name" value="{{ old('business_name') }}"
+                                   class="w-full rounded-lg bg-white text-gray-900 border-0 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-gold">
+                        </div>
+                        <button class="w-full bg-brand-gold hover:bg-yellow-400 text-brand font-bold py-3 rounded-lg transition text-sm">
+                            Register Now
+                        </button>
+                        <p class="text-center text-xs text-white/60">
+                            Already have an account?
+                            <a href="{{ route('site.login') }}" class="text-brand-gold font-semibold hover:underline">Log In</a>
+                        </p>
+                    </form>
+                </div>
+            </div>
         </div>
     </section>
 
     @if (! empty($featuredAssets))
     {{-- ===== ASSET MARKETPLACE ===== --}}
-    <section class="bg-gray-50 border-y border-gray-200">
+    <section class="bg-white border-t border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
             <div class="flex flex-wrap items-end justify-between gap-4 mb-10">
                 <div>
-                    <p class="text-xs uppercase tracking-widest text-amber-600 mb-2">Asset marketplace</p>
+                    <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-2">Asset marketplace</p>
                     <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">Finance vehicles, equipment &amp; more.</h2>
-                    <p class="mt-3 text-gray-600 max-w-2xl">Browse supplier-listed assets with transparent deposits and weekly instalments. Sign in to apply or reserve a viewing.</p>
+                    <p class="mt-3 text-gray-600 max-w-2xl">Browse supplier-listed assets with transparent deposits and weekly instalments.</p>
                 </div>
-                <a href="{{ route('site.marketplace') }}" class="inline-flex items-center gap-2 text-sm font-semibold text-amber-700 hover:text-amber-900">
+                <a href="{{ route('site.marketplace') }}" class="inline-flex items-center gap-2 text-sm font-semibold text-brand hover:text-brand-light">
                     View all assets →
                 </a>
             </div>
@@ -165,106 +329,4 @@
     </section>
     @endif
 
-    {{-- ===== INVEST WITH US ===== --}}
-    <section class="bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950 text-white">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-            <div class="grid lg:grid-cols-2 gap-12 items-start">
-                <div>
-                    <p class="text-xs uppercase tracking-widest text-emerald-300 mb-2">For investors</p>
-                    <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">Don't just borrow. <span class="text-emerald-400">Earn from credit too.</span></h2>
-                    <p class="mt-4 text-white/75 max-w-xl">Open an investor account and put your savings to work funding real loans to vetted Tanzanians. Two programmes — pick the one that fits your scale.</p>
-                </div>
-                <div class="grid sm:grid-cols-2 gap-4">
-                    <a href="{{ route('site.invest') }}" class="group rounded-2xl bg-white/5 backdrop-blur border border-white/10 hover:border-emerald-400 hover:bg-white/10 transition p-6">
-                        <div class="size-11 grid place-items-center rounded-xl bg-emerald-500/20 text-2xl mb-3">📈</div>
-                        <h3 class="text-lg font-bold">Individual investor</h3>
-                        <p class="mt-1.5 text-sm text-white/70">Start from TZS 50,000. Earn 12–24% per year.</p>
-                        <span class="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-emerald-300 group-hover:gap-2 transition-all">Learn more →</span>
-                    </a>
-                    <a href="{{ route('site.capital-partners') }}" class="group rounded-2xl bg-white/5 backdrop-blur border border-white/10 hover:border-indigo-400 hover:bg-white/10 transition p-6">
-                        <div class="size-11 grid place-items-center rounded-xl bg-indigo-500/20 text-2xl mb-3">🏛️</div>
-                        <h3 class="text-lg font-bold">Capital partner</h3>
-                        <p class="mt-1.5 text-sm text-white/70">Banks, MFIs, DFIs, family offices. $50K+ commitments.</p>
-                        <span class="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-indigo-300 group-hover:gap-2 transition-all">Explore programme →</span>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    {{-- ===== PARTNERS ===== --}}
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <p class="text-xs uppercase tracking-widest text-amber-600 mb-2">For service partners</p>
-        <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">Grow your business with Kopafasta.</h2>
-        <p class="mt-3 text-gray-600 max-w-2xl">GPS installers, valuers, insurers and yard partners — receive a steady stream of jobs nationwide with fast settlement and a mobile-first partner portal.</p>
-
-        <div class="mt-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            @foreach ([
-                ['📡','GPS installers','Schedule installs from your phone. Same-day payout on completion.'],
-                ['🛡️','Insurance providers','Quote and bind comprehensive cover for collateralised loans.'],
-                ['📋','Valuers','Inspect and value assets via our app. Photo-evidence required.'],
-                ['🏭','Yard &amp; collections','Help us recover and remarket repossessed assets.'],
-            ] as [$icon, $title, $body])
-                <div class="rounded-2xl border border-gray-200 hover:border-amber-400 hover:shadow-lg p-6 transition bg-white">
-                    <div class="size-11 grid place-items-center rounded-xl bg-amber-100 text-2xl mb-3">{{ $icon }}</div>
-                    <h3 class="text-base font-bold text-gray-900">{!! $title !!}</h3>
-                    <p class="mt-1.5 text-sm text-gray-600 leading-relaxed">{!! $body !!}</p>
-                </div>
-            @endforeach
-        </div>
-        <div class="mt-8">
-            <a href="{{ route('site.register.partner') }}" class="inline-flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white font-semibold px-6 py-3 rounded-full">
-                Become a partner
-                <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
-            </a>
-        </div>
-    </section>
-
-    {{-- ===== CTA ===== --}}
-    <section class="bg-gray-50 border-t border-b border-gray-200">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
-            <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">Your first loan <span class="text-amber-600">is five minutes away.</span></h2>
-            <p class="mt-3 text-gray-600">Phone and password — that's all we need to begin.</p>
-            <div class="mt-6 flex flex-wrap gap-3 justify-center">
-                <a href="{{ route('site.register.borrower') }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-3 rounded-full">Register now</a>
-                <a href="{{ route('site.login') }}" class="bg-white border border-gray-300 hover:border-gray-900 text-gray-900 font-semibold px-6 py-3 rounded-full">I already have an account</a>
-            </div>
-        </div>
-    </section>
-
-    <script>
-        function loanCalc(initialId, products) {
-            return {
-                products,
-                productId: initialId,
-                current: products[0] || {},
-                amount: products[0]?.min || 0,
-                tenure: products[0]?.tmin || 1,
-                init() { this.onProduct(); },
-                onProduct() {
-                    this.current = this.products.find(p => p.id == this.productId) || this.products[0];
-                    this.amount = Math.min(Math.max(this.amount, this.current.min), this.current.max) || this.current.min;
-                    this.tenure = Math.min(Math.max(this.tenure, this.current.tmin), this.current.tmax) || this.current.tmin;
-                },
-                resolveMonthlyRate(product, amount) {
-                    if (! product) return 0;
-                    const tiers = product.tiers || [];
-                    if (tiers.length) {
-                        const tier = tiers.find(t => amount >= t.min && amount <= t.max);
-                        if (tier) return tier.rate;
-                    }
-                    return product.rate || 0;
-                },
-                get monthly() {
-                    const r = this.resolveMonthlyRate(this.current, this.amount);
-                    const n = this.tenure || 1;
-                    return Math.round((this.amount / n) + (this.amount * r));
-                },
-                get total() { return this.monthly * this.tenure; },
-                formatTzs(v, decimals = 0) {
-                    return window.formatMoney ? window.formatMoney(v, { currency: 'TZS', decimals }) : ('TZS ' + v);
-                },
-            };
-        }
-    </script>
 </x-site.layout>

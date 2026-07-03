@@ -6,24 +6,41 @@
 
 @php
     $sizes = [
-        'sm' => ['box' => 'size-7 text-sm rounded-md', 'name' => 'text-sm', 'sub' => 'text-[10px]'],
-        'md' => ['box' => 'size-9 text-lg rounded-lg', 'name' => 'text-lg', 'sub' => 'text-[11px]'],
-        'lg' => ['box' => 'size-11 text-xl rounded-xl', 'name' => 'text-xl', 'sub' => 'text-xs'],
+        'sm' => ['img' => 'h-7', 'sub' => 'text-[10px]'],
+        'md' => ['img' => 'h-9', 'sub' => 'text-[11px]'],
+        'lg' => ['img' => 'h-11', 'sub' => 'text-xs'],
     ];
     $s = $sizes[$size] ?? $sizes['md'];
-    $boxClass = $variant === 'light'
-        ? 'bg-white text-amber-700 shadow'
-        : 'bg-gradient-to-br from-amber-400 to-amber-600 text-gray-900 shadow-sm';
-    $nameClass = $variant === 'light' ? 'text-white' : 'text-gray-900';
+    $logoUrl = $variant === 'light'
+        ? (brand('logo_url_light') ?: brand('logo_url'))
+        : brand('logo_url');
     $subClass = $variant === 'light' ? 'text-white/70' : 'text-gray-500';
+    $isSvg = $logoUrl && str_ends_with(strtolower($logoUrl), '.svg');
+    $needsLightBackdrop = $logoUrl && ! $isSvg && $variant === 'light';
+    $imgWrapClass = $needsLightBackdrop ? 'inline-flex rounded-md bg-white px-1.5 py-0.5' : '';
 @endphp
 
 <div {{ $attributes->merge(['class' => 'inline-flex items-center gap-2 shrink-0']) }}>
-    <span class="{{ $s['box'] }} grid place-items-center font-extrabold {{ $boxClass }}">{{ brand('logo_letter', 'K') }}</span>
-    <div class="leading-tight">
-        <span class="font-bold tracking-tight {{ $s['name'] }} {{ $nameClass }}">{{ brand_name() }}</span>
-        @if ($showSubtitle)
-            <span class="block {{ $s['sub'] }} {{ $subClass }}">{{ brand('tagline') }}</span>
-        @endif
-    </div>
+    @if ($logoUrl)
+        <div class="{{ $showSubtitle ? 'flex flex-col gap-1' : '' }}">
+            <span class="{{ $imgWrapClass }}">
+                <img src="{{ asset($logoUrl) }}"
+                     alt="{{ brand_name() }}"
+                     class="{{ $s['img'] }} w-auto object-contain"
+                     width="160"
+                     height="40">
+            </span>
+            @if ($showSubtitle)
+                <span class="{{ $s['sub'] }} {{ $subClass }}">{{ brand('tagline') }}</span>
+            @endif
+        </div>
+    @else
+        <span class="size-9 grid place-items-center font-extrabold rounded-lg bg-gradient-to-br from-brand-light to-brand text-white shadow-sm text-lg">{{ brand('logo_letter', 'K') }}</span>
+        <div class="leading-tight">
+            <span class="font-bold tracking-tight text-lg {{ $variant === 'light' ? 'text-white' : 'text-gray-900' }}">{{ brand_name() }}</span>
+            @if ($showSubtitle)
+                <span class="block {{ $s['sub'] }} {{ $subClass }}">{{ brand('tagline') }}</span>
+            @endif
+        </div>
+    @endif
 </div>
