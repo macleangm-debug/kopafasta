@@ -17,14 +17,14 @@ class Phase18FeatureTest extends TestCase
     {
         $this->get(route('site.home'))
             ->assertOk()
-            ->assertSee(route('site.affiliate.apply', [], false), false)
+            ->assertSee(route('site.affiliate', [], false), false)
             ->assertSee('Become an affiliate', false);
     }
 
     public function test_affiliate_application_page_supports_swahili_locale(): void
     {
         $this->withSession(['locale' => 'sw'])
-            ->get(route('site.affiliate.apply'))
+            ->get(route('site.affiliate'))
             ->assertOk()
             ->assertSee(__('site.affiliate_apply.title', [], 'sw'), false);
     }

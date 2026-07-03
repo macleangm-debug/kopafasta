@@ -71,6 +71,7 @@ use Illuminate\Support\Facades\Route;
 */
 Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(function () {
     Route::post('/locale', [\App\Http\Controllers\Site\LocaleController::class, 'update'])->name('locale.update');
+    Route::post('/country', [\App\Http\Controllers\Site\CountryController::class, 'update'])->name('country.update');
 
     Route::get('/',                 [\App\Http\Controllers\Site\PageController::class, 'home'])->name('home');
     Route::get('/loans',            [\App\Http\Controllers\Site\PageController::class, 'products'])->name('products');
@@ -78,8 +79,17 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
     Route::get('/how-it-works',     [\App\Http\Controllers\Site\PageController::class, 'howItWorks'])->name('how-it-works');
     Route::get('/about',            [\App\Http\Controllers\Site\PageController::class, 'about'])->name('about');
     Route::get('/faq',              [\App\Http\Controllers\Site\PageController::class, 'faq'])->name('faq');
+    Route::get('/support',         [\App\Http\Controllers\Site\SupportCenterController::class, 'index'])->name('support');
+    Route::get('/feedback',        [\App\Http\Controllers\Site\FeedbackController::class, 'index'])->name('feedback');
+    Route::post('/feedback',       [\App\Http\Controllers\Site\FeedbackController::class, 'store'])->name('feedback.post');
+    Route::get('/contact', fn () => redirect()->route('site.support'))->name('contact');
     Route::get('/invest',           [\App\Http\Controllers\Site\PageController::class, 'invest'])->name('invest');
     Route::get('/capital-partners', [\App\Http\Controllers\Site\PageController::class, 'capitalPartners'])->name('capital-partners');
+    Route::get('/affiliate-program', [\App\Http\Controllers\Site\PageController::class, 'affiliate'])->name('affiliate');
+    Route::get('/affiliate', fn () => redirect()->route('site.affiliate'));
+    Route::get('/service-partners', [\App\Http\Controllers\Site\PageController::class, 'partners'])->name('partners');
+    Route::get('/partners', fn () => redirect()->route('site.partners'));
+    Route::get('/country/{code}',   [\App\Http\Controllers\Site\PageController::class, 'country'])->name('country');
     Route::get('/become-affiliate', [\App\Http\Controllers\Site\PartnerApplicationController::class, 'create'])->name('affiliate.apply');
     Route::post('/become-affiliate', [\App\Http\Controllers\Site\PartnerApplicationController::class, 'store'])->name('affiliate.apply.post');
 
@@ -110,7 +120,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
 
         Route::get('/aff/{code}', \App\Http\Controllers\Site\AffiliateRedirectController::class)->name('affiliate.redirect');
 
-        Route::get('/register',          fn () => view('site.auth.register-choose'))->name('register');
+        Route::get('/register',          fn () => redirect()->route('site.register.borrower'))->name('register');
+        Route::get('/register/options',  fn () => view('site.auth.register-choose'))->name('register.options');
         Route::get('/register/borrower', [\App\Http\Controllers\Site\AuthController::class, 'showRegisterBorrower'])->name('register.borrower');
         Route::post('/register/borrower',[\App\Http\Controllers\Site\AuthController::class, 'registerBorrower'])->name('register.borrower.post');
 
@@ -128,7 +139,6 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         Route::post('/partner/start', [\App\Http\Controllers\Site\PartnerPortalController::class, 'lookup'])->name('partner.start.lookup');
 
         Route::redirect('/partner/login', '/login?portal=partner');
-        Route::redirect('/partners', '/login?portal=partner');
         Route::redirect('/partners/login', '/login?portal=partner');
         Route::get('/staff-login', [\App\Http\Controllers\Site\AuthController::class, 'staffHint'])->name('staff-login');
         Route::get('/register/partner', fn () => redirect()->route('site.register.vendor'))->name('register.partner');
@@ -317,7 +327,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             });
         });
 
-        Route::prefix('affiliate')->name('affiliate.')->middleware('two_factor:partner')->group(function () {
+        Route::prefix('affiliate-portal')->name('affiliate.')->middleware('two_factor:partner')->group(function () {
             Route::get('/', [\App\Http\Controllers\Site\AffiliateController::class, 'dashboard'])->name('dashboard');
             Route::get('/referrals', [\App\Http\Controllers\Site\AffiliateController::class, 'referrals'])->name('referrals');
             Route::get('/wallet', [\App\Http\Controllers\Site\AffiliateController::class, 'wallet'])->name('wallet');

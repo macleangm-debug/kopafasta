@@ -9,13 +9,9 @@
 <x-site.layout :title="$isGuarantorRegistration ? brand_title(__('borrower.guarantor_invite.create_account')) : ($isGroupInviteRegistration ? brand_title(__('borrower.apply.group.register_title')) : 'Register as borrower — Kopafasta')">
     <section class="min-h-screen grid lg:grid-cols-3 bg-gray-50">
         {{-- Sidebar with steps --}}
-        <aside class="hidden lg:flex lg:col-span-1 relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-amber-900 text-white p-10 flex-col">
-            <div class="absolute -top-32 -right-24 size-96 rounded-full bg-amber-500/20 blur-3xl"></div>
-
-            <a href="{{ route('site.home') }}" class="relative inline-flex items-center gap-2 font-bold text-lg">
-                <span class="size-9 grid place-items-center rounded-lg bg-amber-500 text-gray-900 font-extrabold">K</span>
-                Kopafasta
-            </a>
+        <aside class="hidden lg:flex lg:col-span-1 relative overflow-hidden bg-brand text-white p-10 flex-col">
+            <div class="absolute -top-32 -right-24 size-96 rounded-full bg-brand-gold/10 blur-3xl"></div>
+            <a href="{{ route('site.home') }}" class="relative"><x-site.brand-mark variant="light" /></a>
 
             <div class="relative mt-12" x-data x-effect>
                 @if ($isGuarantorRegistration)
@@ -76,9 +72,8 @@
             waitlist_local_phone: @js(old('waitlist_local_phone', '')),
         })">
             <div class="w-full max-w-xl">
-                <a href="{{ route('site.home') }}" class="lg:hidden inline-flex items-center gap-2 font-bold text-gray-900 mb-6">
-                    <span class="size-9 grid place-items-center rounded-lg bg-amber-500 text-gray-900 font-extrabold">K</span>
-                    Kopafasta
+                <a href="{{ route('site.home') }}" class="lg:hidden inline-block mb-6">
+                    <x-site.brand-mark size="md" />
                 </a>
 
                 {{-- Mobile stepper --}}

@@ -18,7 +18,13 @@
         'requires_guarantor' => $p->requires_guarantor,
     ]);
 @endphp
-<x-site.layout title="Loan Products — Kopafasta">
+<x-site.layout :title="brand_title(__('site.nav.all_products'))">
+    <section class="bg-brand text-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+            <h1 class="text-3xl sm:text-4xl font-bold">{{ __('site.products.all_title') }}</h1>
+            <p class="mt-3 text-white/80 max-w-2xl">{{ __('site.products.all_subtitle') }}</p>
+        </div>
+    </section>
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16"
              x-data="loanProducts({ selectedId: {{ $products->first()?->id ?? 0 }}, products: @json($catalogProducts) })"
              x-init="init()">

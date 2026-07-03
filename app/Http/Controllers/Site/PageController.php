@@ -19,7 +19,7 @@ class PageController extends Controller
 
         $regions = array_keys(config('tanzania_locations', []));
 
-        return view('site.home', compact('products', 'rateFromLabel', 'featuredAssets', 'marketplaceCategories', 'regions'));
+        return view('site.home', compact('products', 'rateFromLabel', 'featuredAssets', 'marketplaceCategories'));
     }
 
     public function products(): View
@@ -30,10 +30,33 @@ class PageController extends Controller
 
     public function product(string $code): View
     {
-        $product = LoanProduct::with('rateTiers')->where('code', $code)
+        $product = LoanProduct::with(['rateTiers', 'requirements', 'postApprovalFees'])
+            ->where('code', $code)
             ->whereIn('status', ['active', 'coming_soon'])
             ->firstOrFail();
-        return view('site.products.show', compact('product'));
+
+        $presentation = app(\App\Services\PublicProductPresentationService::class)->forProduct($product);
+
+        return view('site.products.show', compact('product', 'presentation'));
+    }
+
+    public function affiliate(): View
+    {
+        return view('site.affiliate.index', [
+            'regions' => array_keys(config('tanzania_locations', [])),
+        ]);
+    }
+
+    public function partners(): View
+    {
+        return view('site.partners.index');
+    }
+
+    public function country(string $code): View
+    {
+        $country = app(\App\Services\CountrySettingsService::class)->forCode(strtoupper($code));
+
+        return view('site.country-coming-soon', compact('country'));
     }
 
     public function howItWorks(): View { return view('site.how-it-works'); }

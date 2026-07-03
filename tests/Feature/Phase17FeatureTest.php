@@ -140,13 +140,14 @@ class Phase17FeatureTest extends TestCase
     public function test_public_affiliate_application_can_be_submitted(): void
     {
         $this->post(route('site.affiliate.apply.post'), [
+            'applicant_category' => 'company',
             'full_name'     => 'Affiliate Applicant',
             'email'         => 'affiliate@example.com',
             'phone'         => '+255712345800',
             'business_name' => 'Promo Shop',
             'region'        => 'Dar es Salaam',
             'message'       => 'I run a community group with 500 members.',
-        ])->assertRedirect(route('site.affiliate.apply'));
+        ])->assertRedirect(route('site.affiliate'));
 
         $this->assertDatabaseHas('partner_applications', [
             'email'  => 'affiliate@example.com',

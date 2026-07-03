@@ -1,30 +1,35 @@
 <x-site.layout :title="brand_title(__('borrower.marketplace.title'))">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
-            <div>
-                <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">{{ __('borrower.marketplace.public_eyebrow', ['brand' => brand_name()]) }}</p>
-                <h1 class="text-3xl font-bold tracking-tight">{{ __('borrower.marketplace.title') }}</h1>
-                <p class="text-sm text-gray-500 mt-2">{{ __('borrower.marketplace.subtitle') }}</p>
+    <section class="relative overflow-hidden bg-brand text-white">
+        <div class="absolute inset-0 opacity-15 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
+        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 lg:py-16">
+            <div class="flex flex-wrap items-end justify-between gap-6">
+                <div class="max-w-2xl">
+                    <p class="text-xs uppercase tracking-widest text-brand-gold mb-2">{{ __('site.marketplace.browse') }}</p>
+                    <h1 class="text-3xl sm:text-4xl font-bold tracking-tight">{{ __('borrower.marketplace.title') }}</h1>
+                    <p class="text-white/80 mt-3 max-w-xl">{{ __('borrower.marketplace.subtitle') }}</p>
+                </div>
+                @guest
+                    <a href="{{ route('site.login', ['redirect' => route('site.marketplace')]) }}" class="glass-card-dark text-white font-semibold px-6 py-3 rounded-xl text-sm hover:bg-white/10 transition">
+                        {{ __('borrower.marketplace.public_login_cta') }}
+                    </a>
+                @else
+                    <a href="{{ route('site.borrower.marketplace') }}" class="bg-brand-gold hover:bg-yellow-400 text-brand font-semibold px-6 py-3 rounded-xl text-sm transition">
+                        {{ __('borrower.marketplace.public_my_marketplace_cta') }}
+                    </a>
+                @endguest
             </div>
-            @guest
-                <a href="{{ route('site.login', ['redirect' => route('site.marketplace')]) }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                    {{ __('borrower.marketplace.public_login_cta') }}
-                </a>
-            @else
-                <a href="{{ route('site.borrower.marketplace') }}" class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
-                    {{ __('borrower.marketplace.public_my_marketplace_cta') }}
-                </a>
-            @endguest
         </div>
+    </section>
 
-        <div class="flex flex-wrap gap-2 mb-4">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div class="flex flex-wrap gap-2 mb-6">
             <a href="{{ route('site.marketplace', request()->except('category')) }}"
-               class="px-3 py-1.5 rounded-lg text-sm font-medium {{ empty($category) ? 'bg-amber-500 text-gray-900' : 'bg-white ring-1 ring-gray-200 text-gray-600' }}">
+               class="px-4 py-2 rounded-full text-sm font-medium transition {{ empty($category) ? 'bg-brand text-white' : 'glass-card text-gray-600 hover:ring-brand/20' }}">
                 {{ __('borrower.marketplace.all') }}
             </a>
             @foreach ($categories as $key => $label)
                 <a href="{{ route('site.marketplace', array_merge(request()->except('category'), ['category' => $key])) }}"
-                   class="px-3 py-1.5 rounded-lg text-sm font-medium {{ $category === $key ? 'bg-amber-500 text-gray-900' : 'bg-white ring-1 ring-gray-200 text-gray-600' }}">
+                   class="px-4 py-2 rounded-full text-sm font-medium transition {{ $category === $key ? 'bg-brand text-white' : 'glass-card text-gray-600 hover:ring-brand/20' }}">
                     {{ $label }}
                 </a>
             @endforeach
@@ -33,13 +38,13 @@
         @include('site.marketplace._filters', ['filters' => $filters, 'category' => $category, 'routeName' => 'site.marketplace'])
 
         @if ($assets->isEmpty())
-            <div class="rounded-2xl border border-dashed border-gray-200 p-12 text-center text-gray-500">
-                <p class="text-4xl mb-3">🏷️</p>
-                <p class="font-semibold">{{ __('borrower.marketplace.empty_title') }}</p>
-                <p class="text-sm mt-1">{{ __('borrower.marketplace.empty_desc') }}</p>
+            <div class="glass-card border-dashed p-16 text-center text-gray-500">
+                <p class="text-5xl mb-4">🏷️</p>
+                <p class="font-semibold text-lg">{{ __('borrower.marketplace.empty_title') }}</p>
+                <p class="text-sm mt-2">{{ __('borrower.marketplace.empty_desc') }}</p>
             </div>
         @else
-            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-6">
                 @foreach ($assets as $asset)
                     @include('site.marketplace._asset-card', [
                         'asset' => $asset,

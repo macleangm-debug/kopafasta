@@ -9,6 +9,7 @@ class PartnerApplication extends Model
 {
     protected $fillable = [
         'type',
+        'applicant_category',
         'full_name',
         'email',
         'phone',

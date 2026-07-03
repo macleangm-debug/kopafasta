@@ -104,7 +104,7 @@ if (! function_exists('loan_product_wizard_payload')) {
         return [
             'id'                => $product->id,
             'code'              => $product->code,
-            'name'              => $product->name,
+            'name'              => $product->localizedName(),
             'loan_type'         => loan_product_type_label($product),
             'features'          => loan_product_features($product),
             'application_fee'   => loan_product_application_fee($customer, $product),
