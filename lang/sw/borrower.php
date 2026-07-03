@@ -40,6 +40,19 @@ return [
   'english' => 'Kiingereza',
   'swahili' => 'Kiswahili',
   'signed_in_as' => 'Umeingia kama :name',
+  'layout' => 
+[
+    'menu' => 'Menyu',
+    'notifications' => 'Arifa',
+    'view_all' => 'Angalia zote',
+    'no_notifications' => 'Bado hakuna arifa.',
+    'my_profile' => 'Wasifu wangu',
+    'security_settings' => 'Mipangilio ya usalama',
+    'help_center' => 'Kituo cha msaada',
+    'sign_out' => 'Toka',
+    'help' => 'Msaada',
+    'fix_errors' => 'Tafadhali rekebisha:',
+],
   'apply' => 
 [
     'title' => 'Omba mkopo',

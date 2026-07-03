@@ -80,24 +80,25 @@
             <p class="text-sm text-gray-500 mt-1">{{ __('borrower.dashboard.customer_number', ['number' => $customer->customer_number ?? '—']) }}</p>
         </div>
         <a href="{{ route('site.borrower.apply') }}"
-           class="font-semibold px-5 py-2.5 rounded-full inline-flex items-center gap-2 text-sm shrink-0 self-start bg-amber-500 hover:bg-amber-400 text-gray-900">
+           class="font-bold px-5 py-2.5 rounded-xl inline-flex items-center gap-2 text-sm shrink-0 self-start bg-brand-gold hover:bg-yellow-400 text-brand shadow-sm">
             + {{ __('borrower.new_application') }}
         </a>
     </div>
 
     {{-- Referral CTA --}}
     @if ($referralCode ?? null)
-        <section class="mb-8 bg-gradient-to-br from-indigo-700 via-indigo-800 to-slate-900 text-white rounded-2xl p-6 sm:p-8 shadow-lg">
-            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+        <section class="mb-8 bg-brand text-white rounded-2xl p-6 sm:p-8 shadow-lg relative overflow-hidden">
+            <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
+            <div class="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                 <div>
-                    <p class="text-xs uppercase tracking-widest text-indigo-200 font-semibold">{{ __('borrower.referrals.grow') }}</p>
+                    <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.referrals.grow') }}</p>
                     <h2 class="text-xl sm:text-2xl font-bold mt-1">{{ __('borrower.dashboard.referral_title') }}</h2>
-                    <p class="text-sm text-indigo-100 mt-2">{{ __('borrower.referrals.your_code') }}: <span class="font-mono font-bold text-white">{{ $referralCode }}</span></p>
-                    <p class="text-sm text-indigo-100 mt-1">{{ __('borrower.dashboard.referral_wallet') }}: <span class="font-bold text-white">{{ format_money($referralWallet->balance ?? 0) }}</span></p>
+                    <p class="text-sm text-white/80 mt-2">{{ __('borrower.referrals.your_code') }}: <span class="font-mono font-bold text-white">{{ $referralCode }}</span></p>
+                    <p class="text-sm text-white/80 mt-1">{{ __('borrower.dashboard.referral_wallet') }}: <span class="font-bold text-brand-gold">{{ format_money($referralWallet->balance ?? 0) }}</span></p>
                 </div>
                 <div class="flex flex-col sm:flex-row gap-3 shrink-0">
                     <x-site.referral-share :link="$referralLink" :code="$referralCode" :message="$referralShareMessage ?? null" />
-                    <a href="{{ route('site.borrower.referrals') }}" class="inline-flex justify-center bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-full text-sm ring-1 ring-white/20">
+                    <a href="{{ route('site.borrower.referrals') }}" class="inline-flex justify-center bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-xl text-sm ring-1 ring-white/20">
                         {{ __('borrower.nav.referrals') }} →
                     </a>
                 </div>
@@ -106,10 +107,10 @@
     @endif
 
     {{-- Active applications --}}
-    <div class="mb-8 bg-white rounded-2xl border border-gray-200 overflow-hidden">
-        <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 class="font-semibold">{{ __('borrower.active_applications') }}</h2>
-            <a href="{{ route('site.borrower.loans') }}" class="text-xs text-amber-600 hover:underline">{{ __('borrower.dashboard.view_all') }}</a>
+    <div class="mb-8 glass-card overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100/80 flex items-center justify-between">
+            <h2 class="font-bold text-gray-900">{{ __('borrower.active_applications') }}</h2>
+            <a href="{{ route('site.borrower.loans') }}" class="text-xs text-brand font-semibold hover:underline">{{ __('borrower.dashboard.view_all') }}</a>
         </div>
         @if (($activeApplications ?? collect())->isEmpty())
             <div class="p-8 text-center text-sm text-gray-500">
@@ -121,7 +122,7 @@
                 @foreach ($activeApplicationRows ?? [] as $row)
                     <li class="px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
                         <div class="min-w-0">
-                            <a href="{{ $row['action_url'] }}" class="text-sm font-mono font-semibold text-gray-900 hover:text-amber-700">{{ $row['application_number'] }}</a>
+                            <a href="{{ $row['action_url'] }}" class="text-sm font-mono font-semibold text-gray-900 hover:text-brand">{{ $row['application_number'] }}</a>
                             <p class="text-xs text-gray-500 mt-0.5">{{ $row['product_name'] }} · {{ format_money($row['requested_amount']) }}</p>
                             <div class="flex flex-wrap gap-3 mt-2 text-xs">
                                 <span class="text-gray-500">{{ __('borrower.applications_list.profile') }}:
@@ -137,7 +138,7 @@
                                 </span>
                             </div>
                         </div>
-                        <span class="text-xs font-semibold rounded-full px-2.5 py-1 bg-amber-100 text-amber-700 shrink-0">{{ $row['status_label'] }}</span>
+                        <span class="text-xs font-semibold rounded-full px-2.5 py-1 bg-brand-muted text-brand shrink-0">{{ $row['status_label'] }}</span>
                     </li>
                 @endforeach
             </ul>
@@ -151,7 +152,7 @@
                 <h2 class="text-lg font-semibold">{{ __('borrower.loan_products') }}</h2>
                 <p class="text-sm text-gray-500">{{ __('borrower.dashboard.browse_products') }}</p>
             </div>
-            <a href="{{ route('site.borrower.marketplace') }}" class="text-xs font-semibold text-amber-700 hover:underline">{{ __('borrower.dashboard.marketplace_link') }}</a>
+            <a href="{{ route('site.borrower.marketplace') }}" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.dashboard.marketplace_link') }}</a>
         </div>
         @if(isset($products) && $products->isNotEmpty())
             <div class="relative -mx-4 lg:mx-0" x-data="{ open: null }">
@@ -182,10 +183,10 @@
     </div>
 
     {{-- Notifications --}}
-    <div class="bg-white rounded-2xl border border-gray-200">
-        <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 class="font-semibold">{{ __('borrower.recent_notifications') }}</h2>
-            <a href="{{ route('site.borrower.notifications') }}" class="text-xs text-amber-600 hover:underline">All →</a>
+    <div class="glass-card overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100/80 flex items-center justify-between">
+            <h2 class="font-bold text-gray-900">{{ __('borrower.recent_notifications') }}</h2>
+            <a href="{{ route('site.borrower.notifications') }}" class="text-xs text-brand font-semibold hover:underline">{{ __('borrower.dashboard.view_all') }}</a>
         </div>
         @if ($notifications->isEmpty())
             <div class="p-6 text-center text-sm text-gray-500">{{ __('borrower.dashboard_page.no_messages') }}</div>

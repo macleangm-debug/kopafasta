@@ -7,54 +7,61 @@
         'wide'   => 'max-w-7xl',
         default  => 'max-w-6xl',
     };
-$nav = $portalMode === 'guarantor'
-    ? [
-        ['key' => 'loans', 'label' => __('borrower.loans_page.tab_guarantor_requests'), 'route' => 'site.borrower.loans', 'route_params' => ['tab' => 'guarantor'], 'icon' => 'users'],
-        ['key' => 'guarantor-notifications', 'label' => __('borrower.nav.guarantor_notifications'), 'route' => 'site.borrower.guarantor-notifications', 'icon' => 'bell'],
-        ['key' => 'profile', 'label' => __('borrower.nav.profile'), 'route' => 'site.borrower.profile', 'icon' => 'user'],
-        ['key' => 'support', 'label' => __('borrower.nav.support'), 'route' => 'site.borrower.support', 'icon' => 'help'],
-    ]
-    : [
-        ['key' => 'dashboard',     'label' => __('borrower.nav.dashboard'),     'route' => 'site.borrower.dashboard',     'icon' => 'home'],
-        ['key' => 'membership',    'label' => __('borrower.nav.membership'),    'route' => 'site.membership.show',        'icon' => 'shield'],
-        ['key' => 'referrals',     'label' => __('borrower.nav.referrals'),     'route' => 'site.borrower.referrals',     'icon' => 'users'],
-        ['key' => 'loans',         'label' => __('borrower.nav.loans'),         'route' => 'site.borrower.loans',         'icon' => 'wallet'],
-        ['key' => 'marketplace',   'label' => __('borrower.nav.marketplace'),   'route' => 'site.borrower.marketplace', 'icon' => 'folder'],
-        ['key' => 'payments',      'label' => __('borrower.nav.payments'),      'route' => 'site.borrower.payments',      'icon' => 'pay'],
-        ['key' => 'notifications', 'label' => __('borrower.nav.notifications'), 'route' => 'site.borrower.notifications', 'icon' => 'bell'],
-        ['key' => 'support',       'label' => __('borrower.nav.support'),       'route' => 'site.borrower.support',       'icon' => 'help'],
-        ['key' => 'profile',       'label' => __('borrower.nav.profile'),       'route' => 'site.borrower.profile',       'icon' => 'user'],
-    ];
+    $siteLocale = $siteLocale ?? app()->getLocale();
+    $siteCountry = $siteCountry ?? strtoupper((string) session('country', 'TZ'));
+    $siteCountries = $siteCountries ?? collect(app(\App\Services\CountrySettingsService::class)->codes())
+        ->map(fn (string $code) => app(\App\Services\CountrySettingsService::class)->forCode($code))
+        ->values()
+        ->all();
 
-$borrowerCustomer = auth()->user()?->customer;
-$portalContext = app(\App\Services\PortalContextService::class);
-$displayName = $portalContext->displayName($borrowerCustomer);
-$notificationQuery = $portalMode === 'guarantor' && $borrowerCustomer
-    ? $portalContext->guarantorNotificationsQuery($borrowerCustomer)
-    : ($borrowerCustomer ? $portalContext->borrowerNotificationsQuery($borrowerCustomer) : null);
-$unreadNotifications = $notificationQuery
-    ? $notificationQuery->whereNull('read_at')->count()
-    : 0;
+    $nav = $portalMode === 'guarantor'
+        ? [
+            ['key' => 'loans', 'label' => __('borrower.loans_page.tab_guarantor_requests'), 'route' => 'site.borrower.loans', 'route_params' => ['tab' => 'guarantor'], 'icon' => 'users'],
+            ['key' => 'guarantor-notifications', 'label' => __('borrower.nav.guarantor_notifications'), 'route' => 'site.borrower.guarantor-notifications', 'icon' => 'bell'],
+            ['key' => 'profile', 'label' => __('borrower.nav.profile'), 'route' => 'site.borrower.profile', 'icon' => 'user'],
+            ['key' => 'support', 'label' => __('borrower.nav.support'), 'route' => 'site.borrower.support', 'icon' => 'help'],
+        ]
+        : [
+            ['key' => 'dashboard',     'label' => __('borrower.nav.dashboard'),     'route' => 'site.borrower.dashboard',     'icon' => 'home'],
+            ['key' => 'membership',    'label' => __('borrower.nav.membership'),    'route' => 'site.membership.show',        'icon' => 'shield'],
+            ['key' => 'referrals',     'label' => __('borrower.nav.referrals'),     'route' => 'site.borrower.referrals',     'icon' => 'users'],
+            ['key' => 'loans',         'label' => __('borrower.nav.loans'),         'route' => 'site.borrower.loans',         'icon' => 'wallet'],
+            ['key' => 'marketplace',   'label' => __('borrower.nav.marketplace'),   'route' => 'site.borrower.marketplace', 'icon' => 'folder'],
+            ['key' => 'payments',      'label' => __('borrower.nav.payments'),      'route' => 'site.borrower.payments',      'icon' => 'pay'],
+            ['key' => 'notifications', 'label' => __('borrower.nav.notifications'), 'route' => 'site.borrower.notifications', 'icon' => 'bell'],
+            ['key' => 'support',       'label' => __('borrower.nav.support'),       'route' => 'site.borrower.support',       'icon' => 'help'],
+            ['key' => 'profile',       'label' => __('borrower.nav.profile'),       'route' => 'site.borrower.profile',       'icon' => 'user'],
+        ];
 
-$icon = function (string $name) {
-    return match ($name) {
-        'home'    => '<path d="M3 12 12 4l9 8M5 10v10h14V10"/>',
-        'doc'     => '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6"/>',
-        'wallet'  => '<path d="M3 7h15a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7zm0 0V5a2 2 0 0 1 2-2h11M16 13h2"/>',
-        'calendar'=> '<path d="M5 7h14a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1zM8 3v4M16 3v4M4 11h16"/>',
-        'pay'     => '<path d="M3 10h18M5 6h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zm3 9h3"/>',
-        'folder'  => '<path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6z"/>',
-        'users'   => '<path d="M16 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0zM3 21a7 7 0 0 1 14 0M22 11a3 3 0 1 0-3-3"/>',
-        'bell'    => '<path d="M6 8a6 6 0 1 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9zM10 21a2 2 0 0 0 4 0"/>',
-        'user'    => '<path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0"/>',
-        'help'    => '<path d="M12 18v.01M9.1 9a3 3 0 1 1 4.4 3.4c-1 .6-1.5 1.2-1.5 2.6M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z"/>',
-        'shield'  => '<path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3zM9 12l2 2 4-4"/>',
-        default   => '<circle cx="12" cy="12" r="8"/>',
+    $borrowerCustomer = auth()->user()?->customer;
+    $portalContext = app(\App\Services\PortalContextService::class);
+    $displayName = $portalContext->displayName($borrowerCustomer);
+    $notificationQuery = $portalMode === 'guarantor' && $borrowerCustomer
+        ? $portalContext->guarantorNotificationsQuery($borrowerCustomer)
+        : ($borrowerCustomer ? $portalContext->borrowerNotificationsQuery($borrowerCustomer) : null);
+    $unreadNotifications = $notificationQuery
+        ? $notificationQuery->whereNull('read_at')->count()
+        : 0;
+
+    $icon = function (string $name) {
+        return match ($name) {
+            'home'    => '<path d="M3 12 12 4l9 8M5 10v10h14V10"/>',
+            'doc'     => '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6"/>',
+            'wallet'  => '<path d="M3 7h15a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7zm0 0V5a2 2 0 0 1 2-2h11M16 13h2"/>',
+            'calendar'=> '<path d="M5 7h14a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1zM8 3v4M16 3v4M4 11h16"/>',
+            'pay'     => '<path d="M3 10h18M5 6h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zm3 9h3"/>',
+            'folder'  => '<path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6z"/>',
+            'users'   => '<path d="M16 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0zM3 21a7 7 0 0 1 14 0M22 11a3 3 0 1 0-3-3"/>',
+            'bell'    => '<path d="M6 8a6 6 0 1 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9zM10 21a2 2 0 0 0 4 0"/>',
+            'user'    => '<path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0"/>',
+            'help'    => '<path d="M12 18v.01M9.1 9a3 3 0 1 1 4.4 3.4c-1 .6-1.5 1.2-1.5 2.6M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z"/>',
+            'shield'  => '<path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3zM9 12l2 2 4-4"/>',
+            default   => '<circle cx="12" cy="12" r="8"/>',
+        };
     };
-};
 @endphp
 <!doctype html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', $siteLocale) }}" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -64,25 +71,26 @@ $icon = function (string $name) {
     @stack('styles')
     <style>[x-cloak]{display:none!important}</style>
 </head>
-<body class="bg-gray-50 text-gray-900 antialiased" x-data="{open:false}">
+<body class="min-h-full bg-[#faf8f5] text-gray-900 antialiased" x-data="{open:false}">
 
 <div class="min-h-screen flex">
 
     {{-- Sidebar (desktop) --}}
-    <aside class="hidden lg:flex w-64 shrink-0 flex-col bg-gradient-to-b from-indigo-700 via-indigo-800 to-slate-900 text-white sticky top-0 h-screen shadow-xl">
-        <a href="{{ route('site.home') }}" class="flex items-center gap-2 px-5 h-16 border-b border-white/15">
+    <aside class="hidden lg:flex w-64 shrink-0 flex-col bg-brand text-white sticky top-0 h-screen shadow-xl">
+        <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)] pointer-events-none"></div>
+        <a href="{{ route('site.borrower.dashboard') }}" class="relative flex items-center gap-2 px-5 h-16 border-b border-white/15">
             <x-site.brand-mark size="sm" variant="light" />
             <div class="leading-tight ml-1">
                 <div class="text-[11px] text-white/70">{{ __('borrower.portal') }}</div>
             </div>
         </a>
-        <nav class="flex-1 overflow-y-auto py-4">
+        <nav class="relative flex-1 overflow-y-auto py-4">
             @foreach ($nav as $item)
                 @php $isActive = $active === $item['key']; @endphp
                 <a href="{{ route($item['route'], $item['route_params'] ?? []) }}"
-                   class="flex items-center gap-3 mx-3 my-0.5 px-3 py-2.5 text-sm rounded-lg transition
-                          {{ $isActive ? 'bg-white text-indigo-700 font-semibold shadow'
-                                       : 'text-white/85 hover:bg-white/15 hover:text-white' }}">
+                   class="flex items-center gap-3 mx-3 my-0.5 px-3 py-2.5 text-sm rounded-xl transition
+                          {{ $isActive ? 'bg-brand-gold text-brand font-bold shadow-sm'
+                                       : 'text-white/85 hover:bg-white/10 hover:text-white' }}">
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                         {!! $icon($item['icon']) !!}
                     </svg>
@@ -90,7 +98,7 @@ $icon = function (string $name) {
                 </a>
             @endforeach
         </nav>
-        <div class="p-4 border-t border-white/15 text-[11px] text-white/60">
+        <div class="relative p-4 border-t border-white/15 text-[11px] text-white/60">
             {{ __('borrower.signed_in_as', ['name' => $displayName]) }}
         </div>
     </aside>
@@ -99,75 +107,71 @@ $icon = function (string $name) {
     <div class="flex-1 flex flex-col min-h-screen min-w-0">
 
         {{-- Topbar (desktop) --}}
-        <header class="hidden lg:flex sticky top-0 z-20 bg-white border-b border-gray-200 items-center justify-end gap-4 px-8 h-16">
-            <form method="POST" action="{{ route('site.locale.update') }}" class="flex items-center gap-2 text-sm">
-                @csrf
-                <label for="locale" class="text-gray-500">{{ __('borrower.language') }}</label>
-                <select id="locale" name="locale"
-                        onchange="if (window.applyWizardSaveDraft) { window.applyWizardSaveDraft().finally(() => this.form.submit()); } else { this.form.submit(); }"
-                        class="rounded-lg border-gray-300 text-sm py-1.5">
-                    <option value="en" @selected(app()->getLocale() === 'en')>{{ __('borrower.english') }}</option>
-                    <option value="sw" @selected(app()->getLocale() === 'sw')>{{ __('borrower.swahili') }}</option>
-                </select>
-            </form>
-            <div class="relative" x-data="notificationBell()" x-init="load()">
-                <button type="button" @click="toggle()" class="relative p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900" title="Notifications">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $icon('bell') !!}</svg>
-                    <span x-show="unread > 0" x-cloak class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center" x-text="unread > 9 ? '9+' : unread"></span>
-                </button>
-                <div x-show="open" @click.outside="open = false" x-cloak class="absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-2xl bg-white shadow-xl ring-1 ring-gray-200 overflow-hidden z-50">
-                    <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                        <p class="text-sm font-semibold">Notifications</p>
-                        <a href="{{ route('site.borrower.notifications') }}" class="text-xs font-semibold text-amber-700 hover:underline">View all</a>
-                    </div>
-                    <div class="max-h-80 overflow-y-auto">
-                        <template x-if="items.length === 0">
-                            <p class="px-4 py-8 text-sm text-gray-500 text-center">No notifications yet.</p>
-                        </template>
-                        <template x-for="item in items" :key="item.id">
-                            <div class="px-4 py-3 border-b border-gray-50 hover:bg-gray-50" :class="!item.read ? 'bg-amber-50/40' : ''">
-                                <p class="text-xs uppercase tracking-widest text-gray-400" x-text="item.category"></p>
-                                <p class="text-sm text-gray-800 mt-0.5" x-text="item.message"></p>
-                                <p class="text-[11px] text-gray-400 mt-1" x-text="item.when"></p>
-                            </div>
-                        </template>
+        <header class="hidden lg:flex sticky top-0 z-20 glass-nav items-center justify-between gap-4 px-6 lg:px-8 h-16">
+            <a href="{{ route('site.home') }}" class="text-xs font-medium text-gray-500 hover:text-brand transition">
+                ← {{ brand_name() }}
+            </a>
+            <div class="flex items-center gap-3">
+                <x-site.locale-switcher variant="header" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
+                <div class="relative" x-data="notificationBell()" x-init="load()">
+                    <button type="button" @click="toggle()" class="relative p-2 rounded-lg text-gray-600 hover:bg-brand-muted hover:text-brand" title="{{ __('borrower.layout.notifications') }}">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $icon('bell') !!}</svg>
+                        <span x-show="unread > 0" x-cloak class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center" x-text="unread > 9 ? '9+' : unread"></span>
+                    </button>
+                    <div x-show="open" @click.outside="open = false" x-cloak class="absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-2xl glass-card overflow-hidden z-50">
+                        <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-white/80">
+                            <p class="text-sm font-semibold text-gray-900">{{ __('borrower.layout.notifications') }}</p>
+                            <a href="{{ route('site.borrower.notifications') }}" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.layout.view_all') }}</a>
+                        </div>
+                        <div class="max-h-80 overflow-y-auto bg-white/90">
+                            <template x-if="items.length === 0">
+                                <p class="px-4 py-8 text-sm text-gray-500 text-center">{{ __('borrower.layout.no_notifications') }}</p>
+                            </template>
+                            <template x-for="item in items" :key="item.id">
+                                <div class="px-4 py-3 border-b border-gray-50 hover:bg-brand-muted/30" :class="!item.read ? 'bg-brand-muted/50' : ''">
+                                    <p class="text-xs uppercase tracking-widest text-gray-400" x-text="item.category"></p>
+                                    <p class="text-sm text-gray-800 mt-0.5" x-text="item.message"></p>
+                                    <p class="text-[11px] text-gray-400 mt-1" x-text="item.when"></p>
+                                </div>
+                            </template>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="relative" x-data="{ profileOpen: false }">
-                <button type="button" @click="profileOpen = !profileOpen"
-                        class="flex items-center gap-3 rounded-xl hover:bg-gray-50 px-2 py-1.5 transition">
-                    <div class="text-right leading-tight hidden sm:block">
-                        <p class="text-sm font-semibold text-gray-900">{{ $displayName }}</p>
-                        <p class="text-xs text-gray-500">{{ Auth::user()->email }}</p>
+                <div class="relative" x-data="{ profileOpen: false }">
+                    <button type="button" @click="profileOpen = !profileOpen"
+                            class="flex items-center gap-3 rounded-xl hover:bg-brand-muted/60 px-2 py-1.5 transition">
+                        <div class="text-right leading-tight hidden sm:block">
+                            <p class="text-sm font-semibold text-gray-900">{{ $displayName }}</p>
+                            <p class="text-xs text-gray-500">{{ Auth::user()->email }}</p>
+                        </div>
+                        <div class="size-9 rounded-full bg-brand text-white grid place-items-center font-bold text-sm">
+                            {{ strtoupper(substr($displayName, 0, 1)) }}
+                        </div>
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div x-show="profileOpen" @click.outside="profileOpen = false" x-cloak
+                         class="absolute right-0 mt-2 w-56 rounded-2xl glass-card overflow-hidden z-50 py-1 bg-white/95">
+                        <a href="{{ route('site.borrower.profile') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.layout.my_profile') }}</a>
+                        <a href="{{ route('site.borrower.profile', ['section' => 'security']) }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.layout.security_settings') }}</a>
+                        <a href="{{ route('site.borrower.notifications') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.layout.notifications') }}</a>
+                        <a href="{{ route('site.borrower.support') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.layout.help_center') }}</a>
+                        <div class="border-t border-gray-100 my-1"></div>
+                        <form method="POST" action="{{ route('site.logout') }}">
+                            @csrf
+                            <button type="submit" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">{{ __('borrower.layout.sign_out') }}</button>
+                        </form>
                     </div>
-                    <div class="size-9 rounded-full bg-amber-100 text-amber-700 grid place-items-center font-bold">
-                        {{ strtoupper(substr($displayName, 0, 1)) }}
-                    </div>
-                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
-                </button>
-                <div x-show="profileOpen" @click.outside="profileOpen = false" x-cloak
-                     class="absolute right-0 mt-2 w-56 rounded-2xl bg-white shadow-xl ring-1 ring-gray-200 overflow-hidden z-50 py-1">
-                    <a href="{{ route('site.borrower.profile') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">My profile</a>
-                    <a href="{{ route('site.borrower.profile', ['section' => 'security']) }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">Security settings</a>
-                    <a href="{{ route('site.borrower.notifications') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">Notifications</a>
-                    <a href="{{ route('site.borrower.support') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">Help center</a>
-                    <div class="border-t border-gray-100 my-1"></div>
-                    <form method="POST" action="{{ route('site.logout') }}">
-                        @csrf
-                        <button type="submit" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">Sign out</button>
-                    </form>
                 </div>
             </div>
         </header>
 
         {{-- Topbar (mobile) --}}
-        <header class="lg:hidden sticky top-0 z-30 bg-white border-b border-gray-200 flex items-center justify-between px-4 h-14">
-            <a href="{{ route('site.home') }}" class="flex items-center gap-2">
+        <header class="lg:hidden sticky top-0 z-30 glass-nav flex items-center justify-between px-4 h-14">
+            <a href="{{ route('site.borrower.dashboard') }}" class="flex items-center gap-2">
                 <x-site.brand-mark size="sm" />
             </a>
             <div class="flex items-center gap-1">
-                <a href="{{ route('site.borrower.notifications') }}" class="relative p-2 text-gray-600 hover:text-gray-900" title="Notifications">
+                <a href="{{ route('site.borrower.notifications') }}" class="relative p-2 text-gray-600 hover:text-brand" title="{{ __('borrower.layout.notifications') }}">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $icon('bell') !!}</svg>
                     @if ($unreadNotifications > 0)
                         <span class="absolute top-1 right-1 min-w-[1rem] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $unreadNotifications > 9 ? '9+' : $unreadNotifications }}</span>
@@ -175,7 +179,7 @@ $icon = function (string $name) {
                 </a>
                 <form method="POST" action="{{ route('site.logout') }}">
                     @csrf
-                    <button class="p-2 text-gray-600 hover:text-red-600" title="Sign out">
+                    <button class="p-2 text-gray-600 hover:text-red-600" title="{{ __('borrower.layout.sign_out') }}">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 17l5-5-5-5M21 12H9M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></svg>
                     </button>
                 </form>
@@ -188,26 +192,29 @@ $icon = function (string $name) {
         {{-- Mobile drawer --}}
         <div x-show="open" x-cloak class="fixed inset-0 z-40 lg:hidden">
             <div class="absolute inset-0 bg-black/40" @click="open = false"></div>
-            <div class="absolute inset-y-0 left-0 w-72 bg-gradient-to-b from-indigo-700 via-indigo-800 to-slate-900 text-white shadow-xl flex flex-col">
+            <div class="absolute inset-y-0 left-0 w-72 bg-brand text-white shadow-xl flex flex-col">
                 <div class="flex items-center justify-between px-5 h-14 border-b border-white/15">
-                    <span class="font-extrabold">Menu</span>
+                    <span class="font-bold">{{ __('borrower.layout.menu') }}</span>
                     <button @click="open = false" class="p-1 text-white/80"><svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
                 </div>
                 <nav class="flex-1 overflow-y-auto py-2">
                     @foreach ($nav as $item)
                         @php $isActive = $active === $item['key']; @endphp
                         <a href="{{ route($item['route'], $item['route_params'] ?? []) }}"
-                           class="flex items-center gap-3 mx-3 my-0.5 px-3 py-3 text-sm rounded-lg
-                                  {{ $isActive ? 'bg-white text-indigo-700 font-semibold' : 'text-white/90 hover:bg-white/15' }}">
+                           class="flex items-center gap-3 mx-3 my-0.5 px-3 py-3 text-sm rounded-xl
+                                  {{ $isActive ? 'bg-brand-gold text-brand font-bold' : 'text-white/90 hover:bg-white/10' }}">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">{!! $icon($item['icon']) !!}</svg>
                             {{ $item['label'] }}
                         </a>
                     @endforeach
                 </nav>
-                <form method="POST" action="{{ route('site.logout') }}" class="p-4 border-t border-white/15">
-                    @csrf
-                    <button class="w-full text-sm text-left text-white/90 hover:text-white font-medium">Sign out</button>
-                </form>
+                <div class="p-4 border-t border-white/15 space-y-3">
+                    <x-site.locale-switcher :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
+                    <form method="POST" action="{{ route('site.logout') }}">
+                        @csrf
+                        <button class="w-full text-sm text-left text-white/90 hover:text-white font-medium">{{ __('borrower.layout.sign_out') }}</button>
+                    </form>
+                </div>
             </div>
         </div>
 
@@ -219,7 +226,7 @@ $icon = function (string $name) {
         @endif
         @if ($errors->any())
             <div class="mx-4 lg:mx-8 mt-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
-                <p class="font-semibold mb-1">Please fix:</p>
+                <p class="font-semibold mb-1">{{ __('borrower.layout.fix_errors') }}</p>
                 <ul class="list-disc ml-5">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
             </div>
         @endif
@@ -230,8 +237,8 @@ $icon = function (string $name) {
             </div>
         </main>
 
-        <footer class="px-4 lg:px-8 py-6 text-center text-xs text-gray-400">
-            © {{ date('Y') }} {{ brand('legal_name') }} · <a href="{{ route('site.faq') }}" class="hover:text-gray-600">Help</a>
+        <footer class="px-4 lg:px-8 py-6 text-center text-xs text-gray-400 border-t border-gray-200/60">
+            © {{ date('Y') }} {{ brand('legal_name') }} · <a href="{{ route('site.faq') }}" class="hover:text-brand">{{ __('borrower.layout.help') }}</a>
         </footer>
     </div>
 </div>

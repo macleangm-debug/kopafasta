@@ -40,6 +40,19 @@ return [
     'swahili' => 'Swahili',
     'signed_in_as' => 'Signed in as :name',
 
+    'layout' => [
+        'menu'              => 'Menu',
+        'notifications'     => 'Notifications',
+        'view_all'          => 'View all',
+        'no_notifications'  => 'No notifications yet.',
+        'my_profile'        => 'My profile',
+        'security_settings' => 'Security settings',
+        'help_center'       => 'Help center',
+        'sign_out'          => 'Sign out',
+        'help'              => 'Help',
+        'fix_errors'        => 'Please fix:',
+    ],
+
     'apply' => [
         'title' => 'Apply for a loan',
         'subtitle' => 'Choose a product, review requirements and your readiness score — then start when you\'re ready.',
