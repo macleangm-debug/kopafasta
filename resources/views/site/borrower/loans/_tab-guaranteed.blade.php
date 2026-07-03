@@ -4,7 +4,7 @@
 </div>
 
 @if (($guaranteedLinks ?? collect())->isEmpty())
-    <div class="bg-white rounded-2xl border border-gray-200 p-10 text-center">
+    <div class="glass-card p-10 text-center">
         <p class="text-gray-500">{{ __('borrower.loans_page.no_guaranteed') }}</p>
     </div>
 @else
@@ -17,7 +17,7 @@
                 $appTone = match ($row->application_status['tone'] ?? 'gray') {
                     'emerald' => 'bg-emerald-100 text-emerald-800',
                     'red' => 'bg-red-100 text-red-800',
-                    'amber' => 'bg-amber-100 text-amber-800',
+                    'amber' => 'bg-brand-muted text-brand',
                     default => 'bg-sky-100 text-sky-800',
                 };
                 $loanTone = match ($row->loan_status) {
@@ -28,11 +28,11 @@
                 };
             @endphp
             <a href="{{ route('site.borrower.guaranteed.show', $row->link) }}"
-               class="block bg-white rounded-2xl border border-gray-200 p-6 hover:border-amber-300 hover:shadow-md transition-all group">
+               class="block glass-card p-6 hover:ring-2 hover:ring-brand/20 transition-all group">
                 <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
                     <div>
                         <p class="text-xs text-gray-500">{{ $productName }}</p>
-                        <p class="font-semibold text-gray-900 group-hover:text-amber-800">{{ $borrowerName }}</p>
+                        <p class="font-semibold text-gray-900 group-hover:text-brand">{{ $borrowerName }}</p>
                         <p class="text-xs text-gray-500 mt-0.5 font-mono">{{ $row->reference }}</p>
                     </div>
                     <div class="flex flex-wrap gap-2">
@@ -80,7 +80,7 @@
                     </div>
                 @endif
 
-                <p class="mt-3 text-sm font-semibold text-amber-700">{{ __('borrower.guaranteed.view_details') }} →</p>
+                <p class="mt-3 text-sm font-semibold text-brand">{{ __('borrower.guaranteed.view_details') }} →</p>
             </a>
         @endforeach
     </div>

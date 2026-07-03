@@ -2,7 +2,7 @@
     <div>
 
         <div class="mb-6">
-            <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">{{ brand_name() }} {{ __('borrower.apply.smart_application') }}</p>
+            <p class="text-xs uppercase tracking-widest text-brand mb-1">{{ brand_name() }} {{ __('borrower.apply.smart_application') }}</p>
             <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">{{ __('borrower.apply.title') }}</h1>
             <p class="mt-1 text-sm text-gray-500">{{ __('borrower.apply.subtitle') }}</p>
             <p x-show="draftReference" x-cloak class="mt-2 text-sm text-gray-600">
@@ -36,7 +36,7 @@
                                 <span>
                                     {{ $item['label'] }}
                                     @if (! empty($item['detail']))
-                                        <span class="block text-xs text-amber-700 mt-0.5">{{ $item['detail'] }}</span>
+                                        <span class="block text-xs text-brand mt-0.5">{{ $item['detail'] }}</span>
                                     @endif
                                     @if (! empty($item['action_url']))
                                         <a href="{{ $item['action_url'] }}" class="font-semibold underline">{{ __('borrower.apply.details.complete_missing') }}</a>
@@ -215,7 +215,7 @@
             </div>
 
             {{-- Phase 1: Browse products --}}
-            <div x-show="phase === 'browse'" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8">
+            <div x-show="phase === 'browse'" class="glass-card p-6 sm:p-8">
                 <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.browse.title') }}</h2>
                 <p class="text-sm text-gray-600 mb-5">{{ __('borrower.apply.browse.subtitle') }}</p>
 
@@ -226,14 +226,14 @@
                                 <span class="text-[10px] font-mono font-semibold text-sky-700 bg-sky-100 px-1.5 py-0.5 rounded">{{ $p->code }}</span>
                                 <div class="mt-2 font-semibold text-sm">{{ $p->name }}</div>
                                 <p class="text-[11px] text-gray-600 mt-2 flex-1">{{ __('borrower.marketplace.subtitle') }}</p>
-                                <a href="{{ route('site.borrower.marketplace') }}" class="mt-3 text-xs font-semibold text-amber-700">{{ __('borrower.nav.marketplace') }} →</a>
+                                <a href="{{ route('site.borrower.marketplace') }}" class="mt-3 text-xs font-semibold text-brand">{{ __('borrower.nav.marketplace') }} →</a>
                             </div>
                         @else
                             <button type="button" @click="openProduct(@js($wizardProductPayload($p)))"
-                                    class="snap-start shrink-0 w-64 text-left rounded-xl border-2 border-gray-200 hover:border-amber-300 p-4 transition">
-                                <span class="text-[10px] font-mono font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">{{ $p->code }}</span>
-                                <div class="mt-2 font-semibold text-sm">{{ $p->name }}</div>
-                                <p class="text-[10px] font-semibold text-amber-800 mt-1">{{ loan_product_type_label($p) }}</p>
+                                    class="snap-start shrink-0 w-64 text-left rounded-xl border-2 border-gray-200/80 hover:border-brand/40 hover:bg-brand-muted/20 p-4 transition">
+                                <span class="text-[10px] font-mono font-semibold text-brand bg-brand-muted px-1.5 py-0.5 rounded">{{ $p->code }}</span>
+                                <div class="mt-2 font-bold text-sm text-gray-900">{{ $p->localizedName() }}</div>
+                                <p class="text-[10px] font-semibold text-brand mt-1">{{ loan_product_type_label($p) }}</p>
                                 <p class="text-[11px] text-gray-500 mt-1 line-clamp-2">{{ $p->description ?: __('borrower.apply.browse.flexible_terms') }}</p>
                                 <div class="text-[11px] text-gray-600 mt-2">
                                     {{ format_money($p->min_amount, false) }} – {{ format_money($p->max_amount, false) }}
@@ -242,7 +242,7 @@
                                 <p class="text-[11px] font-semibold text-gray-800 mt-2">
                                     {{ __('borrower.apply.product_summary.application_fee') }}: {{ format_money(loan_product_application_fee($customer, $p)) }}
                                 </p>
-                                <p class="mt-3 text-xs font-semibold text-amber-700">{{ __('borrower.apply.browse.view_details') }}</p>
+                                <p class="mt-3 text-xs font-semibold text-brand">{{ __('borrower.apply.browse.view_details') }}</p>
                             </button>
                         @endif
                     @endforeach
@@ -253,7 +253,7 @@
             </div>
 
             {{-- Phase 2: Product details + readiness --}}
-            <div x-show="phase === 'details'" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8">
+            <div x-show="phase === 'details'" class="glass-card p-6 sm:p-8">
                 <x-site.loan-product-details />
             </div>
 
@@ -323,7 +323,7 @@
                 <template x-for="(s, i) in steps" :key="s.key">
                     <li class="flex items-center gap-1 shrink-0">
                         <button type="button" @click="goto(i)"
-                                :class="i === step ? 'bg-amber-500 text-gray-900 border-amber-500'
+                                :class="i === step ? 'bg-brand text-white border-brand'
                                                    : (i < step ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                                                : 'bg-white text-gray-500 border-gray-300')"
                                 class="size-9 rounded-full grid place-items-center text-sm font-bold border-2 transition"
@@ -340,7 +340,7 @@
                 </template>
             </ol>
 
-            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm">
+            <div class="glass-card">
 
                 {{-- Quote --}}
                 <div x-show="stepKey === 'quote'" class="p-6 sm:p-8">
@@ -350,9 +350,9 @@
                         <div class="space-y-5">
                             <div class="bg-gray-50 rounded-xl p-5">
                                 <div class="flex justify-between text-sm mb-2"><span class="text-gray-600">{{ __('borrower.apply.quote.loan_amount') }}</span><span class="font-bold" x-text="formatTzs(form.requested_amount)"></span></div>
-                                <input type="range" :min="current.min" :max="current.max" step="50000" x-model.number="form.requested_amount" @input="updateQuote()" class="w-full accent-amber-500">
+                                <input type="range" :min="current.min" :max="current.max" step="50000" x-model.number="form.requested_amount" @input="updateQuote()" class="w-full accent-brand">
                                 <div class="flex justify-between text-sm mb-2 mt-4"><span class="text-gray-600">{{ __('borrower.apply.quote.tenure') }}</span><span class="font-bold"><span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.quote.months') }}</span></div>
-                                <input type="range" :min="current.tmin" :max="current.tmax" step="1" x-model.number="form.requested_tenure_months" @input="updateQuote()" class="w-full accent-amber-500">
+                                <input type="range" :min="current.tmin" :max="current.tmax" step="1" x-model.number="form.requested_tenure_months" @input="updateQuote()" class="w-full accent-brand">
                                 <div class="flex justify-between text-sm mt-4"><span class="text-gray-600">{{ __('borrower.apply.quote.repayment_frequency') }}</span><span class="font-medium capitalize" x-text="current.frequency || 'monthly'"></span></div>
                             </div>
                             <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -399,7 +399,7 @@
                             </div>
                             <div>
                                 <div class="flex justify-between text-sm mb-2"><span class="text-gray-600">{{ __('borrower.apply.quote.tenure') }}</span><span class="font-bold"><span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.quote.months') }}</span></div>
-                                <input type="range" min="1" :max="assetApplication.max_tenure_months" step="1" x-model.number="form.requested_tenure_months" class="w-full accent-amber-500">
+                                <input type="range" min="1" :max="assetApplication.max_tenure_months" step="1" x-model.number="form.requested_tenure_months" class="w-full accent-brand">
                                 <p class="text-xs text-gray-500 mt-2">{{ __('borrower.apply.asset_tenure.max_hint', ['months' => '']) }} <span x-text="assetApplication.max_tenure_months"></span> {{ __('borrower.apply.quote.months') }}</p>
                             </div>
                         </div>
@@ -438,10 +438,10 @@
                             </div>
                             <div x-show="customerAssets.length && form.customer_asset_id" class="bg-gray-50 rounded-xl p-5">
                                 <div class="flex justify-between text-sm mb-2"><span class="text-gray-600">{{ __('borrower.apply.quote.loan_amount') }}</span><span class="font-bold" x-text="formatTzs(form.requested_amount)"></span></div>
-                                <input type="range" :min="current.min" :max="current.max" step="50000" x-model.number="form.requested_amount" @input="updateQuote()" class="w-full accent-amber-500">
+                                <input type="range" :min="current.min" :max="current.max" step="50000" x-model.number="form.requested_amount" @input="updateQuote()" class="w-full accent-brand">
                                 <div class="flex justify-between text-sm mb-2 mt-4"><span class="text-gray-600">{{ __('borrower.apply.quote.tenure') }}</span><span class="font-bold"><span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.quote.months') }}</span></div>
-                                <input type="range" :min="current.tmin" :max="current.tmax" step="1" x-model.number="form.requested_tenure_months" @input="updateQuote()" class="w-full accent-amber-500">
-                                <p class="text-xs text-amber-700 mt-3">{{ __('borrower.apply.asset_details.ltv_note') }}</p>
+                                <input type="range" :min="current.tmin" :max="current.tmax" step="1" x-model.number="form.requested_tenure_months" @input="updateQuote()" class="w-full accent-brand">
+                                <p class="text-xs text-brand mt-3">{{ __('borrower.apply.asset_details.ltv_note') }}</p>
                             </div>
                             <div x-show="customerAssets.length && form.customer_asset_id">
                                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.quote.purpose') }}</label>
@@ -523,11 +523,11 @@
                             <p class="text-sm font-semibold text-sky-900">{{ __('borrower.apply.previous_guarantor.title') }}</p>
                             <div class="flex flex-wrap gap-3">
                                 <label class="inline-flex items-center gap-2 text-sm">
-                                    <input type="radio" name="guarantor_choice" value="previous" @change="form.guarantor_mode = 'previous'" :checked="form.guarantor_mode === 'previous'" class="text-amber-500">
+                                    <input type="radio" name="guarantor_choice" value="previous" @change="form.guarantor_mode = 'previous'" :checked="form.guarantor_mode === 'previous'" class="text-brand">
                                     {{ __('borrower.apply.previous_guarantor.use_previous') }}
                                 </label>
                                 <label class="inline-flex items-center gap-2 text-sm">
-                                    <input type="radio" name="guarantor_choice" value="new" @change="form.guarantor_mode = 'internal'" :checked="form.guarantor_mode !== 'previous'" class="text-amber-500">
+                                    <input type="radio" name="guarantor_choice" value="new" @change="form.guarantor_mode = 'internal'" :checked="form.guarantor_mode !== 'previous'" class="text-brand">
                                     {{ __('borrower.apply.previous_guarantor.select_new') }}
                                 </label>
                             </div>
@@ -543,8 +543,8 @@
                             </div>
                         </div>
                         <div class="flex flex-wrap gap-3" x-show="form.guarantor_mode !== 'previous'">
-                            <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="guarantor_mode" value="internal" x-model="form.guarantor_mode" class="text-amber-500"> {{ __('borrower.apply.internal_guarantor') }}</label>
-                            <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="guarantor_mode" value="external" x-model="form.guarantor_mode" class="text-amber-500"> {{ __('borrower.apply.external_guarantor') }}</label>
+                            <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="guarantor_mode" value="internal" x-model="form.guarantor_mode" class="text-brand"> {{ __('borrower.apply.internal_guarantor') }}</label>
+                            <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="guarantor_mode" value="external" x-model="form.guarantor_mode" class="text-brand"> {{ __('borrower.apply.external_guarantor') }}</label>
                         </div>
                         <div x-show="form.guarantor_mode === 'internal'" class="space-y-3">
                             <div>
@@ -580,7 +580,7 @@
                             <button type="button"
                                     @click="validateInternalGuarantor()"
                                     :disabled="guarantorValidating"
-                                    class="inline-flex bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
+                                    class="inline-flex bg-brand hover:bg-brand-light disabled:opacity-60 text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
                                 <span x-text="guarantorValidating ? @js(__('borrower.apply.guarantor_fields.validating')) : @js(__('borrower.apply.guarantor_fields.validate'))"></span>
                             </button>
                         </div>
@@ -658,7 +658,7 @@
                                 <button type="button"
                                         @click="generateExternalInvite()"
                                         :disabled="guarantorInvitePreparing"
-                                        class="inline-flex bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
+                                        class="inline-flex bg-brand hover:bg-brand-light disabled:opacity-60 text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
                                     <span x-text="guarantorInvitePreparing ? @js(__('borrower.apply.guarantor_fields.generating_link')) : @js(__('borrower.apply.guarantor_fields.generate_link'))"></span>
                                 </button>
                             </div>
@@ -666,9 +666,9 @@
                                 {{ __('borrower.apply.guarantor_fields.share_generate') }}
                             </div>
                         </div>
-                        <p class="text-xs text-amber-700 font-medium">{{ __('borrower.apply.guarantor_fields.status_waiting') }}</p>
+                        <p class="text-xs text-brand font-medium">{{ __('borrower.apply.guarantor_fields.status_waiting') }}</p>
                     </div>
-                    <p x-show="isGuarantorLocked()" x-cloak class="text-xs text-amber-700 font-medium mt-4">{{ __('borrower.apply.guarantor_fields.status_waiting') }}</p>
+                    <p x-show="isGuarantorLocked()" x-cloak class="text-xs text-brand font-medium mt-4">{{ __('borrower.apply.guarantor_fields.status_waiting') }}</p>
                 </div>
 
                 @php $membershipCfg = \App\Services\MembershipService::config(); @endphp
@@ -737,7 +737,7 @@
                                         <li>
                                             {{ $item['label'] }}
                                             @if (! empty($item['detail']))
-                                                <span class="block text-xs text-amber-700">{{ $item['detail'] }}</span>
+                                                <span class="block text-xs text-brand">{{ $item['detail'] }}</span>
                                             @endif
                                             @if (! empty($item['action_url']))
                                                 — <a href="{{ $item['action_url'] }}" class="font-semibold underline">{{ __('borrower.apply.details.complete_missing') }}</a>
@@ -754,7 +754,7 @@
                         </div>
                     @endif
                     <div class="rounded-xl border border-gray-200 divide-y divide-gray-200 mb-5 text-sm">
-                        <div class="px-4 py-3 flex justify-between gap-3"><div><span class="text-gray-500 block">{{ __('borrower.apply.review_step.product') }}</span><span class="font-medium" x-text="current ? current.name : '—'"></span></div><button type="button" @click="backToBrowse()" class="text-xs text-amber-700 shrink-0" x-show="! reservationMode">{{ __('borrower.apply.change') }}</button></div>
+                        <div class="px-4 py-3 flex justify-between gap-3"><div><span class="text-gray-500 block">{{ __('borrower.apply.review_step.product') }}</span><span class="font-medium" x-text="current ? current.name : '—'"></span></div><button type="button" @click="backToBrowse()" class="text-xs text-brand shrink-0" x-show="! reservationMode">{{ __('borrower.apply.change') }}</button></div>
                         <template x-if="assetApplication">
                             <div class="px-4 py-3">
                                 <span class="text-gray-500 block">{{ __('borrower.apply.review_step.asset') }}</span>
@@ -777,7 +777,7 @@
                         <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.employment') }}</span><span class="font-medium" x-text="review.employment"></span></div>
                         <div class="px-4 py-3 flex justify-between gap-3">
                             <div><span class="text-gray-500 block">{{ __('borrower.apply.review_step.residence') }}</span><span class="font-medium" x-text="review.residence"></span></div>
-                            <a :href="profileUrl" class="text-xs text-amber-700 shrink-0">{{ __('borrower.apply.edit_profile') }}</a>
+                            <a :href="profileUrl" class="text-xs text-brand shrink-0">{{ __('borrower.apply.edit_profile') }}</a>
                         </div>
                     </div>
 
@@ -785,7 +785,7 @@
                     <div class="rounded-xl border border-gray-200 divide-y divide-gray-200 mb-5 text-sm">
                         <div class="px-4 py-3 flex justify-between gap-3" x-show="hasStep('quote') || hasStep('asset_tenure') || hasStep('asset_details') || hasStep('group_members')">
                             <div><span class="text-gray-500 block">{{ __('borrower.apply.review_step.loan_amount') }}</span><span class="font-medium" x-text="formatTzs(form.requested_amount)"></span></div>
-                            <button type="button" @click="gotoKey(hasStep('asset_details') ? 'asset_details' : (hasStep('group_members') ? 'group_members' : (hasStep('quote') ? 'quote' : 'asset_tenure')))" class="text-xs text-amber-700 shrink-0">{{ __('borrower.apply.edit') }}</button>
+                            <button type="button" @click="gotoKey(hasStep('asset_details') ? 'asset_details' : (hasStep('group_members') ? 'group_members' : (hasStep('quote') ? 'quote' : 'asset_tenure')))" class="text-xs text-brand shrink-0">{{ __('borrower.apply.edit') }}</button>
                         </div>
                         <div class="px-4 py-3" x-show="hasStep('group_members')">
                             <span class="text-gray-500 block">{{ __('borrower.apply.group_members.title') }}</span>
@@ -806,7 +806,7 @@
                         <div class="rounded-xl border border-gray-200 divide-y divide-gray-200 text-sm">
                             <div class="px-4 py-3 flex justify-between gap-3">
                                 <div><span class="text-gray-500 block">{{ __('borrower.apply.review_step.guarantor_type') }}</span><span class="font-medium" x-text="review.guarantorType"></span></div>
-                                <button type="button" @click="gotoKey('guarantor')" class="text-xs text-amber-700 shrink-0">{{ __('borrower.apply.edit') }}</button>
+                                <button type="button" @click="gotoKey('guarantor')" class="text-xs text-brand shrink-0">{{ __('borrower.apply.edit') }}</button>
                             </div>
                             <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.guarantor_name') }}</span><span class="font-medium" x-text="review.guarantorName || '—'"></span></div>
                             <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.guarantor_status') }}</span><span class="font-medium" x-text="review.guarantorStatus"></span></div>
@@ -893,15 +893,15 @@
                     <input type="hidden" name="consent" value="1">
                 </div>
 
-                <div class="px-6 sm:px-8 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl flex items-center justify-between">
+                <div class="px-6 sm:px-8 py-4 border-t border-gray-200/80 bg-brand-muted/20 rounded-b-2xl flex items-center justify-between">
                     <button type="button" @click="step > 0 ? prev() : backToDetails()" class="text-sm font-medium text-gray-600 hover:text-gray-900" x-text="step > 0 ? i18n.back : i18n.backProducts"></button>
                     <div class="ml-auto flex items-center gap-3">
                         <a href="{{ route('site.borrower.dashboard') }}" class="text-sm text-gray-500 hover:text-gray-700">{{ __('borrower.apply.cancel') }}</a>
-                        <button type="button" @click.prevent="next()" :disabled="advancing || resumeLoading || (guarantorInvitePreparing && stepKey === 'guarantor') || (stepKey === 'guarantor' && form.guarantor_mode === 'internal' && !internalGuarantorFieldsFilled()) || (stepKey === 'guarantor' && form.guarantor_mode === 'external' && !isExternalGuarantorComplete())" x-show="!['signature', 'submit'].includes(stepKey)" class="bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                        <button type="button" @click.prevent="next()" :disabled="advancing || resumeLoading || (guarantorInvitePreparing && stepKey === 'guarantor') || (stepKey === 'guarantor' && form.guarantor_mode === 'internal' && !internalGuarantorFieldsFilled()) || (stepKey === 'guarantor' && form.guarantor_mode === 'external' && !isExternalGuarantorComplete())" x-show="!['signature', 'submit'].includes(stepKey)" class="bg-brand-gold hover:bg-yellow-400 disabled:opacity-60 text-brand font-bold px-5 py-2.5 rounded-xl text-sm">
                             <span x-text="(guarantorInvitePreparing && stepKey === 'guarantor') ? @js(__('borrower.apply.application_fee.processing')) : @js(__('borrower.apply.continue'))"></span>
                         </button>
-                        <button type="button" @click.prevent="signApplication()" :disabled="advancing || !declarationAccepted" x-show="stepKey === 'signature'" class="bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.apply.sign_application') }}</button>
-                        <button type="button" @click="submitApplication()" :disabled="submitting || advancing" x-show="stepKey === 'submit'" class="bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
+                        <button type="button" @click.prevent="signApplication()" :disabled="advancing || !declarationAccepted" x-show="stepKey === 'signature'" class="bg-brand hover:bg-brand-light disabled:opacity-60 text-white font-semibold px-5 py-2.5 rounded-xl text-sm">{{ __('borrower.apply.sign_application') }}</button>
+                        <button type="button" @click="submitApplication()" :disabled="submitting || advancing" x-show="stepKey === 'submit'" class="bg-brand hover:bg-brand-light disabled:opacity-60 text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
                             <span x-text="submitting ? @js(__('borrower.apply.submitting')) : @js(__('borrower.apply.submit'))"></span>
                         </button>
                     </div>
@@ -1825,7 +1825,7 @@
 
                 memberStatusClass(member) {
                     const key = member.status_key || (member.invitation_id ? 'invitation_sent' : 'profile_incomplete');
-                    return key === 'kyc_complete' ? 'text-emerald-700' : 'text-amber-700';
+                    return key === 'kyc_complete' ? 'text-emerald-700' : 'text-brand';
                 },
 
                 groupScoringRiskBandLabel(band) {
@@ -2475,7 +2475,7 @@
                         return 'text-emerald-700';
                     }
 
-                    return 'text-amber-700';
+                    return 'text-brand';
                 },
 
                 guarantorLockedCardBodyClass() {

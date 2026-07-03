@@ -2,7 +2,7 @@
     $rows = $applicationRows ?? [];
     $toneClasses = [
         'gray'    => 'bg-gray-100 text-gray-700',
-        'amber'   => 'bg-amber-100 text-amber-700',
+        'amber'   => 'bg-brand-muted text-brand',
         'sky'     => 'bg-sky-100 text-sky-700',
         'emerald' => 'bg-emerald-100 text-emerald-700',
         'red'     => 'bg-red-100 text-red-700',
@@ -15,13 +15,13 @@
         <h2 class="text-lg font-semibold">{{ __('borrower.applications_list.all_title') }}</h2>
         <p class="text-sm text-gray-500">{{ __('borrower.applications_list.all_hint') }}</p>
     </div>
-    <div class="inline-flex rounded-lg ring-1 ring-gray-200 bg-white p-0.5 text-xs">
+    <div class="inline-flex rounded-xl ring-1 ring-gray-200/80 bg-white/80 p-0.5 text-xs">
         <a href="{{ route('site.borrower.loans', ['tab' => 'applications', 'view' => 'cards']) }}"
-           class="px-3 py-1.5 rounded-md font-semibold {{ ($viewMode ?? 'table') === 'cards' ? 'bg-amber-500 text-gray-900' : 'text-gray-600 hover:bg-gray-50' }}">
+           class="px-3 py-1.5 rounded-lg font-semibold {{ ($viewMode ?? 'table') === 'cards' ? 'bg-brand text-white' : 'text-gray-600 hover:bg-brand-muted/50' }}">
             {{ __('borrower.applications_list.cards') }}
         </a>
         <a href="{{ route('site.borrower.loans', ['tab' => 'applications', 'view' => 'table']) }}"
-           class="px-3 py-1.5 rounded-md font-semibold {{ ($viewMode ?? 'table') === 'table' ? 'bg-amber-500 text-gray-900' : 'text-gray-600 hover:bg-gray-50' }}">
+           class="px-3 py-1.5 rounded-lg font-semibold {{ ($viewMode ?? 'table') === 'table' ? 'bg-brand text-white' : 'text-gray-600 hover:bg-brand-muted/50' }}">
             {{ __('borrower.applications_list.table') }}
         </a>
     </div>
@@ -36,7 +36,7 @@
         :action-url="route('site.borrower.apply')"
     />
 @elseif (($viewMode ?? 'table') === 'table')
-    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+    <div class="glass-card overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
@@ -65,7 +65,7 @@
                                 <span class="block text-[11px] text-gray-500 mt-0.5">{{ $row['application_status'] ?? $row['status_label'] }}</span>
                             </td>
                             <td class="px-4 py-3 text-right space-x-2">
-                                <a href="{{ $row['action_url'] }}" class="text-amber-600 font-semibold hover:underline text-xs">{{ $row['action_label'] }}</a>
+                                <a href="{{ $row['action_url'] }}" class="text-brand font-semibold hover:underline text-xs">{{ $row['action_label'] }}</a>
                                 @if ($row['is_draft'] ?? false)
                                     @if (! empty($row['continue_url']))
                                         <a href="{{ $row['continue_url'] }}" class="text-gray-600 font-semibold hover:underline text-xs">{{ $row['continue_label'] ?? __('borrower.applications_list.continue_application') }}</a>
@@ -82,7 +82,7 @@
     <div class="grid sm:grid-cols-2 gap-4">
         @foreach ($rows as $row)
             @php $badge = $toneClasses[$row['status_tone']] ?? $toneClasses['sky']; @endphp
-            <div class="bg-white rounded-2xl border border-gray-200 p-5">
+            <div class="glass-card p-5">
                 <div class="flex items-start justify-between gap-3 mb-3">
                     <div>
                         <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ $row['loan_type'] }}</p>
@@ -115,12 +115,12 @@
                 @endif
 
                 <div class="flex items-center gap-2 text-xs flex-wrap">
-                    <a href="{{ $row['action_url'] }}" class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2 rounded-full text-sm">
+                    <a href="{{ $row['action_url'] }}" class="inline-flex bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2 rounded-xl text-sm">
                         {{ $row['action_label'] }}
                     </a>
                     @if ($row['is_draft'] ?? false)
                         @if (! empty($row['continue_url']))
-                            <a href="{{ $row['continue_url'] }}" class="inline-flex bg-white hover:bg-gray-50 text-gray-800 font-semibold px-4 py-2 rounded-full text-sm ring-1 ring-gray-200">
+                            <a href="{{ $row['continue_url'] }}" class="inline-flex bg-white hover:bg-brand-muted/30 text-gray-800 font-semibold px-4 py-2 rounded-xl text-sm ring-1 ring-gray-200/80">
                                 {{ $row['continue_label'] ?? __('borrower.applications_list.continue_application') }}
                             </a>
                         @endif

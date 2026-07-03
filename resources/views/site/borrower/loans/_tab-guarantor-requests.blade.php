@@ -10,7 +10,7 @@
 </div>
 
 @if (($pendingGuarantorRequests ?? collect())->isEmpty())
-    <div class="bg-white rounded-2xl border border-gray-200 p-8 text-center text-sm text-gray-500">
+    <div class="glass-card p-8 text-center text-sm text-gray-500">
         {{ __('borrower.guarantor.no_pending') }}
     </div>
 @else
@@ -26,10 +26,10 @@
                 $reference = $application?->application_number ?? $application?->draft_reference ?? '—';
             @endphp
             <a href="{{ route('site.borrower.guarantor-requests.show', $link) }}"
-               class="block bg-white rounded-2xl border border-gray-200 p-5 hover:border-amber-300 hover:shadow-md transition-all group">
+               class="block glass-card p-5 hover:ring-2 hover:ring-brand/20 transition-all group">
                 <div class="flex items-start justify-between gap-2 mb-3">
-                    <p class="font-semibold text-gray-900 group-hover:text-amber-800">{{ $borrowerName ?: '—' }}</p>
-                    <span class="shrink-0 text-xs font-semibold rounded-full px-2.5 py-1 bg-amber-100 text-amber-800">{{ __('borrower.guarantor.action_required') }}</span>
+                    <p class="font-semibold text-gray-900 group-hover:text-brand">{{ $borrowerName ?: '—' }}</p>
+                    <span class="shrink-0 text-xs font-semibold rounded-full px-2.5 py-1 bg-brand-muted text-brand">{{ __('borrower.guarantor.action_required') }}</span>
                 </div>
                 <dl class="space-y-2 text-sm">
                     <div>
@@ -47,7 +47,7 @@
                         </div>
                     </div>
                 </dl>
-                <p class="mt-4 text-sm font-semibold text-amber-700">{{ __('borrower.guarantor.view_details') }} →</p>
+                <p class="mt-4 text-sm font-semibold text-brand">{{ __('borrower.guarantor.view_details') }} →</p>
             </a>
         @endforeach
     </div>

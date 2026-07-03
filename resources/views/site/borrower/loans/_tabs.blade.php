@@ -29,7 +29,7 @@
             $isActive = $activeTab === $key;
         @endphp
         <a href="{{ route('site.borrower.loans', $params) }}"
-           class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition {{ $isActive ? 'bg-amber-500 text-gray-900' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
+           class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition {{ $isActive ? 'bg-brand text-white shadow-sm' : 'bg-white/80 text-gray-600 ring-1 ring-gray-200/80 hover:bg-brand-muted hover:text-brand' }}">
             <span>{{ $label }}</span>
         </a>
     @endforeach
