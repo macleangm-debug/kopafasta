@@ -58,7 +58,7 @@ class AppServiceProvider extends ServiceProvider
 
         Paginator::useTailwind();
 
-        View::composer('components.site.layout', SiteLayoutComposer::class);
+        View::composer(['components.site.layout', 'components.site.locale-switcher'], SiteLayoutComposer::class);
         View::share('fmt', fn (float|int|string|null $amount, int $decimals = 0): string => format_number($amount, $decimals));
         View::share('fmtMoney', fn (float|int|string|null $amount, int $decimals = 0): string => format_money($amount, true, $decimals));
 

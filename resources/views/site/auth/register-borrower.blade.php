@@ -7,56 +7,50 @@
 @endphp
 {{-- Professional 3-step borrower registration wizard --}}
 <x-site.layout :title="$isGuarantorRegistration ? brand_title(__('borrower.guarantor_invite.create_account')) : ($isGroupInviteRegistration ? brand_title(__('borrower.apply.group.register_title')) : 'Register as borrower — Kopafasta')">
-    <section class="min-h-screen grid lg:grid-cols-3 bg-gray-50">
-        {{-- Sidebar with steps --}}
-        <aside class="hidden lg:flex lg:col-span-1 relative overflow-hidden bg-brand text-white p-10 flex-col">
-            <div class="absolute -top-32 -right-24 size-96 rounded-full bg-brand-gold/10 blur-3xl"></div>
+    <section class="min-h-[calc(100vh-4rem)] grid lg:grid-cols-2 premium-gradient">
+        <aside class="hidden lg:flex relative overflow-hidden bg-brand text-white p-12 flex-col justify-between">
+            <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_bottom_left,_#f5c842,_transparent_50%)]"></div>
             <a href="{{ route('site.home') }}" class="relative"><x-site.brand-mark variant="light" /></a>
 
-            <div class="relative mt-12" x-data x-effect>
+            <div class="relative">
                 @if ($isGuarantorRegistration)
-                    <p class="text-xs uppercase tracking-widest text-amber-300 font-semibold">{{ __('borrower.guarantor_invite.create_account') }}</p>
-                    <h2 class="mt-2 text-3xl font-bold tracking-tight leading-tight">{{ __('borrower.guarantor_invite.register_welcome') }}</h2>
-                    <p class="mt-3 text-white/70 text-sm">{{ __('borrower.guarantor_invite.register_welcome_hint') }}</p>
+                    <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.guarantor_invite.create_account') }}</p>
+                    <h2 class="mt-2 text-4xl font-bold tracking-tight leading-tight">{{ __('borrower.guarantor_invite.register_welcome') }}</h2>
+                    <p class="mt-4 text-white/70 max-w-md">{{ __('borrower.guarantor_invite.register_welcome_hint') }}</p>
                 @elseif ($isGroupInviteRegistration)
-                    <p class="text-xs uppercase tracking-widest text-amber-300 font-semibold">{{ __('borrower.apply.group.onboarding_label') }}</p>
-                    <h2 class="mt-2 text-3xl font-bold tracking-tight leading-tight">{{ __('borrower.apply.group.register_welcome') }}</h2>
-                    <p class="mt-3 text-white/70 text-sm">{{ __('borrower.apply.group.register_welcome_hint', ['leader' => $prefill['borrower_name'] ?? brand_name()]) }}</p>
+                    <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.apply.group.onboarding_label') }}</p>
+                    <h2 class="mt-2 text-4xl font-bold tracking-tight leading-tight">{{ __('borrower.apply.group.register_welcome') }}</h2>
+                    <p class="mt-4 text-white/70 max-w-md">{{ __('borrower.apply.group.register_welcome_hint', ['leader' => $prefill['borrower_name'] ?? brand_name()]) }}</p>
                 @else
-                    <p class="text-xs uppercase tracking-widest text-amber-300 font-semibold">Borrower onboarding</p>
-                    <h2 class="mt-2 text-3xl font-bold tracking-tight leading-tight">Just a few details to get you started.</h2>
-                    <p class="mt-3 text-white/70 text-sm">We keep things short. You can complete your profile later in the application wizard.</p>
+                    <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">Borrower onboarding</p>
+                    <h2 class="mt-2 text-4xl font-bold tracking-tight leading-tight">Create your account in three quick steps.</h2>
+                    <p class="mt-4 text-white/70 max-w-md">Choose your country, confirm your phone number, then add your details and password.</p>
                 @endif
+
+                <ol class="mt-10 space-y-4">
+                    @foreach ([['Country & phone', 'Where you live and how we reach you'], ['Your details', 'Name, ID and date of birth'], ['Secure access', 'Choose a strong password']] as $i => [$label, $hint])
+                        <li class="flex items-start gap-3">
+                            <span class="size-8 grid place-items-center rounded-full text-xs font-bold flex-shrink-0 bg-white/10 text-white/70">{{ $i + 1 }}</span>
+                            <div>
+                                <p class="text-sm font-semibold text-white">{{ $label }}</p>
+                                <p class="text-xs text-white/50">{{ $hint }}</p>
+                            </div>
+                        </li>
+                    @endforeach
+                </ol>
             </div>
 
-            <ol class="relative mt-12 space-y-6">
-                <template x-for="(label, i) in ['Country', 'Contact details', 'Password']" :key="i">
-                    <li class="flex items-start gap-4">
-                        <span class="size-9 grid place-items-center rounded-full text-sm font-bold flex-shrink-0 transition"
-                              :class="step === i+1 ? 'bg-amber-500 text-gray-900 ring-4 ring-amber-500/30' : (step > i+1 ? 'bg-emerald-500 text-white' : 'bg-white/10 text-white/60')">
-                            <span x-show="step <= i+1" x-text="i+1"></span>
-                            <svg x-show="step > i+1" x-cloak class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="3"><path d="M4 10l4 4 8-8"/></svg>
-                        </span>
-                        <div>
-                            <p class="text-sm font-semibold" :class="step >= i+1 ? 'text-white' : 'text-white/50'" x-text="label"></p>
-                            <p class="text-xs text-white/50 mt-0.5" x-text="['Select your country', 'Your name & email', 'Secure your account'][i]"></p>
-                        </div>
-                    </li>
-                </template>
-            </ol>
-
-            <p class="relative mt-auto text-xs text-white/40">
-                Already registered? <a href="{{ route('site.login') }}" class="text-amber-300 hover:underline">Log in</a>
+            <p class="relative text-xs text-white/50">
+                Already registered? <a href="{{ route('site.login') }}" class="text-brand-gold hover:underline">Log in</a>
                 @if ($isGuarantorRegistration)
-                    · <a href="{{ route('site.login', ['clear_guarantor' => 1]) }}" class="text-amber-300 hover:underline">{{ __('borrower.guarantor_invite.login_different_account') }}</a>
+                    · <a href="{{ route('site.login', ['clear_guarantor' => 1]) }}" class="text-brand-gold hover:underline">{{ __('borrower.guarantor_invite.login_different_account') }}</a>
                 @elseif ($isGroupInviteRegistration)
-                    · <a href="{{ route('site.login', ['clear_group_invite' => 1]) }}" class="text-amber-300 hover:underline">{{ __('borrower.apply.group.login_different_account') }}</a>
+                    · <a href="{{ route('site.login', ['clear_group_invite' => 1]) }}" class="text-brand-gold hover:underline">{{ __('borrower.apply.group.login_different_account') }}</a>
                 @endif
             </p>
         </aside>
 
-        {{-- Wizard --}}
-        <div class="lg:col-span-2 flex items-start lg:items-center justify-center px-4 py-10 sm:px-10" x-data="borrowerWizard({
+        <div class="flex items-start lg:items-center justify-center px-4 py-10 sm:px-12" x-data="borrowerWizard({
             first_name:  @js(old('first_name', $prefill['first_name'] ?? '')),
             middle_name: @js(old('middle_name', $prefill['middle_name'] ?? '')),
             last_name:   @js(old('last_name', $prefill['last_name'] ?? '')),
@@ -71,23 +65,22 @@
             waitlist_email: @js(old('waitlist_email', '')),
             waitlist_local_phone: @js(old('waitlist_local_phone', '')),
         })">
-            <div class="w-full max-w-xl">
+            <div class="w-full max-w-md">
                 <a href="{{ route('site.home') }}" class="lg:hidden inline-block mb-6">
                     <x-site.brand-mark size="md" />
                 </a>
 
-                {{-- Mobile stepper --}}
                 <div class="lg:hidden mb-6">
                     <div class="flex items-center justify-between text-xs font-medium text-gray-500">
                         <span>Step <span x-text="step"></span> of 3</span>
-                        <span x-text="['Country', 'Contact', 'Password'][step-1]"></span>
+                        <span x-text="['Country & phone', 'Your details', 'Password'][step-1]"></span>
                     </div>
                     <div class="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                        <div class="h-full bg-amber-500 transition-all duration-300" :style="`width: ${(step/3)*100}%`"></div>
+                        <div class="h-full bg-brand transition-all duration-300" :style="`width: ${(step/3)*100}%`"></div>
                     </div>
                 </div>
 
-                <div class="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 sm:p-10">
+                <div class="glass-card p-8 sm:p-10">
                     @if ($isGuarantorRegistration && ! empty($prefill['borrower_name']))
                         <div class="mb-6 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900">
                             {{ __('borrower.guarantor_invite.register_banner', ['borrower' => $prefill['borrower_name']]) }}
@@ -112,92 +105,90 @@
                             <input type="hidden" name="affiliate_code" value="{{ $affiliateCode }}">
                         @endif
 
-                        {{-- Step 1: Country --}}
+                        {{-- Step 1: Country & phone --}}
                         <div x-show="step === 1" x-transition>
-                            <h2 class="text-2xl font-bold text-gray-900">Select your country</h2>
-                            <p class="mt-1 text-sm text-gray-600">KopaFasta is live in a small number of markets today. Pick your country to continue.</p>
+                            <h2 class="text-2xl font-bold text-gray-900">Country & phone</h2>
+                            <p class="mt-1 text-sm text-gray-600">Select where you live, then enter your mobile number.</p>
 
-                            <div class="mt-8">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Country</label>
-                                <div class="relative">
-                                    <select x-model="form.country" @change="chooseCountry(countries.find(c => c.code === form.country))"
-                                            class="block w-full rounded-3xl border border-gray-300 bg-white px-4 py-3 pr-10 text-sm text-gray-900 outline-none transition focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10">
+                            <div class="mt-6 space-y-5">
+                                <div class="relative" @click.outside="countryOpen = false">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Country</label>
+                                    <button type="button" @click="countryOpen = !countryOpen"
+                                            class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
+                                        <span class="text-xl leading-none" x-text="activeCountry.emoji || '🌍'"></span>
+                                        <span class="flex-1 text-left truncate" x-text="activeCountry.label"></span>
+                                        <span class="text-xs text-gray-400" x-text="activeCountry.prefix"></span>
+                                        <svg class="w-4 h-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                                    </button>
+                                    <div x-cloak x-show="countryOpen" x-transition
+                                         class="absolute left-0 right-0 top-full mt-1 z-20 rounded-xl border border-gray-200 bg-white shadow-xl py-1 max-h-56 overflow-y-auto">
                                         <template x-for="country in countries" :key="country.code">
-                                            <option :value="country.code" x-text="country.emoji + ' ' + country.label + ' (' + country.prefix + ')'" :selected="country.code === form.country"></option>
+                                            <button type="button" @click="chooseCountry(country); countryOpen = false"
+                                                    class="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-brand-muted transition"
+                                                    :class="form.country === country.code ? 'bg-brand-muted/60 text-brand font-semibold' : 'text-gray-700'">
+                                                <span class="text-xl leading-none w-7 text-center" x-text="country.emoji || '🌍'"></span>
+                                                <span class="flex-1">
+                                                    <span class="block" x-text="country.label"></span>
+                                                    <span class="block text-[10px] uppercase tracking-wider text-gray-400" x-text="country.code"></span>
+                                                </span>
+                                                <span class="text-xs text-gray-500" x-text="country.prefix"></span>
+                                            </button>
                                         </template>
-                                    </select>
-                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400">
-                                        <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 8l4 4 4-4"/></svg>
                                     </div>
                                 </div>
-                                <p class="mt-3 text-sm text-gray-600">Choose your country to see whether Kopafasta is operational there today.</p>
-                            </div>
 
-                            <div class="mt-8 grid gap-4">
-                                <div class="rounded-3xl border border-gray-200 bg-gray-50 p-5">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Mobile number</label>
+                                    <div class="flex gap-2">
+                                        <span class="inline-flex items-center px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-semibold text-brand tabular-nums shrink-0" x-text="activeCountry.prefix"></span>
+                                        <input type="tel" inputmode="numeric" name="local_phone" x-model="form.local_phone" @input="validatePhone()"
+                                               :disabled="!activeCountry.active" :readonly="lockIdentity && !!form.local_phone"
+                                               placeholder="712 345 678"
+                                               class="flex-1 px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
+                                    </div>
+                                    <p x-show="errors.phone" x-cloak class="mt-1.5 text-xs text-red-600" x-text="errors.phone"></p>
+                                    <p class="mt-1.5 text-xs text-gray-500">Enter your number without the leading zero.</p>
+                                </div>
+
+                                <div class="rounded-xl border p-4"
+                                     :class="activeCountry.active ? 'border-emerald-200 bg-emerald-50/80' : 'border-rose-200 bg-rose-50/80'">
                                     <div class="flex items-center justify-between gap-3">
-                                        <div>
-                                            <p class="text-sm font-semibold text-gray-700">Selected country</p>
-                                            <p class="mt-1 text-base text-gray-900" x-text="activeCountry.label + ' ' + activeCountry.prefix"></p>
-                                        </div>
-                                        <span class="rounded-full px-3 py-1 text-xs font-semibold uppercase"
+                                        <p class="text-sm font-semibold text-gray-900" x-text="activeCountry.active ? 'Ready to register' : 'Not available in this country yet'"></p>
+                                        <span class="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase"
                                               :class="activeCountry.active ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'"
-                                              x-text="activeCountry.active ? 'Ready to register' : 'Not available yet'"></span>
+                                              x-text="activeCountry.active ? 'Live' : 'Waitlist'"></span>
                                     </div>
+                                    <p class="mt-2 text-sm text-gray-600" x-text="activeCountry.active ? 'Continue to enter your personal details.' : 'Join the waitlist and we will notify you when we launch.'"></p>
 
-                                    <div class="mt-5 grid gap-3 sm:grid-cols-[160px_1fr]">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Phone</label>
-                                            <div class="flex items-center gap-2 rounded-2xl border border-gray-300 bg-white px-3 py-3">
-                                                <span class="text-base font-semibold text-gray-900" x-text="activeCountry.prefix"></span>
-                                                <input type="tel" inputmode="numeric" name="local_phone" x-model="form.local_phone" @input="validatePhone()" :disabled="!activeCountry.active" :readonly="lockIdentity && !!form.local_phone" placeholder="7XX XXX XXX"
-                                                       class="w-full bg-transparent text-sm outline-none" />
+                                    <template x-if="!activeCountry.active">
+                                        <form method="POST" action="{{ route('site.waitlist.store') }}" class="mt-4 space-y-3">
+                                            @csrf
+                                            <input type="hidden" name="country" :value="form.country">
+                                            <input type="hidden" name="step" value="1">
+                                            <input type="email" name="email" x-model="waitlist_email" required placeholder="you@example.com"
+                                                   class="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/10">
+                                            <div class="flex gap-2">
+                                                <span class="inline-flex items-center px-3.5 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-semibold" x-text="activeCountry.prefix"></span>
+                                                <input type="tel" inputmode="numeric" name="waitlist_local_phone" x-model="waitlist_local_phone" placeholder="712 345 678"
+                                                       class="flex-1 rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/10">
                                             </div>
-                                            <p x-show="errors.phone" x-cloak class="mt-2 text-xs text-red-600" x-text="errors.phone"></p>
-                                            <p class="mt-2 text-xs text-gray-500">Enter your mobile number without the leading zero.</p>
-                                        </div>
-                                        <div class="rounded-3xl border border-dashed p-4"
-                                             :class="activeCountry.active ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'">
-                                            <p class="text-sm font-semibold" x-text="activeCountry.active ? 'Ready for onboarding' : 'Country not yet active'">Country not yet active</p>
-                                            <p class="mt-2 text-sm text-gray-600" x-text="activeCountry.active ? 'You can continue to create your account.' : 'KopaFasta is not yet operational in this country.'"></p>
-                                            <template x-if="!activeCountry.active">
-                                                <form method="POST" action="{{ route('site.waitlist.store') }}" class="mt-4 space-y-3">
-                                                    @csrf
-                                                    <input type="hidden" name="country" :value="form.country">
-                                                    <input type="hidden" name="step" value="1">
-                                                    <div>
-                                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Email address</label>
-                                                        <input type="email" name="email" x-model="waitlist_email" required placeholder="you@example.com"
-                                                               class="w-full rounded-2xl border border-gray-300 bg-white px-3.5 py-3 text-sm outline-none transition focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10" />
-                                                    </div>
-                                                    <div>
-                                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Phone (optional)</label>
-                                                        <div class="flex gap-2">
-                                                            <span class="inline-flex items-center px-3.5 py-3 rounded-2xl border border-gray-300 bg-gray-50 text-sm font-semibold text-gray-900" x-text="activeCountry.prefix"></span>
-                                                            <input type="tel" inputmode="numeric" name="waitlist_local_phone" x-model="waitlist_local_phone" placeholder="7XX XXX XXX"
-                                                                   class="flex-1 rounded-2xl border border-gray-300 bg-white px-3.5 py-3 text-sm outline-none transition focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10" />
-                                                        </div>
-                                                        <input type="hidden" name="phone" :value="waitlist_local_phone ? activeCountry.prefix.replace(/\D/g, '') + waitlist_local_phone.replace(/\D/g, '').replace(/^0+/, '') : ''">
-                                                    </div>
-                                                    <button type="submit"
-                                                            class="w-full inline-flex items-center justify-center gap-2 rounded-full bg-gray-900 px-4 py-3 text-sm font-semibold text-white hover:bg-gray-800 transition">
-                                                        Notify me when available
-                                                    </button>
-                                                </form>
-                                            </template>
-                                        </div>
-                                    </div>
+                                            <input type="hidden" name="phone" :value="waitlist_local_phone ? activeCountry.prefix.replace(/\D/g, '') + waitlist_local_phone.replace(/\D/g, '').replace(/^0+/, '') : ''">
+                                            <button type="submit" class="w-full rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-4 py-3 transition">
+                                                Notify me when available
+                                            </button>
+                                        </form>
+                                    </template>
                                 </div>
 
                                 @if (session('waitlist_status'))
-                                    <div class="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+                                    <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
                                         {{ session('waitlist_status') }}
                                     </div>
                                 @endif
                             </div>
 
                             <input type="hidden" name="country" :value="form.country">
-                            <input type="hidden" name="phone" :value="activeCountry.prefix + (form.local_phone || '').replace(/^0+/, '').replace(/\s+/g, '')">
+                            <input type="hidden" name="phone" :value="activeCountry.prefix.replace(/\D/g, '') + (form.local_phone || '').replace(/\D/g, '').replace(/^0+/, '')">
                         </div>
 
                         {{-- Step 2: Personal --}}
@@ -216,17 +207,17 @@
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1.5">First name <span class="text-red-500">*</span></label>
                                         <input name="first_name" x-model="form.first_name" required
-                                               class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition">
+                                               class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Middle name</label>
                                         <input name="middle_name" x-model="form.middle_name"
-                                               class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition">
+                                               class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Last name <span class="text-red-500">*</span></label>
                                         <input name="last_name" x-model="form.last_name" required
-                                               class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition">
+                                               class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
                                     </div>
                                 </div>
                                 <div class="grid grid-cols-1 gap-3" :class="isGuarantor ? '' : 'sm:grid-cols-2'">
@@ -244,7 +235,7 @@
                                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Date of birth <span class="text-red-500">*</span></label>
                                         <input type="date" name="date_of_birth" required max="{{ now()->subYears(18)->format('Y-m-d') }}"
                                                value="{{ old('date_of_birth') }}"
-                                               class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition">
+                                               class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
                                     </div>
                                 </div>
                                 <p x-show="isGuarantor" x-cloak class="text-xs text-gray-500">{{ __('borrower.guarantor_invite.register_nida_later') }}</p>
@@ -301,13 +292,13 @@
                             <div x-show="step === 1"></div>
 
                             <button type="button" @click="next()" x-show="step < 3"
-                                    class="ml-auto inline-flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white font-semibold py-3 px-7 rounded-full transition shadow-sm">
+                                    class="ml-auto inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold py-3 px-7 rounded-xl transition shadow-sm">
                                 Continue
                                 <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
                             </button>
 
                             <button type="submit" x-show="step === 3" x-cloak
-                                    class="ml-auto bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-gray-900 font-bold py-3 px-7 rounded-full transition shadow-sm">
+                                    class="ml-auto bg-brand-gold hover:bg-yellow-400 text-brand font-bold py-3 px-7 rounded-xl transition shadow-sm">
                                 Create account →
                             </button>
                         </div>
@@ -347,6 +338,7 @@
                     password_confirmation: '',
                 },
                 countries: @js($registrationCountries ?? []),
+                countryOpen: false,
                 errors: { phone: '', email: '', password: '', password_confirmation: '' },
                 get activeCountry() {
                     return this.countries.find(c => c.code === this.form.country) ?? this.countries[0];

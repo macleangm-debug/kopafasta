@@ -46,8 +46,8 @@
         </div>
     </section>
 
-    <section class="premium-gradient py-16 border-y border-gray-100">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-8">
+    <section class="premium-gradient py-16 lg:py-24 border-y border-gray-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-8 mb-16">
             <div class="glass-card p-8">
                 <h2 class="text-xl font-bold text-brand">{{ __('site.affiliate.commission_title') }}</h2>
                 <p class="mt-3 text-gray-600 leading-relaxed">{{ __('site.affiliate.commission_body') }}</p>
@@ -58,14 +58,16 @@
                 <a href="{{ route('site.login', ['portal' => 'partner']) }}" class="mt-4 inline-flex text-sm font-semibold text-brand hover:underline">{{ __('site.nav.partner_log_in') }} →</a>
             </div>
         </div>
-    </section>
 
-    <section id="apply" class="py-16 lg:py-20 bg-white">
-        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="glass-card p-8">
-                <h2 class="text-2xl font-bold text-gray-900">{{ __('site.affiliate_apply.title') }}</h2>
-                <p class="mt-2 text-gray-600">{{ __('site.affiliate_apply.subtitle') }}</p>
-                <p class="mt-4 text-sm text-gray-500 rounded-xl bg-brand-muted/50 p-4">{{ __('site.affiliate.after_approval') }}</p>
+        <div id="apply" class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-8">
+                <p class="text-xs uppercase tracking-widest text-brand font-semibold">{{ __('site.affiliate.cta_apply') }}</p>
+                <h2 class="mt-2 text-2xl sm:text-3xl font-bold text-gray-900">{{ __('site.affiliate_apply.title') }}</h2>
+                <p class="mt-3 text-gray-600 max-w-2xl mx-auto">{{ __('site.affiliate_apply.subtitle') }}</p>
+            </div>
+
+            <div class="glass-card p-8 lg:p-10 shadow-xl ring-1 ring-brand/10">
+                <p class="text-sm text-gray-600 rounded-xl bg-white/70 border border-brand/10 p-4">{{ __('site.affiliate.after_approval') }}</p>
 
                 @if ($errors->any())
                     <div class="mt-6 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">
@@ -120,7 +122,7 @@
                         <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('site.affiliate_apply.message') }}</label>
                         <textarea name="message" rows="4" class="w-full rounded-xl border-gray-200 px-3 py-2.5 text-sm focus:border-brand focus:ring-brand/10" placeholder="{{ __('site.affiliate_apply.message_placeholder') }}">{{ old('message') }}</textarea>
                     </div>
-                    <button class="w-full sm:w-auto bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-8 py-3 rounded-xl transition">{{ __('site.affiliate_apply.submit') }}</button>
+                    <button class="w-full sm:w-auto bg-brand hover:bg-brand-light text-white font-bold px-8 py-3 rounded-xl transition shadow-md">{{ __('site.affiliate_apply.submit') }}</button>
                 </form>
             </div>
         </div>

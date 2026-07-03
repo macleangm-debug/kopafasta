@@ -26,7 +26,7 @@
                     <p class="mt-4 text-lg text-white/80 leading-relaxed">{{ $p['description'] }}</p>
                 </div>
                 @if ($isActive)
-                    <a href="{{ route('site.apply.show', ['product' => $product->id]) }}" class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-8 py-4 rounded-xl shadow-lg transition">
+                    <a href="{{ auth()->check() ? route('site.borrower.apply', ['product' => $product->id]) : route('site.login', ['redirect' => route('site.borrower.apply', ['product' => $product->id])]) }}" class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-8 py-4 rounded-xl shadow-lg transition">
                         {{ __('site.products.apply_now') }}
                     </a>
                 @endif
@@ -89,7 +89,7 @@
         </div>
 
         <div class="glass-card p-8">
-            <h2 class="font-bold text-lg mb-4">{{ __('site.product_detail.eligibility') }}</h2>
+            <h2 class="font-bold text-lg mb-4">{{ __('site.product_detail.eligibility_heading') }}</h2>
             <ul class="space-y-4">
                 @foreach ($p['eligibility'] as $item)
                     <li>
@@ -101,7 +101,7 @@
         </div>
 
         <div class="glass-card p-8">
-            <h2 class="font-bold text-lg mb-4">{{ __('site.product_detail.fees') }}</h2>
+            <h2 class="font-bold text-lg mb-4">{{ __('site.product_detail.fees_heading') }}</h2>
             <dl class="space-y-3 text-sm">
                 <div class="flex justify-between gap-3">
                     <dt class="text-gray-500">{{ __('site.product_detail.application_fee') }}</dt>
@@ -131,7 +131,7 @@
     <section class="bg-[#faf8f5] border-y border-gray-100">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 grid lg:grid-cols-2 gap-6">
             <div class="glass-card p-8">
-                <h2 class="font-bold text-lg mb-4">{{ __('site.product_detail.documents') }}</h2>
+                <h2 class="font-bold text-lg mb-4">{{ __('site.product_detail.documents_heading') }}</h2>
                 <ul class="space-y-3">
                     @foreach ($p['documents'] as $doc)
                         <li class="flex gap-3 text-sm">
@@ -163,7 +163,7 @@
 
     {{-- FAQ --}}
     <section class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12" x-data="{ open: 0 }">
-        <h2 class="text-2xl font-bold text-center mb-8">{{ __('site.product_detail.faq') }}</h2>
+        <h2 class="text-2xl font-bold text-center mb-8">{{ __('site.product_detail.faq_heading') }}</h2>
         <div class="space-y-3">
             @foreach ($p['faq'] as $i => $item)
                 <div class="glass-card overflow-hidden">
@@ -172,7 +172,7 @@
                         <span>{{ $item['q'] }}</span>
                         <svg :class="open === {{ $i }} ? 'rotate-180' : ''" class="w-5 h-5 text-gray-400 transition shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
                     </button>
-                    <div x-show="open === {{ $i }}" x-collapse class="px-5 pb-4 text-sm text-gray-600">{{ $item['a'] }}</div>
+                    <div x-show="open === {{ $i }}" x-cloak class="px-5 pb-4 text-sm text-gray-600 border-t border-gray-100/80 pt-3">{{ $item['a'] }}</div>
                 </div>
             @endforeach
         </div>
@@ -220,7 +220,7 @@
                 </div>
 
                 @if ($isActive)
-                    <a href="{{ route('site.apply.show', ['product' => $product->id]) }}"
+                    <a href="{{ auth()->check() ? route('site.borrower.apply', ['product' => $product->id]) : route('site.login', ['redirect' => route('site.borrower.apply', ['product' => $product->id])]) }}"
                        class="mt-8 inline-flex w-full sm:w-auto items-center justify-center gap-2 bg-brand hover:bg-brand-light text-white font-bold px-8 py-4 rounded-xl transition shadow-md">
                         {{ __('site.products.apply_now') }}
                     </a>

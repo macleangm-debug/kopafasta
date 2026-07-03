@@ -28,7 +28,7 @@
     <header class="sticky top-0 z-40 glass-nav shadow-sm">
         <div class="hidden md:block border-b border-gray-100/80 bg-[#faf8f5]/80">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-10 flex items-center justify-end gap-3">
-                <x-site.locale-switcher variant="header" />
+                <x-site.locale-switcher variant="header" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
             </div>
         </div>
 
@@ -71,6 +71,7 @@
 
                 <a href="{{ route('site.marketplace') }}" class="px-3 py-2 rounded-lg hover:bg-brand-muted hover:text-brand transition">{{ __('site.nav.marketplace') }}</a>
                 <a href="{{ route('site.affiliate') }}" class="px-3 py-2 rounded-lg hover:bg-brand-muted hover:text-brand transition">{{ __('site.nav.affiliate') }}</a>
+                <a href="{{ route('site.feedback') }}" class="px-3 py-2 rounded-lg hover:bg-brand-muted hover:text-brand transition">{{ __('site.footer.feedback') }}</a>
             </nav>
 
             <div class="hidden lg:flex items-center justify-end gap-2">
@@ -96,7 +97,7 @@
                 <div x-cloak x-show="open"
                      class="absolute right-0 top-full mt-1 w-[min(100vw-2rem,20rem)] glass-card max-h-[80vh] overflow-y-auto z-50">
                     <div class="px-4 py-4 flex flex-col gap-3 text-sm border-b border-gray-100">
-                        <x-site.locale-switcher variant="mobile" />
+                        <x-site.locale-switcher variant="mobile" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
                     </div>
                     <div class="px-4 py-4 flex flex-col gap-1 text-sm">
                         <a href="{{ route('site.home') }}" class="px-2 py-2 hover:bg-gray-50 rounded-lg">{{ __('site.nav.home') }}</a>

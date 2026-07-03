@@ -1,4 +1,13 @@
-<div x-data="siteChatbot()" x-cloak>
+@php
+    $chatbot = app(\App\Services\ChatbotContentService::class)->payload();
+@endphp
+<div x-data="siteChatbot(@js($chatbot))" x-cloak>
+    <a href="{{ route('site.feedback') }}"
+       class="fixed bottom-24 left-4 sm:bottom-6 sm:left-6 z-40 inline-flex items-center gap-2 rounded-full bg-brand-gold text-brand font-bold text-sm px-4 py-3 shadow-[0_8px_24px_rgba(245,200,66,0.45)] hover:bg-yellow-400 transition ring-2 ring-white">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 8h10M7 12h6m-6 4h8M5 6a2 2 0 012-2h10a2 2 0 012 2v12l-4-2H7a2 2 0 01-2-2V6z"/></svg>
+        {{ __('site.footer.feedback') }}
+    </a>
+
     <button type="button" @click="open = !open"
             class="fixed bottom-6 right-6 z-50 size-14 rounded-full bg-brand text-white shadow-[0_8px_32px_rgba(0,77,64,0.35)] hover:bg-brand-light transition-all hover:scale-105 flex items-center justify-center"
             :aria-expanded="open" aria-label="{{ __('site.support.assistant_title') }}">
@@ -53,31 +62,34 @@
 
 <script>
     document.addEventListener('alpine:init', () => {
-        Alpine.data('siteChatbot', () => ({
+        Alpine.data('siteChatbot', (chatbot) => ({
             open: false,
             input: '',
-            messages: [{ role: 'bot', text: @js(__('site.support.chat.greeting')) }],
-            suggestions: @js(__('site.support.suggestions')),
-            answers: @js(__('site.support.chat')),
+            messages: [{ role: 'bot', text: chatbot.greeting }],
+            suggestions: chatbot.suggestions || [],
+            rules: chatbot.rules || [],
+            defaultReply: chatbot.default || chatbot.answers?.default || '',
             askSuggestion(text) {
                 this.input = text;
                 this.ask();
+            },
+            matchReply(q) {
+                const lower = q.toLowerCase();
+                for (const rule of this.rules) {
+                    for (const keyword of (rule.keywords || [])) {
+                        if (keyword && lower.includes(String(keyword).toLowerCase())) {
+                            return rule.answer;
+                        }
+                    }
+                }
+                return this.defaultReply;
             },
             ask() {
                 const q = this.input.trim();
                 if (!q) return;
                 this.messages.push({ role: 'user', text: q });
                 this.input = '';
-                const lower = q.toLowerCase();
-                let reply = this.answers.default;
-                if (lower.includes('product') || lower.includes('loan') || lower.includes('bidhaa') || lower.includes('mkopo')) reply = this.answers.products;
-                else if (lower.includes('apply') || lower.includes('omb') || lower.includes('register') || lower.includes('jisajili')) reply = this.answers.apply;
-                else if (lower.includes('market') || lower.includes('asset') || lower.includes('mali') || lower.includes('soko')) reply = this.answers.marketplace;
-                else if (lower.includes('repay') || lower.includes('payment') || lower.includes('malipo') || lower.includes('lipa')) reply = this.answers.repayment;
-                else if (lower.includes('member') || lower.includes('uanachama')) reply = this.answers.membership;
-                else if (lower.includes('affiliate') || lower.includes('msambazaji') || lower.includes('commission')) reply = this.answers.affiliate;
-                else if (lower.includes('contact') || lower.includes('support') || lower.includes('wasiliana') || lower.includes('msaada')) reply = this.answers.contact;
-                this.messages.push({ role: 'bot', text: reply });
+                this.messages.push({ role: 'bot', text: this.matchReply(q) });
             },
         }));
     });

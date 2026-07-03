@@ -36,10 +36,18 @@ class CountrySettingsService
         $language = (string) ($merged['language'] ?? 'en');
         $contractLocale = (string) ($merged['contract_locale'] ?? $language);
 
+        $emoji = (string) ($merged['emoji'] ?? '');
+        if ($emoji === '') {
+            $emoji = match ($code) {
+                'TZ' => '🇹🇿', 'KE' => '🇰🇪', 'UG' => '🇺🇬', 'RW' => '🇷🇼', 'BI' => '🇧🇮', 'SS' => '🇸🇸',
+                default => '🌍',
+            };
+        }
+
         return [
             'code'                => $code,
             'name'                => (string) ($merged['name'] ?? $code),
-            'emoji'               => (string) ($merged['emoji'] ?? ''),
+            'emoji'               => $emoji,
             'active'              => filter_var($merged['active'] ?? true, FILTER_VALIDATE_BOOLEAN),
             'language'            => in_array($language, ['en', 'sw'], true) ? $language : 'en',
             'currency'            => strtoupper((string) ($merged['currency'] ?? 'TZS')),

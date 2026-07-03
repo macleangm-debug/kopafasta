@@ -167,7 +167,7 @@ class PublicProductPresentationService
             return Lang::get($key);
         }
 
-        return Lang::get('site.product_detail.faq.default');
+        return Lang::get('site.product_detail.faq.default', []);
     }
 
     /** @return array{total: float, detail: string, lines: list<array{name: string, amount: float}>} */

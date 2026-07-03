@@ -788,6 +788,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/referrals',        [SettingsController::class, 'saveReferrals']) ->name('settings.referrals.save');
         Route::get('settings/affiliates',      [SettingsController::class, 'affiliates'])    ->name('settings.affiliates');
         Route::put('settings/affiliates',       [SettingsController::class, 'saveAffiliates'])->name('settings.affiliates.save');
+        Route::get('settings/chatbot',          [SettingsController::class, 'chatbot'])       ->name('settings.chatbot');
+        Route::put('settings/chatbot',          [SettingsController::class, 'saveChatbot'])   ->name('settings.chatbot.save');
         Route::get('settings/countries',        [SettingsController::class, 'countries'])     ->name('settings.countries');
         Route::put('settings/countries/{country}', [SettingsController::class, 'saveCountry'])->name('settings.countries.save');
         Route::get('settings/aml',              [SettingsController::class, 'amlSettings'])   ->name('settings.aml');

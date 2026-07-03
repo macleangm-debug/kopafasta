@@ -966,4 +966,57 @@ class SettingsController extends Controller
 
         return back()->with('status', 'Recovery policy saved.');
     }
+
+    public function chatbot()
+    {
+        $entries = collect(app(\App\Services\ChatbotContentService::class)->entries())
+            ->map(function (array $entry) {
+                $keywords = $entry['keywords'] ?? [];
+                $entry['keywords'] = is_array($keywords) ? implode(', ', $keywords) : (string) $keywords;
+
+                return $entry;
+            })
+            ->values()
+            ->all();
+
+        return view('admin.settings.chatbot', [
+            'entries' => $entries,
+        ]);
+    }
+
+    public function saveChatbot(Request $request)
+    {
+        $data = $request->validate([
+            'entries'               => ['required', 'array'],
+            'entries.*.key'         => ['nullable', 'string', 'max:40'],
+            'entries.*.sort'        => ['nullable', 'integer', 'min:0', 'max:999'],
+            'entries.*.keywords'    => ['nullable', 'string', 'max:500'],
+            'entries.*.question_en' => ['nullable', 'string', 'max:500'],
+            'entries.*.question_sw' => ['nullable', 'string', 'max:500'],
+            'entries.*.answer_en'   => ['nullable', 'string', 'max:2000'],
+            'entries.*.answer_sw'   => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $entries = collect($data['entries'])->values()->map(function (array $row, int $index) use ($request) {
+            $keywords = array_values(array_filter(array_map(
+                'trim',
+                preg_split('/[,;|]+/', (string) ($row['keywords'] ?? '')) ?: []
+            )));
+
+            return [
+                'key'         => filled($row['key'] ?? null) ? (string) $row['key'] : 'entry_'.($index + 1),
+                'sort'        => (int) ($row['sort'] ?? ($index + 1)),
+                'active'      => $request->boolean("entries.{$index}.active"),
+                'keywords'    => $keywords,
+                'question_en' => (string) ($row['question_en'] ?? ''),
+                'question_sw' => (string) ($row['question_sw'] ?? ''),
+                'answer_en'   => (string) ($row['answer_en'] ?? ''),
+                'answer_sw'   => (string) ($row['answer_sw'] ?? ''),
+            ];
+        })->all();
+
+        app(\App\Services\ChatbotContentService::class)->saveEntries($entries);
+
+        return back()->with('status', 'Chatbot content saved.');
+    }
 }
