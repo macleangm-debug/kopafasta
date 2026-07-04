@@ -132,9 +132,10 @@ class BorrowerController extends Controller
             ->get();
 
         $applicationsDashboard = app(\App\Services\BorrowerApplicationsDashboardService::class);
-        $activeApplicationRows = $activeApplications
-            ->map(fn (LoanApplication $app) => $applicationsDashboard->formatSubmitted($app))
-            ->merge(collect(app(\App\Services\GroupMemberApplicationService::class)->applicationRowsForCustomer($customer)))
+        $activeApplicationRows = collect(
+            $activeApplications->map(fn (LoanApplication $app) => $applicationsDashboard->formatSubmitted($app))->all()
+        )
+            ->concat(app(\App\Services\GroupMemberApplicationService::class)->applicationRowsForCustomer($customer))
             ->values()
             ->all();
 
