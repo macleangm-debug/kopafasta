@@ -9,10 +9,10 @@
         <div class="relative size-16 shrink-0" aria-hidden="true">
             <svg class="size-16 -rotate-90" viewBox="0 0 36 36">
                 <circle cx="18" cy="18" r="15.5" fill="none" stroke="#e5e7eb" stroke-width="3"/>
-                <circle cx="18" cy="18" r="15.5" fill="none" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"
+                <circle cx="18" cy="18" r="15.5" fill="none" stroke="#004d40" stroke-width="3" stroke-linecap="round"
                         stroke-dasharray="100" stroke-dashoffset="{{ $ringOffset }}"/>
             </svg>
-            <span class="absolute inset-0 grid place-items-center text-sm font-bold text-amber-700">{{ $percent }}%</span>
+            <span class="absolute inset-0 grid place-items-center text-sm font-bold text-brand">{{ $percent }}%</span>
         </div>
         <div class="min-w-0">
             <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.profile.completion_summary_title') }}</p>
@@ -20,7 +20,7 @@
         </div>
     </div>
     <div class="h-2 bg-gray-100 rounded-full overflow-hidden mb-5 lg:hidden">
-        <div class="h-full bg-amber-500 transition-all" style="width: {{ $percent }}%"></div>
+        <div class="h-full bg-brand transition-all" style="width: {{ $percent }}%"></div>
     </div>
 
     <div class="grid md:grid-cols-2 gap-6">
@@ -30,7 +30,7 @@
                 <ul class="space-y-1.5">
                     @foreach ($summary['remaining'] as $item)
                         <li class="text-sm text-gray-700 flex items-start gap-2">
-                            <span class="text-amber-500 mt-0.5">○</span>
+                            <span class="text-brand mt-0.5">○</span>
                             <span>{{ $item }}</span>
                         </li>
                     @endforeach

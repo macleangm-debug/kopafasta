@@ -1,11 +1,13 @@
 <x-site.borrower-layout :title="brand_title(__('borrower.payments_page.create.title'))" active="payments" content-width="wide">
 
-    <div class="mb-6">
-        <a href="{{ route('site.borrower.payments') }}" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.payments_page.back_history') }}</a>
+    <div class="mb-4">
+        <a href="{{ route('site.borrower.payments') }}" class="text-sm font-semibold text-brand hover:underline">{{ __('borrower.payments_page.back_history') }}</a>
     </div>
 
-    <h1 class="text-2xl font-bold mb-1">{{ __('borrower.payments_page.create.title') }}</h1>
-    <p class="text-sm text-gray-500 mb-6">{{ __('borrower.payments_page.create.subtitle') }}</p>
+    <x-site.borrower-page-header
+        :title="__('borrower.payments_page.create.title')"
+        :subtitle="__('borrower.payments_page.create.subtitle')"
+    />
 
     @if ($loans->isEmpty())
         <x-site.empty-state
@@ -34,7 +36,7 @@
         }">
             <form method="POST" action="{{ route('site.borrower.payments.store') }}"
                   enctype="multipart/form-data"
-                  class="lg:col-span-2 bg-white rounded-2xl border border-gray-200 p-6 space-y-5"
+                  class="lg:col-span-2 glass-card p-6 space-y-5"
                   @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.payments_page.create.submit_confirm_title')), message: @js(__('borrower.payments_page.create.submit_confirm_message')), confirmLabel: @js(__('borrower.payments_page.create.submit_confirm_label')), confirmClass: 'bg-amber-500 hover:bg-amber-400 text-gray-900' })">
                 @csrf
 
@@ -124,7 +126,7 @@
                 <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-xs text-amber-900">
                     {{ __('borrower.payments_page.create.guidance_mobile_limit', ['threshold' => format_money($paymentThreshold)]) }}
                 </div>
-                <div class="bg-white rounded-2xl border border-gray-200 p-4 text-xs text-gray-600 space-y-2">
+                <div class="glass-card p-4 text-xs text-gray-600 space-y-2">
                     <p>{{ __('borrower.payments_page.create.guidance_bank') }}</p>
                     <p>{{ __('borrower.payments_page.create.guidance_mobile_format') }}</p>
                 </div>

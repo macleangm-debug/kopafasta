@@ -1,5 +1,5 @@
 @if ($groupPayout ?? null)
-    <div class="rounded-xl ring-1 ring-gray-200 bg-white overflow-hidden mb-6">
+    <div class="glass-card overflow-hidden mb-6">
         <div class="px-5 py-4 border-b border-gray-100">
             <h3 class="font-semibold text-gray-900">{{ __('borrower.apply.group.payout.title') }}</h3>
             <p class="text-sm text-gray-500 mt-1">{{ __('borrower.apply.group.payout.subtitle', ['installments' => $groupPayout['installments_between'] ?? 2]) }}</p>

@@ -9,7 +9,7 @@
         @include('site.borrower.profile._tabs', ['active' => 'security'])
 
         <div class="grid gap-6">
-            <section class="bg-white rounded-2xl border border-gray-200 p-6">
+            <section class="glass-card p-6">
                 <h2 class="font-semibold mb-1">{{ auth()->user()->pin_set_at ? __('borrower.security_tab.change_pin') : __('borrower.security_tab.set_pin') }}</h2>
                 <p class="text-sm text-gray-500 mb-4">{{ __('borrower.security_tab.pin_hint') }}</p>
 
@@ -38,7 +38,7 @@
                 </form>
             </section>
 
-            <section class="bg-white rounded-2xl border border-gray-200 p-6">
+            <section class="glass-card p-6">
                 <h2 class="font-semibold mb-1">{{ __('borrower.security_tab.trusted_devices') }}</h2>
                 <p class="text-sm text-gray-500 mb-4">{{ __('borrower.security_tab.trusted_hint') }}</p>
 

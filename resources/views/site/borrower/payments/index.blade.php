@@ -1,17 +1,18 @@
 <x-site.borrower-layout :title="brand_title(__('borrower.payments_page.title'))" active="payments" content-width="wide">
 
-    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div>
-            <h1 class="text-2xl font-bold mb-1">{{ __('borrower.payments_page.title') }}</h1>
-            <p class="text-sm text-gray-500">{{ __('borrower.payments_page.subtitle') }}</p>
-        </div>
-        @if ($loans->isNotEmpty())
-            <a href="{{ route('site.borrower.payments.create') }}"
-               class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                {{ __('borrower.payments_page.make_repayment') }}
-            </a>
-        @endif
-    </div>
+    <x-site.borrower-page-header
+        :eyebrow="__('borrower.nav.payments')"
+        :title="__('borrower.payments_page.title')"
+        :subtitle="__('borrower.payments_page.subtitle')">
+        <x-slot:actions>
+            @if ($loans->isNotEmpty())
+                <a href="{{ route('site.borrower.payments.create') }}"
+                   class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-2.5 rounded-xl text-sm shadow-sm">
+                    {{ __('borrower.payments_page.make_repayment') }}
+                </a>
+            @endif
+        </x-slot:actions>
+    </x-site.borrower-page-header>
 
     @if (session('status'))
         <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
@@ -28,10 +29,10 @@
             :action-url="$loans->isNotEmpty() ? route('site.borrower.payments.create') : route('site.borrower.dashboard')"
         />
     @else
-        <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div class="glass-card overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
-                    <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
+                    <thead class="bg-gray-50/80 text-left text-xs uppercase text-gray-500">
                         <tr>
                             <th class="px-4 py-3">{{ __('borrower.payments_page.col_date') }}</th>
                             <th class="px-4 py-3">{{ __('borrower.payments_page.col_reference') }}</th>
@@ -42,11 +43,11 @@
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         @foreach ($entries as $entry)
-                            <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='{{ $entry['url'] }}'">
+                            <tr class="hover:bg-brand-muted/20 cursor-pointer transition" onclick="window.location='{{ $entry['url'] }}'">
                                 <td class="px-4 py-3 text-gray-600 whitespace-nowrap">{{ $entry['date']?->format('d-M-Y') }}</td>
-                                <td class="px-4 py-3 font-mono text-xs font-semibold text-amber-800">{{ $entry['reference'] }}</td>
+                                <td class="px-4 py-3 font-mono text-xs font-semibold text-brand">{{ $entry['reference'] }}</td>
                                 <td class="px-4 py-3">{{ $entry['type_label'] }}</td>
-                                <td class="px-4 py-3 font-medium">{{ format_money($entry['amount']) }}</td>
+                                <td class="px-4 py-3 font-medium tabular-nums">{{ format_money($entry['amount']) }}</td>
                                 <td class="px-4 py-3">
                                     @php
                                         $badge = match ($entry['status']) {

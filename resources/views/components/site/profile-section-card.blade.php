@@ -5,8 +5,8 @@
     'complete' => null,
 ])
 
-<div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-    <div class="flex items-start justify-between gap-3 px-6 py-4 border-b border-gray-100">
+<div class="glass-card overflow-hidden">
+    <div class="flex items-start justify-between gap-3 px-6 py-4 border-b border-gray-100/80">
         <div>
             <h2 class="font-semibold text-gray-900">{{ $title }}</h2>
             @if ($complete === true)

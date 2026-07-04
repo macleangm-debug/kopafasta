@@ -4,22 +4,25 @@
     $panels = [
         'profile' => [
             'label' => __('borrower.profile.panel_profile'),
-            'route' => route('site.borrower.profile', ['section' => 'personal']),
+            'url'   => route('site.borrower.profile'),
         ],
         'membership' => [
             'label' => __('borrower.profile.panel_membership'),
-            'route' => route('site.borrower.profile', ['section' => 'membership']),
+            'url'   => route('site.borrower.profile', ['section' => 'membership']),
         ],
     ];
 @endphp
 
-<nav class="mb-6 -mx-1 px-1 overflow-x-auto" aria-label="{{ __('borrower.profile.account_nav') }}">
-    <div class="inline-flex min-w-full sm:min-w-0 p-1 rounded-2xl bg-gray-100/80 ring-1 ring-gray-200/80 gap-1">
+<nav class="mb-6" aria-label="{{ __('borrower.profile.account_nav') }}">
+    <div class="inline-flex rounded-xl ring-1 ring-gray-200/80 bg-white/80 backdrop-blur p-0.5 text-sm">
         @foreach ($panels as $key => $panel)
-            @php $isActive = $activePanel === $key; @endphp
-            <a href="{{ $panel['route'] }}"
-               class="flex-1 sm:flex-none min-w-[8.5rem] text-center px-4 py-2.5 rounded-xl text-sm font-semibold transition whitespace-nowrap
-                      {{ $isActive ? 'bg-white text-brand shadow-sm ring-1 ring-gray-200/80' : 'text-gray-600 hover:text-gray-900 hover:bg-white/60' }}">
+            <a href="{{ $panel['url'] }}"
+               @class([
+                   'px-4 py-2 rounded-lg font-semibold transition',
+                   $activePanel === $key
+                       ? 'bg-brand text-white shadow-sm'
+                       : 'text-gray-600 hover:bg-brand-muted/50',
+               ])>
                 {{ $panel['label'] }}
             </a>
         @endforeach

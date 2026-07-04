@@ -3,7 +3,7 @@
 @endphp
 
 @if ($preview)
-    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-6">
+    <div class="glass-card overflow-hidden mb-6">
         <div class="px-5 py-4 border-b border-gray-200">
             <h2 class="font-semibold">{{ __('borrower.apply.review_step.schedule_section') }}</h2>
             <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.apply.review_step.schedule_before_disbursement') }}</p>

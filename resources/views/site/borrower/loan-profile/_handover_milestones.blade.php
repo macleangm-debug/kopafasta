@@ -1,6 +1,6 @@
 @if (! empty($profile['handover_milestones']))
     @php $handover = $profile['handover_milestones']; @endphp
-    <div class="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
+    <div class="glass-card p-5 mb-6">
         <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
             <div>
                 <h2 class="font-semibold">{{ __('borrower.handover_milestones.title') }}</h2>

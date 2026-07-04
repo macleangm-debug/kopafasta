@@ -100,7 +100,7 @@
 @include('site.borrower.loan-profile._schedule_preview', ['profile' => $profile])
 
 @if (($application->product?->requires_guarantor ?? false) && ($guarantorInvitations->isNotEmpty() || ($application->customerGuarantors ?? collect())->isNotEmpty()))
-    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-6">
+    <div class="glass-card overflow-hidden mb-6">
         <div class="px-5 py-4 border-b border-gray-200">
             <h2 class="font-semibold">{{ __('borrower.application.guarantor_section') }}</h2>
             <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.application.guarantor_section_hint') }}</p>
@@ -169,7 +169,7 @@
 @endphp
 
 @if (collect($documentGroups)->flatten(1)->isNotEmpty())
-    <div id="documents" class="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-6">
+    <div id="documents" class="glass-card overflow-hidden mb-6">
         <div class="px-5 py-4 border-b border-gray-200">
             <h2 class="font-semibold">{{ __('borrower.application.requested_documents') }}</h2>
             <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.application.requested_documents_hint') }}</p>
@@ -196,7 +196,7 @@
                                         default     => __('borrower.application.request_status_pending'),
                                     };
                                 @endphp
-                                <li id="request-{{ $docReq->id }}" class="p-5 bg-white">
+                                <li id="request-{{ $docReq->id }}" class="p-5 bg-white/80">
                                     <div class="flex items-start justify-between gap-3 mb-3 flex-wrap">
                                         <div>
                                             <p class="font-semibold text-gray-900">{{ $docReq->label }}</p>
@@ -243,7 +243,7 @@
 @endif
 
 @if ($requirements->isNotEmpty())
-    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-6">
+    <div class="glass-card overflow-hidden mb-6">
         <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-3 flex-wrap">
             <div>
                 <h2 class="font-semibold">{{ __('borrower.application.required_documents') }}</h2>

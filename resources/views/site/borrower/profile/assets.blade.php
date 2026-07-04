@@ -11,7 +11,7 @@
             <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
         @endif
 
-        <form method="POST" action="{{ route('site.borrower.profile.assets.store') }}" enctype="multipart/form-data" class="bg-white rounded-2xl ring-1 ring-gray-200 p-6 mb-6 space-y-4">
+        <form method="POST" action="{{ route('site.borrower.profile.assets.store') }}" enctype="multipart/form-data" class="glass-card p-6 mb-6 space-y-4">
             @csrf
             <h2 class="font-semibold text-gray-900">{{ __('borrower.profile.add_asset') }}</h2>
             <div class="grid sm:grid-cols-2 gap-4">
@@ -48,7 +48,7 @@
 
         <div class="space-y-3">
             @forelse ($assets as $asset)
-                <div class="bg-white rounded-2xl ring-1 ring-gray-200 p-5 flex flex-wrap gap-4 justify-between items-start">
+                <div class="glass-card p-5 flex flex-wrap gap-4 justify-between items-start">
                     <div>
                         <p class="text-xs uppercase tracking-widest text-gray-500">{{ $assetTypes[$asset->asset_type] ?? $asset->asset_type }}</p>
                         <h3 class="font-semibold text-gray-900 mt-1">{{ $asset->label }}</h3>

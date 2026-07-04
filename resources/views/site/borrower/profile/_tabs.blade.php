@@ -12,11 +12,11 @@
     ];
 @endphp
 
-<nav class="flex flex-wrap gap-2 mb-6 border-b border-gray-200 pb-3">
+<nav class="flex gap-2 mb-6 overflow-x-auto scrollbar-none pb-1 -mx-1 px-1">
     @foreach ($tabs as $key => [$label, $route, $params])
         @php $isActive = $active === $key; @endphp
         <a href="{{ route($route, $params) }}"
-           class="px-3 py-1.5 rounded-lg text-sm font-medium transition {{ $isActive ? 'bg-amber-500 text-gray-900' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
+           class="shrink-0 px-3.5 py-2 rounded-xl text-sm font-semibold transition {{ $isActive ? 'bg-brand text-white shadow-sm' : 'bg-white/80 text-gray-600 ring-1 ring-gray-200/80 hover:bg-brand-muted/40' }}">
             {{ $label }}
         </a>
     @endforeach

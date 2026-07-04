@@ -1,18 +1,14 @@
 <x-site.borrower-layout :title="brand_title(__('borrower.loans_page.title'))" active="loans" content-width="wide" :portalMode="($isGuarantorPortal ?? false) ? 'guarantor' : 'borrower'">
 
-    <div class="mb-6">
-        <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-1">{{ __('borrower.loans_page.title') }}</p>
-        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">{{ __('borrower.loans_page.title') }}</h1>
-        <p class="text-sm text-gray-500 mt-1">
-        @if (($showGuaranteedTab ?? false) && ($activeTab ?? '') === 'guaranteed')
-            {{ __('borrower.loans_page.guaranteed_hint') }}
-        @elseif (($showGuarantorTab ?? false) && ($activeTab ?? '') === 'guarantor')
-            {{ __('borrower.guarantor.pending_requests_hint') }}
-        @else
-            {{ __('borrower.loans_page.subtitle') }}
-        @endif
-        </p>
-    </div>
+    <x-site.borrower-page-header
+        :eyebrow="__('borrower.nav.loans')"
+        :title="__('borrower.loans_page.title')"
+        :subtitle="(($showGuaranteedTab ?? false) && ($activeTab ?? '') === 'guaranteed')
+            ? __('borrower.loans_page.guaranteed_hint')
+            : ((($showGuarantorTab ?? false) && ($activeTab ?? '') === 'guarantor')
+                ? __('borrower.guarantor.pending_requests_hint')
+                : __('borrower.loans_page.subtitle'))"
+    />
 
     @if (session('status'))
         <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
@@ -21,7 +17,7 @@
         <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">{{ session('error') }}</div>
     @endif
 
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 border-b border-gray-200/80 pb-3">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         @include('site.borrower.loans._tabs', [
             'activeTab' => $activeTab ?? 'applications',
             'viewMode' => $viewMode ?? 'cards',

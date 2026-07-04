@@ -35,7 +35,7 @@
 
         @if (! ($wizardMode ?? false) || ($wizardKey ?? 'nida') !== 'kin')
         {{-- NIDA verification card --}}
-        <div class="bg-white rounded-2xl border border-gray-200 p-6 mb-6" x-data="{ submitting: false }">
+        <div class="glass-card p-6 mb-6" x-data="{ submitting: false }">
             <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
                 <div>
                     <h2 class="font-semibold">{{ __('borrower.nida.title') }}</h2>
@@ -220,7 +220,7 @@
         @endphp
 
         @if (($wizardMode ?? false) && ($wizardKey ?? 'nida') === 'kin')
-            <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal', 'wizard' => 1]) }}" class="bg-white rounded-2xl border border-gray-200 p-6 space-y-8"
+            <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal', 'wizard' => 1]) }}" class="glass-card p-6 space-y-8"
                   @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.save_confirm_title')), message: @js(__('borrower.profile.save_confirm_message')), confirmLabel: @js(__('borrower.profile.save')), confirmClass: 'bg-amber-500 hover:bg-amber-400 text-gray-900' })">
                 @csrf @method('PUT')
                 <input type="hidden" name="wizard" value="1">
@@ -273,7 +273,7 @@
             </x-site.profile-section-card>
             </div>
         @else
-        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data" class="bg-white rounded-2xl border border-gray-200 p-6 space-y-8"
+        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data" class="glass-card p-6 space-y-8"
               @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.save_confirm_title')), message: @js(__('borrower.profile.save_confirm_message')), confirmLabel: @js(__('borrower.profile.save')), confirmClass: 'bg-amber-500 hover:bg-amber-400 text-gray-900' })">
             @csrf @method('PUT')
             @if ($wizardMode ?? false)

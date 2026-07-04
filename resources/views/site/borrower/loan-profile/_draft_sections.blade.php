@@ -1,7 +1,7 @@
 @php $snapshot = $profile['snapshot'] ?? []; @endphp
 
 @if ($snapshot !== [])
-    <div class="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
+    <div class="glass-card p-5 mb-6">
         <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
             <h2 class="font-semibold">{{ __('borrower.loan_profile.application_progress') }}</h2>
             <div class="text-right text-sm">

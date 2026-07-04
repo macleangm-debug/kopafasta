@@ -12,7 +12,7 @@
             <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
         @endif
 
-        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'kin']) }}" class="bg-white rounded-2xl ring-1 ring-gray-200 p-6 sm:p-8 space-y-4">
+        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'kin']) }}" class="glass-card p-6 sm:p-8 space-y-4">
             @csrf @method('PUT')
 
             <x-site.kin-fields :customer="$customer" input-class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" />

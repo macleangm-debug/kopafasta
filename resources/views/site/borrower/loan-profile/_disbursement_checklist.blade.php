@@ -1,7 +1,7 @@
 @props(['checklist' => []])
 
 @if (! empty($checklist))
-    <div class="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
+    <div class="glass-card p-5 mb-6">
         <h2 class="font-semibold mb-4">{{ __('borrower.contract.checklist.title') }}</h2>
         <ul class="space-y-2 text-sm">
             @foreach ($checklist as $item)

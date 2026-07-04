@@ -16,13 +16,13 @@
         : 'bg-gray-100 text-gray-700';
 @endphp
 
-<div class="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 mb-6">
+<div class="glass-card p-5 sm:p-6 mb-6">
     <div class="flex items-start gap-4 sm:gap-5">
         <div class="shrink-0">
             @if ($photoUrl)
                 <img src="{{ $photoUrl }}" alt="" class="size-20 sm:size-24 rounded-2xl object-cover ring-2 ring-amber-200 bg-gray-100">
             @else
-                <div class="size-20 sm:size-24 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-800 text-white grid place-items-center text-2xl font-bold ring-2 ring-indigo-200">
+                <div class="size-20 sm:size-24 rounded-2xl bg-gradient-to-br from-brand to-brand-light text-white grid place-items-center text-2xl font-bold ring-2 ring-brand/20">
                     {{ $initial }}
                 </div>
             @endif

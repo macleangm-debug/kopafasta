@@ -1,7 +1,7 @@
 <x-site.borrower-layout :title="brand_title($payment->reference)" active="payments" content-width="wide">
 
-    <div class="mb-6">
-        <a href="{{ route('site.borrower.payments') }}" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.payments_page.back_history') }}</a>
+    <div class="mb-4">
+        <a href="{{ route('site.borrower.payments') }}" class="text-sm font-semibold text-brand hover:underline">{{ __('borrower.payments_page.back_history') }}</a>
     </div>
 
     @if (session('status'))
@@ -11,8 +11,10 @@
         <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ session('error') }}</div>
     @endif
 
-    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-        <div class="bg-gradient-to-r from-gray-900 to-gray-800 px-6 py-5 text-white">
+    <div class="glass-card overflow-hidden">
+        <div class="bg-gradient-to-br from-brand to-brand-light px-6 py-5 text-white relative overflow-hidden">
+            <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
+            <div class="relative">
             <p class="text-[10px] uppercase tracking-widest text-white/70">{{ __('borrower.payments_page.show.payment_reference') }}</p>
             <p class="text-2xl font-bold font-mono mt-1">{{ $payment->reference }}</p>
             <div class="mt-3 flex flex-wrap gap-2">
@@ -25,6 +27,7 @@
                     };
                 @endphp
                 <span class="rounded-full px-3 py-1 text-xs font-semibold ring-1 {{ $badge }}">{{ $payment->statusLabel() }}</span>
+            </div>
             </div>
         </div>
 
