@@ -13,6 +13,7 @@
         @php
             $locked = (bool) $customer->identity_locked;
             $editing = ($wizardMode ?? false) || ($editing ?? false);
+            $requireIdentityDuringProfile = app(\App\Services\ProfileCompletionService::class)->identityRequiredDuringProfile();
             $nidaService = app(\App\Services\NidaVerificationService::class);
             $nidaLocked = $nidaService->isLocked($customer);
             $nidaLockMessage = $nidaService->lockMessage($customer);
@@ -33,7 +34,7 @@
             $editable = 'w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2 text-sm';
         @endphp
 
-        @if (! ($wizardMode ?? false) || ($wizardKey ?? 'nida') !== 'kin')
+        @if ($requireIdentityDuringProfile && (! ($wizardMode ?? false) || ($wizardKey ?? 'nida') !== 'kin'))
         {{-- NIDA verification card --}}
         <div class="glass-card p-6 mb-6" x-data="{ submitting: false }">
             <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
@@ -212,6 +213,11 @@
                 </div>
             @endif
         </div>
+        @elseif (! $requireIdentityDuringProfile && ! ($wizardMode ?? false))
+        <div class="glass-card p-5 mb-6">
+            <p class="font-semibold text-brand">{{ __('borrower.profile.identity_deferred_title') }}</p>
+            <p class="text-sm text-gray-600 mt-2">{{ __('borrower.profile.identity_deferred_body') }}</p>
+        </div>
         @endif
 
         @php
@@ -294,6 +300,7 @@
 
             </div>
 
+            @if ($requireIdentityDuringProfile)
             <div class="border-t border-gray-100 pt-6">
                 <h3 class="font-semibold mb-1">{{ __('borrower.profile.nida_card_uploads') }}</h3>
                 <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.nida_front_only_hint') }}</p>
@@ -307,6 +314,7 @@
                     :required="true"
                 />
             </div>
+            @endif
 
             <div class="border-t border-gray-100 pt-6">
             <h3 class="font-semibold mb-4">{{ __('borrower.profile.contact_details') }}</h3>
@@ -318,6 +326,7 @@
                     <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.email') }}</label>
                     <input type="email" name="email" value="{{ old('email', $customer->email) }}" class="{{ $editable }}">
                 </div>
+                @if ($requireIdentityDuringProfile)
                 <div class="sm:col-span-2 rounded-lg bg-amber-50 ring-1 ring-amber-200 px-4 py-4 text-sm">
                     @php
                         $faceKey = $customer->face_verification_status ?? 'incomplete';
@@ -339,6 +348,7 @@
                         {{ in_array($faceKey, ['verified', 'pending'], true) ? __('borrower.nida.face_view') : __('borrower.nida.face_complete') }}
                     </a>
                 </div>
+                @endif
             </div>
 
             </div>

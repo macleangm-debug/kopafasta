@@ -19,6 +19,13 @@
         </x-slot:actions>
     </x-site.borrower-page-header>
 
+    <x-site.page-loading-shell>
+        <x-slot:skeleton>
+            @for ($i = 0; $i < 4; $i++)
+                <x-site.skeleton-card :lines="3" class="mb-3" />
+            @endfor
+        </x-slot:skeleton>
+
     @if ($items->isEmpty())
         <x-site.empty-state
             icon="🔔"
@@ -84,5 +91,7 @@
         </div>
         <div class="mt-6">{{ $items->links() }}</div>
     @endif
+
+    </x-site.page-loading-shell>
 
 </x-site.borrower-layout>

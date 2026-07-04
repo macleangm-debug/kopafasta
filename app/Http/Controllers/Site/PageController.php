@@ -47,7 +47,14 @@ class PageController extends Controller
 
         $presentation = app(\App\Services\PublicProductPresentationService::class)->forProduct($product);
 
-        return view('site.products.show', compact('product', 'presentation'));
+        $otherProducts = LoanProduct::with('rateTiers')
+            ->whereIn('status', ['active', 'coming_soon'])
+            ->where('id', '!=', $product->id)
+            ->orderBy('id')
+            ->limit(4)
+            ->get();
+
+        return view('site.products.show', compact('product', 'presentation', 'otherProducts'));
     }
 
     public function affiliate(): View

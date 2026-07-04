@@ -28,7 +28,7 @@
         'wizardKey' => $wizardKey,
     ])
 @elseif ($accountPanel === 'profile')
-    @include('site.borrower.profile._tabs', ['active' => $active])
-    @include('site.borrower.profile._kyc_progress', ['customer' => $customer, 'active' => $active])
+    @include('site.borrower.profile._profile_overview', ['customer' => $customer])
+    @include('site.borrower.profile._tabs', ['active' => $active, 'customer' => $customer])
     @include('site.borrower.profile._completion')
 @endif

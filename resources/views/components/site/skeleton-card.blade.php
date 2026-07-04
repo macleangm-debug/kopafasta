@@ -1,13 +1,8 @@
 @props(['lines' => 3])
 
-<article class="glass-card overflow-hidden animate-pulse">
-    <div class="aspect-[4/3] skeleton"></div>
-    <div class="p-4 space-y-3">
-        <div class="skeleton h-4 w-3/4"></div>
-        <div class="skeleton h-3 w-1/2"></div>
-        @for ($i = 0; $i < $lines; $i++)
-            <div class="skeleton h-3 w-full"></div>
-        @endfor
-        <div class="skeleton h-10 w-full rounded-xl mt-4"></div>
-    </div>
-</article>
+<div {{ $attributes->merge(['class' => 'glass-card p-5 space-y-3']) }}>
+    <x-site.skeleton-line width="w-1/3" height="h-4" />
+    @for ($i = 0; $i < $lines; $i++)
+        <x-site.skeleton-line :width="$i === $lines - 1 ? 'w-2/3' : 'w-full'" />
+    @endfor
+</div>

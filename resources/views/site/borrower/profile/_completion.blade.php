@@ -1,5 +1,6 @@
-@include('site.borrower.profile._profile_completion_summary', ['customer' => $customer, 'completionSummary' => $completionSummary ?? null])
-@include('site.borrower.profile._verification_status', ['customer' => $customer])
+@if (app(\App\Services\ProfileCompletionService::class)->identityRequiredDuringProfile())
+    @include('site.borrower.profile._verification_status', ['customer' => $customer])
+@endif
 
 @php
     $onboardingBanner = app(\App\Services\ApplicationRequirementsService::class)->onboardingBanner($customer);

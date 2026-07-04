@@ -68,43 +68,8 @@
 
     @include('site.products._details-tabs', ['p' => $p])
 
-    {{-- FAQ --}}
-    <section class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-12" x-data="{ open: 0, showAll: false }">
-        <h2 class="text-xl sm:text-2xl font-bold text-center mb-6">{{ __('site.product_detail.faq_heading') }}</h2>
-        <div class="space-y-3">
-            @foreach ($faqVisible as $i => $item)
-                <div class="glass-card overflow-hidden">
-                    <button type="button" @click="open === {{ $i }} ? open = -1 : open = {{ $i }}"
-                            class="w-full px-5 py-4 flex items-center justify-between text-left font-medium text-sm">
-                        <span>{{ $item['q'] }}</span>
-                        <svg :class="open === {{ $i }} ? 'rotate-180' : ''" class="w-5 h-5 text-gray-400 transition shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
-                    </button>
-                    <div x-show="open === {{ $i }}" x-cloak class="px-5 pb-4 text-sm text-gray-600 border-t border-gray-100/80 pt-3">{{ $item['a'] }}</div>
-                </div>
-            @endforeach
-            @if (count($faqExtra) > 0)
-                <div x-show="showAll" x-collapse x-cloak class="space-y-3">
-                    @foreach ($faqExtra as $j => $item)
-                        @php $idx = $j + 3; @endphp
-                        <div class="glass-card overflow-hidden">
-                            <button type="button" @click="open === {{ $idx }} ? open = -1 : open = {{ $idx }}"
-                                    class="w-full px-5 py-4 flex items-center justify-between text-left font-medium text-sm">
-                                <span>{{ $item['q'] }}</span>
-                                <svg :class="open === {{ $idx }} ? 'rotate-180' : ''" class="w-5 h-5 text-gray-400 transition shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
-                            </button>
-                            <div x-show="open === {{ $idx }}" x-cloak class="px-5 pb-4 text-sm text-gray-600 border-t border-gray-100/80 pt-3">{{ $item['a'] }}</div>
-                        </div>
-                    @endforeach
-                </div>
-                <button type="button" @click="showAll = !showAll"
-                        class="w-full text-sm font-semibold text-brand hover:underline py-2"
-                        x-text="showAll ? @js(__('site.product_detail.show_less')) : @js(__('site.product_detail.show_all_details'))"></button>
-            @endif
-        </div>
-    </section>
-
-    {{-- Calculator --}}
-    <section class="premium-gradient border-t border-gray-100 py-12 lg:py-16"
+    {{-- Calculator (before FAQ for better flow) --}}
+    <section class="premium-gradient border-y border-gray-100 py-12 lg:py-16"
              x-data="productCalculator(@js([
                 'min' => $p['limits']['min_amount'],
                 'max' => $p['limits']['max_amount'],
@@ -114,11 +79,12 @@
                 'rate' => app(\App\Services\DisplayedRateService::class)->displayedMonthlyRate($product, (float) $p['limits']['min_amount']),
              ]))">
         <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="glass-card p-6 sm:p-8">
+            <div class="glass-card p-6 sm:p-8 ring-2 ring-brand/10">
                 <div class="flex items-start gap-4 mb-6">
                     <x-site.product-illustration :code="$p['code']" size="sm" class="hidden sm:block shrink-0" />
                     <div>
-                        <h2 class="text-xl sm:text-2xl font-bold text-gray-900">{{ __('site.product_detail.calculator') }}</h2>
+                        <p class="text-xs uppercase tracking-widest text-brand font-semibold">{{ __('site.product_detail.calculator_eyebrow') }}</p>
+                        <h2 class="text-xl sm:text-2xl font-bold text-gray-900 mt-1">{{ __('site.product_detail.calculator') }}</h2>
                         <p class="mt-1 text-sm text-gray-600">{{ __('site.product_detail.calculator_hint') }}</p>
                     </div>
                 </div>
@@ -163,6 +129,43 @@
             </div>
         </div>
     </section>
+
+    {{-- FAQ --}}
+    <section class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-12" x-data="{ open: 0, showAll: false }">
+        <h2 class="text-xl sm:text-2xl font-bold text-center mb-6">{{ __('site.product_detail.faq_heading') }}</h2>
+        <div class="space-y-3">
+            @foreach ($faqVisible as $i => $item)
+                <div class="glass-card overflow-hidden">
+                    <button type="button" @click="open === {{ $i }} ? open = -1 : open = {{ $i }}"
+                            class="w-full px-5 py-4 flex items-center justify-between text-left font-medium text-sm">
+                        <span>{{ $item['q'] }}</span>
+                        <svg :class="open === {{ $i }} ? 'rotate-180' : ''" class="w-5 h-5 text-gray-400 transition shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+                    </button>
+                    <div x-show="open === {{ $i }}" x-cloak class="px-5 pb-4 text-sm text-gray-600 border-t border-gray-100/80 pt-3">{{ $item['a'] }}</div>
+                </div>
+            @endforeach
+            @if (count($faqExtra) > 0)
+                <div x-show="showAll" x-collapse x-cloak class="space-y-3">
+                    @foreach ($faqExtra as $j => $item)
+                        @php $idx = $j + 3; @endphp
+                        <div class="glass-card overflow-hidden">
+                            <button type="button" @click="open === {{ $idx }} ? open = -1 : open = {{ $idx }}"
+                                    class="w-full px-5 py-4 flex items-center justify-between text-left font-medium text-sm">
+                                <span>{{ $item['q'] }}</span>
+                                <svg :class="open === {{ $idx }} ? 'rotate-180' : ''" class="w-5 h-5 text-gray-400 transition shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+                            </button>
+                            <div x-show="open === {{ $idx }}" x-cloak class="px-5 pb-4 text-sm text-gray-600 border-t border-gray-100/80 pt-3">{{ $item['a'] }}</div>
+                        </div>
+                    @endforeach
+                </div>
+                <button type="button" @click="showAll = !showAll"
+                        class="w-full text-sm font-semibold text-brand hover:underline py-2"
+                        x-text="showAll ? @js(__('site.product_detail.show_less')) : @js(__('site.product_detail.show_all_details'))"></button>
+            @endif
+        </div>
+    </section>
+
+    @include('site.products._related-products', ['products' => $otherProducts ?? collect()])
 
     <script>
         function productCalculator(config) {

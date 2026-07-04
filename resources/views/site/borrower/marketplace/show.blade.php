@@ -67,4 +67,6 @@
         </div>
     </div>
 
+    @include('site.marketplace._related-assets', ['assets' => $relatedAssets ?? collect(), 'authenticated' => true])
+
 </x-site.borrower-layout>

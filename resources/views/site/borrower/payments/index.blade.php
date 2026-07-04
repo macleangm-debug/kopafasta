@@ -18,6 +18,12 @@
         <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
     @endif
 
+    <x-site.page-loading-shell>
+        <x-slot:skeleton>
+            <x-site.skeleton-card :lines="6" class="mb-4" />
+            <x-site.skeleton-card :lines="4" />
+        </x-slot:skeleton>
+
     @if ($entries->isEmpty())
         <x-site.empty-state
             icon="💳"
@@ -68,5 +74,7 @@
             </div>
         </div>
     @endif
+
+    </x-site.page-loading-shell>
 
 </x-site.borrower-layout>

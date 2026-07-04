@@ -209,6 +209,7 @@ class ApplicationRequirementsService
         $documentsComplete = $profile->isDocumentsComplete($customer);
         $staleKeys = $freshness->sectionsDueForRefresh($customer);
         $profilePercent = $profile->calculate($customer)['percent'];
+        $requireIdentity = app(IdentityVerificationPolicyService::class)->requiredDuringProfileCreation();
 
         $items = [
             [
@@ -217,18 +218,24 @@ class ApplicationRequirementsService
                 'status'     => $registrationComplete ? 'complete' : 'missing',
                 'action_url' => $registrationComplete ? null : route('site.membership.renew'),
             ],
-            [
+        ];
+
+        if ($requireIdentity) {
+            $items[] = [
                 'key'        => 'nida',
                 'label'      => 'NIDA verified',
                 'status'     => $nidaComplete ? 'complete' : 'missing',
                 'action_url' => $nidaComplete ? null : route('site.borrower.profile', ['section' => 'personal']),
-            ],
-            [
+            ];
+            $items[] = [
                 'key'        => 'face',
                 'label'      => 'Face verification',
                 'status'     => $faceComplete ? 'complete' : ($facePending ? 'pending' : 'missing'),
                 'action_url' => $faceComplete ? null : route('site.borrower.face-verification'),
-            ],
+            ];
+        }
+
+        $items = array_merge($items, [
             [
                 'key'        => 'activity',
                 'label'      => 'Activity information',
@@ -247,7 +254,7 @@ class ApplicationRequirementsService
                 'status'     => $kinComplete ? (in_array('kin', $staleKeys, true) ? 'stale' : 'complete') : 'missing',
                 'action_url' => $kinComplete ? null : route('site.borrower.profile', ['section' => 'personal', 'focus' => 'kin']).'#next-of-kin',
             ],
-        ];
+        ]);
 
         if (! $documentsComplete) {
             $income = app(IncomeProofService::class);

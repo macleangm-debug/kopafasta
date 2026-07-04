@@ -104,6 +104,7 @@ return [
         'browse'             => 'Browse assets',
         'specifications'     => 'Specifications',
         'financing'          => 'Financing summary',
+        'related_assets'     => 'More assets you may like',
     ],
 
     'stats' => [
@@ -182,6 +183,9 @@ return [
             'affiliate'      => 'Our affiliate programme pays commission for referred borrowers. Visit the Affiliates page to apply.',
             'contact'        => 'You can reach us by phone, email, or WhatsApp. Visit our Support center or send feedback through the feedback form.',
             'default'        => 'I can help with products, applications, the marketplace, repayments, and affiliates. Try one of the suggested questions below.',
+            'register_prompt'=> 'Register as a member to unlock the full experience and apply for loans.',
+            'guest_hint'     => 'Want the full member experience?',
+            'typing'         => 'Assistant is typing…',
         ],
         'suggestions' => [
             'What loan products do you offer?',
@@ -283,7 +287,9 @@ return [
         'documents_heading'  => 'Required documents',
         'faq_heading'        => 'Frequently asked questions',
         'calculator'         => 'Repayment calculator',
+        'calculator_eyebrow' => 'Estimate your repayments',
         'calculator_hint'    => 'Drag the sliders to preview your payment.',
+        'other_products'     => 'Other loan products',
         'show_all_details'   => 'Show all details',
         'show_less'          => 'Show less',
         'essentials'         => 'At a glance',
@@ -348,6 +354,8 @@ return [
         'type_hint'         => 'Choose the option that best describes you.',
         'after_approval'    => 'Once approved, we email you an activation link to set your password and access the affiliate portal.',
         'cta_apply'         => 'Apply now',
+        'cta_heading'       => 'Ready to become a partner?',
+        'step_label'        => 'Step :num',
         'how_it_works'      => 'How the programme works',
         'step_1'            => 'Apply & get approved',
         'step_1_body'       => 'Submit your application. Our team reviews and activates your affiliate account.',

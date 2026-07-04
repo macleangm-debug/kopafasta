@@ -83,5 +83,7 @@
                 </div>
             </div>
         </div>
+
+        @include('site.marketplace._related-assets', ['assets' => $relatedAssets ?? collect(), 'authenticated' => false])
     </div>
 </x-site.layout>

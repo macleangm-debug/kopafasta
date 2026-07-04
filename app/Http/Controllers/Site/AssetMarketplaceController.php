@@ -43,8 +43,9 @@ class AssetMarketplaceController extends Controller
         abort_if(! $asset, 404);
 
         $loginUrl = route('site.login', ['redirect' => route('site.borrower.marketplace.show', $assetId)]);
+        $relatedAssets = $this->relatedAssets($asset);
 
-        return view('site.public.marketplace.show', compact('asset', 'loginUrl'));
+        return view('site.public.marketplace.show', compact('asset', 'loginUrl', 'relatedAssets'));
     }
 
     private function renderIndex(Request $request, string $view, bool $authenticated): View
@@ -83,8 +84,9 @@ class AssetMarketplaceController extends Controller
         }
 
         $applyUrl = route('site.borrower.marketplace.apply', $asset['id']);
+        $relatedAssets = $this->relatedAssets($asset);
 
-        return view('site.borrower.marketplace.show', compact('asset', 'reservation', 'applyUrl'));
+        return view('site.borrower.marketplace.show', compact('asset', 'reservation', 'applyUrl', 'relatedAssets'));
     }
 
     public function startApply(string $assetId): RedirectResponse
@@ -318,6 +320,27 @@ class AssetMarketplaceController extends Controller
         return redirect()
             ->route('site.borrower.marketplace')
             ->with('status', 'Asset sourcing request submitted. Our team will work with suppliers to find a match.');
+    }
+
+    /** @return \Illuminate\Support\Collection<int, array<string, mixed>> */
+    private function relatedAssets(array $asset, int $limit = 4): \Illuminate\Support\Collection
+    {
+        $currentId = (string) ($asset['id'] ?? '');
+        $category = $asset['category'] ?? null;
+
+        $sameCategory = $this->loadAssets($category, [])
+            ->filter(fn (array $row) => (string) ($row['id'] ?? '') !== $currentId)
+            ->values();
+
+        if ($sameCategory->count() >= 2) {
+            return $sameCategory->take($limit);
+        }
+
+        $others = $this->loadAssets(null, [])
+            ->filter(fn (array $row) => (string) ($row['id'] ?? '') !== $currentId)
+            ->reject(fn (array $row) => $sameCategory->contains(fn (array $a) => ($a['id'] ?? null) === ($row['id'] ?? null)));
+
+        return $sameCategory->merge($others)->unique('id')->take($limit)->values();
     }
 
     /** @return \Illuminate\Support\Collection<int, array<string, mixed>> */

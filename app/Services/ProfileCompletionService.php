@@ -54,6 +54,7 @@ class ProfileCompletionService
         $staleKeys = $freshness->sectionsDueForRefresh($customer);
 
         $personalComplete = app(ProfileValidationService::class)->isCorePersonalComplete($customer);
+        $requireIdentity = app(IdentityVerificationPolicyService::class)->requiredDuringProfileCreation();
 
         $sections = [
             [
@@ -80,21 +81,24 @@ class ProfileCompletionService
                 'status'     => $this->isDocumentsComplete($customer) ? 'complete' : 'missing',
                 'action_url' => route('site.borrower.profile', ['section' => 'kyc']),
             ],
-            [
+        ];
+
+        if ($requireIdentity) {
+            $sections[] = [
                 'key'        => 'identity',
                 'label'      => __('borrower.nida.title'),
                 'status'     => $nidaVerified ? 'complete' : 'missing',
                 'action_url' => route('site.borrower.profile', ['section' => 'personal']),
-            ],
-            [
+            ];
+            $sections[] = [
                 'key'        => 'face',
                 'label'      => __('borrower.nida.face_title'),
                 'status'     => in_array($faceStatus, ['verified', 'pending'], true)
                     ? 'complete'
                     : (in_array($faceStatus, ['pending'], true) ? 'pending' : 'missing'),
                 'action_url' => route('site.borrower.face-verification'),
-            ],
-        ];
+            ];
+        }
 
         foreach ($sections as &$section) {
             $staleKey = match ($section['key']) {
@@ -194,5 +198,78 @@ class ProfileCompletionService
     public function isFullyComplete(Customer $customer): bool
     {
         return ($this->calculate($customer)['percent'] ?? 0) >= 100;
+    }
+
+    /**
+     * Per-tab completion for profile navigation.
+     *
+     * @return array<string, array{complete: bool, required: bool, label: string, url: string}>
+     */
+    public function tabStatuses(Customer $customer): array
+    {
+        $validation = app(ProfileValidationService::class);
+        $identityPolicy = app(IdentityVerificationPolicyService::class);
+        $requireIdentity = $identityPolicy->requiredDuringProfileCreation();
+        $paymentAccounts = app(CustomerDisbursementDetailsService::class)->accountsForCustomer($customer);
+
+        $personalComplete = $validation->isCorePersonalComplete($customer) && $validation->isKinComplete($customer);
+        if ($requireIdentity) {
+            $personalComplete = $personalComplete && app(ProfileRevisionService::class)->nidaStepComplete($customer);
+        }
+
+        $residenceComplete = $this->isResidenceComplete($customer);
+        if ($validation->requiresResidenceLetter()) {
+            $residenceComplete = $residenceComplete && $validation->hasResidenceLetter($customer);
+        }
+
+        return [
+            'personal' => [
+                'complete' => $personalComplete,
+                'required' => true,
+                'label'    => __('borrower.profile.personal'),
+                'url'      => route('site.borrower.profile', ['section' => 'personal']),
+            ],
+            'activity' => [
+                'complete' => $this->isActivityComplete($customer),
+                'required' => true,
+                'label'    => __('borrower.profile.activity'),
+                'url'      => route('site.borrower.profile', ['section' => 'activity']),
+            ],
+            'residence' => [
+                'complete' => $residenceComplete,
+                'required' => true,
+                'label'    => __('borrower.profile.residence'),
+                'url'      => route('site.borrower.profile', ['section' => 'residence']),
+            ],
+            'kyc' => [
+                'complete' => $this->isDocumentsComplete($customer),
+                'required' => true,
+                'label'    => __('borrower.profile.kyc'),
+                'url'      => route('site.borrower.profile', ['section' => 'kyc']),
+            ],
+            'security' => [
+                'complete' => filled(auth()->user()?->pin_hash),
+                'required' => false,
+                'label'    => __('borrower.profile.security'),
+                'url'      => route('site.borrower.profile', ['section' => 'security']),
+            ],
+            'payment' => [
+                'complete' => $paymentAccounts->isNotEmpty(),
+                'required' => false,
+                'label'    => __('borrower.payment_details.tab'),
+                'url'      => route('site.borrower.profile', ['section' => 'payment']),
+            ],
+            'assets' => [
+                'complete' => $customer->assets()->exists(),
+                'required' => false,
+                'label'    => __('borrower.profile.my_assets'),
+                'url'      => route('site.borrower.profile', ['section' => 'assets']),
+            ],
+        ];
+    }
+
+    public function identityRequiredDuringProfile(): bool
+    {
+        return app(IdentityVerificationPolicyService::class)->requiredDuringProfileCreation();
     }
 }

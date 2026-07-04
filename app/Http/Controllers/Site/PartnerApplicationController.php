@@ -9,9 +9,11 @@ use Illuminate\Http\Request;
 
 class PartnerApplicationController extends Controller
 {
-    public function create(): RedirectResponse
+    public function create(): \Illuminate\View\View
     {
-        return redirect()->to(route('site.affiliate').'#apply');
+        return view('site.affiliate.apply', [
+            'regions' => array_keys(config('tanzania_locations', [])),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse

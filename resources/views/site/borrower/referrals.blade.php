@@ -6,6 +6,14 @@
         :subtitle="__('borrower.referrals.subtitle')"
     />
 
+    <x-site.page-loading-shell>
+        <x-slot:skeleton>
+            <div class="grid gap-6 lg:grid-cols-3">
+                <x-site.skeleton-card :lines="5" class="lg:col-span-2" />
+                <x-site.skeleton-card :lines="3" />
+            </div>
+        </x-slot:skeleton>
+
     <div class="grid gap-6 lg:grid-cols-3">
         <section class="lg:col-span-2 bg-brand text-white rounded-2xl p-6 sm:p-8 shadow-lg relative overflow-hidden">
             <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
@@ -63,5 +71,7 @@
             </ul>
         </section>
     </div>
+
+    </x-site.page-loading-shell>
 
 </x-site.borrower-layout>
