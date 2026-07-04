@@ -30,7 +30,7 @@
             <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.referrals.wallet') }}</p>
             <p class="mt-3 text-3xl font-bold text-gray-900">{{ format_money($referralWallet->balance ?? 0) }}</p>
             <p class="text-sm text-gray-500 mt-2">{{ __('borrower.referrals.wallet_desc') }}</p>
-            <a href="{{ route('site.membership.show') }}" class="mt-auto pt-6 text-xs font-semibold text-amber-700 hover:underline">{{ __('borrower.referrals.view_membership') }}</a>
+            <a href="{{ route('site.borrower.profile', ['section' => 'membership']) }}" class="mt-auto pt-6 text-xs font-semibold text-amber-700 hover:underline">{{ __('borrower.referrals.view_membership') }}</a>
         </section>
     </div>
 

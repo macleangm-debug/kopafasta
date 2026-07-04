@@ -319,9 +319,18 @@
             </template>
 
             {{-- Step progress --}}
-            <ol class="flex items-center gap-1 mb-8 overflow-x-auto pb-2">
+            <div class="sticky top-0 z-20 -mx-4 px-4 py-3 mb-6 bg-[#faf8f5]/95 backdrop-blur-md border-b border-gray-200/70 lg:static lg:mx-0 lg:px-0 lg:py-0 lg:mb-8 lg:border-0 lg:bg-transparent">
+                <div class="lg:hidden h-1.5 bg-gray-200 rounded-full overflow-hidden mb-3">
+                    <div class="h-full bg-brand transition-all duration-300 rounded-full"
+                         :style="'width:' + (steps.length ? Math.round(((step + 1) / steps.length) * 100) : 0) + '%'"></div>
+                </div>
+                <p class="lg:hidden text-[11px] font-semibold text-gray-500 mb-2">
+                    <span x-text="(step + 1) + ' / ' + steps.length"></span>
+                    · <span x-text="steps[step]?.label || ''"></span>
+                </p>
+            <ol class="flex items-center gap-1 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-none">
                 <template x-for="(s, i) in steps" :key="s.key">
-                    <li class="flex items-center gap-1 shrink-0">
+                    <li class="flex items-center gap-1 shrink-0 snap-start">
                         <button type="button" @click="goto(i)"
                                 :class="i === step ? 'bg-brand text-white border-brand'
                                                    : (i < step ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -339,6 +348,7 @@
                     </li>
                 </template>
             </ol>
+            </div>
 
             <div class="glass-card">
 

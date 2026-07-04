@@ -21,7 +21,7 @@
         :title="__('borrower.loans_page.empty_title')"
         :description="__('borrower.loans_page.empty_desc')"
         :action-label="__('borrower.loans_page.empty_action')"
-        :action-url="route('site.borrower.apply')"
+        :action-url="route('site.products')"
     />
 @else
     @if (($viewMode ?? 'cards') === 'table')

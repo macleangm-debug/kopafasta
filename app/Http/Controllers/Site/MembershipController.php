@@ -17,24 +17,9 @@ class MembershipController extends Controller
 {
     use AuditsActions;
 
-    public function show(Request $request, ReferralService $referrals): View
+    public function show(Request $request): RedirectResponse
     {
-        $customer = $this->resolveCustomer($request);
-        $cfg = MembershipService::config();
-        $referralLink = $customer ? $referrals->referralLink($customer) : null;
-        $referralCode = $customer ? $referrals->ensureCode($customer) : null;
-        $referralWallet = $customer ? $referrals->wallet($customer) : null;
-        $referralSettings = $referrals->settings();
-
-        return view('site.borrower.membership', [
-            'customer'         => $customer,
-            'config'           => $cfg,
-            'history'          => $customer?->membershipHistories()->latest()->limit(20)->get() ?? collect(),
-            'referralLink'     => $referralLink,
-            'referralCode'     => $referralCode,
-            'referralWallet'   => $referralWallet,
-            'referralSettings' => $referralSettings,
-        ]);
+        return redirect()->route('site.borrower.profile', ['section' => 'membership']);
     }
 
     public function renewForm(Request $request, MembershipService $service, ReferralService $referrals): View|RedirectResponse
@@ -49,7 +34,7 @@ class MembershipController extends Controller
         }
 
         if ($customer->isMembershipActive() && ! $customer->isMembershipExpiringSoon(30)) {
-            return redirect()->route('site.membership.show')
+            return redirect()->route('site.borrower.profile', ['section' => 'membership'])
                 ->with('status', 'Your membership is active. Renewal opens within 30 days of expiry.');
         }
 
@@ -196,7 +181,7 @@ class MembershipController extends Controller
             'referral'  => $paymentBreakdown,
         ]);
 
-        return redirect()->route('site.membership.show')
+        return redirect()->route('site.borrower.profile', ['section' => 'membership'])
             ->with('warning', 'Bank payment submitted. We will activate your membership after verifying your transfer. Reference: '.$paymentReference);
     }
 

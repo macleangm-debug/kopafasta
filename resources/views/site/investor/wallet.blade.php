@@ -21,8 +21,7 @@
                     <form method="POST" action="{{ route('site.investor.wallet.deposit') }}" class="space-y-3">
                         @csrf
                         <div>
-                            <label class="text-xs uppercase text-slate-500 font-semibold">Amount (TZS)</label>
-                            <input type="text" inputmode="decimal" name="amount" data-money-input="0" required class="w-full mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" />
+                            <x-site.numeric-input name="amount" label="Amount (TZS)" :required="true" :money="true" />
                         </div>
                         <div>
                             <label class="text-xs uppercase text-slate-500 font-semibold">Channel</label>
@@ -46,8 +45,7 @@
                     <form method="POST" action="{{ route('site.investor.wallet.withdraw') }}" class="space-y-3">
                         @csrf
                         <div>
-                            <label class="text-xs uppercase text-slate-500 font-semibold">Amount (TZS)</label>
-                            <input type="text" inputmode="decimal" name="amount" data-money-input="0" required class="w-full mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" />
+                            <x-site.numeric-input name="amount" label="Amount (TZS)" :required="true" :money="true" />
                         </div>
                         <div>
                             <label class="text-xs uppercase text-slate-500 font-semibold">To channel</label>

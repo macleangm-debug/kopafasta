@@ -72,7 +72,7 @@ class BorrowerDashboardHeroService
                 'amount'    => null,
                 'meta'      => $settledLoan->loan_number,
                 'cta_label' => __('borrower.dashboard.hero.settled_cta'),
-                'cta_url'   => route('site.borrower.apply'),
+                'cta_url'   => route('site.products'),
             ];
         }
 
@@ -106,7 +106,7 @@ class BorrowerDashboardHeroService
             'amount'    => null,
             'meta'      => null,
             'cta_label' => __('borrower.dashboard.hero.apply_now'),
-            'cta_url'   => route('site.borrower.apply'),
+            'cta_url'   => route('site.products'),
         ];
     }
 }

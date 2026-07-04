@@ -157,7 +157,8 @@
                 <ul class="space-y-2 text-sm">
                     <li><a href="{{ route('site.partners') }}" class="hover:text-brand-gold transition">{{ __('site.footer.become_partner') }}</a></li>
                     <li><a href="{{ route('site.affiliate') }}" class="hover:text-brand-gold transition">{{ __('site.footer.become_affiliate') }}</a></li>
-                    <li><a href="{{ route('site.login', ['portal' => 'partner']) }}" class="hover:text-brand-gold transition">{{ __('site.nav.partner_log_in') }}</a></li>
+                    <li><a href="{{ route('site.login', ['portal' => 'partner']) }}" class="hover:text-brand-gold transition">{{ __('site.auth.partner_portal') }}</a></li>
+                    <li><a href="{{ route('site.register.vendor') }}" class="hover:text-brand-gold transition">{{ __('site.auth.create_account') }}</a></li>
                 </ul>
             </div>
             <div>

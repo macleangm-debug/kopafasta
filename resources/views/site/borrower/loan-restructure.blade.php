@@ -27,8 +27,7 @@
                         <span x-show="type === 'payment_holiday'">{{ __('borrower.loan_actions.holiday_months_label') }}</span>
                         <span x-show="type !== 'payment_holiday'">{{ __('borrower.loan_actions.new_tenure_label') }} {{ __('borrower.profile.optional') }}</span>
                     </label>
-                    <input type="number" name="new_tenure_months" min="1" max="{{ $holidayMaxMonths ?? 120 }}" value="{{ old('new_tenure_months') }}"
-                           class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" placeholder="e.g. 3">
+                    <x-site.numeric-input name="new_tenure_months" :value="old('new_tenure_months')" min="1" max="{{ $holidayMaxMonths ?? 120 }}" step="1" placeholder="e.g. 3" />
                     <p x-show="type === 'payment_holiday'" class="mt-2 text-xs text-gray-500">
                         {{ __('borrower.loan_actions.holiday_months_max_hint', ['max' => $holidayMaxMonths ?? 3]) }}
                         @if ($holidayAccrueInterest ?? true)

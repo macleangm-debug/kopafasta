@@ -1183,6 +1183,18 @@ class BorrowerController extends Controller
 
         $wizardMode = $request->boolean('wizard');
 
+        if ($section === 'membership') {
+            $referrals = app(\App\Services\ReferralService::class);
+
+            return view('site.borrower.profile.membership', [
+                'customer'       => $customer,
+                'history'        => $customer->membershipHistories()->latest()->limit(20)->get(),
+                'referralLink'   => $referrals->referralLink($customer),
+                'referralCode'   => $referrals->ensureCode($customer),
+                'referralWallet' => $referrals->wallet($customer),
+            ]);
+        }
+
         if ($section === 'kin') {
             return view('site.borrower.profile.kin', compact('customer', 'wizardMode'));
         }

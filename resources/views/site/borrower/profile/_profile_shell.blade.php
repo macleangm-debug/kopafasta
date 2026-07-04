@@ -3,6 +3,7 @@
     'subtitle',
     'customer',
     'active' => 'personal',
+    'accountPanel' => 'profile',
     'wizardMode' => false,
     'wizardKey' => null,
 ])
@@ -13,7 +14,10 @@
 ])
 
 @if (! $wizardMode)
-    @include('site.borrower.profile._member_card', ['customer' => $customer])
+    @include('site.borrower.profile._account_segments', ['activePanel' => $accountPanel])
+    @if ($accountPanel === 'profile')
+        @include('site.borrower.profile._member_card', ['customer' => $customer])
+    @endif
 @endif
 
 @if ($wizardMode)
@@ -23,7 +27,7 @@
         'wizardMode' => true,
         'wizardKey' => $wizardKey,
     ])
-@else
+@elseif ($accountPanel === 'profile')
     @include('site.borrower.profile._tabs', ['active' => $active])
     @include('site.borrower.profile._kyc_progress', ['customer' => $customer, 'active' => $active])
     @include('site.borrower.profile._completion')

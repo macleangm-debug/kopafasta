@@ -44,6 +44,10 @@ class AuthController extends Controller
             $request->session()->forget(['group_member_invite_token', 'login_redirect']);
         }
 
+        if ($redirect = $request->query('redirect')) {
+            $request->session()->put('login_redirect', $redirect);
+        }
+
         return view('site.auth.login', [
             'defaultMethod' => 'pin',
             'biometricEnabled' => (bool) config('auth_portal.biometric_enabled', false),
@@ -385,6 +389,10 @@ class AuthController extends Controller
         }
 
         app(\App\Services\AffiliateAttributionService::class)->mergeIntoSession($request);
+
+        if ($redirect = $request->query('redirect')) {
+            $request->session()->put('login_redirect', $redirect);
+        }
 
         $guarantorOnboarding = app(\App\Services\GuarantorOnboardingService::class);
         $groupOnboarding = app(\App\Services\GroupMemberOnboardingService::class);

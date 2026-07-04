@@ -17,10 +17,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.loan_actions.requested_amount_label') }}</label>
-                    <input type="number" name="requested_amount" min="1000" max="{{ (int) $available }}" step="1000" required
-                           value="{{ old('requested_amount') }}"
-                           class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                    <x-site.numeric-input name="requested_amount" :label="__('borrower.loan_actions.requested_amount_label')" :value="old('requested_amount')" :required="true" min="1000" max="{{ (int) $available }}" step="1000" />
                     @error('requested_amount')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                 </div>
 

@@ -1,17 +1,26 @@
 @php
     $summary = $completionSummary ?? app(\App\Services\ProfileCompletionService::class)->completionSummary($customer);
+    $percent = (int) ($summary['percent'] ?? 0);
+    $ringOffset = 100 - min(100, max(0, $percent));
 @endphp
 
-<div class="mb-6 rounded-2xl border border-gray-200 bg-white p-5">
-    <div class="flex items-center justify-between gap-3 mb-4 flex-wrap">
-        <div>
-            <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.profile.completion_summary_title') }}</p>
-            <p class="text-lg font-bold text-gray-900 mt-1">{{ __('borrower.profile.completion_summary_percent', ['percent' => $summary['percent'] ?? 0]) }}</p>
+<div class="mb-6 glass-card p-5 sm:p-6">
+    <div class="flex items-center gap-5 mb-5">
+        <div class="relative size-16 shrink-0" aria-hidden="true">
+            <svg class="size-16 -rotate-90" viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="15.5" fill="none" stroke="#e5e7eb" stroke-width="3"/>
+                <circle cx="18" cy="18" r="15.5" fill="none" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"
+                        stroke-dasharray="100" stroke-dashoffset="{{ $ringOffset }}"/>
+            </svg>
+            <span class="absolute inset-0 grid place-items-center text-sm font-bold text-amber-700">{{ $percent }}%</span>
         </div>
-        <span class="text-2xl font-bold text-amber-700">{{ $summary['percent'] ?? 0 }}%</span>
+        <div class="min-w-0">
+            <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.profile.completion_summary_title') }}</p>
+            <p class="text-lg font-bold text-gray-900 mt-1">{{ __('borrower.profile.completion_summary_percent', ['percent' => $percent]) }}</p>
+        </div>
     </div>
-    <div class="h-2 bg-gray-100 rounded-full overflow-hidden mb-5">
-        <div class="h-full bg-amber-500 transition-all" style="width: {{ $summary['percent'] ?? 0 }}%"></div>
+    <div class="h-2 bg-gray-100 rounded-full overflow-hidden mb-5 lg:hidden">
+        <div class="h-full bg-amber-500 transition-all" style="width: {{ $percent }}%"></div>
     </div>
 
     <div class="grid md:grid-cols-2 gap-6">

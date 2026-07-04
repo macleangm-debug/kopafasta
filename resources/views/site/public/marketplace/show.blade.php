@@ -29,22 +29,26 @@
 
                 <div class="mt-6">
                     <h2 class="text-xs uppercase tracking-widest text-brand font-semibold mb-3">{{ __('site.marketplace.financing') }}</h2>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="glass-card p-4">
-                            <p class="text-[10px] uppercase text-gray-400">{{ __('borrower.marketplace.asset_value') }}</p>
-                            <p class="text-xl font-bold mt-1 tabular-nums">{{ format_money($asset['asset_value'] ?? 0) }}</p>
+                    <div class="glass-card divide-y divide-gray-100 overflow-hidden">
+                        <div class="grid grid-cols-2 divide-x divide-gray-100">
+                            <div class="p-4">
+                                <p class="text-[10px] uppercase tracking-wide text-gray-400">{{ __('borrower.marketplace.asset_value') }}</p>
+                                <p class="text-lg font-bold mt-1 tabular-nums">{{ format_money($asset['asset_value'] ?? 0, false, 0) }}</p>
+                            </div>
+                            <div class="p-4">
+                                <p class="text-[10px] uppercase tracking-wide text-gray-400">{{ __('borrower.marketplace.deposit') }}</p>
+                                <p class="text-lg font-bold mt-1 text-brand tabular-nums">{{ format_money($asset['deposit'], false, 0) }}</p>
+                            </div>
                         </div>
-                        <div class="glass-card p-4">
-                            <p class="text-[10px] uppercase text-gray-400">{{ __('borrower.marketplace.deposit') }}</p>
-                            <p class="text-xl font-bold mt-1 text-brand tabular-nums">{{ format_money($asset['deposit']) }}</p>
-                        </div>
-                        <div class="glass-card p-4">
-                            <p class="text-[10px] uppercase text-gray-400">{{ __('borrower.marketplace.loan_amount') }}</p>
-                            <p class="text-xl font-bold mt-1 tabular-nums">{{ format_money($asset['remaining_loan'] ?? 0) }}</p>
-                        </div>
-                        <div class="glass-card p-4">
-                            <p class="text-[10px] uppercase text-gray-400">{{ __('borrower.marketplace.weekly_installment') }}</p>
-                            <p class="text-xl font-bold mt-1 tabular-nums">{{ format_money($asset['weekly_installment']) }}</p>
+                        <div class="grid grid-cols-2 divide-x divide-gray-100">
+                            <div class="p-4">
+                                <p class="text-[10px] uppercase tracking-wide text-gray-400">{{ __('borrower.marketplace.loan_amount') }}</p>
+                                <p class="text-lg font-bold mt-1 tabular-nums">{{ format_money($asset['remaining_loan'] ?? 0, false, 0) }}</p>
+                            </div>
+                            <div class="p-4 bg-brand-muted/30">
+                                <p class="text-[10px] uppercase tracking-wide text-gray-400">{{ __('borrower.marketplace.weekly_installment') }}</p>
+                                <p class="text-lg font-bold mt-1 tabular-nums">{{ format_money($asset['weekly_installment'], false, 0) }}</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -72,7 +76,7 @@
                         <a href="{{ $loginUrl }}" class="inline-flex bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3 rounded-xl text-sm transition">
                             {{ __('borrower.marketplace.public_apply_login') }}
                         </a>
-                        <a href="{{ route('site.register.borrower') }}" class="inline-flex ring-1 ring-brand/30 text-brand font-semibold px-6 py-3 rounded-xl text-sm hover:bg-brand-muted transition">
+                        <a href="{{ route('site.register.borrower', ['redirect' => route('site.borrower.marketplace.show', $asset['id'])]) }}" class="inline-flex ring-1 ring-brand/30 text-brand font-semibold px-6 py-3 rounded-xl text-sm hover:bg-brand-muted transition">
                             {{ __('borrower.marketplace.public_apply_register') }}
                         </a>
                     </div>

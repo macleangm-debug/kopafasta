@@ -2,9 +2,12 @@
 @endphp
 <x-site.investor-layout title="Dashboard — Investor" active="dashboard">
     <div class="mb-6">
+        <p class="text-xs uppercase tracking-widest text-emerald-700 font-semibold mb-1">Investor portal</p>
         <h1 class="text-2xl lg:text-3xl font-bold tracking-tight">Welcome back, {{ Auth::user()->name }}</h1>
         <p class="text-slate-500 text-sm mt-1">Here's a snapshot of your capital and earnings.</p>
     </div>
+
+    <x-site.investor-dashboard-quick-actions />
 
     {{-- Hero card --}}
     <div class="rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900 text-white p-6 lg:p-8 shadow-xl mb-6">
@@ -89,7 +92,14 @@
                 <a href="{{ route('site.investor.investments') }}" class="text-sm text-emerald-700 hover:underline font-semibold">View all →</a>
             </div>
             @if ($recentInvestments->isEmpty())
-                <p class="text-sm text-slate-500">No investments yet. <a href="{{ route('site.investor.pools') }}" class="text-emerald-700 font-semibold hover:underline">Browse pools</a> to get started.</p>
+                <x-site.empty-state
+                    icon="📈"
+                    title="No investments yet"
+                    description="Browse funding pools and deploy capital when you are ready."
+                    action-label="Browse pools"
+                    :action-url="route('site.investor.pools')"
+                    class="!p-8 border-0 shadow-none bg-slate-50"
+                />
             @else
                 <div class="divide-y divide-slate-100">
                     @foreach ($recentInvestments as $inv)
@@ -135,7 +145,8 @@
         @if ($recentTx->isEmpty())
             <p class="text-sm text-slate-500">No transactions yet.</p>
         @else
-            <table class="w-full text-sm">
+            <div class="overflow-x-auto scrollbar-none -mx-2 px-2">
+            <table class="w-full text-sm min-w-[640px]">
                 <thead>
                     <tr class="text-left text-xs uppercase text-slate-500 border-b border-slate-200">
                         <th class="py-2">Reference</th><th>Type</th><th>Channel</th><th>Status</th><th class="text-right">Amount</th>
@@ -153,6 +164,7 @@
                     @endforeach
                 </tbody>
             </table>
+            </div>
         @endif
     </div>
 </x-site.investor-layout>

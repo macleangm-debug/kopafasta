@@ -1,8 +1,8 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.profile.title'))" active="profile" content-width="wide">
+<x-site.borrower-layout :title="brand_title(__('borrower.profile.account_title'))" active="profile" content-width="wide">
 
     <div class="grid lg:grid-cols-2 gap-6">
         @include('site.borrower.profile._heading', [
-            'title' => __('borrower.profile.title'),
+            'title' => __('borrower.profile.account_title'),
             'subtitle' => __('borrower.security_tab.subtitle'),
         ])
 

@@ -20,11 +20,11 @@
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.budget') }}</label>
-                <input type="number" name="budget" min="0" step="1000" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" name="budget" data-money-input="0" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.tenure') }}</label>
-                <input type="number" name="preferred_tenure_months" min="1" max="120" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" name="preferred_tenure_months" maxlength="3" placeholder="e.g. 24" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
             </div>
             <div class="sm:col-span-2">
                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.photo') }}</label>
@@ -36,34 +36,38 @@
         </form>
     </div>
 
-    <div class="flex flex-wrap gap-2 mb-4">
-        <a href="{{ route('site.borrower.marketplace', request()->except('category')) }}"
-           class="px-3 py-1.5 rounded-lg text-sm font-medium {{ empty($category) ? 'bg-amber-500 text-gray-900' : 'bg-white ring-1 ring-gray-200 text-gray-600' }}">
-            {{ __('borrower.marketplace.all') }}
-        </a>
-        @foreach ($categories as $key => $label)
-            <a href="{{ route('site.borrower.marketplace', array_merge(request()->except('category'), ['category' => $key])) }}"
-               class="px-3 py-1.5 rounded-lg text-sm font-medium {{ $category === $key ? 'bg-amber-500 text-gray-900' : 'bg-white ring-1 ring-gray-200 text-gray-600' }}">
-                {{ $label }}
-            </a>
-        @endforeach
     </div>
+
+    @include('site.marketplace._category-filters', [
+        'categories' => $categories,
+        'category' => $category,
+        'routeName' => 'site.borrower.marketplace',
+        'activeClass' => 'bg-amber-500 text-gray-900',
+        'inactiveClass' => 'bg-white ring-1 ring-gray-200 text-gray-600',
+    ])
 
     @include('site.marketplace._filters', ['filters' => $filters, 'category' => $category, 'routeName' => 'site.borrower.marketplace'])
 
     @if ($assets->isEmpty())
         <x-site.empty-state icon="🏷️" :title="__('borrower.marketplace.empty_title')" :description="__('borrower.marketplace.empty_desc')" />
     @else
-        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            @foreach ($assets as $asset)
-                @include('site.marketplace._asset-card', [
-                    'asset' => $asset,
-                    'categories' => $categories,
-                    'showUrl' => route('site.borrower.marketplace.show', $asset['id']),
-                    'applyUrl' => route('site.borrower.marketplace.show', $asset['id']).'#apply',
-                    'authenticated' => true,
-                ])
-            @endforeach
+        <div x-data="{ ready: false }" x-init="requestAnimationFrame(() => ready = true)">
+            <div x-show="!ready" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                @for ($i = 0; $i < min(6, $assets->count()); $i++)
+                    <x-site.skeleton-card />
+                @endfor
+            </div>
+            <div x-show="ready" x-cloak class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                @foreach ($assets as $asset)
+                    @include('site.marketplace._asset-card', [
+                        'asset' => $asset,
+                        'categories' => $categories,
+                        'showUrl' => route('site.borrower.marketplace.show', $asset['id']),
+                        'applyUrl' => route('site.borrower.marketplace.show', $asset['id']).'#apply',
+                        'authenticated' => true,
+                    ])
+                @endforeach
+            </div>
         </div>
     @endif
 

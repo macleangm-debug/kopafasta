@@ -29,7 +29,7 @@
             'showGuarantorTab' => $showGuarantorTab ?? false,
             'showGuaranteedTab' => $showGuaranteedTab ?? false,
         ])
-        <a href="{{ route('site.borrower.apply') }}"
+        <a href="{{ route('site.products') }}"
            class="inline-flex justify-center items-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-2.5 rounded-xl text-sm shrink-0 self-start sm:self-auto shadow-sm">
             {{ __('borrower.loans_page.apply_new_cta') }}
         </a>

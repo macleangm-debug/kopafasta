@@ -120,9 +120,9 @@ class Phase26FeatureTest extends TestCase
         $customer = $this->completeBorrower();
 
         $this->actingAs($customer->user)
-            ->get(route('site.membership.show'))
+            ->get(route('site.borrower.profile', ['section' => 'membership']))
             ->assertOk()
             ->assertSee('max-w-7xl', false)
-            ->assertSee(__('borrower.membership.card_title'), false);
+            ->assertSee(__('borrower.profile.panel_membership'), false);
     }
 }

@@ -15,10 +15,21 @@ return [
     'hero' => [
         'badge'             => 'Microfinance solutions',
         'title'             => 'Capital that moves at your pace.',
-        'subtitle'          => 'Flexible loans designed to help you grow your business, manage your expenses, and build a better tomorrow.',
+        'subtitle'          => 'Mobile loans for business, assets, and everyday needs — rates upfront, apply in minutes.',
         'welcome_back'      => 'Welcome back',
         'get_started'       => 'Get Started',
-        'learn_more'        => 'Learn More',
+        'learn_more'        => 'How it works',
+        'trust_badge'       => 'Licensed & transparent',
+        'trust_sub'         => 'Rates and fees shown before you sign',
+        'login_cta'         => 'Already a member? Log in',
+        'variant_b_title'   => 'Pick your loan. See the rate. Apply in minutes.',
+        'variant_b_subtitle'  => 'Browse products built for Tanzania — business, assets, education, and more. No surprises on fees.',
+        'variant_b_cta_products' => 'Browse loan products',
+        'variant_b_pills'   => [
+            ['icon' => '⚡', 'label' => 'Fast approval'],
+            ['icon' => '📊', 'label' => 'Rates upfront'],
+            ['icon' => '📱', 'label' => 'Mobile-first'],
+        ],
     ],
     'country' => [
         'coming_soon_title' => 'Opening soon in :country',
@@ -53,7 +64,9 @@ return [
     ],
     'products' => [
         'all_title'          => 'Financial solutions for every need',
-        'all_subtitle'       => 'Compare rates, limits and tenure. Every product uses the same secure account and mobile experience.',
+        'all_subtitle'       => 'Compare rates and limits. One account, one simple apply flow.',
+        'picker_help_title'  => 'Not sure which product fits?',
+        'picker_help_body'   => 'Open any product to see rates, calculator, and requirements — then apply when you are ready.',
         'featured_title'     => 'Featured products',
         'see_more'           => 'See more products',
         'see_less'           => 'Show fewer',
@@ -64,6 +77,7 @@ return [
         'status_coming_soon' => 'Coming soon',
         'learn_more'         => 'Learn more',
         'apply_now'          => 'Apply now',
+        'rate_at_amount'     => 'Rate at this amount',
         'up_to'              => 'Up to :amount',
     ],
     'how_it_works' => [
@@ -140,6 +154,12 @@ return [
         'english'            => 'English',
         'swahili'            => 'Kiswahili',
         'country'            => 'Country',
+    ],
+
+    'help_hub' => [
+        'title'          => 'Help & feedback',
+        'ask_question'   => 'Get instant answers',
+        'send_feedback'  => 'Share your thoughts',
     ],
 
     'support' => [
@@ -263,7 +283,10 @@ return [
         'documents_heading'  => 'Required documents',
         'faq_heading'        => 'Frequently asked questions',
         'calculator'         => 'Repayment calculator',
-        'calculator_hint'    => 'Adjust amount and tenure to preview estimated monthly payments.',
+        'calculator_hint'    => 'Drag the sliders to preview your payment.',
+        'show_all_details'   => 'Show all details',
+        'show_less'          => 'Show less',
+        'essentials'         => 'At a glance',
         'monthly_payment'    => 'Monthly payment',
         'total_repayment'    => 'Total repayment',
         'processing_time'    => 'Processing time',

@@ -22,18 +22,11 @@
     </section>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div class="flex flex-wrap gap-2 mb-6">
-            <a href="{{ route('site.marketplace', request()->except('category')) }}"
-               class="px-4 py-2 rounded-full text-sm font-medium transition {{ empty($category) ? 'bg-brand text-white' : 'glass-card text-gray-600 hover:ring-brand/20' }}">
-                {{ __('borrower.marketplace.all') }}
-            </a>
-            @foreach ($categories as $key => $label)
-                <a href="{{ route('site.marketplace', array_merge(request()->except('category'), ['category' => $key])) }}"
-                   class="px-4 py-2 rounded-full text-sm font-medium transition {{ $category === $key ? 'bg-brand text-white' : 'glass-card text-gray-600 hover:ring-brand/20' }}">
-                    {{ $label }}
-                </a>
-            @endforeach
-        </div>
+        @include('site.marketplace._category-filters', [
+            'categories' => $categories,
+            'category' => $category,
+            'routeName' => 'site.marketplace',
+        ])
 
         @include('site.marketplace._filters', ['filters' => $filters, 'category' => $category, 'routeName' => 'site.marketplace'])
 
@@ -44,15 +37,22 @@
                 <p class="text-sm mt-2">{{ __('borrower.marketplace.empty_desc') }}</p>
             </div>
         @else
-            <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                @foreach ($assets as $asset)
-                    @include('site.marketplace._asset-card', [
-                        'asset' => $asset,
-                        'categories' => $categories,
-                        'showUrl' => route('site.marketplace.show', $asset['id']),
-                        'authenticated' => false,
-                    ])
-                @endforeach
+            <div x-data="{ ready: false }" x-init="requestAnimationFrame(() => ready = true)">
+                <div x-show="!ready" class="grid sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                    @for ($i = 0; $i < min(6, $assets->count()); $i++)
+                        <x-site.skeleton-card />
+                    @endfor
+                </div>
+                <div x-show="ready" x-cloak class="grid sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                    @foreach ($assets as $asset)
+                        @include('site.marketplace._asset-card', [
+                            'asset' => $asset,
+                            'categories' => $categories,
+                            'showUrl' => route('site.marketplace.show', $asset['id']),
+                            'authenticated' => false,
+                        ])
+                    @endforeach
+                </div>
             </div>
         @endif
     </div>

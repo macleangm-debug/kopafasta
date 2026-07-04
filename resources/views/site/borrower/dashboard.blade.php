@@ -14,6 +14,8 @@
 
     <x-site.borrower-dashboard-hero :hero="$dashboardHero ?? []" />
 
+    <x-site.borrower-dashboard-quick-actions :active-loan="$activeLoan ?? null" />
+
     <x-site.onboarding-hero-banner :banner="$onboardingBanner" />
 
     @if (! empty($groupInviteBanner['show']))
@@ -79,7 +81,7 @@
             <h1 class="text-2xl sm:text-3xl font-bold mt-1">Habari, {{ $customer->first_name ?? Auth::user()->name }}</h1>
             <p class="text-sm text-gray-500 mt-1">{{ __('borrower.dashboard.customer_number', ['number' => $customer->customer_number ?? '—']) }}</p>
         </div>
-        <a href="{{ route('site.borrower.apply') }}"
+        <a href="{{ route('site.products') }}"
            class="font-bold px-5 py-2.5 rounded-xl inline-flex items-center gap-2 text-sm shrink-0 self-start bg-brand-gold hover:bg-yellow-400 text-brand shadow-sm">
             + {{ __('borrower.new_application') }}
         </a>
@@ -115,7 +117,7 @@
         @if (($activeApplications ?? collect())->isEmpty())
             <div class="p-8 text-center text-sm text-gray-500">
                 {{ __('borrower.dashboard.no_applications') }}
-                <a href="{{ route('site.borrower.apply') }}" class="text-amber-600 font-medium hover:underline ml-1">{{ __('borrower.dashboard.start_application') }}</a>
+                <a href="{{ route('site.products') }}" class="text-amber-600 font-medium hover:underline ml-1">{{ __('borrower.dashboard.start_application') }}</a>
             </div>
         @else
             <ul class="divide-y divide-gray-100">

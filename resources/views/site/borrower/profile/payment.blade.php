@@ -2,7 +2,7 @@
 
     <div>
         @include('site.borrower.profile._profile_shell', [
-            'title' => __('borrower.profile.title'),
+            'title' => __('borrower.profile.account_title'),
             'subtitle' => __('borrower.payment_details.subtitle'),
             'customer' => $customer,
             'active' => 'payment',

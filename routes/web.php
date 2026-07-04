@@ -274,7 +274,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::delete('/borrower/notifications/{notification}', [\App\Http\Controllers\Site\BorrowerController::class, 'clearNotification'])->name('borrower.notifications.item.clear');
             Route::post('/borrower/notifications/clear-all',       [\App\Http\Controllers\Site\BorrowerController::class, 'clearAllNotifications'])->name('borrower.notifications.clear-all');
             Route::get('/borrower/profile/wizard',              [\App\Http\Controllers\Site\BorrowerController::class, 'profileWizard'])->name('borrower.profile.wizard');
-            Route::get('/borrower/profile/{section?}',             [\App\Http\Controllers\Site\BorrowerController::class, 'profile'])->name('borrower.profile')->where('section', 'personal|activity|residence|kin|kyc|security|payment|assets');
+            Route::get('/borrower/profile/{section?}',             [\App\Http\Controllers\Site\BorrowerController::class, 'profile'])->name('borrower.profile')->where('section', 'personal|activity|residence|kin|kyc|security|payment|assets|membership');
             Route::put('/borrower/profile/{section}',              [\App\Http\Controllers\Site\BorrowerController::class, 'updateProfile'])->name('borrower.profile.update')->where('section', 'personal|activity|residence|kin|kyc|payment');
             Route::post('/borrower/profile/assets',                  [\App\Http\Controllers\Site\BorrowerController::class, 'storeAsset'])->name('borrower.profile.assets.store');
             Route::delete('/borrower/profile/assets/{asset}',        [\App\Http\Controllers\Site\BorrowerController::class, 'destroyAsset'])->name('borrower.profile.assets.destroy');

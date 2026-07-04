@@ -200,7 +200,7 @@ class Phase25FeatureTest extends TestCase
             ->assertSee('max-w-7xl', false);
 
         $this->actingAs($customer->user)
-            ->get(route('site.membership.show'))
+            ->get(route('site.borrower.profile', ['section' => 'membership']))
             ->assertOk()
             ->assertSee('max-w-7xl', false);
     }

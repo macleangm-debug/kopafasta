@@ -10,16 +10,26 @@ use Illuminate\View\View;
 
 class PageController extends Controller
 {
-    public function home(): View
+    public function home(\Illuminate\Http\Request $request): View
     {
         $products = LoanProduct::with('rateTiers')->whereIn('status', ['active', 'coming_soon'])->orderBy('id')->get();
         $rateFromLabel = app(DisplayedRateService::class)->lowestBorrowerRateLabel($products);
         $featuredAssets = app(\App\Http\Controllers\Site\AssetMarketplaceController::class)->homepageFeatured(6);
         $marketplaceCategories = config('asset_marketplace.categories', []);
+        $landing = app(\App\Services\LandingVariantService::class)->resolve($request);
 
         $regions = array_keys(config('tanzania_locations', []));
 
-        return view('site.home', compact('products', 'rateFromLabel', 'featuredAssets', 'marketplaceCategories'));
+        return view('site.home', [
+            'products' => $products,
+            'rateFromLabel' => $rateFromLabel,
+            'featuredAssets' => $featuredAssets,
+            'marketplaceCategories' => $marketplaceCategories,
+            'regions' => $regions,
+            'landingVariant' => $landing['key'],
+            'landingHeroPartial' => $landing['hero_partial'],
+            'landingProductsFirst' => $landing['products_first'],
+        ]);
     }
 
     public function products(): View

@@ -12,8 +12,33 @@
     $currentCountry = collect($siteCountries)->firstWhere('code', $siteCountry)
         ?? ['code' => 'TZ', 'name' => 'Tanzania', 'emoji' => '🇹🇿'];
     $isHeader = $variant === 'header';
+    $isCompact = $variant === 'compact';
 @endphp
 
+@if ($isCompact)
+<div class="relative" x-data="{ localeOpen: false }" @keydown.escape.window="localeOpen = false">
+    <button type="button" @click="localeOpen = !localeOpen"
+            class="inline-flex items-center gap-1 rounded-lg border border-gray-200/80 bg-white/80 px-2 py-1.5 text-xs font-semibold text-gray-700 hover:bg-white shadow-sm"
+            title="{{ __('site.locale.country') }} / {{ $siteLocale === 'sw' ? __('site.locale.swahili') : __('site.locale.english') }}">
+        <span>{{ $siteLocale === 'sw' ? '🇹🇿' : '🇬🇧' }}</span>
+        <span class="uppercase">{{ $siteLocale }}</span>
+    </button>
+    <div x-cloak x-show="localeOpen" @click.outside="localeOpen = false" x-transition
+         class="absolute right-0 top-full mt-1 w-40 z-50 rounded-xl border border-gray-200 bg-white shadow-xl py-1">
+        @foreach (['en' => ['label' => __('site.locale.english'), 'flag' => '🇬🇧'], 'sw' => ['label' => __('site.locale.swahili'), 'flag' => '🇹🇿']] as $code => $meta)
+            <form method="POST" action="{{ route('site.locale.update') }}">
+                @csrf
+                <input type="hidden" name="locale" value="{{ $code }}">
+                <button type="submit"
+                        class="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-brand-muted transition {{ $siteLocale === $code ? 'bg-brand-muted/60 text-brand font-semibold' : 'text-gray-700' }}">
+                    <span>{{ $meta['flag'] }}</span>
+                    <span>{{ $meta['label'] }}</span>
+                </button>
+            </form>
+        @endforeach
+    </div>
+</div>
+@else
 <div class="{{ $isHeader ? 'flex items-center gap-2' : 'flex flex-col gap-3' }}"
      x-data="{ countryOpen: false, localeOpen: false }"
      @keydown.escape.window="countryOpen = false; localeOpen = false">
@@ -73,3 +98,4 @@
         </div>
     </div>
 </div>
+@endif

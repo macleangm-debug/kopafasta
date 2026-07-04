@@ -23,7 +23,6 @@
         ]
         : [
             ['key' => 'dashboard',     'label' => __('borrower.nav.dashboard'),     'route' => 'site.borrower.dashboard',     'icon' => 'home'],
-            ['key' => 'membership',    'label' => __('borrower.nav.membership'),    'route' => 'site.membership.show',        'icon' => 'shield'],
             ['key' => 'referrals',     'label' => __('borrower.nav.referrals'),     'route' => 'site.borrower.referrals',     'icon' => 'users'],
             ['key' => 'loans',         'label' => __('borrower.nav.loans'),         'route' => 'site.borrower.loans',         'icon' => 'wallet'],
             ['key' => 'marketplace',   'label' => __('borrower.nav.marketplace'),   'route' => 'site.borrower.marketplace', 'icon' => 'folder'],
@@ -166,24 +165,37 @@
         </header>
 
         {{-- Topbar (mobile) --}}
-        <header class="lg:hidden sticky top-0 z-30 glass-nav flex items-center justify-between px-4 h-14">
-            <a href="{{ route('site.borrower.dashboard') }}" class="flex items-center gap-2">
+        <header class="lg:hidden sticky top-0 z-30 glass-nav flex items-center justify-between px-3 h-14 gap-2">
+            <a href="{{ route('site.borrower.dashboard') }}" class="flex items-center gap-2 shrink-0">
                 <x-site.brand-mark size="sm" />
             </a>
-            <div class="flex items-center gap-1">
+            <div class="flex items-center gap-0.5 shrink-0">
+                <x-site.locale-switcher variant="compact" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
                 <a href="{{ route('site.borrower.notifications') }}" class="relative p-2 text-gray-600 hover:text-brand" title="{{ __('borrower.layout.notifications') }}">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $icon('bell') !!}</svg>
                     @if ($unreadNotifications > 0)
                         <span class="absolute top-1 right-1 min-w-[1rem] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $unreadNotifications > 9 ? '9+' : $unreadNotifications }}</span>
                     @endif
                 </a>
-                <form method="POST" action="{{ route('site.logout') }}">
-                    @csrf
-                    <button class="p-2 text-gray-600 hover:text-red-600" title="{{ __('borrower.layout.sign_out') }}">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 17l5-5-5-5M21 12H9M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></svg>
+                <div class="relative" x-data="{ profileOpen: false }">
+                    <button type="button" @click="profileOpen = !profileOpen" class="p-1.5 rounded-lg hover:bg-brand-muted/60" title="{{ __('borrower.layout.my_profile') }}">
+                        <div class="size-8 rounded-full bg-brand text-white grid place-items-center font-bold text-xs">
+                            {{ strtoupper(substr($displayName, 0, 1)) }}
+                        </div>
                     </button>
-                </form>
-                <button @click="open = true" class="p-2 -mr-2 text-gray-700">
+                    <div x-show="profileOpen" @click.outside="profileOpen = false" x-cloak
+                         class="absolute right-0 mt-2 w-56 rounded-2xl glass-card overflow-hidden z-50 py-1 bg-white/95 shadow-xl">
+                        <a href="{{ route('site.borrower.profile') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.layout.my_profile') }}</a>
+                        <a href="{{ route('site.borrower.profile', ['section' => 'security']) }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.layout.security_settings') }}</a>
+                        <a href="{{ route('site.borrower.support') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.layout.help_center') }}</a>
+                        <div class="border-t border-gray-100 my-1"></div>
+                        <form method="POST" action="{{ route('site.logout') }}">
+                            @csrf
+                            <button type="submit" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">{{ __('borrower.layout.sign_out') }}</button>
+                        </form>
+                    </div>
+                </div>
+                <button @click="open = true" class="p-2 text-gray-700" aria-label="{{ __('borrower.layout.menu') }}">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
             </div>
@@ -208,12 +220,8 @@
                         </a>
                     @endforeach
                 </nav>
-                <div class="p-4 border-t border-white/15 space-y-3">
+                <div class="p-4 border-t border-white/15">
                     <x-site.locale-switcher :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
-                    <form method="POST" action="{{ route('site.logout') }}">
-                        @csrf
-                        <button class="w-full text-sm text-left text-white/90 hover:text-white font-medium">{{ __('borrower.layout.sign_out') }}</button>
-                    </form>
                 </div>
             </div>
         </div>
@@ -244,6 +252,7 @@
 </div>
 
 <x-site.confirm-modal name="default" />
+<x-site.borrower-help-hub />
 
 @stack('scripts')
 <script>

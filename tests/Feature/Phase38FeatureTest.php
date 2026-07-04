@@ -69,7 +69,7 @@ class Phase38FeatureTest extends TestCase
         $customer = $this->completeBorrower('010');
 
         $this->actingAs($customer->user)
-            ->get(route('site.membership.show'))
+            ->get(route('site.borrower.profile', ['section' => 'membership']))
             ->assertOk()
             ->assertSee(__('borrower.membership_page.referral_program'), false)
             ->assertSee($customer->referral_code ?? '', false);

@@ -32,8 +32,7 @@
                     <input type="text" name="registration_number" value="{{ old('registration_number') }}" maxlength="80" class="w-full rounded-lg border-gray-300 text-sm">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.estimated_value') }}</label>
-                    <input type="number" name="estimated_value" value="{{ old('estimated_value') }}" min="0" step="1" class="w-full rounded-lg border-gray-300 text-sm">
+                    <x-site.numeric-input name="estimated_value" :label="__('borrower.profile.estimated_value')" :value="old('estimated_value')" min="0" step="1" :money="true" />
                 </div>
                 <div class="sm:col-span-2">
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.description') }}</label>

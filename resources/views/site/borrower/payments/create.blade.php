@@ -50,9 +50,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.payments_page.create.amount_label') }}</label>
-                    <input type="number" name="amount" min="100" step="100" required x-model.number="amount"
-                           class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm">
+                    <x-site.numeric-input name="amount" :label="__('borrower.payments_page.create.amount_label')" :value="old('amount', 0)" :required="true" min="100" step="100" x-model.number="amount" />
                     <p class="text-xs mt-2" :class="mobileAllowed ? 'text-emerald-700' : 'text-amber-700'"
                        x-text="mobileAllowed ? @js(__('borrower.payments_page.create.mobile_allowed')) : @js($bankOnlyMessage)"></p>
                 </div>

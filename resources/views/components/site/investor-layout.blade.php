@@ -96,19 +96,14 @@ $icon = function (string $name) {
         </header>
 
         {{-- Topbar (mobile) --}}
-        <header class="lg:hidden sticky top-0 z-30 bg-white border-b border-slate-200 flex items-center justify-between px-4 h-14">
-            <a href="{{ route('site.home') }}" class="flex items-center gap-2">
-                <span class="size-7 grid place-items-center rounded-md bg-emerald-500 text-slate-900 font-extrabold text-sm">K</span>
-                <span class="font-bold">Investor</span>
+        <header class="lg:hidden sticky top-0 z-30 bg-white border-b border-slate-200 flex items-center justify-between px-4 h-14 gap-2">
+            <a href="{{ route('site.home') }}" class="flex items-center gap-2 min-w-0">
+                <span class="size-7 grid place-items-center rounded-md bg-emerald-500 text-slate-900 font-extrabold text-sm shrink-0">K</span>
+                <span class="font-bold truncate">Investor</span>
             </a>
-            <div class="flex items-center gap-1">
-                <form method="POST" action="{{ route('site.logout') }}">
-                    @csrf
-                    <button class="p-2 text-slate-600 hover:text-red-600" title="Sign out">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 17l5-5-5-5M21 12H9M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></svg>
-                    </button>
-                </form>
-                <button @click="open = true" class="p-2 -mr-2 text-slate-700">
+            <div class="flex items-center gap-1 shrink-0">
+                <x-site.locale-switcher variant="compact" />
+                <button @click="open = true" class="p-2 -mr-2 text-slate-700" aria-label="Open menu">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
             </div>

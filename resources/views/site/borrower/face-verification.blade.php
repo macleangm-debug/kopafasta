@@ -30,7 +30,7 @@
             <div class="mt-6 text-center bg-white rounded-2xl ring-1 ring-gray-200 p-8">
                 <p class="text-sm text-emerald-700 font-medium">{{ __('borrower.face_verification_page.approved_hint') }}</p>
                 <div class="mt-4 flex flex-wrap justify-center gap-3">
-                    <a href="{{ route('site.borrower.apply') }}" class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-2.5 rounded-full text-sm">
+                    <a href="{{ route('site.products') }}" class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-2.5 rounded-full text-sm">
                         {{ __('borrower.face_verification_page.apply_cta') }}
                     </a>
                     <a href="{{ route('site.borrower.profile', ['section' => 'kyc']) }}" class="inline-flex bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-700 font-semibold px-6 py-2.5 rounded-full text-sm">

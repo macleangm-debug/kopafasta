@@ -65,10 +65,15 @@
             <form method="POST" action="{{ route('site.investor.pool.invest', $pool) }}" class="space-y-3">
                 @csrf
                 <div>
-                    <label class="text-xs uppercase text-slate-500 font-semibold">Amount (TZS)</label>
-                    <input type="number" name="amount" min="{{ $pool->min_investment }}" step="1000" required
-                           placeholder="Min {{ $fmt($pool->min_investment) }}"
-                           class="w-full mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                    <x-site.numeric-input
+                        name="amount"
+                        label="Amount (TZS)"
+                        :min="$pool->min_investment"
+                        step="1000"
+                        :required="true"
+                        :money="true"
+                        placeholder="Min {{ $fmt($pool->min_investment) }}"
+                    />
                 </div>
                 <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-800">
                     Expected return at {{ rtrim(rtrim(format_number($pool->expected_yield, 2),'0'),'.') }}% — for every TZS 1,000,000 you commit, you can expect ≈ {{ format_money(1000000 * ($pool->expected_yield / 100), 0) }} in returns.

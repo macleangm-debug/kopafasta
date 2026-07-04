@@ -15,10 +15,21 @@ return [
     'hero' => [
         'badge'             => 'Suluhisho za mikopo',
         'title'             => 'Mtaji unaosogea kwa kasi yako.',
-        'subtitle'          => 'Mikopo rahisi iliyoundwa kukusaidia kukuza biashara, kudhibiti matumizi, na kujenga kesho bora.',
+        'subtitle'          => 'Mikopo ya simu kwa biashara, mali, na mahitaji ya kila siku — viwango wazi, omba kwa dakika.',
         'welcome_back'      => 'Karibu tena',
         'get_started'       => 'Anza sasa',
-        'learn_more'        => 'Jifunze zaidi',
+        'learn_more'        => 'Jinsi inavyofanya kazi',
+        'trust_badge'       => 'Imesajiliwa na wazi',
+        'trust_sub'         => 'Viwango na ada zinaonyeshwa kabla ya kusaini',
+        'login_cta'         => 'Tayari umejiunga? Ingia',
+        'variant_b_title'   => 'Chagua mkopo. Ona kiwango. Omba kwa dakika.',
+        'variant_b_subtitle'  => 'Vinjari bidhaa zilizoundwa kwa Tanzania — biashara, mali, elimu, na zaidi. Hakuna ada zilizofichwa.',
+        'variant_b_cta_products' => 'Vinjari bidhaa za mkopo',
+        'variant_b_pills'   => [
+            ['icon' => '⚡', 'label' => 'Idhini ya haraka'],
+            ['icon' => '📊', 'label' => 'Viwango wazi'],
+            ['icon' => '📱', 'label' => 'Kwa simu'],
+        ],
     ],
     'country' => [
         'coming_soon_title' => 'Inakuja hivi karibuni :country',
@@ -54,6 +65,8 @@ return [
     'products' => [
         'all_title'          => 'Suluhisho za kifedha kwa kila hitaji',
         'all_subtitle'       => 'Linganisha viwango, kikomo na muda. Bidhaa zote zinatumia akaunti salama na simu.',
+        'picker_help_title'  => 'Huna uhakika bidhaa ipi inafaa?',
+        'picker_help_body'   => 'Fungua bidhaa yoyote kuona viwango, kikokotoo, na mahitaji — kisha omba ukiwa tayari.',
         'featured_title'     => 'Bidhaa zilizochaguliwa',
         'see_more'           => 'Ona bidhaa zaidi',
         'see_less'           => 'Onyesha chache',
@@ -64,6 +77,7 @@ return [
         'status_coming_soon' => 'Inakuja hivi karibuni',
         'learn_more'         => 'Jifunze zaidi',
         'apply_now'          => 'Omba sasa',
+        'rate_at_amount'     => 'Kiwango kwa kiasi hiki',
         'up_to'              => 'Hadi :amount',
     ],
     'how_it_works' => [
@@ -137,6 +151,12 @@ return [
         'swahili'            => 'Kiswahili',
         'country'            => 'Nchi',
     ],
+    'help_hub' => [
+        'title'          => 'Msaada na maoni',
+        'ask_question'   => 'Pata majibu papo hapo',
+        'send_feedback'  => 'Shiriki mawazo yako',
+    ],
+
     'support' => [
         'title'              => 'Kituo cha msaada',
         'subtitle'           => 'Pata majibu papo hapo au wasiliana na timu yetu.',
@@ -255,7 +275,10 @@ return [
         'documents_heading'  => 'Nyaraka zinazohitajika',
         'faq_heading'        => 'Maswali yanayoulizwa mara kwa mara',
         'calculator'         => 'Kikokotozi cha malipo',
-        'calculator_hint'    => 'Rekebisha kiasi na muda kuona makadirio ya malipo ya kila mwezi.',
+        'calculator_hint'    => 'Buruta vitelezi kuona makadirio ya malipo.',
+        'show_all_details'   => 'Onyesha maelezo yote',
+        'show_less'          => 'Onyesha kidogo',
+        'essentials'         => 'Muhtasari',
         'monthly_payment'    => 'Malipo ya kila mwezi',
         'total_repayment'    => 'Jumla ya malipo',
         'processing_time'    => 'Muda wa uchakataji',
