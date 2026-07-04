@@ -22,6 +22,14 @@ $portalVendor = auth()->user()
 $showRecoveryNav = $portalVendor
     && app(\App\Services\RecoveryPartnerService::class)->isRecoveryPartner($portalVendor);
 
+$rolePortalLabel = match ($portalVendor?->category) {
+    'call_center'    => 'Call center queue',
+    'debt_collector' => 'Collections workspace',
+    'legal_partner'  => 'Legal cases',
+    'auctioneer'     => 'Auction jobs',
+    default          => null,
+};
+
 if (! $showRecoveryNav) {
     $nav = array_values(array_filter($nav, fn (array $item) => ! in_array($item['key'], ['recovery', 'recovery_wallet'], true)));
 }
@@ -150,6 +158,11 @@ $icon = function (string $name) {
             </div>
         </div>
 
+        @if ($rolePortalLabel)
+            <div class="mx-4 lg:mx-8 mt-4 px-4 py-3 rounded-xl bg-indigo-50 border border-indigo-200 text-sm text-indigo-900">
+                <span class="font-semibold">{{ $rolePortalLabel }}</span> — use Tasks, Documents, and Support for your assigned work.
+            </div>
+        @endif
         @if (session('status'))
             <div class="mx-4 lg:mx-8 mt-4 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-700">{{ session('status') }}</div>
         @endif

@@ -16,6 +16,8 @@
                            :value="$values['default_registration_discount_percent'] ?? 10" required />
             <x-admin.input name="default_application_discount_percent" label="Default application discount (%)" type="number" step="0.1" min="0" max="100"
                            :value="$values['default_application_discount_percent'] ?? 10" required />
+            <x-admin.input name="minimum_payout_amount" label="Minimum payout amount (TZS)" type="number" step="1000" min="0"
+                           :value="$values['minimum_payout_amount'] ?? 50000" required />
         </div>
 
         <div>

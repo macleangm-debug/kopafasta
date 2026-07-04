@@ -2,50 +2,55 @@
 
 namespace App\Services;
 
+use App\Models\PartnerPayment;
 use App\Models\PartnerPayoutRequest;
 use App\Models\Vendor;
 
 class PartnerPayoutRequestService
 {
-    public function request(Vendor $partner, string $walletType, float $amount, ?string $notes = null): PartnerPayoutRequest
+    public function availableBalance(Vendor $vendor, string $sourceType): float
     {
-        $walletType = in_array($walletType, ['affiliate_commission', 'recovery_commission', 'vendor_task'], true)
-            ? $walletType
-            : 'affiliate_commission';
+        $approved = (float) PartnerPayment::query()
+            ->where('partner_id', $vendor->id)
+            ->where('source_type', $sourceType)
+            ->where('status', 'approved')
+            ->sum('amount');
 
-        $available = $this->availableBalance($partner, $walletType);
+        $reserved = (float) PartnerPayoutRequest::query()
+            ->where('partner_id', $vendor->id)
+            ->where('source_type', $sourceType)
+            ->whereIn('status', ['pending', 'approved'])
+            ->sum('amount');
+
+        return max(0, round($approved - $reserved, 2));
+    }
+
+    public function request(Vendor $vendor, string $sourceType, float $amount, ?string $notes = null): PartnerPayoutRequest
+    {
+        $amount = round($amount, 2);
+
         if ($amount <= 0) {
-            throw new \InvalidArgumentException('Enter a payout amount greater than zero.');
+            throw new \InvalidArgumentException('Payout amount must be greater than zero.');
         }
+
+        if ($sourceType === 'affiliate_commission') {
+            $min = app(AffiliateSettingsService::class)->minimumPayoutAmount();
+            if ($amount < $min) {
+                throw new \InvalidArgumentException(__('site.affiliate_portal.payout_minimum', ['amount' => format_money($min)]));
+            }
+        }
+
+        $available = $this->availableBalance($vendor, $sourceType);
         if ($amount > $available) {
-            throw new \InvalidArgumentException('Requested amount exceeds your available balance.');
-        }
-
-        $pending = PartnerPayoutRequest::query()
-            ->where('partner_id', $partner->id)
-            ->where('wallet_type', $walletType)
-            ->where('status', 'pending')
-            ->exists();
-
-        if ($pending) {
-            throw new \InvalidArgumentException('You already have a pending payout request for this wallet.');
+            throw new \InvalidArgumentException(__('site.affiliate_portal.payout_exceeds_balance', ['available' => format_money($available)]));
         }
 
         return PartnerPayoutRequest::create([
-            'partner_id'  => $partner->id,
-            'wallet_type' => $walletType,
-            'amount'      => round($amount, 2),
+            'partner_id'  => $vendor->id,
+            'source_type' => $sourceType,
+            'amount'      => $amount,
             'status'      => 'pending',
-            'notes'       => $notes,
+            'notes'       => filled($notes) ? trim($notes) : null,
         ]);
-    }
-
-    public function availableBalance(Vendor $partner, string $walletType): float
-    {
-        return match ($walletType) {
-            'recovery_commission' => (float) (app(RecoveryCommissionWalletService::class)->summary($partner)['approved'] ?? 0),
-            'affiliate_commission' => (float) (app(AffiliateCommissionWalletService::class)->summary($partner)['approved'] ?? 0),
-            default => 0.0,
-        };
     }
 }

@@ -39,7 +39,7 @@
                     <h3 class="text-xs font-semibold uppercase tracking-widest text-gray-500">{{ __('borrower.apply.details.fees') }}</h3>
                     <dl class="space-y-2 text-sm">
                         <div class="flex justify-between gap-3"><dt class="text-gray-500" x-text="readiness.fees.application_label"></dt><dd class="font-semibold" x-text="formatTzs(readiness.fees.application)"></dd></div>
-                        <div class="flex justify-between gap-3"><dt class="text-gray-500" x-text="readiness.fees.post_approval_label"></dt><dd class="font-semibold text-right" x-text="formatTzs(readiness.fees.post_approval)"></dd></div>
+                        <div class="flex justify-between gap-3"><dt class="text-gray-500" x-text="readiness.fees.post_approval_label"></dt><dd class="font-semibold text-right text-gray-600">{{ __('borrower.apply.details.post_approval_calculated') }}</dd></div>
                         <p class="text-xs text-gray-500" x-text="readiness.fees.post_approval_detail"></p>
                     </dl>
                 </div>

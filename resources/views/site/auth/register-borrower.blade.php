@@ -50,7 +50,7 @@
             </p>
         </aside>
 
-        <div class="flex items-start lg:items-center justify-center px-4 py-10 sm:px-12" x-data="borrowerWizard({
+        <div class="flex items-start lg:items-center justify-center px-4 py-10 sm:px-12 form-scroll-lock" x-data="borrowerWizard({
             first_name:  @js(old('first_name', $prefill['first_name'] ?? '')),
             middle_name: @js(old('middle_name', $prefill['middle_name'] ?? '')),
             last_name:   @js(old('last_name', $prefill['last_name'] ?? '')),

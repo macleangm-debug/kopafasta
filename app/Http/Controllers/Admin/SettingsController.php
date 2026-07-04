@@ -684,6 +684,7 @@ class SettingsController extends Controller
             'fraud_shared_phone_threshold'        => ['nullable', 'integer', 'min:1', 'max:100'],
             'fraud_shared_device_threshold'       => ['nullable', 'integer', 'min:1', 'max:100'],
             'fraud_multi_account_threshold'       => ['nullable', 'integer', 'min:1', 'max:100'],
+            'minimum_payout_amount'               => ['required', 'numeric', 'min:0'],
         ]);
 
         $feeTypes = ['registration_fee', 'application_fee', 'post_approval_fee', 'interest', 'repayments'];
@@ -750,6 +751,7 @@ class SettingsController extends Controller
                 'welcome_partner'     => $data['message_welcome_partner'] ?? '',
             ],
             'affiliates.require_kyc_for_verification'        => $request->boolean('require_kyc_for_verification'),
+            'affiliates.minimum_payout_amount'               => (float) ($data['minimum_payout_amount'] ?? config('affiliates.minimum_payout_amount', 50000)),
         ]);
 
         return back()->with('status', 'Affiliate settings saved.');

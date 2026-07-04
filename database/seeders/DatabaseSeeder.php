@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
             CustomerSeeder::class,
             DemoLoanSeeder::class,
             VendorSeeder::class,
+            DemoAffiliateSeeder::class,
             ChargesFeeSeeder::class,
             NotificationTemplateSeeder::class,
         ]);

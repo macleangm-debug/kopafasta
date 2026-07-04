@@ -163,8 +163,9 @@ class MembershipController extends Controller
             ]);
 
             $redirect = redirect()->route('site.membership.show')
-                ->with('confetti', true)
                 ->with('status', $message);
+
+            \App\Support\Celebration::flashOne('membership');
 
             if ($next = app(\App\Services\PortalOnboardingResumeService::class)->redirectIfPending($request, $customer->fresh())) {
                 return $next;

@@ -98,6 +98,7 @@ class AffiliateSettingsService
             'message_verification_notice'         => $messages['verification_notice'],
             'message_welcome_partner'             => $messages['welcome_partner'],
             'require_kyc_for_verification'        => $this->requireKycForVerification(),
+            'minimum_payout_amount'               => Setting::get('affiliates.minimum_payout_amount', config('affiliates.minimum_payout_amount', 50000)),
         ];
     }
 
@@ -132,6 +133,14 @@ class AffiliateSettingsService
         return $stored === null
             ? (bool) config('affiliates.require_kyc_for_verification', true)
             : (bool) $stored;
+    }
+
+    public function minimumPayoutAmount(): float
+    {
+        return (float) Setting::get(
+            'affiliates.minimum_payout_amount',
+            config('affiliates.minimum_payout_amount', 50000)
+        );
     }
 
     /** @return array<string, mixed> */

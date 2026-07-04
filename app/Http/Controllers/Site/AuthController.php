@@ -197,7 +197,8 @@ class AuthController extends Controller
         }
 
         return redirect()->route('site.membership.renew')
-            ->with('status', 'PIN created. Pay your registration fee to unlock loans and services.');
+            ->with('status', 'PIN created. Pay your registration fee to unlock loans and services.')
+            ->with(\App\Support\Celebration::SESSION_KEY, ['registration']);
     }
 
     public function showForgotPin(Request $request): View

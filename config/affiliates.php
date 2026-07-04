@@ -80,4 +80,7 @@ return [
 
     /** Require KYC approval before affiliate link is publicly verified. */
     'require_kyc_for_verification' => true,
+
+    /** Minimum commission balance (TZS) before an affiliate may request payout. */
+    'minimum_payout_amount' => 50000,
 ];

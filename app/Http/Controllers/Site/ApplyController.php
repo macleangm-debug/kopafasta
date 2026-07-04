@@ -1634,7 +1634,9 @@ class ApplyController extends Controller
             $drafts->clear($customer, (int) $loanProduct->id);
         }
 
-        return redirect()->route('site.borrower.apply.success', $app)->with('status', $message);
+        return redirect()->route('site.borrower.apply.success', $app)
+            ->with('status', $message)
+            ->with(\App\Support\Celebration::SESSION_KEY, ['loan_submitted']);
     }
 
     public function success(LoanApplication $application): View

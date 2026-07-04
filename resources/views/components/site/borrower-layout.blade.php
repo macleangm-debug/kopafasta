@@ -254,6 +254,7 @@
 
 <x-site.confirm-modal name="default" />
 <x-site.borrower-help-hub />
+<x-site.celebration-confetti />
 
 @stack('scripts')
 <script>

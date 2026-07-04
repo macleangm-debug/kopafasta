@@ -95,25 +95,4 @@
             </table>
         </div>
     </div>
-
-    @if (session('confetti'))
-        <script>
-            // Lightweight confetti — no external dep needed.
-            (function () {
-                const n = 120;
-                const colors = ['#f59e0b','#10b981','#3b82f6','#ef4444','#a855f7'];
-                for (let i = 0; i < n; i++) {
-                    const d = document.createElement('div');
-                    d.style.cssText = `position:fixed;top:-10px;left:${Math.random()*100}vw;width:8px;height:14px;background:${colors[i%colors.length]};opacity:.9;z-index:9999;transform:rotate(${Math.random()*360}deg);transition:transform 2.6s ease-out, top 2.6s ease-out, opacity 2.6s;`;
-                    document.body.appendChild(d);
-                    requestAnimationFrame(() => {
-                        d.style.top = (80 + Math.random()*20) + 'vh';
-                        d.style.transform = `translateX(${(Math.random()-.5)*200}px) rotate(${Math.random()*720}deg)`;
-                        d.style.opacity = '0';
-                    });
-                    setTimeout(() => d.remove(), 2800);
-                }
-            })();
-        </script>
-    @endif
 </x-site.borrower-layout>

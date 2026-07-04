@@ -1,52 +1,54 @@
-<x-site.affiliate-layout title="Referrals" active="referrals">
+<x-site.affiliate-layout :title="brand_title(__('site.affiliate_portal.referrals_title'))" active="referrals">
+
     <div class="mb-6">
-        <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-1">Attribution</p>
-        <h1 class="text-2xl font-bold">Referral activity</h1>
-        <p class="text-sm text-gray-500 mt-1">Track clicks, registrations, and applications from your links.</p>
+        <h1 class="text-2xl font-bold text-gray-900">{{ __('site.affiliate_portal.referrals_title') }}</h1>
+        <p class="text-sm text-gray-600 mt-1">{{ __('site.affiliate_portal.referrals_subtitle') }}</p>
     </div>
 
-    <div class="grid sm:grid-cols-3 gap-3 mb-6">
-        @foreach ($breakdown as $label => $count)
-            <div class="glass-card p-4">
-                <p class="text-xs uppercase tracking-wide text-gray-500 font-semibold">{{ ucfirst(str_replace('_', ' ', $label)) }}</p>
-                <p class="text-2xl font-bold mt-1 tabular-nums">{{ $count }}</p>
-            </div>
-        @endforeach
-    </div>
-
-    <div class="glass-card overflow-hidden">
-        <div class="hidden sm:block overflow-x-auto">
-            <table class="min-w-full text-sm">
-                <thead class="bg-gray-50/80 text-xs uppercase text-gray-500">
-                    <tr>
-                        <th class="text-left px-4 py-3">Event</th>
-                        <th class="text-left px-4 py-3">When</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100">
-                    @forelse ($recent as $event)
+    @if ($events->isEmpty())
+        <x-site.empty-state
+            icon="👥"
+            :title="__('site.affiliate_portal.no_referrals_title')"
+            :description="__('site.affiliate_portal.no_referrals_body')"
+            :action-label="__('site.affiliate_portal.go_dashboard')"
+            :action-url="route('site.affiliate.dashboard')"
+        />
+    @else
+        <div class="glass-card overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-gray-50 text-left text-xs uppercase tracking-widest text-gray-500">
                         <tr>
-                            <td class="px-4 py-3">{{ ucfirst(str_replace('_', ' ', $event->event_type)) }}</td>
-                            <td class="px-4 py-3 text-gray-500">{{ $event->created_at?->diffForHumans() }}</td>
+                            <th class="px-4 py-3">{{ __('site.affiliate_portal.col_event') }}</th>
+                            <th class="px-4 py-3">{{ __('site.affiliate_portal.col_customer') }}</th>
+                            <th class="px-4 py-3">{{ __('site.affiliate_portal.col_commission') }}</th>
+                            <th class="px-4 py-3">{{ __('site.affiliate_portal.col_date') }}</th>
                         </tr>
-                    @empty
-                        <tr><td colspan="2" class="px-4 py-8 text-center text-gray-500">No referral events yet.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach ($events as $event)
+                            <tr class="hover:bg-gray-50/50">
+                                <td class="px-4 py-3 font-medium capitalize">{{ str_replace('_', ' ', $event->event_type) }}</td>
+                                <td class="px-4 py-3 text-gray-600">
+                                    @if ($event->customer)
+                                        {{ trim($event->customer->first_name.' '.$event->customer->last_name) ?: '—' }}
+                                    @else
+                                        —
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 tabular-nums">
+                                    {{ $event->commission_amount > 0 ? format_money($event->commission_amount) : '—' }}
+                                </td>
+                                <td class="px-4 py-3 text-gray-500">{{ $event->created_at?->format('d M Y, H:i') }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            @if ($events->hasPages())
+                <div class="px-4 py-3 border-t border-gray-100">{{ $events->links() }}</div>
+            @endif
         </div>
+    @endif
 
-        <div class="sm:hidden divide-y divide-gray-100">
-            @forelse ($recent as $event)
-                <div class="px-4 py-3 flex items-center justify-between gap-3">
-                    <span class="text-sm font-medium">{{ ucfirst(str_replace('_', ' ', $event->event_type)) }}</span>
-                    <span class="text-xs text-gray-500 shrink-0">{{ $event->created_at?->diffForHumans() }}</span>
-                </div>
-            @empty
-                <div class="p-8">
-                    <x-site.empty-state icon="🔗" title="No referral events yet" description="Share your affiliate link to start tracking activity." :action-url="route('site.affiliate.dashboard')" action-label="Back to dashboard" class="!p-6 border-0 shadow-none" />
-                </div>
-            @endforelse
-        </div>
-    </div>
 </x-site.affiliate-layout>

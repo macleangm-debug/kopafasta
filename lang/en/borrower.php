@@ -2,6 +2,15 @@
 
 return [
     'portal' => 'Borrower portal',
+
+    'celebration' => [
+        'profile_complete' => 'Profile 100% complete — you\'re ready to apply!',
+        'loan_submitted'   => 'Application submitted successfully!',
+        'registration'     => 'Welcome to Kopafasta!',
+        'payment'          => 'Payment received — thank you!',
+        'membership'       => 'Membership activated — welcome aboard!',
+    ],
+
     'nav' => [
         'dashboard'     => 'Dashboard',
         'membership'    => 'Membership',
@@ -687,6 +696,7 @@ return [
             'repayment' => 'Repayment',
             'processing_time' => 'Processing time',
             'fees' => 'Processing fees',
+            'post_approval_calculated' => 'Calculated at approval',
             'requirements' => 'Requirements',
             'documents' => 'Documents required',
             'documents_default' => 'National ID, income statement, and profile documents.',
@@ -1151,6 +1161,9 @@ return [
         'capture_photo' => 'Capture photo',
         'update_document' => 'Update document',
         'replace_document' => 'Replace',
+        'remove_document' => 'Remove',
+        'remove_document_confirm' => 'Remove this document? You can upload a new one anytime.',
+        'document_removed' => 'Document removed.',
         'cancel_update' => 'Cancel',
         'document_file_name' => 'File',
         'document_page_count' => 'Pages',

@@ -7,11 +7,15 @@
     'required' => false,
     'inputHostId' => null,
     'labels' => [],
+    'removeUrl' => null,
+    'documentCode' => null,
 ])
 
 @php
     $pagesName = $pagesFieldName ?? ($fieldName.'_pages');
     $hostId = $inputHostId ?? ($fieldName.'-upload');
+    $documentCode = $documentCode ?? $fieldName;
+    $removeUrl = $removeUrl ?? ($document ? route('site.borrower.profile.documents.destroy', ['code' => $documentCode]) : null);
     $isPdf = $document && $document->file_path && str_ends_with(strtolower($document->file_path), '.pdf');
     $isImage = $document && $document->file_path && ! $isPdf;
     $meta = $document ? app(\App\Services\ProfileDocumentService::class)->metadata($document) : [];
@@ -65,6 +69,16 @@
                                 class="inline-flex items-center rounded-full bg-white ring-1 ring-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-50">
                             {{ __('borrower.profile.replace_document') }}
                         </button>
+                        @if ($removeUrl ?? null)
+                            <form method="POST" action="{{ $removeUrl }}" onsubmit="return confirm(@js(__('borrower.profile.remove_document_confirm')))">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit"
+                                        class="inline-flex items-center rounded-full bg-white ring-1 ring-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50">
+                                    {{ __('borrower.profile.remove_document') }}
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 @endif
             </div>

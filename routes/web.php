@@ -51,6 +51,7 @@ use App\Http\Controllers\Admin\LocationMasterController;
 use App\Http\Controllers\Admin\SignatoryController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\SettlementController;
+use App\Http\Controllers\Admin\SupportChatController;
 use App\Http\Controllers\Admin\SupportTicketController;
 use App\Http\Controllers\Admin\SuspiciousActivityController;
 use App\Http\Controllers\Admin\UserController;
@@ -278,6 +279,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::put('/borrower/profile/{section}',              [\App\Http\Controllers\Site\BorrowerController::class, 'updateProfile'])->name('borrower.profile.update')->where('section', 'personal|activity|residence|kin|kyc|payment');
             Route::post('/borrower/profile/assets',                  [\App\Http\Controllers\Site\BorrowerController::class, 'storeAsset'])->name('borrower.profile.assets.store');
             Route::delete('/borrower/profile/assets/{asset}',        [\App\Http\Controllers\Site\BorrowerController::class, 'destroyAsset'])->name('borrower.profile.assets.destroy');
+            Route::delete('/borrower/profile/documents/{code}',     [\App\Http\Controllers\Site\BorrowerController::class, 'destroyProfileDocument'])->name('borrower.profile.documents.destroy');
             Route::delete('/borrower/profile/payment-accounts/{account}', [\App\Http\Controllers\Site\BorrowerController::class, 'destroyPaymentAccount'])->name('borrower.profile.payment-accounts.destroy');
             Route::post('/borrower/profile/nida/verify',           [\App\Http\Controllers\Site\BorrowerController::class, 'verifyNida'])->name('borrower.profile.nida.verify');
             Route::post('/borrower/profile/nida/accept-names',    [\App\Http\Controllers\Site\BorrowerController::class, 'acceptNidaNames'])->name('borrower.profile.nida.accept-names');
@@ -324,6 +326,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::post('/wallet/{payment}/dispute', [\App\Http\Controllers\Site\AffiliateController::class, 'disputePayment'])->name('wallet.dispute');
             Route::post('/wallet/payout-request', [\App\Http\Controllers\Site\AffiliateController::class, 'requestPayout'])->name('wallet.payout-request');
                 Route::get('/profile', [\App\Http\Controllers\Site\AffiliateController::class, 'profile'])->name('profile');
+                Route::put('/profile', [\App\Http\Controllers\Site\AffiliateController::class, 'updateProfile'])->name('profile.update');
             });
         });
 
@@ -334,6 +337,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/wallet/{payment}/dispute', [\App\Http\Controllers\Site\AffiliateController::class, 'disputePayment'])->name('wallet.dispute');
             Route::post('/wallet/payout-request', [\App\Http\Controllers\Site\AffiliateController::class, 'requestPayout'])->name('wallet.payout-request');
             Route::get('/profile', [\App\Http\Controllers\Site\AffiliateController::class, 'profile'])->name('profile');
+            Route::put('/profile', [\App\Http\Controllers\Site\AffiliateController::class, 'updateProfile'])->name('profile.update');
         });
 
         Route::redirect('/partner/affiliate-portal', '/partner/affiliate');
@@ -663,6 +667,10 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
 
         // Support
         $registerResource('support-tickets', 'support_ticket', SupportTicketController::class);
+        Route::get('support-chats', [SupportChatController::class, 'index'])->name('support-chats.index');
+        Route::get('support-chats/{supportConversation}', [SupportChatController::class, 'show'])->name('support-chats.show');
+        Route::post('support-chats/{supportConversation}/assign', [SupportChatController::class, 'assign'])->name('support-chats.assign');
+        Route::post('support-chats/{supportConversation}/reply', [SupportChatController::class, 'reply'])->name('support-chats.reply');
         $registerResource('complaints',      'complaint',      ComplaintController::class);
 
         // Loan modification request queues

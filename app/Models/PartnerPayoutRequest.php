@@ -2,37 +2,36 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\MapsLegacyPartnerId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PartnerPayoutRequest extends Model
 {
-    protected $fillable = [
-        'partner_id',
-        'wallet_type',
-        'amount',
-        'status',
-        'notes',
-        'reviewed_by_user_id',
-        'reviewed_at',
-        'review_notes',
-    ];
+    use MapsLegacyPartnerId;
+
+    protected $guarded = [];
 
     protected function casts(): array
     {
         return [
-            'amount'      => 'decimal:2',
-            'reviewed_at' => 'datetime',
+            'amount'       => 'decimal:2',
+            'reviewed_at'  => 'datetime',
         ];
     }
 
     public function partner(): BelongsTo
     {
-        return $this->belongsTo(Vendor::class, 'partner_id');
+        return $this->belongsTo(Partner::class, 'partner_id');
     }
 
-    public function reviewedBy(): BelongsTo
+    public function vendor(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'reviewed_by_user_id');
+        return $this->partner();
+    }
+
+    public function reviewedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
     }
 }

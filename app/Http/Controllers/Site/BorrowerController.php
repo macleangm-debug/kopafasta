@@ -1479,20 +1479,24 @@ class BorrowerController extends Controller
         $this->auditBorrower('profile.updated', $customer, ['section' => $section]);
 
         if ($return = $this->validatedReturnUrl($request)) {
-            return redirect($return)->with('status', __('borrower.profile.saved_return'));
+            $redirect = redirect($return)->with('status', __('borrower.profile.saved_return'));
+        } elseif ($request->boolean('wizard')) {
+            $redirect = $this->redirectWizardStep($request, $customer, $section);
+        } else {
+            $redirect = $this->redirectWithGuarantorResume(
+                $request,
+                $customer,
+                redirect()
+                    ->route('site.borrower.profile', array_filter(['section' => $section !== 'personal' ? $section : null]))
+                    ->with('status', 'Profile updated.'),
+            );
         }
 
-        if ($request->boolean('wizard')) {
-            return $this->redirectWizardStep($request, $customer, $section);
+        if (app(\App\Services\ProfileCompletionService::class)->isFullyComplete($customer->fresh())) {
+            \App\Support\Celebration::flashOne('profile_complete');
         }
 
-        return $this->redirectWithGuarantorResume(
-            $request,
-            $customer,
-            redirect()
-                ->route('site.borrower.profile', array_filter(['section' => $section !== 'personal' ? $section : null]))
-                ->with('status', 'Profile updated.'),
-        );
+        return $redirect;
     }
 
     private function redirectWizardStep(Request $request, Customer $customer, string $section): RedirectResponse
@@ -2301,9 +2305,35 @@ class BorrowerController extends Controller
     /* ---------------------------------------------------------------------
      | 10. Support (placeholder)
      |---------------------------------------------------------------------*/
+
     public function support(): View
     {
         return view('site.borrower.support', ['customer' => $this->customer()]);
+    }
+
+    public function destroyProfileDocument(string $code): RedirectResponse
+    {
+        $customer = $this->customer();
+        $type = DocumentType::where('code', $code)->where('is_active', true)->first();
+        abort_unless($type, 404);
+
+        $document = CustomerDocument::query()
+            ->where('customer_id', $customer->id)
+            ->where('document_type_id', $type->id)
+            ->whereNull('loan_application_id')
+            ->latest()
+            ->first();
+
+        if ($document) {
+            if ($document->file_path) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($document->file_path);
+            }
+            $document->delete();
+        }
+
+        $this->auditBorrower('profile.document_removed', $customer, ['code' => $code]);
+
+        return back()->with('status', __('borrower.profile.document_removed'));
     }
 
     /**

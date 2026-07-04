@@ -244,6 +244,23 @@ class AffiliateService
             ->exists();
     }
 
+    public function updateCode(Vendor $affiliate, string $code): string
+    {
+        abort_unless($affiliate->isAffiliate(), 403);
+
+        $code = strtoupper(preg_replace('/[^A-Z0-9_-]/', '', trim($code)) ?? '');
+        if (strlen($code) < 3) {
+            throw new \InvalidArgumentException(__('site.affiliate_portal.code_too_short'));
+        }
+        if (! $this->codeIsUnique($code, $affiliate->id)) {
+            throw new \InvalidArgumentException(__('site.affiliate_portal.code_taken'));
+        }
+
+        $affiliate->update(['affiliate_code' => $code]);
+
+        return $code;
+    }
+
     /**
      * Affiliate discount quote (referral takes precedence elsewhere).
      *
