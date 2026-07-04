@@ -52,6 +52,8 @@ class AuthController extends Controller
         $partnerPortal = $request->query('portal') === 'partner';
         if ($partnerPortal) {
             $request->session()->put('login_portal', 'partner');
+        } else {
+            $request->session()->forget('login_portal');
         }
 
         return view('site.auth.login', [
@@ -118,9 +120,9 @@ class AuthController extends Controller
         }
 
         if (! $partnerPortal && $user->role === 'vendor') {
-            $request->session()->put('login_portal', 'partner');
-
-            return $this->completeWebLogin($user, $request, $phone, (bool) ($data['trust_device'] ?? false));
+            return back()
+                ->withErrors(['phone' => __('site.auth.partner_account_borrower_login')])
+                ->withInput(['phone' => $phone, 'auth_method' => 'pin']);
         }
 
         if ($partnerPortal && $user->role !== 'vendor') {
@@ -202,7 +204,9 @@ class AuthController extends Controller
         }
 
         if (! $partnerPortal && $user->role === 'vendor') {
-            $request->session()->put('login_portal', 'partner');
+            return back()
+                ->withErrors(['login' => __('site.auth.partner_account_borrower_login')])
+                ->withInput(['login' => $login, 'auth_method' => 'password']);
         }
 
         return $this->completeWebLogin($user, $request, $login, (bool) ($data['trust_device'] ?? false));

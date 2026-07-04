@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\PartnerPayment;
 use App\Models\PartnerPayoutRequest;
 use App\Models\Vendor;
+use Illuminate\Support\Facades\Schema;
 
 class PartnerPayoutRequestService
 {
@@ -16,10 +17,16 @@ class PartnerPayoutRequestService
             ->where('status', 'approved')
             ->sum('amount');
 
-        $reserved = (float) PartnerPayoutRequest::query()
+        $payoutQuery = PartnerPayoutRequest::query()
             ->where('partner_id', $vendor->id)
-            ->where('source_type', $sourceType)
-            ->whereIn('status', ['pending', 'approved'])
+            ->whereIn('status', ['pending', 'approved']);
+
+        $sourceColumn = Schema::hasColumn('partner_payout_requests', 'source_type')
+            ? 'source_type'
+            : (Schema::hasColumn('partner_payout_requests', 'wallet_type') ? 'wallet_type' : 'source_type');
+
+        $reserved = (float) (clone $payoutQuery)
+            ->where($sourceColumn, $sourceType)
             ->sum('amount');
 
         return max(0, round($approved - $reserved, 2));
@@ -45,12 +52,16 @@ class PartnerPayoutRequestService
             throw new \InvalidArgumentException(__('site.affiliate_portal.payout_exceeds_balance', ['available' => format_money($available)]));
         }
 
+        $sourceColumn = Schema::hasColumn('partner_payout_requests', 'source_type')
+            ? 'source_type'
+            : 'wallet_type';
+
         return PartnerPayoutRequest::create([
-            'partner_id'  => $vendor->id,
-            'source_type' => $sourceType,
-            'amount'      => $amount,
-            'status'      => 'pending',
-            'notes'       => filled($notes) ? trim($notes) : null,
+            'partner_id'   => $vendor->id,
+            $sourceColumn  => $sourceType,
+            'amount'       => $amount,
+            'status'       => 'pending',
+            'notes'        => filled($notes) ? trim($notes) : null,
         ]);
     }
 }

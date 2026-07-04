@@ -1,8 +1,9 @@
 <x-site.affiliate-layout :title="brand_title(__('site.affiliate_portal.referrals_title'))" active="referrals">
 
     <div class="mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">{{ __('site.affiliate_portal.referrals_title') }}</h1>
-        <p class="text-sm text-gray-600 mt-1">{{ __('site.affiliate_portal.referrals_subtitle') }}</p>
+        <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('site.affiliate_portal.nav_referrals') }}</p>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">{{ __('site.affiliate_portal.referrals_title') }}</h1>
+        <p class="text-sm text-gray-500 mt-1">{{ __('site.affiliate_portal.referrals_subtitle') }}</p>
     </div>
 
     @if ($events->isEmpty())
