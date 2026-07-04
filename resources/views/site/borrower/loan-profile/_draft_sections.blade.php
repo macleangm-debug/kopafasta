@@ -2,13 +2,9 @@
 
 @if ($snapshot !== [])
     <div class="glass-card p-5 mb-6">
-        <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
-            <h2 class="font-semibold">{{ __('borrower.loan_profile.application_progress') }}</h2>
-            <div class="text-right text-sm">
-                <p class="text-xs text-gray-500">{{ __('borrower.applications_list.profile') }}: <span class="font-semibold text-gray-900">{{ $snapshot['profile_completion_percent'] ?? 0 }}%</span></p>
-                <p class="text-xs text-gray-500">{{ __('borrower.applications_list.application') }}: <span class="font-semibold text-gray-900">{{ $snapshot['application_completion_percent'] ?? 0 }}%</span></p>
-                <p class="text-xs text-gray-500 mt-1">{{ __('borrower.applications_list.current_step') }}: <span class="font-semibold text-gray-900">{{ $snapshot['current_step'] ?? '—' }}</span></p>
-            </div>
+        <div class="mb-4">
+            <h2 class="font-semibold">{{ __('borrower.loan_profile.profile_snapshot_title') }}</h2>
+            <p class="text-xs text-gray-500 mt-1">{{ __('borrower.loan_profile.profile_snapshot_hint') }}</p>
         </div>
 
         <div class="grid md:grid-cols-2 gap-4 mb-4">

@@ -280,6 +280,7 @@
             </div>
         @else
         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data" class="glass-card p-6 space-y-8"
+              x-data="{ submitting: false }"
               @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.save_confirm_title')), message: @js(__('borrower.profile.save_confirm_message')), confirmLabel: @js(__('borrower.profile.save')), confirmClass: 'bg-amber-500 hover:bg-amber-400 text-gray-900' })">
             @csrf @method('PUT')
             @if ($wizardMode ?? false)
@@ -374,8 +375,13 @@
             </div>
             @endif
 
-            <button class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                {{ ($wizardMode ?? false) ? __('borrower.profile_wizard.save_continue') : __('borrower.profile.save_personal') }}
+            <button type="submit" :disabled="submitting"
+                    class="mt-6 inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                <svg x-show="submitting" x-cloak class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <span>{{ ($wizardMode ?? false) ? __('borrower.profile_wizard.save_continue') : __('borrower.profile.save_personal') }}</span>
             </button>
         </form>
         @endif

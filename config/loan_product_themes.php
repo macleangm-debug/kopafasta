@@ -9,6 +9,7 @@ return [
     'IL' => ['icon' => '🏠', 'theme' => 'indigo',  'label' => 'Individual Loan', 'illustration' => 'individual'],
     'GL' => ['icon' => '🤝', 'theme' => 'violet',  'label' => 'Group Loan', 'illustration' => 'group'],
     'AL' => ['icon' => '🚗', 'theme' => 'sky',     'label' => 'Asset Lending', 'illustration' => 'vehicle'],
+    'AST' => ['icon' => '🚗', 'theme' => 'sky',    'label' => 'Asset Lending', 'illustration' => 'vehicle'],
     'FC' => ['icon' => '🛠', 'theme' => 'amber',   'label' => 'Funding Capital', 'illustration' => 'business'],
     'KB' => ['icon' => '🚜', 'theme' => 'emerald', 'label' => 'Kilimo Boost', 'illustration' => 'agriculture'],
     'BP' => ['icon' => '🏪', 'theme' => 'orange',  'label' => 'Biashara Plus', 'illustration' => 'business'],

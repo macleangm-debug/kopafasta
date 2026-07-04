@@ -22,7 +22,7 @@
                 <p class="mt-2 text-3xl sm:text-4xl font-mono font-bold tracking-wide">{{ $referralCode }}</p>
 
                 <p class="mt-6 text-xs uppercase tracking-widest text-white/70 font-semibold">{{ __('borrower.referrals.your_link') }}</p>
-                <p class="mt-2 text-sm break-all text-white/90 bg-white/10 rounded-xl px-4 py-3 ring-1 ring-white/15">{{ $referralLink }}</p>
+                <p class="mt-2 text-sm break-all text-white/90 bg-white/10 rounded-xl px-4 py-3 ring-1 ring-white/15 font-mono">{{ $referralLink }}</p>
 
                 <div class="mt-6">
                     <x-site.referral-share :link="$referralLink" :code="$referralCode" :message="$referralShareMessage ?? null" />
@@ -37,11 +37,20 @@
             </div>
         </section>
 
-        <section class="glass-card p-6 flex flex-col">
-            <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.referrals.wallet') }}</p>
-            <p class="mt-3 text-3xl font-bold text-gray-900 tabular-nums">{{ format_money($referralWallet->balance ?? 0) }}</p>
-            <p class="text-sm text-gray-500 mt-2">{{ __('borrower.referrals.wallet_desc') }}</p>
-            <a href="{{ route('site.borrower.profile', ['section' => 'membership']) }}" class="mt-auto pt-6 text-xs font-semibold text-brand hover:underline">{{ __('borrower.referrals.view_membership') }}</a>
+        <section class="relative overflow-hidden rounded-2xl ring-1 ring-brand/20 bg-gradient-to-br from-brand-muted/60 via-white to-brand-gold/10 shadow-sm p-6 flex flex-col">
+            <div class="absolute -right-6 -top-6 size-24 rounded-full bg-brand-gold/10"></div>
+            <div class="relative">
+                <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.referrals.wallet') }}</p>
+                <p class="mt-3 text-4xl font-black text-gray-900 tabular-nums leading-none">{{ format_money($referralWallet->balance ?? 0) }}</p>
+                <p class="text-sm text-gray-600 mt-3">{{ __('borrower.referrals.wallet_desc') }}</p>
+                <div class="mt-5 rounded-xl bg-white/80 ring-1 ring-gray-100 px-4 py-3">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.referrals.wallet_limit_label') }}</p>
+                    <p class="text-xs text-gray-700 mt-1">{{ __('borrower.referrals.wallet_limit', ['percent' => format_number($referralSettings['wallet_max_fee_percent'], 0)]) }}</p>
+                </div>
+            </div>
+            <a href="{{ route('site.borrower.profile', ['section' => 'membership']) }}" class="relative mt-auto pt-6 inline-flex items-center justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                {{ __('borrower.referrals.view_membership') }} →
+            </a>
         </section>
     </div>
 
@@ -56,7 +65,6 @@
                     </li>
                 @endforeach
             </ul>
-            <p class="mt-4 text-xs text-gray-500">{{ __('borrower.referrals.wallet_limit', ['percent' => format_number($referralSettings['wallet_max_fee_percent'], 0)]) }}</p>
         </section>
 
         <section class="glass-card p-6">

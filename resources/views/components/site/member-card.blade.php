@@ -34,7 +34,10 @@
     $verifyUrl = $memberNoRaw
         ? rtrim(app(ReferralService::class)->appBaseUrl(), '/').'/verify/member/'.urlencode($memberNoRaw)
         : null;
-    $shareText = trim($name.' · '.brand_name().' member '.$memberNoDisplay.($verifyUrl ? ' · Verify: '.$verifyUrl : ''));
+    $shareText = trim($name.' · '.brand_name().' member '.$memberNoDisplay.($verifyUrl ? ' · '.$verifyUrl : ''));
+    $facePhoto = app(\App\Services\FaceVerificationService::class)->latestByAngle($customer)->get('front');
+    $photoUrl = $facePhoto?->file_path ? asset('storage/'.$facePhoto->file_path) : null;
+    $initial = strtoupper(substr(trim($customer->first_name ?? ''), 0, 1) ?: '?');
     $days    = max(0, (int) $customer->membershipDaysRemaining());
     $duration = (int) (\App\Services\MembershipService::config()['duration_days'] ?? 365);
     $pct     = $duration > 0 ? max(0, min(100, ($days / $duration) * 100)) : 0;
@@ -49,12 +52,19 @@
         <div class="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/10"></div>
         <div class="absolute -left-10 -bottom-16 h-40 w-40 rounded-full bg-white/10"></div>
 
-        <div class="flex items-start justify-between relative">
-            <div class="min-w-0 flex-1">
-                <p class="text-[10px] uppercase tracking-widest text-white/70">{{ brand_name() }} Member</p>
-                <h3 class="mt-1 text-xl font-bold tracking-wide truncate">{{ $name ?: '—' }}</h3>
+        <div class="flex items-start justify-between relative gap-4">
+            <div class="flex items-start gap-4 min-w-0 flex-1">
+                @if ($photoUrl)
+                    <img src="{{ $photoUrl }}" alt="" class="size-16 sm:size-20 rounded-xl object-cover ring-2 ring-white/30 bg-white/10 shrink-0">
+                @else
+                    <div class="size-16 sm:size-20 rounded-xl bg-white/15 ring-2 ring-white/25 grid place-items-center text-2xl font-bold shrink-0">{{ $initial }}</div>
+                @endif
+                <div class="min-w-0">
+                    <p class="text-[10px] uppercase tracking-widest text-white/70">{{ brand_name() }} Member</p>
+                    <h3 class="mt-1 text-xl font-bold tracking-wide truncate">{{ $name ?: '—' }}</h3>
+                </div>
             </div>
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold {{ $badgeClass }} shrink-0 ml-2">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold {{ $badgeClass }} shrink-0">
                 {{ $label }}
             </span>
         </div>
@@ -115,10 +125,10 @@
 
             <div class="relative mt-4 flex flex-wrap gap-2">
                 <button type="button"
-                        @click="navigator.clipboard.writeText(shareText).then(() => { shareCopied = true; setTimeout(() => shareCopied = false, 2500); })"
-                        class="inline-flex items-center gap-1.5 rounded-lg bg-white/15 hover:bg-white/25 ring-1 ring-white/25 px-3 py-2 text-xs font-semibold">
-                    Copy share link
-                </button>
+                    @click="if (verifyUrl) { navigator.clipboard.writeText(verifyUrl).then(() => { shareCopied = true; setTimeout(() => shareCopied = false, 2500); }); }"
+                    class="inline-flex items-center gap-1.5 rounded-lg bg-white/15 hover:bg-white/25 ring-1 ring-white/25 px-3 py-2 text-xs font-semibold">
+                {{ __('borrower.membership.copy_verify_link') }}
+            </button>
                 @if (Route::has('site.membership.card.download'))
                     <a href="{{ route('site.membership.card.download') }}"
                        class="inline-flex items-center gap-1.5 rounded-lg bg-white/15 hover:bg-white/25 ring-1 ring-white/25 px-3 py-2 text-xs font-semibold">
@@ -139,8 +149,20 @@
                     Share
                 </button>
             </div>
-            <p x-show="shareCopied" x-cloak class="mt-2 text-xs text-emerald-100">Share text copied.</p>
+            <p x-show="shareCopied" x-cloak class="mt-2 text-xs text-emerald-100">{{ __('borrower.membership.link_copied') }}</p>
         @endif
+
+        <div class="relative mt-5 rounded-xl bg-black/10 px-4 py-4 ring-1 ring-white/15">
+            <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold mb-2">{{ __('borrower.membership.benefits_title') }}</p>
+            <ul class="space-y-1.5 text-xs text-white/90">
+                @foreach (__('borrower.membership.benefits') as $benefit)
+                    <li class="flex items-start gap-2">
+                        <span class="text-brand-gold shrink-0">✓</span>
+                        <span>{{ $benefit }}</span>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
     </div>
 
     @once
@@ -215,8 +237,8 @@
                                 var title = @js(brand_name().' membership');
                                 if (navigator.share) {
                                     navigator.share({ title: title, text: this.shareText, url: this.verifyUrl });
-                                } else {
-                                    navigator.clipboard.writeText(this.shareText);
+                                } else if (this.verifyUrl) {
+                                    navigator.clipboard.writeText(this.verifyUrl);
                                     this.shareCopied = true;
                                     var self = this;
                                     setTimeout(function () { self.shareCopied = false; }, 2500);

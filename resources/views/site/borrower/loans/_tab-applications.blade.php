@@ -50,7 +50,7 @@
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @foreach ($rows as $row)
-                        <tr class="hover:bg-gray-50">
+                        <tr class="hover:bg-brand-muted/20 cursor-pointer transition" onclick="window.location='{{ $row['action_url'] }}'">
                             <td class="px-4 py-3 font-mono text-xs font-semibold">{{ $row['application_number'] }}</td>
                             <td class="px-4 py-3">{{ $row['product_name'] }}</td>
                             <td class="px-4 py-3">

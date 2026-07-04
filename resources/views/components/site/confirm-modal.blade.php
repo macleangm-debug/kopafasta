@@ -55,7 +55,16 @@
                 {{ $cancelLabel }}
             </button>
             <button type="button"
-                    @click="if (form) { form.dispatchEvent(new CustomEvent('sync-before-submit', { bubbles: true })); form.submit(); } open = false; form = null; onCancel = null;"
+                    @click="
+                        if (form) {
+                            form.dispatchEvent(new CustomEvent('sync-before-submit', { bubbles: true }));
+                            form.querySelectorAll('button[type=submit], input[type=submit]').forEach(function (btn) { btn.disabled = true; });
+                            form.submit();
+                        }
+                        open = false;
+                        form = null;
+                        onCancel = null;
+                    "
                     :disabled="!form"
                     class="px-4 py-2.5 rounded-xl text-sm font-semibold"
                     :class="confirmClass"

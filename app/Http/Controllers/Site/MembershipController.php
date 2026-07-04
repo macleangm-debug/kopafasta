@@ -222,7 +222,12 @@ class MembershipController extends Controller
             ? rtrim($referrals->appBaseUrl(), '/').'/verify/member/'.urlencode($memberNo)
             : null;
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.membership-card', compact('customer', 'verifyUrl'))
+        $facePhoto = app(\App\Services\FaceVerificationService::class)->latestByAngle($customer)->get('front');
+        $photoPath = ($facePhoto?->file_path && is_file(public_path('storage/'.$facePhoto->file_path)))
+            ? public_path('storage/'.$facePhoto->file_path)
+            : null;
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.membership-card', compact('customer', 'verifyUrl', 'photoPath'))
             ->setPaper('a6', 'landscape');
 
         $filename = 'membership-'.($memberNo ?: $customer->id).'.pdf';
