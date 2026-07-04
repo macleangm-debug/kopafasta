@@ -79,7 +79,6 @@ class AuthController extends Controller
             'phone'        => ['required', 'string', 'max:20'],
             'pin'          => ['required', 'string', new FourDigitPin],
             'partner_code' => ['nullable', 'string', 'max:50'],
-            'promo_code'   => ['nullable', 'string', 'max:40'],
             'remember'     => ['nullable', 'boolean'],
             'trust_device' => ['nullable', 'boolean'],
         ]);
@@ -333,10 +332,6 @@ class AuthController extends Controller
 
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
-
-        if ($user->role === 'borrower' && filled($request->input('promo_code'))) {
-            $request->session()->put('login_promo_code', strtoupper(trim((string) $request->input('promo_code'))));
-        }
 
         $request->session()->forget('login_portal');
 

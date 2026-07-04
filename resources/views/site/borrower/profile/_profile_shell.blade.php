@@ -29,11 +29,10 @@
     ])
 @elseif ($accountPanel === 'profile' && ($active ?? '') === 'hub')
     @include('site.borrower.profile._profile_overview', ['customer' => $customer])
-@elseif ($accountPanel === 'profile')
-    <div class="mb-4">
+@elseif ($accountPanel === 'profile' && ($active ?? '') !== 'hub')
+    <div class="mb-6">
         <a href="{{ route('site.borrower.profile') }}" class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline">
             ← {{ __('borrower.profile.hub.back') }}
         </a>
     </div>
-    @include('site.borrower.profile._tabs', ['active' => $active, 'customer' => $customer])
 @endif

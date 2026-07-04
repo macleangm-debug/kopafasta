@@ -2413,14 +2413,50 @@ class BorrowerController extends Controller
             'description'         => ['nullable', 'string', 'max:2000'],
             'registration_number' => ['nullable', 'string', 'max:80'],
             'estimated_value'     => ['nullable', 'numeric', 'min:0'],
-            'photo'               => ['nullable', 'image', 'max:5120'],
+            'photo'               => ['required', 'image', 'max:5120'],
+            'person_photo'        => ['nullable', 'image', 'max:5120'],
+            'ownership_document'  => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
         ]);
 
-        app(\App\Services\CustomerAssetService::class)->store($customer, $data, $request->file('photo'));
+        app(\App\Services\CustomerAssetService::class)->store($customer, $data, [
+            'photo'               => $request->file('photo'),
+            'person_photo'        => $request->file('person_photo'),
+            'ownership_document'  => $request->file('ownership_document'),
+        ]);
 
         return redirect()
             ->route('site.borrower.profile', ['section' => 'assets'])
             ->with('status', __('borrower.profile.asset_saved'));
+    }
+
+    public function updateNotificationPreferences(Request $request): RedirectResponse
+    {
+        $user = auth()->user();
+        abort_unless($user, 403);
+
+        $data = $request->validate([
+            'notifications' => ['nullable', 'array'],
+            'notifications.loan_updates' => ['nullable', 'boolean'],
+            'notifications.payments'     => ['nullable', 'boolean'],
+            'notifications.promotions'   => ['nullable', 'boolean'],
+            'notifications.push'         => ['nullable', 'boolean'],
+        ]);
+
+        $incoming = $data['notifications'] ?? [];
+        $notifications = [
+            'loan_updates' => array_key_exists('loan_updates', $incoming),
+            'payments'     => array_key_exists('payments', $incoming),
+            'promotions'   => array_key_exists('promotions', $incoming),
+            'push'         => array_key_exists('push', $incoming),
+        ];
+
+        $prefs = $user->preferences ?? [];
+        $prefs['notifications'] = $notifications;
+        $user->update(['preferences' => $prefs]);
+
+        return redirect()
+            ->route('site.borrower.profile', ['section' => 'security'])
+            ->with('status', __('borrower.security_tab.notifications_saved'));
     }
 
     public function destroyAsset(CustomerAsset $asset): RedirectResponse

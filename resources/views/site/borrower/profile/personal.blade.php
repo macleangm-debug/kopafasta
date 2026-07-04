@@ -2,8 +2,8 @@
 
     <div>
         @include('site.borrower.profile._profile_shell', [
-            'title' => __('borrower.profile.account_title'),
-            'subtitle' => __('borrower.profile.subtitle'),
+            'title' => __('borrower.profile.personal'),
+            'subtitle' => __('borrower.profile.personal_sections_hint'),
             'customer' => $customer,
             'active' => 'personal',
             'wizardMode' => $wizardMode ?? false,
@@ -291,6 +291,23 @@
                         <div><dt class="text-gray-500">{{ __('borrower.profile.district') }}</dt><dd class="font-medium mt-0.5">{{ $customer->nok_district }}</dd></div>
                     @endif
                 </dl>
+            </x-site.profile-section-card>
+            </div>
+
+            @php
+                $faceKey = $customer->face_verification_status ?? 'incomplete';
+                $faceComplete = in_array($faceKey, ['verified', 'pending'], true);
+            @endphp
+            <div class="mt-6">
+            <x-site.profile-section-card
+                :title="__('borrower.nida.face_title')"
+                :editing="false"
+                :edit-url="route('site.borrower.face-verification')"
+                :complete="$faceComplete"
+                :empty="! $faceComplete"
+                :add-url="route('site.borrower.face-verification')">
+                <p class="text-sm text-gray-600">{{ __('borrower.nida.face_capture_hint') }}</p>
+                <p class="text-xs text-gray-500 mt-2">{{ __('borrower.profile.face_angles_hint') }}</p>
             </x-site.profile-section-card>
             </div>
         @else

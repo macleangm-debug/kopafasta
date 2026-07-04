@@ -6,9 +6,6 @@
     $percent = (int) ($calc['percent'] ?? 0);
     $threshold = (int) ($calc['threshold'] ?? 60);
     $tabStatuses = $service->tabStatuses($customer);
-    $ringRadius = 52;
-    $ringCircumference = 2 * M_PI * $ringRadius;
-    $ringDashoffset = $ringCircumference - ($percent / 100) * $ringCircumference;
     $meetsThreshold = $percent >= 100 || $percent >= $threshold;
 
     $sectionMeta = [
@@ -26,31 +23,32 @@
     <div class="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top_right,_rgba(245,200,66,0.35),_transparent_55%)] pointer-events-none"></div>
 
     <div class="relative p-5 sm:p-6">
-        <div class="flex flex-col sm:flex-row sm:items-center gap-6">
-            <div class="relative size-28 sm:size-32 shrink-0 mx-auto sm:mx-0">
-                <svg class="w-full h-full -rotate-90" viewBox="0 0 128 128">
-                    <circle cx="64" cy="64" r="{{ $ringRadius }}" stroke-width="10" class="stroke-gray-200/80" fill="none"></circle>
-                    <circle cx="64" cy="64" r="{{ $ringRadius }}" stroke-width="10"
-                            class="{{ $percent >= 100 ? 'stroke-emerald-500' : 'stroke-brand' }}"
-                            fill="none" stroke-linecap="round"
-                            stroke-dasharray="{{ format_number($ringCircumference, 2, '.', '') }}"
-                            stroke-dashoffset="{{ format_number($ringDashoffset, 2, '.', '') }}"></circle>
-                </svg>
-                <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
-                    <span class="text-3xl font-bold text-gray-900 leading-none tabular-nums">{{ $percent }}%</span>
-                    <span class="text-[10px] uppercase tracking-wide text-gray-500 mt-1">{{ __('borrower.profile.completion_hub_title') }}</span>
-                </div>
-            </div>
-            <div class="flex-1 text-center sm:text-left">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+            <div>
                 <h2 class="font-bold text-gray-900 text-lg">{{ __('borrower.profile.completion_hub_title') }}</h2>
                 <p class="text-sm text-gray-600 mt-1">{{ __('borrower.profile.completion_hub_subtitle') }}</p>
-                @unless ($meetsThreshold)
-                    <p class="mt-3 text-sm text-amber-800 font-medium">{{ __('borrower.profile.completion_threshold_hint', ['percent' => $threshold]) }}</p>
-                @else
-                    <p class="mt-3 text-sm text-emerald-700 font-medium">{{ __('borrower.profile.section_complete') }}</p>
-                @endunless
+            </div>
+            <div class="text-right shrink-0">
+                <p class="text-3xl font-bold text-brand tabular-nums leading-none">{{ $percent }}%</p>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 mt-1">{{ __('borrower.profile.completion_label') }}</p>
             </div>
         </div>
+
+        <div class="relative h-3 rounded-full bg-gray-200/80 overflow-hidden">
+            <div class="absolute inset-y-0 left-0 rounded-full transition-all duration-500 {{ $percent >= 100 ? 'bg-emerald-500' : 'bg-gradient-to-r from-brand to-brand-gold' }}"
+                 style="width: {{ max(2, $percent) }}%"></div>
+        </div>
+        <div class="flex justify-between mt-2 text-[10px] uppercase tracking-wide text-gray-500 font-semibold">
+            <span>0%</span>
+            <span>{{ __('borrower.profile.completion_threshold_short', ['percent' => $threshold]) }}</span>
+            <span>100%</span>
+        </div>
+
+        @unless ($meetsThreshold)
+            <p class="mt-4 text-sm text-amber-800 font-medium">{{ __('borrower.profile.completion_threshold_hint', ['percent' => $threshold]) }}</p>
+        @else
+            <p class="mt-4 text-sm text-emerald-700 font-medium">{{ __('borrower.profile.section_complete') }}</p>
+        @endunless
     </div>
 </section>
 

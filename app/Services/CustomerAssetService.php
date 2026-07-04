@@ -20,7 +20,10 @@ class CustomerAssetService
             ->get();
     }
 
-    public function store(Customer $customer, array $data, ?UploadedFile $photo = null): CustomerAsset
+    /**
+     * @param  array<string, UploadedFile|null>  $files
+     */
+    public function store(Customer $customer, array $data, array $files = []): CustomerAsset
     {
         $type = (string) ($data['asset_type'] ?? '');
         if (! array_key_exists($type, CustomerAsset::typeOptions())) {
@@ -28,8 +31,16 @@ class CustomerAssetService
         }
 
         $photoPaths = [];
-        if ($photo) {
-            $photoPaths[] = $photo->store("customer/{$customer->id}/assets", 'public');
+        $metadata = [];
+
+        if ($files['photo'] ?? null) {
+            $photoPaths[] = $files['photo']->store("customer/{$customer->id}/assets", 'public');
+        }
+        if ($files['person_photo'] ?? null) {
+            $metadata['person_with_asset_path'] = $files['person_photo']->store("customer/{$customer->id}/assets", 'public');
+        }
+        if ($files['ownership_document'] ?? null) {
+            $metadata['ownership_document_path'] = $files['ownership_document']->store("customer/{$customer->id}/assets/docs", 'public');
         }
 
         return CustomerAsset::create([
@@ -40,6 +51,7 @@ class CustomerAssetService
             'registration_number'  => $data['registration_number'] ?? null,
             'estimated_value'      => filled($data['estimated_value'] ?? null) ? (float) $data['estimated_value'] : null,
             'photo_paths'          => $photoPaths ?: null,
+            'metadata'             => $metadata ?: null,
             'is_active'            => true,
         ]);
     }

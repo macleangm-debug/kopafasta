@@ -154,6 +154,11 @@ return [
         'partner_login_link' => 'Sign in to partner portal',
         'borrower_login_link'=> 'Sign in as borrower',
         'partner_account_borrower_login' => 'This phone belongs to a partner account. Please use the partner login page.',
+        'partner_activate_subtitle' => 'Enter your partner code and phone to set up your PIN and access the portal.',
+        'partner_activate_form_hint' => 'Use the phone number registered on your partner account.',
+        'partner_code_label' => 'Partner code',
+        'continue_activation' => 'Continue to activation',
+        'already_activated' => 'Already activated?',
     ],
 
     'locale' => [

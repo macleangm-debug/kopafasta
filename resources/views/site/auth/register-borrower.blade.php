@@ -110,31 +110,56 @@
                             <h2 class="text-2xl font-bold text-gray-900">Country & phone</h2>
                             <p class="mt-1 text-sm text-gray-600">Select where you live, then enter your mobile number.</p>
 
-                            <div class="mt-6 space-y-5">
-                                <div class="relative" @click.outside="countryOpen = false">
+                            <div class="mt-6 space-y-5" x-data="{ countryOpen: false }">
+                                <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Country</label>
-                                    <button type="button" @click="countryOpen = !countryOpen"
-                                            class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
+                                    <button type="button" @click="countryOpen = true"
+                                            class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition lg:hidden">
                                         <span class="text-xl leading-none" x-text="activeCountry.emoji || '🌍'"></span>
                                         <span class="flex-1 text-left truncate" x-text="activeCountry.label"></span>
                                         <span class="text-xs text-gray-400" x-text="activeCountry.prefix"></span>
                                         <svg class="w-4 h-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                                     </button>
-                                    <div x-cloak x-show="countryOpen" x-transition
-                                         class="absolute left-0 right-0 top-full mt-1 z-20 rounded-xl border border-gray-200 bg-white shadow-xl py-1 max-h-56 overflow-y-auto">
-                                        <template x-for="country in countries" :key="country.code">
-                                            <button type="button" @click="chooseCountry(country); countryOpen = false"
-                                                    class="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-brand-muted transition"
-                                                    :class="form.country === country.code ? 'bg-brand-muted/60 text-brand font-semibold' : 'text-gray-700'">
-                                                <span class="text-xl leading-none w-7 text-center" x-text="country.emoji || '🌍'"></span>
-                                                <span class="flex-1">
-                                                    <span class="block" x-text="country.label"></span>
-                                                    <span class="block text-[10px] uppercase tracking-wider text-gray-400" x-text="country.code"></span>
-                                                </span>
-                                                <span class="text-xs text-gray-500" x-text="country.prefix"></span>
-                                            </button>
-                                        </template>
+                                    <div class="hidden lg:block relative" @click.outside="countryOpen = false">
+                                        <button type="button" @click="countryOpen = !countryOpen"
+                                                class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
+                                            <span class="text-xl leading-none" x-text="activeCountry.emoji || '🌍'"></span>
+                                            <span class="flex-1 text-left truncate" x-text="activeCountry.label"></span>
+                                            <span class="text-xs text-gray-400" x-text="activeCountry.prefix"></span>
+                                            <svg class="w-4 h-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                                        </button>
+                                        <div x-cloak x-show="countryOpen" x-transition
+                                             class="absolute left-0 right-0 top-full mt-1 z-20 rounded-xl border border-gray-200 bg-white shadow-xl py-1 max-h-56 overflow-y-auto">
+                                            <template x-for="country in countries" :key="country.code">
+                                                <button type="button" @click="chooseCountry(country); countryOpen = false"
+                                                        class="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-brand-muted transition"
+                                                        :class="form.country === country.code ? 'bg-brand-muted/60 text-brand font-semibold' : 'text-gray-700'">
+                                                    <span class="text-xl leading-none w-7 text-center" x-text="country.emoji || '🌍'"></span>
+                                                    <span class="flex-1">
+                                                        <span class="block" x-text="country.label"></span>
+                                                        <span class="block text-[10px] uppercase tracking-wider text-gray-400" x-text="country.code"></span>
+                                                    </span>
+                                                    <span class="text-xs text-gray-500" x-text="country.prefix"></span>
+                                                </button>
+                                            </template>
+                                        </div>
                                     </div>
+                                    <x-site.bottom-sheet title="Country" open="countryOpen">
+                                        <div class="space-y-1">
+                                            <template x-for="country in countries" :key="country.code">
+                                                <button type="button" @click="chooseCountry(country); countryOpen = false"
+                                                        class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-sm transition"
+                                                        :class="form.country === country.code ? 'bg-brand-muted text-brand font-semibold ring-1 ring-brand/20' : 'hover:bg-gray-50 text-gray-700'">
+                                                    <span class="text-xl" x-text="country.emoji || '🌍'"></span>
+                                                    <span class="flex-1">
+                                                        <span class="block font-medium" x-text="country.label"></span>
+                                                        <span class="block text-[10px] uppercase tracking-wider text-gray-400" x-text="country.code"></span>
+                                                    </span>
+                                                    <span class="text-xs text-gray-500" x-text="country.prefix"></span>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </x-site.bottom-sheet>
                                 </div>
 
                                 <div>

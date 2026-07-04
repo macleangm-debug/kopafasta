@@ -64,25 +64,8 @@
                             </div>
                             <input type="password" name="pin" inputmode="numeric" maxlength="4" pattern="\d{4}" autocomplete="one-time-code"
                                    :required="method === 'pin'"
-                                   class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm tracking-[0.5em] font-mono text-center text-lg outline-none"
-                                   placeholder="••••">
+                                   class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm tracking-[0.5em] font-mono text-center text-lg outline-none">
                         </div>
-                        @if ($partnerPortal ?? false)
-                            <div class="mt-4">
-                                <label class="block text-sm font-medium text-gray-700 mb-1.5">Partner code</label>
-                                <input type="text" name="partner_code" value="{{ old('partner_code') }}"
-                                       class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm font-mono uppercase outline-none"
-                                       placeholder="Partner code (e.g. AFF-DEMO-001)">
-                            </div>
-                        @else
-                            <div class="mt-4">
-                                <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.membership.promo_code_label') }}</label>
-                                <input type="text" name="promo_code" value="{{ old('promo_code', session('login_promo_code')) }}"
-                                       class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm font-mono uppercase outline-none"
-                                       placeholder="{{ __('borrower.membership.promo_code_placeholder') }}">
-                                <p class="mt-1.5 text-xs text-gray-500">{{ __('borrower.auth.login_promo_hint') }}</p>
-                            </div>
-                        @endif
                     </div>
 
                     <div x-show="method === 'password'" x-cloak>
@@ -90,15 +73,13 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Email or phone</label>
                             <input type="text" name="login" value="{{ old('login') }}" autocomplete="username"
                                    :required="method === 'password'"
-                                   class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none"
-                                   placeholder="you@example.com">
+                                   class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none">
                         </div>
                         <div class="mt-4">
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
                             <input type="password" name="password" autocomplete="current-password"
                                    :required="method === 'password'"
-                                   class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none"
-                                   placeholder="Enter your password">
+                                   class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none">
                         </div>
                     </div>
 

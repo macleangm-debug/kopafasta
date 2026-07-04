@@ -8,6 +8,39 @@
 
     <x-site.borrower-dashboard-hero :hero="$dashboardHero ?? []" />
 
+    @php
+        $dashStats = [
+            ['label' => __('borrower.dashboard.stat_applications'), 'value' => count($activeApplicationRows ?? []), 'icon' => '📋'],
+            ['label' => __('borrower.dashboard.stat_active_loans'), 'value' => ($activeLoan ?? null) ? 1 : 0, 'icon' => '💰'],
+            ['label' => __('borrower.dashboard.stat_notifications'), 'value' => $unreadNotificationCount ?? 0, 'icon' => '🔔'],
+            ['label' => __('borrower.dashboard.stat_wallet'), 'value' => format_money($referralWallet->balance ?? 0, true), 'icon' => '🎁'],
+        ];
+    @endphp
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        @foreach ($dashStats as $stat)
+            <div class="glass-card p-4 ring-1 ring-brand/10 bg-brand-muted/20">
+                <div class="flex items-center justify-between gap-2">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $stat['label'] }}</p>
+                    <span aria-hidden="true">{{ $stat['icon'] }}</span>
+                </div>
+                <p class="mt-2 text-xl font-bold text-gray-900 tabular-nums">{{ $stat['value'] }}</p>
+            </div>
+        @endforeach
+    </div>
+
+    @if ($applyDraftResume ?? null)
+        <div class="mb-6 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+                <p class="text-sm font-semibold text-amber-900">{{ __('borrower.dashboard.draft_resume_title') }}</p>
+                <p class="text-xs text-amber-800 mt-1">{{ __('borrower.dashboard.draft_resume_body', ['product' => $applyDraftResume['product_name']]) }}</p>
+            </div>
+            <a href="{{ $applyDraftResume['url'] }}"
+               class="inline-flex justify-center bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-xl text-sm shrink-0">
+                {{ __('borrower.dashboard.draft_resume_cta') }}
+            </a>
+        </div>
+    @endif
+
     @if (! empty($groupInviteBanner['show']))
         <div class="mb-6 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 to-white p-5 sm:p-6">
             <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">

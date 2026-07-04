@@ -285,6 +285,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/profile/nida/accept-names',    [\App\Http\Controllers\Site\BorrowerController::class, 'acceptNidaNames'])->name('borrower.profile.nida.accept-names');
             Route::post('/borrower/profile/nida/confirm',          [\App\Http\Controllers\Site\BorrowerController::class, 'confirmNidaCandidate'])->name('borrower.profile.nida.confirm');
             Route::put('/borrower/profile/security/pin',           [\App\Http\Controllers\Site\BorrowerController::class, 'updatePin'])->name('borrower.profile.pin.update');
+            Route::put('/borrower/profile/notifications',          [\App\Http\Controllers\Site\BorrowerController::class, 'updateNotificationPreferences'])->name('borrower.profile.notifications.update');
             Route::delete('/borrower/profile/security/devices/{trustedDevice}', [\App\Http\Controllers\Site\BorrowerController::class, 'revokeTrustedDevice'])->name('borrower.profile.devices.revoke');
             Route::get('/borrower/support',                        [\App\Http\Controllers\Site\BorrowerController::class, 'support'])      ->name('borrower.support');
             Route::get('/borrower/refunds',                        [\App\Http\Controllers\Site\BorrowerRefundController::class, 'index'])->name('borrower.refunds');
