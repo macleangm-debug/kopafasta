@@ -3,6 +3,9 @@
     'editing' => false,
     'editUrl' => null,
     'complete' => null,
+    'empty' => false,
+    'addUrl' => null,
+    'addLabel' => null,
 ])
 
 <div class="glass-card overflow-hidden">
@@ -24,6 +27,16 @@
     </div>
 
     <div class="p-6">
-        {{ $slot }}
+        @if ($empty && $addUrl)
+            <div class="rounded-xl border border-dashed border-gray-200 bg-gray-50/80 px-5 py-8 text-center">
+                <p class="text-sm text-gray-600">{{ __('borrower.profile.section_empty') }}</p>
+                <a href="{{ $addUrl }}"
+                   class="inline-flex mt-4 items-center justify-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
+                    {{ $addLabel ?? __('borrower.profile.add_details') }}
+                </a>
+            </div>
+        @else
+            {{ $slot }}
+        @endif
     </div>
 </div>

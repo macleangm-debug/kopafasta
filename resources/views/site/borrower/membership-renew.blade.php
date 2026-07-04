@@ -26,10 +26,30 @@
         </div>
 
         @if ($isFirstTime)
-            <div class="mb-6 rounded-xl bg-white ring-1 ring-gray-200 px-4 py-4 text-sm">
+            <form method="GET" action="{{ route('site.membership.renew') }}" class="mb-6 rounded-xl bg-white ring-1 ring-gray-200 px-4 py-4 text-sm">
                 <label class="block text-xs font-semibold text-gray-600 mb-1">{{ __('borrower.membership.promo_code_label') }}</label>
-                <input type="text" name="promo_code" form="membership-renew-form" value="{{ old('promo_code') }}" maxlength="40" class="w-full rounded-lg border-gray-300 text-sm font-mono uppercase" placeholder="{{ __('borrower.membership.promo_code_placeholder') }}">
-            </div>
+                <div class="flex gap-2">
+                    <input type="text" name="promo_code" value="{{ old('promo_code', request('promo_code')) }}" maxlength="40"
+                           class="flex-1 rounded-lg border-gray-300 text-sm font-mono uppercase"
+                           placeholder="{{ __('borrower.membership.promo_code_placeholder') }}">
+                    <button type="submit"
+                            class="shrink-0 inline-flex items-center justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2 rounded-lg text-sm">
+                        {{ __('borrower.membership.apply_promo') }}
+                    </button>
+                </div>
+                @if ($feeQuote && filled($feeQuote['promo_code'] ?? null))
+                    <p @class([
+                        'mt-2 text-xs',
+                        ($feeQuote['promo_valid'] ?? false) ? 'text-emerald-700' : 'text-red-700',
+                    ])>
+                        @if ($feeQuote['promo_valid'] ?? false)
+                            {{ __('borrower.membership.promo_applied', ['code' => $feeQuote['promo_code']]) }}
+                        @else
+                            {{ __('borrower.membership.promo_invalid') }}
+                        @endif
+                    </p>
+                @endif
+            </form>
         @endif
 
         @if ($isFirstTime && $feeQuote && ($referralWallet->balance ?? 0) > 0)
@@ -60,6 +80,9 @@
 
         <form id="membership-renew-form" method="POST" action="{{ route('site.membership.renew.post') }}" class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-5">
             @csrf
+            @if ($isFirstTime && filled(request('promo_code')))
+                <input type="hidden" name="promo_code" value="{{ request('promo_code') }}">
+            @endif
 
             <div>
                 <p class="text-xs uppercase tracking-wider text-gray-500 mb-3">{{ __('borrower.membership.payment_method') }}</p>

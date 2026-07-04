@@ -28,7 +28,7 @@
                 @endif
 
                 <ol class="mt-10 space-y-4">
-                    @foreach ([['Country & phone', 'Where you live and how we reach you'], ['Your details', 'Name, ID and date of birth'], ['Secure access', 'Choose a strong password']] as $i => [$label, $hint])
+                    @foreach ([['Country & phone', 'Where you live and how we reach you'], ['Your details', 'Name, gender and date of birth'], ['Secure access', 'Choose a strong password']] as $i => [$label, $hint])
                         <li class="flex items-start gap-3">
                             <span class="size-8 grid place-items-center rounded-full text-xs font-bold flex-shrink-0 bg-white/10 text-white/70">{{ $i + 1 }}</span>
                             <div>
@@ -143,12 +143,22 @@
                                         <span class="inline-flex items-center px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-semibold text-brand tabular-nums shrink-0" x-text="activeCountry.prefix"></span>
                                         <input type="tel" inputmode="numeric" name="local_phone" x-model="form.local_phone" @input="validatePhone()"
                                                :disabled="!activeCountry.active" :readonly="lockIdentity && !!form.local_phone"
-                                               placeholder="712 345 678"
+                                               placeholder=""
                                                class="flex-1 px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
                                     </div>
                                     <p x-show="errors.phone" x-cloak class="mt-1.5 text-xs text-red-600" x-text="errors.phone"></p>
                                     <p class="mt-1.5 text-xs text-gray-500">Enter your number without the leading zero.</p>
                                 </div>
+
+                                @if (empty($referralCode) && empty($affiliateCode))
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Promo or referral code <span class="text-gray-400 font-normal">(optional)</span></label>
+                                        <input type="text" name="promo_code" value="{{ old('promo_code') }}" maxlength="40"
+                                               class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm font-mono uppercase outline-none transition"
+                                               placeholder="">
+                                        <p class="mt-1.5 text-xs text-gray-500">Enter a code from a friend or affiliate partner, if you have one.</p>
+                                    </div>
+                                @endif
 
                                 <div class="rounded-xl border p-4"
                                      :class="activeCountry.active ? 'border-emerald-200 bg-emerald-50/80' : 'border-rose-200 bg-rose-50/80'">
@@ -220,16 +230,16 @@
                                                class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
                                     </div>
                                 </div>
-                                <div class="grid grid-cols-1 gap-3" :class="isGuarantor ? '' : 'sm:grid-cols-2'">
-                                    <div x-show="!isGuarantor" x-cloak>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">National ID number <span class="text-red-500">*</span></label>
-                                        <x-site.nida-input
-                                            name="national_id"
-                                            :value="old('national_id')"
-                                            :required="false"
-                                            class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-sm outline-none transition"
-                                        />
-                                        <p class="mt-1 text-xs text-gray-500">Used for NIDA identity verification.</p>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Gender <span class="text-red-500">*</span></label>
+                                        <select name="gender" required
+                                                class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
+                                            <option value="">Select gender</option>
+                                            @foreach (['male' => 'Male', 'female' => 'Female', 'other' => 'Other'] as $value => $label)
+                                                <option value="{{ $value }}" @selected(old('gender') === $value)>{{ $label }}</option>
+                                            @endforeach
+                                        </select>
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Date of birth <span class="text-red-500">*</span></label>
@@ -239,14 +249,7 @@
                                     </div>
                                 </div>
                                 <p x-show="isGuarantor" x-cloak class="text-xs text-gray-500">{{ __('borrower.guarantor_invite.register_nida_later') }}</p>
-                                <div x-show="!isGuarantor" x-cloak>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Email address <span class="text-gray-400 font-normal">(optional)</span></label>
-                                    <input type="email" name="email" x-model="form.email" @input="validateEmail()"
-                                           class="w-full px-3.5 py-3 rounded-xl bg-white border text-sm outline-none transition"
-                                           :class="errors.email ? 'border-red-400 focus:ring-red-200' : 'border-gray-300 focus:border-amber-500 focus:ring-amber-500/10'"
-                                           placeholder="you@example.com">
-                                    <p x-show="errors.email" x-cloak class="mt-1 text-xs text-red-600" x-text="errors.email"></p>
-                                </div>
+                                <p x-show="!isGuarantor" x-cloak class="text-xs text-gray-500">National ID and email can be added later in your profile.</p>
                             </div>
                         </div>
 

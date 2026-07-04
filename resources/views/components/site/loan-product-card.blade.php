@@ -44,6 +44,26 @@
                     </div>
                 </div>
             </dl>
+        @else
+            @php
+                $assetRate = rtrim(rtrim(format_number((float) config('asset_lending.default_monthly_rate', 0.12) * 100, 1), '0'), '.');
+            @endphp
+            <dl class="mt-4 space-y-2 text-sm">
+                <div>
+                    <dt class="text-xs text-gray-500">{{ __('borrower.apply.details.monthly_rate') }}</dt>
+                    <dd class="font-semibold text-gray-900 tabular-nums">{{ __('borrower.marketplace.from_rate', ['rate' => $assetRate]) }}</dd>
+                </div>
+                <div class="flex justify-between gap-2">
+                    <div>
+                        <dt class="text-xs text-gray-500">{{ __('site.products.amount') }}</dt>
+                        <dd class="font-semibold text-gray-900 tabular-nums text-xs">{{ format_money($product->min_amount, false, 0) }}+</dd>
+                    </div>
+                    <div class="text-right">
+                        <dt class="text-xs text-gray-500">{{ __('site.products.tenure') }}</dt>
+                        <dd class="font-semibold text-gray-900 tabular-nums">{{ $product->tenure_max_months }} {{ __('borrower.apply.details.months') }}</dd>
+                    </div>
+                </div>
+            </dl>
         @endunless
     </button>
     <div x-show="open === {{ $product->id }}" x-transition x-cloak class="border-t border-gray-100/80 px-5 pb-5 pt-4 bg-white/50">

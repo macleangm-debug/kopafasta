@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Customer;
 use App\Models\Loan;
 use App\Models\LoanApplication;
-use Illuminate\Support\Carbon;
 
 class BorrowerDashboardHeroService
 {
@@ -92,6 +91,32 @@ class BorrowerDashboardHeroService
                 'meta'      => $underReview->application_number,
                 'cta_label' => __('borrower.dashboard.hero.view_application'),
                 'cta_url'   => route('site.borrower.application', $underReview),
+            ];
+        }
+
+        $activeApplications = app(BorrowerApplicationsDashboardService::class)->applicationsForCustomer($customer);
+
+        if ($activeApplications !== []) {
+            $primary = $activeApplications[0];
+            $count = count($activeApplications);
+            $isDraft = (bool) ($primary['is_draft'] ?? false);
+
+            return [
+                'variant'            => 'applications',
+                'title'              => $isDraft
+                    ? __('borrower.dashboard.hero.active_draft_title')
+                    : __('borrower.dashboard.hero.active_applications_title'),
+                'subtitle'           => $isDraft
+                    ? ($primary['status_detail'] ?? __('borrower.dashboard.hero.active_draft_subtitle'))
+                    : __('borrower.dashboard.hero.active_applications_subtitle', ['count' => $count]),
+                'amount'             => null,
+                'meta'               => $primary['application_number'] ?? null,
+                'cta_label'          => $count > 1
+                    ? __('borrower.dashboard.hero.view_applications')
+                    : __('borrower.dashboard.hero.view_application'),
+                'cta_url'            => $primary['action_url'] ?? route('site.borrower.loans', ['tab' => 'applications']),
+                'secondary_cta_label'=> __('borrower.dashboard.hero.apply_now'),
+                'secondary_cta_url'  => route('site.products'),
             ];
         }
 

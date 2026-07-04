@@ -45,7 +45,7 @@ class MembershipController extends Controller
 
         $baseFee = $isFirstTime ? $cfg['registration_fee'] : $cfg['renewal_fee'];
         $useWallet = (bool) old('use_wallet', false);
-        $promoCode = old('promo_code');
+        $promoCode = old('promo_code', $request->query('promo_code'));
         $feeQuote = $isFirstTime
             ? app(\App\Services\PaymentGateService::class)->quote($customer, (float) $baseFee, 'registration_fee', $useWallet, $promoCode)
             : null;
@@ -162,13 +162,12 @@ class MembershipController extends Controller
                 'referral'  => $paymentBreakdown,
             ]);
 
-            $redirect = redirect()->route('site.membership.show')
-                ->with('status', $message);
-
-            \App\Support\Celebration::flashOne('membership');
+            $redirect = redirect()->route('site.borrower.profile', ['section' => 'membership'])
+                ->with('status', $message)
+                ->with(\App\Support\Celebration::SESSION_KEY, ['membership']);
 
             if ($next = app(\App\Services\PortalOnboardingResumeService::class)->redirectIfPending($request, $customer->fresh())) {
-                return $next;
+                return $next->with(\App\Support\Celebration::SESSION_KEY, ['membership']);
             }
 
             return $redirect;
@@ -223,12 +222,18 @@ class MembershipController extends Controller
             : null;
 
         $facePhoto = app(\App\Services\FaceVerificationService::class)->latestByAngle($customer)->get('front');
-        $photoPath = ($facePhoto?->file_path && is_file(public_path('storage/'.$facePhoto->file_path)))
-            ? public_path('storage/'.$facePhoto->file_path)
-            : null;
+        $photoPath = null;
+        if ($facePhoto?->file_path) {
+            $absolute = public_path('storage/'.$facePhoto->file_path);
+            if (is_file($absolute)) {
+                $photoPath = $absolute;
+            }
+        }
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.membership-card', compact('customer', 'verifyUrl', 'photoPath'))
-            ->setPaper('a6', 'landscape');
+            ->setPaper([0, 0, 419.53, 297.64], 'landscape')
+            ->setOption('isHtml5ParserEnabled', true)
+            ->setOption('isRemoteEnabled', true);
 
         $filename = 'membership-'.($memberNo ?: $customer->id).'.pdf';
 

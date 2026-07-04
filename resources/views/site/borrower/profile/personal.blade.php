@@ -253,14 +253,23 @@
                 </button>
             </form>
         @elseif (! $editing && ! ($wizardMode ?? false))
+            @php
+                $hasContact = filled($customer->phone) || filled($customer->email);
+                $kinComplete = app(\App\Services\ProfileValidationService::class)->isKinComplete($customer);
+                $kinName = $customer->nok_name ?: trim(($customer->nok_first_name ?? '').' '.($customer->nok_last_name ?? ''));
+            @endphp
             <x-site.profile-section-card
                 :title="__('borrower.profile.contact_details')"
                 :editing="false"
                 :edit-url="route('site.borrower.profile', ['section' => 'personal', 'edit' => 1])"
-                :complete="filled($customer->phone) || filled($customer->email)">
+                :complete="$hasContact"
+                :empty="! $hasContact"
+                :add-url="route('site.borrower.profile', ['section' => 'personal', 'edit' => 1])">
                 <dl class="grid sm:grid-cols-2 gap-4 text-sm">
-                    <div><dt class="text-gray-500">{{ __('borrower.profile.fields.phone') }}</dt><dd class="font-medium mt-0.5">{{ $customer->phone ?: '—' }}</dd></div>
-                    <div><dt class="text-gray-500">{{ __('borrower.profile.fields.email') }}</dt><dd class="font-medium mt-0.5">{{ $customer->email ?: '—' }}</dd></div>
+                    <div><dt class="text-gray-500">{{ __('borrower.profile.fields.phone') }}</dt><dd class="font-medium mt-0.5">{{ $customer->phone }}</dd></div>
+                    @if (filled($customer->email) && ! str_ends_with(strtolower($customer->email), '@phone.kopafasta.local'))
+                        <div><dt class="text-gray-500">{{ __('borrower.profile.fields.email') }}</dt><dd class="font-medium mt-0.5">{{ $customer->email }}</dd></div>
+                    @endif
                 </dl>
             </x-site.profile-section-card>
 
@@ -269,12 +278,18 @@
                 :title="__('borrower.profile.kin_info')"
                 :editing="false"
                 :edit-url="route('site.borrower.profile', ['section' => 'personal', 'edit' => 1, 'focus' => 'kin']).'#next-of-kin'"
-                :complete="app(\App\Services\ProfileValidationService::class)->isKinComplete($customer)">
+                :complete="$kinComplete"
+                :empty="! $kinComplete"
+                :add-url="route('site.borrower.profile', ['section' => 'personal', 'edit' => 1, 'focus' => 'kin']).'#next-of-kin'">
                 <dl class="grid sm:grid-cols-2 gap-4 text-sm">
-                    <div><dt class="text-gray-500">{{ __('borrower.profile.fields.full_name') }}</dt><dd class="font-medium mt-0.5">{{ $customer->nok_name ?: trim(($customer->nok_first_name ?? '').' '.($customer->nok_last_name ?? '')) ?: '—' }}</dd></div>
-                    <div><dt class="text-gray-500">{{ __('borrower.profile.fields.phone') }}</dt><dd class="font-medium mt-0.5">{{ $customer->nok_phone ?: '—' }}</dd></div>
-                    <div><dt class="text-gray-500">{{ __('borrower.profile.region') }}</dt><dd class="font-medium mt-0.5">{{ $customer->nok_region ?: '—' }}</dd></div>
-                    <div><dt class="text-gray-500">{{ __('borrower.profile.district') }}</dt><dd class="font-medium mt-0.5">{{ $customer->nok_district ?: '—' }}</dd></div>
+                    <div><dt class="text-gray-500">{{ __('borrower.profile.fields.full_name') }}</dt><dd class="font-medium mt-0.5">{{ $kinName }}</dd></div>
+                    <div><dt class="text-gray-500">{{ __('borrower.profile.fields.phone') }}</dt><dd class="font-medium mt-0.5">{{ $customer->nok_phone }}</dd></div>
+                    @if (filled($customer->nok_region))
+                        <div><dt class="text-gray-500">{{ __('borrower.profile.region') }}</dt><dd class="font-medium mt-0.5">{{ $customer->nok_region }}</dd></div>
+                    @endif
+                    @if (filled($customer->nok_district))
+                        <div><dt class="text-gray-500">{{ __('borrower.profile.district') }}</dt><dd class="font-medium mt-0.5">{{ $customer->nok_district }}</dd></div>
+                    @endif
                 </dl>
             </x-site.profile-section-card>
             </div>

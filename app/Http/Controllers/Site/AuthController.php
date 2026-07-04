@@ -48,11 +48,16 @@ class AuthController extends Controller
             $request->session()->put('login_redirect', $redirect);
         }
 
+        $partnerPortal = $request->query('portal') === 'partner';
+        if ($partnerPortal) {
+            $request->session()->put('login_portal', 'partner');
+        }
+
         return view('site.auth.login', [
             'defaultMethod' => 'pin',
             'biometricEnabled' => (bool) config('auth_portal.biometric_enabled', false),
             'clearedGuarantorContext' => $request->boolean('clear_guarantor'),
-            'partnerPortal' => $request->query('portal') === 'partner',
+            'partnerPortal' => $partnerPortal || $request->session()->get('login_portal') === 'partner',
         ]);
     }
 
@@ -71,6 +76,7 @@ class AuthController extends Controller
             'phone'        => ['required', 'string', 'max:20'],
             'pin'          => ['required', 'string', new FourDigitPin],
             'partner_code' => ['nullable', 'string', 'max:50'],
+            'promo_code'   => ['nullable', 'string', 'max:40'],
             'remember'     => ['nullable', 'boolean'],
             'trust_device' => ['nullable', 'boolean'],
         ]);
@@ -103,6 +109,21 @@ class AuthController extends Controller
 
         if (! $this->pins->verify($data['pin'], $user->pin_hash)) {
             return $this->failedLogin($request, $phone, 'phone', 'Phone number or PIN is incorrect.', $user);
+        }
+
+        $partnerPortal = $request->session()->get('login_portal') === 'partner'
+            || filled($data['partner_code'] ?? null);
+
+        if ($partnerPortal && $user->role === 'borrower') {
+            return back()
+                ->withErrors(['phone' => 'This phone belongs to a borrower account. Use the member login page instead.'])
+                ->withInput(['phone' => $phone, 'auth_method' => 'pin', 'partner_code' => $data['partner_code'] ?? null]);
+        }
+
+        if (! $partnerPortal && $user->role === 'vendor') {
+            $request->session()->put('login_portal', 'partner');
+
+            return $this->completeWebLogin($user, $request, $phone, (bool) ($data['trust_device'] ?? false));
         }
 
         if (filled($data['partner_code'] ?? null)) {
@@ -162,6 +183,18 @@ class AuthController extends Controller
 
         if ($locked = $this->lockedResponse($user)) {
             return $locked;
+        }
+
+        $partnerPortal = $request->session()->get('login_portal') === 'partner';
+
+        if ($partnerPortal && $user->role === 'borrower') {
+            return back()
+                ->withErrors(['login' => 'This account is a borrower profile. Use the member login page instead.'])
+                ->withInput(['login' => $login, 'auth_method' => 'password']);
+        }
+
+        if (! $partnerPortal && $user->role === 'vendor') {
+            $request->session()->put('login_portal', 'partner');
         }
 
         return $this->completeWebLogin($user, $request, $login, (bool) ($data['trust_device'] ?? false));
@@ -288,6 +321,12 @@ class AuthController extends Controller
 
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
+
+        if ($user->role === 'borrower' && filled($request->input('promo_code'))) {
+            $request->session()->put('login_promo_code', strtoupper(trim((string) $request->input('promo_code'))));
+        }
+
+        $request->session()->forget('login_portal');
 
         $trusted = $this->trustedDevices->extractToken($request);
         if ($trusted && ($device = $this->trustedDevices->find($user, $trusted))) {
@@ -445,18 +484,17 @@ class AuthController extends Controller
             'first_name'    => ['required', 'string', 'max:60'],
             'middle_name'   => ['nullable', 'string', 'max:60'],
             'last_name'     => ['required', 'string', 'max:60'],
+            'gender'        => ['required', 'in:male,female,other'],
             'date_of_birth' => ['required', 'date', 'before:today', new \App\Rules\MinimumAge],
-            'email'         => ['nullable', 'email', 'max:255', 'unique:users,email'],
             'phone'         => ['required', 'string', 'max:20', 'unique:users,phone'],
             'password'      => ['required', 'string', 'min:8', 'confirmed'],
             'referral_code' => ['nullable', 'string', 'max:32'],
             'affiliate_code'=> ['nullable', 'string', 'max:32'],
+            'promo_code'    => ['nullable', 'string', 'max:40'],
         ];
 
         if ($isGuarantorRegistration) {
             $rules['national_id'] = ['nullable', 'string', 'max:30'];
-        } else {
-            $rules['national_id'] = ['required', 'string', 'max:30', new ValidNationalId()];
         }
 
         $data = $request->validate($rules, [
@@ -464,6 +502,12 @@ class AuthController extends Controller
                 ? __('borrower.guarantor_invite.register_phone_taken')
                 : 'This phone number is already registered.',
         ]);
+
+        if (filled($data['promo_code'] ?? null) && blank($data['affiliate_code'] ?? null) && blank($data['referral_code'] ?? null)) {
+            $promo = strtoupper(trim($data['promo_code']));
+            $data['affiliate_code'] = $promo;
+            $data['referral_code'] = $promo;
+        }
 
         if ($isGuarantorRegistration && $guarantorInvitation) {
             if (! $guarantorOnboarding->phoneMatchesInvitation($guarantorInvitation, $data['phone'])) {
@@ -479,11 +523,8 @@ class AuthController extends Controller
             }
         }
 
-        $email = $data['email'] ?? null;
-        if (empty($email)) {
-            $digits = preg_replace('/\D/', '', $data['phone']) ?: Str::random(8);
-            $email = $digits.'@phone.kopafasta.local';
-        }
+        $digits = preg_replace('/\D/', '', $data['phone']) ?: Str::random(8);
+        $email = $digits.'@phone.kopafasta.local';
 
         $user = DB::transaction(function () use ($data, $email, $referrals) {
             $fullName = trim(collect([$data['first_name'], $data['middle_name'] ?? null, $data['last_name']])->filter()->implode(' '));
@@ -507,11 +548,12 @@ class AuthController extends Controller
                 'first_name'      => $data['first_name'],
                 'middle_name'     => $data['middle_name'] ?? null,
                 'last_name'       => $data['last_name'],
+                'gender'          => $data['gender'],
                 'national_id'     => filled($data['national_id'] ?? null)
                     ? (NationalIdValidator::format($data['national_id'], $data['country']) ?? \App\Support\NidaNumber::format($data['national_id']))
                     : null,
                 'date_of_birth'   => $data['date_of_birth'],
-                'email'           => $data['email'] ?? null,
+                'email'           => null,
                 'phone'           => $data['phone'],
                 'onboarded_at'    => now(),
             ]);
@@ -654,7 +696,7 @@ class AuthController extends Controller
     {
         return match ($user->role) {
             'borrower' => redirect()->route('site.borrower.dashboard'),
-            'vendor'   => redirect()->route('site.partner.dashboard'),
+            'vendor'   => redirect()->to(app(\App\Services\PartnerPortalRedirectService::class)->homeUrl($user)),
             'investor' => redirect()->route('site.investor.dashboard'),
             default    => redirect()->route('admin.dashboard'),
         };
@@ -672,7 +714,7 @@ class AuthController extends Controller
     private function partnerTwoFactorGate(User $user, Request $request): ?RedirectResponse
     {
         $twoFactor = app(WebTwoFactorAuthService::class);
-        $redirectTo = route('site.partner.dashboard');
+        $redirectTo = app(\App\Services\PartnerPortalRedirectService::class)->homeUrl($user);
 
         if ($twoFactor->mustEnroll($user, 'partner')) {
             $twoFactor->storePendingLogin($request, $user, 'web', 'partner', $redirectTo, $request->boolean('remember'));

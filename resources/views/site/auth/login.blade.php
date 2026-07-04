@@ -72,7 +72,15 @@
                                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Partner code</label>
                                 <input type="text" name="partner_code" value="{{ old('partner_code') }}"
                                        class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm font-mono uppercase outline-none"
-                                       placeholder="PTR-XXXXXX">
+                                       placeholder="Partner code (e.g. AFF-DEMO-001)">
+                            </div>
+                        @else
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.membership.promo_code_label') }}</label>
+                                <input type="text" name="promo_code" value="{{ old('promo_code', session('login_promo_code')) }}"
+                                       class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm font-mono uppercase outline-none"
+                                       placeholder="{{ __('borrower.membership.promo_code_placeholder') }}">
+                                <p class="mt-1.5 text-xs text-gray-500">{{ __('borrower.auth.login_promo_hint') }}</p>
                             </div>
                         @endif
                     </div>

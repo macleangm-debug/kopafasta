@@ -98,27 +98,40 @@
             </div>
         @endif
 
-        @if (! empty($profile['missing_requirements']) || $profileMissing !== [])
+        @if (! empty($profile['missing_requirements']) || ($profileMissing !== [] && ! $profileComplete))
             <div class="px-5 sm:px-6 py-5">
-                <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-1">{{ __('borrower.loan_profile.missing_requirements_title') }}</p>
-                <p class="text-xs text-gray-500 mb-4">{{ __('borrower.loan_profile.missing_requirements_hint') }}</p>
-                <ul class="space-y-2">
-                    @foreach ($profile['missing_requirements'] ?? [] as $requirement)
-                        <li class="flex items-center justify-between gap-3 rounded-xl ring-1 ring-amber-200/80 bg-amber-50/60 px-4 py-3">
-                            <span class="text-sm font-medium text-gray-900">{{ $requirement['label'] }}</span>
-                            <a href="{{ $requirement['upload_url'] }}"
-                               class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2 rounded-xl text-xs shrink-0">
-                                {{ __('borrower.loan_profile.upload') }}
-                            </a>
-                        </li>
-                    @endforeach
-                    @foreach ($profileMissing as $item)
-                        <li class="flex items-center gap-2 rounded-xl ring-1 ring-gray-200/80 bg-white px-4 py-3 text-sm text-gray-700">
-                            <span class="size-2 rounded-full bg-amber-500 shrink-0"></span>
-                            <span>{{ $item }}</span>
-                        </li>
-                    @endforeach
-                </ul>
+                <div class="rounded-xl ring-1 ring-brand/15 bg-gradient-to-br from-brand-muted/40 to-white p-5">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_profile.profile_completion') }}</p>
+                            <div class="flex items-center gap-3 mt-2">
+                                <div class="flex-1 max-w-xs h-2 rounded-full bg-gray-100 overflow-hidden">
+                                    <div class="h-full rounded-full {{ $profileComplete ? 'bg-emerald-500' : 'bg-brand' }}" style="width: {{ $profilePercent }}%"></div>
+                                </div>
+                                <span class="text-sm font-bold tabular-nums">{{ $profilePercent }}%</span>
+                            </div>
+                            <p class="text-sm text-gray-600 mt-2">{{ __('borrower.loan_profile.profile_completion_hint') }}</p>
+                        </div>
+                        <a href="{{ route('site.borrower.profile') }}"
+                           class="inline-flex items-center justify-center font-semibold px-6 py-2.5 rounded-xl text-sm shrink-0 bg-brand hover:bg-brand-light text-white">
+                            {{ __('borrower.loan_profile.complete_profile') }}
+                        </a>
+                    </div>
+                </div>
+
+                @if (! empty($profile['missing_requirements']))
+                    <ul class="mt-4 space-y-2">
+                        @foreach ($profile['missing_requirements'] as $requirement)
+                            <li class="flex items-center justify-between gap-3 rounded-xl ring-1 ring-amber-200/80 bg-amber-50/60 px-4 py-3">
+                                <span class="text-sm font-medium text-gray-900">{{ $requirement['label'] }}</span>
+                                <a href="{{ $requirement['upload_url'] }}"
+                                   class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2 rounded-xl text-xs shrink-0">
+                                    {{ __('borrower.loan_profile.upload') }}
+                                </a>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
             </div>
         @elseif (! empty($next['ready']))
             <div class="px-5 sm:px-6 py-4 bg-emerald-50/80 border-t border-emerald-100">

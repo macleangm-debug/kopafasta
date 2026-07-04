@@ -77,8 +77,16 @@
                         @unless ($n->read_at)
                             <form method="POST" action="{{ route('site.borrower.notifications.item.read', $n) }}">
                                 @csrf
-                                <button class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.notifications.mark_read') }}</button>
+                                <button class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-brand-muted text-brand hover:bg-brand-muted/80 ring-1 ring-brand/20 transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+                                    {{ __('borrower.notifications.mark_read') }}
+                                </button>
                             </form>
+                        @else
+                            <span class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-gray-100 text-gray-500">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+                                {{ __('borrower.notifications.read') }}
+                            </span>
                         @endunless
                         <form method="POST" action="{{ route('site.borrower.notifications.item.clear', $n) }}"
                               @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.notifications.clear_item_confirm_title')), message: @js(__('borrower.notifications.clear_item_confirm_message')), confirmLabel: @js(__('borrower.notifications.clear')), confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">

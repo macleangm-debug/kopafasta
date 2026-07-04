@@ -1,22 +1,30 @@
 <x-site.borrower-layout :title="brand_title('Dashboard')" active="dashboard" content-width="wide">
 
-    @if (session('status'))
-        <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">
-            {{ session('status') }}
-        </div>
-    @endif
-
-    @if (session('error'))
-        <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">
-            {{ session('error') }}
-        </div>
-    @endif
-
     {{-- Salutation --}}
     <div class="mb-6">
         <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.welcome') }}</p>
         <h1 class="text-2xl sm:text-3xl font-bold mt-1">Habari, {{ $customer->first_name ?? Auth::user()->name }}</h1>
         <p class="text-sm text-gray-500 mt-1">{{ __('borrower.dashboard.customer_number', ['number' => $customer->customer_number ?? '—']) }}</p>
+    </div>
+
+    @php
+        $dashStats = [
+            ['label' => __('borrower.dashboard.stat_applications'), 'value' => count($activeApplicationRows ?? []), 'icon' => '📋'],
+            ['label' => __('borrower.dashboard.stat_active_loans'), 'value' => $activeLoan ? 1 : 0, 'icon' => '💰'],
+            ['label' => __('borrower.dashboard.stat_notifications'), 'value' => $unreadNotificationCount ?? 0, 'icon' => '🔔'],
+            ['label' => __('borrower.dashboard.stat_wallet'), 'value' => format_money($referralWallet->balance ?? 0, true), 'icon' => '🎁'],
+        ];
+    @endphp
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        @foreach ($dashStats as $stat)
+            <div class="glass-card p-4 ring-1 ring-brand/10 bg-brand-muted/20">
+                <div class="flex items-center justify-between gap-2">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $stat['label'] }}</p>
+                    <span aria-hidden="true">{{ $stat['icon'] }}</span>
+                </div>
+                <p class="mt-2 text-xl font-bold text-gray-900 tabular-nums">{{ $stat['value'] }}</p>
+            </div>
+        @endforeach
     </div>
 
     <x-site.borrower-dashboard-hero :hero="$dashboardHero ?? []" />

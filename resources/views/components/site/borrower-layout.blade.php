@@ -73,6 +73,8 @@
 </head>
 <body class="min-h-full bg-[#faf8f5] text-gray-900 antialiased" x-data="{open:false}">
 
+<x-site.flash-notice />
+
 <div class="min-h-screen flex">
 
     {{-- Sidebar (desktop) --}}

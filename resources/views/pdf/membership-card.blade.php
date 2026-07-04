@@ -4,8 +4,9 @@
     <meta charset="utf-8">
     <title>{{ brand_name() }} Membership</title>
     <style>
-        body { font-family: DejaVu Sans, sans-serif; color: #111; margin: 0; padding: 16px; }
-        .card { border: 3px solid #047857; border-radius: 16px; overflow: hidden; background: linear-gradient(135deg, #ecfdf5 0%, #fffbeb 100%); }
+        @page { margin: 8mm; size: 148mm 105mm landscape; }
+        html, body { font-family: DejaVu Sans, sans-serif; color: #111; margin: 0; padding: 0; }
+        .card { border: 3px solid #047857; border-radius: 16px; overflow: hidden; background: #ecfdf5; page-break-inside: avoid; }
         .header { background: #047857; color: #fff; padding: 16px 20px; }
         .brand { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.85; }
         .body { padding: 20px; }

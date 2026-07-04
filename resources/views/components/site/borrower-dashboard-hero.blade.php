@@ -41,15 +41,23 @@
             @endif
         </div>
         @if (! empty($hero['cta_url']) && ! empty($hero['cta_label']))
-            <a href="{{ $hero['cta_url'] }}"
-               @class([
-                   'inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm shrink-0 transition',
-                   $variant === 'under_review'
-                       ? 'bg-gray-900 text-white hover:bg-gray-800'
-                       : 'bg-white text-brand hover:bg-white/90 shadow-sm',
-               ])>
-                {{ $hero['cta_label'] }}
-            </a>
+            <div class="flex flex-col sm:flex-row gap-2 shrink-0">
+                <a href="{{ $hero['cta_url'] }}"
+                   @class([
+                       'inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition',
+                       $variant === 'under_review'
+                           ? 'bg-gray-900 text-white hover:bg-gray-800'
+                           : 'bg-white text-brand hover:bg-white/90 shadow-sm',
+                   ])>
+                    {{ $hero['cta_label'] }}
+                </a>
+                @if (! empty($hero['secondary_cta_url']) && ! empty($hero['secondary_cta_label']))
+                    <a href="{{ $hero['secondary_cta_url'] }}"
+                       class="inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-white/15 text-white ring-1 ring-white/30 hover:bg-white/25">
+                        {{ $hero['secondary_cta_label'] }}
+                    </a>
+                @endif
+            </div>
         @endif
     </div>
 </section>
