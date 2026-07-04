@@ -229,12 +229,7 @@
             </div>
         </div>
 
-        {{-- Flash --}}
-        @if (session('status'))
-            <div class="mx-4 lg:mx-8 mt-4 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-700">
-                {{ session('status') }}
-            </div>
-        @endif
+        {{-- Flash messages use modal via flash-notice --}}
         @if ($errors->any())
             <div class="mx-4 lg:mx-8 mt-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
                 <p class="font-semibold mb-1">{{ __('borrower.layout.fix_errors') }}</p>

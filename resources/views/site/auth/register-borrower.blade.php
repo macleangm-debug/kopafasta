@@ -236,7 +236,7 @@
                                         <select name="gender" required
                                                 class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
                                             <option value="">Select gender</option>
-                                            @foreach (['male' => 'Male', 'female' => 'Female', 'other' => 'Other'] as $value => $label)
+                                            @foreach (['male' => 'Male', 'female' => 'Female'] as $value => $label)
                                                 <option value="{{ $value }}" @selected(old('gender') === $value)>{{ $label }}</option>
                                             @endforeach
                                         </select>

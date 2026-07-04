@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class AuthController extends Controller
@@ -91,7 +92,12 @@ class AuthController extends Controller
                 ->withInput(['phone' => $phone, 'auth_method' => 'pin']);
         }
 
-        $user = $this->findUserByPhone($phone);
+        $partnerPortal = $request->session()->get('login_portal') === 'partner'
+            || filled($data['partner_code'] ?? null);
+
+        $user = $partnerPortal
+            ? $this->findVendorUserByPhone($phone)
+            : $this->findBorrowerUserByPhone($phone);
 
         if (! $user) {
             return $this->failedLogin($request, $phone, 'phone', 'Phone number or PIN is incorrect.');
@@ -111,19 +117,16 @@ class AuthController extends Controller
             return $this->failedLogin($request, $phone, 'phone', 'Phone number or PIN is incorrect.', $user);
         }
 
-        $partnerPortal = $request->session()->get('login_portal') === 'partner'
-            || filled($data['partner_code'] ?? null);
-
-        if ($partnerPortal && $user->role === 'borrower') {
-            return back()
-                ->withErrors(['phone' => 'This phone belongs to a borrower account. Use the member login page instead.'])
-                ->withInput(['phone' => $phone, 'auth_method' => 'pin', 'partner_code' => $data['partner_code'] ?? null]);
-        }
-
         if (! $partnerPortal && $user->role === 'vendor') {
             $request->session()->put('login_portal', 'partner');
 
             return $this->completeWebLogin($user, $request, $phone, (bool) ($data['trust_device'] ?? false));
+        }
+
+        if ($partnerPortal && $user->role !== 'vendor') {
+            return back()
+                ->withErrors(['phone' => 'No partner account found for this phone number.'])
+                ->withInput(['phone' => $phone, 'auth_method' => 'pin', 'partner_code' => $data['partner_code'] ?? null]);
         }
 
         if (filled($data['partner_code'] ?? null)) {
@@ -187,10 +190,15 @@ class AuthController extends Controller
 
         $partnerPortal = $request->session()->get('login_portal') === 'partner';
 
-        if ($partnerPortal && $user->role === 'borrower') {
-            return back()
-                ->withErrors(['login' => 'This account is a borrower profile. Use the member login page instead.'])
-                ->withInput(['login' => $login, 'auth_method' => 'password']);
+        if ($partnerPortal && $user->role !== 'vendor') {
+            $vendorUser = $this->findVendorUserByPhone($login);
+            if ($vendorUser) {
+                $user = $vendorUser;
+            } else {
+                return back()
+                    ->withErrors(['login' => 'No partner account found for this login. Use the member login page for borrower access.'])
+                    ->withInput(['login' => $login, 'auth_method' => 'password']);
+            }
         }
 
         if (! $partnerPortal && $user->role === 'vendor') {
@@ -404,10 +412,65 @@ class AuthController extends Controller
             return null;
         }
 
+        $suffix = substr($digits, -9);
+
         return User::query()
-            ->where('phone', $phone)
-            ->orWhere('phone', $digits)
-            ->orWhere('phone', 'like', '%'.substr($digits, -9))
+            ->where(function ($query) use ($phone, $digits, $suffix) {
+                $query->where('phone', $phone)
+                    ->orWhere('phone', $digits)
+                    ->orWhere('phone', 'like', '%'.$suffix);
+            })
+            ->first();
+    }
+
+    private function findBorrowerUserByPhone(string $phone): ?User
+    {
+        $digits = preg_replace('/\D/', '', $phone);
+        if ($digits === '') {
+            return null;
+        }
+
+        $suffix = substr($digits, -9);
+
+        return User::query()
+            ->where('role', 'borrower')
+            ->where(function ($query) use ($phone, $digits, $suffix) {
+                $query->where('phone', $phone)
+                    ->orWhere('phone', $digits)
+                    ->orWhere('phone', 'like', '%'.$suffix);
+            })
+            ->first();
+    }
+
+    private function findVendorUserByPhone(string $phone): ?User
+    {
+        $digits = preg_replace('/\D/', '', $phone);
+        if ($digits === '') {
+            return null;
+        }
+
+        $suffix = substr($digits, -9);
+
+        $partner = \App\Models\Vendor::query()
+            ->whereNotNull('user_id')
+            ->where(function ($query) use ($phone, $digits, $suffix) {
+                $query->where('phone', $phone)
+                    ->orWhere('phone', $digits)
+                    ->orWhere('phone', 'like', '%'.$suffix);
+            })
+            ->first();
+
+        if ($partner?->user_id) {
+            return User::query()->where('id', $partner->user_id)->where('role', 'vendor')->first();
+        }
+
+        return User::query()
+            ->where('role', 'vendor')
+            ->where(function ($query) use ($phone, $digits, $suffix) {
+                $query->where('phone', $phone)
+                    ->orWhere('phone', $digits)
+                    ->orWhere('phone', 'like', '%'.$suffix);
+            })
             ->first();
     }
 
@@ -484,9 +547,14 @@ class AuthController extends Controller
             'first_name'    => ['required', 'string', 'max:60'],
             'middle_name'   => ['nullable', 'string', 'max:60'],
             'last_name'     => ['required', 'string', 'max:60'],
-            'gender'        => ['required', 'in:male,female,other'],
+            'gender'        => ['required', 'in:male,female'],
             'date_of_birth' => ['required', 'date', 'before:today', new \App\Rules\MinimumAge],
-            'phone'         => ['required', 'string', 'max:20', 'unique:users,phone'],
+            'phone'         => [
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('users', 'phone')->where(fn ($query) => $query->where('role', 'borrower')),
+            ],
             'password'      => ['required', 'string', 'min:8', 'confirmed'],
             'referral_code' => ['nullable', 'string', 'max:32'],
             'affiliate_code'=> ['nullable', 'string', 'max:32'],
@@ -500,8 +568,23 @@ class AuthController extends Controller
         $data = $request->validate($rules, [
             'phone.unique' => $isGuarantorRegistration
                 ? __('borrower.guarantor_invite.register_phone_taken')
-                : 'This phone number is already registered.',
+                : 'This phone number is already registered to a member account.',
         ]);
+
+        $phoneDigits = preg_replace('/\D/', '', $data['phone']);
+        $phoneTaken = \App\Models\Customer::query()
+            ->where(function ($query) use ($data, $phoneDigits) {
+                $query->where('phone', $data['phone'])
+                    ->orWhere('phone', $phoneDigits)
+                    ->when(strlen($phoneDigits) >= 9, fn ($q) => $q->orWhere('phone', 'like', '%'.substr($phoneDigits, -9)));
+            })
+            ->exists();
+
+        if ($phoneTaken && ! $isGuarantorRegistration) {
+            return back()
+                ->withInput()
+                ->withErrors(['phone' => 'This phone number is already registered to a member account.']);
+        }
 
         if (filled($data['promo_code'] ?? null) && blank($data['affiliate_code'] ?? null) && blank($data['referral_code'] ?? null)) {
             $promo = strtoupper(trim($data['promo_code']));

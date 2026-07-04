@@ -230,10 +230,16 @@ class MembershipController extends Controller
             }
         }
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.membership-card', compact('customer', 'verifyUrl', 'photoPath'))
-            ->setPaper([0, 0, 419.53, 297.64], 'landscape')
+        $logoPath = public_path('images/brand/kopafasta-logo.png');
+        if (! is_file($logoPath)) {
+            $logoPath = null;
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.membership-card', compact('customer', 'verifyUrl', 'photoPath', 'logoPath'))
+            ->setPaper([0, 0, 297.64, 419.53], 'portrait')
             ->setOption('isHtml5ParserEnabled', true)
-            ->setOption('isRemoteEnabled', true);
+            ->setOption('isRemoteEnabled', true)
+            ->setOption('dpi', 150);
 
         $filename = 'membership-'.($memberNo ?: $customer->id).'.pdf';
 

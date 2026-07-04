@@ -27,7 +27,13 @@
         'wizardMode' => true,
         'wizardKey' => $wizardKey,
     ])
-@elseif ($accountPanel === 'profile')
+@elseif ($accountPanel === 'profile' && ($active ?? '') === 'hub')
     @include('site.borrower.profile._profile_overview', ['customer' => $customer])
+@elseif ($accountPanel === 'profile')
+    <div class="mb-4">
+        <a href="{{ route('site.borrower.profile') }}" class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline">
+            ← {{ __('borrower.profile.hub.back') }}
+        </a>
+    </div>
     @include('site.borrower.profile._tabs', ['active' => $active, 'customer' => $customer])
 @endif

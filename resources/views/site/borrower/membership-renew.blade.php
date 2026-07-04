@@ -1,7 +1,7 @@
 <x-site.borrower-layout :title="brand_title($isFirstTime ? __('borrower.membership.registration_fee') : __('borrower.membership.renewal_fee'))" active="membership" content-width="wide">
     <div x-data="{ channel: '{{ old('channel', 'mobile_money') }}', phone: '{{ old('payment_phone', $customer->phone ?? '') }}', useWallet: {{ old('use_wallet') ? 'true' : 'false' }} }">
         <div class="mb-6">
-            <p class="text-xs uppercase tracking-widest text-amber-600 mb-1">{{ $isFirstTime ? __('borrower.membership.first_time') : __('borrower.membership.renewal') }}</p>
+            <p class="text-xs uppercase tracking-widest text-brand mb-1">{{ $isFirstTime ? __('borrower.membership.first_time') : __('borrower.membership.renewal') }}</p>
             <h1 class="text-2xl sm:text-3xl font-bold">
                 {{ $isFirstTime ? __('borrower.membership.registration_title') : __('borrower.membership.renew_title') }}
             </h1>
@@ -14,15 +14,27 @@
             </p>
         </div>
 
-        <div class="rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white p-6 shadow-lg mb-6">
-            @if ($isFirstTime && $feeQuote)
-                <x-site.payment-gate-breakdown :label="$isFirstTime ? __('borrower.membership.registration_fee') : __('borrower.membership.renewal_fee')" :currency="$config['currency']" :quote="$feeQuote" class="mb-0" />
-            @else
+        <div class="glass-card overflow-hidden ring-1 ring-brand/15 mb-6">
+            <div class="bg-gradient-to-br from-brand to-brand-light text-white px-6 py-5">
                 <p class="text-[10px] uppercase tracking-widest text-white/80">{{ $isFirstTime ? __('borrower.membership.registration_fee') : __('borrower.membership.renewal_fee') }}</p>
-                <p class="mt-1 text-3xl font-extrabold">{{ $config['currency'] }} {{ format_number($feeAmount) }}</p>
+                @if ($isFirstTime && $feeQuote)
+                    <p class="mt-2 text-3xl font-extrabold tabular-nums">{{ $config['currency'] }} {{ format_number($feeQuote['cash_due'] ?? $feeQuote['after_discount']) }}</p>
+                @else
+                    <p class="mt-2 text-3xl font-extrabold tabular-nums">{{ $config['currency'] }} {{ format_number($feeAmount) }}</p>
+                @endif
+                <p class="mt-3 text-xs text-white/90">{{ __('borrower.membership.payment_reference_label') }}</p>
+                <p class="mt-1 font-mono text-sm bg-white/15 inline-block px-3 py-1 rounded-lg">{{ $paymentReference }}</p>
+            </div>
+            @if ($isFirstTime && $feeQuote)
+                <div class="px-6 py-4 bg-white border-t border-gray-100">
+                    <x-site.payment-gate-breakdown
+                        :label="$isFirstTime ? __('borrower.membership.registration_fee') : __('borrower.membership.renewal_fee')"
+                        :currency="$config['currency']"
+                        :quote="$feeQuote"
+                        variant="light"
+                    />
+                </div>
             @endif
-            <p class="mt-3 text-xs text-white/90">{{ __('borrower.membership.payment_reference_label') }}</p>
-            <p class="mt-1 font-mono text-sm bg-white/15 inline-block px-3 py-1 rounded-lg">{{ $paymentReference }}</p>
         </div>
 
         @if ($isFirstTime)
@@ -53,9 +65,9 @@
         @endif
 
         @if ($isFirstTime && $feeQuote && ($referralWallet->balance ?? 0) > 0)
-            <div class="mb-6 rounded-xl bg-indigo-50 ring-1 ring-indigo-200 px-4 py-4 text-sm text-indigo-900">
+            <div class="mb-6 rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 py-4 text-sm text-brand">
                 <label class="flex items-start gap-3 cursor-pointer">
-                    <input type="checkbox" name="use_wallet" value="1" x-model="useWallet" form="membership-renew-form" class="mt-1 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
+                    <input type="checkbox" name="use_wallet" value="1" x-model="useWallet" form="membership-renew-form" class="mt-1 rounded border-brand/30 text-brand focus:ring-brand">
                     <span>
                         {{ __('borrower.membership.use_wallet_label', [
                             'balance' => $config['currency'].' '.format_number($referralWallet->balance),
@@ -89,14 +101,14 @@
                 <div class="grid sm:grid-cols-2 gap-3">
                     <label class="cursor-pointer">
                         <input type="radio" name="channel" value="mobile_money" x-model="channel" class="sr-only peer">
-                        <div class="rounded-xl border-2 border-gray-200 peer-checked:border-amber-500 peer-checked:bg-amber-50 p-4">
+                        <div class="rounded-xl border-2 border-gray-200 peer-checked:border-brand peer-checked:bg-brand-muted/30 p-4">
                             <p class="font-semibold text-sm">{{ __('borrower.membership.mobile_money') }}</p>
                             <p class="text-xs text-gray-500 mt-1">{{ __('borrower.membership.mobile_hint') }}</p>
                         </div>
                     </label>
                     <label class="cursor-pointer">
                         <input type="radio" name="channel" value="bank" x-model="channel" class="sr-only peer">
-                        <div class="rounded-xl border-2 border-gray-200 peer-checked:border-amber-500 peer-checked:bg-amber-50 p-4">
+                        <div class="rounded-xl border-2 border-gray-200 peer-checked:border-brand peer-checked:bg-brand-muted/30 p-4">
                             <p class="font-semibold text-sm">{{ __('borrower.membership.bank') }}</p>
                             <p class="text-xs text-gray-500 mt-1">{{ __('borrower.membership.bank_hint') }}</p>
                         </div>
@@ -106,37 +118,36 @@
 
             <div x-show="channel === 'mobile_money'" x-transition class="space-y-3">
                 @if (! empty($mobileDetails['number']))
-                    <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-xs text-sky-900">
+                    <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 py-3 text-xs text-brand">
                         <p class="font-semibold">{{ __('borrower.membership.pay_to', ['provider' => $mobileDetails['provider'] ?? __('borrower.membership.mobile_money')]) }}</p>
                         <p class="font-mono mt-1">{{ $mobileDetails['number'] }}</p>
-                        <p class="mt-2 text-sky-800">{{ $mobileDetails['instructions'] }}</p>
+                        <p class="mt-2">{{ $mobileDetails['instructions'] }}</p>
                     </div>
                 @endif
                 <div>
                     <label class="block text-xs uppercase tracking-wider text-gray-500 mb-1">{{ __('borrower.membership.mobile_number_label') }}</label>
                     <input type="tel" name="payment_phone" x-model="phone" required
-                           class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500 text-sm"
-                           placeholder="+255 7XX XXX XXX">
+                           class="w-full rounded-lg border-gray-300 focus:border-brand focus:ring-brand text-sm">
                     <p class="mt-2 text-xs text-gray-500">{{ __('borrower.membership.mobile_ussd_hint') }}</p>
                 </div>
             </div>
 
-            <div x-show="channel === 'bank'" x-cloak x-transition class="rounded-xl bg-sky-50 border border-sky-200 p-4 text-sm">
-                <p class="font-semibold text-sky-900 mb-2">{{ __('borrower.membership.bank_instructions_title') }}</p>
-                <p class="text-sky-800 text-xs mb-3">{{ __('borrower.membership.bank_reference_hint', ['ref' => $paymentReference]) }}</p>
+            <div x-show="channel === 'bank'" x-cloak x-transition class="rounded-xl bg-brand-muted/30 ring-1 ring-brand/15 p-4 text-sm">
+                <p class="font-semibold text-brand mb-2">{{ __('borrower.membership.bank_instructions_title') }}</p>
+                <p class="text-gray-700 text-xs mb-3">{{ __('borrower.membership.bank_reference_hint', ['ref' => $paymentReference]) }}</p>
                 @foreach ($bankAccounts as $acct)
                     <div class="mb-2 last:mb-0">
                         <p class="font-medium">{{ $acct['bank'] }}</p>
-                        <p class="text-xs text-sky-800">{{ $acct['account_name'] }} · {{ $acct['account_number'] }}@if (! empty($acct['branch'])) · {{ $acct['branch'] }}@endif</p>
+                        <p class="text-xs text-gray-700">{{ $acct['account_name'] }} · {{ $acct['account_number'] }}@if (! empty($acct['branch'])) · {{ $acct['branch'] }}@endif</p>
                         @if (! empty($acct['instructions']))
-                            <p class="text-xs text-sky-700 mt-1">{{ $acct['instructions'] }}</p>
+                            <p class="text-xs text-gray-600 mt-1">{{ $acct['instructions'] }}</p>
                         @endif
                     </div>
                 @endforeach
                 <p class="mt-3 text-xs text-amber-800 font-medium">⏳ {{ __('borrower.membership.bank_waiting_hint') }}</p>
             </div>
 
-            <button type="submit" class="w-full bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-3 rounded-full text-sm">
+            <button type="submit" class="w-full bg-brand hover:bg-brand-light text-white font-semibold px-5 py-3 rounded-xl text-sm">
                 <span x-text="channel === 'mobile_money' ? @js(__('borrower.membership.pay_now')) : @js(__('borrower.membership.submit_bank'))"></span>
             </button>
         </form>

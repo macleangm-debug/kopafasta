@@ -1,46 +1,12 @@
 <x-site.borrower-layout :title="brand_title('Dashboard')" active="dashboard" content-width="wide">
 
-    {{-- Salutation --}}
     <div class="mb-6">
         <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.welcome') }}</p>
         <h1 class="text-2xl sm:text-3xl font-bold mt-1">Habari, {{ $customer->first_name ?? Auth::user()->name }}</h1>
         <p class="text-sm text-gray-500 mt-1">{{ __('borrower.dashboard.customer_number', ['number' => $customer->customer_number ?? '—']) }}</p>
     </div>
 
-    @php
-        $dashStats = [
-            ['label' => __('borrower.dashboard.stat_applications'), 'value' => count($activeApplicationRows ?? []), 'icon' => '📋'],
-            ['label' => __('borrower.dashboard.stat_active_loans'), 'value' => $activeLoan ? 1 : 0, 'icon' => '💰'],
-            ['label' => __('borrower.dashboard.stat_notifications'), 'value' => $unreadNotificationCount ?? 0, 'icon' => '🔔'],
-            ['label' => __('borrower.dashboard.stat_wallet'), 'value' => format_money($referralWallet->balance ?? 0, true), 'icon' => '🎁'],
-        ];
-    @endphp
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        @foreach ($dashStats as $stat)
-            <div class="glass-card p-4 ring-1 ring-brand/10 bg-brand-muted/20">
-                <div class="flex items-center justify-between gap-2">
-                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $stat['label'] }}</p>
-                    <span aria-hidden="true">{{ $stat['icon'] }}</span>
-                </div>
-                <p class="mt-2 text-xl font-bold text-gray-900 tabular-nums">{{ $stat['value'] }}</p>
-            </div>
-        @endforeach
-    </div>
-
     <x-site.borrower-dashboard-hero :hero="$dashboardHero ?? []" />
-
-    @if ($applyDraftResume ?? null)
-        <div class="mb-6 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-                <p class="text-sm font-semibold text-amber-900">{{ __('borrower.dashboard.draft_resume_title') }}</p>
-                <p class="text-xs text-amber-800 mt-1">{{ __('borrower.dashboard.draft_resume_body', ['product' => $applyDraftResume['product_name']]) }}</p>
-            </div>
-            <a href="{{ $applyDraftResume['url'] }}"
-               class="inline-flex justify-center bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-xl text-sm shrink-0">
-                {{ __('borrower.dashboard.draft_resume_cta') }}
-            </a>
-        </div>
-    @endif
 
     @if (! empty($groupInviteBanner['show']))
         <div class="mb-6 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 to-white p-5 sm:p-6">
@@ -85,46 +51,6 @@
         </div>
     @endif
 
-    {{-- Active applications --}}
-    <div class="mb-8 glass-card overflow-hidden">
-        <div class="px-5 py-4 border-b border-gray-100/80 flex items-center justify-between">
-            <div>
-                <h2 class="font-bold text-gray-900">{{ __('borrower.active_applications') }}</h2>
-                <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.dashboard.active_apps_hint') }}</p>
-            </div>
-            <a href="{{ route('site.borrower.loans') }}" class="text-xs text-brand font-semibold hover:underline">{{ __('borrower.dashboard.view_all') }}</a>
-        </div>
-        @if (($activeApplications ?? collect())->isEmpty())
-            <div class="p-8 text-center text-sm text-gray-500">
-                {{ __('borrower.dashboard.no_applications') }}
-            </div>
-        @else
-            <ul class="divide-y divide-gray-100">
-                @foreach ($activeApplicationRows ?? [] as $row)
-                    <li class="px-5 py-4 flex items-center justify-between gap-3 flex-wrap hover:bg-brand-muted/10 transition">
-                        <div class="min-w-0">
-                            <a href="{{ $row['action_url'] }}" class="text-sm font-mono font-semibold text-gray-900 hover:text-brand">{{ $row['application_number'] }}</a>
-                            <p class="text-xs text-gray-500 mt-0.5">{{ $row['product_name'] }} · {{ format_money($row['requested_amount']) }}</p>
-                            <div class="flex flex-wrap gap-3 mt-2 text-xs">
-                                <span class="text-gray-500">{{ __('borrower.applications_list.application') }}:
-                                    <span class="font-semibold text-gray-800">{{ $row['application_percent'] ?? 0 }}%</span>
-                                    <span class="text-gray-500">· {{ $row['application_status'] ?? $row['status_label'] }}</span>
-                                </span>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2 shrink-0">
-                            <span class="text-xs font-semibold rounded-full px-2.5 py-1 bg-brand-muted text-brand">{{ $row['status_label'] }}</span>
-                            @if (! empty($row['continue_url']))
-                                <a href="{{ $row['continue_url'] }}" class="text-xs font-semibold text-brand hover:underline">{{ $row['continue_label'] ?? __('borrower.applications_list.continue_application') }}</a>
-                            @endif
-                        </div>
-                    </li>
-                @endforeach
-            </ul>
-        @endif
-    </div>
-
-    {{-- Referral CTA --}}
     @if ($referralCode ?? null)
         <section class="mb-8 bg-brand text-white rounded-2xl p-6 sm:p-8 shadow-lg relative overflow-hidden">
             <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
@@ -145,7 +71,6 @@
         </section>
     @endif
 
-    {{-- Loan products --}}
     <div class="mb-8">
         <div class="flex items-end justify-between gap-3 mb-4">
             <div>
@@ -164,42 +89,6 @@
             </div>
         @else
             <div class="text-sm text-gray-500">{{ __('borrower.dashboard_page.no_products') }}</div>
-        @endif
-    </div>
-
-    {{-- Notifications --}}
-    <div class="glass-card overflow-hidden">
-        <div class="px-5 py-4 border-b border-gray-100/80 flex items-center justify-between">
-            <div>
-                <h2 class="font-bold text-gray-900">{{ __('borrower.recent_notifications') }}</h2>
-                @if (($unreadNotificationCount ?? 0) > 0)
-                    <p class="text-xs text-brand font-semibold mt-0.5">{{ __('borrower.dashboard.unread_notifications', ['count' => $unreadNotificationCount]) }}</p>
-                @endif
-            </div>
-            <a href="{{ route('site.borrower.notifications') }}" class="text-xs text-brand font-semibold hover:underline">{{ __('borrower.dashboard.view_all') }}</a>
-        </div>
-        @if ($notifications->isEmpty())
-            <div class="p-6 text-center text-sm text-gray-500">{{ __('borrower.dashboard_page.no_messages') }}</div>
-        @else
-            <ul class="divide-y divide-gray-100">
-                @foreach ($notifications as $n)
-                    @php
-                        $lines = preg_split("/\r\n|\n|\r/", (string) ($n->message ?: '')) ?: [];
-                        $title = trim($lines[0] ?? '') ?: __('borrower.notifications.fallback_title');
-                        $body = trim(implode(' ', array_slice($lines, 1))) ?: ($n->message ?: $n->template);
-                    @endphp
-                    <li @class(['px-5 py-4 flex gap-3 transition', ! $n->read_at ? 'bg-brand-muted/20' : ''])>
-                        <div class="size-9 rounded-full shrink-0 grid place-items-center {{ $n->read_at ? 'bg-gray-100 text-gray-500' : 'bg-brand-muted text-brand' }}">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9z"/></svg>
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <p class="text-sm font-semibold text-gray-900 truncate">{{ $title }}</p>
-                            <p class="text-xs text-gray-600 mt-0.5 line-clamp-2">{{ $body }}</p>
-                            <p class="text-[11px] text-gray-400 mt-1">{{ \Carbon\Carbon::parse($n->created_at)->diffForHumans() }}</p>
-                        </div>
-                    </li>
-                @endforeach
-            </ul>
         @endif
     </div>
 

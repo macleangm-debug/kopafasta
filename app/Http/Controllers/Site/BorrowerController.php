@@ -1174,9 +1174,15 @@ class BorrowerController extends Controller
         return redirect()->to($url);
     }
 
-    public function profile(Request $request, string $section = 'personal'): View|RedirectResponse
+    public function profile(Request $request, ?string $section = null): View|RedirectResponse
     {
         $customer = $this->customer();
+        $section = $section ?? 'hub';
+
+        if ($section === 'hub') {
+            return view('site.borrower.profile.hub', compact('customer'));
+        }
+
         $kyc = $customer->kyc ?? CustomerKyc::firstOrCreate(
             ['customer_id' => $customer->id],
             ['status' => 'pending', 'payload' => []]

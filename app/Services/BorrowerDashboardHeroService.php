@@ -114,7 +114,7 @@ class BorrowerDashboardHeroService
                 'cta_label'          => $count > 1
                     ? __('borrower.dashboard.hero.view_applications')
                     : __('borrower.dashboard.hero.view_application'),
-                'cta_url'            => $primary['action_url'] ?? route('site.borrower.loans', ['tab' => 'applications']),
+                'cta_url'            => route('site.borrower.loans', ['tab' => 'applications']),
                 'secondary_cta_label'=> __('borrower.dashboard.hero.apply_now'),
                 'secondary_cta_url'  => route('site.products'),
             ];

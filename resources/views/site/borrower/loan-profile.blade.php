@@ -40,9 +40,6 @@
         <p class="text-xs text-emerald-700 -mt-4 mb-4 font-mono">{{ __('borrower.loan_profile.loan_number') }}: {{ $summary['loan_number'] }}</p>
     @endif
 
-    @if (session('status'))
-        <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
     @if ($errors->any())
         <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">{{ $errors->first() }}</div>
     @endif
@@ -133,91 +130,34 @@
     @endif
 
     @unless ($profile['is_draft'] ?? false)
-        {{-- Profile completion (submitted applications only — drafts use action panel) --}}
-        <div class="glass-card p-5 mb-6">
-            <div class="flex items-center justify-between gap-3 mb-4">
-                <h2 class="font-semibold">{{ __('borrower.loan_profile.profile_completion') }}</h2>
-                <span class="text-sm font-bold text-brand">{{ $progress['profile_percent'] ?? $progress['percent'] }}%</span>
-            </div>
-            <div class="h-2 bg-gray-100 rounded-full overflow-hidden mb-5">
-                <div class="h-full bg-brand transition-all" style="width: {{ $progress['profile_percent'] ?? $progress['percent'] }}%"></div>
-            </div>
-
-            <div class="grid md:grid-cols-2 gap-6">
-                @if (! empty($progress['missing']))
-                    <div>
-                        <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">{{ __('borrower.loan_profile.missing') }}</p>
-                        <ul class="space-y-1.5">
-                            @foreach ($progress['missing'] as $item)
-                                <li class="text-sm text-gray-700 flex items-start gap-2">
-                                    <span class="text-brand mt-0.5">○</span>
-                                    <span>{{ $item }}</span>
-                                </li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
-                @if (! empty($progress['completed']))
-                    <div>
-                        <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">{{ __('borrower.loan_profile.completed') }}</p>
-                        <ul class="space-y-1.5">
-                            @foreach ($progress['completed'] as $item)
-                                <li class="text-sm text-emerald-700 flex items-start gap-2">
-                                    <span class="mt-0.5">✓</span>
-                                    <span>{{ $item }}</span>
-                                </li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
-            </div>
-        </div>
-
-        @if (! empty($progress['timeline']))
+        @php
+            $profilePercent = (int) ($progress['profile_percent'] ?? $progress['percent'] ?? 0);
+            $profileComplete = (bool) ($progress['profile_complete'] ?? $profilePercent >= 100);
+        @endphp
+        @unless ($profileComplete)
             <div class="glass-card p-5 mb-6">
-                <h2 class="font-semibold mb-4">{{ $progress['timeline_title'] ?? __('borrower.loan_profile.application_progress') }}</h2>
-                <ul class="space-y-2">
-                    @foreach ($progress['timeline'] as $step)
-                        @php
-                            $isLoanProgress = (bool) ($progress['is_loan_progress'] ?? false);
-                            $complete = (bool) ($step['complete'] ?? false);
-                            $current = (bool) ($step['current'] ?? false);
-                            $icon = $complete ? '✓' : ($current ? '⏳' : ($isLoanProgress ? '○' : (($step['current'] ?? false) ? '→' : '○')));
-                            $tone = $complete ? 'text-emerald-700' : ($current ? 'text-amber-900 font-semibold' : 'text-gray-600');
-                        @endphp
-                        <li class="flex items-start gap-2 text-sm {{ $tone }}">
-                            <span class="mt-0.5">{{ $icon }}</span>
-                            <span>{{ $step['label'] }}</span>
-                        </li>
-                    @endforeach
-                </ul>
-                @if (($progress['is_loan_progress'] ?? false) && in_array($status['code'] ?? '', ['disbursed', 'closed'], true))
-                    <p class="mt-4 text-sm font-semibold text-emerald-700">{{ __('borrower.loan_progress.status_active') }}</p>
-                @endif
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex-1">
+                        <h2 class="font-semibold">{{ __('borrower.loan_profile.profile_completion') }}</h2>
+                        <div class="flex items-center gap-3 mt-3">
+                            <div class="flex-1 max-w-xs h-2 rounded-full bg-gray-100 overflow-hidden">
+                                <div class="h-full rounded-full bg-brand" style="width: {{ $profilePercent }}%"></div>
+                            </div>
+                            <span class="text-sm font-bold tabular-nums">{{ $profilePercent }}%</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-2">{{ __('borrower.loan_profile.profile_completion_hint') }}</p>
+                    </div>
+                    <a href="{{ route('site.borrower.profile') }}"
+                       class="inline-flex items-center justify-center font-semibold px-6 py-2.5 rounded-xl text-sm shrink-0 bg-brand hover:bg-brand-light text-white">
+                        {{ __('borrower.loan_profile.complete_profile') }}
+                    </a>
+                </div>
             </div>
-        @endif
-
-        @if (! empty($profile['missing_requirements']))
-            <div class="glass-card p-5 mb-6">
-                <h2 class="font-semibold mb-1">{{ __('borrower.loan_profile.missing_requirements_title') }}</h2>
-                <p class="text-xs text-gray-500 mb-4">{{ __('borrower.loan_profile.missing_requirements_hint') }}</p>
-                <ul class="divide-y divide-gray-100">
-                    @foreach ($profile['missing_requirements'] as $requirement)
-                        <li class="py-3 flex items-center justify-between gap-3 flex-wrap">
-                            <span class="text-sm font-medium text-gray-900">{{ $requirement['label'] }}</span>
-                            <a href="{{ $requirement['upload_url'] }}"
-                               class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2 rounded-xl text-xs">
-                                {{ __('borrower.loan_profile.upload') }}
-                            </a>
-                        </li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
+        @endunless
     @endunless
 
     @if ($profile['is_draft'] ?? false)
-        @include('site.borrower.loan-profile._draft_sections', ['profile' => $profile])
+        {{-- Draft summary only; details live on profile --}}
     @elseif ($application)
         @include('site.borrower.loan-profile._submitted', ['profile' => $profile, 'application' => $application, 'customer' => $customer])
     @endif
