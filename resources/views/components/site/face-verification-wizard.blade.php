@@ -296,8 +296,6 @@
                         this.simpleMode = this.isDesktop;
                         this.ready = true;
                         this.notice = null;
-
-                        await this.startScan();
                     },
 
                     async cameraPermissionGranted() {

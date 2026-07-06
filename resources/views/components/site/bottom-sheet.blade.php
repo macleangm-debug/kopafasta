@@ -3,7 +3,7 @@
     'open' => 'open',
 ])
 
-<div x-show="{{ $open }}" x-cloak class="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true">
+<div x-show="{{ $open }}" x-cloak class="fixed inset-0 z-[70]" role="dialog" aria-modal="true">
     <div class="absolute inset-0 bg-black/40 backdrop-blur-[1px]" @click="{{ $open }} = false" x-transition.opacity></div>
     <div class="absolute inset-x-0 bottom-0 max-h-[min(90vh,640px)] flex flex-col rounded-t-2xl bg-white shadow-[0_-8px_40px_rgba(0,0,0,0.15)]"
          x-show="{{ $open }}"

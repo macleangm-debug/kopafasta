@@ -1,6 +1,6 @@
 {{-- Premium login — borrower / partner portal --}}
 <x-site.layout :title="brand_title(__('site.auth.sign_in'))">
-    <section class="min-h-[calc(100vh-4rem)] grid lg:grid-cols-2 premium-gradient">
+    <section class="min-h-[100dvh] max-h-[100dvh] overflow-hidden grid lg:grid-cols-2 premium-gradient">
         <aside class="hidden lg:flex relative overflow-hidden bg-brand text-white p-12 flex-col justify-between">
             <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_bottom_left,_#f5c842,_transparent_50%)]"></div>
             <a href="{{ route('site.home') }}" class="relative"><x-site.brand-mark variant="light" /></a>
@@ -17,8 +17,8 @@
             <p class="relative text-xs text-white/50">&copy; {{ date('Y') }} {{ brand('legal_name') }}</p>
         </aside>
 
-        <div class="flex items-center justify-center px-4 py-12 sm:px-12">
-            <div class="w-full max-w-md glass-card p-8 sm:p-10" x-data="{ method: '{{ old('auth_method', 'pin') }}' }">
+        <div class="flex items-center justify-center px-4 py-8 sm:px-12 overflow-y-auto max-h-[100dvh] lg:max-h-none">
+            <div class="w-full max-w-md glass-card p-6 sm:p-10 my-auto" x-data="{ method: '{{ old('auth_method', 'pin') }}' }">
                 <a href="{{ route('site.home') }}" class="lg:hidden mb-8 inline-block">
                     <x-site.brand-mark size="md" />
                 </a>

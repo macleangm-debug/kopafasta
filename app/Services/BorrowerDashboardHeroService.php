@@ -71,7 +71,7 @@ class BorrowerDashboardHeroService
                 'amount'    => null,
                 'meta'      => $settledLoan->loan_number,
                 'cta_label' => __('borrower.dashboard.hero.settled_cta'),
-                'cta_url'   => route('site.products'),
+                'cta_url'   => route('site.borrower.dashboard').'#loan-products',
             ];
         }
 
@@ -116,7 +116,7 @@ class BorrowerDashboardHeroService
                     : __('borrower.dashboard.hero.view_application'),
                 'cta_url'            => route('site.borrower.loans', ['tab' => 'applications']),
                 'secondary_cta_label'=> __('borrower.dashboard.hero.apply_now'),
-                'secondary_cta_url'  => route('site.products'),
+                'secondary_cta_url'  => route('site.borrower.dashboard').'#loan-products',
             ];
         }
 
@@ -131,7 +131,7 @@ class BorrowerDashboardHeroService
             'amount'    => null,
             'meta'      => null,
             'cta_label' => __('borrower.dashboard.hero.apply_now'),
-            'cta_url'   => route('site.products'),
+            'cta_url'   => route('site.borrower.dashboard').'#loan-products',
         ];
     }
 }

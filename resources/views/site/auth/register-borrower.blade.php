@@ -7,7 +7,7 @@
 @endphp
 {{-- Professional 3-step borrower registration wizard --}}
 <x-site.layout :title="$isGuarantorRegistration ? brand_title(__('borrower.guarantor_invite.create_account')) : ($isGroupInviteRegistration ? brand_title(__('borrower.apply.group.register_title')) : 'Register as borrower — Kopafasta')">
-    <section class="min-h-[calc(100vh-4rem)] grid lg:grid-cols-2 premium-gradient">
+    <section class="min-h-[100dvh] max-h-[100dvh] overflow-hidden grid lg:grid-cols-2 premium-gradient">
         <aside class="hidden lg:flex relative overflow-hidden bg-brand text-white p-12 flex-col justify-between">
             <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_bottom_left,_#f5c842,_transparent_50%)]"></div>
             <a href="{{ route('site.home') }}" class="relative"><x-site.brand-mark variant="light" /></a>
@@ -50,7 +50,7 @@
             </p>
         </aside>
 
-        <div class="flex items-start lg:items-center justify-center px-4 py-10 sm:px-12 form-scroll-lock" x-data="borrowerWizard({
+        <div class="flex items-start lg:items-center justify-center px-4 py-8 sm:px-12 overflow-y-auto max-h-[100dvh] lg:max-h-none form-scroll-lock" x-data="borrowerWizard({
             first_name:  @js(old('first_name', $prefill['first_name'] ?? '')),
             middle_name: @js(old('middle_name', $prefill['middle_name'] ?? '')),
             last_name:   @js(old('last_name', $prefill['last_name'] ?? '')),

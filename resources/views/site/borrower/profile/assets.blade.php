@@ -43,19 +43,42 @@
                         </div>
                     </div>
 
-                    <div class="grid sm:grid-cols-3 gap-4 pt-2 border-t border-gray-100">
-                        @foreach ([
-                            'photo' => __('borrower.profile.asset_photo'),
-                            'person_photo' => __('borrower.profile.person_with_asset'),
-                            'ownership_document' => __('borrower.profile.ownership_document'),
-                        ] as $field => $label)
+                    <div class="grid sm:grid-cols-2 gap-4 pt-2 border-t border-gray-100">
+                        @php
+                            $photoSlots = [
+                                ['key' => 0, 'icon' => '⬅️', 'label' => __('borrower.profile.asset_photo_front')],
+                                ['key' => 1, 'icon' => '➡️', 'label' => __('borrower.profile.asset_photo_back')],
+                                ['key' => 2, 'icon' => '↗️', 'label' => __('borrower.profile.asset_photo_side')],
+                                ['key' => 3, 'icon' => '↘️', 'label' => __('borrower.profile.asset_photo_angle')],
+                            ];
+                        @endphp
+                        @foreach ($photoSlots as $slot)
                             <div class="rounded-xl ring-1 ring-gray-200 p-4">
-                                <label class="block text-xs font-semibold text-gray-700 mb-2">{{ $label }}</label>
-                                <input type="file" name="{{ $field }}" accept="{{ $field === 'ownership_document' ? 'image/*,application/pdf' : 'image/*' }}"
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span aria-hidden="true">{{ $slot['icon'] }}</span>
+                                    <label class="text-xs font-semibold text-gray-700">{{ $slot['label'] }}</label>
+                                </div>
+                                <input type="file" name="photos[]" accept="image/*" capture="environment"
                                        class="w-full text-xs file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-brand-muted file:text-brand file:font-semibold"
-                                       @if ($field === 'photo') required @endif>
+                                       @if ($slot['key'] < 2) required @endif>
                             </div>
                         @endforeach
+                        <div class="rounded-xl ring-1 ring-gray-200 p-4">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span aria-hidden="true">🤳</span>
+                                <label class="text-xs font-semibold text-gray-700">{{ __('borrower.profile.person_with_asset') }}</label>
+                            </div>
+                            <input type="file" name="person_photo" accept="image/*" capture="user" required
+                                   class="w-full text-xs file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-brand-muted file:text-brand file:font-semibold">
+                        </div>
+                        <div class="rounded-xl ring-1 ring-gray-200 p-4 sm:col-span-2">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span aria-hidden="true">📄</span>
+                                <label class="text-xs font-semibold text-gray-700">{{ __('borrower.profile.ownership_document') }}</label>
+                            </div>
+                            <input type="file" name="ownership_document" accept="image/*,application/pdf" required
+                                   class="w-full text-xs file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-brand-muted file:text-brand file:font-semibold">
+                        </div>
                     </div>
 
                     <div class="flex flex-wrap gap-3">
@@ -77,23 +100,29 @@
                             @if ($asset->estimated_value)
                                 <p class="text-sm text-gray-600 mt-1">{{ format_money($asset->estimated_value) }}</p>
                             @endif
-                            <div class="grid grid-cols-3 gap-2 mt-4">
-                                @foreach ([
-                                    ['path' => $asset->photo_paths[0] ?? null, 'label' => __('borrower.profile.asset_photo')],
-                                    ['path' => $meta['person_with_asset_path'] ?? null, 'label' => __('borrower.profile.person_with_asset')],
-                                    ['path' => $meta['ownership_document_path'] ?? null, 'label' => __('borrower.profile.ownership_document')],
-                                ] as $img)
-                                    @if ($img['path'])
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
+                                @foreach ($asset->photo_paths ?? [] as $i => $path)
                                     <div>
-                                        <p class="text-[10px] text-gray-500 mb-1">{{ $img['label'] }}</p>
-                                        @if (str_ends_with(strtolower($img['path']), '.pdf'))
-                                            <a href="{{ asset('storage/'.$img['path']) }}" target="_blank" class="text-xs text-brand font-semibold">{{ __('borrower.profile.view_document') }}</a>
+                                        <p class="text-[10px] text-gray-500 mb-1">{{ __('borrower.profile.asset_photo') }} {{ $i + 1 }}</p>
+                                        <img src="{{ asset('storage/'.$path) }}" alt="" class="w-full h-20 object-cover rounded-lg ring-1 ring-gray-100">
+                                    </div>
+                                @endforeach
+                                @if ($meta['person_with_asset_path'] ?? null)
+                                    <div>
+                                        <p class="text-[10px] text-gray-500 mb-1">{{ __('borrower.profile.person_with_asset') }}</p>
+                                        <img src="{{ asset('storage/'.$meta['person_with_asset_path']) }}" alt="" class="w-full h-20 object-cover rounded-lg ring-1 ring-gray-100">
+                                    </div>
+                                @endif
+                                @if ($meta['ownership_document_path'] ?? null)
+                                    <div>
+                                        <p class="text-[10px] text-gray-500 mb-1">{{ __('borrower.profile.ownership_document') }}</p>
+                                        @if (str_ends_with(strtolower($meta['ownership_document_path']), '.pdf'))
+                                            <a href="{{ asset('storage/'.$meta['ownership_document_path']) }}" target="_blank" class="text-xs text-brand font-semibold">{{ __('borrower.profile.view_document') }}</a>
                                         @else
-                                            <img src="{{ asset('storage/'.$img['path']) }}" alt="" class="w-full h-20 object-cover rounded-lg ring-1 ring-gray-100">
+                                            <img src="{{ asset('storage/'.$meta['ownership_document_path']) }}" alt="" class="w-full h-20 object-cover rounded-lg ring-1 ring-gray-100">
                                         @endif
                                     </div>
-                                    @endif
-                                @endforeach
+                                @endif
                             </div>
                             <form method="POST" action="{{ route('site.borrower.profile.assets.destroy', $asset) }}" class="mt-4"
                                   @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.remove_asset_confirm')), message: '', confirmLabel: @js(__('borrower.profile.remove_asset')), confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">

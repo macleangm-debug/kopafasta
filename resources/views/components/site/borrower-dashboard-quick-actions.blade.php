@@ -4,7 +4,7 @@
     $actions = [
         [
             'label' => __('borrower.dashboard.quick_actions.apply'),
-            'route' => route('site.products'),
+            'route' => route('site.borrower.dashboard').'#loan-products',
             'icon'  => '<path d="M12 5v14M5 12h14"/>',
             'accent' => 'bg-brand-gold text-brand hover:bg-yellow-400',
         ],

@@ -8,14 +8,22 @@
     'wizardKey' => null,
 ])
 
+@if (! $wizardMode && ($active ?? '') !== 'hub')
+    <div class="mb-4">
+        <a href="{{ route('site.borrower.profile') }}" class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline">
+            ← {{ __('borrower.profile.hub.back') }}
+        </a>
+    </div>
+@endif
+
 @include('site.borrower.profile._heading', [
     'title' => $title,
-    'subtitle' => $subtitle,
+    'subtitle' => ($active ?? '') === 'hub' ? $subtitle : null,
 ])
 
 @if (! $wizardMode)
     @include('site.borrower.profile._account_segments', ['activePanel' => $accountPanel])
-    @if ($accountPanel === 'profile')
+    @if ($accountPanel === 'profile' && ($active ?? '') === 'hub')
         @include('site.borrower.profile._member_card', ['customer' => $customer])
     @endif
 @endif
@@ -29,10 +37,4 @@
     ])
 @elseif ($accountPanel === 'profile' && ($active ?? '') === 'hub')
     @include('site.borrower.profile._profile_overview', ['customer' => $customer])
-@elseif ($accountPanel === 'profile' && ($active ?? '') !== 'hub')
-    <div class="mb-6">
-        <a href="{{ route('site.borrower.profile') }}" class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline">
-            ← {{ __('borrower.profile.hub.back') }}
-        </a>
-    </div>
 @endif

@@ -2,7 +2,7 @@
 
     <div>
         @include('site.borrower.profile._profile_shell', [
-            'title' => __('borrower.profile.account_title'),
+            'title' => __('borrower.profile.residence'),
             'subtitle' => __('borrower.profile.residence_subtitle'),
             'customer' => $customer,
             'active' => 'residence',
@@ -15,21 +15,42 @@
         @endif
 
         @php
-            $editing = ($wizardMode ?? false) || ($editing ?? false);
-            $editUrl = route('site.borrower.profile', ['section' => 'residence', 'edit' => 1]);
             $residenceComplete = app(\App\Services\ProfileCompletionService::class)->isResidenceComplete($customer);
             $requiresLetter = app(\App\Services\ProfileValidationService::class)->requiresResidenceLetter();
+            $saveConfirm = [
+                'title' => __('borrower.profile.save_confirm_title'),
+                'message' => __('borrower.profile.save_confirm_message'),
+                'confirmLabel' => __('borrower.profile.save'),
+                'confirmClass' => 'bg-amber-500 hover:bg-amber-400 text-gray-900',
+            ];
         @endphp
 
         <x-site.profile-section-card
+            section-id="profile-residence"
+            icon="🏠"
             :title="__('borrower.profile.residence')"
-            :editing="$editing"
-            :edit-url="$editUrl"
-            :complete="$residenceComplete">
-            @if ($editing)
+            :complete="$residenceComplete"
+            :default-open="($wizardMode ?? false) || ($editing ?? false)">
+            <x-slot:view>
+                <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+                    <div><dt class="text-gray-500">{{ __('borrower.profile.region') }}</dt><dd class="font-medium mt-0.5">{{ $customer->region ?: '—' }}</dd></div>
+                    <div><dt class="text-gray-500">{{ __('borrower.profile.district') }}</dt><dd class="font-medium mt-0.5">{{ $customer->district ?: '—' }}</dd></div>
+                    <div><dt class="text-gray-500">{{ __('borrower.profile.ward') }}</dt><dd class="font-medium mt-0.5">{{ $customer->ward ?: '—' }}</dd></div>
+                    <div class="sm:col-span-2"><dt class="text-gray-500">{{ __('borrower.profile.street') }}</dt><dd class="font-medium mt-0.5">{{ $customer->street ?: $customer->address ?: '—' }}</dd></div>
+                </dl>
+                @if ($requiresLetter)
+                    <p class="mt-4 text-xs text-gray-500">
+                        {{ __('borrower.profile.residence_letter') }}:
+                        <span class="font-semibold {{ ($residenceLetter ?? null) ? 'text-emerald-700' : 'text-amber-700' }}">
+                            {{ ($residenceLetter ?? null) ? __('borrower.profile.uploaded') : __('borrower.profile.missing') }}
+                        </span>
+                    </p>
+                @endif
+            </x-slot:view>
+            <x-slot:form>
                 <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'residence']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
                       enctype="multipart/form-data"
-                      @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.save_confirm_title')), message: @js(__('borrower.profile.save_confirm_message')), confirmLabel: @js(__('borrower.profile.save')), confirmClass: 'bg-amber-500 hover:bg-amber-400 text-gray-900' })">
+                      @submit.prevent="window.confirmForm($el, @js($saveConfirm))">
                     @csrf @method('PUT')
                     @if ($wizardMode ?? false)
                         <input type="hidden" name="wizard" value="1">
@@ -48,7 +69,6 @@
                     @if ($requiresLetter)
                     <div class="mt-6 pt-6 border-t border-gray-100">
                         <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.profile.residence_letter') }} <span class="text-red-500">*</span></label>
-                        <p class="text-xs text-gray-500 mb-3">{{ __('borrower.profile.residence_letter_hint') }}</p>
                         <x-site.profile-document-field
                             :document="$residenceLetter ?? null"
                             field-name="residence_letter"
@@ -66,29 +86,11 @@
                     </div>
                     @endif
 
-                    <div class="mt-6 flex flex-wrap gap-3">
-                        <button class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">{{ ($wizardMode ?? false) ? __('borrower.profile_wizard.save_continue') : __('borrower.profile.save_residence') }}</button>
-                        @unless ($wizardMode ?? false)
-                            <a href="{{ route('site.borrower.profile', ['section' => 'residence']) }}" class="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-2.5">{{ __('borrower.profile.cancel_edit') }}</a>
-                        @endunless
-                    </div>
+                    <button type="submit" class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                        {{ ($wizardMode ?? false) ? __('borrower.profile_wizard.save_continue') : __('borrower.profile.save') }}
+                    </button>
                 </form>
-            @else
-                <dl class="grid sm:grid-cols-2 gap-4 text-sm">
-                    <div><dt class="text-gray-500">{{ __('borrower.profile.region') }}</dt><dd class="font-medium mt-0.5">{{ $customer->region ?: '—' }}</dd></div>
-                    <div><dt class="text-gray-500">{{ __('borrower.profile.district') }}</dt><dd class="font-medium mt-0.5">{{ $customer->district ?: '—' }}</dd></div>
-                    <div><dt class="text-gray-500">{{ __('borrower.profile.ward') }}</dt><dd class="font-medium mt-0.5">{{ $customer->ward ?: '—' }}</dd></div>
-                    <div class="sm:col-span-2"><dt class="text-gray-500">{{ __('borrower.profile.street') }}</dt><dd class="font-medium mt-0.5">{{ $customer->street ?: $customer->address ?: '—' }}</dd></div>
-                </dl>
-                @if ($requiresLetter)
-                    <p class="mt-4 text-xs text-gray-500">
-                        {{ __('borrower.profile.residence_letter') }}:
-                        <span class="font-semibold {{ ($residenceLetter ?? null) ? 'text-emerald-700' : 'text-amber-700' }}">
-                            {{ ($residenceLetter ?? null) ? __('borrower.profile.uploaded') : __('borrower.profile.missing') }}
-                        </span>
-                    </p>
-                @endif
-            @endif
+            </x-slot:form>
         </x-site.profile-section-card>
 
         @include('site.borrower.profile._wizard_footer', ['customer' => $customer, 'wizardMode' => $wizardMode ?? false, 'wizardKey' => $wizardKey ?? 'residence'])

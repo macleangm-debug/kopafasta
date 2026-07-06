@@ -240,6 +240,12 @@ class AuthController extends Controller
             return $guarantorRedirect;
         }
 
+        if ($returnUrl = $request->session()->pull('login_redirect')) {
+            return redirect($returnUrl)
+                ->with('status', 'PIN created. Welcome back!')
+                ->with(\App\Support\Celebration::SESSION_KEY, ['registration']);
+        }
+
         return redirect()->route('site.membership.renew')
             ->with('status', 'PIN created. Pay your registration fee to unlock loans and services.')
             ->with(\App\Support\Celebration::SESSION_KEY, ['registration']);

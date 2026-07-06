@@ -104,7 +104,7 @@
         </section>
     @endif
 
-    <div class="mb-8">
+    <div class="mb-8" id="loan-products">
         <div class="flex items-end justify-between gap-3 mb-4">
             <div>
                 <h2 class="text-lg font-semibold">{{ __('borrower.loan_products') }}</h2>

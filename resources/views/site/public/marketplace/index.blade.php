@@ -22,6 +22,42 @@
     </section>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        @guest
+        <div class="mb-8 glass-card overflow-hidden" x-data="{ requestOpen: false }">
+            <button type="button" @click="requestOpen = !requestOpen" class="w-full text-left p-6 flex items-center justify-between gap-4 hover:bg-brand-muted/20 transition">
+                <div class="flex items-start gap-3">
+                    <span class="text-2xl" aria-hidden="true">🔍</span>
+                    <div>
+                        <h2 class="font-semibold text-lg">{{ __('borrower.marketplace.request_collapsed_title') }}</h2>
+                        <p class="text-sm text-gray-500 mt-1">{{ __('borrower.marketplace.find_subtitle') }}</p>
+                    </div>
+                </div>
+                <span class="shrink-0 text-sm font-semibold text-brand" x-text="requestOpen ? '−' : '+'"></span>
+            </button>
+            <form x-show="requestOpen" x-cloak method="POST" action="{{ route('site.marketplace.request') }}" class="px-6 pb-6 grid sm:grid-cols-2 gap-4 border-t border-gray-100/80 pt-4">
+                @csrf
+                <div class="sm:col-span-2 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">
+                    {{ __('borrower.marketplace.request_signup_hint') }}
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.asset_name') }}</label>
+                    <input name="asset_name" required placeholder="e.g. Toyota Hilux 2019" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.budget') }}</label>
+                    <input type="text" inputmode="numeric" name="budget" data-money-input="0" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.tenure') }}</label>
+                    <input type="text" inputmode="numeric" name="preferred_tenure_months" maxlength="3" placeholder="24" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand">
+                </div>
+                <div class="sm:col-span-2">
+                    <button class="w-full sm:w-auto bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm">{{ __('borrower.marketplace.request_signup_cta') }}</button>
+                </div>
+            </form>
+        </div>
+        @endguest
+
         @include('site.marketplace._category-filters', [
             'categories' => $categories,
             'category' => $category,

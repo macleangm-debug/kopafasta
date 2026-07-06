@@ -97,7 +97,13 @@ class AssetMarketplaceController extends Controller
         $model = $this->resolveModel($assetId);
         abort_if(! $model, 404);
 
-        app(AssetReservationService::class)->startApplication($customer, $model);
+        try {
+            app(AssetReservationService::class)->startApplication($customer, $model);
+        } catch (\InvalidArgumentException $e) {
+            return redirect()
+                ->route('site.borrower.marketplace.show', $assetId)
+                ->with('error', $e->getMessage());
+        }
 
         return redirect()
             ->route('site.borrower.marketplace.reserve', $assetId)
@@ -285,6 +291,28 @@ class AssetMarketplaceController extends Controller
         $customer = auth()->user()?->customer;
         abort_unless($customer, 403);
 
+        return $this->persistAssetRequest($request, $customer);
+    }
+
+    public function storePublicRequest(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'asset_name'              => ['required', 'string', 'max:150'],
+            'description'             => ['nullable', 'string', 'max:2000'],
+            'budget'                  => ['nullable', 'numeric', 'min:0'],
+            'preferred_tenure_months' => ['nullable', 'integer', 'min:1', 'max:120'],
+        ]);
+
+        $request->session()->put('pending_asset_request', $data);
+        $request->session()->put('login_redirect', route('site.borrower.marketplace', ['request' => 1]));
+
+        return redirect()
+            ->route('site.register.borrower')
+            ->with('status', __('borrower.marketplace.request_signup_hint'));
+    }
+
+    private function persistAssetRequest(Request $request, Customer $customer): RedirectResponse
+    {
         $data = $request->validate([
             'asset_name'              => ['required', 'string', 'max:150'],
             'description'             => ['nullable', 'string', 'max:2000'],
@@ -316,6 +344,8 @@ class AssetMarketplaceController extends Controller
             'additional_photos'       => $additional ?: null,
             'status'                  => 'sourcing',
         ]);
+
+        $request->session()->forget('pending_asset_request');
 
         return redirect()
             ->route('site.borrower.marketplace')

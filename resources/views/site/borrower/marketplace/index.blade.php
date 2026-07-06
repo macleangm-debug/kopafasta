@@ -7,7 +7,11 @@
     />
 
     {{-- Find what you need (collapsed) --}}
-    <div class="mb-8 glass-card overflow-hidden" x-data="{ requestOpen: false }">
+    @php
+        $pendingRequest = session('pending_asset_request', []);
+        $openRequest = request()->boolean('request') || filled($pendingRequest);
+    @endphp
+    <div class="mb-8 glass-card overflow-hidden" x-data="{ requestOpen: @js($openRequest) }">
         <button type="button" @click="requestOpen = !requestOpen" class="w-full text-left p-6 flex items-center justify-between gap-4 hover:bg-brand-muted/20 transition">
             <div>
                 <h2 class="font-semibold text-lg">{{ __('borrower.marketplace.request_collapsed_title') }}</h2>
@@ -19,15 +23,15 @@
             @csrf
             <div class="sm:col-span-2">
                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.asset_name') }}</label>
-                <input name="asset_name" required placeholder="e.g. Toyota Hilux 2019" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand">
+                <input name="asset_name" required value="{{ old('asset_name', $pendingRequest['asset_name'] ?? '') }}" placeholder="e.g. Toyota Hilux 2019" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.budget') }}</label>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" name="budget" data-money-input="0" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" name="budget" value="{{ old('budget', $pendingRequest['budget'] ?? '') }}" data-money-input="0" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.tenure') }}</label>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" name="preferred_tenure_months" maxlength="3" placeholder="e.g. 24" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" name="preferred_tenure_months" value="{{ old('preferred_tenure_months', $pendingRequest['preferred_tenure_months'] ?? '') }}" maxlength="3" placeholder="e.g. 24" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand">
             </div>
             <div class="sm:col-span-2">
                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.photo') }}</label>

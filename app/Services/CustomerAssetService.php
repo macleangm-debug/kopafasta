@@ -33,9 +33,16 @@ class CustomerAssetService
         $photoPaths = [];
         $metadata = [];
 
-        if ($files['photo'] ?? null) {
+        foreach ($files['photos'] ?? [] as $photo) {
+            if ($photo) {
+                $photoPaths[] = $photo->store("customer/{$customer->id}/assets", 'public');
+            }
+        }
+
+        if (($files['photo'] ?? null) && count($photoPaths) < 4) {
             $photoPaths[] = $files['photo']->store("customer/{$customer->id}/assets", 'public');
         }
+
         if ($files['person_photo'] ?? null) {
             $metadata['person_with_asset_path'] = $files['person_photo']->store("customer/{$customer->id}/assets", 'public');
         }

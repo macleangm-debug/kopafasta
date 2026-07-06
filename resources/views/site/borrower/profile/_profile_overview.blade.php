@@ -9,13 +9,13 @@
     $meetsThreshold = $percent >= 100 || $percent >= $threshold;
 
     $sectionMeta = [
-        'personal'  => ['icon' => '👤', 'hint' => __('borrower.profile.hub.personal_hint')],
-        'activity'  => ['icon' => '💼', 'hint' => __('borrower.profile.hub.activity_hint')],
-        'residence' => ['icon' => '🏠', 'hint' => __('borrower.profile.hub.residence_hint')],
-        'kyc'       => ['icon' => '📄', 'hint' => __('borrower.profile.hub.kyc_hint')],
-        'security'  => ['icon' => '🔒', 'hint' => __('borrower.profile.hub.security_hint')],
-        'payment'   => ['icon' => '💳', 'hint' => __('borrower.profile.hub.payment_hint')],
-        'assets'    => ['icon' => '🚗', 'hint' => __('borrower.profile.hub.assets_hint')],
+        'personal'  => ['icon' => '👤', 'hint' => ''],
+        'activity'  => ['icon' => '💼', 'hint' => ''],
+        'residence' => ['icon' => '🏠', 'hint' => ''],
+        'kyc'       => ['icon' => '📄', 'hint' => ''],
+        'security'  => ['icon' => '🔒', 'hint' => ''],
+        'payment'   => ['icon' => '💳', 'hint' => ''],
+        'assets'    => ['icon' => '🚗', 'hint' => ''],
     ];
 @endphp
 
@@ -79,7 +79,9 @@
                     </span>
                 </div>
                 <h3 class="mt-4 font-bold text-gray-900 group-hover:text-brand transition">{{ $tab['label'] }}</h3>
-                <p class="mt-1 text-xs text-gray-500 line-clamp-2">{{ $meta['hint'] }}</p>
+                @if (filled($meta['hint']))
+                    <p class="mt-1 text-xs text-gray-500 line-clamp-2">{{ $meta['hint'] }}</p>
+                @endif
                 <p class="mt-4 text-xs font-semibold text-brand">
                     {{ $complete ? __('borrower.profile.hub.view_edit') : __('borrower.profile.hub.complete_section') }} →
                 </p>

@@ -1251,7 +1251,39 @@ class BorrowerController extends Controller
         $detailsService = app(\App\Services\CustomerDisbursementDetailsService::class);
         $borrowerLegalName = $customer->legalDisplayName() ?? trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
 
-        return view($view, compact('customer', 'kyc', 'trustedDevices', 'nidaDocuments', 'employmentContract', 'residenceLetter', 'incomeProofChecklist', 'incomeProofEmployed', 'incomeProofMethod', 'incomePrimaryOptions', 'completionSummary', 'returnUrl', 'wizardMode', 'wizardKey'))
+        $faceSteps = null;
+        $faceUploadUrls = null;
+        $faceWizard = null;
+        $facePhotos = null;
+        $faceAngles = null;
+
+        if ($section === 'personal') {
+            $faces = app(\App\Services\FaceVerificationService::class);
+            $facePhotos = $faces->latestByAngle($customer);
+            $faceAngles = $faces->angles();
+            $faceWizard = $faces->wizardState($customer);
+            $faceUploadUrls = collect($faceWizard['order'])->mapWithKeys(fn (string $key) => [
+                $key => route('site.borrower.face-verification.store', ['angle' => $key]),
+            ])->all();
+            $faceSteps = collect($faceWizard['order'])->map(function (string $key) use ($faceAngles, $facePhotos) {
+                $meta = $faceAngles[$key] ?? [];
+
+                return [
+                    'key'         => $key,
+                    'label'       => $meta['label'] ?? $key,
+                    'step_title'  => $meta['step_title'] ?? ($meta['label'] ?? $key),
+                    'instruction' => $meta['instruction'] ?? '',
+                    'pose'        => match ($key) {
+                        'left'  => 'left',
+                        'right' => 'right',
+                        default => 'front',
+                    },
+                    'done'        => isset($facePhotos[$key]) && ($facePhotos[$key]->status ?? '') !== 'rejected',
+                ];
+            })->values()->all();
+        }
+
+        return view($view, compact('customer', 'kyc', 'trustedDevices', 'nidaDocuments', 'employmentContract', 'residenceLetter', 'incomeProofChecklist', 'incomeProofEmployed', 'incomeProofMethod', 'incomePrimaryOptions', 'completionSummary', 'returnUrl', 'wizardMode', 'wizardKey', 'faceSteps', 'faceUploadUrls', 'faceWizard', 'facePhotos', 'faceAngles'))
             ->with('editing', $wizardMode || $request->boolean('edit'))
             ->with('crbUsesStub', app(CrbService::class)->usesStub())
             ->with('crbSamples', config('crb_samples.scenarios', []))
@@ -1304,10 +1336,14 @@ class BorrowerController extends Controller
         $validation = app(ProfileValidationService::class);
 
         if ($section === 'personal') {
-            $kinRequired = ! $request->boolean('wizard') || $request->input('focus') === 'kin';
-            $data = $request->validate([
+            $focus = (string) $request->input('focus', 'all');
+            $identityRequired = app(\App\Services\ProfileCompletionService::class)->identityRequiredDuringProfile();
+            $kinRequired = in_array($focus, ['kin', 'all'], true) && (! $request->boolean('wizard') || $request->input('focus') === 'kin');
+
+            $rules = [
                 'phone' => ['nullable', 'string', 'max:20'],
                 'email' => ['nullable', 'email', 'max:120'],
+                'national_id' => ['nullable', 'string', 'max:30', new \App\Rules\ValidNidaNumber],
                 'nok_first_name'   => [$kinRequired ? 'required' : 'nullable', 'string', 'max:80'],
                 'nok_middle_name'  => ['nullable', 'string', 'max:80'],
                 'nok_last_name'    => [$kinRequired ? 'required' : 'nullable', 'string', 'max:80'],
@@ -1318,30 +1354,48 @@ class BorrowerController extends Controller
                 'nok_ward'         => ['nullable', 'string', 'max:100'],
                 'nok_street'       => [$kinRequired ? 'required' : 'nullable', 'string', 'max:255'],
                 'national_id_front' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            ]);
+            ];
 
-            $customer->fill(array_filter([
-                'phone'            => $data['phone'] ?? $customer->phone,
-                'email'            => $data['email'] ?? $customer->email,
-                'nok_first_name'   => $data['nok_first_name'] ?? null,
-                'nok_middle_name'  => $data['nok_middle_name'] ?? null,
-                'nok_last_name'    => $data['nok_last_name'] ?? null,
-                'nok_name'         => KinName::full($data['nok_first_name'] ?? null, $data['nok_middle_name'] ?? null, $data['nok_last_name'] ?? null) ?: null,
-                'nok_relationship' => $data['nok_relationship'] ?? null,
-                'nok_phone'        => $data['nok_phone'] ?? null,
-                'nok_region'       => $data['nok_region'] ?? null,
-                'nok_district'     => $data['nok_district'] ?? null,
-                'nok_ward'         => $data['nok_ward'] ?? null,
-                'nok_street'       => $data['nok_street'] ?? null,
-            ], fn ($value) => $value !== null))->save();
+            $data = $request->validate($rules);
 
-            $this->persistProfileDocumentUpload($customer, 'national_id_front', $request->file('national_id_front'), []);
+            if (in_array($focus, ['contact', 'all'], true)) {
+                $customer->fill(array_filter([
+                    'phone' => $data['phone'] ?? $customer->phone,
+                    'email' => $data['email'] ?? $customer->email,
+                ], fn ($value) => $value !== null));
+            }
 
-            if (! $validation->nationalIdUploadsComplete($customer->fresh())) {
-                return redirect()
-                    ->route('site.borrower.profile', ['section' => 'personal'])
-                    ->withErrors(['national_id_front' => __('borrower.profile.nida_upload_required')])
-                    ->withInput();
+            if (in_array($focus, ['identity', 'all'], true) && filled($data['national_id'] ?? null) && ! $customer->identity_locked) {
+                $customer->national_id = $data['national_id'];
+            }
+
+            if (in_array($focus, ['kin', 'all'], true)) {
+                $customer->fill(array_filter([
+                    'nok_first_name'   => $data['nok_first_name'] ?? null,
+                    'nok_middle_name'  => $data['nok_middle_name'] ?? null,
+                    'nok_last_name'    => $data['nok_last_name'] ?? null,
+                    'nok_name'         => KinName::full($data['nok_first_name'] ?? null, $data['nok_middle_name'] ?? null, $data['nok_last_name'] ?? null) ?: null,
+                    'nok_relationship' => $data['nok_relationship'] ?? null,
+                    'nok_phone'        => $data['nok_phone'] ?? null,
+                    'nok_region'       => $data['nok_region'] ?? null,
+                    'nok_district'     => $data['nok_district'] ?? null,
+                    'nok_ward'         => $data['nok_ward'] ?? null,
+                    'nok_street'       => $data['nok_street'] ?? null,
+                ], fn ($value) => $value !== null));
+            }
+
+            $customer->save();
+
+            if (in_array($focus, ['identity', 'all'], true)) {
+                $this->persistProfileDocumentUpload($customer, 'national_id_front', $request->file('national_id_front'), []);
+
+                if ($identityRequired && ! $validation->nationalIdUploadsComplete($customer->fresh())) {
+                    return redirect()
+                        ->route('site.borrower.profile', ['section' => 'personal'])
+                        ->withErrors(['national_id_front' => __('borrower.profile.nida_upload_required')])
+                        ->withInput()
+                        ->withFragment('profile-identity');
+                }
             }
         }
 
@@ -1490,13 +1544,25 @@ class BorrowerController extends Controller
         } elseif ($request->boolean('wizard')) {
             $redirect = $this->redirectWizardStep($request, $customer, $section);
         } else {
-            $redirect = $this->redirectWithGuarantorResume(
-                $request,
-                $customer,
-                redirect()
-                    ->route('site.borrower.profile', array_filter(['section' => $section !== 'personal' ? $section : null]))
-                    ->with('status', 'Profile updated.'),
-            );
+            $profileRedirect = redirect()
+                ->route('site.borrower.profile', array_filter(['section' => $section !== 'personal' ? $section : 'personal']))
+                ->with('status', __('borrower.profile.save_confirm_title'));
+
+            $fragment = match ($section) {
+                'personal' => match ((string) $request->input('focus')) {
+                    'contact'  => 'profile-contact',
+                    'kin'      => 'profile-kin',
+                    'identity' => 'profile-identity',
+                    default    => null,
+                },
+                default => null,
+            };
+
+            if ($fragment) {
+                $profileRedirect = $profileRedirect->withFragment($fragment);
+            }
+
+            $redirect = $this->redirectWithGuarantorResume($request, $customer, $profileRedirect);
         }
 
         if (app(\App\Services\ProfileCompletionService::class)->isFullyComplete($customer->fresh())) {
@@ -2413,13 +2479,14 @@ class BorrowerController extends Controller
             'description'         => ['nullable', 'string', 'max:2000'],
             'registration_number' => ['nullable', 'string', 'max:80'],
             'estimated_value'     => ['nullable', 'numeric', 'min:0'],
-            'photo'               => ['required', 'image', 'max:5120'],
-            'person_photo'        => ['nullable', 'image', 'max:5120'],
-            'ownership_document'  => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
+            'photos'              => ['required', 'array', 'min:2', 'max:4'],
+            'photos.*'            => ['required', 'image', 'max:5120'],
+            'person_photo'        => ['required', 'image', 'max:5120'],
+            'ownership_document'  => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
         ]);
 
         app(\App\Services\CustomerAssetService::class)->store($customer, $data, [
-            'photo'               => $request->file('photo'),
+            'photos'              => array_values(array_filter($request->file('photos', []) ?? [])),
             'person_photo'        => $request->file('person_photo'),
             'ownership_document'  => $request->file('ownership_document'),
         ]);
