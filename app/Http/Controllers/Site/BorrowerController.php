@@ -151,6 +151,7 @@ class BorrowerController extends Controller
         $referralShareMessage = $referralService->shareMessage($customer);
         $referralWallet = $referralService->wallet($customer);
         $dashboardHero = app(\App\Services\BorrowerDashboardHeroService::class)->forCustomer($customer, $activeLoan, $nextDue);
+        $financialSnapshot = app(\App\Services\BorrowerFinancialSnapshotService::class)->forCustomer($customer, $activeLoan);
         $kycFreshness = app(KycFreshnessService::class);
         $kycSectionsDue = $kycFreshness->sectionsDueForRefresh($customer);
 
@@ -158,7 +159,7 @@ class BorrowerController extends Controller
             'customer','activeLoan','nextDue','applicationsCount',
             'notifications','eligibility',
             'products','applyRequirements','onboardingBanner','groupInviteBanner','applyDraftResume','activeApplications','activeApplicationRows','unreadNotificationCount',
-            'openDocumentRequests','referralCode','referralLink','referralShareMessage','referralWallet','dashboardHero','kycSectionsDue',
+            'openDocumentRequests','referralCode','referralLink','referralShareMessage','referralWallet','dashboardHero','financialSnapshot','kycSectionsDue',
         ));
     }
 

@@ -29,6 +29,9 @@
     </div>
     <div class="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pr-0 sm:pr-28">
         <div>
+            @if (! empty($hero['greeting']))
+                <p class="text-sm opacity-90 mb-1">{{ $hero['greeting'] }}</p>
+            @endif
             <p class="text-xs uppercase tracking-widest opacity-80 font-semibold">{{ $hero['title'] ?? '' }}</p>
             @if (! empty($hero['amount']))
                 <p class="text-3xl font-bold mt-1 tabular-nums">{{ $hero['amount'] }}</p>
