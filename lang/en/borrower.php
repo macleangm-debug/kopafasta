@@ -1476,6 +1476,8 @@ return [
         'profile_completion' => 'Profile completion',
         'profile_complete' => 'Complete',
         'application_progress' => 'Application progress',
+        'timeline_complete' => 'Complete',
+        'timeline_in_progress' => 'In progress',
         'progress_title' => 'Application progress',
         'missing' => 'Remaining items',
         'completed' => 'Completed items',

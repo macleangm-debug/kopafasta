@@ -1982,6 +1982,8 @@ return [
   'loan_profile' => 
 [
     'application_progress' => 'Maendeleo ya ombi',
+    'timeline_complete' => 'Imekamilika',
+    'timeline_in_progress' => 'Inaendelea',
     'complete' => 'Imekamilika',
     'incomplete' => 'Haijakamilika',
     'document_fallback' => 'Nyaraka',

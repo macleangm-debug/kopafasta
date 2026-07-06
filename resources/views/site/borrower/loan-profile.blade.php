@@ -57,6 +57,14 @@
         </div>
     @endif
 
+    @if (! empty($progress['timeline']) && ($status['code'] ?? '') !== 'rejected')
+        <x-site.application-timeline
+            :steps="$progress['timeline']"
+            :title="$progress['timeline_title'] ?? __('borrower.loan_profile.application_progress')"
+            :percent="$progress['application_percent'] ?? $progress['percent'] ?? null"
+        />
+    @endif
+
     {{-- Application summary --}}
     <div class="glass-card p-5 mb-6">
         <h2 class="font-semibold mb-4">{{ __('borrower.loan_profile.summary_title') }}</h2>

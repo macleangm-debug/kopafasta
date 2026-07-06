@@ -110,6 +110,15 @@
                     </div>
                 </div>
 
+                @if (! empty($row['progress_steps']) && ($row['status'] ?? '') !== 'rejected')
+                    <x-site.application-timeline
+                        compact
+                        :steps="$row['progress_steps']"
+                        :percent="$row['application_percent'] ?? $row['progress_percent'] ?? null"
+                        class="mb-4"
+                    />
+                @endif
+
                 @if (! empty($row['detail']))
                     <p class="text-xs {{ ($row['status'] ?? '') === 'rejected' ? 'text-red-600' : 'text-gray-600' }} mb-3">{{ $row['detail'] }}</p>
                 @endif
