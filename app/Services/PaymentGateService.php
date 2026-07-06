@@ -33,6 +33,7 @@ class PaymentGateService
         bool $useWallet = false,
         ?string $promoCode = null,
         ?string $affiliateCode = null,
+        bool $useStreak = false,
     ): array {
         if (filled($affiliateCode) && ! app(ReferralService::class)->referrer($customer) && ! $customer->affiliate_partner_id) {
             app(AffiliateService::class)->attachAffiliate($customer, $affiliateCode);
@@ -91,7 +92,16 @@ class PaymentGateService
             $loyaltyRedemptionId = $loyalty['redemption']?->id;
         }
 
-        $walletQuote = $referrals->quoteFee($customer, $afterPartner, $useWallet, $feeType, applyDiscount: false);
+        $streakDiscount = 0.0;
+        $streakPercent = 0.0;
+        if ($useStreak) {
+            $streak = app(RepaymentStreakRewardService::class)->discountForFee($customer, $feeType, $afterPartner);
+            $streakDiscount = (float) ($streak['discount'] ?? 0);
+            $streakPercent = (float) ($streak['percent'] ?? 0);
+            $afterPartner = max(0, round($afterPartner - $streakDiscount, 2));
+        }
+
+        $walletQuote = $referrals->quoteFee($customer, $afterPartner, $useWallet && ! $useStreak, $feeType, applyDiscount: false);
 
         return $this->formatQuote([
             'base'                => round($baseAmount, 2),
@@ -100,7 +110,9 @@ class PaymentGateService
             'promo_discount'        => $promoDiscount,
             'loyalty_discount'      => $loyaltyDiscount,
             'loyalty_redemption_id' => $loyaltyRedemptionId,
-            'total_discount'        => round($referralDiscount + $affiliateDiscount + $promoDiscount + $loyaltyDiscount, 2),
+            'streak_discount'       => $streakDiscount,
+            'streak_percent'        => $streakPercent,
+            'total_discount'        => round($referralDiscount + $affiliateDiscount + $promoDiscount + $loyaltyDiscount + $streakDiscount, 2),
             'after_discount'        => $afterPartner,
             'wallet_usable'         => (float) $walletQuote['wallet_usable'],
             'wallet_applied'        => (float) $walletQuote['wallet_applied'],

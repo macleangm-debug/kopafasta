@@ -304,6 +304,7 @@ return [
         'show_less'          => 'Show less',
         'essentials'         => 'At a glance',
         'monthly_payment'    => 'Monthly payment',
+        'weekly_payment'     => 'Weekly payment',
         'total_repayment'    => 'Total repayment',
         'processing_time'    => 'Processing time',
         'application_fee'    => 'Application fee',

@@ -195,6 +195,7 @@ class Phase25FeatureTest extends TestCase
         $customer = $this->completeBorrower();
 
         $this->actingAs($customer->user)
+            ->followingRedirects()
             ->get(route('site.borrower.referrals'))
             ->assertOk()
             ->assertSee('max-w-7xl', false);

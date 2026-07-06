@@ -66,6 +66,7 @@
                 :photos="$photos"
                 :steps="$steps"
                 :upload-urls="$uploadUrls"
+                :delete-urls="$deleteUrls ?? []"
             />
         @endif
     </div>

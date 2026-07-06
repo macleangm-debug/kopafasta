@@ -21,7 +21,7 @@
         ],
         [
             'label' => __('borrower.dashboard.quick_actions.referral'),
-            'route' => route('site.borrower.referrals'),
+            'route' => route('site.borrower.engagement', ['tab' => 'referrals']),
             'icon'  => '🎁',
         ],
         [

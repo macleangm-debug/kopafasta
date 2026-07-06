@@ -322,7 +322,11 @@
             </template>
 
             {{-- Step progress --}}
-            <div class="sticky top-0 z-20 -mx-4 px-4 py-3 mb-6 bg-[#faf8f5]/95 backdrop-blur-md border-b border-gray-200/70 lg:static lg:mx-0 lg:px-0 lg:py-0 lg:mb-8 lg:border-0 lg:bg-transparent">
+            <div class="sticky top-0 z-20 -mx-4 px-4 py-3 mb-6 bg-[#faf8f5]/95 backdrop-blur-md border-b border-gray-200/70 lg:static lg:mx-0 lg:px-0 lg:py-0 lg:mb-6 lg:border-0 lg:bg-transparent">
+                <div class="hidden lg:block h-2 bg-gray-100 rounded-full overflow-hidden mb-4">
+                    <div class="h-full bg-brand transition-all duration-300 rounded-full"
+                         :style="'width:' + (steps.length ? Math.round(((step + 1) / steps.length) * 100) : 0) + '%'"></div>
+                </div>
                 <div class="lg:hidden h-1.5 bg-gray-200 rounded-full overflow-hidden mb-3">
                     <div class="h-full bg-brand transition-all duration-300 rounded-full"
                          :style="'width:' + (steps.length ? Math.round(((step + 1) / steps.length) * 100) : 0) + '%'"></div>
@@ -331,7 +335,7 @@
                     <span x-text="(step + 1) + ' / ' + steps.length"></span>
                     · <span x-text="steps[step]?.label || ''"></span>
                 </p>
-            <ol class="flex items-center gap-1 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-none">
+            <ol class="flex items-center gap-1 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-none lg:glass-card lg:p-4 lg:ring-1 lg:ring-brand/10">
                 <template x-for="(s, i) in steps" :key="s.key">
                     <li class="flex items-center gap-1 shrink-0 snap-start">
                         <button type="button" @click="goto(i)"
@@ -357,11 +361,12 @@
 
                 {{-- Quote --}}
                 <div x-show="stepKey === 'quote'" class="p-6 sm:p-8">
+                    <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-1">{{ __('borrower.apply.quote.eyebrow') }}</p>
                     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.quote.title') }}</h2>
                     <p class="text-sm text-gray-600 mb-5">{{ __('borrower.apply.quote.subtitle') }}</p>
                     <template x-if="current">
                         <div class="space-y-5">
-                            <div class="bg-gray-50 rounded-xl p-5">
+                            <div class="rounded-xl ring-1 ring-brand/15 bg-gradient-to-br from-brand-muted/40 to-white p-5">
                                 <div class="flex justify-between text-sm mb-2"><span class="text-gray-600">{{ __('borrower.apply.quote.loan_amount') }}</span><span class="font-bold" x-text="formatTzs(form.requested_amount)"></span></div>
                                 <input type="range" :min="current.min" :max="current.max" step="50000" x-model.number="form.requested_amount" @input="updateQuote()" class="w-full accent-brand">
                                 <div class="flex justify-between text-sm mb-2 mt-4"><span class="text-gray-600">{{ __('borrower.apply.quote.tenure') }}</span><span class="font-bold"><span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.quote.months') }}</span></div>
@@ -369,10 +374,12 @@
                                 <div class="flex justify-between text-sm mt-4"><span class="text-gray-600">{{ __('borrower.apply.quote.repayment_frequency') }}</span><span class="font-medium capitalize" x-text="current.frequency || 'monthly'"></span></div>
                             </div>
                             <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                <div class="rounded-xl ring-1 ring-gray-100 bg-white p-4"><p class="text-[10px] uppercase text-gray-500">{{ __('borrower.apply.quote.monthly_installment') }}</p><p class="font-bold mt-1" x-text="formatTzs(quote.monthly)"></p></div>
-                                <div class="rounded-xl ring-1 ring-gray-100 bg-white p-4"><p class="text-[10px] uppercase text-gray-500">{{ __('borrower.apply.quote.weekly_installment') }}</p><p class="font-bold mt-1" x-text="formatTzs(quote.weekly)"></p></div>
-                                <div class="rounded-xl ring-1 ring-gray-100 bg-white p-4"><p class="text-[10px] uppercase text-gray-500">{{ __('borrower.apply.quote.interest_est') }}</p><p class="font-bold mt-1" x-text="formatTzs(quote.interest)"></p></div>
-                                <div class="rounded-xl ring-1 ring-gray-100 bg-white p-4"><p class="text-[10px] uppercase text-gray-500">{{ __('borrower.apply.quote.total_repayment') }}</p><p class="font-bold mt-1" x-text="formatTzs(quote.total)"></p></div>
+                                <div class="rounded-xl ring-1 ring-brand/20 bg-brand-muted/30 p-4 sm:col-span-2">
+                                    <p class="text-[10px] uppercase text-brand font-semibold" x-text="repaymentCadence() === 'monthly' ? @js(__('borrower.apply.quote.monthly_installment')) : @js(__('borrower.apply.quote.weekly_installment'))"></p>
+                                    <p class="text-2xl font-bold mt-1 text-gray-900" x-text="formatTzs(quote.primary ?? quote.monthly)"></p>
+                                </div>
+                                <div class="rounded-xl ring-1 ring-brand/15 bg-gradient-to-br from-brand-muted/30 to-white p-4"><p class="text-[10px] uppercase text-gray-500">{{ __('borrower.apply.quote.interest_est') }}</p><p class="font-bold mt-1 text-gray-900" x-text="formatTzs(quote.interest)"></p></div>
+                                <div class="rounded-xl ring-1 ring-brand/15 bg-gradient-to-br from-brand-muted/30 to-white p-4"><p class="text-[10px] uppercase text-gray-500">{{ __('borrower.apply.quote.total_repayment') }}</p><p class="font-bold mt-1 text-gray-900" x-text="formatTzs(quote.total)"></p></div>
                             </div>
                             <div x-show="engagementBoosts && (engagementBoosts.factors?.length || qualificationLimit > 0)" x-cloak class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 p-4 space-y-2">
                                 <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">{{ __('borrower.apply.quote.engagement_title') }}</p>
@@ -718,8 +725,10 @@
                     :payment-reference="$applicationFeePaymentRef ?? null"
                     :referral-wallet="$referralWallet ?? null"
                     :referral-settings="$referralSettings ?? []"
+                    :streak-reward="$streakReward ?? null"
                     :payment-gateway-dummy="$paymentGatewayDummy ?? payment_gateway_is_dummy()"
                     :apply-requirements="$applyRequirements ?? null"
+                    :points-balance="$pointsBalance ?? 0"
                 />
 
                 {{-- Product-specific questions --}}
@@ -765,6 +774,7 @@
 
                 {{-- Review --}}
                 <div x-show="stepKey === 'review'" class="p-6 sm:p-8">
+                    <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-1">{{ __('borrower.apply.review_step.eyebrow') }}</p>
                     <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.review_step.title') }}</h2>
                     <p class="text-sm text-gray-600 mb-4">{{ __('borrower.apply.review_step.subtitle') }}</p>
                     @if (! ($applyRequirements['can_apply'] ?? false))
@@ -792,7 +802,7 @@
                             @endif
                         </div>
                     @endif
-                    <div class="rounded-xl border border-gray-200 divide-y divide-gray-200 mb-5 text-sm">
+                    <div class="rounded-xl ring-1 ring-gray-200/80 bg-white divide-y divide-gray-100 mb-5 text-sm shadow-sm">
                         <div class="px-4 py-3 flex justify-between gap-3"><div><span class="text-gray-500 block">{{ __('borrower.apply.review_step.product') }}</span><span class="font-medium" x-text="current ? current.name : '—'"></span></div><button type="button" @click="backToBrowse()" class="text-xs text-brand shrink-0" x-show="! reservationMode">{{ __('borrower.apply.change') }}</button></div>
                         <template x-if="assetApplication">
                             <div class="px-4 py-3">
@@ -810,8 +820,8 @@
                         <div class="px-4 py-3" x-show="hasStep('group_setup')"><span class="text-gray-500 block">{{ __('borrower.apply.group_setup.purpose') }}</span><span class="font-medium" x-text="purposeLabels[group.purpose] || group.purpose || '—'"></span></div>
                     </div>
 
-                    <h3 class="text-sm font-semibold text-gray-900 mb-2">{{ __('borrower.apply.review_step.borrower_section') }}</h3>
-                    <div class="rounded-xl border border-gray-200 divide-y divide-gray-200 mb-5 text-sm">
+                    <h3 class="text-xs uppercase tracking-widest text-brand font-semibold mb-2">{{ __('borrower.apply.review_step.borrower_section') }}</h3>
+                    <div class="rounded-xl ring-1 ring-gray-200/80 bg-white divide-y divide-gray-100 mb-5 text-sm shadow-sm">
                         <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.personal') }}</span><span class="font-medium" x-text="review.personal"></span></div>
                         <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.employment') }}</span><span class="font-medium" x-text="review.employment"></span></div>
                         <div class="px-4 py-3 flex justify-between gap-3">
@@ -820,8 +830,8 @@
                         </div>
                     </div>
 
-                    <h3 class="text-sm font-semibold text-gray-900 mb-2">{{ __('borrower.apply.review_step.loan_section') }}</h3>
-                    <div class="rounded-xl border border-gray-200 divide-y divide-gray-200 mb-5 text-sm">
+                    <h3 class="text-xs uppercase tracking-widest text-brand font-semibold mb-2">{{ __('borrower.apply.review_step.loan_section') }}</h3>
+                    <div class="rounded-xl ring-1 ring-gray-200/80 bg-white divide-y divide-gray-100 mb-5 text-sm shadow-sm">
                         <div class="px-4 py-3 flex justify-between gap-3" x-show="hasStep('quote') || hasStep('asset_tenure') || hasStep('asset_details') || hasStep('group_members')">
                             <div><span class="text-gray-500 block">{{ __('borrower.apply.review_step.loan_amount') }}</span><span class="font-medium" x-text="formatTzs(form.requested_amount)"></span></div>
                             <button type="button" @click="gotoKey(hasStep('asset_details') ? 'asset_details' : (hasStep('group_members') ? 'group_members' : (hasStep('quote') ? 'quote' : 'asset_tenure')))" class="text-xs text-brand shrink-0">{{ __('borrower.apply.edit') }}</button>
@@ -837,12 +847,12 @@
                         <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.duration') }}</span><span class="font-medium"><span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.browse.months_short') }}</span></div>
                         <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.interest_rate') }}</span><span class="font-medium" x-text="reviewSummary.monthly_rate_pct ? (reviewSummary.monthly_rate_pct + '% / month') : '—'"></span></div>
                         <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.application_fee') }}</span><span class="font-medium" x-text="formatTzs(reviewSummary.application_fee ?? applicationFee)"></span></div>
-                        <div class="px-4 py-3"><span class="text-gray-500 block">{{ __('borrower.apply.review_step.monthly_repayment') }}</span><span class="font-medium" x-text="formatTzs(reviewSummary.monthly_installment ?? quote.monthly)"></span></div>
+                        <div class="px-4 py-3"><span class="text-gray-500 block" x-text="repaymentCadence() === 'monthly' ? @js(__('borrower.apply.review_step.monthly_repayment')) : @js(__('borrower.apply.review_step.weekly_repayment'))"></span><span class="font-medium" x-text="formatTzs(reviewSummary.installment_amount ?? quote.primary ?? quote.monthly)"></span></div>
                     </div>
 
                     <div x-show="hasStep('guarantor')" class="mb-5">
-                        <h3 class="text-sm font-semibold text-gray-900 mb-2">{{ __('borrower.apply.review_step.guarantor_section') }}</h3>
-                        <div class="rounded-xl border border-gray-200 divide-y divide-gray-200 text-sm">
+                        <h3 class="text-xs uppercase tracking-widest text-brand font-semibold mb-2">{{ __('borrower.apply.review_step.guarantor_section') }}</h3>
+                        <div class="rounded-xl ring-1 ring-gray-200/80 bg-white divide-y divide-gray-100 text-sm shadow-sm">
                             <div class="px-4 py-3 flex justify-between gap-3">
                                 <div><span class="text-gray-500 block">{{ __('borrower.apply.review_step.guarantor_type') }}</span><span class="font-medium" x-text="review.guarantorType"></span></div>
                                 <button type="button" @click="gotoKey('guarantor')" class="text-xs text-brand shrink-0">{{ __('borrower.apply.edit') }}</button>
@@ -852,14 +862,14 @@
                         </div>
                     </div>
 
-                    <h3 class="text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.apply.review_step.schedule_section') }}</h3>
+                    <h3 class="text-xs uppercase tracking-widest text-brand font-semibold mb-1">{{ __('borrower.apply.review_step.schedule_section') }}</h3>
                     <p class="text-xs text-gray-500 mb-2" x-show="!scheduleDatesAvailable">{{ __('borrower.apply.review_step.schedule_before_disbursement') }}</p>
-                    <div class="rounded-xl border border-gray-200 overflow-hidden mb-5 text-sm">
+                    <div class="rounded-xl ring-1 ring-gray-200/80 bg-white overflow-hidden mb-5 text-sm shadow-sm">
                         <p x-show="scheduleLoading" class="px-4 py-6 text-center text-gray-500">{{ __('borrower.apply.review_step.schedule_loading') }}</p>
                         <p x-show="!scheduleLoading && !repaymentSchedule.length" class="px-4 py-6 text-center text-gray-500">{{ __('borrower.apply.review_step.schedule_empty') }}</p>
                         <div x-show="!scheduleLoading && repaymentSchedule.length" class="overflow-x-auto">
                             <table class="min-w-full text-xs">
-                                <thead class="bg-gray-50 text-gray-600">
+                                <thead class="bg-brand-muted/50 text-brand">
                                     <tr>
                                         <th class="px-3 py-2 text-left font-semibold">{{ __('borrower.apply.review_step.col_installment') }}</th>
                                         <th class="px-3 py-2 text-left font-semibold" x-show="scheduleDatesAvailable">{{ __('borrower.apply.review_step.col_due_date') }}</th>
@@ -1017,6 +1027,7 @@
                 feeChannel: 'mobile_money',
                 feePhone: @js(old('payment_phone', $customer->phone ?? '')),
                 feeUseWallet: false,
+                feeUseStreak: false,
                 feePromoCode: '',
                 feeQuoteData: @js($feeQuote ?? null),
                 feePaying: false,
@@ -1122,9 +1133,9 @@
                     asset_description: '',
                     customer_asset_id: '',
                 },
-                quote: { monthly: 0, weekly: 0, interest: 0, total: 0, fees: 0 },
+                quote: { monthly: 0, weekly: 0, primary: 0, frequency: 'monthly', interest: 0, total: 0, fees: 0 },
                 review: { personal: '', residence: '', employment: '', nok: '', activity: '', guarantor: '', guarantorType: '', guarantorName: '', guarantorStatus: '' },
-                reviewSummary: { monthly_rate_pct: 0, application_fee: 0, monthly_installment: 0 },
+                reviewSummary: { monthly_rate_pct: 0, application_fee: 0, monthly_installment: 0, installment_amount: 0, repayment_cadence: 'monthly' },
                 repaymentSchedule: [],
                 scheduleDatesAvailable: false,
                 scheduleLoading: false,
@@ -1514,6 +1525,7 @@
                         const params = new URLSearchParams({
                             loan_product_id: String(this.form.loan_product_id),
                             use_wallet: this.feeUseWallet ? '1' : '0',
+                            use_streak: this.feeUseStreak ? '1' : '0',
                         });
                         if (this.feePromoCode) {
                             params.set('promo_code', this.feePromoCode);
@@ -1553,6 +1565,7 @@
                             channel: this.feeChannel || 'mobile_money',
                             payment_phone: this.feePhone || '',
                             use_wallet: !!this.feeUseWallet,
+                            use_streak: !!this.feeUseStreak,
                             promo_code: this.feePromoCode || null,
                         };
                         const res = await fetch(this.applicationFeePayUrl, {
@@ -2296,6 +2309,18 @@
                     return Math.round(principal * rate * pow / (pow - 1));
                 },
 
+                estimateWeeklyInstallment(principal, rate, months) {
+                    if (principal <= 0 || months <= 0) return 0;
+                    const periods = Math.max(1, Math.round(months * 4.33));
+                    const periodRate = rate / 4;
+                    return Math.round((principal / periods) + (principal * periodRate));
+                },
+
+                repaymentCadence() {
+                    const freq = (this.current?.frequency || 'weekly').toLowerCase();
+                    return freq === 'monthly' ? 'monthly' : 'weekly';
+                },
+
                 resolveMonthlyRate(product, amount) {
                     if (! product) return 0;
                     const tiers = product.tiers || [];
@@ -2313,14 +2338,22 @@
                 updateQuote() {
                     if (! this.current) return;
                     const rate = this.resolveMonthlyRate(this.current, this.form.requested_amount);
-                    const emi = this.estimateEmi(this.form.requested_amount, rate, this.form.requested_tenure_months);
-                    const interest = Math.max(0, (emi * this.form.requested_tenure_months) - this.form.requested_amount);
+                    const months = this.form.requested_tenure_months;
+                    const principal = this.form.requested_amount;
+                    const cadence = this.repaymentCadence();
+                    const monthly = this.estimateEmi(principal, rate, months);
+                    const weekly = this.estimateWeeklyInstallment(principal, rate, months);
+                    const primary = cadence === 'monthly' ? monthly : weekly;
+                    const periods = cadence === 'monthly' ? months : Math.max(1, Math.round(months * 4.33));
+                    const interest = Math.max(0, (primary * periods) - principal);
                     this.quote = {
-                        monthly: emi,
-                        weekly: Math.round(emi / 4.33),
+                        monthly,
+                        weekly,
+                        primary,
+                        frequency: cadence,
                         interest,
                         fees: this.applicationFee,
-                        total: (emi * this.form.requested_tenure_months) + this.applicationFee,
+                        total: (primary * periods) + this.applicationFee,
                     };
                     if (this.phase === 'application') {
                         this.rebuildSteps();
@@ -2597,6 +2630,8 @@
                                 monthly_rate_pct: data.summary?.monthly_rate_pct ?? 0,
                                 application_fee: data.summary?.application_fee ?? this.applicationFee,
                                 monthly_installment: data.summary?.monthly_installment ?? this.quote.monthly,
+                                installment_amount: data.summary?.installment_amount ?? this.quote.primary ?? this.quote.monthly,
+                                repayment_cadence: data.summary?.repayment_cadence ?? this.quote.frequency ?? this.repaymentCadence(),
                             };
                         }
                     } catch {

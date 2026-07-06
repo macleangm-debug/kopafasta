@@ -285,6 +285,7 @@ return [
         'show_less'          => 'Onyesha kidogo',
         'essentials'         => 'Muhtasari',
         'monthly_payment'    => 'Malipo ya kila mwezi',
+        'weekly_payment'     => 'Malipo ya kila wiki',
         'total_repayment'    => 'Jumla ya malipo',
         'processing_time'    => 'Muda wa uchakataji',
         'application_fee'    => 'Ada ya maombi',

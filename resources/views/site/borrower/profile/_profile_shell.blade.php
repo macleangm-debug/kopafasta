@@ -37,4 +37,6 @@
     ])
 @elseif ($accountPanel === 'profile' && ($active ?? '') === 'hub')
     @include('site.borrower.profile._profile_overview', ['customer' => $customer])
+@elseif ($accountPanel === 'profile' && ($active ?? '') !== 'hub')
+    @include('site.borrower.profile._tabs', ['active' => $active ?? 'personal', 'customer' => $customer])
 @endif

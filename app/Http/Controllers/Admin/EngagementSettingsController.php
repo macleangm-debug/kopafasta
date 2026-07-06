@@ -121,19 +121,32 @@ class EngagementSettingsController extends Controller
     public function saveRepaymentStreak(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'enabled'       => ['nullable', 'boolean'],
-            'reward_label'  => ['required', 'string', 'max:120'],
-            'milestones'    => ['nullable', 'string'],
+            'enabled'              => ['nullable', 'boolean'],
+            'reward_label'         => ['required', 'string', 'max:120'],
+            'fee_type'             => ['nullable', 'string', 'max:60'],
+            'max_discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'milestone_rows'       => ['nullable', 'array'],
+            'milestone_rows.*.count'   => ['nullable', 'integer', 'min:1'],
+            'milestone_rows.*.percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
 
-        $data['enabled'] = $request->boolean('enabled');
-        $data['milestones'] = collect(explode(',', (string) ($data['milestones'] ?? '')))
-            ->map(fn ($v) => (int) trim($v))
-            ->filter(fn ($v) => $v > 0)
+        $defaults = config('gamification.repayment_streak', []);
+        $milestones = collect($data['milestone_rows'] ?? [])
+            ->map(fn (array $row) => [
+                'count'   => (int) ($row['count'] ?? 0),
+                'percent' => (float) ($row['percent'] ?? 0),
+            ])
+            ->filter(fn (array $row) => $row['count'] > 0)
             ->values()
             ->all();
 
-        Setting::set('gamification.repayment_streak', $data);
+        Setting::set('gamification.repayment_streak', [
+            'enabled'              => $request->boolean('enabled'),
+            'reward_label'         => $data['reward_label'],
+            'fee_type'             => $data['fee_type'] ?? ($defaults['fee_type'] ?? 'application_fee'),
+            'max_discount_percent' => (float) ($data['max_discount_percent'] ?? ($defaults['max_discount_percent'] ?? 30)),
+            'milestones'           => $milestones ?: ($defaults['milestones'] ?? []),
+        ]);
 
         return back()->with('status', 'Repayment streak settings saved.');
     }

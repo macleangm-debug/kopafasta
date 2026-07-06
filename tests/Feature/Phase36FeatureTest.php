@@ -82,10 +82,7 @@ class Phase36FeatureTest extends TestCase
         $this->actingAs($customer->user)
             ->get(route('site.borrower.profile', ['section' => 'membership']))
             ->assertOk()
-            ->assertSee(__('borrower.membership_page.personal'), false)
-            ->assertSee(__('borrower.membership_page.activity'), false)
-            ->assertSee(__('borrower.membership_page.residence'), false)
-            ->assertSee(__('borrower.membership_page.kyc'), false)
+            ->assertSee(__('borrower.profile.panel_membership'), false)
             ->assertSee(__('borrower.membership_page.history_title'), false);
     }
 

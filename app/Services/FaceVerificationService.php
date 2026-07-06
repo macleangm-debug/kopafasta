@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class FaceVerificationService
 {
@@ -69,8 +70,13 @@ class FaceVerificationService
         }
 
         $path = $file->store("borrower/{$customer->id}/face", 'public');
+        $existing = $this->latestByAngle($customer)->get($angle);
 
-        return DB::transaction(function () use ($customer, $angle, $path): FaceVerification {
+        return DB::transaction(function () use ($customer, $angle, $path, $existing): FaceVerification {
+            if ($existing?->file_path) {
+                Storage::disk('public')->delete($existing->file_path);
+            }
+
             $record = FaceVerification::create([
                 'customer_id' => $customer->id,
                 'angle'       => $angle,
@@ -101,6 +107,83 @@ class FaceVerificationService
 
             return $record;
         });
+    }
+
+    public function remove(Customer $customer, string $angle): void
+    {
+        if (! in_array($angle, $this->requiredAngleKeys(), true)) {
+            throw new \InvalidArgumentException('Invalid face capture angle.');
+        }
+
+        $photo = $this->latestByAngle($customer)->get($angle);
+
+        if (! $photo) {
+            throw new \InvalidArgumentException('No photo found for this angle.');
+        }
+
+        DB::transaction(function () use ($customer, $photo): void {
+            if ($photo->file_path) {
+                Storage::disk('public')->delete($photo->file_path);
+            }
+
+            $photo->delete();
+
+            $customer->refresh();
+            $progress = $this->progress($customer);
+
+            if (! $progress['complete'] && in_array($customer->face_verification_status, ['pending', 'incomplete'], true)) {
+                $customer->update(['face_verification_status' => 'incomplete']);
+            }
+        });
+    }
+
+    /**
+     * @return list<array{key: string, label: string, step_title: string, instruction: string, pose: string, done: bool, previewUrl: string|null}>
+     */
+    public function wizardSteps(Customer $customer): array
+    {
+        $wizard = $this->wizardState($customer);
+        $angles = $this->angles();
+        $photos = $this->latestByAngle($customer);
+
+        return collect($wizard['order'])->map(function (string $key) use ($angles, $photos) {
+            $meta = $angles[$key] ?? [];
+            $photo = $photos[$key] ?? null;
+
+            return [
+                'key'         => $key,
+                'label'       => $meta['label'] ?? $key,
+                'step_title'  => $meta['step_title'] ?? ($meta['label'] ?? $key),
+                'instruction' => $meta['instruction'] ?? '',
+                'pose'        => match ($key) {
+                    'left'  => 'left',
+                    'right' => 'right',
+                    default => 'front',
+                },
+                'done'        => $photo !== null && ($photo->status ?? '') !== 'rejected',
+                'previewUrl'  => $photo?->file_path ? asset('storage/'.$photo->file_path) : null,
+            ];
+        })->values()->all();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function uploadUrls(Customer $customer): array
+    {
+        return collect($this->wizardState($customer)['order'])->mapWithKeys(fn (string $key) => [
+            $key => route('site.borrower.face-verification.store', ['angle' => $key]),
+        ])->all();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function deleteUrls(Customer $customer): array
+    {
+        return collect($this->wizardState($customer)['order'])->mapWithKeys(fn (string $key) => [
+            $key => route('site.borrower.face-verification.destroy', ['angle' => $key]),
+        ])->all();
     }
 
     public function approve(Customer $customer, User $reviewer, ?string $notes = null): void

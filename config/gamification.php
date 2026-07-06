@@ -40,8 +40,15 @@ return [
 
     'repayment_streak' => [
         'enabled' => true,
-        'reward_label' => 'Interest discount',
-        'milestones' => [3, 5, 8, 12],
+        'reward_label' => 'Application fee discount',
+        'fee_type' => 'application_fee',
+        'max_discount_percent' => 30,
+        'milestones' => [
+            ['count' => 3, 'percent' => 10],
+            ['count' => 5, 'percent' => 15],
+            ['count' => 8, 'percent' => 20],
+            ['count' => 12, 'percent' => 30],
+        ],
     ],
 
     'profile_strength' => [
@@ -49,6 +56,11 @@ return [
         ['key' => 'silver', 'label' => 'Silver', 'min_percent' => 40, 'max_percent' => 69],
         ['key' => 'gold', 'label' => 'Gold', 'min_percent' => 70, 'max_percent' => 89],
         ['key' => 'verified', 'label' => 'Verified', 'min_percent' => 90, 'max_percent' => 100],
+    ],
+
+    'referral_wallet' => [
+        /** TZS per 1 referral point shown to members (1 = 1 pt per TZS commission). */
+        'points_per_tzs' => (int) env('REFERRAL_WALLET_POINTS_PER_TZS', 1),
     ],
 
     'loyalty_points' => [

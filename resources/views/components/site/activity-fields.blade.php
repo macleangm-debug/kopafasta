@@ -9,6 +9,7 @@
 
 @php
     $types = activity_type_options();
+    $incomeOptions = income_range_select_options();
     $fields = activity_fields_localized();
     $locations = config('tanzania_locations');
     $details = old('activity_details', $activityDetails ?? []);
@@ -18,7 +19,8 @@
     'selectOption' => __('borrower.profile.select_option'),
     'selectRegion' => __('borrower.profile.select_region'),
     'selectDistrict' => __('borrower.profile.select_district'),
-]), @js($groupedSections))">
+    'selectActivity' => __('borrower.profile.select_activity'),
+]), @js($groupedSections), @js($types))">
 
     @if ($groupedSections)
         <div class="space-y-8">
@@ -28,8 +30,26 @@
                 <div class="grid sm:grid-cols-2 gap-4" x-data="{ fieldList: [] }" x-effect="fieldList = activityFields">
                     <div class="sm:col-span-2">
                         <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.what_do_you_do') }} <span class="text-red-500">*</span></label>
+                        <div class="lg:hidden mb-0">
+                            <button type="button" @click="activityPickerOpen = true"
+                                    class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
+                                <span class="flex-1 text-left truncate" x-text="activityTypeLabel()"></span>
+                                <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                            </button>
+                            <x-site.bottom-sheet :title="__('borrower.profile.what_do_you_do')" open="activityPickerOpen">
+                                <div class="space-y-1 max-h-[60vh] overflow-y-auto">
+                                    @foreach ($types as $key => $label)
+                                        <button type="button" @click="pickActivity(@js($key))"
+                                                class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50"
+                                                :class="activityType === @js($key) ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''">
+                                            {{ $label }}
+                                        </button>
+                                    @endforeach
+                                </div>
+                            </x-site.bottom-sheet>
+                        </div>
                         <select name="activity_type" x-model="activityType" @change="onTypeChange()" required
-                                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm">
+                                class="hidden lg:block w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm">
                             <option value="">{{ __('borrower.profile.select_activity') }}</option>
                             @foreach ($types as $key => $label)
                                 <option value="{{ $key }}" @selected(old('activity_type', $activityType) === $key)>{{ $label }}</option>
@@ -78,13 +98,14 @@
                         </div>
                     </template>
                     <div class="sm:col-span-2">
-                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.income_range') }} <span class="text-red-500">*</span></label>
-                        <select name="income_range" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                            <option value="">{{ __('borrower.profile.select_income') }}</option>
-                            @foreach (income_range_options() as $key => $label)
-                                <option value="{{ $key }}" @selected(old('income_range', $incomeRange) === $key)>{{ $label }}</option>
-                            @endforeach
-                        </select>
+                        <x-site.profile-select
+                            name="income_range"
+                            :label="__('borrower.profile.income_range')"
+                            :options="$incomeOptions"
+                            :value="old('income_range', $incomeRange)"
+                            :required="true"
+                            :placeholder="__('borrower.profile.select_income')"
+                        />
                     </div>
                 </div>
             </section>
@@ -128,8 +149,26 @@
         <div class="grid sm:grid-cols-2 gap-4">
             <div class="sm:col-span-2">
                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.what_do_you_do') }} <span class="text-red-500">*</span></label>
+                <div class="lg:hidden">
+                    <button type="button" @click="activityPickerOpen = true"
+                            class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
+                        <span class="flex-1 text-left truncate" x-text="activityTypeLabel()"></span>
+                        <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                    </button>
+                    <x-site.bottom-sheet :title="__('borrower.profile.what_do_you_do')" open="activityPickerOpen">
+                        <div class="space-y-1 max-h-[60vh] overflow-y-auto">
+                            @foreach ($types as $key => $label)
+                                <button type="button" @click="pickActivity(@js($key))"
+                                        class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50"
+                                        :class="activityType === @js($key) ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''">
+                                    {{ $label }}
+                                </button>
+                            @endforeach
+                        </div>
+                    </x-site.bottom-sheet>
+                </div>
                 <select name="activity_type" x-model="activityType" @change="onTypeChange()" required
-                        class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm">
+                        class="hidden lg:block w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm">
                     <option value="">{{ __('borrower.profile.select_activity') }}</option>
                     @foreach ($types as $key => $label)
                         <option value="{{ $key }}" @selected(old('activity_type', $activityType) === $key)>{{ $label }}</option>
@@ -198,13 +237,14 @@
             </div>
 
             <div class="sm:col-span-2">
-                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.income_range') }} <span class="text-red-500">*</span></label>
-                <select name="income_range" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                    <option value="">{{ __('borrower.profile.select_income') }}</option>
-                    @foreach (income_range_options() as $key => $label)
-                        <option value="{{ $key }}" @selected(old('income_range', $incomeRange) === $key)>{{ $label }}</option>
-                    @endforeach
-                </select>
+                <x-site.profile-select
+                    name="income_range"
+                    :label="__('borrower.profile.income_range')"
+                    :options="$incomeOptions"
+                    :value="old('income_range', $incomeRange)"
+                    :required="true"
+                    :placeholder="__('borrower.profile.select_income')"
+                />
             </div>
         </div>
     @endif
@@ -213,19 +253,29 @@
 @once
     @push('scripts')
     <script>
-        function activityForm(fieldMap, initialDetails, initialType, locations, labels, groupedSections) {
+        function activityForm(fieldMap, initialDetails, initialType, locations, labels, groupedSections, typeOptions) {
             return {
                 fieldMap,
                 locations,
                 labels: labels || {},
+                typeOptions: typeOptions || {},
                 details: initialDetails || {},
                 activityType: initialType || '',
+                activityPickerOpen: false,
                 activeFields: [],
                 activityFields: [],
                 employmentFields: [],
                 groupedSections: !!groupedSections,
                 init() {
                     this.refreshFields();
+                },
+                activityTypeLabel() {
+                    return this.typeOptions[this.activityType] || this.labels.selectActivity || '';
+                },
+                pickActivity(key) {
+                    this.activityType = key;
+                    this.onTypeChange();
+                    this.activityPickerOpen = false;
                 },
                 onTypeChange() {
                     this.details = {};

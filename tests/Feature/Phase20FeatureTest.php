@@ -103,6 +103,7 @@ class Phase20FeatureTest extends TestCase
         app(ReferralService::class)->ensureCode($customer);
 
         $this->actingAs($user)
+            ->followingRedirects()
             ->get(route('site.borrower.referrals'))
             ->assertOk()
             ->assertSee(__('borrower.referrals.share_whatsapp'), false)

@@ -25,8 +25,8 @@
 </head>
 <body class="min-h-full bg-white text-gray-900 antialiased flex flex-col">
 
-    <header class="sticky top-0 z-40 glass-nav shadow-sm">
-        <div class="hidden md:block border-b border-gray-100/80 bg-[#faf8f5]/80">
+    <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100">
+        <div class="hidden md:block border-b border-gray-100 bg-[#faf8f5]">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-10 flex items-center justify-end gap-3">
                 <x-site.locale-switcher variant="header" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
             </div>
@@ -52,7 +52,7 @@
                     </button>
                     <div x-cloak x-show="menu === 'products'" x-transition.opacity
                          class="absolute left-1/2 -translate-x-1/2 top-full pt-2 w-80">
-                        <div class="glass-card p-2 max-h-80 overflow-y-auto">
+                        <div class="glass-card p-2 max-h-80 overflow-y-auto bg-white shadow-xl ring-1 ring-gray-200/80">
                             <a href="{{ route('site.products') }}" class="block px-3 py-2 rounded-lg hover:bg-brand-muted text-sm font-semibold text-brand">{{ __('site.nav.all_products') }}</a>
                             @foreach ($navProducts as $navProduct)
                                 <a href="{{ route('site.product', $navProduct->code) }}" class="block px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">
@@ -95,7 +95,7 @@
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
                 <div x-cloak x-show="open"
-                     class="absolute right-0 top-full mt-1 w-[min(100vw-2rem,20rem)] glass-card max-h-[80vh] overflow-y-auto z-50">
+                     class="absolute right-0 top-full mt-1 w-[min(100vw-2rem,20rem)] bg-white shadow-xl ring-1 ring-gray-200 max-h-[80vh] overflow-y-auto z-50 rounded-xl">
                     <div class="px-4 py-4 flex flex-col gap-3 text-sm border-b border-gray-100">
                         <x-site.locale-switcher variant="mobile" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
                     </div>

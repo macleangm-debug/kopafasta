@@ -55,7 +55,7 @@
             input.files = dt.files;
         }
     }"
-    x-init="$watch('previews', () => syncInput())"
+    x-init="$watch('previews', () => syncInput()); $el.closest('form')?.addEventListener('submit', () => syncInput())"
     class="md:col-span-2 space-y-3"
 >
     <div class="flex items-center justify-between gap-3">
@@ -68,7 +68,7 @@
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
             @foreach ($existingPhotos as $photo)
                 <div class="relative rounded-lg overflow-hidden ring-1 ring-gray-200" x-show="!removed.includes(@js($photo))">
-                    <img src="{{ Storage::url($photo) }}" alt="" class="aspect-square object-cover w-full">
+                    <img src="{{ marketplace_photo_url($photo) }}" alt="" class="aspect-square object-cover w-full">
                     <button type="button" @click="removeExisting(@js($photo))"
                             class="absolute inset-x-0 bottom-0 bg-black/60 text-white text-[10px] px-2 py-1.5 hover:bg-red-700/80">
                         Remove

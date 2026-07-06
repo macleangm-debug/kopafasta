@@ -67,6 +67,7 @@ class SupplierController extends Controller
         $vendor = $this->supplier();
         $assets->normalizeRequest($request);
         $validated = $request->validate($assets->validationRules());
+        unset($validated['photos'], $validated['remove_photos']);
 
         $data = $assets->prepareForSave(array_merge($validated, [
             'vendor_id'     => $vendor->id,
@@ -103,6 +104,7 @@ class SupplierController extends Controller
         $assets->normalizeRequest($request);
         $assets->validateMinimumPhotos($asset, $request->file('photos', []), $request->input('remove_photos', []));
         $validated = $request->validate($assets->validationRules($asset));
+        unset($validated['photos'], $validated['remove_photos']);
         $data = $assets->prepareForSave(array_merge($validated, [
             'is_active' => $request->boolean('is_active', true),
         ]), $asset);

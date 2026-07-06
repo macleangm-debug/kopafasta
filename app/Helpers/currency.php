@@ -69,6 +69,18 @@ if (! function_exists('income_range_options')) {
     }
 }
 
+if (! function_exists('income_range_select_options')) {
+    /** @return array<string, string> */
+    function income_range_select_options(): array
+    {
+        $legacy = ['below_100k', 'above_1m'];
+
+        return collect(income_range_options())
+            ->reject(fn (string $label, string $key) => in_array($key, $legacy, true))
+            ->all();
+    }
+}
+
 if (! function_exists('loan_product_theme')) {
     /** @return array{icon: string, theme: string, label?: string} */
     function loan_product_theme(?string $code): array

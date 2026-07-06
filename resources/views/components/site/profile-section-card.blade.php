@@ -53,7 +53,7 @@
         @elseif (! $editing && $editUrl)
             <a href="{{ $editUrl }}"
                class="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 hover:text-amber-800 px-3 py-1.5 rounded-full ring-1 ring-amber-200 bg-amber-50">
-                {{ __('borrower.profile.edit_section') }}
+                {{ $empty ? ($addLabel ?? __('borrower.profile.add_details')) : __('borrower.profile.edit_section') }}
             </a>
         @endif
     </div>

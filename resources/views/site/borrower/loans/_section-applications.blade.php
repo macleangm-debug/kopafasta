@@ -20,7 +20,7 @@
             :title="__('borrower.applications_list.empty_title')"
             :description="__('borrower.applications_list.empty_desc')"
             :action-label="__('borrower.loans_page.apply_new_cta')"
-            :action-url="route('site.products')"
+            :action-url="route('site.borrower.apply')"
         />
     @else
         <div class="grid sm:grid-cols-2 gap-4">

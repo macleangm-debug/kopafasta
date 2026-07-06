@@ -10,7 +10,7 @@
     <a href="{{ $showUrl }}" class="block relative overflow-hidden bg-slate-50" x-data="{ imgLoaded: {{ empty($asset['photos'][0]) ? 'true' : 'false' }} }">
         @if (! empty($asset['photos'][0]))
             <div x-show="!imgLoaded" class="absolute inset-0 skeleton z-10"></div>
-            <img src="{{ Storage::url($asset['photos'][0]) }}" alt="{{ $asset['title'] }}" loading="lazy"
+            <img src="{{ marketplace_photo_url($asset['photos'][0]) }}" alt="{{ $asset['title'] }}" loading="lazy"
                  @load="imgLoaded = true"
                  class="aspect-[4/3] w-full object-cover group-hover:scale-[1.03] transition-all duration-500"
                  :class="imgLoaded ? 'opacity-100' : 'opacity-0'">

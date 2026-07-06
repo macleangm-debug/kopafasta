@@ -1241,7 +1241,7 @@ class BorrowerController extends Controller
             : collect();
 
         $nidaDocuments = app(\App\Services\ProfileDocumentService::class)
-            ->latestByCodes($customer, ['national_id_front']);
+            ->latestByCodes($customer, ['national_id_front', 'national_id_back']);
 
         $employmentContract = app(\App\Services\ProfileDocumentService::class)
             ->latestByCodes($customer, ['employment_contract'])
@@ -1269,6 +1269,7 @@ class BorrowerController extends Controller
 
         $faceSteps = null;
         $faceUploadUrls = null;
+        $faceDeleteUrls = null;
         $faceWizard = null;
         $facePhotos = null;
         $faceAngles = null;
@@ -1278,28 +1279,12 @@ class BorrowerController extends Controller
             $facePhotos = $faces->latestByAngle($customer);
             $faceAngles = $faces->angles();
             $faceWizard = $faces->wizardState($customer);
-            $faceUploadUrls = collect($faceWizard['order'])->mapWithKeys(fn (string $key) => [
-                $key => route('site.borrower.face-verification.store', ['angle' => $key]),
-            ])->all();
-            $faceSteps = collect($faceWizard['order'])->map(function (string $key) use ($faceAngles, $facePhotos) {
-                $meta = $faceAngles[$key] ?? [];
-
-                return [
-                    'key'         => $key,
-                    'label'       => $meta['label'] ?? $key,
-                    'step_title'  => $meta['step_title'] ?? ($meta['label'] ?? $key),
-                    'instruction' => $meta['instruction'] ?? '',
-                    'pose'        => match ($key) {
-                        'left'  => 'left',
-                        'right' => 'right',
-                        default => 'front',
-                    },
-                    'done'        => isset($facePhotos[$key]) && ($facePhotos[$key]->status ?? '') !== 'rejected',
-                ];
-            })->values()->all();
+            $faceUploadUrls = $faces->uploadUrls($customer);
+            $faceDeleteUrls = $faces->deleteUrls($customer);
+            $faceSteps = $faces->wizardSteps($customer);
         }
 
-        return view($view, compact('customer', 'kyc', 'trustedDevices', 'nidaDocuments', 'employmentContract', 'residenceLetter', 'incomeProofChecklist', 'incomeProofEmployed', 'incomeProofMethod', 'incomePrimaryOptions', 'completionSummary', 'returnUrl', 'wizardMode', 'wizardKey', 'faceSteps', 'faceUploadUrls', 'faceWizard', 'facePhotos', 'faceAngles'))
+        return view($view, compact('customer', 'kyc', 'trustedDevices', 'nidaDocuments', 'employmentContract', 'residenceLetter', 'incomeProofChecklist', 'incomeProofEmployed', 'incomeProofMethod', 'incomePrimaryOptions', 'completionSummary', 'returnUrl', 'wizardMode', 'wizardKey', 'faceSteps', 'faceUploadUrls', 'faceDeleteUrls', 'faceWizard', 'facePhotos', 'faceAngles'))
             ->with('editing', $wizardMode || $request->boolean('edit'))
             ->with('crbUsesStub', app(CrbService::class)->usesStub())
             ->with('crbSamples', config('crb_samples.scenarios', []))
@@ -1376,6 +1361,7 @@ class BorrowerController extends Controller
                 'nok_ward'         => ['nullable', 'string', 'max:100'],
                 'nok_street'       => [$kinRequired ? 'required' : 'nullable', 'string', 'max:255'],
                 'national_id_front' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                'national_id_back' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             ];
 
             $data = $request->validate($rules);
@@ -1410,11 +1396,12 @@ class BorrowerController extends Controller
 
             if (in_array($focus, ['identity', 'all'], true)) {
                 $this->persistProfileDocumentUpload($customer, 'national_id_front', $request->file('national_id_front'), []);
+                $this->persistProfileDocumentUpload($customer, 'national_id_back', $request->file('national_id_back'), []);
 
                 if ($identityRequired && ! $validation->nationalIdUploadsComplete($customer->fresh())) {
                     return redirect()
                         ->route('site.borrower.profile', ['section' => 'personal'])
-                        ->withErrors(['national_id_front' => __('borrower.profile.nida_upload_required')])
+                        ->withErrors(['national_id_front' => __('borrower.profile.nida_uploads_required')])
                         ->withInput()
                         ->withFragment('profile-identity');
                 }
@@ -1805,30 +1792,12 @@ class BorrowerController extends Controller
         $status = $faces->statusLabel($customer);
         $angles = $faces->angles();
         $wizard = $faces->wizardState($customer);
-
-        $uploadUrls = collect($wizard['order'])->mapWithKeys(fn (string $key) => [
-            $key => route('site.borrower.face-verification.store', ['angle' => $key]),
-        ])->all();
-
-        $steps = collect($wizard['order'])->map(function (string $key) use ($angles, $photos) {
-            $meta = $angles[$key] ?? [];
-
-            return [
-                'key'         => $key,
-                'label'       => $meta['label'] ?? $key,
-                'step_title'  => $meta['step_title'] ?? ($meta['label'] ?? $key),
-                'instruction' => $meta['instruction'] ?? '',
-                'pose'        => match ($key) {
-                    'left'  => 'left',
-                    'right' => 'right',
-                    default => 'front',
-                },
-                'done'        => isset($photos[$key]) && ($photos[$key]->status ?? '') !== 'rejected',
-            ];
-        })->values()->all();
+        $uploadUrls = $faces->uploadUrls($customer);
+        $deleteUrls = $faces->deleteUrls($customer);
+        $steps = $faces->wizardSteps($customer);
 
         return view('site.borrower.face-verification', compact(
-            'customer', 'photos', 'progress', 'status', 'angles', 'wizard', 'uploadUrls', 'steps', 'wizardMode'
+            'customer', 'photos', 'progress', 'status', 'angles', 'wizard', 'uploadUrls', 'deleteUrls', 'steps', 'wizardMode'
         ))->with('wizardKey', 'face');
     }
 
@@ -1898,6 +1867,60 @@ class BorrowerController extends Controller
                 $customer,
                 redirect()->route('site.borrower.face-verification')->with('status', $message),
             );
+        }
+
+        return redirect()->route('site.borrower.face-verification')->with('status', $message);
+    }
+
+    public function removeFaceVerification(Request $request, string $angle, FaceVerificationService $faces): RedirectResponse|JsonResponse
+    {
+        $customer = $this->customer();
+
+        if ($faces->isVerified($customer)) {
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => 'Your face verification is already approved.'], 422);
+            }
+
+            return redirect()->route('site.borrower.face-verification')
+                ->with('status', 'Your face verification is already approved.');
+        }
+
+        if ($customer->face_verification_status === 'pending') {
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => 'Your photos are under review.'], 422);
+            }
+
+            return redirect()->route('site.borrower.face-verification')
+                ->with('error', 'Your photos are under review. You cannot change them until review is complete.');
+        }
+
+        try {
+            $faces->remove($customer, $angle);
+        } catch (\InvalidArgumentException $e) {
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
+            }
+
+            return back()->with('error', $e->getMessage());
+        }
+
+        $this->auditBorrower('face_verification.removed', $customer, ['angle' => $angle]);
+
+        $customer->refresh();
+        $progress = $faces->progress($customer);
+        $wizard = $faces->wizardState($customer);
+        $message = 'Photo removed.';
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok'       => true,
+                'angle'    => $angle,
+                'progress' => $progress,
+                'wizard'   => $wizard,
+                'status'   => $customer->face_verification_status,
+                'message'  => $message,
+                'complete' => $progress['complete'],
+            ]);
         }
 
         return redirect()->route('site.borrower.face-verification')->with('status', $message);

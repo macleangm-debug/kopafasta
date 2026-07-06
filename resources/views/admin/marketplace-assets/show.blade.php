@@ -23,7 +23,7 @@
     @if (! empty($record->photos))
         <div class="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
             @foreach ($record->photos as $photo)
-                <img src="{{ Storage::url($photo) }}" alt="" class="rounded-lg ring-1 ring-gray-200 aspect-square object-cover">
+                <img src="{{ marketplace_photo_url($photo) }}" alt="" class="rounded-lg ring-1 ring-gray-200 aspect-square object-cover">
             @endforeach
         </div>
     @endif

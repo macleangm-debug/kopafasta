@@ -12,8 +12,8 @@
 
         @php
             $activityComplete = app(\App\Services\ProfileCompletionService::class)->isActivityComplete($customer);
-            $activityLabel = config('activity_profiles.types.'.$customer->activity_type, $customer->activity_type);
-            $incomeLabel = config('income_ranges.'.$customer->income_range.'.label', $customer->income_range);
+            $activityLabel = activity_type_label($customer->activity_type ?? $customer->employment_type);
+            $incomeLabel = income_range_label($customer->income_range);
             $saveConfirm = [
                 'title' => __('borrower.profile.save_confirm_title'),
                 'message' => __('borrower.profile.save_confirm_message'),
@@ -27,11 +27,26 @@
             icon="💼"
             :title="__('borrower.profile.activity')"
             :complete="$activityComplete"
+            :empty="! $activityComplete"
             :default-open="($wizardMode ?? false) || ($editing ?? false)">
             <x-slot:view>
                 <dl class="grid sm:grid-cols-2 gap-4 text-sm">
-                    <div><dt class="text-gray-500">{{ __('borrower.profile.activity_type') }}</dt><dd class="font-medium mt-0.5">{{ $activityLabel ?: '—' }}</dd></div>
-                    <div><dt class="text-gray-500">{{ __('borrower.profile.income_range') }}</dt><dd class="font-medium mt-0.5">{{ $incomeLabel ?: '—' }}</dd></div>
+                    <div>
+                        <dt class="text-gray-500">{{ __('borrower.profile.activity_type') }}</dt>
+                        @if ($activityLabel)
+                            <dd class="font-medium mt-0.5">{{ $activityLabel }}</dd>
+                        @else
+                            <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
+                        @endif
+                    </div>
+                    <div>
+                        <dt class="text-gray-500">{{ __('borrower.profile.income_range') }}</dt>
+                        @if ($incomeLabel)
+                            <dd class="font-medium mt-0.5">{{ $incomeLabel }}</dd>
+                        @else
+                            <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
+                        @endif
+                    </div>
                     @if ($customer->monthly_income)
                         <div><dt class="text-gray-500">{{ __('borrower.profile.monthly_income') }}</dt><dd class="font-medium mt-0.5">{{ format_money($customer->monthly_income) }}</dd></div>
                     @endif

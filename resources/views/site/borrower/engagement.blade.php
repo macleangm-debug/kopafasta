@@ -1,0 +1,101 @@
+<x-site.borrower-layout :title="brand_title(__('borrower.engagement.title'))" active="engagement" content-width="wide">
+
+    <x-site.borrower-page-header
+        :eyebrow="__('borrower.engagement.eyebrow')"
+        :title="__('borrower.engagement.title')"
+        :subtitle="__('borrower.engagement.subtitle')"
+    />
+
+    @if (session('status'))
+        <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
+    @endif
+    @if (session('error'))
+        <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ session('error') }}</div>
+    @endif
+
+    <div x-data="{ tab: @js($tab) }">
+        <nav class="flex gap-2 mb-6 overflow-x-auto snap-x snap-mandatory scrollbar-none pb-1">
+            @foreach ([
+                'overview' => __('borrower.engagement.tabs.overview'),
+                'referrals' => __('borrower.engagement.tabs.referrals'),
+                'rewards' => __('borrower.engagement.tabs.rewards'),
+                'streak' => __('borrower.engagement.tabs.streak'),
+            ] as $key => $label)
+                <button type="button" @click="tab = @js($key)"
+                        class="snap-start shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition"
+                        :class="tab === @js($key) ? 'bg-brand text-white shadow-sm' : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-brand-muted/40'">
+                    {{ $label }}
+                </button>
+            @endforeach
+        </nav>
+
+        {{-- Overview --}}
+        <div x-show="tab === 'overview'" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="glass-card p-5 bg-gradient-to-br from-brand-muted/80 to-white">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.rewards.balance') }}</p>
+                <p class="mt-2 text-3xl font-black text-brand tabular-nums">{{ number_format($pointsBalance) }}</p>
+                <p class="text-xs text-gray-600 mt-1">{{ __('borrower.engagement.points_label') }}</p>
+            </div>
+            <div class="glass-card p-5 bg-gradient-to-br from-brand-gold/10 to-white">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.engagement.referral_points_label') }}</p>
+                <p class="mt-2 text-3xl font-black text-gray-900 tabular-nums">{{ number_format(wallet_balance_as_points($referralWallet->balance ?? 0)) }}</p>
+                <p class="text-xs text-gray-600 mt-1">{{ __('borrower.rewards.points_short') }}</p>
+            </div>
+            <div class="glass-card p-5">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.engagement.streak.title') }}</p>
+                <p class="mt-2 text-3xl font-black text-orange-600 tabular-nums">{{ $streakReward['count'] ?? 0 }} 🔥</p>
+                @if (($streakReward['percent'] ?? 0) > 0)
+                    <p class="text-xs text-orange-800 mt-1">{{ __('borrower.engagement.streak.discount_available', ['percent' => rtrim(rtrim(number_format($streakReward['percent'], 1), '0'), '.')]) }}</p>
+                @endif
+            </div>
+            <div class="glass-card p-5">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.referrals.level') }}</p>
+                <p class="mt-2 text-xl font-bold text-gray-900">{{ $level['label'] ?? 'Bronze' }}</p>
+                <p class="text-xs text-gray-600 mt-1">{{ __('borrower.referrals.progress_count', ['current' => $progress['current'] ?? 0, 'target' => $progress['target'] ?? 5]) }}</p>
+            </div>
+        </div>
+
+        {{-- Referrals tab --}}
+        <div x-show="tab === 'referrals'" x-cloak class="grid gap-6 lg:grid-cols-3 mt-2">
+            @include('site.borrower.engagement._referrals-panel')
+        </div>
+
+        {{-- Rewards tab --}}
+        <div x-show="tab === 'rewards'" x-cloak class="grid gap-6 lg:grid-cols-3 mt-2">
+            @include('site.borrower.engagement._rewards-panel')
+        </div>
+
+        {{-- Streak tab --}}
+        <div x-show="tab === 'streak'" x-cloak class="mt-2 max-w-2xl">
+            <div class="glass-card p-6 sm:p-8">
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="text-3xl">🔥</span>
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-900">{{ __('borrower.engagement.streak.title') }}</h2>
+                        <p class="text-sm text-gray-600">{{ __('borrower.engagement.streak.subtitle') }}</p>
+                    </div>
+                </div>
+                <p class="text-4xl font-black text-orange-600 tabular-nums">{{ $streakReward['count'] ?? 0 }}</p>
+                <p class="text-sm text-gray-600 mt-1">{{ __('borrower.engagement.streak.on_time_count') }}</p>
+
+                @if (($streakReward['milestones'] ?? []) !== [])
+                    <ul class="mt-6 space-y-3">
+                        @foreach ($streakReward['milestones'] as $milestone)
+                            <li class="flex items-center justify-between gap-4 rounded-xl px-4 py-3 ring-1 {{ ($milestone['reached'] ?? false) ? 'bg-emerald-50 ring-emerald-200' : 'bg-gray-50 ring-gray-200' }}">
+                                <div>
+                                    <p class="font-semibold text-gray-900">{{ __('borrower.engagement.streak.milestone', ['count' => $milestone['count']]) }}</p>
+                                    <p class="text-xs text-gray-600">{{ __('borrower.engagement.streak.milestone_reward', ['percent' => rtrim(rtrim(number_format($milestone['percent'], 0), '0'), '.')]) }}</p>
+                                </div>
+                                <span class="text-sm font-semibold {{ ($milestone['reached'] ?? false) ? 'text-emerald-700' : 'text-gray-400' }}">
+                                    {{ ($milestone['reached'] ?? false) ? '✓' : '—' }}
+                                </span>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+
+                <p class="mt-6 text-xs text-gray-500">{{ __('borrower.engagement.streak.application_fee_note') }}</p>
+            </div>
+        </div>
+    </div>
+</x-site.borrower-layout>

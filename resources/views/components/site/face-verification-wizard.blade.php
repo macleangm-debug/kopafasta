@@ -5,6 +5,7 @@
     'photos',
     'steps',
     'uploadUrls',
+    'deleteUrls' => [],
 ])
 
 <div
@@ -12,6 +13,7 @@
     x-data="faceVerificationWizard({
         steps: @js($steps),
         uploadUrls: @js($uploadUrls),
+        deleteUrls: @js($deleteUrls),
         startIndex: @js($wizard['current_index']),
     })"
     x-init="init()"
@@ -45,6 +47,35 @@
                 <p class="mt-1">{{ __('borrower.nida.face_permission_body') }}</p>
             </div>
             <p x-show="!ready && !isDesktop" class="text-sm text-gray-400 mb-4">Loading face scanner…</p>
+            <template x-if="steps.some(s => s.done)">
+                <div class="mb-6 text-left">
+                    <p class="text-xs font-semibold text-gray-700 mb-3">{{ __('borrower.nida.face_captured_photos') }}</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <template x-for="(step, i) in steps" :key="'intro-' + step.key">
+                            <div class="rounded-xl overflow-hidden ring-1 ring-gray-200">
+                                <div class="aspect-[4/5] bg-gray-100 relative">
+                                    <img x-show="step.done && step.previewUrl" :src="step.previewUrl" :alt="step.label" class="w-full h-full object-cover">
+                                    <div x-show="!step.done" class="w-full h-full flex items-center justify-center text-xs text-gray-400">{{ __('borrower.nida.face_not_captured') }}</div>
+                                </div>
+                                <div class="p-2 space-y-2">
+                                    <p class="text-[11px] font-semibold text-gray-700" x-text="step.label"></p>
+                                    <div x-show="step.done" class="flex gap-2">
+                                        <button type="button" @click="retakeStep(i)" :disabled="isRemoving"
+                                                class="flex-1 text-[10px] font-semibold px-2 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 disabled:opacity-50">
+                                            {{ __('borrower.nida.face_retake') }}
+                                        </button>
+                                        <button type="button" @click="removePhoto(step.key)" :disabled="isRemoving"
+                                                class="flex-1 text-[10px] font-semibold px-2 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 disabled:opacity-50">
+                                            <span x-show="!isRemoving">{{ __('borrower.nida.face_remove') }}</span>
+                                            <span x-show="isRemoving" x-cloak>…</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
             <button type="button" @click="startScan()" :disabled="!ready || loading"
                     class="w-full bg-gray-900 hover:bg-gray-800 disabled:opacity-50 text-white font-semibold px-6 py-4 rounded-2xl text-sm">
                 <span x-show="!loading">Start verification</span>
@@ -167,13 +198,25 @@
                 <template x-for="(step, i) in steps" :key="step.key">
                     <div class="rounded-xl overflow-hidden ring-1 ring-gray-200">
                         <img :src="step.previewUrl" :alt="step.label" class="w-full aspect-[4/5] object-cover bg-gray-100">
-                        <div class="p-2 text-xs font-semibold text-gray-700" x-text="step.label"></div>
+                        <div class="p-2 space-y-2">
+                            <p class="text-xs font-semibold text-gray-700" x-text="step.label"></p>
+                            <div class="flex gap-2">
+                                <button type="button" @click="retakeStep(i)" :disabled="isRemoving"
+                                        class="flex-1 text-[10px] font-semibold px-2 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 disabled:opacity-50">
+                                    {{ __('borrower.nida.face_retake') }}
+                                </button>
+                                <button type="button" @click="removePhoto(step.key)" :disabled="isRemoving"
+                                        class="flex-1 text-[10px] font-semibold px-2 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 disabled:opacity-50">
+                                    {{ __('borrower.nida.face_remove') }}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </template>
             </div>
             <div class="p-5 border-t border-gray-100 flex flex-wrap gap-3">
-                <button type="button" @click="phase = 'intro'" class="flex-1 min-w-[120px] bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold px-4 py-3 rounded-2xl text-sm">Retake</button>
-                <button type="button" @click="submitVerification()" class="flex-1 min-w-[120px] bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-3 rounded-2xl text-sm">{{ __('borrower.nida.face_submit_step') }}</button>
+                <button type="button" @click="phase = 'intro'" class="flex-1 min-w-[120px] bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold px-4 py-3 rounded-2xl text-sm">{{ __('borrower.nida.face_add_more') }}</button>
+                <button type="button" @click="submitVerification()" :disabled="isRemoving" class="flex-1 min-w-[120px] bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white font-semibold px-4 py-3 rounded-2xl text-sm">{{ __('borrower.nida.face_submit_step') }}</button>
             </div>
         </div>
 
@@ -210,6 +253,7 @@
                     notice: null,
                     steps: config.steps,
                     uploadUrls: config.uploadUrls,
+                    deleteUrls: config.deleteUrls || {},
                     stepIndex: config.startIndex,
                     stream: null,
                     faceDetector: null,
@@ -223,6 +267,7 @@
                     headOffset: 0,
                     lastTick: null,
                     isUploading: false,
+                    isRemoving: false,
                     previewUrl: null,
                     previewBlob: null,
                     scanStartedAt: null,
@@ -314,6 +359,60 @@
 
                     submitVerification() {
                         window.location.reload();
+                    },
+
+                    async retakeStep(index) {
+                        if (this.isRemoving || this.isUploading) return;
+                        this.stepIndex = index;
+                        this.holdProgress = 0;
+                        this.notice = null;
+                        await this.startScan();
+                    },
+
+                    async removePhoto(angle) {
+                        if (this.isRemoving || this.isUploading) return;
+                        const url = this.deleteUrls[angle];
+                        if (!url) return;
+
+                        this.isRemoving = true;
+                        this.notice = null;
+
+                        try {
+                            const res = await fetch(url, {
+                                method: 'DELETE',
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'Accept': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                                },
+                                credentials: 'same-origin',
+                            });
+                            const data = await res.json();
+                            if (!res.ok || !data.ok) {
+                                throw new Error(data.message || 'Could not remove photo');
+                            }
+
+                            const step = this.steps.find(s => s.key === angle);
+                            if (step) {
+                                step.done = false;
+                                step.previewUrl = null;
+                            }
+
+                            if (!this.steps.every(s => s.done)) {
+                                this.phase = 'intro';
+                                while (this.stepIndex < this.steps.length && this.steps[this.stepIndex]?.done) {
+                                    this.stepIndex++;
+                                }
+                                if (this.stepIndex >= this.steps.length) {
+                                    this.stepIndex = this.steps.findIndex(s => !s.done);
+                                    if (this.stepIndex < 0) this.stepIndex = 0;
+                                }
+                            }
+                        } catch (e) {
+                            this.notice = e.message || 'Could not remove photo. Please try again.';
+                        } finally {
+                            this.isRemoving = false;
+                        }
                     },
 
                     async waitForVideoReady(video) {
@@ -729,7 +828,7 @@
 
                             if (this.stepIndex >= this.steps.length) {
                                 this.stopCamera();
-                                this.phase = 'done';
+                                this.phase = this.steps.every(s => s.done) ? 'review' : 'intro';
                             } else {
                                 this.phase = 'scanning';
                                 this.startLoop();

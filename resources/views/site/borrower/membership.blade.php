@@ -54,7 +54,7 @@
                         <h2 class="font-semibold">{{ __('borrower.membership_page.referral_program') }}</h2>
                         <p class="text-sm text-white/80 mt-1">{{ __('borrower.membership_page.referral_summary', ['code' => $referralCode, 'balance' => format_money($referralWallet->balance ?? 0)]) }}</p>
                     </div>
-                    <a href="{{ route('site.borrower.referrals') }}" class="shrink-0 inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-2.5 rounded-xl text-sm">{{ __('borrower.membership_page.open_referrals') }}</a>
+                    <a href="{{ route('site.borrower.engagement', ['tab' => 'referrals']) }}" class="shrink-0 inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-2.5 rounded-xl text-sm">{{ __('borrower.membership_page.open_referrals') }}</a>
                 </div>
             </section>
         @endif

@@ -1,7 +1,7 @@
 @props(['photos' => [], 'category' => 'other', 'zoom' => false])
 
 @php
-    $urls = collect($photos)->map(fn ($path) => Storage::url($path))->values()->all();
+    $urls = marketplace_photo_urls($photos);
 @endphp
 
 @if (count($urls) > 0)

@@ -63,7 +63,7 @@ class LoanProductReadinessService
                 'displayed_monthly_rate' => $displayedRate->displayedMonthlyRate($product),
                 'displayed_monthly_rate_label' => $displayedRate->formatBorrowerRateRange($product),
                 'requires_guarantor' => (bool) $product->requires_guarantor,
-                'repayment_frequency'=> $product->repayment_frequency ?? 'weekly',
+                'repayment_frequency'=> app(\App\Services\GroupLendingService::class)->effectiveRepaymentCadence($product),
             ],
             'readiness_percent'  => $percent,
             'readiness_level'    => $percent >= 90 ? 'green' : ($percent >= 60 ? 'amber' : 'red'),

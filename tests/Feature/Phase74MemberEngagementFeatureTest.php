@@ -162,9 +162,9 @@ class Phase74MemberEngagementFeatureTest extends TestCase
         $customer = $this->makeCustomer(['user_id' => $user->id, 'referral_code' => 'KPF-ENG003']);
 
         $this->actingAs($user)
+            ->followingRedirects()
             ->get(route('site.borrower.referrals'))
             ->assertOk()
-            ->assertSee(__('borrower.referrals.rewards_title'), false)
             ->assertSee('KPF-ENG003', false);
     }
 
@@ -224,8 +224,9 @@ class Phase74MemberEngagementFeatureTest extends TestCase
         $this->makeCustomer(['user_id' => $user->id, 'loyalty_points' => 250]);
 
         $this->actingAs($user)
+            ->followingRedirects()
             ->get(route('site.borrower.rewards'))
             ->assertOk()
-            ->assertSee(__('borrower.rewards.title'), false);
+            ->assertSee(__('borrower.rewards.redeem_title'), false);
     }
 }

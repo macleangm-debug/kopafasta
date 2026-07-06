@@ -38,7 +38,10 @@
             "app/Helpers/payments.php",
             "app/Helpers/loan_products.php",
             "app/Helpers/locations.php",
-            "app/Helpers/finance.php"
+            "app/Helpers/finance.php",
+            "app/Helpers/marketplace.php",
+            "app/Helpers/kin.php",
+            "app/Helpers/rewards.php"
         ]
     },
     "autoload-dev": {

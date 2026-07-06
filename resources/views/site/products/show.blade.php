@@ -10,6 +10,8 @@
         : route('site.login', ['redirect' => route('site.borrower.apply', ['product' => $product->id])]);
     $faqVisible = array_slice($p['faq'], 0, 3);
     $faqExtra = array_slice($p['faq'], 3);
+    $cadence = app(\App\Services\GroupLendingService::class)->effectiveRepaymentCadence($product);
+    $isMonthlyCadence = $cadence === 'monthly';
 @endphp
 <x-site.layout :title="$p['name'].' — '.brand_name()">
     {{-- Hero --}}
@@ -77,6 +79,7 @@
                 'tmax' => $p['limits']['tenure_max_months'],
                 'tiers' => $p['tiers'] ?? [],
                 'rate' => app(\App\Services\DisplayedRateService::class)->displayedMonthlyRate($product, (float) $p['limits']['min_amount']),
+                'cadence' => $cadence,
              ]))">
         <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="glass-card p-6 sm:p-8 ring-2 ring-brand/10">
@@ -107,8 +110,10 @@
 
                 <div class="mt-8 grid sm:grid-cols-2 gap-4">
                     <div class="rounded-xl bg-brand-muted/50 p-5 text-center">
-                        <div class="text-[11px] uppercase tracking-wider text-gray-500">{{ __('site.product_detail.monthly_payment') }}</div>
-                        <div class="text-2xl font-bold text-brand mt-2 tabular-nums" x-text="formatMoney(monthly)"></div>
+                        <div class="text-[11px] uppercase tracking-wider text-gray-500">
+                            {{ $isMonthlyCadence ? __('site.product_detail.monthly_payment') : __('site.product_detail.weekly_payment') }}
+                        </div>
+                        <div class="text-2xl font-bold text-brand mt-2 tabular-nums" x-text="formatMoney(installment)"></div>
                     </div>
                     <div class="rounded-xl bg-brand-muted/50 p-5 text-center">
                         <div class="text-[11px] uppercase tracking-wider text-gray-500">{{ __('site.product_detail.total_repayment') }}</div>
@@ -190,8 +195,26 @@
                     const rate = this.currentRate;
                     return Math.round((principal / months) + (principal * rate));
                 },
+                get weekly() {
+                    const principal = Number(this.amount) || 0;
+                    const months = Number(this.tenure) || 1;
+                    const rate = this.currentRate;
+                    const periods = Math.max(1, Math.round(months * 4.33));
+                    const periodRate = rate / 4;
+                    return Math.round((principal / periods) + (principal * periodRate));
+                },
+                get installment() {
+                    return (this.config.cadence || 'weekly') === 'monthly' ? this.monthly : this.weekly;
+                },
                 get total() {
-                    return Math.round(this.monthly * (Number(this.tenure) || 1));
+                    const principal = Number(this.amount) || 0;
+                    const months = Number(this.tenure) || 1;
+                    const rate = this.currentRate;
+                    if ((this.config.cadence || 'weekly') === 'monthly') {
+                        return Math.round(this.monthly * months);
+                    }
+                    const periods = Math.max(1, Math.round(months * 4.33));
+                    return Math.round(this.weekly * periods);
                 },
                 formatMoney(value) {
                     return 'TZS ' + Math.round(value).toLocaleString('en-US');

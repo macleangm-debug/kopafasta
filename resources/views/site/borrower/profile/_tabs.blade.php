@@ -15,7 +15,7 @@
         : [];
 @endphp
 
-<nav class="flex gap-2 mb-6 overflow-x-auto scrollbar-none pb-1 -mx-1 px-1" aria-label="{{ __('borrower.profile.account_nav') }}">
+<nav class="flex gap-2 mb-6 overflow-x-auto snap-x snap-mandatory scrollbar-none pb-1 -mx-1 px-1 scroll-smooth" aria-label="{{ __('borrower.profile.account_nav') }}">
     @foreach ($tabs as $key => [$label, $route, $params])
         @php
             $isActive = $active === $key;
@@ -29,7 +29,7 @@
                     : 'bg-white/80 text-gray-600 ring-gray-200/80 hover:bg-brand-muted/40');
         @endphp
         <a href="{{ route($route, $params) }}"
-           class="shrink-0 inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold transition
+           class="snap-start shrink-0 inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold transition
                   {{ $isActive ? 'bg-brand text-white shadow-sm ring-2 ring-brand' : $inactiveRing }}">
             @if ($tab && $isComplete !== null)
                 <span @class([

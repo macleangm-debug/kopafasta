@@ -72,7 +72,7 @@ class MarketplaceAssetService
     /** @param array<string, mixed> $data */
     public function prepareForSave(array $data, ?MarketplaceAsset $existing = null): array
     {
-        unset($data['insurance_available']);
+        unset($data['insurance_available'], $data['photos'], $data['remove_photos']);
 
         if (empty($data['slug']) && ! empty($data['title'])) {
             $data['slug'] = Str::slug($data['title']).'-'.Str::lower(Str::random(4));
@@ -141,7 +141,9 @@ class MarketplaceAssetService
 
         foreach ($removePaths as $path) {
             if ($photos->contains($path)) {
-                Storage::disk('public')->delete($path);
+                if (! str_starts_with((string) $path, 'http://') && ! str_starts_with((string) $path, 'https://')) {
+                    Storage::disk('public')->delete($path);
+                }
                 $photos = $photos->reject(fn ($p) => $p === $path);
             }
         }

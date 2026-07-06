@@ -30,6 +30,7 @@
             icon="🏠"
             :title="__('borrower.profile.residence')"
             :complete="$residenceComplete"
+            :empty="! $residenceComplete"
             :default-open="($wizardMode ?? false) || ($editing ?? false)">
             <x-slot:view>
                 <dl class="grid sm:grid-cols-2 gap-4 text-sm">

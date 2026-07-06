@@ -5,7 +5,7 @@
 ])
 
 @php
-    $relationships = config('kin.relationships', []);
+    $relationships = kin_relationship_options();
     $first = old('nok_first_name', $customer->nok_first_name);
     $middle = old('nok_middle_name', $customer->nok_middle_name);
     $last = old('nok_last_name', $customer->nok_last_name);
@@ -60,13 +60,15 @@
 
     <div class="grid sm:grid-cols-2 gap-4">
         <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.relationship') }} @if($required)<span class="text-red-500">*</span>@endif</label>
-            <select name="nok_relationship" @if($required) required @endif class="{{ $inputClass }}">
-                <option value="">{{ __('borrower.profile.select_relationship') }}</option>
-                @foreach ($relationships as $relationship)
-                    <option value="{{ $relationship }}" @selected(old('nok_relationship', $customer->nok_relationship) === $relationship)>{{ $relationship }}</option>
-                @endforeach
-            </select>
+            <x-site.profile-select
+                name="nok_relationship"
+                :label="__('borrower.profile.fields.relationship')"
+                :options="$relationships"
+                :value="old('nok_relationship', $customer->nok_relationship)"
+                :required="$required"
+                :placeholder="__('borrower.profile.select_relationship')"
+                :select-class="$inputClass"
+            />
         </div>
         <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.phone') }} @if($required)<span class="text-red-500">*</span>@endif</label>

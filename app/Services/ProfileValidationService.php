@@ -64,7 +64,8 @@ class ProfileValidationService
 
     public function nationalIdUploadsComplete(Customer $customer): bool
     {
-        return $this->hasDocument($customer, 'national_id_front');
+        return $this->hasDocument($customer, 'national_id_front')
+            && $this->hasDocument($customer, 'national_id_back');
     }
 
     public function identityDocumentsComplete(Customer $customer): bool

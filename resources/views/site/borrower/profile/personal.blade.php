@@ -16,6 +16,11 @@
             $requireIdentityDuringProfile = app(\App\Services\ProfileCompletionService::class)->identityRequiredDuringProfile();
             $nidaDocs = $nidaDocuments ?? collect();
             $nidaFront = $nidaDocs->get('national_id_front');
+            $nidaBack = $nidaDocs->get('national_id_back');
+            $hasIdentity = filled($customer->national_id) && (
+                ! $requireIdentityDuringProfile
+                || (app(\App\Services\ProfileValidationService::class)->nationalIdUploadsComplete($customer))
+            );
             $readonly = 'w-full rounded-lg border-gray-200 bg-gray-50 ring-1 ring-gray-200 px-3 py-2 text-sm';
             $editable = 'w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2 text-sm';
             $hasContact = filled($customer->phone) || filled($customer->email);
@@ -23,7 +28,6 @@
             $kinName = $customer->nok_name ?: trim(($customer->nok_first_name ?? '').' '.($customer->nok_last_name ?? ''));
             $faceKey = $customer->face_verification_status ?? 'incomplete';
             $faceComplete = in_array($faceKey, ['verified', 'pending'], true);
-            $hasIdentity = filled($customer->national_id);
             $focusHash = request()->query('focus');
             $saveConfirm = [
                 'title' => __('borrower.profile.save_confirm_title'),
@@ -88,6 +92,8 @@
                                 @if ($requireIdentityDuringProfile)
                                     <x-site.profile-document-field :document="$nidaFront" field-name="national_id_front" mode="single" :label="__('borrower.profile.nida_front')" input-host-id="nida-front-upload" :required="! $nidaFront" />
                                     @error('national_id_front')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                                    <x-site.profile-document-field :document="$nidaBack" field-name="national_id_back" mode="single" :label="__('borrower.profile.nida_back')" input-host-id="nida-back-upload" :required="! $nidaBack" />
+                                    @error('national_id_back')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                                 @endif
                             </div>
                             <button type="submit" class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
@@ -107,7 +113,14 @@
                     :default-open="$focusHash === 'contact'">
                     <x-slot:view>
                         <dl class="grid sm:grid-cols-2 gap-4 text-sm">
-                            <div><dt class="text-gray-500">{{ __('borrower.profile.fields.phone') }}</dt><dd class="font-medium mt-0.5">{{ $customer->phone ?: '—' }}</dd></div>
+                            <div>
+                                <dt class="text-gray-500">{{ __('borrower.profile.fields.phone') }}</dt>
+                                @if ($customer->phone)
+                                    <dd class="font-medium mt-0.5">{{ $customer->phone }}</dd>
+                                @else
+                                    <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
+                                @endif
+                            </div>
                             @if (filled($customer->email) && ! str_ends_with(strtolower($customer->email), '@phone.kopafasta.local'))
                                 <div><dt class="text-gray-500">{{ __('borrower.profile.fields.email') }}</dt><dd class="font-medium mt-0.5">{{ $customer->email }}</dd></div>
                             @endif
@@ -142,8 +155,30 @@
                     :default-open="$focusHash === 'kin'">
                     <x-slot:view>
                         <dl class="grid sm:grid-cols-2 gap-4 text-sm">
-                            <div><dt class="text-gray-500">{{ __('borrower.profile.fields.full_name') }}</dt><dd class="font-medium mt-0.5">{{ $kinName ?: '—' }}</dd></div>
-                            <div><dt class="text-gray-500">{{ __('borrower.profile.fields.phone') }}</dt><dd class="font-medium mt-0.5">{{ $customer->nok_phone ?: '—' }}</dd></div>
+                            <div>
+                                <dt class="text-gray-500">{{ __('borrower.profile.fields.full_name') }}</dt>
+                                @if ($kinName)
+                                    <dd class="font-medium mt-0.5">{{ $kinName }}</dd>
+                                @else
+                                    <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
+                                @endif
+                            </div>
+                            <div>
+                                <dt class="text-gray-500">{{ __('borrower.profile.fields.relationship') }}</dt>
+                                @if ($customer->nok_relationship)
+                                    <dd class="font-medium mt-0.5">{{ kin_relationship_label($customer->nok_relationship) }}</dd>
+                                @else
+                                    <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
+                                @endif
+                            </div>
+                            <div>
+                                <dt class="text-gray-500">{{ __('borrower.profile.fields.phone') }}</dt>
+                                @if ($customer->nok_phone)
+                                    <dd class="font-medium mt-0.5">{{ $customer->nok_phone }}</dd>
+                                @else
+                                    <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
+                                @endif
+                            </div>
                             @if (filled($customer->nok_region))
                                 <div><dt class="text-gray-500">{{ __('borrower.profile.region') }}</dt><dd class="font-medium mt-0.5">{{ $customer->nok_region }}</dd></div>
                             @endif
@@ -193,6 +228,7 @@
                             @include('site.borrower.profile._face_inline', [
                                 'steps' => $faceSteps,
                                 'uploadUrls' => $faceUploadUrls,
+                                'deleteUrls' => $faceDeleteUrls ?? [],
                                 'wizard' => $faceWizard ?? ['current_index' => 0],
                             ])
                         @else

@@ -201,6 +201,7 @@ class ApplyController extends Controller
         $referralService = app(ReferralService::class);
         $referralWallet = $referralService->wallet($customer);
         $referralSettings = $referralService->settings();
+        $streakReward = app(\App\Services\RepaymentStreakRewardService::class)->status($customer);
         $applicationFeePaymentRef = $request->session()->get('application_fee_payment_ref')
             ?? app(ApplicationFeePaymentService::class)->generatePaymentReference();
         $request->session()->put('application_fee_payment_ref', $applicationFeePaymentRef);
@@ -218,6 +219,7 @@ class ApplyController extends Controller
         $assetTypeOptions = app(\App\Services\AssetBackedLoanService::class)->assetTypeOptions();
         $assetDocumentLabels = app(AssetBackedApplyService::class)->documentLabels();
         $customerAssets = app(\App\Services\CustomerAssetService::class)->forCustomer($customer);
+        $pointsBalance = app(\App\Services\LoyaltyPointsService::class)->balance($customer);
 
         return view('site.apply.wizard', compact(
             'products',
@@ -240,6 +242,7 @@ class ApplyController extends Controller
             'bankAccounts',
             'referralWallet',
             'referralSettings',
+            'streakReward',
             'applicationFeePaymentRef',
             'valuationFeeQuote',
             'valuationFeeAmount',
@@ -247,6 +250,7 @@ class ApplyController extends Controller
             'assetTypeOptions',
             'assetDocumentLabels',
             'customerAssets',
+            'pointsBalance',
         ))->with('paymentGatewayDummy', payment_gateway_is_dummy())
             ->with('loanPurposes', loan_purpose_options())
             ->with('marketplaceOnlyCodes', marketplace_only_loan_codes())
@@ -750,6 +754,7 @@ class ApplyController extends Controller
             'channel'         => ['required', 'in:mobile_money,bank'],
             'payment_phone'   => [$dummyGateway ? 'nullable' : 'required_if:channel,mobile_money', 'nullable', 'string', 'max:20'],
             'use_wallet'      => ['nullable', 'boolean'],
+            'use_streak'      => ['nullable', 'boolean'],
             'promo_code'      => ['nullable', 'string', 'max:40'],
         ]);
 
@@ -790,6 +795,7 @@ class ApplyController extends Controller
                 $request->boolean('use_wallet'),
                 $data['promo_code'] ?? null,
                 $groups->isGroupProduct($product) ? $memberCount : null,
+                $request->boolean('use_streak'),
             );
             $drafts->saveApplicationFee($customer, $product->id, $feeState);
             if (product_includes_valuation_fee($product)) {
@@ -815,6 +821,7 @@ class ApplyController extends Controller
             $request->boolean('use_wallet'),
             $data['promo_code'] ?? null,
             $groups->isGroupProduct($product) ? $memberCount : null,
+            $request->boolean('use_streak'),
         );
         $drafts->saveApplicationFee($customer, $product->id, $feeState);
         if (product_includes_valuation_fee($product)) {
@@ -1015,6 +1022,7 @@ class ApplyController extends Controller
             ->firstOrFail();
 
         $useWallet = $request->boolean('use_wallet');
+        $useStreak = $request->boolean('use_streak');
         $promoCode = $request->query('promo_code');
         $memberCount = max(1, (int) $request->query('member_count', 1));
         $groups = app(GroupLendingService::class);
@@ -1031,6 +1039,7 @@ class ApplyController extends Controller
                 $useWallet,
                 $promoCode,
                 $groups->isGroupProduct($product) ? $memberCount : null,
+                $useStreak,
             ),
             'breakdown' => $groups->isGroupProduct($product)
                 ? $groups->applicationFeeBreakdown($customer, $product, $memberCount)
@@ -1078,7 +1087,12 @@ class ApplyController extends Controller
         }
 
         $emi = $wizard->estimateEmi($amount, $rate, $tenure);
-        $interestTotal = max(0, ($emi * $tenure) - $amount);
+        $weekly = $cadence === 'monthly'
+            ? 0
+            : (int) round(($amount / max(1, (int) round($tenure * 4.33))) + ($amount * ($rate / 4)));
+        $periods = $cadence === 'monthly' ? $tenure : max(1, (int) round($tenure * 4.33));
+        $installment = $cadence === 'monthly' ? round($emi, 2) : (float) $weekly;
+        $interestTotal = max(0, ($installment * $periods) - $amount);
         $applicationFee = quoted_application_fee($customer, $product);
         $boosts = app(\App\Services\MemberEngagementRewardService::class)->underwritingBoosts($customer);
         $qualification = app(\App\Services\LoanQualificationService::class)->calculate($customer);
@@ -1094,8 +1108,11 @@ class ApplyController extends Controller
                 'standard_rate_pct'   => round($standardRate * 100, 2),
                 'application_fee'     => $applicationFee,
                 'monthly_installment' => round($emi, 2),
+                'weekly_installment'  => $weekly,
+                'installment_amount'  => $installment,
+                'repayment_cadence'   => $cadence,
                 'interest_total'      => round($interestTotal, 2),
-                'total_repayment'     => round(($emi * $tenure) + $applicationFee, 2),
+                'total_repayment'     => round(($installment * $periods) + $applicationFee, 2),
             ],
             'engagement'    => [
                 'limit_amount'          => (int) ($qualification['amount'] ?? 0),

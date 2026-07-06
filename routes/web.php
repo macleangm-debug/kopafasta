@@ -189,10 +189,12 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/apply/{application}/success', [\App\Http\Controllers\Site\ApplyController::class, 'success'])->name('borrower.apply.success');
             Route::get('/apply/{application}/success', [\App\Http\Controllers\Site\ApplyController::class, 'success'])->name('apply.success');
 
-            Route::get('/borrower/referrals',         [\App\Http\Controllers\Site\ReferralsController::class, 'show'])       ->name('borrower.referrals');
-            Route::get('/borrower/rewards',           [\App\Http\Controllers\Site\RewardsController::class, 'show'])         ->name('borrower.rewards');
-            Route::post('/borrower/rewards/redeem',   [\App\Http\Controllers\Site\RewardsController::class, 'redeem'])      ->name('borrower.rewards.redeem');
-            Route::get('/borrower/membership',         [\App\Http\Controllers\Site\MembershipController::class, 'show'])      ->name('membership.show');
+            Route::get('/borrower/engagement',         [\App\Http\Controllers\Site\EngagementHubController::class, 'show'])   ->name('borrower.engagement');
+            Route::post('/borrower/engagement/redeem', [\App\Http\Controllers\Site\EngagementHubController::class, 'redeem'])->name('borrower.engagement.redeem');
+            Route::get('/borrower/referrals', fn () => redirect()->route('site.borrower.engagement', ['tab' => 'referrals']))->name('borrower.referrals');
+            Route::get('/borrower/rewards', fn () => redirect()->route('site.borrower.engagement', ['tab' => 'rewards']))->name('borrower.rewards');
+            Route::post('/borrower/rewards/redeem', [\App\Http\Controllers\Site\EngagementHubController::class, 'redeem'])->name('borrower.rewards.redeem');
+            Route::get('/borrower/membership', fn () => redirect()->route('site.borrower.profile', ['section' => 'membership']))->name('membership.show');
             Route::get('/borrower/membership/card.pdf', [\App\Http\Controllers\Site\MembershipController::class, 'downloadCard'])->name('membership.card.download');
             Route::get('/borrower/membership/renew',   [\App\Http\Controllers\Site\MembershipController::class, 'renewForm']) ->name('membership.renew');
             Route::post('/borrower/membership/renew',  [\App\Http\Controllers\Site\MembershipController::class, 'renew'])     ->name('membership.renew.post');
@@ -246,6 +248,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/kyc',                           [\App\Http\Controllers\Site\BorrowerController::class, 'uploadKyc'])    ->name('borrower.kyc.store');
             Route::get('/borrower/face-verification',              [\App\Http\Controllers\Site\BorrowerController::class, 'faceVerification'])->name('borrower.face-verification');
             Route::post('/borrower/face-verification/{angle}',     [\App\Http\Controllers\Site\BorrowerController::class, 'uploadFaceVerification'])->name('borrower.face-verification.store')->where('angle', 'front|left|right|holding_nida');
+            Route::delete('/borrower/face-verification/{angle}',   [\App\Http\Controllers\Site\BorrowerController::class, 'removeFaceVerification'])->name('borrower.face-verification.destroy')->where('angle', 'front|left|right|holding_nida');
             Route::get('/borrower/guarantors',                     [\App\Http\Controllers\Site\BorrowerController::class, 'guarantors'])   ->name('borrower.guarantors');
             Route::post('/borrower/guarantors',                    [\App\Http\Controllers\Site\BorrowerController::class, 'addGuarantor']) ->name('borrower.guarantors.store');
             Route::get('/borrower/guarantor-requests', fn () => redirect()->route('site.borrower.loans', ['tab' => 'guarantor']))->name('borrower.guarantor-requests');

@@ -18,6 +18,29 @@
         <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
     @endif
 
+    @php
+        $verifiedTotal = $entries->whereIn('status', ['verified', 'paid'])->sum('amount');
+        $pendingCount = $entries->whereIn('status', ['pending', 'submitted', 'awaiting_payout'])->count();
+        $activeLoanCount = $loans->count();
+    @endphp
+
+    @if ($entries->isNotEmpty() || $loans->isNotEmpty())
+        <div class="grid gap-4 sm:grid-cols-3 mb-6">
+            <div class="glass-card p-5 bg-gradient-to-br from-brand-muted/70 to-white">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.payments_page.summary_verified') }}</p>
+                <p class="mt-2 text-2xl font-black text-brand tabular-nums">{{ format_money($verifiedTotal) }}</p>
+            </div>
+            <div class="glass-card p-5">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.payments_page.summary_pending') }}</p>
+                <p class="mt-2 text-2xl font-black text-amber-600 tabular-nums">{{ $pendingCount }}</p>
+            </div>
+            <div class="glass-card p-5">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.payments_page.summary_active_loans') }}</p>
+                <p class="mt-2 text-2xl font-black text-gray-900 tabular-nums">{{ $activeLoanCount }}</p>
+            </div>
+        </div>
+    @endif
+
     <x-site.page-loading-shell>
         <x-slot:skeleton>
             <x-site.skeleton-card :lines="6" class="mb-4" />
