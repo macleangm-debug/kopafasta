@@ -72,8 +72,10 @@ class ApplicationBorrowerStatusService
 
         $code = $this->resolveCode($application);
         if (in_array($code, ['submitted', 'under_review', 'screening', 'credit_review'], true)) {
+            $application->loadMissing('customer');
+
             return __('borrower.loan_profile.review_sla', [
-                'time' => app(UnderwritingSettingsService::class)->loanReviewSlaLabel(),
+                'time' => app(UnderwritingSettingsService::class)->loanReviewSlaLabel($application->customer),
             ]);
         }
 

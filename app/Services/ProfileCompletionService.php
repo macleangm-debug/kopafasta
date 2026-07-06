@@ -272,4 +272,103 @@ class ProfileCompletionService
     {
         return app(IdentityVerificationPolicyService::class)->requiredDuringProfileCreation();
     }
+
+    /**
+     * Rich section statuses for profile hub cards.
+     *
+     * @return array<string, array{complete: bool, required: bool, label: string, url: string, status: string, description?: string, count?: int}>
+     */
+    public function extendedTabStatuses(Customer $customer): array
+    {
+        $validation = app(ProfileValidationService::class);
+        $revision = app(ProfileRevisionService::class);
+        $identityPolicy = app(IdentityVerificationPolicyService::class);
+        $requireIdentity = $identityPolicy->requiredDuringProfileCreation();
+        $paymentAccounts = app(CustomerDisbursementDetailsService::class)->accountsForCustomer($customer);
+        $faceStatus = $customer->face_verification_status ?? 'incomplete';
+        $nidaVerified = app(NidaVerificationService::class)->isVerified($customer);
+        $assetCount = $customer->assets()->count();
+
+        $personalComplete = $validation->isCorePersonalComplete($customer);
+        if ($requireIdentity) {
+            $personalComplete = $personalComplete && app(ProfileRevisionService::class)->nidaStepComplete($customer);
+        }
+
+        $kinComplete = $validation->isKinComplete($customer);
+
+        $resolve = function (bool $complete, string $revisionKey, ?string $pendingStatus = null) use ($revision, $customer): string {
+            if ($revision->hasOpenRevision($customer, $revisionKey)) {
+                return 'needs_work';
+            }
+            if ($complete) {
+                return 'complete';
+            }
+            if ($pendingStatus) {
+                return $pendingStatus;
+            }
+
+            return 'not_started';
+        };
+
+        $sections = [
+            'personal' => [
+                'complete' => $personalComplete && $kinComplete,
+                'required' => true,
+                'label'    => __('borrower.profile.personal_information'),
+                'url'      => route('site.borrower.profile', ['section' => 'personal']),
+                'status'   => $resolve($personalComplete && $kinComplete, 'personal'),
+            ],
+            'activity' => [
+                'complete' => $this->isActivityComplete($customer),
+                'required' => true,
+                'label'    => __('borrower.profile.contact_information'),
+                'url'      => route('site.borrower.profile', ['section' => 'activity']),
+                'status'   => $resolve($this->isActivityComplete($customer), 'activity', $this->isActivityComplete($customer) ? null : 'in_progress'),
+            ],
+            'kyc' => [
+                'complete' => $nidaVerified,
+                'required' => $requireIdentity,
+                'label'    => __('borrower.profile.national_id'),
+                'url'      => route('site.borrower.profile', ['section' => 'personal']),
+                'status'   => $resolve($nidaVerified, 'nida', $nidaVerified ? null : ($validation->hasDocument($customer, 'national_id_front') ? 'under_review' : 'pending')),
+            ],
+            'face' => [
+                'complete' => in_array($faceStatus, ['verified'], true),
+                'required' => $requireIdentity,
+                'label'    => __('borrower.profile.facial_verification'),
+                'url'      => route('site.borrower.face-verification'),
+                'status'   => match (true) {
+                    $revision->hasOpenRevision($customer, 'face') => 'needs_work',
+                    $faceStatus === 'verified' => 'complete',
+                    $faceStatus === 'pending' => 'under_review',
+                    $faceStatus === 'rejected' => 'rejected',
+                    default => 'not_started',
+                },
+            ],
+            'payment' => [
+                'complete' => $paymentAccounts->isNotEmpty(),
+                'required' => true,
+                'label'    => __('borrower.profile.payment_account'),
+                'url'      => route('site.borrower.profile', ['section' => 'payment']),
+                'status'   => $paymentAccounts->isNotEmpty() ? 'complete' : 'not_started',
+            ],
+            'kin' => [
+                'complete' => $kinComplete,
+                'required' => true,
+                'label'    => __('borrower.profile.next_of_kin'),
+                'url'      => route('site.borrower.profile', ['section' => 'kin']),
+                'status'   => $resolve($kinComplete, 'kin'),
+            ],
+            'assets' => [
+                'complete' => $assetCount > 0,
+                'required' => false,
+                'label'    => __('borrower.profile.my_collaterals'),
+                'url'      => route('site.borrower.profile', ['section' => 'assets']),
+                'status'   => $assetCount > 0 ? 'complete' : 'not_started',
+                'count'    => $assetCount,
+            ],
+        ];
+
+        return $sections;
+    }
 }

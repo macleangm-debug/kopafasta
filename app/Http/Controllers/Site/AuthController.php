@@ -490,8 +490,11 @@ class AuthController extends Controller
             ->withCookie(app(TrustedDeviceService::class)->forgetCookie());
     }
 
-    public function showRegisterBorrower(Request $request): View
+    public function showRegisterBorrower(Request $request, ReferralService $referrals): View
     {
+        if ($ref = $request->query('ref')) {
+            $referrals->recordClick((string) $ref, $request);
+        }
         if ($code = $request->query('aff')) {
             session(['affiliate_code' => strtoupper(trim($code))]);
         }
@@ -648,7 +651,10 @@ class AuthController extends Controller
 
             app(\App\Services\BranchService::class)->assignDefault($customer);
 
-            $referrals->attachReferrer($customer, $data['referral_code'] ?? null);
+            $referrals->attachReferrerFromSession($customer, $request);
+            if (blank($customer->fresh()->referred_by_customer_id)) {
+                $referrals->attachReferrer($customer, $data['referral_code'] ?? null);
+            }
             $referrals->ensureCode($customer);
             app(\App\Services\AffiliateService::class)->attachAffiliate(
                 $customer,

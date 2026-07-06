@@ -13,10 +13,16 @@ class Promotion extends Model
         'status',
         'discount_percent',
         'discount_amount',
+        'original_fee',
+        'discount_type',
+        'eligible_members',
+        'banner_path',
         'applies_to',
         'starts_at',
         'ends_at',
         'message_template',
+        'message_en',
+        'message_sw',
         'metadata',
     ];
 
@@ -25,6 +31,7 @@ class Promotion extends Model
         return [
             'discount_percent' => 'decimal:2',
             'discount_amount'  => 'decimal:2',
+            'original_fee'     => 'decimal:2',
             'starts_at'        => 'date',
             'ends_at'          => 'date',
             'metadata'         => 'array',

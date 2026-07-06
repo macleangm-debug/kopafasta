@@ -49,6 +49,8 @@ use App\Http\Controllers\Admin\RiskScoringRuleController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\LocationMasterController;
 use App\Http\Controllers\Admin\SignatoryController;
+use App\Http\Controllers\Admin\EngagementSettingsController;
+use App\Http\Controllers\Admin\ProfileSectionDefinitionController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\SettlementController;
 use App\Http\Controllers\Admin\SupportChatController;
@@ -188,6 +190,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/apply/{application}/success', [\App\Http\Controllers\Site\ApplyController::class, 'success'])->name('apply.success');
 
             Route::get('/borrower/referrals',         [\App\Http\Controllers\Site\ReferralsController::class, 'show'])       ->name('borrower.referrals');
+            Route::get('/borrower/rewards',           [\App\Http\Controllers\Site\RewardsController::class, 'show'])         ->name('borrower.rewards');
+            Route::post('/borrower/rewards/redeem',   [\App\Http\Controllers\Site\RewardsController::class, 'redeem'])      ->name('borrower.rewards.redeem');
             Route::get('/borrower/membership',         [\App\Http\Controllers\Site\MembershipController::class, 'show'])      ->name('membership.show');
             Route::get('/borrower/membership/card.pdf', [\App\Http\Controllers\Site\MembershipController::class, 'downloadCard'])->name('membership.card.download');
             Route::get('/borrower/membership/renew',   [\App\Http\Controllers\Site\MembershipController::class, 'renewForm']) ->name('membership.renew');
@@ -609,6 +613,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         $registerAdminPartners = require base_path('routes/admin_partners.php');
         $registerAdminPartners();
         $registerResource('promotions', 'promotion', \App\Http\Controllers\Admin\PromotionController::class);
+        $registerResource('profile-sections', 'profile_section', ProfileSectionDefinitionController::class);
 
         // Capital
         Route::get('capital-funding', [\App\Http\Controllers\Admin\CapitalPartnerFundingController::class, 'index'])->name('capital-funding.index');
@@ -796,6 +801,23 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/membership',       [SettingsController::class, 'saveMembership'])->name('settings.membership.save');
         Route::get('settings/referrals',        [SettingsController::class, 'referrals'])     ->name('settings.referrals');
         Route::put('settings/referrals',        [SettingsController::class, 'saveReferrals']) ->name('settings.referrals.save');
+        Route::get('settings/engagement', [EngagementSettingsController::class, 'index'])->name('settings.engagement');
+        Route::get('settings/engagement/referral-levels', [EngagementSettingsController::class, 'referralLevels'])->name('settings.engagement.referral-levels');
+        Route::put('settings/engagement/referral-levels', [EngagementSettingsController::class, 'saveReferralLevels'])->name('settings.engagement.referral-levels.save');
+        Route::get('settings/engagement/trust-score', [EngagementSettingsController::class, 'trustScore'])->name('settings.engagement.trust-score');
+        Route::put('settings/engagement/trust-score', [EngagementSettingsController::class, 'saveTrustScore'])->name('settings.engagement.trust-score.save');
+        Route::get('settings/engagement/milestones', [EngagementSettingsController::class, 'milestones'])->name('settings.engagement.milestones');
+        Route::put('settings/engagement/milestones', [EngagementSettingsController::class, 'saveMilestones'])->name('settings.engagement.milestones.save');
+        Route::get('settings/engagement/repayment-streak', [EngagementSettingsController::class, 'repaymentStreak'])->name('settings.engagement.repayment-streak');
+        Route::put('settings/engagement/repayment-streak', [EngagementSettingsController::class, 'saveRepaymentStreak'])->name('settings.engagement.repayment-streak.save');
+        Route::get('settings/engagement/profile-strength', [EngagementSettingsController::class, 'profileStrength'])->name('settings.engagement.profile-strength');
+        Route::put('settings/engagement/profile-strength', [EngagementSettingsController::class, 'saveProfileStrength'])->name('settings.engagement.profile-strength.save');
+        Route::get('settings/engagement/loyalty-points', [EngagementSettingsController::class, 'loyaltyPoints'])->name('settings.engagement.loyalty-points');
+        Route::put('settings/engagement/loyalty-points', [EngagementSettingsController::class, 'saveLoyaltyPoints'])->name('settings.engagement.loyalty-points.save');
+        Route::get('settings/engagement/underwriting', [EngagementSettingsController::class, 'underwriting'])->name('settings.engagement.underwriting');
+        Route::put('settings/engagement/underwriting', [EngagementSettingsController::class, 'saveUnderwriting'])->name('settings.engagement.underwriting.save');
+        Route::get('settings/engagement/notifications', [EngagementSettingsController::class, 'notifications'])->name('settings.engagement.notifications');
+        Route::put('settings/engagement/notifications', [EngagementSettingsController::class, 'saveNotifications'])->name('settings.engagement.notifications.save');
         Route::get('settings/affiliates',      [SettingsController::class, 'affiliates'])    ->name('settings.affiliates');
         Route::put('settings/affiliates',       [SettingsController::class, 'saveAffiliates'])->name('settings.affiliates.save');
         Route::get('settings/chatbot',          [SettingsController::class, 'chatbot'])       ->name('settings.chatbot');

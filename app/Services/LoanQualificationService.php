@@ -60,6 +60,14 @@ class LoanQualificationService
             $factors[] = ['label' => 'Membership', 'detail' => 'Inactive — limit reduced until membership is active'];
         }
 
+        $boosts = app(MemberEngagementRewardService::class)->underwritingBoosts($customer);
+        if (($boosts['limit_multiplier'] ?? 1.0) > 1.0) {
+            $base = (int) round($base * (float) $boosts['limit_multiplier']);
+            foreach ($boosts['factors'] as $factor) {
+                $factors[] = $factor;
+            }
+        }
+
         $profile = app(ProfileCompletionService::class)->calculate($customer);
         if ($profile['percent'] < 100) {
             $base = (int) ($base * $cfg['kyc_incomplete_factor']);
@@ -77,6 +85,7 @@ class LoanQualificationService
             'has_data'  => $income > 0 || $customer->income_range,
             'factors'   => $factors,
             'summary'   => 'Calculated based on your profile, KYC verification, income category, and repayment history.',
+            'boosts'    => $boosts,
         ];
     }
 }

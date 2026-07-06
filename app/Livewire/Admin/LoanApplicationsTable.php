@@ -92,6 +92,9 @@ class LoanApplicationsTable extends Component
                         ->orWhere('status', 'disbursed');
                 });
             })
+            ->when($this->pipeline === 'under_review', function ($q) {
+                $q->orderByDesc('engagement_priority');
+            })
             ->orderBy($this->sort, $this->direction)
             ->paginate($this->perPage);
 

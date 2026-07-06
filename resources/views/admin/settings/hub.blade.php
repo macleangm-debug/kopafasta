@@ -27,6 +27,7 @@
         'Marketing' => [
             ['Membership', 'admin.settings.membership'],
             ['Referrals', 'admin.settings.referrals'],
+            ['Engagement', 'admin.settings.engagement'],
             ['Affiliates', 'admin.settings.affiliates'],
             ['Campaigns', 'admin.promotions.index'],
         ],

@@ -69,15 +69,23 @@ if (! function_exists('quoted_application_fee')) {
             return 0;
         }
 
+        $after = $base;
+
         if ($customer && app(ReferralService::class)->referrer($customer)) {
-            return (int) round(app(ReferralService::class)->quoteFee($customer, $base, false, 'application_fee')['after_discount']);
+            $after = (float) app(ReferralService::class)->quoteFee($customer, $base, false, 'application_fee')['after_discount'];
+        } elseif ($customer) {
+            $after = (float) app(AffiliateService::class)->quoteFee($customer, $base, 'application_fee')['after_discount'];
+        } else {
+            $after = (float) app(PromotionService::class)->applyAfter('application_fee', $base)['after_discount'];
         }
 
         if ($customer) {
-            return (int) round(app(AffiliateService::class)->quoteFee($customer, $base, 'application_fee')['after_discount']);
+            $loyalty = app(\App\Services\LoyaltyRedemptionService::class)->discountForFee($customer, 'application_fee', $after);
+
+            return max(0, (int) round($after - (float) $loyalty['discount']));
         }
 
-        return (int) round(app(PromotionService::class)->applyAfter('application_fee', $base)['after_discount']);
+        return (int) round($after);
     }
 }
 

@@ -180,6 +180,14 @@ class RepaymentPostingService
             $schedule->save();
             $remaining = round($remaining - $apply, 2);
             $firstTouchedId ??= $schedule->id;
+
+            if ($schedule->status === 'paid') {
+                try {
+                    app(MemberEngagementRewardService::class)->afterRepaymentSchedulePaid($schedule->fresh(), $repayment);
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
         }
 
         if ($firstTouchedId && ! $repayment->repayment_schedule_id) {

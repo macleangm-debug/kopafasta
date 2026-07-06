@@ -261,7 +261,10 @@ class ApplyController extends Controller
             ->with('selectPreviousGroupMemberUrl', route('site.borrower.apply.previous-group-member'))
             ->with('leaderCustomerId', $customer->id)
             ->with('leaderName', $customer->full_name)
-            ->with('leaderPhone', $customer->phone);
+            ->with('leaderPhone', $customer->phone)
+            ->with('engagementBoosts', app(\App\Services\MemberEngagementRewardService::class)->underwritingBoosts($customer))
+            ->with('qualificationLimit', (int) (app(\App\Services\LoanQualificationService::class)->calculate($customer)['amount'] ?? 0))
+            ->with('processingSla', app(\App\Services\UnderwritingSettingsService::class)->loanReviewSlaLabel($customer));
     }
 
     public function productReadiness(LoanProduct $product, LoanProductReadinessService $readiness): \Illuminate\Http\JsonResponse
@@ -1055,7 +1058,7 @@ class ApplyController extends Controller
 
         $amount = (float) $data['requested_amount'];
         $tenure = (int) $data['requested_tenure_months'];
-        $rate = app(DisplayedRateService::class)->displayedMonthlyRate($product, $amount);
+        $rate = app(\App\Services\LoanRateTierService::class)->resolveRate($product, $amount, $customer);
         $cadence = app(GroupLendingService::class)->effectiveRepaymentCadence($product);
         $rows = $schedules->preview($amount, $rate, $tenure, $cadence);
 
@@ -1074,7 +1077,12 @@ class ApplyController extends Controller
             ];
         }
 
-        $quote = $wizard->loanQuote($product, $amount, $tenure);
+        $emi = $wizard->estimateEmi($amount, $rate, $tenure);
+        $interestTotal = max(0, ($emi * $tenure) - $amount);
+        $applicationFee = quoted_application_fee($customer, $product);
+        $boosts = app(\App\Services\MemberEngagementRewardService::class)->underwritingBoosts($customer);
+        $qualification = app(\App\Services\LoanQualificationService::class)->calculate($customer);
+        $standardRate = app(DisplayedRateService::class)->displayedMonthlyRate($product, $amount);
 
         return response()->json([
             'ok'            => true,
@@ -1083,10 +1091,19 @@ class ApplyController extends Controller
             'summary'       => [
                 'monthly_rate'        => $rate,
                 'monthly_rate_pct'    => round($rate * 100, 2),
-                'application_fee'     => quoted_application_fee($customer, $product),
-                'monthly_installment' => $quote['monthly_installment'],
-                'interest_total'      => $quote['interest_total'],
-                'total_repayment'     => $quote['total_repayment'],
+                'standard_rate_pct'   => round($standardRate * 100, 2),
+                'application_fee'     => $applicationFee,
+                'monthly_installment' => round($emi, 2),
+                'interest_total'      => round($interestTotal, 2),
+                'total_repayment'     => round(($emi * $tenure) + $applicationFee, 2),
+            ],
+            'engagement'    => [
+                'limit_amount'          => (int) ($qualification['amount'] ?? 0),
+                'limit_multiplier'      => (float) ($boosts['limit_multiplier'] ?? 1),
+                'rate_discount_pct'     => round(((float) ($boosts['rate_discount_fraction'] ?? 0)) * 100, 2),
+                'processing_sla'        => app(\App\Services\UnderwritingSettingsService::class)->loanReviewSlaLabel($customer),
+                'processing_priority'   => (int) ($boosts['processing_priority'] ?? 0),
+                'factors'               => $boosts['factors'] ?? [],
             ],
         ]);
     }
@@ -1465,6 +1482,7 @@ class ApplyController extends Controller
         }
 
         $applicationNumber = $referenceService->resolveApplicationReference($loanProduct, $draftReference);
+        $engagementBoosts = app(\App\Services\MemberEngagementRewardService::class)->underwritingBoosts($customer);
 
         $app = LoanApplication::create([
             'customer_id'                => $customer->id,
@@ -1478,7 +1496,9 @@ class ApplyController extends Controller
             'screening_payload'          => [
                 'product_code'      => $loanProduct->code,
                 'product_questions' => array_filter($data['product_question'] ?? []),
+                'engagement'        => $engagementBoosts,
             ],
+            'engagement_priority'        => (int) ($engagementBoosts['processing_priority'] ?? 0),
             'registration_fee_amount'    => 0,
             'registration_fee_status'    => 'waived',
             'registration_fee_channel'   => null,

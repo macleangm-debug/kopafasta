@@ -625,8 +625,11 @@ class SettingsController extends Controller
             'discount_percent'       => ['required', 'numeric', 'min:0', 'max:100'],
             'commission_percent'     => ['required', 'numeric', 'min:0', 'max:100'],
             'wallet_max_fee_percent' => ['required', 'numeric', 'min:0', 'max:100'],
-            'message_share_template' => ['nullable', 'string', 'max:500'],
+            'attribution_days'       => ['required', 'integer', 'min:1', 'max:365'],
+            'message_share_template' => ['nullable', 'string', 'max:2000'],
             'message_invite_sms'     => ['nullable', 'string', 'max:500'],
+            'message_share_en'       => ['nullable', 'string', 'max:2000'],
+            'message_share_sw'       => ['nullable', 'string', 'max:2000'],
         ]);
 
         Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["referrals.$k" => $v])->all());

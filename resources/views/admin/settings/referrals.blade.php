@@ -1,4 +1,4 @@
-<x-admin.layout title="Referrals" heading="Referral Program" subheading="Discounts, commissions, and wallet rules">
+<x-admin.layout title="Referrals" heading="Referral Program" subheading="Discounts, commissions, wallet rules, and share messages">
     @include('admin.settings._tabs', ['active' => 'referrals'])
     @if (session('status'))<div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>@endif
 
@@ -9,8 +9,9 @@
             <h3 class="text-sm font-semibold text-gray-700 mb-4">Referral codes</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <x-admin.input name="code_prefix" label="Code prefix" :value="$values['code_prefix'] ?? config('referrals.code_prefix')" required />
+                <x-admin.input name="attribution_days" label="Link attribution window (days)" type="number" :value="$values['attribution_days'] ?? config('referrals.attribution_days', 30)" required />
             </div>
-            <p class="mt-3 text-xs text-gray-500">Members receive codes like <span class="font-mono">{{ ($values['code_prefix'] ?? 'KPF') }}-MAGORI001</span>.</p>
+            <p class="mt-3 text-xs text-gray-500">When someone clicks a referral link, they stay tied to the referrer for this many days.</p>
         </div>
 
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
@@ -19,22 +20,23 @@
                 <x-admin.input name="discount_percent" label="Referral discount (%)" type="number" step="0.01" :value="$values['discount_percent'] ?? config('referrals.discount_percent')" required />
                 <x-admin.input name="commission_percent" label="Referrer commission (%)" type="number" step="0.01" :value="$values['commission_percent'] ?? config('referrals.commission_percent')" required />
             </div>
-            <p class="mt-3 text-xs text-gray-500">Example: TZS 10,000 registration fee with 10% discount and 10% commission → customer pays 9,000, referrer earns 900.</p>
+            <p class="mt-3 text-xs text-gray-500">Referrals complete only after membership payment is confirmed.</p>
         </div>
 
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <h3 class="text-sm font-semibold text-gray-700 mb-4">Referral wallet</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <x-admin.input name="wallet_max_fee_percent" label="Max wallet usage per fee (%)" type="number" step="0.01" :value="$values['wallet_max_fee_percent'] ?? config('referrals.wallet_max_fee_percent')" required />
-            </div>
-            <p class="mt-3 text-xs text-gray-500">Wallet credits may cover registration, application, and post-approval fees — not loan repayments, interest, or penalties.</p>
+            <x-admin.input name="wallet_max_fee_percent" label="Max wallet usage per fee (%)" type="number" step="0.01" :value="$values['wallet_max_fee_percent'] ?? config('referrals.wallet_max_fee_percent')" required />
         </div>
 
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
-            <h3 class="text-sm font-semibold text-gray-700 mb-1">Referral messages</h3>
-            <p class="text-xs text-gray-500 mb-4">Placeholders: <span class="font-mono">{brand}</span>, <span class="font-mono">{referrer_name}</span>, <span class="font-mono">{referral_code}</span>, <span class="font-mono">{referral_link}</span>, <span class="font-mono">{discount_percent}</span></p>
+            <h3 class="text-sm font-semibold text-gray-700 mb-1">Default referral messages</h3>
+            <p class="text-xs text-gray-500 mb-4">Placeholders: <span class="font-mono">{Referral Link}</span>, <span class="font-mono">{referral_link}</span>, <span class="font-mono">{referral_code}</span>, <span class="font-mono">{brand}</span></p>
             <div class="space-y-4">
-                <x-admin.textarea name="message_share_template" label="Share message (portal copy / WhatsApp)" rows="2"
+                <x-admin.textarea name="message_share_en" label="Share message (English)" rows="6"
+                                  :value="$values['message_share_en'] ?? config('referrals.messages.share_en')" />
+                <x-admin.textarea name="message_share_sw" label="Share message (Swahili)" rows="6"
+                                  :value="$values['message_share_sw'] ?? config('referrals.messages.share_sw')" />
+                <x-admin.textarea name="message_share_template" label="Legacy share template" rows="2"
                                   :value="$values['message_share_template'] ?? config('referrals.messages.share_template')" />
                 <x-admin.textarea name="message_invite_sms" label="SMS invite template" rows="2"
                                   :value="$values['message_invite_sms'] ?? config('referrals.messages.invite_sms')" />

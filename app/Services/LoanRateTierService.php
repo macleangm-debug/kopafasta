@@ -2,13 +2,14 @@
 
 namespace App\Services;
 
+use App\Models\Customer;
 use App\Models\LoanProduct;
 use App\Models\LoanProductRateTier;
 
 class LoanRateTierService
 {
     /** Resolve monthly interest rate for a principal amount. Falls back to product default rate. */
-    public function resolveRate(LoanProduct $product, float $amount): float
+    public function resolveRate(LoanProduct $product, float $amount, ?Customer $customer = null): float
     {
         $tier = LoanProductRateTier::query()
             ->where('loan_product_id', $product->id)
@@ -17,11 +18,17 @@ class LoanRateTierService
             ->orderBy('sort_order')
             ->first();
 
-        if ($tier) {
-            return (float) $tier->monthly_rate;
+        $rate = $tier
+            ? (float) $tier->monthly_rate
+            : (float) $product->interest_rate;
+
+        if ($customer) {
+            $discount = (float) (app(MemberEngagementRewardService::class)->underwritingBoosts($customer)['rate_discount_fraction'] ?? 0);
+            $discount += app(LoyaltyRedemptionService::class)->additionalRateDiscount($customer);
+            $rate = max(0, round($rate - min(0.05, $discount), 4));
         }
 
-        return (float) $product->interest_rate;
+        return $rate;
     }
 
     /** @return list<array{min: float, max: float, rate: float}> */

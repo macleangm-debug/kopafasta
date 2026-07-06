@@ -82,6 +82,15 @@ class PaymentGateService
             }
         }
 
+        $loyaltyDiscount = 0.0;
+        $loyaltyRedemptionId = null;
+        $loyalty = app(LoyaltyRedemptionService::class)->discountForFee($customer, $feeType, $afterPartner);
+        if (($loyalty['discount'] ?? 0) > 0) {
+            $loyaltyDiscount = (float) $loyalty['discount'];
+            $afterPartner = max(0, round($afterPartner - $loyaltyDiscount, 2));
+            $loyaltyRedemptionId = $loyalty['redemption']?->id;
+        }
+
         $walletQuote = $referrals->quoteFee($customer, $afterPartner, $useWallet, $feeType, applyDiscount: false);
 
         return $this->formatQuote([
@@ -89,7 +98,9 @@ class PaymentGateService
             'referral_discount'     => $referralDiscount,
             'affiliate_discount'    => $affiliateDiscount,
             'promo_discount'        => $promoDiscount,
-            'total_discount'        => round($referralDiscount + $affiliateDiscount + $promoDiscount, 2),
+            'loyalty_discount'      => $loyaltyDiscount,
+            'loyalty_redemption_id' => $loyaltyRedemptionId,
+            'total_discount'        => round($referralDiscount + $affiliateDiscount + $promoDiscount + $loyaltyDiscount, 2),
             'after_discount'        => $afterPartner,
             'wallet_usable'         => (float) $walletQuote['wallet_usable'],
             'wallet_applied'        => (float) $walletQuote['wallet_applied'],
@@ -156,6 +167,13 @@ class PaymentGateService
                 $refType,
                 $refId,
             );
+        }
+
+        if (! empty($quote['loyalty_redemption_id'])) {
+            $redemption = \App\Models\LoyaltyRedemption::find($quote['loyalty_redemption_id']);
+            if ($redemption && $redemption->isActive()) {
+                app(LoyaltyRedemptionService::class)->markUsed($redemption, $refType, $refId);
+            }
         }
     }
 }

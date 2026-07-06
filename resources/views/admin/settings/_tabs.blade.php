@@ -41,6 +41,7 @@
         'Marketing' => [
             'membership' => ['Membership', 'admin.settings.membership'],
             'referrals'  => ['Referrals', 'admin.settings.referrals'],
+            'engagement' => ['Engagement', 'admin.settings.engagement'],
             'affiliates' => ['Affiliates', 'admin.settings.affiliates'],
             'chatbot'    => ['Chatbot', 'admin.settings.chatbot'],
             'campaigns'  => ['Campaigns', 'admin.promotions.index'],

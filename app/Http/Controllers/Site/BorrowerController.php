@@ -152,6 +152,7 @@ class BorrowerController extends Controller
         $referralWallet = $referralService->wallet($customer);
         $dashboardHero = app(\App\Services\BorrowerDashboardHeroService::class)->forCustomer($customer, $activeLoan, $nextDue);
         $financialSnapshot = app(\App\Services\BorrowerFinancialSnapshotService::class)->forCustomer($customer, $activeLoan);
+        $financialHealth = app(\App\Services\BorrowerFinancialHealthService::class)->forCustomer($customer, $activeLoan);
         $kycFreshness = app(KycFreshnessService::class);
         $kycSectionsDue = $kycFreshness->sectionsDueForRefresh($customer);
 
@@ -159,7 +160,7 @@ class BorrowerController extends Controller
             'customer','activeLoan','nextDue','applicationsCount',
             'notifications','eligibility',
             'products','applyRequirements','onboardingBanner','groupInviteBanner','applyDraftResume','activeApplications','activeApplicationRows','unreadNotificationCount',
-            'openDocumentRequests','referralCode','referralLink','referralShareMessage','referralWallet','dashboardHero','financialSnapshot','kycSectionsDue',
+            'openDocumentRequests','referralCode','referralLink','referralShareMessage','referralWallet','dashboardHero','financialSnapshot','financialHealth','kycSectionsDue',
         ));
     }
 
@@ -913,6 +914,16 @@ class BorrowerController extends Controller
             'document_type_id' => $data['document_type_id'],
         ]);
 
+        try {
+            $type = $document->documentType;
+            app(\App\Services\MemberEngagementRewardService::class)->afterDocumentUploaded(
+                $customer,
+                (string) ($type?->code ?? 'document_'.$document->id),
+            );
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
         return redirect()->route('site.borrower.documents')
             ->with('status', 'Document uploaded — pending review.');
     }
@@ -1056,15 +1067,19 @@ class BorrowerController extends Controller
     /* ---------------------------------------------------------------------
      | 8. Notifications
      |---------------------------------------------------------------------*/
-    public function notifications(): View
+    public function notifications(Request $request): View
     {
         $customer = $this->customer();
-        $items = app(\App\Services\PortalContextService::class)
+        $center = app(\App\Services\NotificationCenterService::class);
+        $category = $request->query('category', 'all');
+        $groups = $center->groupedForCustomer($customer, $category === 'all' ? null : $category);
+        $categories = $center->categories();
+        $unreadCount = app(\App\Services\PortalContextService::class)
             ->borrowerNotificationsQuery($customer)
-            ->latest()
-            ->paginate(20);
+            ->whereNull('read_at')
+            ->count();
 
-        return view('site.borrower.notifications', compact('customer', 'items'));
+        return view('site.borrower.notifications', compact('customer', 'groups', 'categories', 'category', 'unreadCount', 'center'));
     }
 
     public function guarantorNotifications(): View
@@ -1328,6 +1343,12 @@ class BorrowerController extends Controller
 
             app(KycFreshnessService::class)->markSectionConfirmed($customer->fresh(), 'kin');
 
+            try {
+                app(\App\Services\MemberEngagementRewardService::class)->afterProfileSectionSaved($customer->fresh(), 'kin');
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
             return redirect()
                 ->route('site.borrower.profile', ['section' => 'kin'])
                 ->with('status', __('borrower.profile.kin_saved'));
@@ -1539,6 +1560,12 @@ class BorrowerController extends Controller
         }
 
         $this->auditBorrower('profile.updated', $customer, ['section' => $section]);
+
+        try {
+            app(\App\Services\MemberEngagementRewardService::class)->afterProfileSectionSaved($customer->fresh(), $section);
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         if ($return = $this->validatedReturnUrl($request)) {
             $redirect = redirect($return)->with('status', __('borrower.profile.saved_return'));
@@ -2452,6 +2479,12 @@ class BorrowerController extends Controller
                 ])),
             ]
         );
+
+        try {
+            app(\App\Services\MemberEngagementRewardService::class)->afterDocumentUploaded($customer, $documentCode);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     private function nidaMismatchRedirect(Customer $customer, NidaVerificationService $nida): RedirectResponse

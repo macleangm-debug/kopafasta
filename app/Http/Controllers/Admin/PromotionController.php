@@ -17,14 +17,20 @@ class PromotionController extends ResourceController
         return [
             'code'              => ['required', 'string', 'max:40'],
             'name'              => ['required', 'string', 'max:150'],
-            'type'              => ['required', 'in:birthday,registration_fee_discount,application_fee_discount,referral,promo_code,seasonal,fee_discount,referral_bonus'],
+            'type'              => ['required', 'in:birthday,registration_fee_discount,application_fee_discount,referral,promo_code,seasonal,fee_discount,referral_bonus,membership_campaign'],
             'status'            => ['required', 'in:draft,active,ended'],
             'discount_percent'  => ['nullable', 'numeric', 'min:0', 'max:100'],
             'discount_amount'   => ['nullable', 'numeric', 'min:0'],
+            'original_fee'      => ['nullable', 'numeric', 'min:0'],
+            'discount_type'     => ['nullable', 'in:percentage,fixed'],
+            'eligible_members'  => ['nullable', 'in:all,new,renewing,inactive'],
+            'banner_path'       => ['nullable', 'string', 'max:255'],
             'applies_to'        => ['nullable', 'string', 'max:40', 'in:'.implode(',', \App\Services\PromotionService::FEE_APPLIES_TO)],
             'starts_at'         => ['nullable', 'date'],
             'ends_at'           => ['nullable', 'date', 'after_or_equal:starts_at'],
             'message_template'  => ['nullable', 'string', 'max:2000'],
+            'message_en'        => ['nullable', 'string', 'max:2000'],
+            'message_sw'        => ['nullable', 'string', 'max:2000'],
         ];
     }
 
@@ -40,6 +46,17 @@ class PromotionController extends ResourceController
                 'seasonal'                  => 'Seasonal',
                 'fee_discount'              => 'General fee discount',
                 'referral_bonus'            => 'Referral bonus',
+                'membership_campaign'       => 'Membership campaign',
+            ],
+            'discountTypes' => [
+                'percentage' => 'Percentage',
+                'fixed'      => 'Fixed amount (TZS)',
+            ],
+            'eligibleMembers' => [
+                'all'       => 'All members',
+                'new'       => 'New members only',
+                'renewing'  => 'Renewing members',
+                'inactive'  => 'Inactive members',
             ],
             'statuses' => [
                 'draft'  => 'Draft',

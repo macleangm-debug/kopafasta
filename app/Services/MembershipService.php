@@ -6,6 +6,8 @@ use App\Models\Customer;
 use App\Models\CustomerPayment;
 use App\Models\MembershipHistory;
 use App\Models\Setting;
+use App\Services\LoyaltyPointsService;
+use App\Services\ReferralService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -320,7 +322,18 @@ $this->notify($customer, 'membership_issued');
             }
 
             if ($isRegistration) {
-                return $this->issue($customer, null, $ref, $actorUserId, $fee, $channel, $paymentBreakdown);
+                $issued = $this->issue($customer, null, $ref, $actorUserId, $fee, $channel, $paymentBreakdown);
+                if ($referrer = app(ReferralService::class)->referrer($issued)) {
+                    app(LoyaltyPointsService::class)->earn(
+                        $referrer,
+                        'refer_friend',
+                        'Successful referral membership',
+                        Customer::class,
+                        (int) $issued->id,
+                    );
+                }
+
+                return $issued;
             }
 
             return $this->renew($customer, $ref, $channel, $actorUserId);

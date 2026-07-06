@@ -24,6 +24,7 @@
         : [
             ['key' => 'dashboard',     'label' => __('borrower.nav.dashboard'),     'route' => 'site.borrower.dashboard',     'icon' => 'home'],
             ['key' => 'referrals',     'label' => __('borrower.nav.referrals'),     'route' => 'site.borrower.referrals',     'icon' => 'users'],
+            ['key' => 'rewards',       'label' => __('borrower.nav.rewards'),       'route' => 'site.borrower.rewards',       'icon' => 'pay'],
             ['key' => 'loans',         'label' => __('borrower.nav.loans'),         'route' => 'site.borrower.loans',         'icon' => 'wallet'],
             ['key' => 'marketplace',   'label' => __('borrower.nav.marketplace'),   'route' => 'site.borrower.marketplace', 'icon' => 'folder'],
             ['key' => 'payments',      'label' => __('borrower.nav.payments'),      'route' => 'site.borrower.payments',      'icon' => 'pay'],

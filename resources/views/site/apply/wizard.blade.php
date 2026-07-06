@@ -136,6 +136,9 @@
                   canApply: @js((bool) ($applyRequirements['can_apply'] ?? false)),
                   verifiedLegalName: @js($verifiedLegalName),
                   identityVerified: @js($identityVerified),
+                  engagementBoosts: @js($engagementBoosts ?? null),
+                  qualificationLimit: {{ (int) ($qualificationLimit ?? 0) }},
+                  processingSla: @js($processingSla ?? null),
                   profileSections: @js($profileSections),
                   incomeVerification: @js($incomeVerification),
                   productQuestions: @js($productQuestions),
@@ -370,6 +373,32 @@
                                 <div class="rounded-xl ring-1 ring-gray-100 bg-white p-4"><p class="text-[10px] uppercase text-gray-500">{{ __('borrower.apply.quote.weekly_installment') }}</p><p class="font-bold mt-1" x-text="formatTzs(quote.weekly)"></p></div>
                                 <div class="rounded-xl ring-1 ring-gray-100 bg-white p-4"><p class="text-[10px] uppercase text-gray-500">{{ __('borrower.apply.quote.interest_est') }}</p><p class="font-bold mt-1" x-text="formatTzs(quote.interest)"></p></div>
                                 <div class="rounded-xl ring-1 ring-gray-100 bg-white p-4"><p class="text-[10px] uppercase text-gray-500">{{ __('borrower.apply.quote.total_repayment') }}</p><p class="font-bold mt-1" x-text="formatTzs(quote.total)"></p></div>
+                            </div>
+                            <div x-show="engagementBoosts && (engagementBoosts.factors?.length || qualificationLimit > 0)" x-cloak class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 p-4 space-y-2">
+                                <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">{{ __('borrower.apply.quote.engagement_title') }}</p>
+                                <template x-if="qualificationLimit > 0">
+                                    <p class="text-sm text-emerald-900">
+                                        {{ __('borrower.apply.quote.engagement_limit') }}:
+                                        <span class="font-semibold" x-text="formatTzs(qualificationLimit)"></span>
+                                    </p>
+                                </template>
+                                <template x-if="engagementBoosts?.rate_discount_fraction > 0">
+                                    <p class="text-sm text-emerald-900">
+                                        {{ __('borrower.apply.quote.engagement_rate') }}:
+                                        <span class="font-semibold" x-text="(engagementBoosts.rate_discount_fraction * 100).toFixed(2) + '%'"></span>
+                                    </p>
+                                </template>
+                                <template x-if="processingSla">
+                                    <p class="text-sm text-emerald-900">
+                                        {{ __('borrower.apply.quote.engagement_sla') }}:
+                                        <span class="font-semibold" x-text="processingSla"></span>
+                                    </p>
+                                </template>
+                                <ul class="text-xs text-emerald-800 space-y-1" x-show="engagementBoosts?.factors?.length">
+                                    <template x-for="(factor, idx) in (engagementBoosts?.factors || [])" :key="idx">
+                                        <li x-text="factor.label + ': ' + factor.detail"></li>
+                                    </template>
+                                </ul>
                             </div>
                             <div x-show="current?.rate_disclosure?.length" class="rounded-xl bg-amber-50 ring-1 ring-amber-200 p-4 text-xs text-amber-900 space-y-1">
                                 <p class="font-semibold uppercase tracking-widest text-[10px]">{{ __('borrower.rate_disclosure.title') }}</p>
@@ -1058,6 +1087,9 @@
                 profileUrl: config.profileUrl || '',
                 canApply: !! config.canApply,
                 verifiedLegalName: config.verifiedLegalName || '',
+                engagementBoosts: config.engagementBoosts || null,
+                qualificationLimit: Number(config.qualificationLimit || 0),
+                processingSla: config.processingSla || null,
                 declarationAccepted: !!(config.savedDraft?.declaration_accepted || config.savedDraft?.borrower_signature),
                 declarationSaveTimer: null,
                 i18n: config.i18n,
@@ -2267,11 +2299,15 @@
                 resolveMonthlyRate(product, amount) {
                     if (! product) return 0;
                     const tiers = product.tiers || [];
+                    let rate = 0;
                     if (tiers.length) {
                         const tier = tiers.find(t => amount >= t.min && amount <= t.max);
-                        if (tier) return tier.rate;
+                        rate = tier ? tier.rate : (product.rate || 0);
+                    } else {
+                        rate = product.rate || 0;
                     }
-                    return product.rate || 0;
+                    const discount = Number(this.engagementBoosts?.rate_discount_fraction || 0);
+                    return Math.max(0, rate - discount);
                 },
 
                 updateQuote() {
@@ -2549,6 +2585,14 @@
                         if (res.ok && data.ok) {
                             this.repaymentSchedule = data.schedule || [];
                             this.scheduleDatesAvailable = !!data.dates_available;
+                            if (data.engagement) {
+                                if (data.engagement.limit_amount) {
+                                    this.qualificationLimit = Number(data.engagement.limit_amount);
+                                }
+                                if (data.engagement.processing_sla) {
+                                    this.processingSla = data.engagement.processing_sla;
+                                }
+                            }
                             this.reviewSummary = {
                                 monthly_rate_pct: data.summary?.monthly_rate_pct ?? 0,
                                 application_fee: data.summary?.application_fee ?? this.applicationFee,

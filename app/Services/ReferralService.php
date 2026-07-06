@@ -3,15 +3,17 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\ReferralAttribution;
 use App\Models\ReferralTransaction;
 use App\Models\ReferralWallet;
 use App\Models\Setting;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class ReferralService
 {
-    /** @return array{code_prefix: string, discount_percent: float, commission_percent: float, wallet_max_fee_percent: float} */
+    /** @return array{code_prefix: string, discount_percent: float, commission_percent: float, wallet_max_fee_percent: float, attribution_days: int, message_share_template: string, message_invite_sms: string, message_share_en: string, message_share_sw: string} */
     public function settings(): array
     {
         $group = Setting::group('referrals');
@@ -21,27 +23,107 @@ class ReferralService
             'discount_percent'       => (float) ($group['discount_percent'] ?? config('referrals.discount_percent', 10)),
             'commission_percent'     => (float) ($group['commission_percent'] ?? config('referrals.commission_percent', 10)),
             'wallet_max_fee_percent' => (float) ($group['wallet_max_fee_percent'] ?? config('referrals.wallet_max_fee_percent', 50)),
+            'attribution_days'       => (int) ($group['attribution_days'] ?? config('referrals.attribution_days', 30)),
             'message_share_template' => (string) ($group['message_share_template'] ?? config('referrals.messages.share_template', '')),
             'message_invite_sms'     => (string) ($group['message_invite_sms'] ?? config('referrals.messages.invite_sms', '')),
+            'message_share_en'       => (string) ($group['message_share_en'] ?? config('referrals.messages.share_en', '')),
+            'message_share_sw'       => (string) ($group['message_share_sw'] ?? config('referrals.messages.share_sw', '')),
         ];
     }
 
-    public function shareMessage(Customer $customer): string
+    public function shareMessage(Customer $customer, ?string $locale = null): string
     {
         $settings = $this->settings();
-        $template = trim($settings['message_share_template'] ?? '')
-            ?: trim((string) config('referrals.messages.share_template'))
-            ?: 'Join {brand} with my referral code {referral_code}. Register here: {referral_link}';
+        $locale ??= app()->getLocale();
+
+        $template = match ($locale) {
+            'sw' => trim($settings['message_share_sw'] ?? '') ?: trim((string) config('referrals.messages.share_sw', '')),
+            default => trim($settings['message_share_en'] ?? '') ?: trim($settings['message_share_template'] ?? ''),
+        };
+
+        if ($template === '') {
+            $template = trim((string) config('referrals.messages.share_en'))
+                ?: trim((string) config('referrals.messages.share_template'))
+                ?: 'Join {brand} with my referral code {referral_code}. Register here: {referral_link}';
+        }
 
         $replacements = [
             '{brand}'             => brand_name(),
             '{referrer_name}'     => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
             '{referral_code}'     => $this->ensureCode($customer),
             '{referral_link}'     => $this->referralLink($customer),
+            '{Referral Link}'     => $this->referralLink($customer),
             '{discount_percent}'  => format_number($settings['discount_percent'], 0),
         ];
 
         return str_replace(array_keys($replacements), array_values($replacements), $template);
+    }
+
+    public function successfulReferralCount(Customer $customer): int
+    {
+        return Customer::query()
+            ->where('referred_by_customer_id', $customer->id)
+            ->whereNotNull('membership_issued_at')
+            ->count();
+    }
+
+    /** @return \Illuminate\Database\Eloquent\Collection<int, ReferralTransaction> */
+    public function rewardHistory(Customer $customer, int $limit = 10)
+    {
+        $wallet = $this->wallet($customer);
+
+        return ReferralTransaction::query()
+            ->where('referral_wallet_id', $wallet->id)
+            ->latest()
+            ->limit($limit)
+            ->get();
+    }
+
+    public function recordClick(string $referralCode, Request $request): void
+    {
+        $referrer = Customer::query()->where('referral_code', strtoupper(trim($referralCode)))->first();
+        if (! $referrer) {
+            return;
+        }
+
+        $days = max(1, $this->settings()['attribution_days']);
+        $token = sha1($request->session()->getId().'|'.$referralCode);
+
+        ReferralAttribution::query()->updateOrCreate(
+            ['session_token' => $token],
+            [
+                'referrer_customer_id' => $referrer->id,
+                'referral_code'        => strtoupper(trim($referralCode)),
+                'expires_at'           => now()->addDays($days),
+            ]
+        );
+
+        $request->session()->put('referral_attribution_token', $token);
+        $request->session()->put('referral_code', strtoupper(trim($referralCode)));
+    }
+
+    public function attachReferrerFromSession(Customer $customer, Request $request): void
+    {
+        $code = $request->session()->get('referral_code');
+        $token = $request->session()->get('referral_attribution_token');
+
+        if ($token) {
+            $attribution = ReferralAttribution::query()->where('session_token', $token)->first();
+            if ($attribution?->isActive()) {
+                $code = $attribution->referral_code;
+            }
+        }
+
+        $this->attachReferrer($customer, is_string($code) ? $code : null);
+
+        if ($token && filled($customer->referred_by_customer_id)) {
+            ReferralAttribution::query()
+                ->where('session_token', $token)
+                ->update([
+                    'converted_customer_id' => $customer->id,
+                    'converted_at'          => now(),
+                ]);
+        }
     }
 
     public function ensureCode(Customer $customer): string

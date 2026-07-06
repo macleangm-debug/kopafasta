@@ -332,7 +332,7 @@ class LoanApplicationNextActionService
         return $this->action(
             'under_review',
             __('borrower.loan_profile.next_actions.under_review', [
-                'time' => app(UnderwritingSettingsService::class)->loanReviewSlaLabel(),
+                'time' => app(UnderwritingSettingsService::class)->loanReviewSlaLabel($customer),
             ]),
             __('borrower.applications_list.view'),
             $profileUrl,

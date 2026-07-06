@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Customer;
 use App\Models\Setting;
 
 class UnderwritingSettingsService
@@ -54,9 +55,19 @@ class UnderwritingSettingsService
         return max(1, (int) $this->get('stage_sla_days', 5));
     }
 
-    public function loanReviewSlaLabel(): string
+    public function loanReviewSlaLabel(?Customer $customer = null): string
     {
         $days = $this->stageSlaDays();
+
+        if ($customer) {
+            $priority = (int) (app(MemberEngagementRewardService::class)->underwritingBoosts($customer)['processing_priority'] ?? 0);
+            if ($priority >= 3) {
+                return __('borrower.loan_profile.sla_hours', ['hours' => 12]);
+            }
+            if ($priority >= 1) {
+                return __('borrower.loan_profile.sla_hours', ['hours' => 24]);
+            }
+        }
 
         if ($days === 1) {
             return __('borrower.loan_profile.sla_hours', ['hours' => 24]);

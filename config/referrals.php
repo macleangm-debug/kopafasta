@@ -22,9 +22,26 @@ return [
         'penalty',
     ],
 
-    /** Placeholders: {brand}, {referrer_name}, {referral_code}, {referral_link}, {discount_percent} */
+    /** Days a referral link click stays tied to the referrer. */
+    'attribution_days' => (int) env('REFERRAL_ATTRIBUTION_DAYS', 30),
+
+    /** Placeholders: {brand}, {referrer_name}, {referral_code}, {referral_link}, {Referral Link}, {discount_percent} */
     'messages' => [
         'share_template' => 'Join {brand} with my referral code {referral_code}. Register here: {referral_link}',
         'invite_sms'     => 'Use my {brand} referral link for {discount_percent}% off registration fees: {referral_link}',
+        'share_en' => <<<'MSG'
+Join me on kopafasta, where you can access affordable loans, grow your financial profile, and enjoy exclusive member benefits.
+Sign up using my referral link and you'll receive a discount on your membership fee during the current promotion.
+Once you're a member, you'll be able apply for loans, invite friends, and unlock even more rewards.
+Click my link to get started:
+{Referral Link}
+MSG,
+        'share_sw' => <<<'MSG'
+Jiunge nami kopafasta na upate fursa ya kupata mikopo nafuu, kujenga historia yako ya kifedha, pamoja na kufurahia manufaa ya wanachama.
+Ukijisajili kupitia link yangu ya mwaliko, utapata punguzo kwenye ada ya uanachama wakati wa kampeni hii maalum.
+Baada ya kuwa mwanachama utaweza kutuma maombi ya mkopo, kuwaalika wengine na kupata zawadi mbalimbali.
+Bofya link hii ili kuanza:
+{Referral Link}
+MSG,
     ],
 ];

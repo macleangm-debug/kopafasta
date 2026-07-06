@@ -10,6 +10,10 @@
 
     <x-site.borrower-dashboard-hero :hero="$hero" />
 
+    @if (! empty($financialHealth))
+        <x-site.borrower-financial-health :health="$financialHealth" />
+    @endif
+
     <x-site.borrower-financial-snapshot :snapshot="$financialSnapshot ?? []" />
 
     <x-site.borrower-dashboard-quick-actions :active-loan="$activeLoan ?? null" />
