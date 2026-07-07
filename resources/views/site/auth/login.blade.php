@@ -55,7 +55,7 @@
                     @csrf
                     <input type="hidden" name="auth_method" :value="method">
 
-                    <div x-show="method === 'pin'" x-cloak>
+                    <div x-show="method === 'pin'">
                         <x-site.phone-input name="phone" label="{{ __('site.feedback.phone') }}" :value="old('phone')" variant="rounded" :required="true" />
                         <div class="mt-4">
                             <div class="flex items-center justify-between mb-1.5">
@@ -68,7 +68,7 @@
                         </div>
                     </div>
 
-                    <div x-show="method === 'password'" x-cloak>
+                    <div x-show="method === 'password'" style="display: none">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Email or phone</label>
                             <input type="text" name="login" value="{{ old('login') }}" autocomplete="username"
