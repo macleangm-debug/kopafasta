@@ -54,6 +54,7 @@ rsync -az --delete \
   --exclude "storage/*.key" \
   --exclude "storage/app/public/" \
   --exclude "storage/logs/" \
+  --exclude "public/hot" \
   ./ "${SERVER}:${APP_DIR}/"
 
 echo "==> Running remote deploy steps"
@@ -96,6 +97,9 @@ if [[ "$RUN_NPM_BUILD" == "1" ]]; then
   "$NPM_BIN" run build
   "$NPM_BIN" prune --omit=dev --no-audit --no-fund || true
 fi
+
+# Never serve Vite dev URLs in production (leftover from local `npm run dev`).
+rm -f public/hot
 
 "$PHP_BIN" artisan migrate --force
 "$PHP_BIN" artisan db:seed --class=FinanceDefaultsSeeder --force || true
