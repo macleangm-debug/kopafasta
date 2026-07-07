@@ -1,3 +1,6 @@
+@php
+    $authMethod = old('auth_method', 'pin');
+@endphp
 {{-- Premium login — borrower / partner portal --}}
 <x-site.layout :title="brand_title(__('site.auth.sign_in'))">
     <section class="min-h-[calc(100dvh-4rem)] md:min-h-[calc(100dvh-6.5rem)] grid lg:grid-cols-2 premium-gradient">
@@ -18,7 +21,7 @@
         </aside>
 
         <div class="flex items-center justify-center px-4 py-8 sm:px-12">
-            <div class="w-full max-w-md glass-card p-6 sm:p-10" x-data="{ method: '{{ old('auth_method', 'pin') }}' }">
+            <div id="login-method-switcher" class="w-full max-w-md glass-card p-6 sm:p-10" data-method="{{ $authMethod }}">
                 <a href="{{ route('site.home') }}" class="lg:hidden mb-8 inline-block">
                     <x-site.brand-mark size="md" />
                 </a>
@@ -42,43 +45,46 @@
                     <div class="mt-6 p-3.5 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{{ $errors->first() }}</div>
                 @endif
 
-                <div class="mt-6 inline-flex rounded-xl ring-1 ring-gray-200/80 bg-gray-50/80 p-1 text-sm w-full">
-                    <button type="button" @click="method = 'pin'"
-                            :class="method === 'pin' ? 'bg-white text-brand shadow-sm font-semibold' : 'text-gray-600 hover:bg-white/50'"
-                            class="flex-1 rounded-lg py-2.5 transition">{{ __('site.auth.phone_pin') }}</button>
-                    <button type="button" @click="method = 'password'"
-                            :class="method === 'password' ? 'bg-white text-brand shadow-sm font-semibold' : 'text-gray-600 hover:bg-white/50'"
-                            class="flex-1 rounded-lg py-2.5 transition">{{ __('site.auth.email_password') }}</button>
+                <div class="mt-6 inline-flex rounded-xl ring-1 ring-gray-200/80 bg-gray-50/80 p-1 text-sm w-full" role="tablist" aria-label="{{ __('site.auth.sign_in') }}">
+                    <button type="button" data-set-method="pin" role="tab"
+                            aria-selected="{{ $authMethod === 'pin' ? 'true' : 'false' }}"
+                            class="login-method-tab flex-1 rounded-lg py-2.5 transition {{ $authMethod === 'pin' ? 'bg-white text-brand shadow-sm font-semibold' : 'text-gray-600 hover:bg-white/50' }}">{{ __('site.auth.phone_pin') }}</button>
+                    <button type="button" data-set-method="password" role="tab"
+                            aria-selected="{{ $authMethod === 'password' ? 'true' : 'false' }}"
+                            class="login-method-tab flex-1 rounded-lg py-2.5 transition {{ $authMethod === 'password' ? 'bg-white text-brand shadow-sm font-semibold' : 'text-gray-600 hover:bg-white/50' }}">{{ __('site.auth.email_password') }}</button>
                 </div>
 
                 <form method="POST" action="{{ route('site.login.post') }}" class="mt-6 space-y-5">
                     @csrf
-                    <input type="hidden" name="auth_method" :value="method">
+                    <input type="hidden" name="auth_method" id="login-auth-method" value="{{ $authMethod }}">
 
-                    <div x-show="method === 'pin'">
-                        <x-site.phone-input name="phone" label="{{ __('site.feedback.phone') }}" :value="old('phone')" variant="rounded" :required="true" />
+                    <div data-method-panel="pin" @class(['hidden' => $authMethod !== 'pin'])>
+                        <x-site.phone-input name="phone" label="{{ __('site.feedback.phone') }}" :value="old('phone')" variant="rounded" :required="$authMethod === 'pin'" />
                         <div class="mt-4">
                             <div class="flex items-center justify-between mb-1.5">
                                 <label class="block text-sm font-medium text-gray-700">4-digit PIN</label>
                                 <a href="{{ route('site.forgot-pin') }}" class="text-xs text-brand font-medium hover:underline">Forgot PIN?</a>
                             </div>
                             <input type="password" name="pin" inputmode="numeric" maxlength="4" pattern="\d{4}" autocomplete="one-time-code"
-                                   :required="method === 'pin'"
+                                   data-required-when="pin"
+                                   @required($authMethod === 'pin')
                                    class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm tracking-[0.5em] font-mono text-center text-lg outline-none">
                         </div>
                     </div>
 
-                    <div x-show="method === 'password'" style="display: none">
+                    <div data-method-panel="password" @class(['hidden' => $authMethod !== 'password'])>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Email or phone</label>
                             <input type="text" name="login" value="{{ old('login') }}" autocomplete="username"
-                                   :required="method === 'password'"
+                                   data-required-when="password"
+                                   @required($authMethod === 'password')
                                    class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none">
                         </div>
                         <div class="mt-4">
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
                             <input type="password" name="password" autocomplete="current-password"
-                                   :required="method === 'password'"
+                                   data-required-when="password"
+                                   @required($authMethod === 'password')
                                    class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none">
                         </div>
                     </div>
@@ -122,4 +128,44 @@
             </div>
         </div>
     </section>
+
+    <script>
+        (function () {
+            const root = document.getElementById('login-method-switcher');
+            if (!root) return;
+
+            const hiddenInput = document.getElementById('login-auth-method');
+            const panels = root.querySelectorAll('[data-method-panel]');
+            const tabs = root.querySelectorAll('[data-set-method]');
+            const requiredFields = root.querySelectorAll('[data-required-when]');
+            const activeTabClasses = ['bg-white', 'text-brand', 'shadow-sm', 'font-semibold'];
+            const inactiveTabClasses = ['text-gray-600', 'hover:bg-white/50'];
+
+            function setMethod(method) {
+                root.dataset.method = method;
+                if (hiddenInput) hiddenInput.value = method;
+
+                panels.forEach((panel) => {
+                    panel.classList.toggle('hidden', panel.dataset.methodPanel !== method);
+                });
+
+                tabs.forEach((tab) => {
+                    const isActive = tab.dataset.setMethod === method;
+                    tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+                    activeTabClasses.forEach((cls) => tab.classList.toggle(cls, isActive));
+                    inactiveTabClasses.forEach((cls) => tab.classList.toggle(cls, !isActive));
+                });
+
+                requiredFields.forEach((field) => {
+                    field.required = field.dataset.requiredWhen === method;
+                });
+            }
+
+            tabs.forEach((tab) => {
+                tab.addEventListener('click', () => setMethod(tab.dataset.setMethod));
+            });
+
+            setMethod(root.dataset.method || 'pin');
+        })();
+    </script>
 </x-site.layout>

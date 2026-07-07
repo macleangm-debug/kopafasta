@@ -20,7 +20,7 @@
     <meta name="app-currency" content="{{ currency_code() }}">
     <meta name="description" content="{{ $description }}">
     <title>{{ $title }}</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/alpine-init.js'])
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>[x-cloak]{display:none!important}</style>
 </head>
 <body class="min-h-full bg-white text-gray-900 antialiased flex flex-col">
@@ -193,5 +193,6 @@
             };
         });
     </script>
+    @vite('resources/js/alpine-init.js')
 </body>
 </html>

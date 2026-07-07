@@ -27,7 +27,9 @@ class Phase18FeatureTest extends TestCase
             ->assertOk()
             ->assertSee('sticky top-0', false)
             ->assertSee('<footer class="bg-brand', false)
-            ->assertSee('calc(100dvh-4rem)', false)
+            ->assertSee('id="login-method-switcher"', false)
+            ->assertSee('data-set-method="pin"', false)
+            ->assertSee('data-set-method="password"', false)
             ->assertDontSee('max-h-[100dvh]', false);
     }
 

@@ -58,7 +58,7 @@ $icon = function (string $name) {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title }}</title>
-    @vite(['resources/css/app.css','resources/js/app.js','resources/js/alpine-init.js'])
+    @vite(['resources/css/app.css','resources/js/app.js'])
     <style>[x-cloak]{display:none!important}</style>
 </head>
 <body class="bg-gray-50 text-gray-900 antialiased" x-data="{open:false}">
@@ -181,5 +181,6 @@ $icon = function (string $name) {
     </div>
 </div>
 
+@vite('resources/js/alpine-init.js')
 </body>
 </html>

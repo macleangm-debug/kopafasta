@@ -3,4 +3,18 @@ import collapse from '@alpinejs/collapse';
 
 Alpine.plugin(collapse);
 window.Alpine = Alpine;
-Alpine.start();
+
+function startAlpine() {
+    if (window.__alpineStarted) {
+        return;
+    }
+
+    window.__alpineStarted = true;
+    Alpine.start();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startAlpine);
+} else {
+    startAlpine();
+}
