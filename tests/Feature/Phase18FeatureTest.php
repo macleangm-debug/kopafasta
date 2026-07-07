@@ -21,6 +21,16 @@ class Phase18FeatureTest extends TestCase
             ->assertSee('Become an affiliate', false);
     }
 
+    public function test_login_page_includes_public_header_and_footer(): void
+    {
+        $this->get(route('site.login'))
+            ->assertOk()
+            ->assertSee('sticky top-0', false)
+            ->assertSee('<footer class="bg-brand', false)
+            ->assertSee('calc(100dvh-4rem)', false)
+            ->assertDontSee('max-h-[100dvh]', false);
+    }
+
     public function test_affiliate_application_page_supports_swahili_locale(): void
     {
         $this->withSession(['locale' => 'sw'])
