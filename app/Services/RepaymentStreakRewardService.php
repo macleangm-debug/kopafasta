@@ -9,9 +9,10 @@ class RepaymentStreakRewardService
     public function __construct(
         private readonly MemberEngagementService $engagement,
         private readonly GamificationSettingsService $settings,
+        private readonly LoyaltyPointsService $loyalty,
     ) {}
 
-    /** @return array{enabled: bool, count: int, percent: float, max_percent: float, fee_type: string, milestones: list<array{count: int, percent: float, reached: bool}>} */
+    /** @return array{enabled: bool, count: int, points: int, milestones: list<array{count: int, points: int, reached: bool}>} */
     public function status(Customer $customer): array
     {
         $config = $this->config();
@@ -19,7 +20,7 @@ class RepaymentStreakRewardService
         $milestones = collect($config['milestones'] ?? [])
             ->map(fn (array $m) => [
                 'count'   => (int) ($m['count'] ?? 0),
-                'percent' => (float) ($m['percent'] ?? 0),
+                'points'  => (int) ($m['points'] ?? $m['percent'] ?? 0),
                 'reached' => $count >= (int) ($m['count'] ?? 0),
             ])
             ->values()
@@ -28,50 +29,55 @@ class RepaymentStreakRewardService
         return [
             'enabled'      => (bool) ($config['enabled'] ?? true),
             'count'        => $count,
-            'percent'      => $this->earnedPercent($count),
-            'max_percent'  => (float) ($config['max_discount_percent'] ?? 30),
-            'fee_type'     => (string) ($config['fee_type'] ?? 'application_fee'),
+            'points'       => $this->earnedPoints($count),
             'milestones'   => $milestones,
             'reward_label' => (string) ($config['reward_label'] ?? __('borrower.engagement.streak.reward')),
         ];
     }
 
-    /** @return array{discount: float, percent: float} */
-    public function discountForFee(Customer $customer, string $feeType, float $amountAfterPriorDiscounts): array
+    public function afterOnTimeRepayment(Customer $customer): void
     {
-        $config = $this->config();
-
-        if (! ($config['enabled'] ?? true)) {
-            return ['discount' => 0.0, 'percent' => 0.0];
+        if (! ($this->config()['enabled'] ?? true)) {
+            return;
         }
 
-        if ($feeType !== ($config['fee_type'] ?? 'application_fee')) {
-            return ['discount' => 0.0, 'percent' => 0.0];
+        $count = $this->engagement->repaymentStreak($customer)['count'] ?? 0;
+        foreach ($this->config()['milestones'] ?? [] as $milestone) {
+            $target = (int) ($milestone['count'] ?? 0);
+            $points = (int) ($milestone['points'] ?? $milestone['percent'] ?? 0);
+
+            if ($target <= 0 || $points <= 0 || $count < $target) {
+                continue;
+            }
+
+            $this->loyalty->earnCustom(
+                $customer,
+                $points,
+                'repayment_streak_'.$target,
+                __('borrower.engagement.streak.points_awarded', ['count' => $target, 'points' => $points]),
+                'repayment_streak',
+                $target,
+            );
         }
-
-        $percent = $this->earnedPercent($this->engagement->repaymentStreak($customer)['count'] ?? 0);
-        if ($percent <= 0 || $amountAfterPriorDiscounts <= 0) {
-            return ['discount' => 0.0, 'percent' => 0.0];
-        }
-
-        $discount = round($amountAfterPriorDiscounts * ($percent / 100), 2);
-
-        return ['discount' => $discount, 'percent' => $percent];
     }
 
-    private function earnedPercent(int $streakCount): float
+    /** @deprecated Streak rewards are now points-based, not fee discounts. */
+    public function discountForFee(Customer $customer, string $feeType, float $amountAfterPriorDiscounts): array
     {
-        $config = $this->config();
-        $max = (float) ($config['max_discount_percent'] ?? 30);
-        $earned = 0.0;
+        return ['discount' => 0.0, 'percent' => 0.0];
+    }
 
-        foreach ($config['milestones'] ?? [] as $milestone) {
+    private function earnedPoints(int $streakCount): int
+    {
+        $earned = 0;
+
+        foreach ($this->config()['milestones'] ?? [] as $milestone) {
             if ($streakCount >= (int) ($milestone['count'] ?? 0)) {
-                $earned = max($earned, (float) ($milestone['percent'] ?? 0));
+                $earned = max($earned, (int) ($milestone['points'] ?? $milestone['percent'] ?? 0));
             }
         }
 
-        return min($earned, $max);
+        return $earned;
     }
 
     /** @return array<string, mixed> */

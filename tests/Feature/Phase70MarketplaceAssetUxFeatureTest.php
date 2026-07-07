@@ -52,6 +52,48 @@ class Phase70MarketplaceAssetUxFeatureTest extends TestCase
             ->assertSee('Deposit (% of asset value)', false);
     }
 
+    public function test_borrower_can_access_reserve_flow_after_asset_is_locked(): void
+    {
+        $user = User::factory()->create(['role' => 'borrower']);
+        app(PinService::class)->setPin($user, '1234');
+        Customer::create([
+            'user_id'               => $user->id,
+            'customer_number'       => 'CU-P70-002',
+            'type'                  => 'individual',
+            'status'                => 'active',
+            'first_name'            => 'Locked',
+            'last_name'             => 'Borrower',
+            'phone'                 => '255712340071',
+            'membership_status'     => 'active',
+            'membership_expires_at' => now()->addYear(),
+        ]);
+
+        $asset = MarketplaceAsset::create([
+            'slug'               => 'locked-truck-001',
+            'title'              => 'Locked Truck',
+            'category'           => 'vehicle',
+            'supplier_name'      => 'Supplier',
+            'asset_value'        => 8_000_000,
+            'supplier_deposit'   => 1_600_000,
+            'customer_deposit'   => 1_760_000,
+            'weekly_installment' => 150_000,
+            'max_tenure_months'  => 18,
+            'is_active'          => true,
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('site.borrower.marketplace.apply', $asset->slug))
+            ->assertRedirect(route('site.borrower.marketplace.reserve', $asset->slug));
+
+        $asset->refresh();
+        $this->assertSame('locked', $asset->availability_status);
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.marketplace.reserve', $asset->slug))
+            ->assertOk()
+            ->assertSee('Locked Truck', false);
+    }
+
     public function test_borrower_can_apply_for_marketplace_asset(): void
     {
         $user = User::factory()->create(['role' => 'borrower']);

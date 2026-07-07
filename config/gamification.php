@@ -40,14 +40,13 @@ return [
 
     'repayment_streak' => [
         'enabled' => true,
-        'reward_label' => 'Application fee discount',
-        'fee_type' => 'application_fee',
-        'max_discount_percent' => 30,
+        'reward_label' => 'Repayment streak points',
         'milestones' => [
-            ['count' => 3, 'percent' => 10],
-            ['count' => 5, 'percent' => 15],
-            ['count' => 8, 'percent' => 20],
-            ['count' => 12, 'percent' => 30],
+            ['count' => 3, 'points' => 10],
+            ['count' => 5, 'points' => 20],
+            ['count' => 7, 'points' => 35],
+            ['count' => 10, 'points' => 50],
+            ['count' => 12, 'points' => 75],
         ],
     ],
 

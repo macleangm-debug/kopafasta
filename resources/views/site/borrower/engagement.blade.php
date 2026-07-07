@@ -30,22 +30,17 @@
         </nav>
 
         {{-- Overview --}}
-        <div x-show="tab === 'overview'" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div class="glass-card p-5 bg-gradient-to-br from-brand-muted/80 to-white">
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.rewards.balance') }}</p>
+        <div x-show="tab === 'overview'" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div class="glass-card p-5 bg-gradient-to-br from-brand-muted/80 to-white sm:col-span-2 lg:col-span-1">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.rewards.wallet_title') }}</p>
                 <p class="mt-2 text-3xl font-black text-brand tabular-nums">{{ number_format($pointsBalance) }}</p>
-                <p class="text-xs text-gray-600 mt-1">{{ __('borrower.engagement.points_label') }}</p>
-            </div>
-            <div class="glass-card p-5 bg-gradient-to-br from-brand-gold/10 to-white">
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.engagement.referral_points_label') }}</p>
-                <p class="mt-2 text-3xl font-black text-gray-900 tabular-nums">{{ number_format(wallet_balance_as_points($referralWallet->balance ?? 0)) }}</p>
-                <p class="text-xs text-gray-600 mt-1">{{ __('borrower.rewards.points_short') }}</p>
+                <p class="text-xs text-gray-600 mt-1">{{ __('borrower.rewards.wallet_hint') }}</p>
             </div>
             <div class="glass-card p-5">
                 <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.engagement.streak.title') }}</p>
                 <p class="mt-2 text-3xl font-black text-orange-600 tabular-nums">{{ $streakReward['count'] ?? 0 }} 🔥</p>
-                @if (($streakReward['percent'] ?? 0) > 0)
-                    <p class="text-xs text-orange-800 mt-1">{{ __('borrower.engagement.streak.discount_available', ['percent' => rtrim(rtrim(number_format($streakReward['percent'], 1), '0'), '.')]) }}</p>
+                @if (($streakReward['points'] ?? 0) > 0)
+                    <p class="text-xs text-orange-800 mt-1">{{ __('borrower.engagement.streak.points_available', ['points' => number_format($streakReward['points'])]) }}</p>
                 @endif
             </div>
             <div class="glass-card p-5">
@@ -84,7 +79,7 @@
                             <li class="flex items-center justify-between gap-4 rounded-xl px-4 py-3 ring-1 {{ ($milestone['reached'] ?? false) ? 'bg-emerald-50 ring-emerald-200' : 'bg-gray-50 ring-gray-200' }}">
                                 <div>
                                     <p class="font-semibold text-gray-900">{{ __('borrower.engagement.streak.milestone', ['count' => $milestone['count']]) }}</p>
-                                    <p class="text-xs text-gray-600">{{ __('borrower.engagement.streak.milestone_reward', ['percent' => rtrim(rtrim(number_format($milestone['percent'], 0), '0'), '.')]) }}</p>
+                                    <p class="text-xs text-gray-600">{{ __('borrower.engagement.streak.milestone_points', ['points' => number_format($milestone['points'] ?? 0)]) }}</p>
                                 </div>
                                 <span class="text-sm font-semibold {{ ($milestone['reached'] ?? false) ? 'text-emerald-700' : 'text-gray-400' }}">
                                     {{ ($milestone['reached'] ?? false) ? '✓' : '—' }}
@@ -94,7 +89,7 @@
                     </ul>
                 @endif
 
-                <p class="mt-6 text-xs text-gray-500">{{ __('borrower.engagement.streak.application_fee_note') }}</p>
+                <p class="mt-6 text-xs text-gray-500">{{ __('borrower.engagement.streak.points_note') }}</p>
             </div>
         </div>
     </div>

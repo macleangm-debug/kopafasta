@@ -1027,7 +1027,6 @@
                 feeChannel: 'mobile_money',
                 feePhone: @js(old('payment_phone', $customer->phone ?? '')),
                 feeUseWallet: false,
-                feeUseStreak: false,
                 feePromoCode: '',
                 feeQuoteData: @js($feeQuote ?? null),
                 feePaying: false,
@@ -1525,7 +1524,6 @@
                         const params = new URLSearchParams({
                             loan_product_id: String(this.form.loan_product_id),
                             use_wallet: this.feeUseWallet ? '1' : '0',
-                            use_streak: this.feeUseStreak ? '1' : '0',
                         });
                         if (this.feePromoCode) {
                             params.set('promo_code', this.feePromoCode);
@@ -1565,7 +1563,6 @@
                             channel: this.feeChannel || 'mobile_money',
                             payment_phone: this.feePhone || '',
                             use_wallet: !!this.feeUseWallet,
-                            use_streak: !!this.feeUseStreak,
                             promo_code: this.feePromoCode || null,
                         };
                         const res = await fetch(this.applicationFeePayUrl, {

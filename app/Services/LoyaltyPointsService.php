@@ -26,6 +26,32 @@ class LoyaltyPointsService
             return 0;
         }
 
+        return $this->credit($customer, $points, $actionKey, $description, $refType, $refId);
+    }
+
+    public function earnCustom(
+        Customer $customer,
+        int $points,
+        string $actionKey,
+        ?string $description = null,
+        ?string $refType = null,
+        ?int $refId = null,
+    ): int {
+        if ($points <= 0) {
+            return 0;
+        }
+
+        return $this->credit($customer, $points, $actionKey, $description, $refType, $refId);
+    }
+
+    private function credit(
+        Customer $customer,
+        int $points,
+        string $actionKey,
+        ?string $description,
+        ?string $refType,
+        ?int $refId,
+    ): int {
         if ($this->alreadyEarned($customer, $actionKey, $refType, $refId)) {
             return 0;
         }

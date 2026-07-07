@@ -10,6 +10,7 @@
     'sectionId' => null,
     'inlineEdit' => true,
     'defaultOpen' => false,
+    'allowOverflow' => false,
 ])
 
 @php
@@ -20,7 +21,7 @@
 
 <div
     @if ($sectionId) id="{{ $sectionId }}" @endif
-    class="glass-card overflow-hidden scroll-mt-24"
+    class="glass-card scroll-mt-24 {{ ($allowOverflow ?? false) ? 'overflow-visible' : 'overflow-hidden' }}"
     @if ($useInline)
         x-data="{ open: @js($startOpen) }"
         @if ($sectionId)

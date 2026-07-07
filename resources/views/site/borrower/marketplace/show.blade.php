@@ -1,7 +1,7 @@
 <x-site.borrower-layout :title="brand_title($asset['title'])" active="marketplace">
 
     <div class="mb-4">
-        <a href="{{ route('site.borrower.marketplace') }}" class="text-xs text-gray-500 hover:text-gray-700">← Back to marketplace</a>
+        <a href="{{ route('site.borrower.marketplace') }}" class="text-xs text-gray-500 hover:text-gray-700">{{ __('borrower.marketplace.back_to_marketplace') }}</a>
     </div>
 
     @if (session('error'))

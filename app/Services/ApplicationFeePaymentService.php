@@ -26,7 +26,6 @@ class ApplicationFeePaymentService
         bool $useWallet = false,
         ?string $promoCode = null,
         ?int $groupMemberCount = null,
-        bool $useStreak = false,
     ): array {
         $groups = app(GroupLendingService::class);
         if ($groups->isGroupProduct($product) && $groupMemberCount) {
@@ -58,7 +57,6 @@ class ApplicationFeePaymentService
             $useWallet,
             $promoCode,
             null,
-            $useStreak,
         );
     }
 
@@ -72,9 +70,8 @@ class ApplicationFeePaymentService
         bool $useWallet = false,
         ?string $promoCode = null,
         ?int $groupMemberCount = null,
-        bool $useStreak = false,
     ): array {
-        $quote = $this->quote($customer, $product, $useWallet, $promoCode, $groupMemberCount, $useStreak);
+        $quote = $this->quote($customer, $product, $useWallet, $promoCode, $groupMemberCount);
         $cashDue = (int) ($quote['cash_due'] ?? $quote['after_discount']);
 
         if ($cashDue <= 0) {
@@ -118,9 +115,8 @@ class ApplicationFeePaymentService
         bool $useWallet = false,
         ?string $promoCode = null,
         ?int $groupMemberCount = null,
-        bool $useStreak = false,
     ): array {
-        $quote = $this->quote($customer, $product, $useWallet, $promoCode, $groupMemberCount, $useStreak);
+        $quote = $this->quote($customer, $product, $useWallet, $promoCode, $groupMemberCount);
         $cashDue = (int) ($quote['cash_due'] ?? $quote['after_discount']);
 
         if ($cashDue <= 0) {

@@ -13,6 +13,7 @@ class BorrowerFinancialSnapshotService
         private readonly LoanQualificationService $qualification,
         private readonly LoanBalanceService $balances,
         private readonly ActiveLoanServicingService $servicing,
+        private readonly BorrowerCreditLimitService $creditLimit,
     ) {}
 
     /** @return array<string, mixed> */
@@ -25,14 +26,8 @@ class BorrowerFinancialSnapshotService
             ->first();
 
         $qualification = $this->qualification->calculate($customer);
-        $loanLimit = (float) ($qualification['amount'] ?? 0);
-
-        $outstandingTotal = (float) Loan::query()
-            ->where('customer_id', $customer->id)
-            ->whereIn('status', ['active', 'disbursed', 'arrears', 'restructuring'])
-            ->sum('outstanding_balance');
-
-        $availableLimit = max(0, $loanLimit - $outstandingTotal);
+        $limits = $this->creditLimit->forCustomer($customer);
+        $availableLimit = $limits['available'];
 
         $totalRepaid = (float) Repayment::query()
             ->whereHas('loan', fn ($q) => $q->where('customer_id', $customer->id))
@@ -69,7 +64,7 @@ class BorrowerFinancialSnapshotService
             'available_limit' => [
                 'icon'  => '📈',
                 'label' => __('borrower.dashboard.snapshot.available_limit'),
-                'value' => $qualification['has_data'] ?? false
+                'value' => $limits['has_data']
                     ? format_money($availableLimit)
                     : __('borrower.dashboard.snapshot.limit_unknown'),
             ],

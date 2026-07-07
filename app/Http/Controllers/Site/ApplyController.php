@@ -120,27 +120,33 @@ class ApplyController extends Controller
                 ->where('code', config('asset_marketplace.asset_loan_product_code', 'AL'))
                 ->first();
 
-            if ($assetLoanProduct) {
-                $selectedProduct = $assetLoanProduct;
-                $preselect = $assetLoanProduct->id;
+            if (! $assetLoanProduct) {
+                $assetKey = $reservation->asset->slug ?: (string) $reservation->marketplace_asset_id;
 
-                $asset = $reservation->asset;
-                $deposit = (float) ($asset->customer_deposit ?: $asset->computeCustomerDeposit());
-                $assetValue = (float) ($asset->asset_value ?: max($deposit * 1.4, $deposit));
-                $remainingLoan = max(0, round($assetValue - $deposit, 2));
-                $tenure = effective_marketplace_asset_max_tenure($asset);
-
-                $assetApplication = [
-                    'asset_title'        => $asset->title,
-                    'supplier'           => $asset->supplier_name,
-                    'asset_value'        => $assetValue,
-                    'deposit'            => $deposit,
-                    'remaining_loan'     => $remainingLoan,
-                    'weekly_installment' => (float) $asset->weekly_installment,
-                    'max_tenure_months'  => $tenure,
-                    'purpose'            => 'asset_financing',
-                ];
+                return redirect()
+                    ->route('site.borrower.marketplace.reserve', $assetKey)
+                    ->with('error', __('borrower.marketplace.loan_product_unavailable'));
             }
+
+            $selectedProduct = $assetLoanProduct;
+            $preselect = $assetLoanProduct->id;
+
+            $asset = $reservation->asset;
+            $deposit = (float) ($asset->customer_deposit ?: $asset->computeCustomerDeposit());
+            $assetValue = (float) ($asset->asset_value ?: max($deposit * 1.4, $deposit));
+            $remainingLoan = max(0, round($assetValue - $deposit, 2));
+            $tenure = effective_marketplace_asset_max_tenure($asset);
+
+            $assetApplication = [
+                'asset_title'        => $asset->title,
+                'supplier'           => $asset->supplier_name,
+                'asset_value'        => $assetValue,
+                'deposit'            => $deposit,
+                'remaining_loan'     => $remainingLoan,
+                'weekly_installment' => (float) $asset->weekly_installment,
+                'max_tenure_months'  => $tenure,
+                'purpose'            => 'asset_financing',
+            ];
         }
 
         $stepPlan = collect($wizard->borrowerStepPlan($customer, $selectedProduct))
@@ -267,7 +273,7 @@ class ApplyController extends Controller
             ->with('leaderName', $customer->full_name)
             ->with('leaderPhone', $customer->phone)
             ->with('engagementBoosts', app(\App\Services\MemberEngagementRewardService::class)->underwritingBoosts($customer))
-            ->with('qualificationLimit', (int) (app(\App\Services\LoanQualificationService::class)->calculate($customer)['amount'] ?? 0))
+            ->with('qualificationLimit', (int) app(\App\Services\BorrowerCreditLimitService::class)->availableAmount($customer))
             ->with('processingSla', app(\App\Services\UnderwritingSettingsService::class)->loanReviewSlaLabel($customer));
     }
 
@@ -754,7 +760,6 @@ class ApplyController extends Controller
             'channel'         => ['required', 'in:mobile_money,bank'],
             'payment_phone'   => [$dummyGateway ? 'nullable' : 'required_if:channel,mobile_money', 'nullable', 'string', 'max:20'],
             'use_wallet'      => ['nullable', 'boolean'],
-            'use_streak'      => ['nullable', 'boolean'],
             'promo_code'      => ['nullable', 'string', 'max:40'],
         ]);
 
@@ -795,7 +800,6 @@ class ApplyController extends Controller
                 $request->boolean('use_wallet'),
                 $data['promo_code'] ?? null,
                 $groups->isGroupProduct($product) ? $memberCount : null,
-                $request->boolean('use_streak'),
             );
             $drafts->saveApplicationFee($customer, $product->id, $feeState);
             if (product_includes_valuation_fee($product)) {
@@ -821,7 +825,6 @@ class ApplyController extends Controller
             $request->boolean('use_wallet'),
             $data['promo_code'] ?? null,
             $groups->isGroupProduct($product) ? $memberCount : null,
-            $request->boolean('use_streak'),
         );
         $drafts->saveApplicationFee($customer, $product->id, $feeState);
         if (product_includes_valuation_fee($product)) {
@@ -1022,7 +1025,6 @@ class ApplyController extends Controller
             ->firstOrFail();
 
         $useWallet = $request->boolean('use_wallet');
-        $useStreak = $request->boolean('use_streak');
         $promoCode = $request->query('promo_code');
         $memberCount = max(1, (int) $request->query('member_count', 1));
         $groups = app(GroupLendingService::class);
@@ -1039,7 +1041,6 @@ class ApplyController extends Controller
                 $useWallet,
                 $promoCode,
                 $groups->isGroupProduct($product) ? $memberCount : null,
-                $useStreak,
             ),
             'breakdown' => $groups->isGroupProduct($product)
                 ? $groups->applicationFeeBreakdown($customer, $product, $memberCount)
@@ -1115,7 +1116,7 @@ class ApplyController extends Controller
                 'total_repayment'     => round(($installment * $periods) + $applicationFee, 2),
             ],
             'engagement'    => [
-                'limit_amount'          => (int) ($qualification['amount'] ?? 0),
+                'limit_amount'          => (int) app(\App\Services\BorrowerCreditLimitService::class)->availableAmount($customer),
                 'limit_multiplier'      => (float) ($boosts['limit_multiplier'] ?? 1),
                 'rate_discount_pct'     => round(((float) ($boosts['rate_discount_fraction'] ?? 0)) * 100, 2),
                 'processing_sla'        => app(\App\Services\UnderwritingSettingsService::class)->loanReviewSlaLabel($customer),

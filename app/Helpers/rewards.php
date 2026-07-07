@@ -1,8 +1,6 @@
 <?php
 
 use App\Models\Customer;
-use App\Services\LoyaltyPointsService;
-use App\Services\ReferralService;
 
 /** TZS credited to referral wallet per 1 spendable referral point (default 1:1). */
 function referral_points_per_tzs(): int
@@ -30,12 +28,5 @@ function format_reward_points(int $points): string
 /** @return array{loyalty: int, referral: int, total: int} */
 function customer_reward_points(Customer $customer): array
 {
-    $loyalty = app(LoyaltyPointsService::class)->balance($customer);
-    $referral = wallet_balance_as_points((float) app(ReferralService::class)->wallet($customer)->balance);
-
-    return [
-        'loyalty'  => $loyalty,
-        'referral' => $referral,
-        'total'    => $loyalty + $referral,
-    ];
+    return app(\App\Services\UnifiedRewardsService::class)->wallet($customer);
 }

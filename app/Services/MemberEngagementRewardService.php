@@ -112,6 +112,12 @@ class MemberEngagementRewardService
             RepaymentSchedule::class,
             (int) $schedule->id,
         );
+
+        try {
+            app(RepaymentStreakRewardService::class)->afterOnTimeRepayment($customer->fresh());
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     private function maybeAwardProfileComplete(Customer $customer): void

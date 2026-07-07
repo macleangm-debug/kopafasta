@@ -72,11 +72,12 @@ class AssetMarketplaceController extends Controller
 
     public function show(string $assetId): View
     {
-        $asset = $this->findAsset($assetId);
+        $customer = auth()->user()?->customer;
+        $asset = $this->findAsset($assetId, $customer);
         abort_if(! $asset, 404);
 
         $reservation = null;
-        if ($customer = auth()->user()?->customer) {
+        if ($customer) {
             $model = $this->resolveModel($assetId);
             if ($model) {
                 $reservation = app(AssetReservationService::class)->activeForCustomer($customer, $model);
@@ -136,11 +137,11 @@ class AssetMarketplaceController extends Controller
 
     public function reserveFlow(string $assetId, AssetReservationService $reservations, ApplicationRequirementsService $requirements, PaymentAccountService $accounts): View|RedirectResponse
     {
-        $asset = $this->findAsset($assetId);
-        abort_if(! $asset, 404);
-
         $customer = auth()->user()?->customer;
         abort_unless($customer, 403);
+
+        $asset = $this->findAsset($assetId, $customer);
+        abort_if(! $asset, 404);
 
         $model = $this->resolveModel($assetId);
         abort_if(! $model, 404);
@@ -465,9 +466,22 @@ class AssetMarketplaceController extends Controller
             ->first();
     }
 
-    private function findAsset(string $assetId): ?array
+    private function findAsset(string $assetId, ?\App\Models\Customer $customer = null): ?array
     {
-        $model = $this->findModel($assetId);
+        $model = null;
+
+        if ($customer) {
+            $model = $this->resolveModel($assetId);
+            if ($model && ! $model->isAvailable()) {
+                $hasReservation = app(AssetReservationService::class)->activeForCustomer($customer, $model);
+                if (! $hasReservation) {
+                    $model = null;
+                }
+            }
+        } else {
+            $model = $this->findModel($assetId);
+        }
+
         if ($model) {
             return $this->normalizeAsset($model);
         }

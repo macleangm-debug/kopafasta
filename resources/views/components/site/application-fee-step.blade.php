@@ -92,7 +92,6 @@
                 <template x-if="feeQuoteData.referral_discount > 0"><div class="flex justify-between gap-4 text-gray-600"><span>{{ __('borrower.apply.application_fee.referral_discount') }}</span><span class="font-mono text-emerald-700" x-text="'− ' + formatTzs(feeQuoteData.referral_discount)"></span></div></template>
                 <template x-if="feeQuoteData.affiliate_discount > 0"><div class="flex justify-between gap-4 text-gray-600"><span>{{ __('borrower.apply.application_fee.affiliate_discount') }}</span><span class="font-mono text-emerald-700" x-text="'− ' + formatTzs(feeQuoteData.affiliate_discount)"></span></div></template>
                 <template x-if="feeQuoteData.loyalty_discount > 0"><div class="flex justify-between gap-4 text-gray-600"><span>{{ __('borrower.apply.application_fee.loyalty_discount') }}</span><span class="font-mono text-emerald-700" x-text="'− ' + formatTzs(feeQuoteData.loyalty_discount)"></span></div></template>
-                <template x-if="feeQuoteData.streak_discount > 0"><div class="flex justify-between gap-4 text-gray-600"><span>{{ __('borrower.apply.application_fee.streak_discount') }}</span><span class="font-mono text-emerald-700" x-text="'− ' + formatTzs(feeQuoteData.streak_discount)"></span></div></template>
                 <template x-if="feeQuoteData.wallet_applied > 0"><div class="flex justify-between gap-4 text-gray-600"><span>{{ __('borrower.apply.application_fee.referral_points') }}</span><span class="font-mono text-emerald-700" x-text="'− ' + Math.round(feeQuoteData.wallet_applied / {{ referral_points_per_tzs() }}) + ' {{ __('borrower.rewards.points_short') }}'"></span></div></template>
                 <div class="flex justify-between gap-4 font-semibold pt-1 border-t border-gray-200 text-gray-900"><span>{{ __('borrower.apply.application_fee.amount_due') }}</span><span class="font-mono" x-text="formatTzs(feeQuoteData.cash_due ?? feeQuoteData.after_discount)"></span></div>
             </div>
@@ -105,15 +104,16 @@
             </div>
         @endif
 
-        <div class="mb-6 rounded-xl bg-white ring-1 ring-gray-200 px-4 py-4 text-sm">
+        <div class="mb-6 rounded-xl bg-white ring-1 ring-gray-200 px-4 py-4 text-sm" x-show="!feeUseWallet">
             <label class="block text-xs font-semibold text-gray-600 mb-1">{{ __('borrower.apply.application_fee.promo_label') }}</label>
             <input type="text" x-model="feePromoCode" @change="refreshApplicationFeeQuote()" maxlength="40" class="w-full rounded-lg border-gray-300 text-sm font-mono uppercase" placeholder="PROMO2026">
+            <p class="mt-2 text-xs text-gray-500">{{ __('borrower.apply.application_fee.benefit_exclusive_hint') }}</p>
         </div>
 
         @if ($feeQuote && ($feeQuote['wallet_allowed'] ?? false) && $referralPoints > 0)
             <div class="mb-6 rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 py-4 text-sm text-brand">
                 <label class="flex items-start gap-3 cursor-pointer">
-                    <input type="checkbox" x-model="feeUseWallet" @change="feeUseStreak = false; refreshApplicationFeeQuote()" class="mt-1 rounded border-brand/30 text-brand focus:ring-brand">
+                    <input type="checkbox" x-model="feeUseWallet" @change="feePromoCode = feeUseWallet ? '' : feePromoCode; refreshApplicationFeeQuote()" class="mt-1 rounded border-brand/30 text-brand focus:ring-brand">
                     <span>
                         {{ __('borrower.apply.application_fee.wallet_points_label', [
                             'points' => number_format($referralPoints),
@@ -121,21 +121,6 @@
                         ]) }}
                     </span>
                 </label>
-            </div>
-        @endif
-
-        @if (($streakReward['enabled'] ?? false) && ($streakReward['percent'] ?? 0) > 0)
-            <div class="mb-6 rounded-xl bg-orange-50 ring-1 ring-orange-200 px-4 py-4 text-sm text-orange-950">
-                <label class="flex items-start gap-3 cursor-pointer">
-                    <input type="checkbox" x-model="feeUseStreak" @change="feeUseWallet = false; refreshApplicationFeeQuote()" class="mt-1 rounded border-orange-300 text-orange-600 focus:ring-orange-500">
-                    <span>
-                        {{ __('borrower.apply.application_fee.streak_label', [
-                            'count' => $streakReward['count'] ?? 0,
-                            'percent' => rtrim(rtrim(number_format($streakReward['percent'] ?? 0, 1), '0'), '.'),
-                        ]) }}
-                    </span>
-                </label>
-                <p class="mt-2 text-xs text-orange-800">{{ __('borrower.apply.application_fee.wallet_or_streak_hint') }}</p>
             </div>
         @endif
 

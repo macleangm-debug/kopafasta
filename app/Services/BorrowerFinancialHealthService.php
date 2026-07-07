@@ -12,6 +12,7 @@ class BorrowerFinancialHealthService
         private readonly ProfileCompletionService $profileCompletion,
         private readonly LoanQualificationService $qualification,
         private readonly ReferralService $referrals,
+        private readonly BorrowerCreditLimitService $creditLimit,
     ) {}
 
     /** @return array<string, mixed> */
@@ -54,9 +55,7 @@ class BorrowerFinancialHealthService
             ],
             'referral_progress' => $referral,
             'available_limit' => [
-                'value' => ($qualification['has_data'] ?? false)
-                    ? format_money((float) ($qualification['amount'] ?? 0))
-                    : __('borrower.dashboard.snapshot.limit_unknown'),
+                'value' => $this->creditLimit->availableFormatted($customer),
             ],
             'loyalty_points' => (int) ($customer->loyalty_points ?? 0),
             'next_action' => $nextAction,

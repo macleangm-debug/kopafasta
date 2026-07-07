@@ -75,7 +75,7 @@
             <span class="uppercase">{{ $siteLocale }}</span>
         </button>
         <div x-cloak x-show="localeOpen" @click.outside="localeOpen = false" x-transition
-             class="absolute right-0 top-full mt-1 w-40 z-50 rounded-xl border border-gray-200 bg-white shadow-xl py-1">
+             class="absolute right-0 top-full mt-1 w-40 z-[200] rounded-xl border border-gray-200 bg-white shadow-xl py-1">
             @foreach ($localeOptions as $code => $meta)
                 <form method="POST" action="{{ route('site.locale.update') }}">
                     @csrf
@@ -170,7 +170,7 @@
                 <svg class="w-4 h-4 ml-auto text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
             </button>
             <div x-cloak x-show="countryOpen" @click.outside="countryOpen = false" x-transition
-                 class="absolute right-0 top-full mt-1 w-56 z-50 rounded-xl border border-gray-200 bg-white shadow-xl py-1 max-h-64 overflow-y-auto">
+                 class="absolute right-0 top-full mt-1 w-56 z-[200] rounded-xl border border-gray-200 bg-white shadow-xl py-1 max-h-64 overflow-y-auto">
                 @foreach ($siteCountries as $country)
                     <form method="POST" action="{{ route('site.country.update') }}">
                         @csrf
@@ -195,7 +195,7 @@
                 <svg class="w-4 h-4 ml-auto text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
             </button>
             <div x-cloak x-show="localeOpen" @click.outside="localeOpen = false" x-transition
-                 class="absolute right-0 top-full mt-1 w-44 z-50 rounded-xl border border-gray-200 bg-white shadow-xl py-1">
+                 class="absolute right-0 top-full mt-1 w-44 z-[200] rounded-xl border border-gray-200 bg-white shadow-xl py-1 overflow-visible">
                 @foreach ($localeOptions as $code => $meta)
                     <form method="POST" action="{{ route('site.locale.update') }}">
                         @csrf
