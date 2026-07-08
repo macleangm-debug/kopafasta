@@ -32,10 +32,7 @@
             </div>
         </div>
 
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 grid grid-cols-[auto_1fr_auto] items-center gap-4"
-             x-data="{ open: false, menu: null }"
-             @keydown.escape.window="menu = null; open = false"
-             @click.outside="menu = null">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 grid grid-cols-[auto_1fr_auto] items-center gap-4">
             <a href="{{ route('site.home') }}" class="flex items-center gap-2 shrink-0">
                 <x-site.brand-mark size="md" />
             </a>
@@ -43,14 +40,16 @@
             <nav class="hidden lg:flex items-center justify-center gap-1 text-sm font-medium text-gray-700">
                 <a href="{{ route('site.home') }}" class="px-3 py-2 rounded-lg hover:bg-brand-muted hover:text-brand transition">{{ __('site.nav.home') }}</a>
 
-                <div class="relative" @mouseenter="menu = 'products'" @mouseleave="menu = null">
-                    <button type="button" @click.stop="menu = menu === 'products' ? null : 'products'"
+                <div class="relative" x-data="{ productsOpen: false }"
+                     @mouseenter="productsOpen = true" @mouseleave="productsOpen = false"
+                     @keydown.escape.window="productsOpen = false">
+                    <button type="button" @click.stop="productsOpen = !productsOpen"
                             class="px-3 py-2 rounded-lg hover:bg-brand-muted hover:text-brand inline-flex items-center gap-1 transition"
-                            :class="menu === 'products' ? 'text-brand bg-brand-muted' : ''">
+                            :class="productsOpen ? 'text-brand bg-brand-muted' : ''">
                         {{ __('site.nav.products') }}
-                        <svg class="w-3.5 h-3.5 transition" :class="menu === 'products' ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                        <svg class="w-3.5 h-3.5 transition" :class="productsOpen ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                     </button>
-                    <div x-cloak x-show="menu === 'products'" x-transition.opacity
+                    <div x-cloak x-show="productsOpen" x-transition.opacity @click.outside="productsOpen = false"
                          class="absolute left-1/2 -translate-x-1/2 top-full pt-2 w-80">
                         <div class="glass-card p-2 max-h-80 overflow-y-auto bg-white shadow-xl ring-1 ring-gray-200/80">
                             <a href="{{ route('site.products') }}" class="block px-3 py-2 rounded-lg hover:bg-brand-muted text-sm font-semibold text-brand">{{ __('site.nav.all_products') }}</a>
@@ -90,11 +89,11 @@
                 @endauth
             </div>
 
-            <div class="lg:hidden justify-self-end relative" @click.outside="open = false">
-                <button @click.stop="open = !open" class="p-2 rounded-md hover:bg-gray-100" aria-label="Menu" :aria-expanded="open">
+            <div class="lg:hidden justify-self-end relative" data-mobile-menu>
+                <button type="button" data-mobile-menu-toggle class="p-2 rounded-md hover:bg-gray-100" aria-label="Menu" aria-expanded="false">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
-                <div x-cloak x-show="open"
+                <div data-mobile-menu-panel hidden
                      class="absolute right-0 top-full mt-1 w-[min(100vw-2rem,20rem)] bg-white shadow-xl ring-1 ring-gray-200 max-h-[80vh] overflow-y-auto z-50 rounded-xl">
                     <div class="px-4 py-4 flex flex-col gap-3 text-sm border-b border-gray-100">
                         <x-site.locale-switcher variant="mobile" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
@@ -186,6 +185,39 @@
 
     <x-site.chatbot-widget />
     <x-site.confirm-modal name="default" />
+    @stack('scripts')
+    <script>
+        (function () {
+            const menu = document.querySelector('[data-mobile-menu]');
+            if (!menu) return;
+
+            const toggle = menu.querySelector('[data-mobile-menu-toggle]');
+            const panel = menu.querySelector('[data-mobile-menu-panel]');
+            if (!toggle || !panel) return;
+
+            function setOpen(open) {
+                panel.hidden = !open;
+                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            }
+
+            toggle.addEventListener('click', function (event) {
+                event.stopPropagation();
+                setOpen(panel.hidden);
+            });
+
+            document.addEventListener('click', function (event) {
+                if (!menu.contains(event.target)) {
+                    setOpen(false);
+                }
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') {
+                    setOpen(false);
+                }
+            });
+        })();
+    </script>
     <script>
         document.addEventListener('alpine:init', () => {
             window.confirmForm = (form, detail = {}) => {
