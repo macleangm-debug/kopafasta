@@ -18,7 +18,7 @@
                 ? __('borrower.guarantor.pending_requests_hint')
                 : __('borrower.loans_page.subtitle'))">
         <x-slot:actions>
-            <a href="{{ route('site.borrower.apply') }}"
+            <a href="{{ route('site.borrower.loan-products') }}"
                class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-2.5 rounded-xl text-sm shadow-sm">
                 {{ __('borrower.loans_page.apply_new_cta') }}
             </a>

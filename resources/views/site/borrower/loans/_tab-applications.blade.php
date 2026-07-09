@@ -33,7 +33,7 @@
         :title="__('borrower.applications_list.empty_title')"
         :description="__('borrower.applications_list.empty_desc')"
         :action-label="__('borrower.applications_list.empty_action')"
-        :action-url="route('site.borrower.apply')"
+        :action-url="route('site.borrower.loan-products')"
     />
 @elseif (($viewMode ?? 'table') === 'table')
     <div class="glass-card overflow-hidden">

@@ -578,6 +578,29 @@ class BorrowerController extends Controller
         ]);
     }
 
+    public function loanProducts(ApplicationRequirementsService $requirements): View|RedirectResponse
+    {
+        $customer = $this->customer();
+
+        if (! $customer) {
+            return redirect()->route('site.borrower.dashboard')->with('error', 'Complete your profile before applying.');
+        }
+
+        $products = borrower_catalogue_products();
+        $applyRequirements = $requirements->checklist($customer);
+        $categories = $products
+            ->map(fn (LoanProduct $product) => (string) ($product->category ?: 'general'))
+            ->unique()
+            ->values();
+
+        return view('site.borrower.loan-products', compact(
+            'customer',
+            'products',
+            'applyRequirements',
+            'categories',
+        ));
+    }
+
     public function showGuaranteedLoan(CustomerGuarantor $customerGuarantor): View
     {
         $customer = $this->customer();

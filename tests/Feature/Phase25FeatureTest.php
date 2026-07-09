@@ -170,7 +170,7 @@ class Phase25FeatureTest extends TestCase
     {
         $customer = $this->completeBorrower();
 
-        LoanProduct::create([
+        $product = LoanProduct::create([
             'code'               => 'IL-P25-APPLY',
             'name'               => 'Apply Disclosure Product',
             'is_active'          => true,
@@ -184,7 +184,7 @@ class Phase25FeatureTest extends TestCase
         ]);
 
         $this->actingAs($customer->user)
-            ->get(route('site.borrower.apply'))
+            ->get(route('site.borrower.apply', ['product' => $product->id]))
             ->assertOk()
             ->assertSee(__('borrower.rate_disclosure.title'), false)
             ->assertSee(__('borrower.rate_disclosure.footnote'), false);

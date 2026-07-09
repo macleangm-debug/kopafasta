@@ -4,7 +4,7 @@
     $actions = [
         [
             'label' => __('borrower.dashboard.quick_actions.apply'),
-            'route' => route('site.borrower.dashboard').'#loan-products',
+            'route' => route('site.borrower.loan-products'),
             'icon'  => '➕',
         ],
         [

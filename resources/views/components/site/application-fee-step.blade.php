@@ -17,30 +17,14 @@
 @endphp
 
 <div x-show="stepKey === 'application_fee'" class="p-6 sm:p-8">
-    <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-1">{{ __('borrower.apply.application_fee.eyebrow') }}</p>
-    <h2 class="text-xl font-semibold mb-1">{{ __('borrower.apply.application_fee.title') }}</h2>
-    <p class="text-sm text-gray-600 mb-5">{{ __('borrower.apply.application_fee.subtitle') }}</p>
+    <x-site.wizard-step-header
+        :eyebrow="__('borrower.apply.application_fee.eyebrow')"
+        :title="__('borrower.apply.application_fee.title')"
+        :subtitle="__('borrower.apply.application_fee.subtitle')"
+    />
 
     @if ($applyRequirements && ! ($applyRequirements['can_apply'] ?? true))
-        <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 text-sm text-amber-900 mb-6">
-            <p class="font-semibold">{{ __('borrower.apply.kyc_incomplete_title') }}</p>
-            <p class="mt-1 text-amber-800">{{ __('borrower.apply.kyc_incomplete_hint') }}</p>
-            <ul class="mt-2 space-y-1 text-amber-800">
-                @foreach (($applyRequirements['items'] ?? []) as $item)
-                    @if (! ($item['complete'] ?? false))
-                        <li class="flex items-start gap-2">
-                            <span>•</span>
-                            <span>
-                                {{ $item['label'] }}
-                                @if (! empty($item['action_url']))
-                                    — <a href="{{ $item['action_url'] }}" class="font-semibold underline">{{ __('borrower.apply.details.complete_missing') }}</a>
-                                @endif
-                            </span>
-                        </li>
-                    @endif
-                @endforeach
-            </ul>
-        </div>
+        <x-site.kyc-gate-banner :apply-requirements="$applyRequirements" class="mb-6" />
     @endif
 
     @if ($paymentGatewayDummy)
@@ -69,6 +53,23 @@
     </div>
 
     <div x-show="showsApplicationFeePayment()" x-cloak>
+        <div x-show="isAssetBackedProduct(current) && effectiveValuationFeeAmount() > 0" x-cloak
+             class="glass-card rounded-2xl ring-1 ring-brand/15 px-5 py-4 text-sm mb-6 space-y-2">
+            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.application_fee.fee_breakdown.title') }}</p>
+            <div class="flex justify-between gap-4">
+                <span class="text-gray-600">{{ __('borrower.apply.application_fee.fee_breakdown.application_line') }}</span>
+                <span class="font-mono font-semibold tabular-nums" x-text="formatTzs(Math.max(0, effectiveFeeAmount() - effectiveValuationFeeAmount()))"></span>
+            </div>
+            <div class="flex justify-between gap-4">
+                <span class="text-gray-600">{{ __('borrower.apply.application_fee.fee_breakdown.valuation_line') }}</span>
+                <span class="font-mono font-semibold tabular-nums" x-text="formatTzs(effectiveValuationFeeAmount())"></span>
+            </div>
+            <div class="flex justify-between gap-4 pt-2 border-t border-brand/10 font-semibold text-gray-900">
+                <span>{{ __('borrower.apply.application_fee.fee_breakdown.total') }}</span>
+                <span class="font-mono tabular-nums" x-text="formatTzs(effectiveFeeAmount())"></span>
+            </div>
+            <p class="text-xs text-gray-500 pt-1">{{ __('borrower.apply.application_fee.fee_breakdown.valuation_note') }}</p>
+        </div>
         <div x-show="isGroupProduct(current) && groupFeeBreakdown()" x-cloak class="rounded-xl ring-1 ring-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950 mb-6 space-y-2">
             <p class="text-xs font-semibold uppercase tracking-widest text-amber-800">{{ __('borrower.apply.group.fee_breakdown.settings_note') }}</p>
             <div class="flex justify-between gap-4"><span>{{ __('borrower.apply.group.fee_breakdown.per_member') }}</span><span class="font-mono font-semibold" x-text="formatTzs(groupFeeBreakdown().per_member)"></span></div>

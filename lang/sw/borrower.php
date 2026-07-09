@@ -37,6 +37,20 @@ return [
   'new_application' => 'Omba mkopo mpya',
   'active_applications' => 'Maombi yanayoendelea',
   'loan_products' => 'Bidhaa za mkopo',
+  'loan_products_page' => [
+    'title' => 'Chagua bidhaa ya mkopo',
+    'subtitle' => 'Vinjari bidhaa zote za mkopo, linganisha viwango na mipaka, kisha anza ombi lako unapokuwa tayari.',
+    'apply_now' => 'Omba sasa',
+    'max_amount' => 'Kiasi cha juu',
+    'max_duration' => 'Muda wa juu',
+    'search_label' => 'Tafuta bidhaa za mkopo',
+    'search_placeholder' => 'Tafuta kwa jina au msimbo wa bidhaa…',
+    'all_categories' => 'Zote',
+    'no_results_title' => 'Hakuna bidhaa zinazolingana na utafutaji wako',
+    'no_results_body' => 'Jaribu neno au kichujio kingine cha kategoria.',
+    'help_title' => 'Unahitaji msaada wa kuchagua?',
+    'help_body' => 'Timu yetu ya msaada inaweza kukusaidia kuchagua bidhaa sahihi kwa mahitaji yako.',
+  ],
   'recent_notifications' => 'Arifa za hivi karibuni',
   'language' => 'Lugha',
   'english' => 'Kiingereza',
@@ -58,7 +72,8 @@ return [
   'apply' => 
 [
     'title' => 'Omba mkopo',
-    'subtitle' => 'Chagua bidhaa, kagua mahitaji na alama yako ya utayari — kisha anza unapokuwa tayari.',
+    'wizard_title' => 'Ombi la mkopo',
+    'subtitle' => 'Kagua maelezo ya bidhaa na alama yako ya utayari — kisha kamilisha ombi lako.',
     'smart_application' => 'ombi la mkopo la akili',
     'requirements_incomplete' => 'Baadhi ya mahitaji ya uanachama hayajakamilika.',
     'requirements_hint' => 'Bado unaweza kukagua bidhaa za mkopo hapa chini — alama yako ya utayari itaonyesha kinachokosekana kabla ya kuomba.',
@@ -154,10 +169,16 @@ return [
       'months_short' => 'miezi',
       'per_month' => 'kwa mwezi',
 ],
-    'quote' => 
+    'wizard_phases' => [
+      'details' => 'Maelezo ya bidhaa',
+      'application' => 'Ombi',
+    ],
+    'wizard_step_progress' => 'Maendeleo ya ombi',
+    'quote' =>
 [
       'title' => 'Nukuu ya mkopo',
       'subtitle' => 'Rekebisha kiasi na muda — malipo yako yanasasishwa papo hapo.',
+      'configure' => 'Sanidi mkopo wako',
       'loan_amount' => 'Kiasi cha mkopo',
       'tenure' => 'Muda',
       'months' => 'miezi',
@@ -282,6 +303,13 @@ return [
       'dummy_bank_hint' => 'Hali ya majaribio — hakuna uhamisho halisi. Bofya kitufe hapa chini kurekodi malipo.',
       'dummy_pay' => 'Rekodi malipo ya majaribio',
       'dummy_paid' => 'Malipo ya majaribio yamerekodiwa. Unaweza kuendelea na ombi lako.',
+      'fee_breakdown' => [
+        'title' => 'Muhtasari wa ada',
+        'application_line' => 'Ada ya maombi',
+        'valuation_line' => 'Ada ya utathmini (ukaguzi wa mali)',
+        'total' => 'Jumla inayodaiwa',
+        'valuation_note' => 'Ada ya utathmini inashughulikia ukaguzi wa kitaalamu na ripoti ya thamani ya uuzaji wa lazima.',
+      ],
 ],
     'valuation_fee' => 
 [

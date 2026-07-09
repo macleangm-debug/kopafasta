@@ -87,7 +87,7 @@
                 <h2 class="text-lg font-semibold">{{ __('borrower.loan_products') }}</h2>
                 <p class="text-sm text-gray-500">{{ __('borrower.dashboard.browse_products') }}</p>
             </div>
-            <a href="{{ route('site.borrower.marketplace') }}" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.dashboard.marketplace_link') }}</a>
+            <a href="{{ route('site.borrower.loan-products') }}" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.dashboard.view_all') }}</a>
         </div>
         @if(isset($products) && $products->isNotEmpty())
             <div class="relative -mx-4 lg:mx-0" x-data="{ open: null }">

@@ -141,7 +141,7 @@ class Phase23FeatureTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get(route('site.borrower.apply'))
+            ->get(route('site.borrower.loan-products'))
             ->assertOk()
             ->assertSee(__('borrower.apply.kyc_incomplete_hint'), false);
     }

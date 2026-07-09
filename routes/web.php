@@ -161,6 +161,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
 
         Route::middleware('borrower.pin')->group(function () {
             Route::middleware('membership.active')->group(function () {
+                Route::get('/borrower/loan-products', [\App\Http\Controllers\Site\BorrowerController::class, 'loanProducts'])->name('borrower.loan-products');
                 Route::get('/borrower/apply',  [\App\Http\Controllers\Site\ApplyController::class, 'show'])->name('borrower.apply');
                 Route::get('/borrower/apply/product/{product}/readiness', [\App\Http\Controllers\Site\ApplyController::class, 'productReadiness'])->name('borrower.apply.product-readiness');
                 Route::post('/borrower/apply/guarantor-lookup', [\App\Http\Controllers\Site\ApplyController::class, 'lookupGuarantor'])->name('borrower.apply.guarantor-lookup');
@@ -183,7 +184,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::post('/borrower/apply/asset-document', [\App\Http\Controllers\Site\ApplyController::class, 'uploadAssetDocument'])->name('borrower.apply.asset-document');
                 Route::get('/borrower/apply/repayment-preview', [\App\Http\Controllers\Site\ApplyController::class, 'repaymentPreview'])->name('borrower.apply.repayment-preview');
                 Route::post('/borrower/apply', [\App\Http\Controllers\Site\ApplyController::class, 'submit'])->name('borrower.apply.submit');
-                Route::get('/apply', fn () => redirect()->route('site.borrower.apply'))->name('apply.show');
+                Route::get('/apply', fn () => redirect()->route('site.borrower.loan-products'))->name('apply.show');
                 Route::post('/apply', [\App\Http\Controllers\Site\ApplyController::class, 'submit'])->name('apply.submit');
             });
             Route::get('/borrower/apply/{application}/success', [\App\Http\Controllers\Site\ApplyController::class, 'success'])->name('borrower.apply.success');

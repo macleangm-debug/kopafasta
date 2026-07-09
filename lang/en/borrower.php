@@ -49,6 +49,22 @@ return [
     'new_application' => 'New application',
     'active_applications' => 'Active applications',
     'loan_products' => 'Loan products',
+
+    'loan_products_page' => [
+        'title' => 'Choose your loan product',
+        'subtitle' => 'Browse all available loan products, compare rates and limits, then start your application when you\'re ready.',
+        'apply_now' => 'Apply now',
+        'max_amount' => 'Maximum amount',
+        'max_duration' => 'Maximum duration',
+        'search_label' => 'Search loan products',
+        'search_placeholder' => 'Search by name or product code…',
+        'all_categories' => 'All',
+        'no_results_title' => 'No products match your search',
+        'no_results_body' => 'Try a different search term or category filter.',
+        'help_title' => 'Need help choosing?',
+        'help_body' => 'Our support team can help you pick the right product for your needs.',
+    ],
+
     'recent_notifications' => 'Recent notifications',
     'language' => 'Language',
     'english' => 'English',
@@ -70,7 +86,8 @@ return [
 
     'apply' => [
         'title' => 'Apply for a loan',
-        'subtitle' => 'Choose a product, review requirements and your readiness score — then start when you\'re ready.',
+        'wizard_title' => 'Loan application',
+        'subtitle' => 'Review product details and your readiness score — then complete your application.',
         'smart_application' => 'smart loan application',
         'requirements_incomplete' => 'Some membership requirements are incomplete.',
         'requirements_hint' => 'You can still review loan products below — your readiness score will show what\'s missing before you apply.',
@@ -481,6 +498,11 @@ return [
             'months_short' => 'mo',
             'per_month' => 'per month',
         ],
+        'wizard_phases' => [
+            'details' => 'Product details',
+            'application' => 'Application',
+        ],
+        'wizard_step_progress' => 'Application progress',
         'product_type' => [
             'general' => 'General loan',
             'salary' => 'Salary loan',
@@ -502,6 +524,7 @@ return [
             'eyebrow' => 'Loan quote',
             'title' => 'Loan quote',
             'subtitle' => 'Adjust amount and tenure — your installment updates instantly.',
+            'configure' => 'Configure your loan',
             'loan_amount' => 'Loan amount',
             'tenure' => 'Tenure',
             'months' => 'months',
@@ -620,6 +643,13 @@ return [
             'dummy_bank_hint' => 'Test mode — no real transfer needed. Click the button below to record payment.',
             'dummy_pay' => 'Record test payment',
             'dummy_paid' => 'Test payment recorded. You can continue your application.',
+            'fee_breakdown' => [
+                'title' => 'Fee breakdown',
+                'application_line' => 'Application fee',
+                'valuation_line' => 'Valuation fee (collateral inspection)',
+                'total' => 'Total due',
+                'valuation_note' => 'Valuation fee covers professional inspection and forced-sale value report.',
+            ],
         ],
         'asset_details' => [
             'title' => 'Collateral details',

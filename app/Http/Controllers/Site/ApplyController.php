@@ -178,6 +178,15 @@ class ApplyController extends Controller
                 ->with('error', __('borrower.applications_list.resume_not_found'));
         }
 
+        $hasWizardContext = $preselect
+            || $reservation
+            || $isResume
+            || ($savedDraft && ! empty($savedDraft['loan_product_id']));
+
+        if (! $hasWizardContext) {
+            return redirect()->route('site.borrower.loan-products');
+        }
+
         if ($isResume && $savedDraft) {
             $target = $savedDraft['resume_target'] ?? [];
             if ($request->filled('phase')) {
