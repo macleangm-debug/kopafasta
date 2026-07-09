@@ -8,6 +8,8 @@
         in_array('registration', $reasons, true) => __('borrower.celebration.registration'),
         in_array('payment', $reasons, true) => __('borrower.celebration.payment'),
         in_array('membership', $reasons, true) => __('borrower.celebration.membership'),
+        in_array('reward_redeemed', $reasons, true) => __('borrower.celebration.reward_redeemed'),
+        in_array('points_earned', $reasons, true) => __('borrower.celebration.points_earned'),
         default => null,
     };
 @endphp

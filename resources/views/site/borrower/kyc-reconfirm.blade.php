@@ -8,8 +8,11 @@
             <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
         @endif
 
-        <form method="POST" action="{{ route('site.borrower.kyc-reconfirm.update') }}" class="space-y-6" enctype="multipart/form-data">
+        <form method="POST" action="{{ route('site.borrower.kyc-reconfirm.update') }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}" class="space-y-6" enctype="multipart/form-data">
             @csrf @method('PUT')
+            @if (! empty($returnUrl))
+                <input type="hidden" name="return" value="{{ $returnUrl }}">
+            @endif
 
             @if (in_array('residence', $staleSections ?? [], true))
             <div class="bg-white rounded-2xl border border-gray-200 p-6">

@@ -68,7 +68,7 @@ class BorrowerFinancialHealthService
         if (! $customer->isMembershipActive()) {
             return [
                 'label'    => __('borrower.engagement.next_action.membership'),
-                'url'      => route('site.borrower.membership'),
+                'url'      => route('site.membership.renew'),
                 'priority' => 'high',
             ];
         }

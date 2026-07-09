@@ -254,8 +254,8 @@ class ProfileCompletionService
                 'url'      => route('site.borrower.profile', ['section' => 'security']),
             ],
             'payment' => [
-                'complete' => $paymentAccounts->isNotEmpty(),
-                'required' => false,
+                'complete' => app(CustomerDisbursementDetailsService::class)->isComplete($customer),
+                'required' => app(ProfileSectionBuilderService::class)->paymentRequiredBeforeLoan(),
                 'label'    => __('borrower.payment_details.tab'),
                 'url'      => route('site.borrower.profile', ['section' => 'payment']),
             ],
@@ -346,17 +346,17 @@ class ProfileCompletionService
                 },
             ],
             'payment' => [
-                'complete' => $paymentAccounts->isNotEmpty(),
-                'required' => true,
+                'complete' => app(CustomerDisbursementDetailsService::class)->isComplete($customer),
+                'required' => app(ProfileSectionBuilderService::class)->paymentRequiredBeforeLoan(),
                 'label'    => __('borrower.profile.payment_account'),
                 'url'      => route('site.borrower.profile', ['section' => 'payment']),
-                'status'   => $paymentAccounts->isNotEmpty() ? 'complete' : 'not_started',
+                'status'   => app(CustomerDisbursementDetailsService::class)->isComplete($customer) ? 'complete' : 'not_started',
             ],
             'kin' => [
                 'complete' => $kinComplete,
                 'required' => true,
                 'label'    => __('borrower.profile.next_of_kin'),
-                'url'      => route('site.borrower.profile', ['section' => 'kin']),
+                'url'      => route('site.borrower.profile', ['section' => 'personal', 'focus' => 'kin']),
                 'status'   => $resolve($kinComplete, 'kin'),
             ],
             'assets' => [

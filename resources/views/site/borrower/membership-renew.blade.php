@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title($isFirstTime ? __('borrower.membership.registration_fee') : __('borrower.membership.renewal_fee'))" active="membership" content-width="wide">
+<x-site.borrower-layout :title="brand_title($isFirstTime ? __('borrower.membership.registration_fee') : __('borrower.membership.renewal_fee'))" active="profile" content-width="wide">
     <div x-data="{ channel: '{{ old('channel', 'mobile_money') }}', phone: '{{ old('payment_phone', $customer->phone ?? '') }}', useWallet: {{ old('use_wallet') ? 'true' : 'false' }} }">
         <div class="mb-6">
             <p class="text-xs uppercase tracking-widest text-brand mb-1">{{ $isFirstTime ? __('borrower.membership.first_time') : __('borrower.membership.renewal') }}</p>

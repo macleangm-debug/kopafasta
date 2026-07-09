@@ -35,7 +35,9 @@
             }
             $wizardProductPayload = fn ($p) => loan_product_wizard_payload($p, $customer);
             $activityLabels = activity_type_options();
-            $incomeRangeLabels = collect(config('income_ranges', []))->mapWithKeys(fn ($v, $k) => [$k => $v['label'] ?? $k])->all();
+            $incomeRangeLabels = collect(config('income_ranges', []))
+                ->mapWithKeys(fn ($v, $k) => [$k => income_range_label($k) ?? ($v['label'] ?? $k)])
+                ->all();
             $borrowerSnapshot = [
                 'personal' => trim(collect([$customer->first_name, $customer->last_name])->filter()->implode(' '))
                     . ($customer->national_id ? ' · '.$customer->national_id : ''),
@@ -108,6 +110,13 @@
                   engagementBoosts: @js($engagementBoosts ?? null),
                   qualificationLimit: {{ (int) ($qualificationLimit ?? 0) }},
                   processingSla: @js($processingSla ?? null),
+                  loyaltyRateDiscount: {{ (float) ($loyaltyRateDiscount ?? 0) }},
+                  activeRewards: @js(($activeRewards ?? collect())->map(fn ($r) => [
+                      'label' => $r->label,
+                      'benefit_type' => $r->benefit_type,
+                      'fee_type' => $r->fee_type,
+                  ])->values()->all()),
+                  pointsBalance: {{ (int) ($pointsBalance ?? 0) }},
                   profileSections: @js($profileSections),
                   incomeVerification: @js($incomeVerification),
                   productQuestions: @js($productQuestions),
@@ -285,7 +294,7 @@
                     <input type="hidden" name="requested_amount" data-submit-amount>
                     <input type="hidden" name="requested_tenure_months" data-submit-tenure>
                     <input type="hidden" name="purpose" data-submit-purpose>
-                    <input type="hidden" name="guarantor_mode" data-submit-guarantor-mode>
+                    <input type="hidden" name="guarantor_mode" data-submit-guarantor-mode value="">
                     @if ($reservation ?? null)
                         <input type="hidden" name="asset_reservation_id" value="{{ $reservation->id }}">
                     @endif
@@ -342,7 +351,6 @@
                     :payment-reference="$applicationFeePaymentRef ?? null"
                     :referral-wallet="$referralWallet ?? null"
                     :referral-settings="$referralSettings ?? []"
-                    :streak-reward="$streakReward ?? null"
                     :payment-gateway-dummy="$paymentGatewayDummy ?? payment_gateway_is_dummy()"
                     :apply-requirements="$applyRequirements ?? null"
                     :points-balance="$pointsBalance ?? 0"

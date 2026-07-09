@@ -62,32 +62,36 @@
                                 <span x-text="field.label"></span>
                                 <span x-show="field.required" class="text-red-500">*</span>
                             </label>
-                            <template x-if="field.type === 'select'">
-                                <select :name="'activity_details[' + field.key + ']'" x-model="details[field.key]"
-                                        class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" :required="field.required">
-                                    <option value="" x-text="labels.selectOption"></option>
-                                    <template x-for="(label, value) in field.options" :key="value">
-                                        <option :value="value" x-text="label" :selected="details[field.key] === value"></option>
-                                    </template>
-                                </select>
-                            </template>
-                            <template x-if="field.type === 'region'">
-                                <select :name="'activity_details[' + field.key + ']'" x-model="details[field.key]" @change="onRegionChange(field.key)"
-                                        class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" :required="field.required">
-                                    <option value="" x-text="labels.selectRegion"></option>
-                                    <template x-for="(districts, region) in locations" :key="region">
-                                        <option :value="region" x-text="region" :selected="details[field.key] === region"></option>
-                                    </template>
-                                </select>
-                            </template>
-                            <template x-if="field.type === 'district'">
-                                <select :name="'activity_details[' + field.key + ']'" x-model="details[field.key]"
-                                        class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" :required="field.required">
-                                    <option value="" x-text="labels.selectDistrict"></option>
-                                    <template x-for="district in districtsForRegion(details.region)" :key="district">
-                                        <option :value="district" x-text="district" :selected="details[field.key] === district"></option>
-                                    </template>
-                                </select>
+                            <template x-if="field.type === 'select' || field.type === 'region' || field.type === 'district'">
+                                <div>
+                                    <div class="lg:hidden">
+                                        <button type="button" @click="openDetailPicker(field)"
+                                                class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
+                                            <span class="flex-1 text-left truncate" x-text="detailFieldLabel(field)"></span>
+                                            <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                                        </button>
+                                    </div>
+                                    <select :name="'activity_details[' + field.key + ']'" x-model="details[field.key]"
+                                            @change="field.type === 'region' && onRegionChange()"
+                                            class="hidden lg:block w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" :required="field.required">
+                                        <option value="" x-text="field.type === 'region' ? labels.selectRegion : (field.type === 'district' ? labels.selectDistrict : labels.selectOption)"></option>
+                                        <template x-if="field.type === 'select'">
+                                            <template x-for="(label, value) in field.options" :key="value">
+                                                <option :value="value" x-text="label" :selected="details[field.key] === value"></option>
+                                            </template>
+                                        </template>
+                                        <template x-if="field.type === 'region'">
+                                            <template x-for="(districts, region) in locations" :key="region">
+                                                <option :value="region" x-text="region" :selected="details[field.key] === region"></option>
+                                            </template>
+                                        </template>
+                                        <template x-if="field.type === 'district'">
+                                            <template x-for="district in districtsForRegion(details.region)" :key="district">
+                                                <option :value="district" x-text="district" :selected="details[field.key] === district"></option>
+                                            </template>
+                                        </template>
+                                    </select>
+                                </div>
                             </template>
                             <template x-if="field.type !== 'select' && field.type !== 'region' && field.type !== 'district' && field.type !== 'document'">
                                 <input type="text"
@@ -183,34 +187,36 @@
                         <span x-show="field.required" class="text-red-500">*</span>
                     </label>
 
-                    <template x-if="field.type === 'select'">
-                        <select :name="'activity_details[' + field.key + ']'" x-model="details[field.key]"
-                                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" :required="field.required">
-                            <option value="" x-text="labels.selectOption"></option>
-                            <template x-for="(label, value) in field.options" :key="value">
-                                <option :value="value" x-text="label" :selected="details[field.key] === value"></option>
-                            </template>
-                        </select>
-                    </template>
-
-                    <template x-if="field.type === 'region'">
-                        <select :name="'activity_details[' + field.key + ']'" x-model="details[field.key]" @change="onRegionChange(field.key)"
-                                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" :required="field.required">
-                            <option value="" x-text="labels.selectRegion"></option>
-                            <template x-for="(districts, region) in locations" :key="region">
-                                <option :value="region" x-text="region" :selected="details[field.key] === region"></option>
-                            </template>
-                        </select>
-                    </template>
-
-                    <template x-if="field.type === 'district'">
-                        <select :name="'activity_details[' + field.key + ']'" x-model="details[field.key]"
-                                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" :required="field.required">
-                            <option value="" x-text="labels.selectDistrict"></option>
-                            <template x-for="district in districtsForRegion(details.region)" :key="district">
-                                <option :value="district" x-text="district" :selected="details[field.key] === district"></option>
-                            </template>
-                        </select>
+                    <template x-if="field.type === 'select' || field.type === 'region' || field.type === 'district'">
+                        <div>
+                            <div class="lg:hidden">
+                                <button type="button" @click="openDetailPicker(field)"
+                                        class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
+                                    <span class="flex-1 text-left truncate" x-text="detailFieldLabel(field)"></span>
+                                    <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                                </button>
+                            </div>
+                            <select :name="'activity_details[' + field.key + ']'" x-model="details[field.key]"
+                                    @change="field.type === 'region' && onRegionChange()"
+                                    class="hidden lg:block w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" :required="field.required">
+                                <option value="" x-text="field.type === 'region' ? labels.selectRegion : (field.type === 'district' ? labels.selectDistrict : labels.selectOption)"></option>
+                                <template x-if="field.type === 'select'">
+                                    <template x-for="(label, value) in field.options" :key="value">
+                                        <option :value="value" x-text="label" :selected="details[field.key] === value"></option>
+                                    </template>
+                                </template>
+                                <template x-if="field.type === 'region'">
+                                    <template x-for="(districts, region) in locations" :key="region">
+                                        <option :value="region" x-text="region" :selected="details[field.key] === region"></option>
+                                    </template>
+                                </template>
+                                <template x-if="field.type === 'district'">
+                                    <template x-for="district in districtsForRegion(details.region)" :key="district">
+                                        <option :value="district" x-text="district" :selected="details[field.key] === district"></option>
+                                    </template>
+                                </template>
+                            </select>
+                        </div>
                     </template>
 
                     <template x-if="field.type === 'document'">
@@ -248,6 +254,18 @@
             </div>
         </div>
     @endif
+
+    <x-site.bottom-sheet :title="__('borrower.profile.select_option')" open="detailPickerOpen">
+        <div class="space-y-1 max-h-[60vh] overflow-y-auto">
+            <p class="px-1 pb-2 text-xs font-semibold uppercase tracking-widest text-gray-400" x-text="detailPickerTitle()"></p>
+            <template x-for="option in detailPickerOptions()" :key="option.value">
+                <button type="button" @click="pickDetail(option.value)"
+                        class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50"
+                        :class="details[detailPickerField?.key] === option.value ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''"
+                        x-text="option.label"></button>
+            </template>
+        </div>
+    </x-site.bottom-sheet>
 </div>
 
 @once
@@ -262,6 +280,8 @@
                 details: initialDetails || {},
                 activityType: initialType || '',
                 activityPickerOpen: false,
+                detailPickerOpen: false,
+                detailPickerField: null,
                 activeFields: [],
                 activityFields: [],
                 employmentFields: [],
@@ -276,6 +296,49 @@
                     this.activityType = key;
                     this.onTypeChange();
                     this.activityPickerOpen = false;
+                },
+                openDetailPicker(field) {
+                    this.detailPickerField = field;
+                    this.detailPickerOpen = true;
+                },
+                detailPickerTitle() {
+                    return this.detailPickerField?.label || this.labels.selectOption || '';
+                },
+                detailPickerOptions() {
+                    const field = this.detailPickerField;
+                    if (! field) return [];
+                    if (field.type === 'select') {
+                        return Object.entries(field.options || {}).map(([value, label]) => ({ value, label }));
+                    }
+                    if (field.type === 'region') {
+                        return Object.keys(this.locations || {}).map((region) => ({ value: region, label: region }));
+                    }
+                    if (field.type === 'district') {
+                        return this.districtsForRegion(this.details.region).map((district) => ({ value: district, label: district }));
+                    }
+                    return [];
+                },
+                detailFieldLabel(field) {
+                    const value = this.details[field.key];
+                    if (! value) {
+                        if (field.type === 'region') return this.labels.selectRegion || '';
+                        if (field.type === 'district') return this.labels.selectDistrict || '';
+                        return this.labels.selectOption || '';
+                    }
+                    if (field.type === 'select') {
+                        return (field.options && field.options[value]) || value;
+                    }
+                    return value;
+                },
+                pickDetail(value) {
+                    if (! this.detailPickerField) return;
+                    const key = this.detailPickerField.key;
+                    this.details[key] = value;
+                    if (this.detailPickerField.type === 'region') {
+                        this.onRegionChange();
+                    }
+                    this.detailPickerOpen = false;
+                    this.detailPickerField = null;
                 },
                 onTypeChange() {
                     this.details = {};

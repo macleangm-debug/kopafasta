@@ -6,6 +6,11 @@
     $title = trim($lines[0] ?? '') ?: __('borrower.notifications.fallback_title');
     $body = trim(implode(' ', array_slice($lines, 1))) ?: ($n->message ?: $n->template);
     $displayCategory = $center->normalizeCategory($n->category);
+    $actionLabel = match ($n->template) {
+        'guarantor_request' => __('borrower.guarantor_notifications.view_request'),
+        'loyalty_points_earned' => __('borrower.rewards.points_earned_cta'),
+        default => __('borrower.notifications.view_application'),
+    };
 @endphp
 <div @class([
     'glass-card p-5 flex gap-4 transition',
@@ -26,7 +31,7 @@
         <p class="text-xs text-gray-400 mt-2">{{ \Carbon\Carbon::parse($n->created_at)->format('d M Y, H:i') }}</p>
         @if ($actionUrl)
             <a href="{{ $actionUrl }}" class="inline-flex mt-3 text-sm font-semibold text-brand bg-brand-muted hover:bg-brand-muted/80 px-4 py-2 rounded-xl">
-                {{ __('borrower.notifications.view_application') }}
+                {{ $actionLabel }}
             </a>
         @endif
     </div>

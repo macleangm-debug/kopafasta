@@ -158,10 +158,16 @@ class ApplyController extends Controller
         $productQuestions = config('loan_product_questions', []);
         $readinessUrl = route('site.borrower.apply.product-readiness', ['product' => '__ID__']);
 
-        $applyRequirements = $requirements->checklist($customer);
         $savedDraft = $request->filled('product')
             ? $drafts->payloadForWizard($customer, (int) $request->query('product'))
             : $drafts->payloadForWizard($customer);
+
+        $applyReturnUrl = route('site.borrower.apply', array_filter([
+            'product'  => $request->filled('product') ? (int) $request->query('product') : ($selectedProduct?->id ?? null),
+            'resume'   => 1,
+            'step_key' => 'submit',
+        ]));
+        $applyRequirements = $requirements->checklistForApply($customer, $applyReturnUrl);
 
         $isResume = $request->boolean('resume');
 
@@ -211,12 +217,13 @@ class ApplyController extends Controller
                 $selectedProduct,
                 (bool) old('use_wallet', false),
                 old('promo_code'),
+                null,
+                old('affiliate_code', old('promo_code')),
             )
             : null;
         $referralService = app(ReferralService::class);
         $referralWallet = $referralService->wallet($customer);
         $referralSettings = $referralService->settings();
-        $streakReward = app(\App\Services\RepaymentStreakRewardService::class)->status($customer);
         $applicationFeePaymentRef = $request->session()->get('application_fee_payment_ref')
             ?? app(ApplicationFeePaymentService::class)->generatePaymentReference();
         $request->session()->put('application_fee_payment_ref', $applicationFeePaymentRef);
@@ -235,6 +242,9 @@ class ApplyController extends Controller
         $assetDocumentLabels = app(AssetBackedApplyService::class)->documentLabels();
         $customerAssets = app(\App\Services\CustomerAssetService::class)->forCustomer($customer);
         $pointsBalance = app(\App\Services\LoyaltyPointsService::class)->balance($customer);
+        $loyaltyRedemptions = app(\App\Services\LoyaltyRedemptionService::class);
+        $activeRewards = $loyaltyRedemptions->activeRewards($customer);
+        $loyaltyRateDiscount = $loyaltyRedemptions->additionalRateDiscount($customer);
 
         return view('site.apply.wizard', compact(
             'products',
@@ -257,7 +267,6 @@ class ApplyController extends Controller
             'bankAccounts',
             'referralWallet',
             'referralSettings',
-            'streakReward',
             'applicationFeePaymentRef',
             'valuationFeeQuote',
             'valuationFeeAmount',
@@ -266,6 +275,8 @@ class ApplyController extends Controller
             'assetDocumentLabels',
             'customerAssets',
             'pointsBalance',
+            'activeRewards',
+            'loyaltyRateDiscount',
         ))->with('paymentGatewayDummy', payment_gateway_is_dummy())
             ->with('loanPurposes', loan_purpose_options())
             ->with('marketplaceOnlyCodes', marketplace_only_loan_codes())
@@ -770,6 +781,7 @@ class ApplyController extends Controller
             'payment_phone'   => [$dummyGateway ? 'nullable' : 'required_if:channel,mobile_money', 'nullable', 'string', 'max:20'],
             'use_wallet'      => ['nullable', 'boolean'],
             'promo_code'      => ['nullable', 'string', 'max:40'],
+            'affiliate_code'  => ['nullable', 'string', 'max:40'],
         ]);
 
         $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
@@ -809,6 +821,7 @@ class ApplyController extends Controller
                 $request->boolean('use_wallet'),
                 $data['promo_code'] ?? null,
                 $groups->isGroupProduct($product) ? $memberCount : null,
+                $data['affiliate_code'] ?? $data['promo_code'] ?? null,
             );
             $drafts->saveApplicationFee($customer, $product->id, $feeState);
             if (product_includes_valuation_fee($product)) {
@@ -834,6 +847,7 @@ class ApplyController extends Controller
             $request->boolean('use_wallet'),
             $data['promo_code'] ?? null,
             $groups->isGroupProduct($product) ? $memberCount : null,
+            $data['affiliate_code'] ?? $data['promo_code'] ?? null,
         );
         $drafts->saveApplicationFee($customer, $product->id, $feeState);
         if (product_includes_valuation_fee($product)) {
@@ -1035,6 +1049,7 @@ class ApplyController extends Controller
 
         $useWallet = $request->boolean('use_wallet');
         $promoCode = $request->query('promo_code');
+        $affiliateCode = $request->query('affiliate_code', $promoCode);
         $memberCount = max(1, (int) $request->query('member_count', 1));
         $groups = app(GroupLendingService::class);
 
@@ -1050,6 +1065,7 @@ class ApplyController extends Controller
                 $useWallet,
                 $promoCode,
                 $groups->isGroupProduct($product) ? $memberCount : null,
+                $affiliateCode,
             ),
             'breakdown' => $groups->isGroupProduct($product)
                 ? $groups->applicationFeeBreakdown($customer, $product, $memberCount)
@@ -1146,26 +1162,7 @@ class ApplyController extends Controller
     ): RedirectResponse {
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
 
-        if ($customer) {
-            $checklist = $requirements->checklist($customer);
-            if (! $checklist['can_apply']) {
-                return redirect()
-                    ->route('site.borrower.dashboard')
-                    ->with('error', 'You must complete all loan application requirements before submitting.');
-            }
-        }
-
-        if ($customer && ! $faces->profileStepComplete($customer)) {
-            return redirect()
-                ->route('site.borrower.face-verification')
-                ->with('error', 'Face verification photos must be submitted before you can submit an application.');
-        }
-
-        if ($customer && ! $freshness->canApply($customer)) {
-            return redirect()
-                ->route('site.borrower.kyc-reconfirm')
-                ->with('error', 'Please reconfirm your KYC details before submitting.');
-        }
+        abort_unless($customer, 403);
 
         $loanProduct = LoanProduct::where('id', $request->input('loan_product_id'))
             ->where('is_active', true)
@@ -1185,6 +1182,43 @@ class ApplyController extends Controller
         abort_unless($loanProduct, 404);
 
         $this->mergeDraftIntoSubmitRequest($request, $draft);
+
+        $returnUrl = route('site.borrower.apply', array_filter([
+            'product'  => (int) $loanProduct->id,
+            'resume'   => 1,
+            'step_key' => 'submit',
+        ]));
+        $checklist = $requirements->checklistForApply($customer, $returnUrl);
+
+        if (! $checklist['can_apply']) {
+            $actionUrl = $checklist['first_action_url']
+                ?? route('site.borrower.profile', ['section' => 'personal']);
+            $incomplete = $checklist['first_incomplete'] ?? null;
+            $message = ! empty($incomplete['label'])
+                ? __('borrower.apply.kyc_incomplete_redirect', ['section' => $incomplete['label']])
+                : __('borrower.apply.kyc_incomplete_submit');
+
+            return redirect()
+                ->to($actionUrl)
+                ->with('error', $message)
+                ->with('status', $message);
+        }
+
+        if (! $faces->profileStepComplete($customer)) {
+            return redirect()
+                ->to($requirements->withReturnUrl(route('site.borrower.face-verification'), $returnUrl))
+                ->with('error', __('borrower.apply.kyc_incomplete_redirect', [
+                    'section' => __('borrower.nida.face_title'),
+                ]));
+        }
+
+        if (! $freshness->canApply($customer)) {
+            return redirect()
+                ->to($requirements->withReturnUrl(route('site.borrower.kyc-reconfirm'), $returnUrl))
+                ->with('error', __('borrower.apply.kyc_incomplete_redirect', [
+                    'section' => __('borrower.kyc.reconfirm_title'),
+                ]));
+        }
 
         if ($existing = $this->findExistingSubmittedApplication($customer, $loanProduct, $draft)) {
             $drafts->clear($customer, (int) $loanProduct->id);
@@ -1217,15 +1251,15 @@ class ApplyController extends Controller
             $request->merge(['consent' => '1']);
         }
 
-        abort_unless($customer, 403);
         $requirements->mergeSubmitProfileFromCustomer($request, $customer);
 
         if (! $requirements->hasCompleteResidence($customer)) {
-            return $this->wizardSubmitRedirect($request, $draft)
-                ->withInput()
-                ->withErrors([
-                    'region' => __('borrower.apply.errors_residence_incomplete'),
-                ]);
+            return redirect()
+                ->to($requirements->withReturnUrl(
+                    route('site.borrower.profile', ['section' => 'residence']),
+                    $returnUrl,
+                ))
+                ->with('error', __('borrower.apply.errors_residence_incomplete'));
         }
 
         try {
@@ -1280,6 +1314,15 @@ class ApplyController extends Controller
             'asset_reservation_id'    => ['nullable', 'integer', 'exists:asset_reservations,id'],
             ]);
         } catch (ValidationException $e) {
+            $profileUrl = $requirements->profileActionUrlForValidationErrors($e->errors());
+            if ($profileUrl) {
+                return redirect()
+                    ->to($requirements->withReturnUrl($profileUrl, $returnUrl))
+                    ->withInput()
+                    ->withErrors($e->errors())
+                    ->with('error', __('borrower.apply.kyc_incomplete_submit'));
+            }
+
             return $this->wizardSubmitRedirect($request, $draft)
                 ->withInput()
                 ->withErrors($e->errors());
@@ -1681,9 +1724,10 @@ class ApplyController extends Controller
             $drafts->clear($customer, (int) $loanProduct->id);
         }
 
-        return redirect()->route('site.borrower.apply.success', $app)
-            ->with('status', $message)
-            ->with(\App\Support\Celebration::SESSION_KEY, ['loan_submitted']);
+        return \App\Support\Celebration::with(
+            redirect()->route('site.borrower.apply.success', $app)->with('status', $message),
+            'loan_submitted',
+        );
     }
 
     public function success(LoanApplication $application): View

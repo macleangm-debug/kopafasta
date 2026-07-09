@@ -7,6 +7,25 @@
         $allCats = ['repayment', 'application', 'promotions', 'referral', 'membership'];
     @endphp
 
+    @include('admin.settings.engagement._guide', [
+        'title' => 'How engagement notifications work',
+        'summary' => 'Category checkboxes control which notification types are emphasised in the member notification center filters. The referral leaderboard settings control the public/top-referrers list on the referrals tab — not loan underwriting.',
+        'borrowerSees' => [
+            'Notifications page: category chips (repayment, application, promotions, referral, membership).',
+            'Referrals tab: optional top-N leaderboard with masked or full names.',
+        ],
+        'fields' => [
+            'Categories' => 'Enabled filters in the borrower notification center. Disabling a category hides it from the filter UI; existing logs remain.',
+            'Leaderboard enabled' => 'Show/hide the top referrers block.',
+            'Mask names' => 'Privacy: show “First *****” instead of full names.',
+            'Top N' => 'How many referrers to list.',
+        ],
+        'tips' => [
+            'Keep promotions enabled if you send loyalty / campaign in-app messages.',
+            'Guarantor inbox is separate from these categories — it uses the guarantor notification templates.',
+        ],
+    ])
+
     <form method="POST" action="{{ route('admin.settings.engagement.notifications.save') }}" class="space-y-6">
         @csrf @method('PUT')
         <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6">

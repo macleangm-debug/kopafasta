@@ -21,7 +21,7 @@ class ProfileWizardService
             && (! $validation->requiresResidenceLetter() || $validation->hasResidenceLetter($customer));
         $documentsComplete = $profile->isDocumentsComplete($customer);
 
-        return [
+        $steps = [
             [
                 'key'      => 'nida',
                 'label'    => __('borrower.kyc_progress.nida'),
@@ -59,6 +59,17 @@ class ProfileWizardService
                 'url'      => route('site.borrower.profile', ['section' => 'personal', 'wizard' => 1, 'focus' => 'kin']).'#next-of-kin',
             ],
         ];
+
+        if (app(ProfileSectionBuilderService::class)->paymentRequiredBeforeLoan()) {
+            $steps[] = [
+                'key'      => 'payment',
+                'label'    => __('borrower.payment_details.section_title'),
+                'complete' => app(CustomerDisbursementDetailsService::class)->isComplete($customer),
+                'url'      => route('site.borrower.profile', ['section' => 'payment', 'wizard' => 1, 'add' => 1]),
+            ];
+        }
+
+        return $steps;
     }
 
     public function isComplete(Customer $customer): bool

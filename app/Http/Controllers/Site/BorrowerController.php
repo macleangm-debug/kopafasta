@@ -848,56 +848,6 @@ class BorrowerController extends Controller
     }
 
     /* ---------------------------------------------------------------------
-     | 5. Make payment
-     |---------------------------------------------------------------------*/
-    public function payments(): View
-    {
-        $customer = $this->customer();
-        $loans = Loan::where('customer_id', $customer->id)
-            ->whereIn('status', ['active','disbursed','arrears'])->get();
-        return view('site.borrower.payments', compact('customer', 'loans'));
-    }
-
-    public function submitPayment(Request $request): RedirectResponse
-    {
-        $customer = $this->customer();
-
-        $data = $request->validate([
-            'loan_id'   => ['required','exists:loans,id'],
-            'channel'   => ['required','string','max:30'],
-            'amount'    => ['required','numeric','min:100'],
-            'reference' => ['required','string','max:60'],
-        ]);
-
-        $loan = Loan::where('id', $data['loan_id'])->where('customer_id', $customer->id)->firstOrFail();
-
-        $channels = payment_channels_for_amount((float) $data['amount']);
-        if (! in_array($data['channel'], $channels['channels'], true)) {
-            return back()
-                ->withInput()
-                ->withErrors(['channel' => 'Selected payment channel is not allowed for this amount.']);
-        }
-
-        $repayment = Repayment::create([
-            'loan_id'   => $loan->id,
-            'reference' => strtoupper($data['reference']),
-            'channel'   => $data['channel'],
-            'amount'    => $data['amount'],
-            'status'    => 'pending',
-            'paid_at'   => now(),
-        ]);
-
-        $this->auditBorrower('payment.submitted', $repayment, [
-            'loan_id'   => $loan->id,
-            'reference' => $repayment->reference,
-            'amount'    => $repayment->amount,
-        ]);
-
-        return redirect()->route('site.borrower.payments')
-            ->with('status', 'Payment submitted. We will confirm it in a few minutes.');
-    }
-
-    /* ---------------------------------------------------------------------
      | 6. Documents
      |---------------------------------------------------------------------*/
     public function documents(): View
@@ -1145,13 +1095,27 @@ class BorrowerController extends Controller
             ->latest()
             ->limit(8)
             ->get()
-            ->map(fn (NotificationLog $n) => [
-                'id'       => $n->id,
-                'message'  => $n->message ?: $n->template,
-                'category' => $n->category ?: 'general',
-                'read'     => (bool) $n->read_at,
-                'when'     => $n->created_at?->diffForHumans(),
-            ]);
+            ->map(function (NotificationLog $n) {
+                $actionUrl = ($n->channel === 'in_app' && filled($n->recipient) && str_starts_with($n->recipient, '/'))
+                    ? $n->recipient
+                    : null;
+
+                return [
+                    'id'         => $n->id,
+                    'message'    => $n->message ?: $n->template,
+                    'category'   => $n->category ?: 'general',
+                    'read'       => (bool) $n->read_at,
+                    'when'       => $n->created_at?->diffForHumans(),
+                    'action_url' => $actionUrl,
+                    'action_label' => $actionUrl
+                        ? match ($n->template) {
+                            'guarantor_request' => __('borrower.guarantor_notifications.view_request'),
+                            'loyalty_points_earned' => __('borrower.rewards.points_earned_cta'),
+                            default => __('borrower.notifications.view_application'),
+                        }
+                        : null,
+                ];
+            });
 
         return response()->json([
             'unread' => $portal->borrowerNotificationsQuery($customer)->whereNull('read_at')->count(),
@@ -1242,7 +1206,12 @@ class BorrowerController extends Controller
         }
 
         if ($section === 'kin') {
-            return view('site.borrower.profile.kin', compact('customer', 'wizardMode'));
+            return redirect()->route('site.borrower.profile', array_filter([
+                'section' => 'personal',
+                'focus'   => 'kin',
+                'wizard'  => $wizardMode ? 1 : null,
+                'return'  => $request->query('return'),
+            ]));
         }
 
         $section = in_array($section, ['personal', 'activity', 'residence', 'kyc', 'security', 'payment', 'assets'], true)
@@ -1328,7 +1297,7 @@ class BorrowerController extends Controller
                 'nok_first_name'   => ['required', 'string', 'max:80'],
                 'nok_middle_name'  => ['nullable', 'string', 'max:80'],
                 'nok_last_name'    => ['required', 'string', 'max:80'],
-                'nok_relationship' => ['required', 'string', 'max:60'],
+                'nok_relationship' => ['required', 'string', 'max:60', 'in:'.implode(',', config('kin.relationships', []))],
                 'nok_phone'        => ['required', 'string', 'max:30'],
                 'nok_region'       => ['required', 'string', 'max:100'],
                 'nok_district'     => ['required', 'string', 'max:100'],
@@ -1358,7 +1327,7 @@ class BorrowerController extends Controller
             }
 
             return redirect()
-                ->route('site.borrower.profile', ['section' => 'kin'])
+                ->route('site.borrower.profile', ['section' => 'personal', 'focus' => 'kin'])
                 ->with('status', __('borrower.profile.kin_saved'));
         }
 
@@ -1377,7 +1346,7 @@ class BorrowerController extends Controller
                 'nok_first_name'   => [$kinRequired ? 'required' : 'nullable', 'string', 'max:80'],
                 'nok_middle_name'  => ['nullable', 'string', 'max:80'],
                 'nok_last_name'    => [$kinRequired ? 'required' : 'nullable', 'string', 'max:80'],
-                'nok_relationship' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:60'],
+                'nok_relationship' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:60', 'in:'.implode(',', config('kin.relationships', []))],
                 'nok_phone'        => [$kinRequired ? 'required' : 'nullable', 'string', 'max:30'],
                 'nok_region'       => [$kinRequired ? 'required' : 'nullable', 'string', 'max:100'],
                 'nok_district'     => [$kinRequired ? 'required' : 'nullable', 'string', 'max:100'],
@@ -1617,6 +1586,7 @@ class BorrowerController extends Controller
             'activity'  => 'activity',
             'residence' => 'residence',
             'kyc'       => 'documents',
+            'payment'   => 'payment',
             default     => $request->input('focus') === 'kin' ? 'kin' : 'nida',
         };
 
@@ -1646,7 +1616,15 @@ class BorrowerController extends Controller
     {
         $detailsService = app(\App\Services\CustomerDisbursementDetailsService::class);
         $type = $request->input('type', $request->input('preferred_disbursement_method'));
+        $legalName = $customer->legalDisplayName()
+            ?? trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
+
+        if (blank($request->input('account_name'))) {
+            $request->merge(['account_name' => $legalName]);
+        }
+
         $data = $request->validate($detailsService->validationRules($type, $customer));
+        $data['is_default'] = $request->boolean('is_default');
 
         try {
             $detailsService->createAccount($customer, $data);
@@ -1680,6 +1658,23 @@ class BorrowerController extends Controller
         return redirect()
             ->route('site.borrower.profile', ['section' => 'payment'])
             ->with('status', __('borrower.payment_details.account_removed'));
+    }
+
+    public function setDefaultPaymentAccount(Request $request, \App\Models\CustomerDisbursementAccount $account): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_if((int) $account->customer_id !== (int) $customer->id, 404);
+
+        app(\App\Services\CustomerDisbursementDetailsService::class)->setDefaultAccount($customer, $account);
+        $this->auditBorrower('profile.payment_account_defaulted', $customer, ['account_id' => $account->id]);
+
+        if ($return = $this->validatedReturnUrl($request)) {
+            return redirect($return)->with('status', __('borrower.payment_details.default_updated'));
+        }
+
+        return redirect()
+            ->route('site.borrower.profile', ['section' => 'payment'])
+            ->with('status', __('borrower.payment_details.default_updated'));
     }
 
     private function validatedReturnUrl(Request $request): ?string
@@ -1810,6 +1805,7 @@ class BorrowerController extends Controller
     {
         $customer = $this->customer();
         $wizardMode = $request->boolean('wizard');
+        $returnUrl = $this->validatedReturnUrl($request);
         $photos = $faces->latestByAngle($customer);
         $progress = $faces->progress($customer);
         $status = $faces->statusLabel($customer);
@@ -1820,7 +1816,7 @@ class BorrowerController extends Controller
         $steps = $faces->wizardSteps($customer);
 
         return view('site.borrower.face-verification', compact(
-            'customer', 'photos', 'progress', 'status', 'angles', 'wizard', 'uploadUrls', 'deleteUrls', 'steps', 'wizardMode'
+            'customer', 'photos', 'progress', 'status', 'angles', 'wizard', 'uploadUrls', 'deleteUrls', 'steps', 'wizardMode', 'returnUrl'
         ))->with('wizardKey', 'face');
     }
 
@@ -1851,7 +1847,7 @@ class BorrowerController extends Controller
         ]);
 
         try {
-            $faces->upload($customer, $angle, $request->file('photo'));
+            $record = $faces->upload($customer, $angle, $request->file('photo'));
         } catch (\InvalidArgumentException $e) {
             if ($request->expectsJson()) {
                 return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
@@ -1868,23 +1864,29 @@ class BorrowerController extends Controller
         $customer->refresh();
         $progress = $faces->progress($customer);
         $wizard = $faces->wizardState($customer);
+        $previewUrl = $record->file_path ? asset('storage/'.$record->file_path) : null;
         $message = $progress['complete']
             ? 'All face photos uploaded. Our team will review them shortly.'
             : 'Photo saved.';
 
         if ($request->expectsJson()) {
             return response()->json([
-                'ok'       => true,
-                'angle'    => $angle,
-                'progress' => $progress,
-                'wizard'   => $wizard,
-                'status'   => $customer->face_verification_status,
-                'message'  => $message,
-                'complete' => $progress['complete'],
+                'ok'         => true,
+                'angle'      => $angle,
+                'previewUrl' => $previewUrl,
+                'progress'   => $progress,
+                'wizard'     => $wizard,
+                'status'     => $customer->face_verification_status,
+                'message'    => $message,
+                'complete'   => $progress['complete'],
             ]);
         }
 
         if ($progress['complete']) {
+            if ($return = $this->validatedReturnUrl($request)) {
+                return redirect($return)->with('status', $message);
+            }
+
             return $this->redirectWithGuarantorResume(
                 $request,
                 $customer,
@@ -1954,6 +1956,10 @@ class BorrowerController extends Controller
         $customer = $this->customer();
 
         if (! $freshness->sectionsDueForRefresh($customer)) {
+            if ($return = $this->validatedReturnUrl($request)) {
+                return redirect($return)->with('status', __('borrower.profile.saved_return'));
+            }
+
             return redirect()->route('site.borrower.dashboard')
                 ->with('status', 'Your KYC information is up to date.');
         }
@@ -1961,6 +1967,7 @@ class BorrowerController extends Controller
         return view('site.borrower.kyc-reconfirm', [
             'customer' => $customer,
             'staleSections' => $freshness->sectionsDueForRefresh($customer),
+            'returnUrl' => $this->validatedReturnUrl($request),
         ]);
     }
 
@@ -2031,6 +2038,10 @@ class BorrowerController extends Controller
         $freshness->markReconfirmed($customer->fresh(), $staleBefore);
 
         $this->auditBorrower('kyc.reconfirmed', $customer);
+
+        if ($return = $this->validatedReturnUrl($request)) {
+            return redirect($return)->with('status', __('borrower.profile.saved_return'));
+        }
 
         return redirect()->route('site.borrower.dashboard')
             ->with('status', 'Thank you. Your profile has been reconfirmed.');

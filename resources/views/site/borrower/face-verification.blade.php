@@ -30,12 +30,18 @@
             <div class="mt-6 text-center bg-white rounded-2xl ring-1 ring-gray-200 p-8">
                 <p class="text-sm text-emerald-700 font-medium">{{ __('borrower.face_verification_page.approved_hint') }}</p>
                 <div class="mt-4 flex flex-wrap justify-center gap-3">
-                    <a href="{{ route('site.borrower.loan-products') }}" class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-2.5 rounded-full text-sm">
-                        {{ __('borrower.face_verification_page.apply_cta') }}
-                    </a>
-                    <a href="{{ route('site.borrower.profile', ['section' => 'kyc']) }}" class="inline-flex bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-700 font-semibold px-6 py-2.5 rounded-full text-sm">
-                        {{ __('borrower.face_verification_page.back_to_documents') }}
-                    </a>
+                    @if (! empty($returnUrl))
+                        <a href="{{ $returnUrl }}" class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-2.5 rounded-full text-sm">
+                            {{ __('borrower.apply.kyc_return_to_application') }}
+                        </a>
+                    @else
+                        <a href="{{ route('site.borrower.loan-products') }}" class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-2.5 rounded-full text-sm">
+                            {{ __('borrower.face_verification_page.apply_cta') }}
+                        </a>
+                        <a href="{{ route('site.borrower.profile', ['section' => 'kyc']) }}" class="inline-flex bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-700 font-semibold px-6 py-2.5 rounded-full text-sm">
+                            {{ __('borrower.face_verification_page.back_to_documents') }}
+                        </a>
+                    @endif
                 </div>
             </div>
 
@@ -45,7 +51,12 @@
                 <p class="text-sm text-gray-700 font-medium">{{ __('borrower.nida.face_submitted_title') }}</p>
                 <p class="text-xs text-gray-500 mt-2">{{ __('borrower.nida.face_submitted_body') }}</p>
                 <div class="mt-4 flex flex-wrap justify-center gap-3">
-                    @if ($wizardMode ?? false)
+                    @if (! empty($returnUrl))
+                        <a href="{{ $returnUrl }}"
+                           class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-2.5 rounded-full text-sm">
+                            {{ __('borrower.apply.kyc_return_to_application') }}
+                        </a>
+                    @elseif ($wizardMode ?? false)
                         <a href="{{ app(\App\Services\ProfileWizardService::class)->navigation($customer, 'face')['next']['url'] ?? route('site.borrower.profile', ['section' => 'residence', 'wizard' => 1]) }}"
                            class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-2.5 rounded-full text-sm">
                             {{ __('borrower.profile_wizard.save_continue') }}

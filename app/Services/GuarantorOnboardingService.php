@@ -292,9 +292,14 @@ class GuarantorOnboardingService
             $guarantorName = trim($customer->first_name.' '.$customer->last_name);
             app(NotificationService::class)->notifyInApp(
                 $borrower,
-                "{$guarantorName} completed guarantor onboarding for your loan application.",
+                __('borrower.guarantor_invite.borrower_onboarded', ['guarantor' => $guarantorName]),
                 'guarantor',
                 'guarantor_onboarded',
+                __('borrower.guarantor_invite.notify_onboarded_title'),
+                $invitation->loan_application_id
+                    ? route('site.borrower.application', $invitation->loan_application_id)
+                    : route('site.borrower.loans', ['tab' => 'applications']),
+                __('borrower.notifications.view_application'),
             );
         }
     }

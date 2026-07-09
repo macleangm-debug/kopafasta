@@ -14,7 +14,7 @@
         </div>
     </div>
 
-    <div class="px-4 sm:px-5 py-4">
+    <div class="px-4 sm:px-5 py-4 space-y-4">
         <div x-show="isGroupProduct(current)" x-cloak class="grid sm:grid-cols-3 gap-3">
             <div class="rounded-xl bg-brand-muted/20 ring-1 ring-brand/10 px-4 py-3">
                 <p class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.apply.group.headline.per_member') }}</p>
@@ -27,6 +27,20 @@
             <div class="rounded-xl bg-brand-muted/20 ring-1 ring-brand/10 px-4 py-3">
                 <p class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.apply.group.headline.total_fee') }}</p>
                 <p class="mt-1 text-lg font-bold text-gray-900 tabular-nums" x-text="formatTzs(groupFeeBreakdown()?.total ?? effectiveFeeAmount())"></p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3" x-show="!isGroupProduct(current)">
+            <div class="rounded-xl bg-brand-muted/20 ring-1 ring-brand/10 px-4 py-3">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.apply.product_summary.interest_rate') }}</p>
+                <p class="mt-1 text-sm font-bold text-gray-900" x-text="current?.rate_label || ((current?.rate ?? 0) + '% / mo')"></p>
+            </div>
+            <div class="rounded-xl bg-brand-muted/20 ring-1 ring-brand/10 px-4 py-3">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.apply.product_summary.max_tenure') }}</p>
+                <p class="mt-1 text-sm font-bold text-gray-900 tabular-nums">
+                    <span x-text="current?.tmax ?? current?.tenure_max_months ?? '—'"></span>
+                    <span class="font-semibold text-gray-600">{{ __('borrower.apply.quote.months') }}</span>
+                </p>
             </div>
         </div>
 

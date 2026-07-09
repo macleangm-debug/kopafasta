@@ -29,18 +29,9 @@ if (! function_exists('loan_product_features')) {
             $features[] = $product->description;
         }
 
-        if ($product->requires_guarantor) {
-            $features[] = __('borrower.apply.product_features.guarantor');
-        }
-
         if ($product->requires_collateral) {
             $features[] = __('borrower.apply.product_features.collateral');
         }
-
-        $features[] = __('borrower.apply.product_features.tenure_range', [
-            'min' => $product->tenure_min_months,
-            'max' => $product->tenure_max_months,
-        ]);
 
         return $features;
     }

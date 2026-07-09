@@ -24,6 +24,26 @@
         }
     @endphp
 
+    @include('admin.settings.engagement._guide', [
+        'title' => 'How repayment streaks work',
+        'summary' => 'Each on-time instalment (paid on or before due date) extends the member’s streak. When the streak count hits a milestone, they earn the listed loyalty points on top of the normal repay_on_time action points. Late payment resets the streak.',
+        'borrowerSees' => [
+            'Engagement hub → Streak tab: current streak and next milestone.',
+            'Points credited to the Rewards balance with the reward label you set.',
+        ],
+        'fields' => [
+            'Enabled' => 'Turn off to stop awarding streak bonuses (base repay_on_time points still apply if configured).',
+            'Reward label' => 'Shown in the points ledger / UI when a streak bonus is granted.',
+            'Repayment count' => 'Consecutive on-time instalments required (e.g. 3, 5, 7).',
+            'Points' => 'Loyalty points awarded when that count is reached (once per milestone crossing).',
+        ],
+        'example' => 'Milestones 3→10 pts, 5→20 pts. Member pays 3 instalments on time → +10 streak pts (plus repay_on_time each time). A late 4th payment resets; they must rebuild to 3 again.',
+        'tips' => [
+            'Space milestones so early wins feel achievable (3–5) and longer streaks feel premium (10–12).',
+            'Coordinate with Loyalty points → repay_on_time so total earn rate stays sustainable.',
+        ],
+    ])
+
     <form method="POST" action="{{ route('admin.settings.engagement.repayment-streak.save') }}" class="space-y-6">
         @csrf @method('PUT')
         <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6 grid md:grid-cols-2 gap-4">

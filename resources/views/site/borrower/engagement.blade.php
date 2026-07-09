@@ -30,23 +30,56 @@
         </nav>
 
         {{-- Overview --}}
-        <div x-show="tab === 'overview'" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div class="glass-card p-5 bg-gradient-to-br from-brand-muted/80 to-white sm:col-span-2 lg:col-span-1">
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.rewards.wallet_title') }}</p>
-                <p class="mt-2 text-3xl font-black text-brand tabular-nums">{{ number_format($pointsBalance) }}</p>
-                <p class="text-xs text-gray-600 mt-1">{{ __('borrower.rewards.wallet_hint') }}</p>
+        <div x-show="tab === 'overview'" class="space-y-4">
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div class="glass-card p-5 bg-gradient-to-br from-brand-muted/80 to-white sm:col-span-2 lg:col-span-1">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.rewards.wallet_title') }}</p>
+                    <p class="mt-2 text-3xl font-black text-brand tabular-nums">{{ number_format($pointsBalance) }}</p>
+                    <p class="text-xs text-gray-600 mt-1">{{ __('borrower.rewards.wallet_hint') }}</p>
+                </div>
+                <div class="glass-card p-5">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.engagement.streak.title') }}</p>
+                    <p class="mt-2 text-3xl font-black text-orange-600 tabular-nums">{{ $streakReward['count'] ?? 0 }} 🔥</p>
+                    @if (($streakReward['points'] ?? 0) > 0)
+                        <p class="text-xs text-orange-800 mt-1">{{ __('borrower.engagement.streak.points_available', ['points' => number_format($streakReward['points'])]) }}</p>
+                    @endif
+                </div>
+                <div class="glass-card p-5">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.referrals.level') }}</p>
+                    <p class="mt-2 text-xl font-bold text-gray-900">{{ $level['label'] ?? 'Bronze' }}</p>
+                    <p class="text-xs text-gray-600 mt-1">{{ __('borrower.referrals.progress_count', ['current' => $progress['current'] ?? 0, 'target' => $progress['target'] ?? 5]) }}</p>
+                </div>
             </div>
-            <div class="glass-card p-5">
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.engagement.streak.title') }}</p>
-                <p class="mt-2 text-3xl font-black text-orange-600 tabular-nums">{{ $streakReward['count'] ?? 0 }} 🔥</p>
-                @if (($streakReward['points'] ?? 0) > 0)
-                    <p class="text-xs text-orange-800 mt-1">{{ __('borrower.engagement.streak.points_available', ['points' => number_format($streakReward['points'])]) }}</p>
-                @endif
-            </div>
-            <div class="glass-card p-5">
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.referrals.level') }}</p>
-                <p class="mt-2 text-xl font-bold text-gray-900">{{ $level['label'] ?? 'Bronze' }}</p>
-                <p class="text-xs text-gray-600 mt-1">{{ __('borrower.referrals.progress_count', ['current' => $progress['current'] ?? 0, 'target' => $progress['target'] ?? 5]) }}</p>
+
+            <div class="glass-card p-5 sm:p-6">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.rewards.overview_actions_title') }}</p>
+                <div class="mt-4 grid sm:grid-cols-3 gap-3">
+                    <button type="button" @click="tab = 'referrals'"
+                            class="w-full text-center text-sm font-semibold px-4 py-3 rounded-xl bg-brand text-white hover:bg-brand-light">
+                        {{ __('borrower.rewards.overview_refer_cta') }}
+                    </button>
+                    <button type="button" @click="tab = 'rewards'"
+                            class="w-full text-center text-sm font-semibold px-4 py-3 rounded-xl bg-white text-brand ring-1 ring-brand/20 hover:bg-brand-muted/40">
+                        {{ __('borrower.rewards.overview_redeem_cta') }}
+                    </button>
+                    @php
+                        $hasCheckoutReward = $activeRewards->contains(fn ($r) =>
+                            $r->benefit_type === 'rate_discount'
+                            || ($r->benefit_type === 'percent_discount' && $r->fee_type === 'application_fee')
+                        );
+                    @endphp
+                    @if ($hasCheckoutReward)
+                        <a href="{{ route('site.borrower.loan-products') }}"
+                           class="w-full text-center text-sm font-semibold px-4 py-3 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700">
+                            {{ __('borrower.rewards.overview_apply_cta') }}
+                        </a>
+                    @else
+                        <a href="{{ route('site.borrower.loan-products') }}"
+                           class="w-full text-center text-sm font-semibold px-4 py-3 rounded-xl bg-white text-gray-800 ring-1 ring-gray-200 hover:bg-gray-50">
+                            {{ __('borrower.new_application') }}
+                        </a>
+                    @endif
+                </div>
             </div>
         </div>
 

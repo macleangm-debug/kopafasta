@@ -106,11 +106,33 @@ class NotificationService
             'channel'     => 'in_app',
             'category'    => $category,
             'template'    => $template,
-            'recipient'   => $actionUrl ?: (string) ($customer->phone ?: $customer->email ?: 'in_app'),
+            'recipient'   => $this->normalizeActionRecipient($actionUrl)
+                ?: (string) ($customer->phone ?: $customer->email ?: 'in_app'),
             'message'     => Str::limit(trim(($title ? $title."\n" : '').$message), 800, ''),
             'status'      => 'sent',
             'sent_at'     => now(),
         ]);
+    }
+
+    /** Store CTA as a site-relative path so notification UIs can detect it. */
+    private function normalizeActionRecipient(?string $actionUrl): ?string
+    {
+        if (! filled($actionUrl)) {
+            return null;
+        }
+
+        if (str_starts_with($actionUrl, '/')) {
+            return $actionUrl;
+        }
+
+        $path = parse_url($actionUrl, PHP_URL_PATH);
+        if (! filled($path) || ! str_starts_with($path, '/')) {
+            return null;
+        }
+
+        $query = parse_url($actionUrl, PHP_URL_QUERY);
+
+        return $query ? $path.'?'.$query : $path;
     }
 
     private function render(string $template, array $vars): string

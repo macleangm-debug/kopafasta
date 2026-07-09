@@ -75,6 +75,26 @@ class BorrowerDashboardHeroService
             ];
         }
 
+        $pendingGuarantor = app(PortalContextService::class)->pendingGuarantorLinks($customer)->first();
+        if ($pendingGuarantor) {
+            $borrower = $pendingGuarantor->borrower;
+            $borrowerName = trim(($borrower->first_name ?? '').' '.($borrower->last_name ?? ''));
+            $link = $pendingGuarantor->link;
+
+            return [
+                'variant'   => 'guarantor_request',
+                'title'     => __('borrower.dashboard.hero.guarantor_request_title'),
+                'subtitle'  => __('borrower.dashboard.hero.guarantor_request_subtitle', [
+                    'borrower' => $borrowerName !== '' ? $borrowerName : __('borrower.guarantor_invite.borrower_label'),
+                ]),
+                'amount'    => null,
+                'meta'      => $pendingGuarantor->application?->application_number
+                    ?? $pendingGuarantor->application?->draft_reference,
+                'cta_label' => __('borrower.dashboard.hero.guarantor_request_cta'),
+                'cta_url'   => route('site.borrower.guarantor-requests.show', $link),
+            ];
+        }
+
         $underReview = LoanApplication::query()
             ->where('customer_id', $customer->id)
             ->whereNotIn('status', ['rejected', 'disbursed', 'withdrawn'])

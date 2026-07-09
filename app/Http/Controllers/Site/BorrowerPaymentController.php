@@ -55,7 +55,7 @@ class BorrowerPaymentController extends Controller
             ->whereIn('status', ['active', 'disbursed', 'arrears'])
             ->get();
 
-        $loanId = $request->query('loan_id');
+        $loanId = $request->query('loan_id', $request->query('loan'));
         $selectedLoan = $loanId ? $loans->firstWhere('id', (int) $loanId) : $loans->first();
 
         return view('site.borrower.payments.create', compact('customer', 'loans', 'selectedLoan'));

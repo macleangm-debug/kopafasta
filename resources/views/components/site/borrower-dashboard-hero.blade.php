@@ -6,12 +6,13 @@
         'arrears' => 'bg-red-600 text-white ring-red-700',
         'active_loan' => 'bg-gray-900 text-white ring-gray-800',
         'under_review' => 'bg-amber-500 text-gray-900 ring-amber-600',
+        'guarantor_request' => 'bg-amber-500 text-gray-900 ring-amber-600',
         'settled' => 'bg-emerald-600 text-white ring-emerald-700',
         default => 'bg-gradient-to-br from-brand to-brand-light text-white ring-brand/30',
     };
     $decor = match ($variant) {
         'arrears', 'active_loan' => 'individual',
-        'under_review' => 'business',
+        'under_review', 'guarantor_request' => 'business',
         'settled' => 'wallet',
         default => 'individual',
     };
@@ -48,7 +49,7 @@
                 <a href="{{ $hero['cta_url'] }}"
                    @class([
                        'inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition',
-                       $variant === 'under_review'
+                       in_array($variant, ['under_review', 'guarantor_request'], true)
                            ? 'bg-gray-900 text-white hover:bg-gray-800'
                            : 'bg-white text-brand hover:bg-white/90 shadow-sm',
                    ])>

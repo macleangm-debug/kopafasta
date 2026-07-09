@@ -69,6 +69,24 @@ class LoyaltyPointsService
                 'reference_id'   => $refId,
             ]);
 
+            $customer->refresh();
+
+            try {
+                app(NotificationService::class)->notifyInApp(
+                    $customer,
+                    __('borrower.rewards.points_earned_body', ['points' => number_format($points)]),
+                    'promotions',
+                    'loyalty_points_earned',
+                    __('borrower.rewards.points_earned_title'),
+                    route('site.borrower.engagement', ['tab' => 'rewards']),
+                    __('borrower.rewards.points_earned_cta'),
+                );
+            } catch (\Throwable) {
+                // Notifications must not block points credit.
+            }
+
+            \App\Support\Celebration::flashOne('points_earned');
+
             return $points;
         });
     }
@@ -93,6 +111,99 @@ class LoyaltyPointsService
         });
 
         return true;
+    }
+
+    /**
+     * Deduct loyalty points for a penalty action (late repayment, late fee, etc.).
+     * Never takes the balance below zero. Idempotent per action + reference.
+     */
+    public function deductPenalty(
+        Customer $customer,
+        string $penaltyKey,
+        ?string $description = null,
+        ?string $refType = null,
+        ?int $refId = null,
+    ): int {
+        $penalty = $this->penaltyConfig($penaltyKey);
+        if (! ($penalty['enabled'] ?? false)) {
+            return 0;
+        }
+
+        $points = (int) ($penalty['points'] ?? 0);
+        if ($points <= 0) {
+            return 0;
+        }
+
+        if ($this->alreadyPenalized($customer, $penaltyKey, $refType, $refId)) {
+            return 0;
+        }
+
+        $deduct = min($points, $this->balance($customer));
+        if ($deduct <= 0) {
+            return 0;
+        }
+
+        return DB::transaction(function () use ($customer, $penaltyKey, $deduct, $description, $penalty, $refType, $refId): int {
+            $customer->decrement('loyalty_points', $deduct);
+
+            LoyaltyPointTransaction::create([
+                'customer_id'    => $customer->id,
+                'type'           => 'debit',
+                'points'         => -$deduct,
+                'action_key'     => $penaltyKey,
+                'description'    => $description
+                    ?? __('borrower.rewards.penalty_description', [
+                        'label' => (string) ($penalty['label'] ?? ucfirst(str_replace('_', ' ', $penaltyKey))),
+                    ]),
+                'reference_type' => $refType,
+                'reference_id'   => $refId,
+            ]);
+
+            $customer->refresh();
+
+            try {
+                app(NotificationService::class)->notifyInApp(
+                    $customer,
+                    __('borrower.rewards.points_deducted_body', [
+                        'points' => number_format($deduct),
+                        'reason' => (string) ($penalty['label'] ?? $penaltyKey),
+                    ]),
+                    'promotions',
+                    'loyalty_points_deducted',
+                    __('borrower.rewards.points_deducted_title'),
+                    route('site.borrower.engagement', ['tab' => 'rewards']),
+                    __('borrower.rewards.points_earned_cta'),
+                );
+            } catch (\Throwable) {
+                // Notifications must not block penalty deductions.
+            }
+
+            return $deduct;
+        });
+    }
+
+    /** @return array{label?: string, points?: int, enabled?: bool} */
+    private function penaltyConfig(string $penaltyKey): array
+    {
+        $penalties = $this->settings->group('loyalty_points')['penalties']
+            ?? config('gamification.loyalty_points.penalties', []);
+
+        return is_array($penalties[$penaltyKey] ?? null) ? $penalties[$penaltyKey] : [];
+    }
+
+    private function alreadyPenalized(Customer $customer, string $penaltyKey, ?string $refType, ?int $refId): bool
+    {
+        if ($refType === null || $refId === null) {
+            return false;
+        }
+
+        return LoyaltyPointTransaction::query()
+            ->where('customer_id', $customer->id)
+            ->where('type', 'debit')
+            ->where('action_key', $penaltyKey)
+            ->where('reference_type', $refType)
+            ->where('reference_id', $refId)
+            ->exists();
     }
 
     /** @return \Illuminate\Database\Eloquent\Collection<int, LoyaltyPointTransaction> */

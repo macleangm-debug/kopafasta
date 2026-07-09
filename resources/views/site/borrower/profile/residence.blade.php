@@ -34,10 +34,21 @@
             :default-open="($wizardMode ?? false) || ($editing ?? false)">
             <x-slot:view>
                 <dl class="grid sm:grid-cols-2 gap-4 text-sm">
-                    <div><dt class="text-gray-500">{{ __('borrower.profile.region') }}</dt><dd class="font-medium mt-0.5">{{ $customer->region ?: '—' }}</dd></div>
-                    <div><dt class="text-gray-500">{{ __('borrower.profile.district') }}</dt><dd class="font-medium mt-0.5">{{ $customer->district ?: '—' }}</dd></div>
-                    <div><dt class="text-gray-500">{{ __('borrower.profile.ward') }}</dt><dd class="font-medium mt-0.5">{{ $customer->ward ?: '—' }}</dd></div>
-                    <div class="sm:col-span-2"><dt class="text-gray-500">{{ __('borrower.profile.street') }}</dt><dd class="font-medium mt-0.5">{{ $customer->street ?: $customer->address ?: '—' }}</dd></div>
+                    @foreach ([
+                        ['label' => __('borrower.profile.region'), 'value' => $customer->region],
+                        ['label' => __('borrower.profile.district'), 'value' => $customer->district],
+                        ['label' => __('borrower.profile.ward'), 'value' => $customer->ward],
+                        ['label' => __('borrower.profile.street'), 'value' => $customer->street ?: $customer->address, 'span' => true],
+                    ] as $field)
+                        <div @class(['sm:col-span-2' => ! empty($field['span'])])>
+                            <dt class="text-gray-500">{{ $field['label'] }}</dt>
+                            @if (filled($field['value']))
+                                <dd class="font-medium mt-0.5">{{ $field['value'] }}</dd>
+                            @else
+                                <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
+                            @endif
+                        </div>
+                    @endforeach
                 </dl>
                 @if ($requiresLetter)
                     <p class="mt-4 text-xs text-gray-500">

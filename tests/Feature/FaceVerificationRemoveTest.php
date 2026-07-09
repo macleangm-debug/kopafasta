@@ -105,6 +105,26 @@ class FaceVerificationRemoveTest extends TestCase
         $this->assertSame(2, FaceVerification::where('customer_id', $customer->id)->where('angle', 'front')->count());
     }
 
+    public function test_upload_json_returns_stable_preview_url(): void
+    {
+        Storage::fake('public');
+        $customer = $this->borrower();
+
+        $response = $this->actingAs($customer->user)
+            ->postJson(route('site.borrower.face-verification.store', ['angle' => 'front']), [
+                'photo' => UploadedFile::fake()->image('front.jpg'),
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('angle', 'front');
+
+        $previewUrl = $response->json('previewUrl');
+        $this->assertIsString($previewUrl);
+        $this->assertStringContainsString('/storage/', $previewUrl);
+        $this->assertStringNotContainsString('blob:', $previewUrl);
+    }
+
     public function test_face_verification_page_includes_delete_urls_in_wizard(): void
     {
         Storage::fake('public');

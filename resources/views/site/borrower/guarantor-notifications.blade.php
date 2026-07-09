@@ -34,6 +34,10 @@
                     $lines = preg_split("/\r\n|\n|\r/", (string) ($n->message ?: '')) ?: [];
                     $title = $lines[0] ?? __('borrower.guarantor_notifications.fallback_title');
                     $body = trim(implode(' ', array_slice($lines, 1))) ?: ($n->message ?: $n->template);
+                    $actionLabel = match ($n->template) {
+                        'guarantor_request' => __('borrower.guarantor_notifications.view_request'),
+                        default => __('borrower.notifications.view_application'),
+                    };
                 @endphp
                 <div class="bg-white rounded-2xl border border-gray-200 p-5 flex gap-4 {{ $n->read_at ? '' : 'ring-2 ring-amber-100' }}">
                     <div class="min-w-0 flex-1">
@@ -46,7 +50,7 @@
                         <p class="font-semibold text-gray-900">{{ $title }}</p>
                         <p class="text-sm text-gray-600 mt-1">{{ $body }}</p>
                         @if ($actionUrl)
-                            <a href="{{ url($actionUrl) }}" class="inline-flex mt-3 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.guarantor_notifications.view_request') }}</a>
+                            <a href="{{ url($actionUrl) }}" class="inline-flex mt-3 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ $actionLabel }}</a>
                         @endif
                     </div>
                     @unless ($n->read_at)

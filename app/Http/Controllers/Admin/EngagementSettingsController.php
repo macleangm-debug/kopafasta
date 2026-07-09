@@ -183,6 +183,10 @@ class EngagementSettingsController extends Controller
             'actions'                         => ['required', 'array'],
             'actions.*.label'                 => ['required', 'string', 'max:80'],
             'actions.*.points'                => ['required', 'integer', 'min:0'],
+            'penalties'                       => ['nullable', 'array'],
+            'penalties.*.label'               => ['required_with:penalties', 'string', 'max:80'],
+            'penalties.*.points'              => ['required_with:penalties', 'integer', 'min:0'],
+            'penalties.*.enabled'             => ['nullable', 'boolean'],
             'redemption_options'              => ['nullable', 'array'],
             'redemption_options.*.key'        => ['required_with:redemption_options', 'string', 'max:60'],
             'redemption_options.*.label'      => ['required_with:redemption_options', 'string', 'max:120'],
@@ -197,12 +201,21 @@ class EngagementSettingsController extends Controller
         ]);
 
         $existing = $this->gamification->group('loyalty_points');
-        $payload = [
-            'actions'            => $data['actions'],
-            'redemption_options' => array_values($data['redemption_options'] ?? ($existing['redemption_options'] ?? config('gamification.loyalty_points.redemption_options', []))),
-        ];
+        $defaultPenalties = config('gamification.loyalty_points.penalties', []);
+        $penalties = $existing['penalties'] ?? $defaultPenalties;
+        foreach ($data['penalties'] ?? [] as $key => $row) {
+            $penalties[$key] = [
+                'label'   => $row['label'],
+                'points'  => (int) $row['points'],
+                'enabled' => filter_var($row['enabled'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            ];
+        }
 
-        Setting::set('gamification.loyalty_points', $payload);
+        $this->gamification->saveSection('loyalty_points', [
+            'actions'            => $data['actions'],
+            'penalties'          => $penalties,
+            'redemption_options' => array_values($data['redemption_options'] ?? ($existing['redemption_options'] ?? config('gamification.loyalty_points.redemption_options', []))),
+        ]);
 
         return back()->with('status', 'Loyalty points settings saved.');
     }

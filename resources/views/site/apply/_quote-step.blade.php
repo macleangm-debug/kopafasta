@@ -74,32 +74,33 @@
                 </div>
             </div>
 
-            <div x-show="engagementBoosts && (engagementBoosts.factors?.length || qualificationLimit > 0)" x-cloak
-                 class="rounded-2xl bg-emerald-50 ring-1 ring-emerald-200 p-5 space-y-2">
-                <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">{{ __('borrower.apply.quote.engagement_title') }}</p>
-                <template x-if="qualificationLimit > 0">
-                    <p class="text-sm text-emerald-900">
+            <div x-show="(engagementBoosts && (engagementBoosts.factors?.length || qualificationLimit > 0 || engagementBoosts?.rate_discount_fraction > 0)) || processingSla || hasActiveLoanReward() || pointsBalance > 0 || loyaltyRateDiscount > 0" x-cloak
+                 class="rounded-2xl bg-emerald-50 ring-1 ring-emerald-200 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+                <div class="min-w-0 space-y-1">
+                    <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">{{ __('borrower.apply.quote.engagement_title') }}</p>
+                    <p class="text-sm text-emerald-900" x-show="qualificationLimit > 0">
                         {{ __('borrower.apply.quote.engagement_limit') }}:
                         <span class="font-semibold" x-text="formatTzs(qualificationLimit)"></span>
                     </p>
-                </template>
-                <template x-if="engagementBoosts?.rate_discount_fraction > 0">
-                    <p class="text-sm text-emerald-900">
+                    <p class="text-sm text-emerald-900" x-show="(engagementBoosts?.rate_discount_fraction || 0) + (loyaltyRateDiscount || 0) > 0">
                         {{ __('borrower.apply.quote.engagement_rate') }}:
-                        <span class="font-semibold" x-text="(engagementBoosts.rate_discount_fraction * 100).toFixed(2) + '%'"></span>
+                        <span class="font-semibold" x-text="(((engagementBoosts?.rate_discount_fraction || 0) + (loyaltyRateDiscount || 0)) * 100).toFixed(2) + '%'"></span>
                     </p>
-                </template>
-                <template x-if="processingSla">
-                    <p class="text-sm text-emerald-900">
+                    <p class="text-sm text-emerald-900" x-show="processingSla">
                         {{ __('borrower.apply.quote.engagement_sla') }}:
                         <span class="font-semibold" x-text="processingSla"></span>
                     </p>
-                </template>
-                <ul class="text-xs text-emerald-800 space-y-1" x-show="engagementBoosts?.factors?.length">
-                    <template x-for="(factor, idx) in (engagementBoosts?.factors || [])" :key="idx">
-                        <li x-text="factor.label + ': ' + factor.detail"></li>
-                    </template>
-                </ul>
+                    <p class="text-sm text-emerald-900" x-show="hasActiveLoanReward()">
+                        {{ __('borrower.apply.quote.active_reward') }}
+                    </p>
+                    <p class="text-sm text-emerald-900" x-show="!hasActiveLoanReward() && pointsBalance > 0">
+                        {{ __('borrower.apply.quote.redeem_hint') }}
+                    </p>
+                </div>
+                <a href="{{ route('site.borrower.engagement', ['tab' => 'rewards']) }}"
+                   class="shrink-0 text-xs font-semibold text-emerald-900 underline">
+                    {{ __('borrower.apply.quote.rewards_cta') }}
+                </a>
             </div>
 
             <div x-show="current?.rate_disclosure?.length" class="rounded-2xl bg-amber-50 ring-1 ring-amber-200 p-5 text-xs text-amber-900 space-y-1">

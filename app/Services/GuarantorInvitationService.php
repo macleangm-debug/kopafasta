@@ -193,7 +193,7 @@ class GuarantorInvitationService
             'amount_label'       => $amount > 0 ? 'TZS '.number_format($amount) : __('borrower.guarantor_invite.amount_tbd'),
             'tenure_months'      => $tenure,
             'duration_label'     => $tenure > 0
-                ? __('borrower.guarantor_invite.duration_months', ['count' => $tenure])
+                ? trans_choice('borrower.guarantor_invite.duration_months', $tenure, ['count' => $tenure])
                 : __('borrower.guarantor_invite.duration_tbd'),
             'product_name'       => $productName !== '' ? $productName : __('borrower.guarantor_invite.product_tbd'),
             'installment_label'  => $installmentLabel,
@@ -576,6 +576,7 @@ class GuarantorInvitationService
 
             $this->ensureShortCode($invitation);
             $this->notifyExternalInvitation($borrower, $invitation, $displayName);
+            $this->notifyBorrowerInvitationSent($borrower, $invitation, $displayName);
 
             return $this->sharePayload($invitation, $borrower);
         });
@@ -714,16 +715,15 @@ class GuarantorInvitationService
                 ]),
                 'guarantor',
                 'guarantor_request',
+                __('borrower.guarantor_invite.notify_request_title'),
+                route('site.borrower.guarantor-requests.show', $link),
+                __('borrower.guarantor_notifications.view_request'),
             );
 
-            app(NotificationService::class)->notifyInApp(
+            $this->notifyBorrowerInvitationSent(
                 $borrower,
-                __('borrower.guarantor_invite.borrower_sent', [
-                    'guarantor' => trim($member->first_name.' '.$member->last_name),
-                    'status'    => __('borrower.guarantor_invite.status_awaiting_response'),
-                ]),
-                'guarantor',
-                'guarantor_sent',
+                $invitation,
+                trim($member->first_name.' '.$member->last_name),
             );
 
             return [$link, $invitation];
@@ -784,19 +784,40 @@ class GuarantorInvitationService
             ]);
 
             $this->notifyExternalInvitation($borrower, $invitation, $displayName);
-
-            app(NotificationService::class)->notifyInApp(
-                $borrower,
-                __('borrower.guarantor_invite.borrower_sent', [
-                    'guarantor' => $displayName,
-                    'status'    => __('borrower.guarantor_invite.status_awaiting_registration'),
-                ]),
-                'guarantor',
-                'guarantor_sent',
-            );
+            $this->notifyBorrowerInvitationSent($borrower, $invitation, $displayName);
 
             return [$link, $invitation];
         });
+    }
+
+    protected function notifyBorrowerInvitationSent(Customer $borrower, GuarantorInvitation $invitation, string $inviteeName): void
+    {
+        $context = $this->invitationLoanContext($invitation);
+        $message = __('borrower.guarantor_invite.borrower_sent', [
+            'guarantor' => $inviteeName,
+            'product'   => $context['product_name'],
+            'amount'    => $context['amount_label'],
+            'duration'  => $context['duration_label'],
+        ]);
+
+        app(NotificationService::class)->notifyInApp(
+            $borrower,
+            $message,
+            'guarantor',
+            'guarantor_sent',
+            __('borrower.guarantor_invite.notify_sent_title'),
+            route('site.borrower.application', $invitation->loan_application_id),
+            __('borrower.notifications.view_application'),
+        );
+
+        if (filled($borrower->phone)) {
+            app(NotificationService::class)->sendSms(
+                (string) $borrower->phone,
+                $message,
+                $borrower,
+                'guarantor_sent',
+            );
+        }
     }
 
     protected function notifyExternalInvitation(Customer $borrower, GuarantorInvitation $invitation, string $inviteeName): void
@@ -806,16 +827,18 @@ class GuarantorInvitationService
         $invitation->loadMissing('customerGuarantor.guarantor');
         $email = trim((string) ($invitation->customerGuarantor?->guarantor?->email ?? ''));
 
+        // Do not attach the borrower as the SMS/email log owner — that made the
+        // guarantor-facing invite appear in the borrower's notification inbox.
         if ($invitation->channel === 'email' && $email !== '') {
             app(NotificationService::class)->sendEmail(
                 $email,
                 __('borrower.guarantor_invite.email_subject', ['borrower' => $borrowerName]),
                 $message,
-                $borrower,
+                null,
                 'guarantor_invite',
             );
         } elseif ($invitation->contact) {
-            app(NotificationService::class)->sendSms((string) $invitation->contact, $message, $borrower, 'guarantor_invite');
+            app(NotificationService::class)->sendSms((string) $invitation->contact, $message, null, 'guarantor_invite');
         }
     }
 
@@ -872,11 +895,17 @@ class GuarantorInvitationService
             $borrower = $link->customer;
             $guarantorName = trim((string) ($invitation?->invitee_name ?: $link->guarantor?->first_name.' '.$link->guarantor?->last_name));
             if ($borrower) {
+                $applicationId = $link->loan_application_id ?? $invitation?->loan_application_id;
                 app(NotificationService::class)->notifyInApp(
                     $borrower,
                     __('borrower.guarantor_invite.borrower_declined', ['guarantor' => trim($guarantorName)]),
                     'guarantor',
                     'guarantor_declined',
+                    __('borrower.guarantor_invite.notify_declined_title'),
+                    $applicationId
+                        ? route('site.borrower.application', $applicationId)
+                        : route('site.borrower.loans', ['tab' => 'applications']),
+                    __('borrower.notifications.view_application'),
                 );
             }
         });

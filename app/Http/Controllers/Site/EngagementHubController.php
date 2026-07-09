@@ -67,9 +67,19 @@ class EngagementHubController extends Controller
         ]);
 
         try {
-            $redemptions->redeem($customer, $data['option_key']);
+            $reward = $redemptions->redeem($customer, $data['option_key']);
         } catch (\InvalidArgumentException $e) {
             return back()->with('error', $e->getMessage());
+        }
+
+        \App\Support\Celebration::flashOne('reward_redeemed');
+
+        $appliesAtCheckout = $reward->benefit_type === 'rate_discount'
+            || ($reward->benefit_type === 'percent_discount' && $reward->fee_type === 'application_fee');
+
+        if ($appliesAtCheckout) {
+            return redirect()->route('site.borrower.loan-products')
+                ->with('status', __('borrower.rewards.redeemed'));
         }
 
         return redirect()->route('site.borrower.engagement', ['tab' => 'rewards'])

@@ -142,6 +142,14 @@ class LateFeeAccrualService
             }
         });
 
+        $customer = $loan->customer;
+        if ($customer && $created !== []) {
+            $rewards = app(MemberEngagementRewardService::class);
+            foreach ($created as $fee) {
+                $rewards->afterLateFeeAccrued($customer, $fee);
+            }
+        }
+
         return $out;
     }
 

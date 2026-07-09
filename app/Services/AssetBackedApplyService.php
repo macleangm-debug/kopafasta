@@ -22,12 +22,12 @@ class AssetBackedApplyService
     public function documentLabels(): array
     {
         return [
-            'asset_photo_front'       => 'Front photo',
-            'asset_photo_rear'        => 'Rear photo',
-            'asset_photo_left'        => 'Left side photo',
-            'asset_photo_right'       => 'Right side photo',
-            'ownership_certificate'   => 'Ownership certificate',
-            'insurance_certificate'   => 'Insurance certificate',
+            'asset_photo_front'       => __('borrower.apply.asset_documents.asset_photo_front'),
+            'asset_photo_rear'        => __('borrower.apply.asset_documents.asset_photo_rear'),
+            'asset_photo_left'        => __('borrower.apply.asset_documents.asset_photo_left'),
+            'asset_photo_right'       => __('borrower.apply.asset_documents.asset_photo_right'),
+            'ownership_certificate'   => __('borrower.apply.asset_documents.ownership_certificate'),
+            'insurance_certificate'   => __('borrower.apply.asset_documents.insurance_certificate'),
         ];
     }
 

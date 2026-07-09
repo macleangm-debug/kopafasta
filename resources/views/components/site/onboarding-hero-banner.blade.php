@@ -5,8 +5,11 @@
         <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
         <div class="relative flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
             <div class="min-w-0 flex-1">
-                <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">Onboarding</p>
-                <h2 class="text-xl sm:text-2xl font-bold mt-1">{{ $banner['title'] ?? 'Complete your profile' }} — {{ $banner['percent'] ?? 0 }}% complete</h2>
+                <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.onboarding.eyebrow') }}</p>
+                <h2 class="text-xl sm:text-2xl font-bold mt-1">
+                    {{ $banner['title'] ?? __('borrower.onboarding.title_complete') }}
+                    — {{ __('borrower.onboarding.percent_complete', ['percent' => $banner['percent'] ?? 0]) }}
+                </h2>
                 <div class="mt-4 h-2 rounded-full bg-white/20 overflow-hidden max-w-md">
                     <div class="h-full bg-brand-gold transition-all" style="width: {{ $banner['percent'] ?? 0 }}%"></div>
                 </div>
@@ -21,8 +24,8 @@
                             };
                             $suffix = match ($status) {
                                 'complete' => '',
-                                'pending'  => ' pending',
-                                default    => ' missing',
+                                'pending'  => ' '.__('borrower.onboarding.status_pending'),
+                                default    => ' '.__('borrower.onboarding.status_missing'),
                             };
                         @endphp
                         <li class="flex items-center gap-3 text-sm">
@@ -40,7 +43,7 @@
             @if (! empty($banner['cta_url']))
                 <a href="{{ $banner['cta_url'] }}"
                    class="relative shrink-0 self-start inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-3 rounded-xl text-sm">
-                    Complete requirements
+                    {{ __('borrower.onboarding.cta') }}
                 </a>
             @endif
         </div>

@@ -28,7 +28,6 @@
             ['key' => 'marketplace',   'label' => __('borrower.nav.marketplace'),   'route' => 'site.borrower.marketplace', 'icon' => 'folder'],
             ['key' => 'payments',      'label' => __('borrower.nav.payments'),      'route' => 'site.borrower.payments',      'icon' => 'pay'],
             ['key' => 'notifications', 'label' => __('borrower.nav.notifications'), 'route' => 'site.borrower.notifications', 'icon' => 'bell'],
-            ['key' => 'membership',    'label' => __('borrower.nav.membership'),    'route' => 'site.borrower.profile', 'route_params' => ['section' => 'membership'], 'icon' => 'shield'],
             ['key' => 'support',       'label' => __('borrower.nav.support'),       'route' => 'site.borrower.support',       'icon' => 'help'],
             ['key' => 'profile',       'label' => __('borrower.nav.profile'),       'route' => 'site.borrower.profile',       'icon' => 'user'],
         ];
@@ -134,6 +133,9 @@
                                     <p class="text-xs uppercase tracking-widest text-gray-400" x-text="item.category"></p>
                                     <p class="text-sm text-gray-800 mt-0.5" x-text="item.message"></p>
                                     <p class="text-[11px] text-gray-400 mt-1" x-text="item.when"></p>
+                                    <template x-if="item.action_url">
+                                        <a :href="item.action_url" class="inline-flex mt-2 text-xs font-semibold text-brand hover:underline" x-text="item.action_label || @js(__('borrower.notifications.view_application'))"></a>
+                                    </template>
                                 </div>
                             </template>
                         </div>

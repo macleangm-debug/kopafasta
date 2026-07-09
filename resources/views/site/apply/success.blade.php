@@ -1,9 +1,13 @@
 <x-site.borrower-layout :title="brand_title(__('borrower.apply.success.submitted_title'))" active="loans" content-width="wide">
     <div class="text-center py-6">
-        <div class="size-16 rounded-full bg-emerald-100 text-emerald-600 grid place-items-center mx-auto mb-5">
-            <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+        <div class="relative mx-auto mb-5 size-20">
+            <div class="absolute inset-0 rounded-full bg-brand-gold/30 animate-ping"></div>
+            <div class="relative size-20 rounded-full bg-gradient-to-br from-brand to-brand-light text-white grid place-items-center shadow-lg">
+                <svg class="w-9 h-9" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+            </div>
         </div>
-        <h1 class="text-3xl font-bold tracking-tight animate-[fadeIn_0.5s_ease-out]">{{ __('borrower.apply.success.submitted_title') }}</h1>
+        <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-2">{{ __('borrower.apply.success.celebration_eyebrow') }}</p>
+        <h1 class="text-3xl sm:text-4xl font-bold tracking-tight animate-[fadeIn_0.5s_ease-out]">{{ __('borrower.apply.success.submitted_title') }}</h1>
         <p class="mt-2 text-gray-600">{{ __('borrower.apply.success.reference_label') }} <span class="font-mono font-bold text-gray-900">{{ $application->application_number }}</span></p>
 
         @if (session('status'))

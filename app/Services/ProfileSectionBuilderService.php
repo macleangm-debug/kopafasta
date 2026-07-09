@@ -18,6 +18,33 @@ class ProfileSectionBuilderService
             ->get();
     }
 
+    /**
+     * Whether a mapped profile section must be complete before loan submission.
+     * Falls back to true for payment when no admin definition exists.
+     */
+    public function requiredBeforeLoan(string $mapsTo, bool $default = false): bool
+    {
+        $definition = ProfileSectionDefinition::query()
+            ->where('is_active', true)
+            ->get()
+            ->first(function (ProfileSectionDefinition $section) use ($mapsTo) {
+                $mapped = (string) ($section->metadata['maps_to'] ?? $section->key);
+
+                return $mapped === $mapsTo || $section->key === $mapsTo;
+            });
+
+        if (! $definition) {
+            return $default;
+        }
+
+        return (bool) ($definition->required_before_loan || $definition->is_required);
+    }
+
+    public function paymentRequiredBeforeLoan(): bool
+    {
+        return $this->requiredBeforeLoan('payment', true);
+    }
+
     /** @return list<array<string, mixed>> */
     public function hubCards(Customer $customer): array
     {

@@ -26,6 +26,7 @@ class ApplicationFeePaymentService
         bool $useWallet = false,
         ?string $promoCode = null,
         ?int $groupMemberCount = null,
+        ?string $affiliateCode = null,
     ): array {
         $groups = app(GroupLendingService::class);
         if ($groups->isGroupProduct($product) && $groupMemberCount) {
@@ -34,6 +35,8 @@ class ApplicationFeePaymentService
             $base = (float) quoted_origination_fee($customer, $product);
         }
         $cfg = MembershipService::config();
+
+        [$effectivePromo, $effectiveAffiliate] = $this->resolvePromoOrAffiliate($promoCode, $affiliateCode);
 
         if ($base <= 0) {
             return [
@@ -55,9 +58,28 @@ class ApplicationFeePaymentService
             $base,
             'application_fee',
             $useWallet,
-            $promoCode,
-            null,
+            $effectivePromo,
+            $effectiveAffiliate,
         );
+    }
+
+    /**
+     * @return array{0: ?string, 1: ?string} [promoCode, affiliateCode]
+     */
+    public function resolvePromoOrAffiliate(?string $promoCode, ?string $affiliateCode = null): array
+    {
+        $code = filled($affiliateCode) ? $affiliateCode : $promoCode;
+        if (blank($code)) {
+            return [null, null];
+        }
+
+        $code = strtoupper(trim((string) $code));
+
+        if (app(AffiliateService::class)->findByCode($code)) {
+            return [null, $code];
+        }
+
+        return [$code, null];
     }
 
     /**
@@ -70,8 +92,9 @@ class ApplicationFeePaymentService
         bool $useWallet = false,
         ?string $promoCode = null,
         ?int $groupMemberCount = null,
+        ?string $affiliateCode = null,
     ): array {
-        $quote = $this->quote($customer, $product, $useWallet, $promoCode, $groupMemberCount);
+        $quote = $this->quote($customer, $product, $useWallet, $promoCode, $groupMemberCount, $affiliateCode);
         $cashDue = (int) ($quote['cash_due'] ?? $quote['after_discount']);
 
         if ($cashDue <= 0) {
@@ -115,8 +138,9 @@ class ApplicationFeePaymentService
         bool $useWallet = false,
         ?string $promoCode = null,
         ?int $groupMemberCount = null,
+        ?string $affiliateCode = null,
     ): array {
-        $quote = $this->quote($customer, $product, $useWallet, $promoCode, $groupMemberCount);
+        $quote = $this->quote($customer, $product, $useWallet, $promoCode, $groupMemberCount, $affiliateCode);
         $cashDue = (int) ($quote['cash_due'] ?? $quote['after_discount']);
 
         if ($cashDue <= 0) {

@@ -57,6 +57,7 @@
                     <form method="POST" action="{{ route('site.locale.update') }}">
                         @csrf
                         <input type="hidden" name="locale" value="{{ $code }}">
+                        <input type="hidden" name="redirect" value="{{ url()->full() }}">
                         <button type="submit"
                                 class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-sm transition {{ $siteLocale === $code ? 'bg-brand-muted text-brand font-semibold ring-1 ring-brand/20' : 'hover:bg-gray-50 text-gray-700' }}">
                             <span class="text-lg">{{ $meta['flag'] }}</span>
@@ -80,6 +81,7 @@
                 <form method="POST" action="{{ route('site.locale.update') }}">
                     @csrf
                     <input type="hidden" name="locale" value="{{ $code }}">
+                    <input type="hidden" name="redirect" value="{{ url()->full() }}">
                     <button type="submit"
                             class="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-brand-muted transition {{ $siteLocale === $code ? 'bg-brand-muted/60 text-brand font-semibold' : 'text-gray-700' }}">
                         <span>{{ $meta['flag'] }}</span>
@@ -148,6 +150,7 @@
                     <form method="POST" action="{{ route('site.locale.update') }}">
                         @csrf
                         <input type="hidden" name="locale" value="{{ $code }}">
+                        <input type="hidden" name="redirect" value="{{ url()->full() }}">
                         <button type="submit"
                                 class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-sm transition {{ $siteLocale === $code ? 'bg-brand-muted text-brand font-semibold ring-1 ring-brand/20' : 'hover:bg-gray-50 text-gray-700' }}">
                             <span class="text-lg">{{ $meta['flag'] }}</span>
@@ -200,6 +203,7 @@
                     <form method="POST" action="{{ route('site.locale.update') }}">
                         @csrf
                         <input type="hidden" name="locale" value="{{ $code }}">
+                        <input type="hidden" name="redirect" value="{{ url()->full() }}">
                         <button type="submit"
                                 class="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-brand-muted transition {{ $siteLocale === $code ? 'bg-brand-muted/60 text-brand font-semibold' : 'text-gray-700' }}">
                             <span class="text-lg">{{ $meta['flag'] }}</span>

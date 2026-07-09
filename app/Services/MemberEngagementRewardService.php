@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\LoanFee;
 use App\Models\Repayment;
 use App\Models\RepaymentSchedule;
 use App\Models\Setting;
@@ -95,13 +96,25 @@ class MemberEngagementRewardService
         $paidAt = Carbon::parse($schedule->paid_at);
         $dueDate = Carbon::parse($schedule->due_date)->endOfDay();
 
-        if ($paidAt->gt($dueDate)) {
-            return;
-        }
-
         $schedule->loadMissing('loan.customer');
         $customer = $schedule->loan?->customer;
         if (! $customer) {
+            return;
+        }
+
+        if ($paidAt->gt($dueDate)) {
+            try {
+                $this->loyalty->deductPenalty(
+                    $customer,
+                    'late_repayment',
+                    null,
+                    RepaymentSchedule::class,
+                    (int) $schedule->id,
+                );
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
             return;
         }
 
@@ -115,6 +128,21 @@ class MemberEngagementRewardService
 
         try {
             app(RepaymentStreakRewardService::class)->afterOnTimeRepayment($customer->fresh());
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    public function afterLateFeeAccrued(Customer $customer, LoanFee $fee): void
+    {
+        try {
+            $this->loyalty->deductPenalty(
+                $customer,
+                'late_fee_accrual',
+                null,
+                LoanFee::class,
+                (int) $fee->id,
+            );
         } catch (\Throwable $e) {
             report($e);
         }

@@ -5,7 +5,6 @@
     'paymentReference' => null,
     'referralWallet' => null,
     'referralSettings' => [],
-    'streakReward' => null,
     'paymentGatewayDummy' => true,
     'applyRequirements' => null,
     'pointsBalance' => null,
@@ -14,6 +13,7 @@
 @php
     $referralPoints = wallet_balance_as_points((float) ($referralWallet->balance ?? 0));
     $loyaltyPoints = (int) ($pointsBalance ?? 0);
+    $hasRewardsCta = $loyaltyPoints > 0 || $referralPoints > 0;
 @endphp
 
 <div x-show="stepKey === 'application_fee'" class="p-6 sm:p-8">
@@ -76,6 +76,7 @@
             <div class="flex justify-between gap-4"><span>{{ __('borrower.apply.group.fee_breakdown.members') }}</span><span class="font-semibold" x-text="groupFeeBreakdown().member_count"></span></div>
             <div class="flex justify-between gap-4 pt-2 border-t border-amber-200 font-semibold"><span>{{ __('borrower.apply.group.fee_breakdown.total') }}</span><span class="font-mono" x-text="formatTzs(groupFeeBreakdown().total)"></span></div>
         </div>
+
         <div class="glass-card overflow-hidden ring-1 ring-brand/15 mb-6">
             <div class="bg-gradient-to-br from-brand to-brand-light text-white px-6 py-5">
                 <p class="text-[10px] uppercase tracking-widest text-white/80">{{ __('borrower.apply.application_fee.amount_label') }}</p>
@@ -88,27 +89,84 @@
                 <p class="mt-3 text-xs text-white/90">{{ __('borrower.apply.application_fee.product_note') }}</p>
             </div>
             <div class="px-6 py-4 bg-white border-t border-gray-100 text-sm space-y-1.5" x-show="feeQuoteData && feeQuoteData.base > 0">
-                <div class="flex justify-between gap-4 text-gray-600"><span>{{ __('borrower.apply.application_fee.amount_label') }}</span><span class="font-mono" x-text="formatTzs(feeQuoteData.base)"></span></div>
-                <template x-if="feeQuoteData.promo_discount > 0"><div class="flex justify-between gap-4 text-gray-600"><span>{{ __('borrower.apply.application_fee.promo_discount') }}</span><span class="font-mono text-emerald-700" x-text="'− ' + formatTzs(feeQuoteData.promo_discount)"></span></div></template>
-                <template x-if="feeQuoteData.referral_discount > 0"><div class="flex justify-between gap-4 text-gray-600"><span>{{ __('borrower.apply.application_fee.referral_discount') }}</span><span class="font-mono text-emerald-700" x-text="'− ' + formatTzs(feeQuoteData.referral_discount)"></span></div></template>
-                <template x-if="feeQuoteData.affiliate_discount > 0"><div class="flex justify-between gap-4 text-gray-600"><span>{{ __('borrower.apply.application_fee.affiliate_discount') }}</span><span class="font-mono text-emerald-700" x-text="'− ' + formatTzs(feeQuoteData.affiliate_discount)"></span></div></template>
-                <template x-if="feeQuoteData.loyalty_discount > 0"><div class="flex justify-between gap-4 text-gray-600"><span>{{ __('borrower.apply.application_fee.loyalty_discount') }}</span><span class="font-mono text-emerald-700" x-text="'− ' + formatTzs(feeQuoteData.loyalty_discount)"></span></div></template>
-                <template x-if="feeQuoteData.wallet_applied > 0"><div class="flex justify-between gap-4 text-gray-600"><span>{{ __('borrower.apply.application_fee.referral_points') }}</span><span class="font-mono text-emerald-700" x-text="'− ' + Math.round(feeQuoteData.wallet_applied / {{ referral_points_per_tzs() }}) + ' {{ __('borrower.rewards.points_short') }}'"></span></div></template>
-                <div class="flex justify-between gap-4 font-semibold pt-1 border-t border-gray-200 text-gray-900"><span>{{ __('borrower.apply.application_fee.amount_due') }}</span><span class="font-mono" x-text="formatTzs(feeQuoteData.cash_due ?? feeQuoteData.after_discount)"></span></div>
+                <div class="flex justify-between gap-4 text-gray-600">
+                    <span>{{ __('borrower.apply.application_fee.amount_label') }}</span>
+                    <span class="font-mono" x-text="formatTzs(feeQuoteData.base)"></span>
+                </div>
+                <template x-if="feeQuoteData.promo_discount > 0">
+                    <div class="flex justify-between gap-4 text-gray-600">
+                        <span>{{ __('borrower.apply.application_fee.promo_discount') }}</span>
+                        <span class="font-mono text-emerald-700" x-text="'− ' + formatTzs(feeQuoteData.promo_discount)"></span>
+                    </div>
+                </template>
+                <template x-if="feeQuoteData.referral_discount > 0">
+                    <div class="flex justify-between gap-4 text-gray-600">
+                        <span>{{ __('borrower.apply.application_fee.referral_discount') }}</span>
+                        <span class="font-mono text-emerald-700" x-text="'− ' + formatTzs(feeQuoteData.referral_discount)"></span>
+                    </div>
+                </template>
+                <template x-if="feeQuoteData.affiliate_discount > 0">
+                    <div class="flex justify-between gap-4 text-gray-600">
+                        <span>{{ __('borrower.apply.application_fee.affiliate_discount') }}</span>
+                        <span class="font-mono text-emerald-700" x-text="'− ' + formatTzs(feeQuoteData.affiliate_discount)"></span>
+                    </div>
+                </template>
+                <template x-if="feeQuoteData.loyalty_discount > 0">
+                    <div class="flex justify-between gap-4 text-gray-600">
+                        <span>{{ __('borrower.apply.application_fee.loyalty_discount') }}</span>
+                        <span class="font-mono text-emerald-700" x-text="'− ' + formatTzs(feeQuoteData.loyalty_discount)"></span>
+                    </div>
+                </template>
+                <template x-if="feeQuoteData.wallet_applied > 0">
+                    <div class="flex justify-between gap-4 text-gray-600">
+                        <span>{{ __('borrower.apply.application_fee.referral_points') }}</span>
+                        <span class="font-mono text-emerald-700" x-text="'− ' + Math.round(feeQuoteData.wallet_applied / {{ referral_points_per_tzs() }}) + ' {{ __('borrower.rewards.points_short') }}'"></span>
+                    </div>
+                </template>
+                <div class="flex justify-between gap-4 font-semibold pt-1 border-t border-gray-200 text-gray-900">
+                    <span>{{ __('borrower.apply.application_fee.amount_due') }}</span>
+                    <span class="font-mono" x-text="formatTzs(feeQuoteData.cash_due ?? feeQuoteData.after_discount)"></span>
+                </div>
             </div>
         </div>
 
-        @if ($loyaltyPoints > 0)
+        @if ($hasRewardsCta)
             <div class="mb-6 rounded-xl bg-brand-muted/30 ring-1 ring-brand/15 px-4 py-3 text-sm text-brand flex flex-wrap items-center justify-between gap-3">
-                <span>{{ __('borrower.apply.application_fee.loyalty_points_hint', ['points' => number_format($loyaltyPoints)]) }}</span>
-                <a href="{{ route('site.borrower.engagement', ['tab' => 'rewards']) }}" class="text-xs font-semibold underline shrink-0">{{ __('borrower.apply.application_fee.redeem_points_link') }}</a>
+                <span>
+                    @if ($loyaltyPoints > 0)
+                        {{ __('borrower.apply.application_fee.loyalty_points_hint', ['points' => number_format($loyaltyPoints)]) }}
+                    @else
+                        {{ __('borrower.apply.application_fee.rewards_hub_hint') }}
+                    @endif
+                </span>
+                <a href="{{ route('site.borrower.engagement', ['tab' => 'rewards']) }}" class="text-xs font-semibold underline shrink-0">
+                    {{ __('borrower.apply.application_fee.redeem_points_link') }}
+                </a>
             </div>
         @endif
 
         <div class="mb-6 rounded-xl bg-white ring-1 ring-gray-200 px-4 py-4 text-sm" x-show="!feeUseWallet">
             <label class="block text-xs font-semibold text-gray-600 mb-1">{{ __('borrower.apply.application_fee.promo_label') }}</label>
-            <input type="text" x-model="feePromoCode" @change="refreshApplicationFeeQuote()" maxlength="40" class="w-full rounded-lg border-gray-300 text-sm font-mono uppercase" placeholder="PROMO2026">
+            <div class="flex gap-2">
+                <input type="text"
+                       x-model="feePromoCode"
+                       @keydown.enter.prevent="refreshApplicationFeeQuote()"
+                       maxlength="40"
+                       class="flex-1 rounded-lg border-gray-300 text-sm font-mono uppercase"
+                       placeholder="{{ __('borrower.membership.promo_code_placeholder') }}">
+                <button type="button"
+                        @click="refreshApplicationFeeQuote()"
+                        class="shrink-0 inline-flex items-center justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2 rounded-lg text-sm">
+                    {{ __('borrower.membership.apply_promo') }}
+                </button>
+            </div>
             <p class="mt-2 text-xs text-gray-500">{{ __('borrower.apply.application_fee.benefit_exclusive_hint') }}</p>
+            <template x-if="feeQuoteData?.promo_valid && feeQuoteData?.promo_code">
+                <p class="mt-1 text-xs text-emerald-700" x-text="`{{ __('borrower.membership.promo_applied', ['code' => '__CODE__']) }}`.replace('__CODE__', feeQuoteData.promo_code)"></p>
+            </template>
+            <p class="mt-1 text-xs text-emerald-700" x-show="feeQuoteData?.has_affiliate && feeQuoteData?.affiliate_discount > 0" x-cloak>
+                {{ __('borrower.apply.application_fee.affiliate_applied') }}
+            </p>
         </div>
 
         @if ($feeQuote && ($feeQuote['wallet_allowed'] ?? false) && $referralPoints > 0)

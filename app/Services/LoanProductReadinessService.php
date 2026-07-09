@@ -51,7 +51,7 @@ class LoanProductReadinessService
             'product' => [
                 'id'                 => $product->id,
                 'code'               => $product->code,
-                'name'               => $product->name,
+                'name'               => $product->localizedName(),
                 'loan_type'          => $this->loanTypeLabel($product),
                 'description'        => $product->description,
                 'features'           => $this->productFeatures($product),
@@ -184,7 +184,7 @@ class LoanProductReadinessService
                 'detail'     => $kinComplete
                     ? __('borrower.apply.readiness.requirements.kin.on_file')
                     : __('borrower.apply.readiness.requirements.kin.complete_profile'),
-                'action_url' => $kinComplete ? null : route('site.borrower.profile', ['section' => 'kin']),
+                'action_url' => $kinComplete ? null : route('site.borrower.profile', ['section' => 'personal', 'focus' => 'kin']),
             ],
             [
                 'key'        => 'income',
@@ -330,18 +330,9 @@ class LoanProductReadinessService
             $features[] = $product->description;
         }
 
-        if ($product->requires_guarantor) {
-            $features[] = __('borrower.apply.product_features.guarantor');
-        }
-
         if ($product->requires_collateral) {
             $features[] = __('borrower.apply.product_features.collateral');
         }
-
-        $features[] = __('borrower.apply.product_features.tenure_range', [
-            'min' => $product->tenure_min_months,
-            'max' => $product->tenure_max_months,
-        ]);
 
         return $features;
     }

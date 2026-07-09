@@ -70,6 +70,18 @@ return [
             'upload_documents'  => ['label' => 'Upload Documents', 'points' => 50],
             'update_information'=> ['label' => 'Update Information', 'points' => 20],
         ],
+        'penalties' => [
+            'late_repayment' => [
+                'label'  => 'Late repayment',
+                'points' => 50,
+                'enabled'=> true,
+            ],
+            'late_fee_accrual' => [
+                'label'  => 'Late fee charged',
+                'points' => 25,
+                'enabled'=> true,
+            ],
+        ],
         'redemptions' => [
             'membership_discount'   => 'Membership discounts',
             'interest_discount'     => 'Interest discounts',

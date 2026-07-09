@@ -216,6 +216,15 @@ class ApplicationProgressService
             'action_url' => route('site.borrower.profile', ['section' => 'activity']),
         ];
 
+        if (app(ProfileSectionBuilderService::class)->paymentRequiredBeforeLoan()) {
+            $items[] = [
+                'key'        => 'payment',
+                'label'      => __('borrower.payment_details.section_title'),
+                'complete'   => app(CustomerDisbursementDetailsService::class)->isComplete($customer),
+                'action_url' => route('site.borrower.profile', ['section' => 'payment', 'add' => 1]),
+            ];
+        }
+
         foreach ($this->incomeProof->requirementItems($customer) as $incomeItem) {
             $items[] = $incomeItem;
         }

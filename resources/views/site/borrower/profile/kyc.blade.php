@@ -169,8 +169,16 @@
                 </form>
             @else
                 <dl class="grid sm:grid-cols-2 gap-4 text-sm">
-                    <div><dt class="text-gray-500">{{ __('borrower.profile.income_range') }}</dt><dd class="font-medium mt-0.5">{{ $incomeLabel ?: '—' }}</dd></div>
-                    <div><dt class="text-gray-500">{{ __('borrower.profile.documents_proof') }}</dt>
+                    <div>
+                        <dt class="text-gray-500">{{ __('borrower.profile.income_range') }}</dt>
+                        @if ($incomeLabel)
+                            <dd class="font-medium mt-0.5">{{ $incomeLabel }}</dd>
+                        @else
+                            <dd class="mt-0.5"><a href="{{ $editUrl ?? route('site.borrower.profile', ['section' => 'kyc', 'edit' => 1]) }}" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</a></dd>
+                        @endif
+                    </div>
+                    <div>
+                        <dt class="text-gray-500">{{ __('borrower.profile.documents_proof') }}</dt>
                         <dd class="font-medium mt-0.5">{{ $documentsComplete ? __('borrower.profile.section_complete') : __('borrower.profile.section_incomplete') }}</dd>
                     </div>
                 </dl>
