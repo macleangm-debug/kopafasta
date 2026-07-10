@@ -2347,6 +2347,16 @@ export function applyWizard(config) {
                 formatTzs(v, decimals = 0) {
                     return (window.formatMoney || ((x) => 'TZS ' + x))(v, { currency: 'TZS', decimals });
                 },
+
+                formatAmount(v, decimals = 0) {
+                    if (typeof window.formatNumber === 'function') {
+                        return window.formatNumber(v, decimals);
+                    }
+                    if (typeof window.formatMoney === 'function') {
+                        return window.formatMoney(v, { currency: 'TZS', decimals, withCode: false });
+                    }
+                    return String(v ?? 0);
+                },
             };
 }
 

@@ -177,7 +177,10 @@
                     <table class="min-w-full text-xs">
                         <thead class="bg-brand text-white">
                             <tr>
-                                <th class="px-4 py-2.5 text-left font-semibold">{{ __('borrower.apply.review_step.col_installment') }}</th>
+                                <th class="px-4 py-2.5 text-left font-semibold"
+                                    x-text="(reviewSummary.repayment_cadence || repaymentCadence()) === 'monthly'
+                                        ? @js(__('borrower.apply.review_step.col_month'))
+                                        : @js(__('borrower.apply.review_step.col_week'))"></th>
                                 <th class="px-4 py-2.5 text-left font-semibold" x-show="scheduleDatesAvailable">{{ __('borrower.apply.review_step.col_due_date') }}</th>
                                 <th class="px-4 py-2.5 text-right font-semibold">{{ __('borrower.apply.review_step.col_principal') }}</th>
                                 <th class="px-4 py-2.5 text-right font-semibold">{{ __('borrower.apply.review_step.col_interest') }}</th>
@@ -188,12 +191,12 @@
                         <tbody class="divide-y divide-gray-100">
                             <template x-for="row in repaymentSchedule" :key="row.installment_no">
                                 <tr class="hover:bg-brand-muted/20 transition">
-                                    <td class="px-4 py-2.5 font-medium" x-text="row.label || row.installment_no"></td>
+                                    <td class="px-4 py-2.5 font-medium tabular-nums" x-text="row.installment_no"></td>
                                     <td class="px-4 py-2.5 whitespace-nowrap" x-show="scheduleDatesAvailable" x-text="row.due_date"></td>
-                                    <td class="px-4 py-2.5 text-right tabular-nums" x-text="formatTzs(row.principal_due)"></td>
-                                    <td class="px-4 py-2.5 text-right tabular-nums" x-text="formatTzs(row.interest_due)"></td>
-                                    <td class="px-4 py-2.5 text-right font-semibold tabular-nums" x-text="formatTzs(row.total_due)"></td>
-                                    <td class="px-4 py-2.5 text-right tabular-nums text-gray-500" x-text="formatTzs(row.remaining_balance)"></td>
+                                    <td class="px-4 py-2.5 text-right tabular-nums" x-text="formatAmount(row.principal_due)"></td>
+                                    <td class="px-4 py-2.5 text-right tabular-nums" x-text="formatAmount(row.interest_due)"></td>
+                                    <td class="px-4 py-2.5 text-right font-semibold tabular-nums" x-text="formatAmount(row.total_due)"></td>
+                                    <td class="px-4 py-2.5 text-right tabular-nums text-gray-500" x-text="formatAmount(row.remaining_balance)"></td>
                                 </tr>
                             </template>
                         </tbody>
