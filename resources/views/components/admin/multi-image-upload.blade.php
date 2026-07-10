@@ -89,6 +89,19 @@
     @push('scripts')
         <script>
             (function () {
+                const IMAGE_EXT = /\.(jpe?g|png|webp)$/i;
+
+                function isImageFile(file) {
+                    if (!file) return false;
+                    if (file.type && file.type.startsWith('image/')) return true;
+                    // Chrome (esp. Windows) often leaves file.type empty for valid images.
+                    return IMAGE_EXT.test(file.name || '');
+                }
+
+                function fileKey(file) {
+                    return [file.name || '', file.size || 0, file.lastModified || 0].join(':');
+                }
+
                 function initMultiImageUpload(root) {
                     if (root.dataset.ready === '1') return;
                     root.dataset.ready = '1';
@@ -100,8 +113,28 @@
                     const previewGrid = root.querySelector('[data-preview-grid]');
                     const countLabel = root.querySelector('[data-count-label]');
                     const dropZone = root.querySelector('[data-drop-zone]');
+                    let rejectNotice = root.querySelector('[data-reject-notice]');
+                    if (!rejectNotice) {
+                        rejectNotice = document.createElement('p');
+                        rejectNotice.className = 'text-xs text-red-600 hidden';
+                        rejectNotice.setAttribute('data-reject-notice', '');
+                        if (dropZone && dropZone.parentNode) {
+                            dropZone.parentNode.insertBefore(rejectNotice, dropZone.nextSibling);
+                        }
+                    }
                     /** @type {{ file: File, url: string }[]} */
                     let pending = [];
+
+                    function setRejectNotice(message) {
+                        if (!rejectNotice) return;
+                        if (message) {
+                            rejectNotice.textContent = message;
+                            rejectNotice.classList.remove('hidden');
+                        } else {
+                            rejectNotice.textContent = '';
+                            rejectNotice.classList.add('hidden');
+                        }
+                    }
 
                     function removedCount() {
                         return root.querySelectorAll('[data-remove-toggle]:checked').length;
@@ -173,16 +206,42 @@
 
                     function addFiles(fileList) {
                         const slots = remainingSlots();
-                        Array.from(fileList || []).slice(0, slots).forEach(function (file) {
-                            if (!file.type || !file.type.startsWith('image/')) return;
-                            pending.push({ file: file, url: URL.createObjectURL(file) });
+                        const chosen = Array.from(fileList || []);
+                        if (!chosen.length) return;
+
+                        const known = {};
+                        pending.forEach(function (entry) {
+                            known[fileKey(entry.file)] = true;
                         });
+
+                        let accepted = 0;
+                        let rejected = 0;
+                        chosen.slice(0, slots + chosen.length).forEach(function (file) {
+                            if (accepted >= slots) return;
+                            if (!isImageFile(file)) {
+                                rejected += 1;
+                                return;
+                            }
+                            const key = fileKey(file);
+                            if (known[key]) return;
+                            known[key] = true;
+                            pending.push({ file: file, url: URL.createObjectURL(file) });
+                            accepted += 1;
+                        });
+
+                        if (accepted === 0 && rejected > 0) {
+                            setRejectNotice('Could not add those files. Use JPG, PNG, or WebP images.');
+                        } else {
+                            setRejectNotice('');
+                        }
+
                         syncPickerFiles();
                         renderPreviews();
                     }
 
                     if (picker) {
                         picker.addEventListener('change', function () {
+                            // Capture chosen files before we rewrite picker.files via DataTransfer.
                             const chosen = Array.from(picker.files || []);
                             addFiles(chosen);
                         });
@@ -217,6 +276,15 @@
                     if (form && picker && !picker.dataset.emptyGuard) {
                         picker.dataset.emptyGuard = '1';
                         form.addEventListener('submit', function () {
+                            syncPickerFiles();
+                            if (dropZone) {
+                                dropZone.classList.add('opacity-60', 'pointer-events-none');
+                                const hint = dropZone.querySelector('p');
+                                if (hint && !dropZone.dataset.saving) {
+                                    dropZone.dataset.saving = '1';
+                                    hint.textContent = 'Saving images…';
+                                }
+                            }
                             if (!picker.files || picker.files.length === 0) {
                                 picker.disabled = true;
                             }

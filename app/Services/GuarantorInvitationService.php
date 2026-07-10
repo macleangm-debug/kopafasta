@@ -575,8 +575,25 @@ class GuarantorInvitationService
             }
 
             $this->ensureShortCode($invitation);
-            $this->notifyExternalInvitation($borrower, $invitation, $displayName);
-            $this->notifyBorrowerInvitationSent($borrower, $invitation, $displayName);
+
+            $invitationId = (int) $invitation->id;
+            $borrowerId = (int) $borrower->id;
+            $sentInviteeName = $displayName;
+
+            DB::afterCommit(function () use ($invitationId, $borrowerId, $sentInviteeName): void {
+                $freshInvitation = GuarantorInvitation::query()->find($invitationId);
+                $freshBorrower = Customer::query()->find($borrowerId);
+                if (! $freshInvitation || ! $freshBorrower) {
+                    return;
+                }
+
+                try {
+                    $this->notifyExternalInvitation($freshBorrower, $freshInvitation, $sentInviteeName);
+                    $this->notifyBorrowerInvitationSent($freshBorrower, $freshInvitation, $sentInviteeName);
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            });
 
             return $this->sharePayload($invitation, $borrower);
         });
@@ -800,13 +817,17 @@ class GuarantorInvitationService
             'duration'  => $context['duration_label'],
         ]);
 
+        $actionUrl = $invitation->loan_application_id
+            ? route('site.borrower.application', $invitation->loan_application_id)
+            : route('site.borrower.loans', ['tab' => 'applications']);
+
         app(NotificationService::class)->notifyInApp(
             $borrower,
             $message,
             'guarantor',
             'guarantor_sent',
             __('borrower.guarantor_invite.notify_sent_title'),
-            route('site.borrower.application', $invitation->loan_application_id),
+            $actionUrl,
             __('borrower.notifications.view_application'),
         );
 

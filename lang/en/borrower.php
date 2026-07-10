@@ -2594,7 +2594,7 @@ return [
         'email_subject' => 'Guarantor invitation from :borrower',
         'in_app_request' => ':borrower asked you to guarantee their :product application (:amount, :duration). Review in Guarantor requests.',
         'guarantor_received' => 'You have received a guarantee request from :borrower for application :reference.',
-        'borrower_sent' => 'The guarantor for a :product loan application. Loan Amount: :amount Loan Duration: :duration to :guarantor has been sent successfully',
+        'borrower_sent' => 'The guarantor invitation for a :product loan application (Loan Amount: :amount, Loan Duration: :duration) to :guarantor has been sent successfully.',
         'borrower_declined' => ':guarantor declined your guarantor request.',
         'status_awaiting_registration' => 'Awaiting registration',
         'status_awaiting_response' => 'Awaiting response',

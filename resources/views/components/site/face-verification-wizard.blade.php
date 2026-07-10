@@ -71,20 +71,23 @@
                 <div class="px-5 sm:px-7 pb-2">
                     <p class="text-[10px] uppercase tracking-widest text-brand font-semibold mb-3">{{ __('borrower.nida.face_captured_photos') }}</p>
                     <div class="grid grid-cols-2 gap-3">
-                        <template x-for="(step, i) in steps" :key="'intro-' + step.key">
+                        <template x-for="(step, i) in steps" :key="'intro-' + step.key + '-' + (step.previewUrl || '')">
                             <div class="rounded-2xl overflow-hidden ring-1 ring-brand/10 bg-white">
-                                <div class="relative aspect-[3/4] bg-gradient-to-b from-brand-muted/40 to-gray-100">
-                                    <template x-if="step.done && step.previewUrl">
-                                        <img :src="step.previewUrl" :alt="step.label"
-                                             class="absolute inset-0 w-full h-full object-cover object-center">
-                                    </template>
+                                <button type="button"
+                                        class="relative aspect-[3/4] bg-gradient-to-b from-brand-muted/40 to-gray-100 w-full block text-left"
+                                        @click="step.done && step.previewUrl ? openPreview(step.previewUrl) : null"
+                                        :disabled="!(step.done && step.previewUrl)">
+                                    <img x-show="step.done && step.previewUrl"
+                                         :src="step.previewUrl"
+                                         :alt="step.label"
+                                         class="absolute inset-0 w-full h-full object-cover object-center">
                                     <div x-show="!step.done" class="absolute inset-0 flex flex-col items-center justify-center gap-1 text-xs text-gray-400">
                                         <span class="text-xl opacity-40" aria-hidden="true">◎</span>
                                         <span>{{ __('borrower.nida.face_not_captured') }}</span>
                                     </div>
                                     <div x-show="step.done" class="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/55 to-transparent pointer-events-none"></div>
                                     <p x-show="step.done" class="absolute bottom-2 left-2 right-2 text-[11px] font-semibold text-white drop-shadow-sm truncate" x-text="step.label"></p>
-                                </div>
+                                </button>
                                 <div x-show="step.done" class="p-2 flex gap-2 border-t border-gray-100">
                                     <button type="button" @click="retakeStep(i)" :disabled="isRemoving"
                                             class="flex-1 text-[11px] font-semibold px-2 py-2 rounded-xl bg-brand-muted/60 hover:bg-brand-muted text-brand disabled:opacity-50">
@@ -121,7 +124,24 @@
         class="relative rounded-3xl overflow-hidden bg-black w-full min-h-[70vh] max-h-[80vh] shadow-2xl ring-1 ring-gray-800"
     >
         <video x-ref="video" autoplay playsinline webkit-playsinline muted class="absolute inset-0 z-[1] w-full h-full object-cover mirror bg-gray-900"></video>
-        <canvas x-ref="overlay" class="absolute inset-0 z-[2] w-full h-full pointer-events-none mirror"></canvas>
+        <canvas x-ref="overlay" class="absolute inset-0 z-[2] w-full h-full pointer-events-none"></canvas>
+
+        {{-- Captured thumbs during scan — retake without leaving the camera --}}
+        <div x-show="steps.some(s => s.done)" class="absolute bottom-28 inset-x-0 z-[5] px-3 pointer-events-auto">
+            <div class="flex gap-2 overflow-x-auto justify-center pb-1">
+                <template x-for="(step, i) in steps" :key="'scan-thumb-' + step.key + '-' + (step.previewUrl || '')">
+                    <div x-show="step.done && step.previewUrl" class="relative shrink-0">
+                        <button type="button" @click="openPreview(step.previewUrl)"
+                                class="block size-14 rounded-xl overflow-hidden ring-2 ring-white/80 shadow-lg bg-black/40">
+                            <img :src="step.previewUrl" :alt="step.label" class="w-full h-full object-cover object-center">
+                        </button>
+                        <button type="button" @click="retakeStep(i)" :disabled="isRemoving || isUploading"
+                                class="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-brand-gold text-brand text-[10px] font-bold grid place-items-center shadow disabled:opacity-50"
+                                :title="@js(__('borrower.nida.face_retake'))">↻</button>
+                    </div>
+                </template>
+            </div>
+        </div>
 
         {{-- Live preview label --}}
         <div class="absolute top-12 left-1/2 -translate-x-1/2 z-[3] pointer-events-none">
@@ -226,14 +246,17 @@
                 <p class="text-sm text-gray-500 mt-1">{{ __('borrower.face_verification_page.review_all_hint') }}</p>
             </div>
             <div class="grid grid-cols-2 gap-3 p-5">
-                <template x-for="(step, i) in steps" :key="step.key">
+                <template x-for="(step, i) in steps" :key="'review-' + step.key + '-' + (step.previewUrl || '')">
                     <div class="rounded-2xl overflow-hidden ring-1 ring-brand/10 bg-white">
-                        <div class="relative aspect-[3/4] bg-gradient-to-b from-brand-muted/40 to-gray-100">
+                        <button type="button"
+                                class="relative aspect-[3/4] bg-gradient-to-b from-brand-muted/40 to-gray-100 w-full block text-left"
+                                @click="step.previewUrl ? openPreview(step.previewUrl) : null"
+                                :disabled="!step.previewUrl">
                             <img x-show="step.previewUrl" :src="step.previewUrl" :alt="step.label"
                                  class="absolute inset-0 w-full h-full object-cover object-center">
                             <div class="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/55 to-transparent pointer-events-none"></div>
                             <p class="absolute bottom-2 left-2 right-2 text-[11px] font-semibold text-white drop-shadow-sm truncate" x-text="step.label"></p>
-                        </div>
+                        </button>
                         <div class="p-2 flex gap-2 border-t border-gray-100">
                             <button type="button" @click="retakeStep(i)" :disabled="isRemoving"
                                     class="flex-1 text-[11px] font-semibold px-2 py-2 rounded-xl bg-brand-muted/60 hover:bg-brand-muted text-brand disabled:opacity-50">
@@ -274,6 +297,18 @@
     <p class="text-xs text-gray-400 text-center mt-4" x-show="phase !== 'done'">
         {{ __('borrower.face_verification_page.privacy_note') }}
     </p>
+
+    {{-- Expandable photo lightbox --}}
+    <div x-show="expandedPreviewUrl" x-cloak
+         class="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4"
+         @keydown.escape.window="closePreview()"
+         @click.self="closePreview()">
+        <button type="button" @click="closePreview()"
+                class="absolute top-4 right-4 size-10 rounded-full bg-white/15 hover:bg-white/25 text-white text-xl grid place-items-center"
+                aria-label="{{ __('borrower.face_verification_page.cancel') }}">×</button>
+        <img :src="expandedPreviewUrl" alt=""
+             class="max-h-[90vh] max-w-[95vw] rounded-2xl object-contain shadow-2xl ring-1 ring-white/20">
+    </div>
 </div>
 
 @once
@@ -311,6 +346,7 @@
                     isSubmitting: false,
                     previewUrl: null,
                     previewBlob: null,
+                    expandedPreviewUrl: null,
                     scanStartedAt: null,
                     stepStartedAt: null,
                     simpleMode: false,
@@ -437,10 +473,33 @@
 
                     async retakeStep(index) {
                         if (this.isRemoving || this.isUploading || this.isSubmitting) return;
+                        this.closePreview();
                         this.stepIndex = index;
                         this.holdProgress = 0;
                         this.notice = null;
                         await this.startScan();
+                    },
+
+                    openPreview(url) {
+                        if (!url) return;
+                        this.expandedPreviewUrl = url;
+                    },
+
+                    closePreview() {
+                        this.expandedPreviewUrl = null;
+                    },
+
+                    waitForImage(url) {
+                        return new Promise((resolve) => {
+                            if (!url) {
+                                resolve(false);
+                                return;
+                            }
+                            const img = new Image();
+                            img.onload = () => resolve(true);
+                            img.onerror = () => resolve(false);
+                            img.src = url;
+                        });
                     },
 
                     async removePhoto(angle) {
@@ -720,11 +779,14 @@
                         overlay.width = video.videoWidth;
                         overlay.height = video.videoHeight;
                         const ctx = overlay.getContext('2d');
+                        // Video is CSS-mirrored; overlay is not — mirror X so the box tracks the face.
+                        const x = video.videoWidth - box.originX - box.width;
+                        const y = box.originY;
                         ctx.strokeStyle = ok ? '#34d399' : '#fbbf24';
                         ctx.lineWidth = Math.max(3, video.videoWidth / 180);
-                        ctx.strokeRect(box.originX, box.originY, box.width, box.height);
+                        ctx.strokeRect(x, y, box.width, box.height);
                         ctx.fillStyle = ok ? 'rgba(52,211,153,0.15)' : 'rgba(251,191,36,0.12)';
-                        ctx.fillRect(box.originX, box.originY, box.width, box.height);
+                        ctx.fillRect(x, y, box.width, box.height);
                     },
 
                     poseFromBBox(box, video, step) {
@@ -882,8 +944,10 @@
                             step.done = true;
                             // Prefer the persisted server URL so the grid stays visible after we
                             // release the temporary blob preview (revoking the blob blanked images).
+                            const blobToRelease = this.previewUrl;
                             if (data.previewUrl) {
                                 step.previewUrl = data.previewUrl;
+                                await this.waitForImage(data.previewUrl);
                             } else if (this.previewUrl && !String(this.previewUrl).startsWith('blob:')) {
                                 step.previewUrl = this.previewUrl;
                             } else if (this.previewUrl) {
@@ -896,7 +960,6 @@
 
                             await new Promise(r => setTimeout(r, 700));
 
-                            const blobToRelease = this.previewUrl;
                             this.previewUrl = null;
                             this.previewBlob = null;
                             if (blobToRelease && String(blobToRelease).startsWith('blob:') && step.previewUrl !== blobToRelease) {

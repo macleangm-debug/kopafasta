@@ -122,4 +122,57 @@ class PaymentAccountProfileFeatureTest extends TestCase
             ->assertSee(__('borrower.payment_details.method_mobile'), false)
             ->assertSee(__('borrower.payment_details.method_bank'), false);
     }
+
+    public function test_borrower_can_add_mobile_money_payment_account_with_return_url(): void
+    {
+        $customer = $this->borrower();
+        $return = route('site.borrower.apply', [
+            'product'  => 6,
+            'resume'   => 1,
+            'step_key' => 'submit',
+        ]);
+
+        $this->actingAs($customer->user)
+            ->put(route('site.borrower.profile.update', ['section' => 'payment', 'return' => $return]), [
+                'type'            => 'mobile_money',
+                'mobile_provider' => 'mpesa',
+                'mobile_number'   => '0712345678',
+                'account_name'    => 'Payment Borrower',
+                'return'          => $return,
+            ])
+            ->assertRedirect($return)
+            ->assertSessionHas('status');
+
+        $this->assertDatabaseHas('customer_disbursement_accounts', [
+            'customer_id'     => $customer->id,
+            'type'            => 'mobile_money',
+            'mobile_provider' => 'mpesa',
+            'mobile_number'   => '255712345678',
+            'is_default'      => true,
+        ]);
+    }
+
+    public function test_borrower_can_add_bank_payment_account(): void
+    {
+        $customer = $this->borrower();
+
+        $this->actingAs($customer->user)
+            ->put(route('site.borrower.profile.update', ['section' => 'payment']), [
+                'type'           => 'bank',
+                'bank_name'      => 'CRDB',
+                'account_number' => '1234567890',
+                'bank_branch'    => 'Kariakoo',
+                'account_name'   => 'Payment Borrower',
+            ])
+            ->assertRedirect(route('site.borrower.profile', ['section' => 'payment']))
+            ->assertSessionHas('status');
+
+        $this->assertDatabaseHas('customer_disbursement_accounts', [
+            'customer_id'    => $customer->id,
+            'type'           => 'bank',
+            'bank_name'      => 'CRDB',
+            'account_number' => '1234567890',
+            'is_default'     => true,
+        ]);
+    }
 }

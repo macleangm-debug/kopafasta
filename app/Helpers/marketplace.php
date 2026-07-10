@@ -1,7 +1,5 @@
 <?php
 
-use Illuminate\Support\Facades\Storage;
-
 if (! function_exists('marketplace_photo_url')) {
     function marketplace_photo_url(?string $path): ?string
     {
@@ -13,7 +11,7 @@ if (! function_exists('marketplace_photo_url')) {
             return $path;
         }
 
-        return Storage::url($path);
+        return asset('storage/'.ltrim($path, '/'));
     }
 }
 

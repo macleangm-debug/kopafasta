@@ -192,7 +192,9 @@ class CustomerDisbursementDetailsService
         }
 
         $type = (string) ($data['type'] ?? '');
-        $isFirst = ! $this->accountsForCustomer($customer)->exists();
+        $isFirst = ! CustomerDisbursementAccount::query()
+            ->where('customer_id', $customer->id)
+            ->exists();
 
         $account = CustomerDisbursementAccount::create([
             'customer_id'      => $customer->id,

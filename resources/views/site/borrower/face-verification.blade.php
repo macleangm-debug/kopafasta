@@ -125,6 +125,4 @@
     @if ($wizardMode ?? false)
         @include('site.borrower.profile._wizard_footer', ['customer' => $customer, 'wizardMode' => true, 'wizardKey' => $wizardKey ?? 'face'])
     @endif
-
-    @stack('scripts')
 </x-site.borrower-layout>

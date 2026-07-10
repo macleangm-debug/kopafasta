@@ -327,6 +327,4 @@
 
         @include('site.borrower.profile._wizard_footer', ['customer' => $customer, 'wizardMode' => $wizardMode ?? false, 'wizardKey' => $wizardKey ?? 'nida'])
     </div>
-
-    @stack('scripts')
 </x-site.borrower-layout>

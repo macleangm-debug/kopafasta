@@ -2645,7 +2645,7 @@ return [
     'email_subject' => 'Mwaliko wa mdhamini kutoka :borrower',
     'in_app_request' => ':borrower amekuomba udhamini ombi lao la :product (:amount, :duration]. Kagua kwenye Maombi ya mdhamini.',
     'guarantor_received' => 'Umepokea ombi la dhamana kutoka :borrower kwa ombi :reference.',
-    'borrower_sent' => 'Mdhamini wa ombi la mkopo wa :product. Kiasi cha mkopo: :amount Muda wa mkopo: :duration kwa :guarantor ametumwa kwa mafanikio',
+    'borrower_sent' => 'Mwaliko wa mdhamini kwa ombi la mkopo wa :product (Kiasi: :amount, Muda: :duration) kwa :guarantor umetumwa kwa mafanikio.',
     'borrower_declined' => ':guarantor amekataa ombi lako la mdhamini.',
     'status_awaiting_registration' => 'Inasubiri usajili',
     'status_awaiting_response' => 'Inasubiri jibu',

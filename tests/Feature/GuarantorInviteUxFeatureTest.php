@@ -223,4 +223,43 @@ class GuarantorInviteUxFeatureTest extends TestCase
         );
         $this->assertStringContainsString('Alice', (string) $hero['subtitle']);
     }
+
+    public function test_wizard_external_guarantor_invite_succeeds_without_application(): void
+    {
+        $borrower = $this->makeCustomer('30');
+        $product = $this->loanProduct();
+
+        $response = $this->actingAs($borrower->user)
+            ->postJson(route('site.borrower.apply.guarantor-invite'), [
+                'loan_product_id'       => $product->id,
+                'external_first_name'   => 'Jane',
+                'external_last_name'    => 'Guarantor',
+                'external_phone'        => '0712345699',
+                'external_relationship' => 'friend',
+                'external_region'       => 'Dar es Salaam',
+                'external_district'     => 'Kinondoni',
+                'external_channel'      => 'sms',
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonStructure(['share' => ['invitation_url', 'invitation_id', 'short_url']]);
+
+        $this->assertDatabaseHas('guarantor_invitations', [
+            'customer_id'         => $borrower->id,
+            'loan_application_id' => null,
+            'type'                => 'external',
+            'status'              => 'pending',
+            'invitee_name'        => 'Jane Guarantor',
+        ]);
+
+        $sent = NotificationLog::query()
+            ->where('customer_id', $borrower->id)
+            ->where('template', 'guarantor_sent')
+            ->first();
+
+        $this->assertNotNull($sent);
+        $this->assertStringContainsString('sent successfully', (string) $sent->message);
+        $this->assertStringStartsWith('/borrower/loans', (string) $sent->recipient);
+    }
 }
