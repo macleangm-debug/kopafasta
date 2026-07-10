@@ -172,6 +172,19 @@ class SmartLoanApplicationWizardService
         return $steps;
     }
 
+    /**
+     * Short plan used when underwriting asks the borrower to add another guarantor.
+     *
+     * @return list<array{key: string, label: string, skippable: bool, skipped: bool}>
+     */
+    public function guarantorSupplementStepPlan(): array
+    {
+        return [
+            ['key' => 'guarantor', 'label' => __('borrower.apply.steps.guarantor'), 'skippable' => false, 'skipped' => false],
+            ['key' => 'submit', 'label' => __('borrower.apply.steps.submit'), 'skippable' => false, 'skipped' => false],
+        ];
+    }
+
     /** @return list<array{key: string, label: string}> */
     public function adminStepLabels(): array
     {

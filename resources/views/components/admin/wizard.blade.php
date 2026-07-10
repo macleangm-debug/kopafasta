@@ -207,6 +207,13 @@
                 if (form && ! form.dataset.submitGuard) {
                     form.dataset.submitGuard = '1';
                     form.addEventListener('submit', function () {
+                        // File inputs inside [hidden] wizard steps are skipped by some browsers.
+                        // Reveal every step for the duration of submit so photos POST correctly.
+                        stepEls.forEach(function (el) {
+                            el.hidden = false;
+                            el.classList.remove('hidden');
+                        });
+
                         const activeSubmit = root.querySelector('[data-wizard-submit]');
                         [activeSubmit, nextBtn, backBtn].forEach(function (button) {
                             if (! button || button.hidden) {

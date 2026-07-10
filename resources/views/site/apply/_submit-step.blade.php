@@ -6,7 +6,14 @@
         :subtitle="__('borrower.apply.submit_step.subtitle')"
     />
 
-    <div class="rounded-2xl bg-emerald-50 ring-1 ring-emerald-200 px-5 py-5 mb-6">
+    <x-site.kyc-gate-banner :apply-requirements="$applyRequirements ?? null" variant="submit" class="mb-6" />
+
+    <div x-show="supplementMode" x-cloak class="rounded-2xl bg-sky-50 ring-1 ring-sky-200 px-5 py-4 text-sm text-sky-900 mb-6">
+        <p class="font-semibold">{{ __('borrower.apply.submit_step.supplement_title') }}</p>
+        <p class="mt-1 text-sky-800">{{ __('borrower.apply.submit_step.supplement_hint') }}</p>
+    </div>
+
+    <div x-show="canApply && !supplementMode" x-cloak class="rounded-2xl bg-emerald-50 ring-1 ring-emerald-200 px-5 py-5 mb-6">
         <div class="flex items-start gap-3">
             <span class="size-10 rounded-full bg-emerald-100 text-emerald-700 grid place-items-center text-lg shrink-0">✓</span>
             <div>

@@ -86,26 +86,52 @@ class FaceVerificationService
 
             $progress = $this->progress($customer->fresh());
 
-            if ($progress['complete']) {
+            // Keep status editable until the borrower explicitly submits for review.
+            if ($customer->face_verification_status !== 'verified') {
                 $customer->update([
-                    'face_verification_status' => 'pending',
+                    'face_verification_status' => 'incomplete',
                     'face_verified_at'         => null,
-                    'face_rejection_notes'     => null,
                 ]);
-
-                $kyc = $customer->kyc ?? CustomerKyc::firstOrCreate(
-                    ['customer_id' => $customer->id],
-                    ['status' => 'pending', 'payload' => []]
-                );
-
-                if (in_array($kyc->status, ['pending', 'rejected'], true)) {
-                    $kyc->update(['status' => 'in_review']);
-                }
-            } elseif ($customer->face_verification_status !== 'verified') {
-                $customer->update(['face_verification_status' => 'incomplete']);
             }
 
             return $record;
+        });
+    }
+
+    /**
+     * Lock photos for admin review after the borrower confirms on the final step.
+     */
+    public function submit(Customer $customer): void
+    {
+        $progress = $this->progress($customer);
+
+        if (! $progress['complete']) {
+            throw new \InvalidArgumentException('Upload all required face photos before submitting.');
+        }
+
+        if ($this->isVerified($customer)) {
+            throw new \InvalidArgumentException('Your face verification is already approved.');
+        }
+
+        if ($customer->face_verification_status === 'pending') {
+            throw new \InvalidArgumentException('Your photos are already under review.');
+        }
+
+        DB::transaction(function () use ($customer): void {
+            $customer->update([
+                'face_verification_status' => 'pending',
+                'face_verified_at'         => null,
+                'face_rejection_notes'     => null,
+            ]);
+
+            $kyc = $customer->kyc ?? CustomerKyc::firstOrCreate(
+                ['customer_id' => $customer->id],
+                ['status' => 'pending', 'payload' => []]
+            );
+
+            if (in_array($kyc->status, ['pending', 'rejected'], true)) {
+                $kyc->update(['status' => 'in_review']);
+            }
         });
     }
 
@@ -131,8 +157,11 @@ class FaceVerificationService
             $customer->refresh();
             $progress = $this->progress($customer);
 
-            if (! $progress['complete'] && in_array($customer->face_verification_status, ['pending', 'incomplete'], true)) {
-                $customer->update(['face_verification_status' => 'incomplete']);
+            if (! $progress['complete'] && in_array($customer->face_verification_status, ['pending', 'incomplete', 'rejected', 'revision_required'], true)) {
+                $customer->update([
+                    'face_verification_status' => 'incomplete',
+                    'face_rejection_notes'     => null,
+                ]);
             }
         });
     }
@@ -161,7 +190,9 @@ class FaceVerificationService
                     default => 'front',
                 },
                 'done'        => $photo !== null && ($photo->status ?? '') !== 'rejected',
-                'previewUrl'  => $photo?->file_path ? asset('storage/'.$photo->file_path) : null,
+                'previewUrl'  => ($photo !== null && ($photo->status ?? '') !== 'rejected' && $photo->file_path)
+                    ? asset('storage/'.$photo->file_path)
+                    : null,
             ];
         })->values()->all();
     }

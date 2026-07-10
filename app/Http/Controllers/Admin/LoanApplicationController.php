@@ -250,6 +250,27 @@ class LoanApplicationController extends ResourceController
         ));
     }
 
+    public function requestGuarantorSupplement(Request $request, LoanApplication $loan_application): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.view'), 403);
+
+        $data = $request->validate([
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        try {
+            app(\App\Services\GuarantorSupplementService::class)->request(
+                $loan_application,
+                $request->user(),
+                $data['notes'] ?? null,
+            );
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('status', __('borrower.guarantor_supplement.admin_success'));
+    }
+
     public function runWorkflow(Request $request, LoanApplication $loan_application, LoanApplicationWorkflowService $workflow): RedirectResponse
     {
         abort_unless(auth()->user()?->hasPermission('applications.view'), 403);

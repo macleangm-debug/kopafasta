@@ -81,6 +81,22 @@ class ApplyController extends Controller
             }
         }
 
+        $supplementApplication = null;
+        $supplementMode = false;
+        if ($request->boolean('guarantor_supplement') && $request->filled('application') && $customer) {
+            $supplementApplication = LoanApplication::query()
+                ->where('customer_id', $customer->id)
+                ->find($request->query('application'));
+
+            if ($supplementApplication && app(\App\Services\GuarantorSupplementService::class)->hasOpenRequest($supplementApplication)) {
+                $supplementMode = true;
+                $preselect = $supplementApplication->loan_product_id;
+                $request->merge(['resume' => 1, 'step_key' => 'guarantor']);
+            } else {
+                $supplementApplication = null;
+            }
+        }
+
         if ($preselect) {
             $preselectedProduct = LoanProduct::where('is_active', true)
                 ->where(function ($query) use ($preselect) {
@@ -93,6 +109,9 @@ class ApplyController extends Controller
         }
 
         $selectedProduct = $preselect ? $products->firstWhere('id', (int) $preselect) : null;
+        if (! $selectedProduct && $preselectedProduct) {
+            $selectedProduct = $preselectedProduct;
+        }
         $reservation = null;
         $assetApplication = null;
         if ($request->filled('reservation') && $customer) {
@@ -101,7 +120,7 @@ class ApplyController extends Controller
                 ->with('asset')
                 ->find($request->query('reservation'));
         }
-        if ($preselectedProduct && is_marketplace_loan_product($preselectedProduct->code) && ! $reservation) {
+        if (! $supplementMode && $preselectedProduct && is_marketplace_loan_product($preselectedProduct->code) && ! $reservation) {
             return redirect()
                 ->route('site.borrower.marketplace')
                 ->with('status', __('borrower.marketplace.subtitle'));
@@ -149,7 +168,9 @@ class ApplyController extends Controller
             ];
         }
 
-        $stepPlan = collect($wizard->borrowerStepPlan($customer, $selectedProduct))
+        $stepPlan = collect($supplementMode
+                ? $wizard->guarantorSupplementStepPlan()
+                : $wizard->borrowerStepPlan($customer, $selectedProduct))
             ->reject(fn (array $step) => $step['key'] === 'product')
             ->values()
             ->all();
@@ -162,6 +183,26 @@ class ApplyController extends Controller
             ? $drafts->payloadForWizard($customer, (int) $request->query('product'))
             : $drafts->payloadForWizard($customer);
 
+        if ($supplementMode && $supplementApplication) {
+            $savedDraft = [
+                'loan_product_id' => $supplementApplication->loan_product_id,
+                'phase' => 'application',
+                'step_key' => 'guarantor',
+                'form' => [
+                    'loan_product_id' => $supplementApplication->loan_product_id,
+                    'requested_amount' => (float) $supplementApplication->requested_amount,
+                    'requested_tenure_months' => (int) $supplementApplication->requested_tenure_months,
+                    'purpose' => $supplementApplication->purpose ?? 'business',
+                ],
+                'resume_target' => [
+                    'phase' => 'application',
+                    'step_key' => 'guarantor',
+                ],
+                'supplement_mode' => true,
+                'supplement_application_id' => $supplementApplication->id,
+            ];
+        }
+
         $applyReturnUrl = route('site.borrower.apply', array_filter([
             'product'  => $request->filled('product') ? (int) $request->query('product') : ($selectedProduct?->id ?? null),
             'resume'   => 1,
@@ -169,16 +210,16 @@ class ApplyController extends Controller
         ]));
         $applyRequirements = $requirements->checklistForApply($customer, $applyReturnUrl);
 
-        $isResume = $request->boolean('resume');
+        $isResume = $request->boolean('resume') || $supplementMode;
 
-        if ($isResume && ! $savedDraft && $request->filled('product')) {
+        if ($isResume && ! $savedDraft && $request->filled('product') && ! $supplementMode) {
             $draft = $drafts->find($customer, (int) $request->query('product'));
             if ($draft && in_array($draft->phase, ['details', 'application'], true)) {
                 $savedDraft = $drafts->payloadForWizard($customer, (int) $request->query('product'));
             }
         }
 
-        if ($isResume && ! $savedDraft) {
+        if ($isResume && ! $savedDraft && ! $supplementMode) {
             return redirect()
                 ->route('site.borrower.loans', ['tab' => 'applications'])
                 ->with('error', __('borrower.applications_list.resume_not_found'));
@@ -187,6 +228,7 @@ class ApplyController extends Controller
         $hasWizardContext = $preselect
             || $reservation
             || $isResume
+            || $supplementMode
             || ($savedDraft && ! empty($savedDraft['loan_product_id']));
 
         if (! $hasWizardContext) {
@@ -277,6 +319,8 @@ class ApplyController extends Controller
             'pointsBalance',
             'activeRewards',
             'loyaltyRateDiscount',
+            'supplementMode',
+            'supplementApplication',
         ))->with('paymentGatewayDummy', payment_gateway_is_dummy())
             ->with('loanPurposes', loan_purpose_options())
             ->with('marketplaceOnlyCodes', marketplace_only_loan_codes())
@@ -1183,6 +1227,11 @@ class ApplyController extends Controller
 
         $this->mergeDraftIntoSubmitRequest($request, $draft);
 
+        // Underwriting asked for another guarantor — attach to existing application only.
+        if ($request->filled('supplement_application_id')) {
+            return $this->submitGuarantorSupplement($request, $customer, $guarantors, $faces, $freshness, $requirements);
+        }
+
         $returnUrl = route('site.borrower.apply', array_filter([
             'product'  => (int) $loanProduct->id,
             'resume'   => 1,
@@ -1778,6 +1827,100 @@ class ApplyController extends Controller
     }
 
     /** @return list<array{bank: string, account_name: string, account_number: string, branch: ?string, reference: string, instructions: ?string}> */
+    private function submitGuarantorSupplement(
+        Request $request,
+        Customer $customer,
+        GuarantorInvitationService $guarantors,
+        FaceVerificationService $faces,
+        KycFreshnessService $freshness,
+        ApplicationRequirementsService $requirements,
+    ): RedirectResponse {
+        $application = LoanApplication::query()
+            ->where('customer_id', $customer->id)
+            ->findOrFail((int) $request->input('supplement_application_id'));
+
+        $supplements = app(\App\Services\GuarantorSupplementService::class);
+        if (! $supplements->hasOpenRequest($application)) {
+            return redirect()
+                ->route('site.borrower.application', $application)
+                ->with('error', __('borrower.guarantor_supplement.submitted'));
+        }
+
+        $returnUrl = $supplements->borrowerWizardUrl($application);
+        $checklist = $requirements->checklistForApply($customer, $returnUrl);
+        if (! $checklist['can_apply']) {
+            $actionUrl = $checklist['first_action_url']
+                ?? route('site.borrower.profile', ['section' => 'personal']);
+
+            return redirect()->to($actionUrl)->with('error', __('borrower.apply.kyc_incomplete_submit'));
+        }
+
+        if (! $faces->profileStepComplete($customer) || ! $freshness->canApply($customer)) {
+            return redirect()->to($returnUrl)->with('error', __('borrower.apply.kyc_incomplete_submit'));
+        }
+
+        $data = $request->all();
+        $mode = $data['guarantor_mode'] ?? 'none';
+
+        try {
+            if ($mode === 'internal' || $mode === 'previous') {
+                $memberKey = \App\Support\MemberNumberFormatter::lookupKey($data['internal_member_no'] ?? '');
+                if (! $memberKey || blank($data['internal_guarantor_name'] ?? null)) {
+                    throw new \InvalidArgumentException(__('borrower.apply.alerts.select_guarantor'));
+                }
+                $guarantors->attachInternal(
+                    $customer,
+                    $application,
+                    $memberKey,
+                    $data['internal_guarantor_phone'] ?? '',
+                    $data['internal_guarantor_name'] ?? '',
+                );
+            } elseif ($mode === 'external') {
+                $inviteId = (int) ($data['external_invitation_id'] ?? 0);
+                if ($inviteId > 0) {
+                    $guarantors->finalizeWizardExternalInvitation($customer, $application, $inviteId);
+                } else {
+                    $first = trim($data['external_first_name'] ?? '');
+                    $last = trim($data['external_last_name'] ?? '');
+                    if ($first === '' || $last === '' || blank($data['external_phone'] ?? null)) {
+                        throw new \InvalidArgumentException(__('borrower.apply.alerts.select_guarantor'));
+                    }
+                    $guarantors->attachExternal(
+                        $customer,
+                        $application,
+                        $first,
+                        trim($data['external_middle_name'] ?? ''),
+                        $last,
+                        $data['external_phone'],
+                        $data['external_email'] ?? null,
+                        $data['external_relationship'] ?? '',
+                        $data['external_region'] ?? '',
+                        $data['external_district'] ?? '',
+                        $data['external_channel'] ?? 'whatsapp',
+                    );
+                }
+            } else {
+                throw new \InvalidArgumentException(__('borrower.apply.alerts.select_guarantor'));
+            }
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->to($returnUrl)->withInput()->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()->to($returnUrl)->withInput()->with('error', __('borrower.apply.alerts.guarantor_lookup_failed'));
+        }
+
+        $supplements->markSatisfied($application);
+
+        $this->auditBorrower('application.guarantor_supplement_submitted', $application, [
+            'mode' => $mode,
+        ]);
+
+        return redirect()
+            ->route('site.borrower.application', $application)
+            ->with('status', __('borrower.guarantor_supplement.submitted'));
+    }
+
     private function paymentBankAccountsForProduct(?LoanProduct $product, ?string $reference): array
     {
         $ref = $reference ?? app(\App\Services\CustomerPaymentService::class)->generateReference();

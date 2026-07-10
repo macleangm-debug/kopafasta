@@ -99,6 +99,22 @@
 
 @include('site.borrower.loan-profile._schedule_preview', ['profile' => $profile])
 
+@php
+    $guarantorSupplementOpen = app(\App\Services\GuarantorSupplementService::class)->hasOpenRequest($application);
+@endphp
+@if ($guarantorSupplementOpen)
+    <div class="mb-6 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+            <p class="text-sm font-semibold text-amber-900">{{ __('borrower.guarantor_supplement.borrower_banner') }}</p>
+            <p class="text-xs text-amber-800 mt-1">{{ __('borrower.apply.submit_step.supplement_hint') }}</p>
+        </div>
+        <a href="{{ app(\App\Services\GuarantorSupplementService::class)->borrowerWizardUrl($application) }}"
+           class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2.5 rounded-full text-sm">
+            {{ __('borrower.guarantor_supplement.cta') }}
+        </a>
+    </div>
+@endif
+
 @if (($application->product?->requires_guarantor ?? false) && ($guarantorInvitations->isNotEmpty() || ($application->customerGuarantors ?? collect())->isNotEmpty()))
     <div class="glass-card overflow-hidden mb-6">
         <div class="px-5 py-4 border-b border-gray-200">

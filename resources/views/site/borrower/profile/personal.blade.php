@@ -12,14 +12,16 @@
 
         @php
             $locked = (bool) $customer->identity_locked;
+            $nidaSaved = filled($customer->national_id);
+            $nidaReadonly = $locked || $nidaSaved;
             $editing = ($wizardMode ?? false) || ($editing ?? false);
             $requireIdentityDuringProfile = app(\App\Services\ProfileCompletionService::class)->identityRequiredDuringProfile();
             $nidaDocs = $nidaDocuments ?? collect();
             $nidaFront = $nidaDocs->get('national_id_front');
             $nidaBack = $nidaDocs->get('national_id_back');
-            $hasIdentity = filled($customer->national_id) && (
-                ! $requireIdentityDuringProfile
-                || (app(\App\Services\ProfileValidationService::class)->nationalIdUploadsComplete($customer))
+            $uploadsComplete = app(\App\Services\ProfileValidationService::class)->nationalIdUploadsComplete($customer);
+            $hasIdentity = $nidaSaved && (
+                ! $requireIdentityDuringProfile || $uploadsComplete
             );
             $readonly = 'w-full rounded-lg border-gray-200 bg-gray-50 ring-1 ring-gray-200 px-3 py-2 text-sm';
             $editable = 'w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2 text-sm';
@@ -83,34 +85,30 @@
                     :empty="! $hasIdentity"
                     :default-open="$focusHash === 'identity'">
                     <x-slot:view>
-                        @if (filled($customer->national_id))
+                        @if ($nidaSaved)
                             <div class="flex flex-wrap items-start justify-between gap-3">
                                 <div>
                                     <p class="text-lg font-mono font-semibold text-gray-900">{{ $customer->national_id }}</p>
-                                    @if ($locked)
-                                        <p class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
-                                            <span aria-hidden="true">🔒</span>{{ __('borrower.nida.locked_title') }}
-                                        </p>
-                                        <p class="text-xs text-gray-500 mt-1">{{ __('borrower.nida.locked_hint') }}</p>
-                                    @endif
+                                    <p class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                                        <span aria-hidden="true">🔒</span>{{ $locked ? __('borrower.nida.locked_title') : __('borrower.nida.saved_locked_title') }}
+                                    </p>
+                                    <p class="text-xs text-gray-500 mt-1">{{ $locked ? __('borrower.nida.locked_hint') : __('borrower.nida.saved_locked_hint') }}</p>
                                 </div>
                             </div>
-                            @if ($requireIdentityDuringProfile)
-                                <dl class="mt-4 grid sm:grid-cols-2 gap-3 text-sm">
-                                    <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
-                                        <dt class="text-xs text-gray-500">{{ __('borrower.profile.nida_front') }}</dt>
-                                        <dd class="mt-1 font-semibold {{ $nidaFront ? 'text-emerald-700' : 'text-amber-700' }}">
-                                            {{ $nidaFront ? __('borrower.profile.uploaded') : __('borrower.profile.missing') }}
-                                        </dd>
-                                    </div>
-                                    <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
-                                        <dt class="text-xs text-gray-500">{{ __('borrower.profile.nida_back') }}</dt>
-                                        <dd class="mt-1 font-semibold {{ $nidaBack ? 'text-emerald-700' : 'text-amber-700' }}">
-                                            {{ $nidaBack ? __('borrower.profile.uploaded') : __('borrower.profile.missing') }}
-                                        </dd>
-                                    </div>
-                                </dl>
-                            @endif
+                            <dl class="mt-4 grid sm:grid-cols-2 gap-3 text-sm">
+                                <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
+                                    <dt class="text-xs text-gray-500">{{ __('borrower.profile.nida_front') }}</dt>
+                                    <dd class="mt-1 font-semibold {{ $nidaFront ? 'text-emerald-700' : 'text-amber-700' }}">
+                                        {{ $nidaFront ? __('borrower.profile.uploaded') : __('borrower.profile.missing') }}
+                                    </dd>
+                                </div>
+                                <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
+                                    <dt class="text-xs text-gray-500">{{ __('borrower.profile.nida_back') }}</dt>
+                                    <dd class="mt-1 font-semibold {{ $nidaBack ? 'text-emerald-700' : 'text-amber-700' }}">
+                                        {{ $nidaBack ? __('borrower.profile.uploaded') : __('borrower.profile.missing') }}
+                                    </dd>
+                                </div>
+                            </dl>
                         @else
                             <p class="text-sm text-gray-500">{{ __('borrower.profile.section_empty') }}</p>
                             <button type="button" @click="open = true" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
@@ -120,10 +118,10 @@
                         @endunless
                     </x-slot:view>
                     <x-slot:form>
-                        @if ($locked)
+                        @if ($nidaReadonly)
                             <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900 mb-4">
-                                <p class="font-semibold">{{ __('borrower.nida.locked_title') }}</p>
-                                <p class="mt-1 text-emerald-800">{{ __('borrower.nida.locked_hint') }}</p>
+                                <p class="font-semibold">{{ $locked ? __('borrower.nida.locked_title') : __('borrower.nida.saved_locked_title') }}</p>
+                                <p class="mt-1 text-emerald-800">{{ $locked ? __('borrower.nida.locked_hint') : __('borrower.nida.saved_locked_hint') }}</p>
                             </div>
                         @endif
                         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data"
@@ -136,16 +134,14 @@
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.nida.number') }}</label>
-                                    <x-site.nida-input name="national_id" :value="old('national_id', $customer->national_id)" :required="! $locked" @if($locked) readonly @endif />
+                                    <x-site.nida-input name="national_id" :value="old('national_id', $customer->national_id)" :required="! $nidaReadonly" @if($nidaReadonly) readonly @endif />
                                     <p class="text-[11px] text-gray-400 mt-1">{{ __('borrower.nida.format_hint') }}</p>
                                     @error('national_id')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                 </div>
-                                @if ($requireIdentityDuringProfile)
-                                    <x-site.profile-document-field :document="$nidaFront" field-name="national_id_front" mode="single" :label="__('borrower.profile.nida_front')" input-host-id="nida-front-upload" :required="! $nidaFront" />
-                                    @error('national_id_front')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
-                                    <x-site.profile-document-field :document="$nidaBack" field-name="national_id_back" mode="single" :label="__('borrower.profile.nida_back')" input-host-id="nida-back-upload" :required="! $nidaBack" />
-                                    @error('national_id_back')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
-                                @endif
+                                <x-site.profile-document-field :document="$nidaFront" field-name="national_id_front" mode="single" :label="__('borrower.profile.nida_front')" input-host-id="nida-front-upload" :required="! $nidaFront" />
+                                @error('national_id_front')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                                <x-site.profile-document-field :document="$nidaBack" field-name="national_id_back" mode="single" :label="__('borrower.profile.nida_back')" input-host-id="nida-back-upload" :required="! $nidaBack" />
+                                @error('national_id_back')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                             </div>
                             <button type="submit" class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
                                 {{ __('borrower.profile.save') }}
@@ -157,7 +153,7 @@
                                 @csrf
                                 <div class="mb-3">
                                     <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.nida.number') }}</label>
-                                    <x-site.nida-input name="national_id" :value="old('national_id', $customer->national_id)" :required="true" />
+                                    <x-site.nida-input name="national_id" :value="old('national_id', $customer->national_id)" :required="true" @if($nidaReadonly) readonly @endif />
                                 </div>
                                 <p class="text-xs text-gray-500 mb-3">{{ __('borrower.nida.subtitle') }}</p>
                                 <button type="submit" class="bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-full text-sm">
@@ -279,6 +275,7 @@
                     :title="__('borrower.nida.face_title')"
                     :complete="$faceComplete"
                     :empty="! $faceHasPhotos"
+                    :inline-edit="! in_array($faceKey, ['verified', 'pending'], true)"
                     :default-open="$focusHash === 'face'">
                     <x-slot:view>
                         @if ($faceHasPhotos && ! empty($faceAngles ?? []))

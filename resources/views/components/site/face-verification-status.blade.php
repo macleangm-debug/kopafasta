@@ -18,12 +18,13 @@
 
 <div @class([
     'overflow-hidden',
-    'bg-white rounded-2xl ring-1 ring-gray-200' => ! $compact,
+    'rounded-3xl ring-1 ring-brand/15 bg-white' => ! $compact,
 ])>
     @unless ($compact)
-        <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
+        <div class="px-5 py-4 border-b border-brand/10 bg-gradient-to-r from-brand-muted/40 to-white flex flex-wrap items-center justify-between gap-3">
             <div>
-                <h2 class="font-semibold text-gray-900">{{ __('borrower.nida.face_captured_photos') }}</h2>
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.nida.face_title') }}</p>
+                <h2 class="font-semibold text-gray-900 mt-0.5">{{ __('borrower.nida.face_captured_photos') }}</h2>
                 <p class="text-sm text-gray-500 mt-0.5">{{ __('borrower.nida.face_compare_hint') }}</p>
             </div>
             <span class="text-xs font-semibold rounded-full px-3 py-1 {{ $statusBadge[1] }}">{{ $statusBadge[0] }}</span>

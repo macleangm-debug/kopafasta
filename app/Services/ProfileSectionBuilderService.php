@@ -84,12 +84,12 @@ class ProfileSectionBuilderService
         $tabStatuses = $completion->extendedTabStatuses($customer);
 
         $meta = [
-            'personal'  => ['icon' => '👤', 'action' => 'view_edit'],
-            'activity'  => ['icon' => '💼', 'action' => 'view_edit'],
-            'residence' => ['icon' => '🏠', 'action' => 'view_edit'],
+            'personal'  => ['icon' => '👤', 'action' => 'add_section'],
+            'activity'  => ['icon' => '💼', 'action' => 'add_section'],
+            'residence' => ['icon' => '🏠', 'action' => 'add_section'],
             'kyc'       => ['icon' => '📄', 'action' => 'upload'],
             'payment'   => ['icon' => '💳', 'action' => 'add'],
-            'kin'       => ['icon' => '👥', 'action' => 'edit'],
+            'kin'       => ['icon' => '👥', 'action' => 'add_section'],
             'assets'    => ['icon' => '🚗', 'action' => 'manage'],
             'face'      => ['icon' => '📸', 'action' => 'start'],
         ];
@@ -150,12 +150,12 @@ class ProfileSectionBuilderService
         }
 
         return match ($fallback) {
-            'upload' => __('borrower.profile.hub.upload'),
-            'add'    => __('borrower.profile.hub.add_account'),
-            'edit'   => __('borrower.profile.hub.edit'),
-            'manage' => __('borrower.profile.hub.manage'),
-            'start'  => __('borrower.profile.hub.start_verification'),
-            default  => __('borrower.profile.hub.complete_section'),
+            'upload'      => __('borrower.profile.hub.upload'),
+            'add'         => __('borrower.profile.hub.add_account'),
+            'add_section' => __('borrower.profile.hub.add'),
+            'manage'      => __('borrower.profile.hub.manage'),
+            'start'       => __('borrower.profile.hub.start_verification'),
+            default       => __('borrower.profile.hub.add'),
         };
     }
 }

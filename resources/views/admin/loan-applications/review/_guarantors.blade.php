@@ -1,4 +1,24 @@
 <x-admin.review-section id="review-guarantors" title="Guarantor review" subtitle="Guarantor exposure and approval status">
+    @php
+        $supplementOpen = app(\App\Services\GuarantorSupplementService::class)->hasOpenRequest($record);
+    @endphp
+
+    <div class="mb-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
+        <form method="POST" action="{{ route('admin.loan-applications.request-guarantor-supplement', $record) }}" class="space-y-3">
+            @csrf
+            <p class="text-sm font-semibold text-gray-900">{{ __('borrower.guarantor_supplement.admin_button') }}</p>
+            <p class="text-xs text-gray-500">Ask the borrower to add another guarantor. They will open a short guarantor-only flow and submit.</p>
+            @if ($supplementOpen)
+                <p class="text-xs font-semibold text-amber-700">A request is already open — the borrower still needs to respond.</p>
+            @endif
+            <label class="block text-xs font-medium text-gray-600">{{ __('borrower.guarantor_supplement.admin_notes') }}</label>
+            <textarea name="notes" rows="2" class="w-full rounded-lg border-gray-300 text-sm" placeholder="Optional note"></textarea>
+            <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold px-4 py-2">
+                {{ __('borrower.guarantor_supplement.admin_button') }}
+            </button>
+        </form>
+    </div>
+
     @if ($review['guarantors']->isEmpty())
         <p class="text-sm text-gray-500">
             @if ($review['product']?->requires_guarantor)

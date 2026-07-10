@@ -18,14 +18,17 @@
             $editing = ($wizardMode ?? false) || ($editing ?? false);
             $editUrl = route('site.borrower.profile', ['section' => 'kyc', 'edit' => 1]);
             $documentsComplete = app(\App\Services\ProfileCompletionService::class)->isDocumentsComplete($customer);
-            $incomeLabel = config('income_ranges.'.$customer->income_range.'.label', $customer->income_range);
+            $incomeLabel = filled($customer->income_range)
+                ? income_range_label($customer->income_range)
+                : null;
         @endphp
 
         <x-site.profile-section-card
             :title="__('borrower.profile.proof_of_income_title')"
             :editing="$editing"
             :edit-url="$editUrl"
-            :complete="$documentsComplete">
+            :complete="$documentsComplete"
+            :empty="! $documentsComplete">
             @if ($editing)
                 <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'kyc']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
                       enctype="multipart/form-data"

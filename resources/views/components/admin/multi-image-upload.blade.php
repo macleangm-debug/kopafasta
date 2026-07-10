@@ -35,7 +35,9 @@
                 @php $photoUrl = marketplace_photo_url($photo); @endphp
                 <label class="relative rounded-lg overflow-hidden ring-1 ring-gray-200 bg-gray-100 cursor-pointer group block" data-existing-card>
                     @if ($photoUrl)
-                        <img src="{{ $photoUrl }}" alt="Asset photo {{ $index + 1 }}" class="aspect-square object-cover w-full" loading="lazy">
+                        <img src="{{ $photoUrl }}" alt="Asset photo {{ $index + 1 }}"
+                             class="aspect-square object-cover w-full" loading="lazy" referrerpolicy="no-referrer"
+                             onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'aspect-square grid place-items-center text-xs text-gray-400 px-2 text-center',textContent:'Image unavailable'}))">
                     @else
                         <div class="aspect-square grid place-items-center text-xs text-gray-400 px-2 text-center">Image unavailable</div>
                     @endif
@@ -49,6 +51,10 @@
                 </label>
             @endforeach
         </div>
+    @else
+        <div class="rounded-lg bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-xs text-slate-600">
+            No photos saved yet. Add at least one image below — you can select multiple at once.
+        </div>
     @endif
 
     <div data-preview-grid class="grid grid-cols-2 sm:grid-cols-4 gap-3 hidden"></div>
@@ -57,13 +63,19 @@
         <p class="text-sm text-gray-600 mb-2">Drag and drop images here, or choose files</p>
         <label data-picker-label class="inline-flex rounded-lg bg-white ring-1 ring-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 cursor-pointer">
             Add images
-            <input type="file" data-picker accept="image/jpeg,image/png,image/webp,image/jpg" multiple class="sr-only">
+            {{-- Named input is what the server receives; JS keeps its FileList in sync with previews. --}}
+            <input
+                type="file"
+                name="{{ $name }}[]"
+                data-picker
+                accept="image/jpeg,image/png,image/webp,image/jpg"
+                multiple
+                class="sr-only"
+            >
         </label>
         <p class="mt-2 text-xs text-gray-400" data-count-label>{{ count($existingPhotos) }} / {{ $maxPhotos }} images selected</p>
-        <p class="mt-1 text-xs text-gray-400">You can select multiple images at once.</p>
+        <p class="mt-1 text-xs text-gray-400">You can select multiple images at once (up to {{ $maxPhotos }} total).</p>
     </div>
-
-    <div data-file-host id="{{ $uid }}-host" class="hidden" aria-hidden="true"></div>
 
     @error($name)
         <p class="text-xs text-red-600">{{ $message }}</p>
@@ -81,16 +93,15 @@
                     if (root.dataset.ready === '1') return;
                     root.dataset.ready = '1';
 
-                    const fieldName = root.dataset.name || 'photos';
                     const max = Math.max(1, parseInt(root.dataset.max || '4', 10));
                     const existingCount = Math.max(0, parseInt(root.dataset.existingCount || '0', 10));
                     const picker = root.querySelector('[data-picker]');
                     const pickerLabel = root.querySelector('[data-picker-label]');
-                    const host = root.querySelector('[data-file-host]');
                     const previewGrid = root.querySelector('[data-preview-grid]');
                     const countLabel = root.querySelector('[data-count-label]');
                     const dropZone = root.querySelector('[data-drop-zone]');
-                    const files = [];
+                    /** @type {{ file: File, url: string }[]} */
+                    let pending = [];
 
                     function removedCount() {
                         return root.querySelectorAll('[data-remove-toggle]:checked').length;
@@ -101,11 +112,11 @@
                     }
 
                     function remainingSlots() {
-                        return Math.max(0, max - keptExisting() - files.length);
+                        return Math.max(0, max - keptExisting() - pending.length);
                     }
 
                     function refreshCount() {
-                        const total = keptExisting() + files.length;
+                        const total = keptExisting() + pending.length;
                         if (countLabel) {
                             countLabel.textContent = total + ' / ' + max + ' images selected';
                         }
@@ -117,58 +128,63 @@
                         }
                     }
 
-                    function syncHost() {
-                        if (!host || !previewGrid) return;
-                        host.innerHTML = '';
+                    function syncPickerFiles() {
+                        if (!picker) return;
+                        const dt = new DataTransfer();
+                        pending.forEach(function (entry) {
+                            dt.items.add(entry.file);
+                        });
+                        picker.files = dt.files;
+                    }
+
+                    function renderPreviews() {
+                        if (!previewGrid) return;
                         previewGrid.innerHTML = '';
 
-                        files.forEach(function (entry, index) {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.name = fieldName + '[]';
-                            input.className = 'sr-only';
-                            const dt = new DataTransfer();
-                            dt.items.add(entry.file);
-                            input.files = dt.files;
-                            host.appendChild(input);
-
+                        pending.forEach(function (entry, index) {
                             const card = document.createElement('div');
                             card.className = 'relative rounded-lg overflow-hidden ring-1 ring-amber-200 bg-gray-100';
+
                             const img = document.createElement('img');
                             img.src = entry.url;
-                            img.alt = '';
+                            img.alt = 'New photo ' + (index + 1);
                             img.className = 'aspect-square object-cover w-full';
+                            img.referrerPolicy = 'no-referrer';
+
                             const btn = document.createElement('button');
                             btn.type = 'button';
                             btn.textContent = 'Remove';
                             btn.className = 'absolute inset-x-0 bottom-0 bg-black/60 text-white text-[10px] px-2 py-1.5 hover:bg-red-700/80';
                             btn.addEventListener('click', function () {
                                 URL.revokeObjectURL(entry.url);
-                                files.splice(index, 1);
-                                syncHost();
+                                pending.splice(index, 1);
+                                syncPickerFiles();
+                                renderPreviews();
                             });
+
                             card.appendChild(img);
                             card.appendChild(btn);
                             previewGrid.appendChild(card);
                         });
 
-                        previewGrid.classList.toggle('hidden', files.length === 0);
+                        previewGrid.classList.toggle('hidden', pending.length === 0);
                         refreshCount();
                     }
 
-                    function addFileList(fileList) {
+                    function addFiles(fileList) {
                         const slots = remainingSlots();
                         Array.from(fileList || []).slice(0, slots).forEach(function (file) {
                             if (!file.type || !file.type.startsWith('image/')) return;
-                            files.push({ file: file, url: URL.createObjectURL(file) });
+                            pending.push({ file: file, url: URL.createObjectURL(file) });
                         });
-                        syncHost();
+                        syncPickerFiles();
+                        renderPreviews();
                     }
 
                     if (picker) {
                         picker.addEventListener('change', function () {
-                            addFileList(picker.files);
-                            picker.value = '';
+                            const chosen = Array.from(picker.files || []);
+                            addFiles(chosen);
                         });
                     }
 
@@ -177,9 +193,12 @@
                     });
 
                     if (dropZone) {
-                        dropZone.addEventListener('dragover', function (e) {
-                            e.preventDefault();
-                            dropZone.classList.add('border-amber-400', 'bg-amber-50');
+                        ['dragenter', 'dragover'].forEach(function (evt) {
+                            dropZone.addEventListener(evt, function (e) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                dropZone.classList.add('border-amber-400', 'bg-amber-50');
+                            });
                         });
                         dropZone.addEventListener('dragleave', function (e) {
                             e.preventDefault();
@@ -187,8 +206,20 @@
                         });
                         dropZone.addEventListener('drop', function (e) {
                             e.preventDefault();
+                            e.stopPropagation();
                             dropZone.classList.remove('border-amber-400', 'bg-amber-50');
-                            addFileList(e.dataTransfer.files);
+                            addFiles(e.dataTransfer && e.dataTransfer.files);
+                        });
+                    }
+
+                    // Empty file inputs still POST and can fail "image" validation on update.
+                    const form = root.closest('form');
+                    if (form && picker && !picker.dataset.emptyGuard) {
+                        picker.dataset.emptyGuard = '1';
+                        form.addEventListener('submit', function () {
+                            if (!picker.files || picker.files.length === 0) {
+                                picker.disabled = true;
+                            }
                         });
                     }
 

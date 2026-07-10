@@ -25,6 +25,9 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
             $this->assertNotEmpty(__('borrower.apply.review_step.page_overview', [], $locale));
             $this->assertNotEmpty(__('borrower.apply.review_step.page_terms', [], $locale));
             $this->assertNotEmpty(__('borrower.apply.review_step.page_schedule', [], $locale));
+            $this->assertNotEmpty(__('borrower.apply.review_step.deal_snapshot', [], $locale));
+            $this->assertNotEmpty(__('borrower.apply.review_step.terms_hint', [], $locale));
+            $this->assertNotEmpty(__('borrower.apply.review_step.pages_nav', [], $locale));
             $this->assertNotEmpty(__('borrower.apply.submit_step.summary_title', [], $locale));
             $this->assertNotEmpty(__('borrower.apply.submit_step.guarantor_pending_hint', [], $locale));
             $this->assertNotEmpty(__('borrower.apply.success.celebration_eyebrow', [], $locale));

@@ -139,7 +139,54 @@ class MarketplaceAssetValidationTest extends TestCase
             ->get(route('admin.marketplace-assets.edit', $asset))
             ->assertOk()
             ->assertSee($photoUrl, false)
+            ->assertSee('Current photos (1)', false)
             ->assertSee('data-multi-image-upload', false)
             ->assertSee('Cover', false);
+    }
+
+    public function test_admin_asset_update_keeps_existing_photos_when_no_new_files_uploaded(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $supplier = Vendor::create([
+            'vendor_number' => 'PT-SP-TZ-KEEP',
+            'name'          => 'Keep Photo Supplier',
+            'category'      => 'supplier',
+            'status'        => 'active',
+        ]);
+
+        $existing = 'https://images.example.com/keep-me.jpg';
+        $asset = \App\Models\MarketplaceAsset::create([
+            'vendor_id'         => $supplier->id,
+            'slug'              => 'keep-photos-asset',
+            'category'          => 'vehicle',
+            'title'             => 'Keep Photos Asset',
+            'supplier_name'     => $supplier->name,
+            'asset_value'       => 2_000_000,
+            'supplier_deposit'  => 400_000,
+            'customer_deposit'  => 440_000,
+            'max_tenure_months' => 12,
+            'is_active'         => true,
+            'photos'            => [$existing],
+        ]);
+
+        $response = $this->actingAs($admin, 'admin')
+            ->put(route('admin.marketplace-assets.update', $asset), [
+                'vendor_id'           => $supplier->id,
+                'category'            => 'vehicle',
+                'title'               => 'Keep Photos Asset',
+                'insurance_available' => '0',
+                'asset_value'         => '2,000,000.00',
+                'deposit_percent'     => '20',
+                'max_tenure_months'   => 12,
+                'is_active'           => '1',
+            ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+
+        $asset->refresh();
+        $this->assertSame([$existing], $asset->photos);
     }
 }

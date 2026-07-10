@@ -134,10 +134,33 @@ class MarketplaceAssetService
         return round($totalRepayable / $weeks, 2);
     }
 
-    /** @param array<int, UploadedFile> $newFiles */
-    public function syncPhotos(MarketplaceAsset $asset, array $newFiles = [], array $removePaths = []): void
+    /**
+     * Normalize uploaded photo payloads from a single file or photos[] list.
+     *
+     * @param  mixed  $files
+     * @return list<UploadedFile>
+     */
+    public function normalizeUploadedPhotos(mixed $files): array
+    {
+        if ($files instanceof UploadedFile) {
+            return [$files];
+        }
+
+        if (! is_array($files)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $files,
+            fn ($file) => $file instanceof UploadedFile && $file->isValid()
+        ));
+    }
+
+    /** @param array<int, UploadedFile>|UploadedFile|null $newFiles */
+    public function syncPhotos(MarketplaceAsset $asset, array|UploadedFile|null $newFiles = [], array $removePaths = []): void
     {
         $photos = collect($asset->photos ?? []);
+        $newFiles = $this->normalizeUploadedPhotos($newFiles);
 
         foreach ($removePaths as $path) {
             if ($photos->contains($path)) {
@@ -154,21 +177,21 @@ class MarketplaceAssetService
             if ($photos->count() >= $maxPhotos) {
                 break;
             }
-            if ($file instanceof UploadedFile) {
-                $photos->push($file->store("marketplace/{$asset->id}", 'public'));
-            }
+            $photos->push($file->store("marketplace/{$asset->id}", 'public'));
         }
 
         $asset->update(['photos' => $photos->values()->take($maxPhotos)->all()]);
     }
 
-    /** @param array<int, string> $removePaths */
-    public function validateMinimumPhotos(?MarketplaceAsset $existing, array $newFiles, array $removePaths = []): void
+    /** @param array<int, UploadedFile>|UploadedFile|null $newFiles
+     *  @param array<int, string> $removePaths
+     */
+    public function validateMinimumPhotos(?MarketplaceAsset $existing, array|UploadedFile|null $newFiles = [], array $removePaths = []): void
     {
         $existingCount = count($existing?->photos ?? []);
         $removedCount = count(array_intersect($removePaths, $existing?->photos ?? []));
         $remaining = max(0, $existingCount - $removedCount);
-        $total = $remaining + count(array_filter($newFiles));
+        $total = $remaining + count($this->normalizeUploadedPhotos($newFiles));
 
         if ($total < 1) {
             throw \Illuminate\Validation\ValidationException::withMessages([
@@ -251,7 +274,7 @@ class MarketplaceAssetService
             'photos'                 => [$existing ? 'nullable' : 'required', 'array', 'min:'.($existing ? 0 : 1), 'max:'.$maxPhotos],
             'photos.*'               => ['image', 'max:5120'],
             'remove_photos'          => ['nullable', 'array'],
-            'remove_photos.*'        => ['string', 'max:255'],
+            'remove_photos.*'        => ['string', 'max:2048'],
             'vendor_id'              => [$requireSupplier ? 'required' : 'nullable', 'exists:partners,id'],
         ];
     }

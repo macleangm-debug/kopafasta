@@ -142,6 +142,75 @@ class FaceVerificationRemoveTest extends TestCase
             ->get(route('site.borrower.face-verification'))
             ->assertOk()
             ->assertSee('removePhoto', false)
-            ->assertSee('retakeStep', false);
+            ->assertSee('retakeStep', false)
+            ->assertSee('submitVerification', false)
+            ->assertSee('from-brand', false)
+            ->assertSee(__('borrower.face_verification_page.hero_start'), false)
+            ->assertSee(__('borrower.face_verification_page.start_cta'), false);
+    }
+
+    public function test_fourth_upload_stays_incomplete_until_explicit_submit(): void
+    {
+        Storage::fake('public');
+        $customer = $this->borrower();
+        $faces = app(FaceVerificationService::class);
+
+        foreach (['front', 'left', 'right', 'holding_nida'] as $angle) {
+            $faces->upload($customer, $angle, UploadedFile::fake()->image($angle.'.jpg'));
+        }
+
+        $customer->refresh();
+        $this->assertSame('incomplete', $customer->face_verification_status);
+        $this->assertTrue($faces->progress($customer)['complete']);
+
+        $this->actingAs($customer->user)
+            ->deleteJson(route('site.borrower.face-verification.destroy', ['angle' => 'front']))
+            ->assertOk()
+            ->assertJson(['ok' => true, 'angle' => 'front']);
+
+        $this->assertDatabaseMissing('face_verifications', [
+            'customer_id' => $customer->id,
+            'angle'       => 'front',
+            'deleted_at'  => null,
+        ]);
+    }
+
+    public function test_submit_locks_photos_for_review(): void
+    {
+        Storage::fake('public');
+        $customer = $this->borrower();
+        $faces = app(FaceVerificationService::class);
+
+        foreach (['front', 'left', 'right', 'holding_nida'] as $angle) {
+            $faces->upload($customer, $angle, UploadedFile::fake()->image($angle.'.jpg'));
+        }
+
+        $this->actingAs($customer->user)
+            ->postJson(route('site.borrower.face-verification.submit'))
+            ->assertOk()
+            ->assertJson(['ok' => true, 'status' => 'pending']);
+
+        $customer->refresh();
+        $this->assertSame('pending', $customer->face_verification_status);
+
+        $this->actingAs($customer->user)
+            ->deleteJson(route('site.borrower.face-verification.destroy', ['angle' => 'front']))
+            ->assertStatus(422)
+            ->assertJson(['ok' => false]);
+    }
+
+    public function test_submit_requires_all_photos(): void
+    {
+        Storage::fake('public');
+        $customer = $this->borrower();
+        $faces = app(FaceVerificationService::class);
+        $faces->upload($customer, 'front', UploadedFile::fake()->image('front.jpg'));
+
+        $this->actingAs($customer->user)
+            ->postJson(route('site.borrower.face-verification.submit'))
+            ->assertStatus(422)
+            ->assertJson(['ok' => false]);
+
+        $this->assertSame('incomplete', $customer->fresh()->face_verification_status);
     }
 }

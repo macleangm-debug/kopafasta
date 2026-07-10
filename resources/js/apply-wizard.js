@@ -143,6 +143,8 @@ export function applyWizard(config) {
                 scheduleLoading: false,
                 reviewPage: 1,
                 reviewPageCount: 3,
+                supplementMode: !!config.supplementMode,
+                supplementApplicationId: config.supplementApplicationId || null,
                 stepIcons: {
                     quote: '💰',
                     group_setup: '👥',
@@ -2334,6 +2336,16 @@ export function applyWizard(config) {
                         return;
                     }
                     this.syncSubmitPayload(e.target);
+                    if (this.supplementMode && this.supplementApplicationId) {
+                        let input = e.target.querySelector('input[name="supplement_application_id"]');
+                        if (! input) {
+                            input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = 'supplement_application_id';
+                            e.target.appendChild(input);
+                        }
+                        input.value = String(this.supplementApplicationId);
+                    }
                     this.submitting = true;
                     window.confirmForm(e.target, {
                         title: this.i18n.alerts.submitTitle,

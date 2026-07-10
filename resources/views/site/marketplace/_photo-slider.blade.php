@@ -22,6 +22,7 @@
              @touchstart="onTouchStart($event)" @touchend="onTouchEnd($event)">
             <template x-for="(photo, i) in photos" :key="photo">
                 <img :src="photo" alt="" @if($zoom) @click="zoomed = !zoomed" @endif
+                     referrerpolicy="no-referrer"
                      class="absolute inset-0 w-full h-full object-cover transition-all duration-300 {{ $zoom ? 'cursor-zoom-in' : '' }}"
                      :class="[
                         i === index ? 'opacity-100 z-10' : 'opacity-0 z-0',
@@ -57,7 +58,7 @@
                     <button type="button" @click="index = i"
                             class="shrink-0 size-16 rounded-xl overflow-hidden ring-2 transition"
                             :class="index === i ? 'ring-brand' : 'ring-transparent opacity-70 hover:opacity-100'">
-                        <img :src="photo" alt="" class="w-full h-full object-cover">
+                        <img :src="photo" alt="" class="w-full h-full object-cover" referrerpolicy="no-referrer">
                     </button>
                 </template>
             </div>

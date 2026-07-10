@@ -181,6 +181,16 @@ class LoanApplicationNextActionService
             );
         }
 
+        if (app(\App\Services\GuarantorSupplementService::class)->hasOpenRequest($application)) {
+            return $this->action(
+                'add_guarantor',
+                __('borrower.loan_profile.next_actions.add_guarantor'),
+                __('borrower.guarantor_supplement.cta'),
+                app(\App\Services\GuarantorSupplementService::class)->borrowerWizardUrl($application),
+                tone: 'primary',
+            );
+        }
+
         if ($status === 'awaiting_offer' || $application->offer_status === 'pending_borrower') {
             return $this->action(
                 'review_offer',

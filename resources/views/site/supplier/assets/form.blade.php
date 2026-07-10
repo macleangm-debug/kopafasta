@@ -71,9 +71,12 @@
         <x-admin.multi-image-upload :existing="$asset?->photos ?? []" :max="$maxPhotos" :min="1" />
 
         <button type="submit" :disabled="submitting"
-                class="bg-amber-500 hover:bg-amber-400 disabled:opacity-70 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-            <span x-show="!submitting">{{ $asset ? 'Save changes' : 'Upload asset' }}</span>
-            <span x-show="submitting" x-cloak>{{ $asset ? 'Saving…' : 'Uploading…' }}</span>
+                class="inline-flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-70 disabled:cursor-wait text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+            <svg x-show="submitting" x-cloak class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+            </svg>
+            <span x-text="submitting ? (@js($asset ? 'Saving…' : 'Uploading…')) : @js($asset ? 'Save changes' : 'Upload asset')"></span>
         </button>
     </form>
 </x-site.supplier-layout>

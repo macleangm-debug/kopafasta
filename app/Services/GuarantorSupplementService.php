@@ -1,0 +1,99 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Customer;
+use App\Models\LoanApplication;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+
+class GuarantorSupplementService
+{
+    public function hasOpenRequest(LoanApplication $application): bool
+    {
+        $request = $this->openRequest($application);
+
+        return $request !== null && empty($request['satisfied_at']);
+    }
+
+    /** @return array{requested_at?: string, requested_by?: int, notes?: string|null, satisfied_at?: string|null}|null */
+    public function openRequest(LoanApplication $application): ?array
+    {
+        $payload = $application->screening_payload ?? [];
+        $request = $payload['guarantor_supplement'] ?? null;
+
+        if (! is_array($request) || empty($request['requested_at'])) {
+            return null;
+        }
+
+        if (! empty($request['satisfied_at'])) {
+            return null;
+        }
+
+        return $request;
+    }
+
+    public function request(LoanApplication $application, User $admin, ?string $notes = null): void
+    {
+        if (! in_array((string) $application->status, [
+            'submitted',
+            'awaiting_guarantor',
+            'screening',
+            'credit_appraisal',
+            'pre_approved',
+        ], true)) {
+            throw new \InvalidArgumentException('Additional guarantor can only be requested while the application is under review.');
+        }
+
+        DB::transaction(function () use ($application, $admin, $notes): void {
+            $payload = $application->screening_payload ?? [];
+            $payload['guarantor_supplement'] = [
+                'requested_at' => now()->toIso8601String(),
+                'requested_by' => $admin->id,
+                'notes'        => $notes,
+                'satisfied_at' => null,
+            ];
+            $application->update(['screening_payload' => $payload]);
+        });
+
+        $customer = $application->customer;
+        if ($customer instanceof Customer) {
+            $url = $this->borrowerWizardUrl($application);
+            app(NotificationService::class)->notifyInApp(
+                $customer,
+                __('borrower.guarantor_supplement.notify_body', [
+                    'reference' => $application->reference_no ?? $application->id,
+                ]),
+                category: 'loan_application',
+                template: 'guarantor_supplement_request',
+                title: __('borrower.guarantor_supplement.notify_title'),
+                actionUrl: $url,
+                actionLabel: __('borrower.guarantor_supplement.cta'),
+            );
+        }
+    }
+
+    public function markSatisfied(LoanApplication $application): void
+    {
+        $payload = $application->screening_payload ?? [];
+        $request = $payload['guarantor_supplement'] ?? null;
+        if (! is_array($request) || empty($request['requested_at'])) {
+            return;
+        }
+
+        $request['satisfied_at'] = now()->toIso8601String();
+        $payload['guarantor_supplement'] = $request;
+        $application->update(['screening_payload' => $payload]);
+    }
+
+    public function borrowerWizardUrl(LoanApplication $application): string
+    {
+        return route('site.borrower.apply', [
+            'product'              => $application->loan_product_id,
+            'guarantor_supplement' => 1,
+            'application'          => $application->id,
+            'resume'               => 1,
+            'step_key'             => 'guarantor',
+        ]);
+    }
+}

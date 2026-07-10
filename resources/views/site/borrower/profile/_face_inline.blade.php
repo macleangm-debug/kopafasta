@@ -6,4 +6,5 @@
     :steps="$steps"
     :upload-urls="$uploadUrls"
     :delete-urls="$deleteUrls ?? []"
+    :submit-url="route('site.borrower.face-verification.submit')"
 />

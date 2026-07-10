@@ -248,6 +248,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/kyc',                            [\App\Http\Controllers\Site\BorrowerController::class, 'kyc'])          ->name('borrower.kyc');
             Route::post('/borrower/kyc',                           [\App\Http\Controllers\Site\BorrowerController::class, 'uploadKyc'])    ->name('borrower.kyc.store');
             Route::get('/borrower/face-verification',              [\App\Http\Controllers\Site\BorrowerController::class, 'faceVerification'])->name('borrower.face-verification');
+            Route::post('/borrower/face-verification/submit',      [\App\Http\Controllers\Site\BorrowerController::class, 'submitFaceVerification'])->name('borrower.face-verification.submit');
             Route::post('/borrower/face-verification/{angle}',     [\App\Http\Controllers\Site\BorrowerController::class, 'uploadFaceVerification'])->name('borrower.face-verification.store')->where('angle', 'front|left|right|holding_nida');
             Route::delete('/borrower/face-verification/{angle}',   [\App\Http\Controllers\Site\BorrowerController::class, 'removeFaceVerification'])->name('borrower.face-verification.destroy')->where('angle', 'front|left|right|holding_nida');
             Route::get('/borrower/guarantors',                     [\App\Http\Controllers\Site\BorrowerController::class, 'guarantors'])   ->name('borrower.guarantors');
@@ -477,6 +478,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('loan-agreements.download');
         Route::post('loan-applications/{loan_application}/document-requests', [LoanApplicationDocumentRequestController::class, 'store'])
             ->name('loan-applications.document-requests.store');
+        Route::post('loan-applications/{loan_application}/request-guarantor-supplement', [LoanApplicationController::class, 'requestGuarantorSupplement'])
+            ->name('loan-applications.request-guarantor-supplement');
         Route::post('loan-applications/{loan_application}/workflow', [LoanApplicationController::class, 'runWorkflow'])
             ->name('loan-applications.workflow');
         Route::post('loan-applications/{loan_application}/documents/{document}/verify', [LoanApplicationController::class, 'verifyDocument'])

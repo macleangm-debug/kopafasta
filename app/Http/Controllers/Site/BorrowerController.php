@@ -1365,8 +1365,17 @@ class BorrowerController extends Controller
                 ], fn ($value) => $value !== null));
             }
 
-            if (in_array($focus, ['identity', 'all'], true) && filled($data['national_id'] ?? null) && ! $customer->identity_locked) {
-                $customer->national_id = $data['national_id'];
+            if (in_array($focus, ['identity', 'all'], true) && filled($data['national_id'] ?? null)) {
+                // National ID is sensitive: allow first entry only; never overwrite once saved.
+                if (! filled($customer->national_id) && ! $customer->identity_locked) {
+                    $customer->national_id = $data['national_id'];
+                } elseif (filled($customer->national_id)
+                    && (string) $customer->national_id !== (string) $data['national_id']
+                    && ! $customer->identity_locked) {
+                    return back()
+                        ->withInput()
+                        ->withErrors(['national_id' => __('borrower.nida.cannot_change')]);
+                }
             }
 
             if (in_array($focus, ['kin', 'all'], true)) {
@@ -1866,7 +1875,7 @@ class BorrowerController extends Controller
         $wizard = $faces->wizardState($customer);
         $previewUrl = $record->file_path ? asset('storage/'.$record->file_path) : null;
         $message = $progress['complete']
-            ? 'All face photos uploaded. Our team will review them shortly.'
+            ? 'All face photos captured. Review them, then submit for verification.'
             : 'Photo saved.';
 
         if ($request->expectsJson()) {
@@ -1882,19 +1891,47 @@ class BorrowerController extends Controller
             ]);
         }
 
-        if ($progress['complete']) {
-            if ($return = $this->validatedReturnUrl($request)) {
-                return redirect($return)->with('status', $message);
+        return redirect()->route('site.borrower.face-verification')->with('status', $message);
+    }
+
+    public function submitFaceVerification(Request $request, FaceVerificationService $faces): RedirectResponse|JsonResponse
+    {
+        $customer = $this->customer();
+
+        try {
+            $faces->submit($customer);
+        } catch (\InvalidArgumentException $e) {
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
             }
 
-            return $this->redirectWithGuarantorResume(
-                $request,
-                $customer,
-                redirect()->route('site.borrower.face-verification')->with('status', $message),
-            );
+            return redirect()->route('site.borrower.face-verification')
+                ->with('error', $e->getMessage());
         }
 
-        return redirect()->route('site.borrower.face-verification')->with('status', $message);
+        $this->auditBorrower('face_verification.submitted', $customer, [
+            'complete' => true,
+        ]);
+
+        $message = 'Face photos submitted. Our team will review them shortly.';
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok'      => true,
+                'status'  => 'pending',
+                'message' => $message,
+            ]);
+        }
+
+        if ($return = $this->validatedReturnUrl($request)) {
+            return redirect($return)->with('status', $message);
+        }
+
+        return $this->redirectWithGuarantorResume(
+            $request,
+            $customer,
+            redirect()->route('site.borrower.face-verification')->with('status', $message),
+        );
     }
 
     public function removeFaceVerification(Request $request, string $angle, FaceVerificationService $faces): RedirectResponse|JsonResponse

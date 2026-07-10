@@ -30,10 +30,10 @@
         </button>
         <button type="button"
                 @click="submitApplication()"
-                :disabled="submitting || advancing"
+                :disabled="submitting || advancing || !canApply"
                 x-show="stepKey === 'submit'"
                 class="inline-flex items-center gap-2 bg-brand hover:bg-brand-light disabled:opacity-60 text-white font-semibold px-6 py-2.5 rounded-xl text-sm shadow-sm transition">
-            <span x-text="submitting ? @js(__('borrower.apply.submitting')) : @js(__('borrower.apply.submit'))"></span>
+            <span x-text="submitting ? @js(__('borrower.apply.submitting')) : (!canApply ? @js(__('borrower.apply.complete_profile_to_submit')) : @js(__('borrower.apply.submit')))"></span>
             <svg class="w-4 h-4" fill="none" viewBox="0 0 20 20" stroke="currentColor" stroke-width="2"><path d="M8 4l6 6-6 6"/></svg>
         </button>
     </div>

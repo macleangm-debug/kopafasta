@@ -32,9 +32,24 @@ class BorrowerPaymentController extends Controller
 
         $loans = Loan::where('customer_id', $customer->id)
             ->whereIn('status', ['active', 'disbursed', 'arrears'])
+            ->with(['product', 'repaymentSchedules'])
             ->get();
 
-        return view('site.borrower.payments.index', compact('customer', 'entries', 'loans'));
+        $servicing = app(\App\Services\ActiveLoanServicingService::class);
+        $loanSnapshots = $loans
+            ->map(fn (Loan $loan) => array_merge($servicing->forLoan($loan), ['loan' => $loan]))
+            ->sortBy(function (array $snap) {
+                $due = $snap['next_due_date'] ?? null;
+
+                return $due ? $due->timestamp : PHP_INT_MAX;
+            })
+            ->values();
+
+        $focusLoan = $loanSnapshots->first(
+            fn (array $snap) => ($snap['in_arrears'] ?? false) || ($snap['next_due_amount'] ?? null) !== null
+        ) ?? $loanSnapshots->first();
+
+        return view('site.borrower.payments.index', compact('customer', 'entries', 'loans', 'loanSnapshots', 'focusLoan'));
     }
 
     public function showRefund(BorrowerRefund $borrowerRefund): View
@@ -53,12 +68,21 @@ class BorrowerPaymentController extends Controller
         $customer = $this->customer();
         $loans = Loan::where('customer_id', $customer->id)
             ->whereIn('status', ['active', 'disbursed', 'arrears'])
+            ->with(['product', 'repaymentSchedules'])
             ->get();
 
         $loanId = $request->query('loan_id', $request->query('loan'));
         $selectedLoan = $loanId ? $loans->firstWhere('id', (int) $loanId) : $loans->first();
 
-        return view('site.borrower.payments.create', compact('customer', 'loans', 'selectedLoan'));
+        $suggestedAmount = null;
+        if ($selectedLoan) {
+            $snap = app(\App\Services\ActiveLoanServicingService::class)->forLoan($selectedLoan);
+            $suggestedAmount = $snap['in_arrears']
+                ? (float) ($snap['amount_in_arrears'] ?: $snap['next_due_amount'])
+                : ($snap['next_due_amount'] ?? null);
+        }
+
+        return view('site.borrower.payments.create', compact('customer', 'loans', 'selectedLoan', 'suggestedAmount'));
     }
 
     public function store(Request $request, CustomerPaymentService $payments, PaymentAccountService $accounts): RedirectResponse

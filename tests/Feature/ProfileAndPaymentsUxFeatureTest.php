@@ -72,6 +72,43 @@ class ProfileAndPaymentsUxFeatureTest extends TestCase
         $this->assertStringContainsString(__('kin.relationships.parent', [], 'sw'), $html);
     }
 
+    public function test_saved_national_id_is_readonly_and_shows_photo_fields(): void
+    {
+        $customer = $this->makeCustomer();
+        $customer->update(['national_id' => '19800101123456789012']);
+
+        $html = $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', ['section' => 'personal']))
+            ->assertOk()
+            ->assertSee(__('borrower.nida.saved_locked_title'), false)
+            ->assertSee(__('borrower.profile.nida_front'), false)
+            ->assertSee(__('borrower.profile.nida_back'), false)
+            ->getContent();
+
+        $this->assertStringContainsString('readonly', $html);
+
+        $this->actingAs($customer->user)
+            ->put(route('site.borrower.profile.update', ['section' => 'personal']), [
+                'focus'      => 'identity',
+                'national_id'=> '19900101123456789099',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasErrors('national_id');
+
+        $this->assertSame('19800101123456789012', $customer->fresh()->national_id);
+    }
+
+    public function test_incomplete_hub_sections_use_add_action_label(): void
+    {
+        $customer = $this->makeCustomer();
+        $cards = app(\App\Services\ProfileSectionBuilderService::class)->hubCards($customer);
+        $personal = collect($cards)->firstWhere('key', 'personal');
+
+        $this->assertNotNull($personal);
+        $this->assertNotSame('complete', $personal['status']);
+        $this->assertSame(__('borrower.profile.hub.add'), $personal['action_label']);
+    }
+
     public function test_payments_create_accepts_loan_query_and_uses_brand_ui(): void
     {
         $customer = $this->makeCustomer();
@@ -102,7 +139,7 @@ class ProfileAndPaymentsUxFeatureTest extends TestCase
             ->get(route('site.borrower.payments.create', ['loan' => $loan->id]))
             ->assertOk()
             ->assertSee('from-brand', false)
-            ->assertSee('peer-checked:border-brand', false)
+            ->assertSee('peer-checked:ring-brand', false)
             ->assertSee('value="'.$loan->id.'"', false)
             ->assertSee('selected', false);
 
@@ -110,6 +147,7 @@ class ProfileAndPaymentsUxFeatureTest extends TestCase
             ->get(route('site.borrower.payments'))
             ->assertOk()
             ->assertSee('from-brand', false)
-            ->assertSee(__('borrower.payments_page.make_repayment'), false);
+            ->assertSee(__('borrower.payments_page.make_repayment'), false)
+            ->assertSee(__('borrower.payments_page.history_title'), false);
     }
 }

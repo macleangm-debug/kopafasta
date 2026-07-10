@@ -129,6 +129,8 @@
                   feePaymentReference: @js($applicationFeePaymentRef ?? null),
                   groupProgressLabels: @js(app(\App\Services\GroupMemberProgressService::class)->statusLabels()),
                   firstActionUrl: @js($applyRequirements['first_action_url'] ?? null),
+                  supplementMode: @js((bool) ($supplementMode ?? false)),
+                  supplementApplicationId: @js(($supplementApplication ?? null)?->id),
                   i18n: @js([
                       'flexibleTerms' => __('borrower.apply.browse.flexible_terms'),
                       'monthsShort' => __('borrower.apply.browse.months_short'),

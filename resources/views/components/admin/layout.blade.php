@@ -541,6 +541,53 @@ document.addEventListener('keydown', function (event) {
     }
 });
 </script>
+<script>
+(function () {
+    function spinnerHtml(label) {
+        return '<svg class="size-4 animate-spin shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+            '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>' +
+            '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>' +
+            '</svg><span>' + label + '</span>';
+    }
+
+    document.addEventListener('submit', function (event) {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement) || form.dataset.skipLoading === '1' || form.dataset.loadingBound === '1') {
+            return;
+        }
+        // Wizard forms already manage their own submit loading UI.
+        if (form.querySelector('.admin-wizard') || form.dataset.submitGuard === '1') {
+            return;
+        }
+
+        const submitter = event.submitter instanceof HTMLButtonElement
+            ? event.submitter
+            : form.querySelector('button[type="submit"], input[type="submit"]');
+        if (! submitter || submitter.disabled) {
+            return;
+        }
+
+        form.dataset.loadingBound = '1';
+        const label = (submitter.dataset.loadingLabel
+            || submitter.getAttribute('data-submit-label')
+            || submitter.textContent
+            || 'Saving').trim().replace(/\s+/g, ' ');
+        const loadingLabel = /…$|\.\.\.$/.test(label) ? label : (label + '…');
+
+        submitter.disabled = true;
+        submitter.classList.add('opacity-70', 'cursor-wait');
+        if (submitter.tagName === 'BUTTON') {
+            submitter.innerHTML = spinnerHtml(loadingLabel);
+        } else {
+            submitter.value = loadingLabel;
+        }
+
+        form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function (btn) {
+            if (btn !== submitter) btn.disabled = true;
+        });
+    }, true);
+})();
+</script>
 <x-admin.number-format-script />
 @stack('scripts')
 </body>

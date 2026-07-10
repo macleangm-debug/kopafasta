@@ -142,8 +142,8 @@ class Phase5FeatureTest extends TestCase
             ->get(route('site.supplier.assets.create'))
             ->assertOk()
             ->assertSee('Insurance expiry', false)
-            ->assertSee('Waiting period', false)
-            ->assertSee('Photos (up to 4)', false)
+            ->assertSee('Min 1, max', false)
+            ->assertSee('Add images', false)
             ->assertSee('enctype="multipart/form-data"', false);
     }
 
