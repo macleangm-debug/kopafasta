@@ -20,11 +20,13 @@
                             $icon = match ($status) {
                                 'complete' => '✓',
                                 'pending'  => '⏳',
+                                'stale', 'refresh_required' => '↻',
                                 default    => '⏳',
                             };
                             $suffix = match ($status) {
                                 'complete' => '',
                                 'pending'  => ' '.__('borrower.onboarding.status_pending'),
+                                'stale', 'refresh_required' => ' '.__('borrower.onboarding.status_update_requested'),
                                 default    => ' '.__('borrower.onboarding.status_missing'),
                             };
                         @endphp

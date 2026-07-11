@@ -57,25 +57,34 @@ class ProfileSectionBuilderService
         $completion = app(ProfileCompletionService::class);
         $tabStatuses = $completion->tabStatuses($customer);
         $revision = app(ProfileRevisionService::class);
+        $allowed = array_keys($tabStatuses);
 
-        return $definitions->map(function (ProfileSectionDefinition $section) use ($customer, $tabStatuses, $revision) {
-            $mappedKey = (string) ($section->metadata['maps_to'] ?? $section->key);
-            $tab = $tabStatuses[$mappedKey] ?? null;
-            $status = $this->resolveStatus($customer, $mappedKey, $tab, $revision);
+        $cards = $definitions
+            ->filter(function (ProfileSectionDefinition $section) use ($allowed) {
+                $mappedKey = (string) ($section->metadata['maps_to'] ?? $section->key);
 
-            return [
-                'key'         => $section->key,
-                'icon'        => $section->icon ?: '📋',
-                'label'       => $section->localizedName(),
-                // Hub shows category cards only — field-level copy lives inside each section.
-                'description' => null,
-                'status'      => $status,
-                'status_label'=> $this->statusLabel($status),
-                'action_label'=> $this->actionLabel($status),
-                'url'         => $tab['url'] ?? route('site.borrower.profile', ['section' => $mappedKey]),
-                'required'    => (bool) $section->is_required,
-            ];
-        })->all();
+                return in_array($mappedKey, $allowed, true) || in_array($section->key, $allowed, true);
+            })
+            ->map(function (ProfileSectionDefinition $section) use ($customer, $tabStatuses, $revision) {
+                $mappedKey = (string) ($section->metadata['maps_to'] ?? $section->key);
+                $tab = $tabStatuses[$mappedKey] ?? $tabStatuses[$section->key] ?? null;
+                $status = $this->resolveStatus($customer, $mappedKey, $tab, $revision);
+
+                return [
+                    'key'         => $section->key,
+                    'icon'        => $section->icon ?: '📋',
+                    'label'       => $section->localizedName(),
+                    // Hub shows category cards only — field-level copy lives inside each section.
+                    'description' => null,
+                    'status'      => $status,
+                    'status_label'=> $this->statusLabel($status),
+                    'action_label'=> $this->actionLabel($status),
+                    'url'         => $tab['url'] ?? route('site.borrower.profile', ['section' => $mappedKey]),
+                    'required'    => (bool) $section->is_required,
+                ];
+            })->values()->all();
+
+        return $cards !== [] ? $cards : $this->defaultHubCards($customer);
     }
 
     /** @return list<array<string, mixed>> */
@@ -89,29 +98,31 @@ class ProfileSectionBuilderService
             'activity'  => ['icon' => '💼', 'action' => 'add_section'],
             'residence' => ['icon' => '🏠', 'action' => 'add_section'],
             'kyc'       => ['icon' => '📄', 'action' => 'upload'],
+            'security'  => ['icon' => '🔐', 'action' => 'view_edit'],
             'payment'   => ['icon' => '💳', 'action' => 'add'],
-            'kin'       => ['icon' => '👥', 'action' => 'add_section'],
             'assets'    => ['icon' => '🚗', 'action' => 'manage'],
-            'face'      => ['icon' => '📸', 'action' => 'start'],
         ];
 
-        return collect($tabStatuses)->map(function (array $tab, string $key) use ($meta) {
-            $status = (string) ($tab['status'] ?? 'not_started');
-            $sectionMeta = $meta[$key] ?? ['icon' => '📋', 'action' => 'view_edit'];
+        return collect($tabStatuses)
+            ->only(array_keys($meta))
+            ->map(function (array $tab, string $key) use ($meta) {
+                $status = (string) ($tab['status'] ?? 'not_started');
+                $sectionMeta = $meta[$key] ?? ['icon' => '📋', 'action' => 'view_edit'];
 
-            return [
-                'key'          => $key,
-                'icon'         => $sectionMeta['icon'],
-                'label'        => $tab['label'],
-                'description'  => $tab['description'] ?? null,
-                'status'       => $status,
-                'status_label' => $this->statusLabel($status),
-                'action_label' => $this->actionLabel($status, $sectionMeta['action']),
-                'url'          => $tab['url'],
-                'required'     => (bool) ($tab['required'] ?? false),
-                'count'        => $tab['count'] ?? null,
-            ];
-        })->values()->all();
+                return [
+                    'key'          => $key,
+                    'icon'         => $sectionMeta['icon'],
+                    'label'        => $tab['label'],
+                    // Hub shows category cards only — field-level copy lives inside each section.
+                    'description'  => null,
+                    'status'       => $status,
+                    'status_label' => $this->statusLabel($status),
+                    'action_label' => $this->actionLabel($status, $sectionMeta['action']),
+                    'url'          => $tab['url'],
+                    'required'     => (bool) ($tab['required'] ?? false),
+                    'count'        => $tab['count'] ?? null,
+                ];
+            })->values()->all();
     }
 
     private function resolveStatus(Customer $customer, string $key, ?array $tab, ProfileRevisionService $revision): string

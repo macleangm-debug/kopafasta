@@ -76,7 +76,7 @@ class GroupLoanNotificationService
             $leader,
             $inAppMessage,
             'group_loan',
-            'group_application_review',
+            'group_application_review_feedback',
             $inAppTitle,
             $applicationUrl,
             __('borrower.apply.group.replacement_view_cta'),

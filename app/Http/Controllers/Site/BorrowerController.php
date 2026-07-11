@@ -1111,6 +1111,7 @@ class BorrowerController extends Controller
                         ? match ($n->template) {
                             'guarantor_request' => __('borrower.guarantor_notifications.view_request'),
                             'loyalty_points_earned' => __('borrower.rewards.points_earned_cta'),
+                            'application_document_request', 'document_request' => __('borrower.notifications.document_request_cta'),
                             default => __('borrower.notifications.view_application'),
                         }
                         : null,
@@ -1394,6 +1395,18 @@ class BorrowerController extends Controller
             }
 
             $customer->save();
+
+            if ($focus === 'signature') {
+                $sigData = $request->validate([
+                    'signature_data' => ['required', 'string', 'starts_with:data:image/png;base64,'],
+                    'signer_name'    => ['nullable', 'string', 'max:120'],
+                ]);
+                app(\App\Services\BorrowerSignatureService::class)->saveProfileSignature(
+                    $customer->fresh(),
+                    $sigData['signature_data'],
+                    $sigData['signer_name'] ?? $customer->full_name,
+                );
+            }
 
             if (in_array($focus, ['identity', 'all'], true)) {
                 $this->persistProfileDocumentUpload($customer, 'national_id_front', $request->file('national_id_front'), []);

@@ -1,5 +1,5 @@
 @if (! empty($groupContract))
-    <div class="glass-card p-5 mb-6"
+    <div id="group-contract" class="glass-card p-5 mb-6 scroll-mt-24"
          x-data="{
             progress: @js($groupContract),
             polling: null,

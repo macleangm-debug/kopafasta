@@ -7,17 +7,14 @@
         @if (session('status'))
             <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
         @endif
-        @if ($errors->any())
+        @if (($errors ?? null)?->any())
             <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">
                 <p class="font-semibold mb-1">{{ __('borrower.apply.errors_fix') }}</p>
                 <ul class="list-disc ml-5 space-y-1">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
             </div>
         @endif
 
-        @if (! ($applyRequirements['can_apply'] ?? false))
-            <x-site.kyc-gate-banner :apply-requirements="$applyRequirements" class="mb-6" />
-        @endif
-
+        {{-- Incomplete profile is gated on the Submit step (modal + inline hint), not a duplicate top banner. --}}
 
                 @if ($reservation ?? null)
             <div class="mb-6 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">
@@ -52,7 +49,8 @@
                 || filled($customer->nida_verified_at);
         @endphp
 
-        <div x-data="applyWizard({
+        <div data-wizard-scroll-anchor
+             x-data="applyWizard({
                   products: @js($wizardProducts->map($wizardProductPayload)->values()->all()),
                   guarantorLookupUrl: @js(route('site.borrower.apply.guarantor-lookup')),
                   groupMemberLookupUrl: @js($groupMemberLookupUrl ?? route('site.borrower.apply.group-member-lookup')),
@@ -107,6 +105,7 @@
                   canApply: @js((bool) ($applyRequirements['can_apply'] ?? false)),
                   verifiedLegalName: @js($verifiedLegalName),
                   identityVerified: @js($identityVerified),
+                  profileSignature: @js(app(\App\Services\BorrowerSignatureService::class)->profileSignature($customer)),
                   engagementBoosts: @js($engagementBoosts ?? null),
                   qualificationLimit: {{ (int) ($qualificationLimit ?? 0) }},
                   processingSla: @js($processingSla ?? null),

@@ -202,6 +202,21 @@ class ApplicationRequirementsService
             ];
         }
 
+        $signatureService = app(BorrowerSignatureService::class);
+        $hasLegalSignature = $signatureService->hasProfileSignature($customer);
+        $items[] = [
+            'key'        => 'legal_signature',
+            'label'      => __('borrower.apply.checklist.legal_signature'),
+            'complete'   => $hasLegalSignature,
+            'pending'    => ! $hasLegalSignature,
+            'detail'     => $hasLegalSignature
+                ? __('borrower.apply.checklist.legal_signature_complete')
+                : __('borrower.apply.checklist.legal_signature_missing'),
+            'action_url' => $hasLegalSignature
+                ? null
+                : route('site.borrower.profile', ['section' => 'personal', 'focus' => 'signature']),
+        ];
+
         $completed = collect($items)->where('complete', true)->count();
         $total = count($items);
 

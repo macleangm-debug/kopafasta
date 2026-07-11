@@ -318,6 +318,62 @@
                     </x-slot:form>
                 </x-site.profile-section-card>
                 @endif
+
+                {{-- Legal signature (reusable across contracts) --}}
+                @php
+                    $signatureService = app(\App\Services\BorrowerSignatureService::class);
+                    $hasLegalSignature = $signatureService->hasProfileSignature($customer);
+                @endphp
+                <x-site.profile-section-card
+                    section-id="profile-signature"
+                    icon="✍️"
+                    :title="__('borrower.profile.legal_signature')"
+                    :complete="$hasLegalSignature"
+                    :empty="! $hasLegalSignature"
+                    :inline-edit="true"
+                    :default-open="$focusHash === 'signature'">
+                    <x-slot:view>
+                        @if ($hasLegalSignature)
+                            <p class="text-sm font-semibold text-gray-900">{{ $customer->legal_signer_name ?: $customer->full_name }}</p>
+                            <p class="text-xs text-gray-500 mt-1">{{ __('borrower.profile.legal_signature_saved_at', ['date' => optional($customer->legal_signed_at)->format('d M Y') ?? '—']) }}</p>
+                            <img src="{{ $customer->legal_signature_data }}" alt="" class="mt-3 max-h-28 border border-gray-200 rounded-xl bg-white">
+                            <p class="text-xs text-gray-500 mt-3">{{ __('borrower.profile.legal_signature_notice') }}</p>
+                        @else
+                            <p class="text-sm text-gray-600">{{ __('borrower.profile.legal_signature_empty') }}</p>
+                            <p class="text-xs text-gray-500 mt-2">{{ __('borrower.profile.legal_signature_notice') }}</p>
+                        @endif
+                    </x-slot:view>
+                    <x-slot:form>
+                        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}" class="space-y-4"
+                              x-data
+                              @submit.prevent="
+                                  const pad = $el.querySelector('[data-signature-pad]');
+                                  const alpine = pad && window.Alpine ? Alpine.$data(pad) : null;
+                                  if (alpine) {
+                                      const hidden = $el.querySelector('[name=signature_data]');
+                                      if (hidden) hidden.value = alpine.dataUrl || '';
+                                  }
+                                  window.confirmForm($el, @js($saveConfirm));
+                              ">
+                            @csrf @method('PUT')
+                            <input type="hidden" name="focus" value="signature">
+                            @if (! empty($returnUrl))
+                                <input type="hidden" name="return" value="{{ $returnUrl }}">
+                            @endif
+                            <p class="text-sm text-gray-600">{{ __('borrower.profile.legal_signature_notice') }}</p>
+                            <x-site.signature-pad
+                                :default-name="$customer->full_name"
+                                :readonly-name="true"
+                                :verified="filled($customer->nida_verified_at)"
+                                :include-in-form="true"
+                                :initial-data-url="$customer->legal_signature_data ?? ''"
+                            />
+                            <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                                {{ __('borrower.profile.save') }}
+                            </button>
+                        </form>
+                    </x-slot:form>
+                </x-site.profile-section-card>
             </div>
         @endif
 

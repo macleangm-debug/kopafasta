@@ -75,7 +75,8 @@ export function applyWizard(config) {
                 draftSavedAt: null,
                 draftSaveTimer: null,
                 draftReference: config.savedDraft?.draft_reference || '',
-                borrowerSignature: config.savedDraft?.borrower_signature || null,
+                profileSignature: config.profileSignature || null,
+                borrowerSignature: config.savedDraft?.borrower_signature || config.profileSignature || null,
                 guarantorLookup: { ok: false, label: '', error: '', memberKey: '', phone: '', name: '' },
                 guarantorValidating: false,
                 guarantorChanging: false,
@@ -105,7 +106,7 @@ export function applyWizard(config) {
                 loyaltyRateDiscount: Number(config.loyaltyRateDiscount || 0),
                 activeRewards: config.activeRewards || [],
                 pointsBalance: Number(config.pointsBalance || 0),
-                declarationAccepted: !!(config.savedDraft?.declaration_accepted || config.savedDraft?.borrower_signature),
+                declarationAccepted: !!(config.savedDraft?.declaration_accepted || config.savedDraft?.borrower_signature || config.profileSignature),
                 declarationSaveTimer: null,
                 i18n: config.i18n,
                 phase: 'details',
@@ -783,7 +784,7 @@ export function applyWizard(config) {
                         return true;
                     }).finally(() => {
                         this.resumeLoading = false;
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        this.scrollWizardIntoView();
                     });
                 },
 
@@ -1306,7 +1307,9 @@ export function applyWizard(config) {
                             steps.push({ key: 'product_questions', label: stepLabels.product_questions });
                         }
                         steps.push({ key: 'review', label: this.i18n.steps.review });
-                        steps.push({ key: 'signature', label: this.i18n.steps.signature });
+                        if (! this.profileSignature?.signature_data) {
+                            steps.push({ key: 'signature', label: this.i18n.steps.signature });
+                        }
                         steps.push({ key: 'submit', label: this.i18n.steps.submit });
                         this.steps = steps.map(s => this.withStepIcon(s));
                     }
@@ -1473,7 +1476,25 @@ export function applyWizard(config) {
                             this.reviewPage = 1;
                             this.refreshReview(this.formRoot());
                         }
+                        this.scrollWizardIntoView();
                     }
+                },
+
+                /** Keep sticky step/review nav in place — scroll to wizard shell, not page top. */
+                scrollWizardIntoView() {
+                    this.$nextTick(() => {
+                        const shell = this.$root?.querySelector?.('[data-wizard-scroll-anchor]')
+                            || this.$root;
+                        if (! shell || typeof shell.getBoundingClientRect !== 'function') {
+                            return;
+                        }
+                        const top = shell.getBoundingClientRect().top + window.scrollY - 12;
+                        const current = window.scrollY || window.pageYOffset || 0;
+                        // Only nudge when the shell is meaningfully off-screen; avoid jumping away from sticky tabs.
+                        if (Math.abs(current - top) > 80) {
+                            window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+                        }
+                    });
                 },
 
                 profileGateReturnUrl() {
@@ -1762,7 +1783,7 @@ export function applyWizard(config) {
                     if (next >= 3) {
                         this.loadRepaymentSchedule();
                     }
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    this.scrollWizardIntoView();
                 },
 
                 reviewContinue() {
@@ -1961,7 +1982,7 @@ export function applyWizard(config) {
                         this.syncStepKey();
                         await this.persistDraft(true);
                         this.$nextTick(() => this.syncSubmitPayload(form));
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        this.scrollWizardIntoView();
                     } finally {
                         this.advancing = false;
                     }
@@ -2274,7 +2295,7 @@ export function applyWizard(config) {
                                 this.syncStepKey();
                             }
                         }
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        this.scrollWizardIntoView();
                     } finally {
                         this.advancing = false;
                     }
@@ -2292,7 +2313,7 @@ export function applyWizard(config) {
                         if (this.stepKey === 'signature') {
                             this.$nextTick(() => this.restoreSignaturePad());
                         }
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        this.scrollWizardIntoView();
                     }
                 },
 
@@ -2306,6 +2327,7 @@ export function applyWizard(config) {
                         if (this.stepKey === 'submit') {
                             this.$nextTick(() => this.syncSubmitPayload(this.formRoot()));
                         }
+                        this.scrollWizardIntoView();
                     }
                 },
 

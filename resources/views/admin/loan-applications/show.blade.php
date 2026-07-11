@@ -12,6 +12,11 @@
         <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 ring-1 ring-amber-200">
             {{ $workflow->stageLabel($record->current_stage ?? 'submitted') }}
         </span>
+        @if ($record->assignedAnalyst)
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-800 ring-1 ring-sky-200">
+                Analyst: {{ $record->assignedAnalyst->name }}
+            </span>
+        @endif
         @if ($record->status === 'pending_documents')
             <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 ring-1 ring-sky-200">
                 Awaiting documents
@@ -31,13 +36,36 @@
         </a>
     </div>
 
+    <form method="POST" action="{{ route('admin.loan-applications.assign-analyst', $record) }}"
+          class="mb-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 px-4 py-3 flex flex-col sm:flex-row sm:items-end gap-3">
+        @csrf
+        <div class="flex-1 min-w-0">
+            <label class="block text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">Assign credit analyst</label>
+            <select name="assigned_analyst_id" class="w-full rounded-lg border-gray-300 text-sm">
+                <option value="">Unassigned</option>
+                @foreach ($assignableAnalysts ?? [] as $analyst)
+                    <option value="{{ $analyst->id }}" @selected((int) $record->assigned_analyst_id === (int) $analyst->id)>
+                        {{ $analyst->name }} ({{ display_label($analyst->role, 'role') }})
+                    </option>
+                @endforeach
+            </select>
+        </div>
+        <button type="submit" class="inline-flex justify-center bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2 rounded-lg text-sm shrink-0">
+            Save assignment
+        </button>
+        <a href="{{ route('admin.credit-team.index') }}" class="inline-flex justify-center text-xs font-semibold text-amber-700 hover:underline self-center shrink-0">
+            Manage team →
+        </a>
+    </form>
+
     @include('admin.loan-applications.review._header')
 
     @include('admin.loan-applications.review._affordability-summary')
 
-    @include('admin.loan-applications.review._recommendation')
+    <div x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'borrower' }" class="space-y-4"
+         @set-review-tab.window="tab = $event.detail">
+        @include('admin.loan-applications.review._recommendation')
 
-    <div x-data="{ tab: 'borrower' }" class="space-y-4">
         <nav class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2" aria-label="Review sections">
             @php
                 $reviewTabs = [
@@ -88,7 +116,7 @@
             </div>
         @endif
 
-        <div x-show="tab === 'decision'" x-cloak class="space-y-6">
+        <div id="decision-panel" x-show="tab === 'decision'" x-cloak class="space-y-6 scroll-mt-24">
             @include('admin.loan-applications._workflow')
             @include('admin.loan-applications._loan-link')
             @include('admin.loan-applications.review._contract')

@@ -41,6 +41,7 @@ class LoanApplication extends Model
             'offer_issued_at' => 'datetime',
             'offer_responded_at' => 'datetime',
             'recommended_at' => 'datetime',
+            'assigned_at' => 'datetime',
             'disbursement_details_confirmed_at' => 'datetime',
             'disbursement_details_snapshot' => 'array',
             'borrower_completed_steps' => 'array',
@@ -55,6 +56,11 @@ class LoanApplication extends Model
     public function recommendedByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recommended_by');
+    }
+
+    public function assignedAnalyst(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_analyst_id');
     }
 
     public function hasPendingOffer(): bool

@@ -58,7 +58,48 @@ class AssetReservationService
             'status'       => 'viewing_scheduled',
         ]);
 
-        return $reservation->refresh();
+        $reservation = $reservation->refresh()->loadMissing(['customer', 'asset.vendor']);
+        $this->notifyViewingScheduled($reservation);
+
+        return $reservation;
+    }
+
+    private function notifyViewingScheduled(AssetReservation $reservation): void
+    {
+        $customer = $reservation->customer;
+        $asset = $reservation->asset;
+        if (! $customer || ! $asset) {
+            return;
+        }
+
+        $when = trim(($reservation->viewing_date?->format('d M Y') ?? '').' '.($reservation->viewing_time ?? ''));
+        $assetUrl = route('site.borrower.marketplace.reserve', $asset->slug ?: $asset->id);
+        $notifier = app(NotificationService::class);
+
+        $notifier->notifyInApp(
+            $customer,
+            __('borrower.marketplace.viewing_scheduled_notice', [
+                'asset' => $asset->title,
+                'when' => $when,
+            ]),
+            'marketplace',
+            'marketplace_viewing_scheduled',
+            __('borrower.marketplace.viewing_scheduled_title'),
+            $assetUrl,
+            __('borrower.marketplace.viewing_scheduled_cta'),
+        );
+
+        $notifier->notifyCustomer($customer, 'marketplace_viewing_scheduled', [
+            'name' => $customer->first_name ?: $customer->full_name,
+            'asset_title' => $asset->title,
+            'viewing_when' => $when,
+            'reserve_url' => $assetUrl,
+            '_fallback_subject' => __('borrower.marketplace.viewing_scheduled_title'),
+            '_fallback_body' => __('borrower.marketplace.viewing_scheduled_notice', [
+                'asset' => $asset->title,
+                'when' => $when,
+            ]).' '.$assetUrl,
+        ]);
     }
 
     public function canScheduleViewing(AssetReservation $reservation): bool

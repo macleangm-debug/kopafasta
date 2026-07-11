@@ -191,22 +191,41 @@
                 $app = $reservation->loanApplication;
                 $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
                 $loan = $app?->loan;
+                $postFeeUrl = $app ? route('site.borrower.application.post-approval-fees', $app->id) : null;
+                $contractUrl = $app ? route('site.borrower.application.contract', $app->id) : null;
+                $appUrl = $app ? route('site.borrower.application', $app->id) : null;
             @endphp
             @if ($reservation->status === 'application_submitted')
                 <p class="text-sm text-gray-600">{{ __('borrower.marketplace.post_deposit.application_submitted') }}</p>
+                @if ($appUrl)
+                    <a href="{{ $appUrl }}" class="inline-flex mt-3 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                        {{ __('borrower.marketplace.post_deposit.view_application') }} →
+                    </a>
+                @endif
             @elseif ($app && $readiness->needsPostApprovalFees($app))
                 <p class="text-sm text-gray-600 mb-3">{{ __('borrower.marketplace.post_deposit.fees_pending') }}</p>
+                <a href="{{ $postFeeUrl }}" class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                    {{ __('borrower.marketplace.post_deposit.pay_fees') }} →
+                </a>
             @elseif ($app && $readiness->needsContractSignature($app))
                 <p class="text-sm text-gray-600 mb-3">{{ __('borrower.marketplace.post_deposit.contract_pending') }}</p>
+                <a href="{{ $contractUrl }}" class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                    {{ __('borrower.marketplace.post_deposit.sign_contract') }} →
+                </a>
             @elseif ($app && $readiness->canMarkAssetHandover($app))
                 <p class="text-sm text-emerald-800 font-medium">{{ __('borrower.marketplace.post_deposit.handover_ready') }}</p>
+                @if ($appUrl)
+                    <a href="{{ $appUrl }}" class="inline-flex mt-3 bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
+                        {{ __('borrower.marketplace.post_deposit.view_application') }} →
+                    </a>
+                @endif
             @else
                 <p class="text-sm text-gray-600">{{ __('borrower.marketplace.post_deposit.readiness') }}</p>
-            @endif
-            @if ($app)
-                <a href="{{ route('site.borrower.application', $app->id) }}" class="inline-flex mt-3 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                    {{ __('borrower.marketplace.post_deposit.view_application') }} →
-                </a>
+                @if ($appUrl)
+                    <a href="{{ $appUrl }}" class="inline-flex mt-3 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                        {{ __('borrower.marketplace.post_deposit.view_application') }} →
+                    </a>
+                @endif
             @endif
         @elseif ($reservation->status === 'released')
             @php $loan = $reservation->loanApplication?->loan; @endphp

@@ -1,9 +1,16 @@
-<x-admin.layout title="Pre-Approvals" heading="Pre-Approvals" subheading="Applications pending committee approval">
+<x-admin.layout title="Credit Committee" heading="Credit Committee" subheading="Applications awaiting committee decision after analyst recommendation">
     @if (session('status'))
         <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">
             {{ session('status') }}
         </div>
     @endif
 
-    @livewire('admin.loan-applications-table', ['stage' => 'pre_approval', 'lockStage' => true])
+    @include('admin.loan-applications._pipeline-tabs', ['active' => 'committee'])
+
+    <div class="mb-4 rounded-xl bg-gradient-to-r from-amber-50 to-white ring-1 ring-amber-200 px-5 py-4 text-sm text-amber-950">
+        <p class="font-semibold">Committee queue</p>
+        <p class="mt-1 text-amber-900/80">These applications have a credit recommendation and need pre-approval or a counter-offer from the credit committee team.</p>
+    </div>
+
+    @livewire('admin.loan-applications-table', ['pipeline' => 'committee', 'lockStage' => true])
 </x-admin.layout>

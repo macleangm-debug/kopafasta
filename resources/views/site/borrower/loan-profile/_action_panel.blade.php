@@ -22,13 +22,27 @@
     $continueLabel = $next['button_label'] ?? __('borrower.loan_profile.actions.continue_to_form');
 
     $wizardUrl = $profile['wizard_url'] ?? null;
-    $editQuoteUrl = null;
-    $editGuarantorUrl = null;
-    if ($isDraft && $wizardUrl) {
-        $sep = str_contains($wizardUrl, '?') ? '&' : '?';
-        $editQuoteUrl = $wizardUrl.$sep.'resume=1&step_key=quote';
-        $editGuarantorUrl = $wizardUrl.$sep.'resume=1&step_key=guarantor';
-    } elseif ($application) {
+    $editQuoteUrl = $profile['edit_quote_url'] ?? null;
+    $editGuarantorUrl = $profile['edit_guarantor_url'] ?? null;
+    if ($isDraft && ! $editQuoteUrl && ! $editGuarantorUrl && $wizardUrl) {
+        // Fallback for older payloads: replace step_key cleanly instead of appending duplicates.
+        $parts = parse_url($wizardUrl);
+        $query = [];
+        if (! empty($parts['query'])) {
+            parse_str($parts['query'], $query);
+        }
+        $query['resume'] = 1;
+        $basePath = ($parts['path'] ?? '/borrower/apply');
+        $build = function (string $stepKey) use ($basePath, $query): string {
+            $q = $query;
+            $q['step_key'] = $stepKey;
+            unset($q['step']);
+
+            return $basePath.'?'.http_build_query($q);
+        };
+        $editQuoteUrl = $build('quote');
+        $editGuarantorUrl = $build('guarantor');
+    } elseif (! $isDraft && $application && ! $editGuarantorUrl) {
         $guarantorSupplement = app(\App\Services\GuarantorSupplementService::class);
         $editGuarantorUrl = $guarantorSupplement->hasOpenRequest($application)
             ? $guarantorSupplement->borrowerWizardUrl($application)
@@ -121,25 +135,27 @@
             @endif
         </div>
 
-        @unless ($profileComplete)
-            <div class="px-5 sm:px-6 py-4 border-t border-amber-100 bg-amber-50/60">
+            @unless ($profileComplete)
+            <div class="px-5 sm:px-6 py-4 border-t border-brand/10 bg-gradient-to-r from-brand-muted/40 to-white">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <p class="text-sm text-amber-900">
-                        <span class="font-semibold">{{ __('borrower.loan_profile.profile_completion') }}</span>
-                        <span class="tabular-nums font-bold ml-1">{{ $profilePercent }}%</span>
-                        — {{ __('borrower.loan_profile.profile_completion_hint_short') }}
-                    </p>
+                    <div>
+                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loan_profile.profile_completion') }}</p>
+                        <p class="text-sm text-gray-700 mt-1">
+                            <span class="tabular-nums font-bold text-gray-900">{{ $profilePercent }}%</span>
+                            — {{ __('borrower.loan_profile.profile_completion_hint_short') }}
+                        </p>
+                    </div>
                     <a href="{{ route('site.borrower.profile') }}"
-                       class="inline-flex items-center justify-center font-semibold px-5 py-2 rounded-xl text-sm shrink-0 bg-brand hover:bg-brand-light text-white">
+                       class="inline-flex items-center justify-center font-bold px-5 py-2.5 rounded-xl text-sm shrink-0 bg-brand-gold hover:bg-yellow-400 text-brand">
                         {{ __('borrower.loan_profile.complete_profile') }}
                     </a>
                 </div>
             </div>
-        @elseif (! empty($next['ready']))
+            @elseif (! empty($next['ready']))
             <div class="px-5 sm:px-6 py-4 bg-emerald-50/80 border-t border-emerald-100">
                 <p class="text-sm font-semibold text-emerald-800">{{ __('borrower.loan_profile.application_ready') }}</p>
             </div>
-        @endif
+            @endif
     </div>
 @elseif (($status['code'] ?? '') === 'rejected')
     <div class="mb-6 rounded-2xl bg-gradient-to-br from-brand-muted/60 to-white ring-1 ring-brand/10 p-4 sm:p-5">

@@ -82,6 +82,14 @@ return [
         ],
         'credit_analyst' => [
             'applications.view', 'applications.review', 'applications.request_documents',
+            'applications.acknowledge', 'applications.edit',
+            'customers.view', 'kyc.review',
+            'loans.view',
+            'reports.view',
+        ],
+        'credit_committee' => [
+            'applications.view', 'applications.pre_approve', 'applications.approve',
+            'applications.reject', 'applications.request_documents',
             'customers.view', 'kyc.review',
             'loans.view',
             'reports.view',

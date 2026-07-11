@@ -183,13 +183,8 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-5 py-4 border-t border-gray-100 flex flex-wrap gap-3">
-            <form method="POST" action="{{ route('admin.loan-applications.refresh-group-crb', $record) }}">
-                @csrf
-                <button type="submit" class="inline-flex bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-sm">
-                    {{ __('admin.group_review.refresh_crb') }}
-                </button>
-            </form>
+        <div class="px-5 py-4 border-t border-gray-100">
+            <p class="text-xs text-gray-500">{{ __('admin.group_review.automated_only_hint') }}</p>
         </div>
 
         @if ($groupReview['contract_signatures'] ?? null)

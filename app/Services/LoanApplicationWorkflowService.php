@@ -40,7 +40,7 @@ class LoanApplicationWorkflowService
         'issue_offer' => [
             'label'      => 'Issue offer to borrower',
             'to_stage'   => 'pre_approval',
-            'permission' => 'applications.approve',
+            'permission' => 'applications.pre_approve',
             'from'       => ['pre_approval'],
         ],
         'approve' => [

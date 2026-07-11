@@ -33,6 +33,17 @@ class LoanApplicationProfileService
         $profileUrl = route('site.borrower.loan-profile.draft', $draft);
         $missingRequirements = $this->missingProfileRequirements($customer, $product, $profileUrl);
         $next = $this->nextAction->forDraft($customer, $draft, $product);
+        $wizardUrl = $this->drafts->wizardApplyUrl($draft, $resumeTarget);
+
+        $stepPlan = app(SmartLoanApplicationWizardService::class)->borrowerStepPlan($customer, $product);
+        $stepKeys = collect($stepPlan)->pluck('key')->all();
+        $quoteStepKey = $this->drafts->quoteLikeStepKey($stepPlan);
+        $editQuoteUrl = $quoteStepKey
+            ? $this->drafts->wizardApplyUrlForStep($draft, $quoteStepKey, $resumeTarget)
+            : null;
+        $editGuarantorUrl = in_array('guarantor', $stepKeys, true)
+            ? $this->drafts->wizardApplyUrlForStep($draft, 'guarantor', $resumeTarget)
+            : null;
 
         return [
             'is_draft'             => true,
@@ -56,7 +67,9 @@ class LoanApplicationProfileService
             'can_submit'           => (bool) ($next['can_submit'] ?? false) && ($next['code'] ?? '') === 'submit_application',
             'actions'              => $this->primaryActions($next),
             'resume_target'        => $resumeTarget,
-            'wizard_url'           => $this->drafts->wizardApplyUrl($draft, $resumeTarget),
+            'wizard_url'           => $wizardUrl,
+            'edit_quote_url'       => $editQuoteUrl,
+            'edit_guarantor_url'   => $editGuarantorUrl,
             'snapshot'             => $this->drafts->adminSnapshot($draft),
             'document_requests'    => [],
             'guarantor_invitations' => collect(),
@@ -175,6 +188,18 @@ class LoanApplicationProfileService
             'actions'              => $this->primaryActions($next),
             'resume_target'        => null,
             'wizard_url'           => null,
+            'edit_quote_url'       => null,
+            'edit_guarantor_url'   => app(\App\Services\GuarantorSupplementService::class)->hasOpenRequest($application)
+                ? app(\App\Services\GuarantorSupplementService::class)->borrowerWizardUrl($application)
+                : (($application->product?->requires_guarantor ?? false)
+                    ? route('site.borrower.apply', [
+                        'product'              => $application->loan_product_id,
+                        'guarantor_supplement' => 1,
+                        'application'          => $application->id,
+                        'resume'               => 1,
+                        'step_key'             => 'guarantor',
+                    ])
+                    : null),
             'document_requests'    => $application->documentRequests()->with('uploads')->latest()->get(),
             'document_request_groups' => $this->borrowerStatus->groupedDocumentRequests(
                 $application->documentRequests()->with('uploads')->latest()->get()

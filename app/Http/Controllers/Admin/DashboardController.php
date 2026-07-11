@@ -34,6 +34,13 @@ class DashboardController extends Controller
             'incomplete_applications'=> app(LoanApplicationDraftService::class)->countIncomplete(),
             'active_loans'           => Loan::query()->where('status', 'active')->count(),
             'portfolio_tzs'          => (float) Loan::query()->where('status', 'active')->sum('principal_amount'),
+            'credit_review_queue'    => (int) ($stageCounts['screening'] ?? 0) + (int) ($stageCounts['credit_appraisal'] ?? 0),
+            'committee_queue'        => (int) ($stageCounts['pre_approval'] ?? 0),
+            'my_assigned_queue'      => LoanApplication::query()
+                ->where('assigned_analyst_id', auth()->id())
+                ->whereNotIn('status', ['rejected', 'withdrawn', 'cancelled'])
+                ->whereNotIn('current_stage', ['disbursement', 'rejected'])
+                ->count(),
             'capital_available'      => $capital['capital_available'],
             'capital_utilized'       => $capital['capital_utilized'],
             'capital_invested'       => $capital['capital_invested'],
@@ -49,7 +56,7 @@ class DashboardController extends Controller
         ];
 
         $recentApplications = LoanApplication::query()
-            ->with('customer')
+            ->with(['customer', 'product', 'assignedAnalyst'])
             ->latest()
             ->limit(8)
             ->get();

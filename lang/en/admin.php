@@ -117,6 +117,7 @@ return [
         'request_replacement'      => 'Request member replacement',
         'replacement_confirm'      => 'Request replacement for this member? The group leader will be notified.',
         'refresh_crb'              => 'Refresh CRB for all members',
+        'automated_only_hint'      => 'CRB checks run automatically. Manual refresh is disabled to control enquiry costs.',
         'contract_signatures'      => 'Contract signatures',
         'auto_refresh'             => 'Auto-refreshes',
         'col_signed_at'            => 'Signed at',

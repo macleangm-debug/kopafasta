@@ -458,6 +458,9 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::view('loan-applications/pending-documents','admin.loan-applications.pending-documents')->name('loan-applications.pending-documents');
         Route::view('loan-applications/under-review',     'admin.loan-applications.under-review')     ->name('loan-applications.under-review');
         Route::view('loan-applications/pre-approvals',    'admin.loan-applications.pre-approvals')    ->name('loan-applications.pre-approvals');
+        Route::get('credit-team', [\App\Http\Controllers\Admin\CreditTeamController::class, 'index'])
+            ->middleware('permission:applications.view')
+            ->name('credit-team.index');
         Route::redirect('loan-applications/final-approvals', '/admin/loan-applications/pipeline/approved')->name('loan-applications.final-approvals');
         Route::view('loan-applications/rejected',         'admin.loan-applications.rejected')         ->name('loan-applications.rejected');
         Route::view('loan-applications/incomplete',      'admin.loan-applications.incomplete')      ->name('loan-applications.incomplete');
@@ -482,6 +485,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('loan-applications.request-guarantor-supplement');
         Route::post('loan-applications/{loan_application}/workflow', [LoanApplicationController::class, 'runWorkflow'])
             ->name('loan-applications.workflow');
+        Route::post('loan-applications/{loan_application}/assign-analyst', [LoanApplicationController::class, 'assignAnalyst'])
+            ->name('loan-applications.assign-analyst');
         Route::post('loan-applications/{loan_application}/documents/{document}/verify', [LoanApplicationController::class, 'verifyDocument'])
             ->name('loan-applications.documents.verify');
         Route::post('loan-applications/{loan_application}/documents/{document}/reject', [LoanApplicationController::class, 'rejectDocument'])

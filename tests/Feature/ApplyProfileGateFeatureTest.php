@@ -50,8 +50,35 @@ class ApplyProfileGateFeatureTest extends TestCase
         $this->assertNotNull(collect($checklist['items'])->firstWhere('key', 'residence'));
         $this->assertNotNull(collect($checklist['items'])->firstWhere('key', 'activity'));
         $this->assertNotNull(collect($checklist['items'])->firstWhere('key', 'kin'));
+        $this->assertNotNull(collect($checklist['items'])->firstWhere('key', 'legal_signature'));
         $this->assertNull(collect($checklist['items'])->firstWhere('key', 'profile'));
         $this->assertStringContainsString('/borrower/profile', (string) $checklist['first_action_url']);
+    }
+
+    public function test_legal_signature_gates_can_apply(): void
+    {
+        $customer = $this->borrower([
+            'region'                   => 'Dar es Salaam',
+            'district'                 => 'Kinondoni',
+            'street'                   => 'Samora Avenue',
+            'activity_type'            => 'employed',
+            'income_range'             => '500k_1m',
+            'face_verification_status' => 'verified',
+            'nok_first_name'           => 'Next',
+            'nok_last_name'            => 'Kin',
+            'nok_relationship'         => 'spouse',
+            'nok_phone'                => '255712340099',
+            'nok_region'               => 'Dar es Salaam',
+            'nok_district'             => 'Kinondoni',
+            'nok_street'               => 'Kin Street',
+        ]);
+
+        $checklist = app(ApplicationRequirementsService::class)->checklist($customer);
+        $signatureItem = collect($checklist['items'])->firstWhere('key', 'legal_signature');
+
+        $this->assertNotNull($signatureItem);
+        $this->assertFalse($signatureItem['complete']);
+        $this->assertStringContainsString('focus=signature', (string) $signatureItem['action_url']);
     }
 
     public function test_checklist_for_apply_appends_return_url(): void

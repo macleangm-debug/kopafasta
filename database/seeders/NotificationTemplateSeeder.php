@@ -113,14 +113,14 @@ class NotificationTemplateSeeder extends Seeder
                 'name' => 'Application Document Request',
                 'channel' => 'all',
                 'subject' => 'Document needed for {{ application_number }}',
-                'body'    => 'Hi {{ name }}, additional documents are required for application {{ application_number }}. {{ instructions }} Please log in to KopaFasta to upload by {{ due_date }}.',
+                'body'    => 'Hi {{ name }}, additional documents are required for application {{ application_number }}. {{ instructions }} Open your application to upload by {{ due_date }}: {{ upload_url }} — KopaFasta',
             ],
             [
                 'code' => 'group_member_replacement_requested',
                 'name' => 'Group Member Replacement Requested',
                 'channel' => 'all',
                 'subject' => 'Replace group member — {{ application_number }}',
-                'body'    => 'Hi {{ name }}, underwriting requires a replacement for {{ member_name }} on group application {{ application_number }}. {{ feedback }} Log in to add a replacement: {{ application_url }} — KopaFasta',
+                'body'    => 'Hi {{ name }}, underwriting requires a replacement for {{ member_name }} on group application {{ application_number }}. {{ feedback }} Open your application to add a replacement: {{ application_url }} — KopaFasta',
             ],
             [
                 'code' => 'group_member_review_feedback',
@@ -163,6 +163,13 @@ class NotificationTemplateSeeder extends Seeder
                 'channel' => 'all',
                 'subject' => 'Member signed contract — {{ application_number }}',
                 'body'    => 'Hi {{ name }}, {{ member_name }} signed the group loan contract for {{ application_number }}. View progress: {{ application_url }} — KopaFasta',
+            ],
+            [
+                'code' => 'marketplace_viewing_scheduled',
+                'name' => 'Marketplace Viewing Scheduled',
+                'channel' => 'all',
+                'subject' => 'Viewing scheduled — {{ asset_title }}',
+                'body'    => 'Hi {{ name }}, your viewing for {{ asset_title }} is set for {{ viewing_when }}. Details: {{ reserve_url }} — KopaFasta',
             ],
         ];
 

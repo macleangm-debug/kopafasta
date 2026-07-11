@@ -1,9 +1,16 @@
 <div>
+<div class="mb-3 flex flex-wrap items-center gap-2">
+    <label class="inline-flex items-center gap-2 text-xs font-semibold text-gray-700 bg-white ring-1 ring-gray-200 rounded-lg px-3 py-2">
+        <input type="checkbox" wire:model.live="mine" class="rounded border-gray-300 text-amber-600 focus:ring-amber-500">
+        My assigned queue
+    </label>
+</div>
 <x-admin.table-shell :records="$rows" :statuses="$statuses" statusGroup="application_status" searchPlaceholder="Search application #, customer…">
     <x-slot:headers>
         <x-admin.th :sort="$sort" :direction="$direction" col="application_number" label="App #" />
         <x-admin.th :sort="$sort" :direction="$direction" col="customer_id"        label="Customer" />
         <x-admin.th :sort="$sort" :direction="$direction" col="requested_amount"   label="Amount" />
+        <th class="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Analyst</th>
         <x-admin.th :sort="$sort" :direction="$direction" col="status"             label="Status" />
         <x-admin.th :sort="$sort" :direction="$direction" col="created_at"         label="Submitted" />
         <th class="px-5 py-2.5 text-right">Actions</th>
@@ -17,6 +24,7 @@
                     <div class="text-xs text-gray-500">{{ $r->customer?->phone }}</div>
                 </td>
                 <td class="px-5 py-3">{{ format_money( ($r->requested_amount ?? 0)) }}</td>
+                <td class="px-5 py-3 text-xs text-gray-600">{{ $r->assignedAnalyst?->name ?? '—' }}</td>
                 <td class="px-5 py-3">
                     <x-admin.badge :value="$r->status" group="application_status" :map="[
                         'approved'     => 'bg-emerald-100 text-emerald-800',

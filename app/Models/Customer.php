@@ -33,6 +33,7 @@ class Customer extends Model
             'profile_section_confirmed_at' => 'array',
             'nida_locked_until' => 'datetime',
             'reminders_sent' => 'array',
+            'legal_signed_at' => 'datetime',
         ];
     }
 

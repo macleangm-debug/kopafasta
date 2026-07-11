@@ -16,6 +16,7 @@ class LoanApplicationsTable extends Component
     #[Url] public string $stage = '';
     #[Url] public string $sort = 'created_at';
     #[Url] public string $direction = 'desc';
+    #[Url] public bool $mine = false;
     public int $perPage = 15;
     public bool $lockStage = false;
     public ?string $pipeline = null;
@@ -32,6 +33,7 @@ class LoanApplicationsTable extends Component
     public function updatingSearch(): void { $this->resetPage(); }
     public function updatingStatus(): void { $this->resetPage(); }
     public function updatingStage(): void { $this->resetPage(); }
+    public function updatingMine(): void { $this->resetPage(); }
 
     public function sortBy(string $col): void
     {
@@ -46,7 +48,7 @@ class LoanApplicationsTable extends Component
         $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
 
         $rows = LoanApplication::query()
-            ->with(['customer', 'product', 'loan'])
+            ->with(['customer', 'product', 'loan', 'assignedAnalyst'])
             ->when($this->search !== '', function ($q) {
                 $term = '%'.$this->search.'%';
                 $q->where(function ($q) use ($term) {
@@ -56,14 +58,26 @@ class LoanApplicationsTable extends Component
                             ->orWhere('phone', 'like', $term));
                 });
             })
+            ->when($this->mine, fn ($q) => $q->where('assigned_analyst_id', auth()->id()))
             ->when($this->status !== '', fn ($q) => $q->where('status', $this->status))
             ->when($this->stage !== '', fn ($q) => $q->where('current_stage', $this->stage))
             ->when($this->pipeline === 'under_review', function ($q) {
                 $q->where(function ($q) {
-                    $q->whereIn('current_stage', ['screening', 'credit_appraisal', 'pre_approval'])
-                        ->orWhere('current_stage', 'rejected')
-                        ->orWhere('status', 'rejected');
+                    $q->whereIn('current_stage', ['screening', 'credit_appraisal'])
+                        ->orWhere(function ($q) {
+                            $q->where(function ($inner) {
+                                $inner->where('current_stage', 'rejected')
+                                    ->orWhere('status', 'rejected');
+                            })->where(function ($inner) {
+                                $inner->whereNull('current_stage')
+                                    ->orWhereNotIn('current_stage', ['pre_approval', 'approval', 'disbursement']);
+                            });
+                        });
                 })->whereNotIn('status', ['approved', 'disbursed']);
+            })
+            ->when($this->pipeline === 'committee', function ($q) {
+                $q->where('current_stage', 'pre_approval')
+                    ->whereNotIn('status', ['approved', 'disbursed', 'rejected']);
             })
             ->when($this->pipeline === 'approved', function ($q) {
                 $q->where(function ($q) {

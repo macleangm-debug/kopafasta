@@ -171,6 +171,37 @@ class LoanApplicationDraftService
     }
 
     /**
+     * Build a resume wizard URL that jumps to a specific step without duplicating query params.
+     *
+     * @param  array{phase?: string, step_key?: string|null, step?: int, reason?: string|null}  $baseTarget
+     */
+    public function wizardApplyUrlForStep(LoanApplicationDraft $draft, string $stepKey, array $baseTarget = []): string
+    {
+        $target = $baseTarget;
+        $target['step_key'] = $stepKey;
+        unset($target['step']);
+
+        return $this->wizardApplyUrl($draft, $target);
+    }
+
+    /**
+     * First quote-like step key for a product (quote / asset / group).
+     *
+     * @param  list<array{key: string}>  $stepPlan
+     */
+    public function quoteLikeStepKey(array $stepPlan): ?string
+    {
+        $keys = collect($stepPlan)->pluck('key')->all();
+        foreach (['quote', 'asset_details', 'asset_tenure', 'group_setup'] as $candidate) {
+            if (in_array($candidate, $keys, true)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * All in-progress wizard drafts and fee-pending applications.
      *
      * @return list<array{type: string, label: string, detail: string, url: string, saved_at: string|null}>

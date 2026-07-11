@@ -189,10 +189,7 @@
                         @if ($docReq->uploads->isNotEmpty())
                             <div class="flex flex-wrap gap-2 mb-3">
                                 @foreach ($docReq->uploads as $upload)
-                                    <a href="{{ asset('storage/'.$upload->file_path) }}" target="_blank"
-                                       class="text-xs font-semibold text-amber-700 hover:underline">
-                                        {{ __('borrower.application.view_upload') }}
-                                    </a>
+                                    <x-site.document-thumb :url="asset('storage/'.$upload->file_path)" />
                                 @endforeach
                             </div>
                         @endif
@@ -281,14 +278,12 @@
                         @endif
 
                         @if (!$isApproved)
-                            <form method="POST" action="{{ route('site.borrower.application.documents.store', $application->id) }}" enctype="multipart/form-data" class="grid sm:grid-cols-[1fr_auto] gap-2 items-end">
-                                @csrf
+                            <x-site.document-upload
+                                :action="route('site.borrower.application.documents.store', $application->id)"
+                                :multiple="false"
+                            >
                                 <input type="hidden" name="loan_product_requirement_id" value="{{ $req->id }}">
-                                <input type="file" name="file" accept="image/*,application/pdf" required class="w-full text-sm">
-                                <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2 rounded-full text-sm whitespace-nowrap">
-                                    {{ $latest ? __('borrower.application.re_upload') : __('borrower.application.upload') }}
-                                </button>
-                            </form>
+                            </x-site.document-upload>
                         @endif
                     </li>
                 @endforeach

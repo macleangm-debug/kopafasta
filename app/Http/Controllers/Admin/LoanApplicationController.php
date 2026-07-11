@@ -168,7 +168,7 @@ class LoanApplicationController extends ResourceController
     public function show($id): View
     {
         $record = LoanApplication::query()
-            ->with(['customer', 'product', 'loan', 'loanGroup.members.customer', 'loanGroup.leader', 'stageHistory.changedByUser', 'alternativeProduct', 'recommendedByUser', 'collateralAsset', 'assetReservation.asset.vendor', 'manualPostApprovalFees', 'valuationAssignments.vendor'])
+            ->with(['customer', 'product', 'loan', 'loanGroup.members.customer', 'loanGroup.leader', 'stageHistory.changedByUser', 'alternativeProduct', 'recommendedByUser', 'assignedAnalyst', 'collateralAsset', 'assetReservation.asset.vendor', 'manualPostApprovalFees', 'valuationAssignments.vendor'])
             ->findOrFail($id);
 
         $workflow = app(LoanApplicationWorkflowService::class);
@@ -224,6 +224,18 @@ class LoanApplicationController extends ResourceController
         $suggestedGpsInstaller = app(\App\Services\GpsPartnerService::class)->suggestInstaller($record);
         $groupReview = app(\App\Services\GroupLoanReviewService::class)->dossier($record);
 
+        $underwritingDeptId = \App\Models\Department::query()->where('code', 'UND')->value('id');
+        $assignableAnalysts = \App\Models\User::query()
+            ->where('is_active', true)
+            ->where(function ($q) use ($underwritingDeptId) {
+                $q->whereIn('role', ['credit_analyst', 'officer', 'manager']);
+                if ($underwritingDeptId) {
+                    $q->orWhere('department_id', $underwritingDeptId);
+                }
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'role']);
+
         return view("admin.{$this->viewFolder}.show", compact(
             'record',
             'review',
@@ -247,7 +259,35 @@ class LoanApplicationController extends ResourceController
             'gpsInstallers',
             'suggestedGpsInstaller',
             'groupReview',
+            'assignableAnalysts',
         ));
+    }
+
+    public function assignAnalyst(Request $request, LoanApplication $loan_application): RedirectResponse
+    {
+        $data = $request->validate([
+            'assigned_analyst_id' => ['nullable', 'exists:users,id'],
+        ]);
+
+        $analystId = $data['assigned_analyst_id'] ?? null;
+        if ($analystId) {
+            $analyst = \App\Models\User::query()->findOrFail($analystId);
+            abort_unless(
+                in_array($analyst->role, ['credit_analyst', 'officer', 'manager', 'admin', 'super_admin'], true),
+                422
+            );
+        }
+
+        $loan_application->forceFill([
+            'assigned_analyst_id' => $analystId,
+            'assigned_at' => $analystId ? now() : null,
+        ])->save();
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $loan_application)
+            ->with('status', $analystId
+                ? 'Application assigned to analyst.'
+                : 'Analyst assignment cleared.');
     }
 
     public function requestGuarantorSupplement(Request $request, LoanApplication $loan_application): RedirectResponse

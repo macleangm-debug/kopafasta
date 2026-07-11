@@ -104,6 +104,32 @@
 
     @include('site.borrower.loan-profile._action_panel', ['profile' => $profile])
 
+    @php
+        $missingRequirements = collect($profile['missing_requirements'] ?? [])->filter(fn ($item) => empty($item['complete']));
+    @endphp
+    @if ($missingRequirements->isNotEmpty())
+        <div id="requested-actions" class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15">
+            <div class="bg-gradient-to-r from-brand-muted/50 to-white px-5 py-4 border-b border-brand/10">
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loan_profile.missing_requirements_title') }}</p>
+                <p class="text-sm text-gray-600 mt-1">{{ __('borrower.loan_profile.missing_requirements_hint') }}</p>
+            </div>
+            <ul class="divide-y divide-gray-100">
+                @foreach ($missingRequirements as $item)
+                    <li class="px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-gray-900">{{ $item['label'] ?? '—' }}</p>
+                            <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.dashboard.document_requests_title') }}</p>
+                        </div>
+                        <a href="{{ $item['upload_url'] ?? '#' }}"
+                           class="inline-flex justify-center shrink-0 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm">
+                            {{ __('borrower.loan_profile.upload') }}
+                        </a>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     @if (! ($profile['is_draft'] ?? false) && ! empty($profile['disbursement_checklist']))
         @include('site.borrower.loan-profile._disbursement_checklist', ['checklist' => $profile['disbursement_checklist']])
     @endif

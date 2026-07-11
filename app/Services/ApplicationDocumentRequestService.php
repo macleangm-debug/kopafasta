@@ -156,19 +156,22 @@ class ApplicationDocumentRequestService
             'instructions'       => $instructions,
             'due_date'           => optional($request->due_at)->format('d M Y') ?? 'as soon as possible',
             'upload_url'         => $uploadUrl,
-            '_fallback_body'     => "Hi {$customer->first_name}, underwriting needs \"{$request->label}\" for application {$application->application_number}. Log in to KopaFasta to upload.",
+            '_fallback_body'     => "Hi {$customer->first_name}, underwriting needs \"{$request->label}\" for application {$application->application_number}. Open your application to upload: {$uploadUrl}",
             '_fallback_subject'  => 'Document requested for your loan application',
         ]);
 
         if ($inApp) {
             $this->notifier->notifyInApp(
                 $customer,
-                "Application {$application->application_number}: please upload {$request->label}.",
+                __('borrower.notifications.document_request_body', [
+                    'application' => $application->application_number,
+                    'label' => $request->label,
+                ]),
                 'document_request',
                 'application_document_request',
-                'Additional documents required',
+                __('borrower.notifications.document_request_title'),
                 $uploadUrl,
-                'View application',
+                __('borrower.notifications.document_request_cta'),
             );
         }
     }
@@ -189,12 +192,16 @@ class ApplicationDocumentRequestService
 
         $this->notifier->notifyInApp(
             $customer,
-            "Application {$application->application_number}: {$count} documents requested ({$labels}{$suffix}).",
+            __('borrower.notifications.document_request_batch_body', [
+                'application' => $application->application_number,
+                'count' => $count,
+                'labels' => $labels.$suffix,
+            ]),
             'document_request',
             'application_document_request',
-            'Additional documents required',
+            __('borrower.notifications.document_request_title'),
             $uploadUrl,
-            'View application',
+            __('borrower.notifications.document_request_cta'),
         );
     }
 
@@ -302,18 +309,21 @@ class ApplicationDocumentRequestService
                 'instructions'       => "Please re-upload. Reason: {$notes}",
                 'due_date'           => optional($request->due_at)->format('d M Y') ?? 'as soon as possible',
                 'upload_url'         => $uploadUrl,
-                '_fallback_body'     => "Hi {$customer->first_name}, your upload for \"{$request->label}\" was rejected. {$notes}. Log in to KopaFasta to re-upload.",
+                '_fallback_body'     => "Hi {$customer->first_name}, your upload for \"{$request->label}\" was rejected. {$notes}. Open your application to re-upload: {$uploadUrl}",
                 '_fallback_subject'  => 'Document upload rejected — action required',
             ]);
 
             $this->notifier->notifyInApp(
                 $customer,
-                "Application {$application->application_number}: please re-upload {$request->label}. {$notes}",
+                __('borrower.notifications.document_request_body', [
+                    'application' => $application->application_number,
+                    'label' => $request->label,
+                ]).' '.$notes,
                 'document_request',
                 'application_document_request',
-                'Document upload rejected',
+                __('borrower.notifications.document_request_title'),
                 $uploadUrl,
-                'View application',
+                __('borrower.notifications.document_request_cta'),
             );
         }
 

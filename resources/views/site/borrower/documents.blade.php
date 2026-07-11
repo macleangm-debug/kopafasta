@@ -39,24 +39,19 @@
     </div>
 
     <div class="grid lg:grid-cols-3 gap-6">
-        <form method="POST" action="{{ route('site.borrower.documents.store') }}" enctype="multipart/form-data"
-              class="lg:col-span-1 bg-white rounded-2xl border border-gray-200 p-6">
-            @csrf
+        <div class="lg:col-span-1 bg-white rounded-2xl border border-gray-200 p-6">
             <h2 class="font-semibold mb-1">{{ __('borrower.documents_page.general_upload_title') }}</h2>
             <p class="text-xs text-gray-500 mb-4">{{ __('borrower.documents_page.general_upload_hint') }}</p>
 
-            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.documents_page.document_type') }}</label>
-            <select name="document_type_id" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm mb-4">
-                @foreach ($types as $t)
-                    <option value="{{ $t->id }}">{{ $t->name }}</option>
-                @endforeach
-            </select>
-
-            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.documents_page.file') }}</label>
-            <input type="file" name="file" accept="image/*,application/pdf" required class="w-full text-sm mb-5">
-
-            <button class="w-full bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.documents_page.upload_button') }}</button>
-        </form>
+            <x-site.document-upload :action="route('site.borrower.documents.store')" :multiple="false">
+                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.documents_page.document_type') }}</label>
+                <select name="document_type_id" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm mb-4">
+                    @foreach ($types as $t)
+                        <option value="{{ $t->id }}">{{ $t->name }}</option>
+                    @endforeach
+                </select>
+            </x-site.document-upload>
+        </div>
 
         <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-200">
             <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">

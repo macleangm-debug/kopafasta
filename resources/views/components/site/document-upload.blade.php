@@ -35,15 +35,32 @@
         <div x-show="queued.length" class="space-y-2">
             <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest">{{ __('borrower.document_upload.ready_to_upload') }} (<span x-text="queued.length"></span>)</p>
             <template x-for="(item, index) in queued" :key="index">
-                <div class="flex items-center justify-between gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
-                    <span class="truncate" x-text="item.name"></span>
-                    <button type="button" @click="removeQueued(index)" class="text-red-600 text-xs font-semibold">{{ __('borrower.document_upload.remove') }}</button>
+                <div class="flex items-center justify-between gap-3 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <template x-if="item.preview">
+                            <button type="button" @click="expandedUrl = item.preview"
+                                    class="h-12 w-12 rounded-lg overflow-hidden ring-1 ring-gray-200 bg-white shrink-0 cursor-zoom-in">
+                                <img :src="item.preview" alt="" class="h-full w-full object-cover">
+                            </button>
+                        </template>
+                        <template x-if="!item.preview && item.isPdf">
+                            <div class="h-12 w-12 rounded-lg ring-1 ring-gray-200 bg-white flex flex-col items-center justify-center text-gray-600 shrink-0">
+                                <span class="text-[10px] font-bold">PDF</span>
+                            </div>
+                        </template>
+                        <template x-if="!item.preview && !item.isPdf">
+                            <div class="h-12 w-12 rounded-lg ring-1 ring-gray-200 bg-white flex items-center justify-center text-gray-500 text-[10px] font-semibold shrink-0">FILE</div>
+                        </template>
+                        <span class="truncate" x-text="item.name"></span>
+                    </div>
+                    <button type="button" @click="removeQueued(index)" class="text-red-600 text-xs font-semibold shrink-0">{{ __('borrower.document_upload.remove') }}</button>
                 </div>
             </template>
         </div>
 
         <form x-ref="form" method="POST" action="{{ $action }}" enctype="multipart/form-data" @submit.prevent="submitForm">
             @csrf
+            {{ $slot }}
             @if ($showClarification)
                 <div class="mb-3">
                     <label class="block text-xs font-semibold text-gray-600 mb-1">{{ __('borrower.document_upload.your_response') }}</label>
@@ -58,6 +75,14 @@
     @else
         <p class="text-sm text-gray-500">{{ __('borrower.document_upload.no_action') }}</p>
     @endunless
+
+    <div x-show="expandedUrl" x-cloak x-transition
+         class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"
+         @keydown.escape.window="expandedUrl = null"
+         @click.self="expandedUrl = null">
+        <button type="button" class="absolute top-4 right-4 text-white/90 text-sm font-semibold" @click="expandedUrl = null">{{ __('borrower.profile.cancel') }}</button>
+        <img :src="expandedUrl" alt="" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
+    </div>
 </div>
 
 @once
@@ -69,6 +94,7 @@
                     queued: [],
                     stream: null,
                     allowMultiple,
+                    expandedUrl: null,
                     activeTab: 'text-sm font-semibold px-4 py-2 rounded-full bg-gray-900 text-white',
                     idleTab: 'text-sm font-semibold px-4 py-2 rounded-full bg-white ring-1 ring-gray-200 text-gray-700',
 
@@ -79,13 +105,30 @@
                     addFiles(fileList) {
                         if (!fileList?.length) return;
                         for (const file of fileList) {
-                            if (!this.allowMultiple && this.queued.length >= 1) this.queued = [];
-                            this.queued.push(file);
+                            if (!this.allowMultiple && this.queued.length >= 1) {
+                                this.revokeQueued();
+                                this.queued = [];
+                            }
+                            const isImage = (file.type || '').startsWith('image/');
+                            const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+                            this.queued.push({
+                                file,
+                                name: file.name,
+                                preview: isImage ? URL.createObjectURL(file) : null,
+                                isPdf,
+                            });
                         }
                     },
 
+                    revokeQueued() {
+                        this.queued.forEach((item) => {
+                            if (item.preview) URL.revokeObjectURL(item.preview);
+                        });
+                    },
+
                     removeQueued(index) {
-                        this.queued.splice(index, 1);
+                        const [removed] = this.queued.splice(index, 1);
+                        if (removed?.preview) URL.revokeObjectURL(removed.preview);
                     },
 
                     async startCamera() {
@@ -126,10 +169,11 @@
                         const fd = new FormData(form);
                         fd.delete('files[]');
                         fd.delete('file');
-                        this.queued.forEach((file) => {
-                            fd.append(this.allowMultiple ? 'files[]' : 'file', file);
+                        this.queued.forEach((item) => {
+                            fd.append(this.allowMultiple ? 'files[]' : 'file', item.file || item);
                         });
                         this.stopCamera();
+                        this.revokeQueued();
                         fetch(form.action, {
                             method: 'POST',
                             body: fd,

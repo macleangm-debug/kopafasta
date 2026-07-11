@@ -74,7 +74,14 @@
                 @endif
             </p>
         @else
-            <p class="text-sm text-gray-500">No credit recommendation recorded yet. Use workflow actions below when ready.</p>
+            <p class="text-sm text-gray-500">No credit recommendation recorded yet.</p>
+        @endif
+
+        @if ($isCreditStage && ($availableActions ?? collect())->isNotEmpty())
+            <div class="mt-4 border-t border-sky-100 pt-4">
+                <p class="text-xs font-semibold uppercase tracking-widest text-sky-700 mb-3">Analyst actions</p>
+                @include('admin.loan-applications._workflow_actions')
+            </div>
         @endif
     </div>
 
@@ -139,6 +146,19 @@
                 Asset-backed alternative suggested:
                 <span class="font-semibold">{{ $record->alternativeProduct->name }}</span>
             </p>
+        @endif
+
+        @if ($isCommitteeStage && ($availableActions ?? collect())->isNotEmpty())
+            <div class="mt-4 border-t border-amber-100 pt-4">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <p class="text-xs font-semibold uppercase tracking-widest text-amber-800">Committee actions</p>
+                    <a href="{{ route('admin.loan-applications.pre-approvals') }}"
+                       class="text-xs font-semibold text-amber-800 hover:underline">
+                        Committee queue →
+                    </a>
+                </div>
+                @include('admin.loan-applications._workflow_actions')
+            </div>
         @endif
     </div>
 </div>

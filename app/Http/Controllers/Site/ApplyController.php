@@ -98,12 +98,22 @@ class ApplyController extends Controller
         }
 
         if ($preselect) {
-            $preselectedProduct = LoanProduct::where('is_active', true)
+            $preselectedProduct = LoanProduct::query()
                 ->where(function ($query) use ($preselect) {
                     $query->where('id', $preselect)
                           ->orWhere('code', $preselect);
                 })
+                ->when(! $request->boolean('resume') && ! $request->boolean('guarantor_supplement'), function ($query) {
+                    $query->where('is_active', true);
+                })
+                ->orderByDesc('is_active')
                 ->first();
+
+            // Non-resume still requires an active product.
+            if ($preselectedProduct && ! $preselectedProduct->is_active
+                && ! $request->boolean('resume') && ! $request->boolean('guarantor_supplement')) {
+                $preselectedProduct = null;
+            }
 
             $preselect = $preselectedProduct?->id;
         }
@@ -111,6 +121,10 @@ class ApplyController extends Controller
         $selectedProduct = $preselect ? $products->firstWhere('id', (int) $preselect) : null;
         if (! $selectedProduct && $preselectedProduct) {
             $selectedProduct = $preselectedProduct;
+            // Keep inactive draft products in the wizard catalogue so resume does not bounce.
+            if (! $products->contains('id', $preselectedProduct->id)) {
+                $products = $products->push($preselectedProduct)->values();
+            }
         }
         $reservation = null;
         $assetApplication = null;
@@ -179,8 +193,12 @@ class ApplyController extends Controller
         $productQuestions = config('loan_product_questions', []);
         $readinessUrl = route('site.borrower.apply.product-readiness', ['product' => '__ID__']);
 
-        $savedDraft = $request->filled('product')
-            ? $drafts->payloadForWizard($customer, (int) $request->query('product'))
+        $productIdForDraft = $preselect
+            ?: ($request->filled('product') && ctype_digit((string) $request->query('product'))
+                ? (int) $request->query('product')
+                : null);
+        $savedDraft = $productIdForDraft
+            ? $drafts->payloadForWizard($customer, $productIdForDraft)
             : $drafts->payloadForWizard($customer);
 
         if ($supplementMode && $supplementApplication) {
@@ -1294,13 +1312,15 @@ class ApplyController extends Controller
         $isGroupProduct = is_group_loan_product($loanProduct);
 
         $draftPayload = $draft?->payload ?? [];
-        $storedSignature = $draftPayload['borrower_signature'] ?? null;
-        $declarationAccepted = (bool) ($draftPayload['declaration_accepted'] ?? false);
+        $storedSignature = $draftPayload['borrower_signature']
+            ?? app(\App\Services\BorrowerSignatureService::class)->profileSignature($customer);
+        $declarationAccepted = (bool) ($draftPayload['declaration_accepted'] ?? false)
+            || filled($storedSignature['signature_data'] ?? null);
         $groupData = null;
 
         if ($storedSignature && ! $request->filled('signature_data')) {
             $request->merge([
-                'signer_name'    => $storedSignature['signer_name'] ?? '',
+                'signer_name'    => $storedSignature['signer_name'] ?? $customer->full_name,
                 'signature_data' => $storedSignature['signature_data'] ?? '',
                 'consent'        => '1',
             ]);

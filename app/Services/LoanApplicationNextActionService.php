@@ -57,7 +57,8 @@ class LoanApplicationNextActionService
 
         $payload = $draft->payload ?? [];
         $applicationStarted = (bool) ($payload['application_started'] ?? $draft->phase === 'application');
-        $signature = $payload['borrower_signature'] ?? null;
+        $signature = $payload['borrower_signature']
+            ?? app(BorrowerSignatureService::class)->profileSignature($customer);
         $hasSignature = filled($signature['signature_data'] ?? null);
         $stepKey = (string) ($resumeTarget['step_key'] ?? $payload['step_key'] ?? '');
 
@@ -83,11 +84,15 @@ class LoanApplicationNextActionService
         }
 
         if ($stepKey === 'signature' || $stepKey === 'submit') {
+            $signatureUrl = app(BorrowerSignatureService::class)->hasProfileSignature($customer)
+                ? $this->wizardUrlWithStep($wizardUrl, 'submit')
+                : route('site.borrower.profile', ['section' => 'personal', 'focus' => 'signature']).'?return='.urlencode($profileUrl);
+
             return $this->action(
                 'sign_application',
                 __('borrower.loan_profile.next_actions.sign'),
                 __('borrower.loan_profile.actions.sign_application'),
-                $this->wizardUrlWithStep($wizardUrl, 'signature'),
+                $signatureUrl,
                 tone: 'primary',
                 canSubmit: (bool) ($this->requirements->checklist($customer)['can_apply'] ?? false),
                 ready: true,
@@ -187,6 +192,18 @@ class LoanApplicationNextActionService
                 __('borrower.loan_profile.next_actions.add_guarantor'),
                 __('borrower.guarantor_supplement.cta'),
                 app(\App\Services\GuarantorSupplementService::class)->borrowerWizardUrl($application),
+                tone: 'primary',
+            );
+        }
+
+        $groupDashboard = app(\App\Services\GroupMemberReplacementService::class)
+            ->leaderDashboard($application, $customer);
+        if ($groupDashboard && ($groupDashboard['can_replace'] ?? false)) {
+            return $this->action(
+                'replace_group_member',
+                __('borrower.loan_profile.next_actions.replace_group_member'),
+                __('borrower.apply.group.replacement_add'),
+                $profileUrl.'#group-contract',
                 tone: 'primary',
             );
         }
@@ -361,9 +378,21 @@ class LoanApplicationNextActionService
             return $wizardUrl;
         }
 
-        $separator = str_contains($wizardUrl, '?') ? '&' : '?';
+        $parts = parse_url($wizardUrl);
+        $query = [];
+        if (! empty($parts['query'])) {
+            parse_str($parts['query'], $query);
+        }
+        $query['resume'] = 1;
+        $query['step_key'] = $stepKey;
+        unset($query['step']);
 
-        return $wizardUrl.$separator.'step_key='.urlencode($stepKey);
+        $base = ($parts['scheme'] ?? null) && ($parts['host'] ?? null)
+            ? ($parts['scheme'].'://'.$parts['host'].($parts['port'] ?? null ? ':'.$parts['port'] : ''))
+            : '';
+        $path = $parts['path'] ?? '/borrower/apply';
+
+        return $base.$path.'?'.http_build_query($query);
     }
 
     /** @return array{code: string, label: string, button_label: string, url: string, tone: string, can_submit: bool, ready: bool} */

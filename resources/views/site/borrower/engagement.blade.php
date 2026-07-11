@@ -39,7 +39,8 @@
                 </div>
                 <div class="glass-card p-5">
                     <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.engagement.streak.title') }}</p>
-                    <p class="mt-2 text-3xl font-black text-orange-600 tabular-nums">{{ $streakReward['count'] ?? 0 }} 🔥</p>
+                    <p class="mt-2 text-3xl font-black text-orange-600 tabular-nums">{{ $streakReward['count'] ?? 0 }}</p>
+                    <p class="text-xs text-gray-500 mt-1">{{ __('borrower.engagement.streak.on_time_count') }}</p>
                     @if (($streakReward['points'] ?? 0) > 0)
                         <p class="text-xs text-orange-800 mt-1">{{ __('borrower.engagement.streak.points_available', ['points' => number_format($streakReward['points'])]) }}</p>
                     @endif
@@ -109,10 +110,29 @@
                 </div>
 
                 <div class="px-6 sm:px-8 py-6">
+                    @php
+                        $currentCount = (int) ($streakReward['count'] ?? 0);
+                        $nextMilestone = collect($streakReward['milestones'] ?? [])
+                            ->first(fn ($m) => ! ($m['reached'] ?? false));
+                    @endphp
+                    @if ($nextMilestone)
+                        <p class="mb-5 text-sm font-medium text-brand bg-brand-muted/50 ring-1 ring-brand/10 rounded-xl px-4 py-3">
+                            {{ __('borrower.engagement.streak.next_milestone', [
+                                'count' => $nextMilestone['count'],
+                                'points' => number_format($nextMilestone['points'] ?? 0),
+                            ]) }}
+                        </p>
+                    @elseif (($streakReward['milestones'] ?? []) !== [])
+                        <p class="mb-5 text-sm font-medium text-emerald-800 bg-emerald-50 ring-1 ring-emerald-100 rounded-xl px-4 py-3">
+                            {{ __('borrower.engagement.streak.next_milestone_reached') }}
+                        </p>
+                    @else
+                        <p class="mb-5 text-sm text-gray-600">{{ __('borrower.engagement.streak.empty_hint') }}</p>
+                    @endif
+
                     @if (($streakReward['milestones'] ?? []) !== [])
                         @php
                             $maxCount = max(1, (int) collect($streakReward['milestones'])->max('count'));
-                            $currentCount = (int) ($streakReward['count'] ?? 0);
                             $streakPct = min(100, (int) round(($currentCount / $maxCount) * 100));
                         @endphp
                         <div class="mb-6">

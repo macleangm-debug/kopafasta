@@ -32,13 +32,15 @@
             ['Dashboard', 'admin.dashboard'],
         ], null],
         ['Applications', 'M9 12h6m-6 4h6M5 7h14M5 4h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z', [
-            ['Applications',          'admin.loan-applications.pipeline.under-review'],
+            ['Credit review',         'admin.loan-applications.pipeline.under-review'],
+            ['Credit committee',      'admin.loan-applications.pre-approvals'],
             ['Approved Loans',        'admin.loan-applications.pipeline.approved'],
             ['Disbursement',          'admin.loan-applications.pipeline.disbursement'],
             ['All Applications',      'admin.loan-applications.index'],
             ['New Applications',      'admin.loan-applications.new'],
             ['Incomplete Applications', 'admin.loan-applications.incomplete'],
             ['Rejected Applications', 'admin.loan-applications.rejected'],
+            ['Credit team',           'admin.credit-team.index'],
         ], ['applications.view']],
         ['Customers', 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-5a4 4 0 11-8 0 4 4 0 018 0z', [
             ['All Customers', 'admin.customers.index'],
