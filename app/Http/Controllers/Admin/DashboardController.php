@@ -17,6 +17,17 @@ class DashboardController extends Controller
     {
         $capital = app(CapitalPartnerMetricsService::class)->platformSummary();
 
+        $stageKeys = ['submitted', 'screening', 'credit_appraisal', 'pre_approval', 'approval', 'disbursement'];
+        $stageCountsRaw = LoanApplication::query()
+            ->selectRaw('current_stage, COUNT(*) as aggregate')
+            ->whereIn('current_stage', $stageKeys)
+            ->groupBy('current_stage')
+            ->pluck('aggregate', 'current_stage');
+
+        $stageCounts = collect($stageKeys)->mapWithKeys(
+            fn (string $stage) => [$stage => (int) ($stageCountsRaw[$stage] ?? 0)]
+        )->all();
+
         $stats = [
             'customers'              => Customer::query()->count(),
             'applications'           => LoanApplication::query()->count(),
@@ -34,6 +45,7 @@ class DashboardController extends Controller
             'pending_restructures'   => RestructureRequest::where('status', 'pending')->count(),
             'pending_top_ups'        => LoanTopUpRequest::where('status', 'pending')->count(),
             'approved_top_ups'       => LoanTopUpRequest::where('status', 'approved')->whereNull('disbursed_at')->count(),
+            'stage_counts'           => $stageCounts,
         ];
 
         $recentApplications = LoanApplication::query()

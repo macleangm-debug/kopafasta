@@ -105,8 +105,16 @@
             <h2 class="font-semibold text-gray-900">{{ __('borrower.rewards.recent_activity') }}</h2>
             <ul class="mt-4 space-y-3 text-sm">
                 @foreach ($transactions as $tx)
+                    @php
+                        $activityLabel = filled($tx->action_key ?? null)
+                            ? __('borrower.rewards.actions.'.$tx->action_key)
+                            : null;
+                        if (! $activityLabel || $activityLabel === 'borrower.rewards.actions.'.($tx->action_key ?? '')) {
+                            $activityLabel = $tx->description;
+                        }
+                    @endphp
                     <li class="flex justify-between gap-3 border-b border-gray-100 pb-2 last:border-0">
-                        <span class="text-gray-700">{{ $tx->description }}</span>
+                        <span class="text-gray-700">{{ $activityLabel }}</span>
                         <span class="font-semibold tabular-nums {{ $tx->points >= 0 ? 'text-emerald-700' : 'text-red-700' }}">
                             {{ $tx->points >= 0 ? '+' : '' }}{{ number_format($tx->points) }}
                         </span>

@@ -22,22 +22,28 @@
     $pageCount = (int) ($meta['page_count'] ?? 1);
     $fileName = (string) ($meta['original_name'] ?? ($document?->file_path ? basename($document->file_path) : ''));
     $statusLabel = $document ? app(\App\Services\ProfileDocumentService::class)->statusLabel($document) : '';
+    $previewUrl = ($document && $document->file_path) ? asset('storage/'.$document->file_path) : null;
 @endphp
 
-<div x-data="{ replaceMode: false }" class="space-y-3">
+<div x-data="{ replaceMode: false, expandedUrl: null }" class="space-y-3">
     @if ($document)
         <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 p-4">
             <div class="flex items-start gap-4 flex-wrap">
                 <div class="shrink-0">
-                    @if ($isImage)
-                        <img src="{{ asset('storage/'.$document->file_path) }}" alt="" class="h-24 w-24 rounded-lg ring-1 ring-emerald-200 object-cover bg-white">
+                    @if ($isImage && $previewUrl)
+                        <button type="button" @click="expandedUrl = @js($previewUrl)"
+                                class="h-24 w-24 rounded-lg ring-1 ring-emerald-200 overflow-hidden bg-white cursor-zoom-in block"
+                                title="{{ __('borrower.profile.view_document') }}">
+                            <img src="{{ $previewUrl }}" alt="" class="h-full w-full object-cover object-center">
+                        </button>
                     @elseif ($isPdf)
-                        <div class="h-24 w-24 rounded-lg ring-1 ring-emerald-200 bg-white flex flex-col items-center justify-center text-emerald-800">
+                        <a href="{{ $previewUrl }}" target="_blank" rel="noopener"
+                           class="h-24 w-24 rounded-lg ring-1 ring-emerald-200 bg-white flex flex-col items-center justify-center text-emerald-800">
                             <svg class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                             </svg>
                             <span class="text-[10px] font-bold mt-1">PDF</span>
-                        </div>
+                        </a>
                     @else
                         <div class="h-24 w-24 rounded-lg ring-1 ring-emerald-200 bg-white flex items-center justify-center text-emerald-800 text-xs font-semibold">
                             {{ strtoupper(pathinfo($document->file_path, PATHINFO_EXTENSION) ?: 'FILE') }}
@@ -61,10 +67,17 @@
 
                 @if ($document->file_path)
                     <div class="flex items-center gap-2 shrink-0">
-                        <a href="{{ asset('storage/'.$document->file_path) }}" target="_blank"
-                           class="inline-flex items-center rounded-full bg-white ring-1 ring-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100">
-                            {{ __('borrower.profile.view_document') }}
-                        </a>
+                        @if ($isImage && $previewUrl)
+                            <button type="button" @click="expandedUrl = @js($previewUrl)"
+                                    class="inline-flex items-center rounded-full bg-white ring-1 ring-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100">
+                                {{ __('borrower.profile.view_document') }}
+                            </button>
+                        @else
+                            <a href="{{ $previewUrl }}" target="_blank" rel="noopener"
+                               class="inline-flex items-center rounded-full bg-white ring-1 ring-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100">
+                                {{ __('borrower.profile.view_document') }}
+                            </a>
+                        @endif
                         <button type="button" @click="replaceMode = true"
                                 class="inline-flex items-center rounded-full bg-white ring-1 ring-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-50">
                             {{ __('borrower.profile.replace_document') }}
@@ -107,6 +120,14 @@
                 {{ __('borrower.profile.cancel_update') }}
             </button>
         @endif
+    </div>
+
+    <div x-show="expandedUrl" x-cloak x-transition
+         class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"
+         @keydown.escape.window="expandedUrl = null"
+         @click.self="expandedUrl = null">
+        <button type="button" class="absolute top-4 right-4 text-white/90 text-sm font-semibold" @click="expandedUrl = null">{{ __('borrower.profile.cancel') }}</button>
+        <img :src="expandedUrl" alt="" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
     </div>
 
     @error($fieldName)<p class="text-xs text-red-600">{{ $message }}</p>@enderror

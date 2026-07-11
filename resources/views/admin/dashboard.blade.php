@@ -35,6 +35,109 @@
         @endforeach
     </div>
 
+    {{-- Pipeline funnel + capital bars --}}
+    @php
+        $stageCounts = $stats['stage_counts'] ?? [];
+        $stageLabels = [
+            'submitted' => 'Submitted',
+            'screening' => 'Screening',
+            'credit_appraisal' => 'Credit',
+            'pre_approval' => 'Pre-approval',
+            'approval' => 'Approval',
+            'disbursement' => 'Disbursement',
+        ];
+        $maxStage = max(1, ...array_values($stageCounts ?: [0]));
+        $capitalAvailable = (float) ($stats['capital_available'] ?? 0);
+        $capitalUtilized = (float) ($stats['capital_utilized'] ?? 0);
+        $capitalTotal = max(1, $capitalAvailable + $capitalUtilized);
+    @endphp
+    <div class="grid lg:grid-cols-2 gap-4 mb-6">
+        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-sm font-semibold text-gray-900">Applications by stage</h2>
+                <a href="{{ route('admin.loan-applications.index') }}" class="text-xs font-medium text-amber-600 hover:text-amber-700">Pipeline →</a>
+            </div>
+            <div class="space-y-3">
+                @foreach ($stageLabels as $key => $label)
+                    @php
+                        $count = (int) ($stageCounts[$key] ?? 0);
+                        $width = (int) round(($count / $maxStage) * 100);
+                    @endphp
+                    <div>
+                        <div class="flex items-center justify-between text-xs mb-1">
+                            <span class="font-medium text-gray-700">{{ $label }}</span>
+                            <span class="font-bold tabular-nums text-gray-900">{{ format_number($count) }}</span>
+                        </div>
+                        <div class="h-2.5 rounded-full bg-gray-100 overflow-hidden">
+                            <div class="h-full rounded-full bg-amber-500 transition-all" style="width: {{ $width }}%"></div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+            {{-- Simple SVG funnel silhouette --}}
+            <svg viewBox="0 0 200 80" class="mt-5 w-full h-16 text-amber-500/30" aria-hidden="true">
+                @php $n = count($stageLabels); $i = 0; @endphp
+                @foreach ($stageLabels as $key => $label)
+                    @php
+                        $count = (int) ($stageCounts[$key] ?? 0);
+                        $ratio = $count / $maxStage;
+                        $half = 10 + (70 * (1 - $ratio));
+                        $y = ($i / max(1, $n - 1)) * 70;
+                        $nextI = min($n - 1, $i + 1);
+                        $nextKey = array_keys($stageLabels)[$nextI] ?? $key;
+                        $nextCount = (int) ($stageCounts[$nextKey] ?? 0);
+                        $nextRatio = $nextCount / $maxStage;
+                        $nextHalf = 10 + (70 * (1 - $nextRatio));
+                        $nextY = ($nextI / max(1, $n - 1)) * 70;
+                        $i++;
+                    @endphp
+                    @if ($i < $n)
+                        <polygon points="{{ 100 - $half }},{{ $y }} {{ 100 + $half }},{{ $y }} {{ 100 + $nextHalf }},{{ $nextY }} {{ 100 - $nextHalf }},{{ $nextY }}"
+                                 fill="currentColor" opacity="{{ 0.35 + ($ratio * 0.45) }}"/>
+                    @endif
+                @endforeach
+            </svg>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-sm font-semibold text-gray-900">Capital KPIs</h2>
+                <a href="{{ route('admin.capital-funding.index') }}" class="text-xs font-medium text-amber-600 hover:text-amber-700">Funding →</a>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mb-5">
+                <div>
+                    <p class="text-xs uppercase tracking-wider text-gray-500">Available</p>
+                    <p class="text-xl font-bold text-teal-700 mt-1">{{ format_money($capitalAvailable) }}</p>
+                </div>
+                <div>
+                    <p class="text-xs uppercase tracking-wider text-gray-500">Utilized</p>
+                    <p class="text-xl font-bold text-emerald-700 mt-1">{{ format_money($capitalUtilized) }}</p>
+                </div>
+            </div>
+            <p class="text-xs text-gray-500 mb-2">Utilization mix</p>
+            <div class="h-4 rounded-full bg-gray-100 overflow-hidden flex">
+                <div class="h-full bg-emerald-500" style="width: {{ round(($capitalUtilized / $capitalTotal) * 100) }}%"></div>
+                <div class="h-full bg-teal-400" style="width: {{ round(($capitalAvailable / $capitalTotal) * 100) }}%"></div>
+            </div>
+            <div class="flex justify-between text-[11px] text-gray-500 mt-2">
+                <span>Utilized {{ round(($capitalUtilized / $capitalTotal) * 100) }}%</span>
+                <span>Available {{ round(($capitalAvailable / $capitalTotal) * 100) }}%</span>
+            </div>
+            <svg viewBox="0 0 120 70" class="mt-4 w-full max-w-[200px] mx-auto" aria-hidden="true">
+                @php
+                    $utilPct = $capitalUtilized / $capitalTotal;
+                    $availPct = $capitalAvailable / $capitalTotal;
+                    $utilAngle = $utilPct * 180;
+                @endphp
+                <path d="M10 60 A50 50 0 0 1 110 60" fill="none" stroke="#e5e7eb" stroke-width="12" stroke-linecap="round"/>
+                <path d="M10 60 A50 50 0 0 1 110 60" fill="none" stroke="#10b981" stroke-width="12" stroke-linecap="round"
+                      stroke-dasharray="{{ round($utilPct * 157) }} 157"/>
+                <text x="60" y="52" text-anchor="middle" class="fill-gray-800" font-size="14" font-weight="700">{{ round($utilPct * 100) }}%</text>
+                <text x="60" y="64" text-anchor="middle" class="fill-gray-500" font-size="8">utilized</text>
+            </svg>
+        </div>
+    </div>
+
     {{-- Recent applications --}}
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
         <div class="px-5 py-3 border-b border-gray-200 flex items-center justify-between">

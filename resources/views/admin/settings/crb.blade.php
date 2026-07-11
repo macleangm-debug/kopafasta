@@ -41,7 +41,8 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <x-admin.input name="crb_endpoint" label="CRB SOAP endpoint URL" :value="$values['crb_endpoint'] ?? config('crb.endpoint')" placeholder="https://..." />
             <x-admin.input name="crb_email" label="CRB user email (EmailID)" :value="$values['crb_email'] ?? config('crb.email')" />
-            <x-admin.input name="crb_freshness_days" label="CRB report freshness (days)" type="number" :value="$values['crb_freshness_days'] ?? '90'" required />
+            <x-admin.input name="crb_freshness_days" label="CRB report freshness — 90 days (configurable)" type="number" :value="$values['crb_freshness_days'] ?? '90'" required />
+            <p class="md:col-span-2 -mt-2 text-xs text-gray-500">Fresh reports within this window are reused automatically — no manual refresh needed on applications.</p>
             <x-admin.input name="crb_cost_per_request" label="Cost per bureau request (TZS)" type="number" step="0.01" :value="$values['crb_cost_per_request'] ?? '0'" />
         </div>
 

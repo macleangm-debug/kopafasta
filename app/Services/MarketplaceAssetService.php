@@ -159,15 +159,16 @@ class MarketplaceAssetService
     /** @param array<int, UploadedFile>|UploadedFile|null $newFiles */
     public function syncPhotos(MarketplaceAsset $asset, array|UploadedFile|null $newFiles = [], array $removePaths = []): void
     {
-        $photos = collect($asset->photos ?? []);
+        $photos = collect($asset->photos ?? [])->filter()->values();
         $newFiles = $this->normalizeUploadedPhotos($newFiles);
+        $removePaths = array_values(array_filter(array_map('strval', $removePaths)));
 
         foreach ($removePaths as $path) {
             if ($photos->contains($path)) {
-                if (! str_starts_with((string) $path, 'http://') && ! str_starts_with((string) $path, 'https://')) {
+                if (! str_starts_with($path, 'http://') && ! str_starts_with($path, 'https://')) {
                     Storage::disk('public')->delete($path);
                 }
-                $photos = $photos->reject(fn ($p) => $p === $path);
+                $photos = $photos->reject(fn ($p) => $p === $path)->values();
             }
         }
 
@@ -177,10 +178,15 @@ class MarketplaceAssetService
             if ($photos->count() >= $maxPhotos) {
                 break;
             }
-            $photos->push($file->store("marketplace/{$asset->id}", 'public'));
+            $stored = $file->store("marketplace/{$asset->id}", 'public');
+            if (is_string($stored) && $stored !== '') {
+                $photos->push($stored);
+            }
         }
 
-        $asset->update(['photos' => $photos->values()->take($maxPhotos)->all()]);
+        $asset->forceFill([
+            'photos' => $photos->values()->take($maxPhotos)->values()->all(),
+        ])->save();
     }
 
     /** @param array<int, UploadedFile>|UploadedFile|null $newFiles

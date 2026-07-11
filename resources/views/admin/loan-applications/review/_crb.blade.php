@@ -1,4 +1,8 @@
-@php $crb = $review['crb']; $crbExplain = app(\App\Services\CrbCreditCheckService::class)->recommendationExplanation($crb); @endphp
+@php
+    $crb = $review['crb'];
+    $crbExplain = app(\App\Services\CrbCreditCheckService::class)->recommendationExplanation($crb);
+    $crbFreshnessDays = app(\App\Services\CrbFreshnessService::class)->freshnessDays();
+@endphp
 
 <x-admin.review-section id="review-crb" title="CRB & credit review" subtitle="Internal credit bureau data for underwriting — not shown to borrowers">
     @if (($record->current_stage ?? 'submitted') === 'screening')
@@ -23,7 +27,7 @@
         <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 p-4">
             <div class="flex items-start justify-between gap-3">
                 <div>
-                    <p class="text-[10px] uppercase tracking-widest text-gray-500">CRB freshness</p>
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500">CRB freshness — {{ $crbFreshnessDays }} days (configurable)</p>
                     <p @class([
                         'text-sm font-bold uppercase mt-1',
                         'text-emerald-700' => ($crb['freshness_tone'] ?? '') === 'emerald',
@@ -36,13 +40,8 @@
                     @if ($crb['days_since_check'] !== null)
                         <p class="text-xs text-gray-500">{{ $crb['days_since_check'] }} days ago</p>
                     @endif
+                    <p class="text-xs text-gray-500 mt-2">Reports within the {{ $crbFreshnessDays }}-day window are reused automatically (no manual refresh).</p>
                 </div>
-                <form method="POST" action="{{ route('admin.loan-applications.refresh-crb', $record) }}">
-                    @csrf
-                    <button type="submit" class="text-xs font-semibold bg-white ring-1 ring-gray-200 hover:bg-gray-50 rounded-lg px-3 py-2">
-                        Refresh CRB
-                    </button>
-                </form>
             </div>
             @if (! empty($crb['submission_meta']['reused']))
                 <p class="text-xs text-emerald-700 mt-3">This application reused an existing CRB record (no new bureau charge).</p>

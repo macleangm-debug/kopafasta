@@ -258,6 +258,11 @@ class LoyaltyPointsService
 
     private function actionLabel(string $actionKey): string
     {
+        $translated = __('borrower.rewards.actions.'.$actionKey);
+        if ($translated !== 'borrower.rewards.actions.'.$actionKey) {
+            return $translated;
+        }
+
         $actions = $this->settings->group('loyalty_points')['actions']
             ?? config('gamification.loyalty_points.actions', []);
 

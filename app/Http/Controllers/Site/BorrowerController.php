@@ -2614,7 +2614,10 @@ class BorrowerController extends Controller
         ]);
 
         app(\App\Services\CustomerAssetService::class)->store($customer, $data, [
-            'photos'              => array_values(array_filter($request->file('photos', []) ?? [])),
+            'photos'              => array_values(array_filter(
+                is_array($request->file('photos')) ? $request->file('photos') : [],
+                fn ($file) => $file instanceof \Illuminate\Http\UploadedFile && $file->isValid()
+            )),
             'person_photo'        => $request->file('person_photo'),
             'ownership_document'  => $request->file('ownership_document'),
         ]);

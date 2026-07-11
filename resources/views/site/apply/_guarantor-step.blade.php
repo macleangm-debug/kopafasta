@@ -25,30 +25,33 @@
                   :class="guarantorStatusBadgeClass()"
                   x-text="guarantorStatusLabel()"></span>
         </div>
-        <div x-show="form.guarantor_mode === 'external' && externalGuarantor?.invitation_url" x-cloak x-data="{ copied: false }" class="rounded-xl bg-white/80 ring-1 ring-emerald-200 px-4 py-4 space-y-3">
-            <p class="text-sm font-semibold text-emerald-900">{{ __('borrower.apply.guarantor_fields.share_via') }}</p>
-            <p class="text-xs text-emerald-800">{{ __('borrower.apply.guarantor_fields.share_ready') }}</p>
-            <p class="text-xs font-mono text-emerald-900 bg-emerald-100/80 rounded-lg px-3 py-2 break-all" x-text="externalGuarantor.short_url || externalGuarantor.invitation_url"></p>
+        <div x-show="form.guarantor_mode === 'external' && externalGuarantor?.invitation_url" x-cloak x-data="{ copied: false }"
+             class="rounded-2xl bg-gradient-to-br from-brand via-brand to-brand-light text-white px-5 py-5 space-y-4 shadow-sm">
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.apply.guarantor_fields.share_via') }}</p>
+                <p class="text-sm text-white/90 mt-1">{{ __('borrower.apply.guarantor_fields.share_ready') }}</p>
+            </div>
+            <p class="text-xs font-mono text-brand bg-brand-gold/90 rounded-xl px-3 py-2.5 break-all" x-text="externalGuarantor.short_url || externalGuarantor.invitation_url"></p>
             <div class="flex flex-wrap gap-2">
                 <a :href="externalGuarantor.whatsapp_url || '#'" :class="!externalGuarantor.whatsapp_url && 'pointer-events-none opacity-50'" target="_blank" rel="noopener"
-                   class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-full text-sm">
+                   class="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
                     {{ __('borrower.apply.guarantor_fields.share_whatsapp') }}
                 </a>
                 <a :href="externalGuarantor.sms_url || '#'" :class="!externalGuarantor.sms_url && 'pointer-events-none opacity-50'"
-                   class="inline-flex items-center gap-2 bg-white ring-1 ring-emerald-300 text-emerald-900 font-semibold px-4 py-2 rounded-full text-sm">
+                   class="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 ring-1 ring-white/30 text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
                     {{ __('borrower.apply.guarantor_fields.share_sms') }}
                 </a>
                 <a :href="externalGuarantor.email_url || '#'" :class="!externalGuarantor.email_url && 'pointer-events-none opacity-50'"
-                   class="inline-flex items-center gap-2 bg-white ring-1 ring-emerald-300 text-emerald-900 font-semibold px-4 py-2 rounded-full text-sm">
+                   class="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 ring-1 ring-white/30 text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
                     {{ __('borrower.apply.guarantor_fields.share_email') }}
                 </a>
                 <button type="button"
                         @click="navigator.clipboard.writeText(externalGuarantor.short_url || externalGuarantor.invitation_url); copied = true; setTimeout(() => copied = false, 2000)"
-                        class="inline-flex items-center gap-2 bg-white ring-1 ring-emerald-300 text-emerald-900 font-semibold px-4 py-2 rounded-full text-sm">
+                        class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm">
                     <span x-text="copied ? @js(__('borrower.apply.guarantor_fields.link_copied')) : @js(__('borrower.apply.guarantor_fields.share_copy'))"></span>
                 </button>
             </div>
-            <p class="text-xs text-amber-800">{{ __('borrower.apply.guarantor_fields.share_ready_continue') }}</p>
+            <p class="text-xs text-brand-gold/90">{{ __('borrower.apply.guarantor_fields.share_ready_continue') }}</p>
         </div>
         <button type="button"
                 @click="changeGuarantor()"

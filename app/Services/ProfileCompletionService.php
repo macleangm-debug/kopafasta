@@ -262,7 +262,7 @@ class ProfileCompletionService
             'assets' => [
                 'complete' => $customer->assets()->exists(),
                 'required' => false,
-                'label'    => __('borrower.profile.my_assets'),
+                'label'    => __('borrower.profile.my_collaterals'),
                 'url'      => route('site.borrower.profile', ['section' => 'assets']),
             ],
         ];

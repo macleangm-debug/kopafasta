@@ -15,22 +15,26 @@
 @endphp
 
 @if ($flashMessage)
-    <div x-data="{ open: true }" x-show="open" x-cloak class="fixed inset-0 z-[10001] flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/40" @click="open = false"></div>
-        <div class="relative w-full max-w-sm rounded-2xl bg-white shadow-xl ring-1 ring-gray-200 p-6 text-center">
-            <div @class([
-                'mx-auto mb-4 size-12 rounded-full grid place-items-center text-xl',
+    <div x-data="{ open: true }"
+         x-show="open"
+         x-cloak
+         x-init="setTimeout(() => open = false, 5000)"
+         x-transition
+         class="fixed top-4 right-4 z-[10001] w-[min(100%-2rem,24rem)] pointer-events-auto">
+        <div @class([
+            'rounded-2xl shadow-lg ring-1 px-4 py-3 flex items-start gap-3 bg-white',
+            'ring-emerald-200' => $flashTone === 'success',
+            'ring-amber-200' => $flashTone === 'warning',
+            'ring-red-200' => $flashTone === 'error',
+        ])>
+            <span @class([
+                'mt-0.5 size-8 rounded-full grid place-items-center text-sm font-bold shrink-0',
                 'bg-emerald-100 text-emerald-700' => $flashTone === 'success',
                 'bg-amber-100 text-amber-700' => $flashTone === 'warning',
                 'bg-red-100 text-red-700' => $flashTone === 'error',
-            ])>
-                {{ $flashTone === 'error' ? '!' : '✓' }}
-            </div>
-            <p class="text-sm text-gray-800">{{ $flashMessage }}</p>
-            <button type="button" @click="open = false"
-                    class="mt-5 inline-flex items-center justify-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
-                OK
-            </button>
+            ])>{{ $flashTone === 'error' ? '!' : '✓' }}</span>
+            <p class="text-sm text-gray-800 flex-1 pt-1">{{ $flashMessage }}</p>
+            <button type="button" @click="open = false" class="text-gray-400 hover:text-gray-600 text-lg leading-none shrink-0" aria-label="Dismiss">&times;</button>
         </div>
     </div>
 @endif

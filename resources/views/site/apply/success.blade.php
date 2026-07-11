@@ -103,15 +103,24 @@
 
         <div class="mt-6 bg-white rounded-2xl border border-gray-200 p-6 text-left">
             <div class="grid grid-cols-2 gap-3 text-sm">
-                <div class="text-gray-500">Product</div><div class="font-medium">{{ $application->product->name }}</div>
-                <div class="text-gray-500">Amount</div><div class="font-medium">{{ format_money($application->requested_amount, true, 0) }}</div>
-                <div class="text-gray-500">Tenure</div><div class="font-medium">{{ $application->requested_tenure_months }} months</div>
+                <div class="text-gray-500">{{ __('borrower.apply.review_step.product') }}</div>
+                <div class="font-medium">{{ $application->product->name }}</div>
+                <div class="text-gray-500">{{ __('borrower.apply.review_step.loan_amount') }}</div>
+                <div class="font-medium">{{ format_money($application->requested_amount, true, 0) }}</div>
+                <div class="text-gray-500">{{ __('borrower.apply.review_step.duration') }}</div>
+                <div class="font-medium">{{ __('borrower.applications_list.tenure_months', ['count' => $application->requested_tenure_months]) }}</div>
             </div>
         </div>
 
         <div class="mt-8 flex gap-3 justify-center flex-wrap">
-            <a href="{{ route('site.borrower.application', $application->id) }}" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full">Upload documents →</a>
-            <a href="{{ route('site.borrower.dashboard') }}" class="border border-gray-300 text-gray-900 font-semibold px-5 py-2.5 rounded-full">Dashboard</a>
+            <a href="{{ route('site.borrower.application', $application->id) }}"
+               class="bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-2.5 rounded-full">
+                {{ __('borrower.apply.success.view_application') }}
+            </a>
+            <a href="{{ route('site.borrower.dashboard') }}"
+               class="border border-gray-300 text-gray-900 font-semibold px-5 py-2.5 rounded-full">
+                {{ __('borrower.apply.success.dashboard') }}
+            </a>
         </div>
     </div>
 </x-site.borrower-layout>

@@ -94,35 +94,56 @@
         </div>
 
         {{-- Streak tab --}}
-        <div x-show="tab === 'streak'" x-cloak class="mt-2 max-w-2xl">
-            <div class="glass-card p-6 sm:p-8">
-                <div class="flex items-center gap-3 mb-4">
-                    <span class="text-3xl">🔥</span>
-                    <div>
-                        <h2 class="text-lg font-bold text-gray-900">{{ __('borrower.engagement.streak.title') }}</h2>
-                        <p class="text-sm text-gray-600">{{ __('borrower.engagement.streak.subtitle') }}</p>
+        <div x-show="tab === 'streak'" x-cloak class="mt-2">
+            <div class="glass-card overflow-hidden ring-1 ring-brand/10">
+                <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 sm:px-8 py-6 text-white">
+                    <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.engagement.streak.title') }}</p>
+                    <h2 class="text-2xl font-bold mt-1">{{ __('borrower.engagement.streak.subtitle') }}</h2>
+                    <div class="mt-5 flex items-end gap-3">
+                        <p class="text-5xl font-black tabular-nums text-brand-gold">{{ $streakReward['count'] ?? 0 }}</p>
+                        <p class="text-sm text-white/80 pb-1">{{ __('borrower.engagement.streak.on_time_count') }}</p>
                     </div>
+                    @if (($streakReward['points'] ?? 0) > 0)
+                        <p class="text-sm text-brand-gold/90 mt-2">{{ __('borrower.engagement.streak.points_available', ['points' => number_format($streakReward['points'])]) }}</p>
+                    @endif
                 </div>
-                <p class="text-4xl font-black text-orange-600 tabular-nums">{{ $streakReward['count'] ?? 0 }}</p>
-                <p class="text-sm text-gray-600 mt-1">{{ __('borrower.engagement.streak.on_time_count') }}</p>
 
-                @if (($streakReward['milestones'] ?? []) !== [])
-                    <ul class="mt-6 space-y-3">
-                        @foreach ($streakReward['milestones'] as $milestone)
-                            <li class="flex items-center justify-between gap-4 rounded-xl px-4 py-3 ring-1 {{ ($milestone['reached'] ?? false) ? 'bg-emerald-50 ring-emerald-200' : 'bg-gray-50 ring-gray-200' }}">
-                                <div>
-                                    <p class="font-semibold text-gray-900">{{ __('borrower.engagement.streak.milestone', ['count' => $milestone['count']]) }}</p>
-                                    <p class="text-xs text-gray-600">{{ __('borrower.engagement.streak.milestone_points', ['points' => number_format($milestone['points'] ?? 0)]) }}</p>
-                                </div>
-                                <span class="text-sm font-semibold {{ ($milestone['reached'] ?? false) ? 'text-emerald-700' : 'text-gray-400' }}">
-                                    {{ ($milestone['reached'] ?? false) ? '✓' : '—' }}
-                                </span>
-                            </li>
-                        @endforeach
-                    </ul>
-                @endif
-
-                <p class="mt-6 text-xs text-gray-500">{{ __('borrower.engagement.streak.points_note') }}</p>
+                <div class="px-6 sm:px-8 py-6">
+                    @if (($streakReward['milestones'] ?? []) !== [])
+                        @php
+                            $maxCount = max(1, (int) collect($streakReward['milestones'])->max('count'));
+                            $currentCount = (int) ($streakReward['count'] ?? 0);
+                            $streakPct = min(100, (int) round(($currentCount / $maxCount) * 100));
+                        @endphp
+                        <div class="mb-6">
+                            <div class="h-2 rounded-full bg-gray-100 overflow-hidden">
+                                <div class="h-full rounded-full bg-brand transition-all" style="width: {{ $streakPct }}%"></div>
+                            </div>
+                        </div>
+                        <ul class="grid sm:grid-cols-2 gap-3">
+                            @foreach ($streakReward['milestones'] as $milestone)
+                                <li @class([
+                                    'flex items-center justify-between gap-4 rounded-xl px-4 py-3 ring-1',
+                                    'bg-emerald-50 ring-emerald-200' => $milestone['reached'] ?? false,
+                                    'bg-white ring-gray-200' => ! ($milestone['reached'] ?? false),
+                                ])>
+                                    <div>
+                                        <p class="font-semibold text-gray-900">{{ __('borrower.engagement.streak.milestone', ['count' => $milestone['count']]) }}</p>
+                                        <p class="text-xs text-gray-600">{{ __('borrower.engagement.streak.milestone_points', ['points' => number_format($milestone['points'] ?? 0)]) }}</p>
+                                    </div>
+                                    <span @class([
+                                        'size-8 rounded-full grid place-items-center text-sm font-bold',
+                                        'bg-emerald-100 text-emerald-700' => $milestone['reached'] ?? false,
+                                        'bg-gray-100 text-gray-400' => ! ($milestone['reached'] ?? false),
+                                    ])>
+                                        {{ ($milestone['reached'] ?? false) ? '✓' : $milestone['count'] }}
+                                    </span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                    <p class="mt-6 text-xs text-gray-500">{{ __('borrower.engagement.streak.points_note') }}</p>
+                </div>
             </div>
         </div>
     </div>

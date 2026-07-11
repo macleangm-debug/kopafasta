@@ -16,10 +16,13 @@
     };
 @endphp
 
-<div @class([
-    'overflow-hidden',
-    'rounded-3xl ring-1 ring-brand/15 bg-white' => ! $compact,
-])>
+<div
+    x-data="{ expandedUrl: null }"
+    @class([
+        'overflow-hidden',
+        'rounded-3xl ring-1 ring-brand/15 bg-white' => ! $compact,
+    ])
+>
     @unless ($compact)
         <div class="px-5 py-4 border-b border-brand/10 bg-gradient-to-r from-brand-muted/40 to-white flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -45,14 +48,17 @@
 
     <div @class(['grid grid-cols-2 gap-3', 'p-5 sm:gap-4' => ! $compact])>
         @foreach ($angles as $key => $meta)
-            @php $photo = $photos[$key] ?? null; @endphp
+            @php
+                $photo = $photos[$key] ?? null;
+                $url = $photo?->file_path ? asset('storage/'.$photo->file_path) : null;
+            @endphp
             <figure class="rounded-2xl overflow-hidden ring-1 ring-gray-200 bg-white shadow-sm">
                 <div class="relative aspect-[3/4] bg-gradient-to-b from-gray-100 to-gray-200">
-                    @if ($photo?->file_path)
-                        <a href="{{ asset('storage/'.$photo->file_path) }}" target="_blank" rel="noopener"
-                           class="absolute inset-0 block group">
+                    @if ($url)
+                        <button type="button" @click="expandedUrl = @js($url)"
+                                class="absolute inset-0 block group cursor-zoom-in text-left w-full">
                             <img
-                                src="{{ asset('storage/'.$photo->file_path) }}"
+                                src="{{ $url }}"
                                 alt="{{ $meta['label'] ?? $key }}"
                                 class="absolute inset-0 w-full h-full object-cover object-center"
                                 loading="lazy"
@@ -61,7 +67,7 @@
                             <span class="absolute bottom-2 left-2 right-2 text-[11px] font-semibold text-white drop-shadow-sm truncate">
                                 {{ $meta['label'] ?? $key }}
                             </span>
-                        </a>
+                        </button>
                     @else
                         <div class="absolute inset-0 flex flex-col items-center justify-center gap-1 px-2 text-center">
                             <span class="text-2xl opacity-40" aria-hidden="true">📷</span>
@@ -78,4 +84,11 @@
             <p class="text-sm text-gray-600">{{ __('borrower.nida.face_submitted_body') }}</p>
         </div>
     @endif
+
+    <div x-show="expandedUrl" x-cloak x-transition
+         class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"
+         @keydown.escape.window="expandedUrl = null"
+         @click.self="expandedUrl = null">
+        <img :src="expandedUrl" alt="" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
+    </div>
 </div>

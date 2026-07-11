@@ -8,19 +8,6 @@
 @php
     $steps = collect($steps)->filter(fn ($step) => filled($step['label'] ?? null))->values();
 
-    $stepIcons = [
-        'submitted'           => '📤',
-        'under_review'        => '🔍',
-        'documents_requested' => '📄',
-        'approved'            => '✅',
-        'accept_offer'        => '✍️',
-        'post_approval_fee'   => '💳',
-        'destination'         => '🏦',
-        'contract'            => '📝',
-        'disbursement'        => '💰',
-        'active_loan'         => '🎉',
-    ];
-
     $hasExplicitCurrent = $steps->contains(fn (array $step) => (bool) ($step['current'] ?? false));
 
     if (! $hasExplicitCurrent && $steps->isNotEmpty()) {
@@ -66,14 +53,11 @@
     @else
         <section {{ $attributes->merge(['class' => 'glass-card overflow-hidden mb-6 ring-1 ring-brand/10']) }}>
             <div class="px-5 sm:px-6 py-4 border-b border-gray-100/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div class="flex items-center gap-2 min-w-0">
-                    <span class="text-xl shrink-0" aria-hidden="true">🗓️</span>
-                    <div class="min-w-0">
-                        <h2 class="font-semibold text-gray-900">{{ $title ?? __('borrower.loan_profile.application_progress') }}</h2>
-                        @if ($currentStep)
-                            <p class="text-xs text-gray-500 mt-0.5 truncate">{{ $currentStep['label'] }}</p>
-                        @endif
-                    </div>
+                <div class="min-w-0">
+                    <h2 class="font-semibold text-gray-900">{{ $title ?? __('borrower.loan_profile.application_progress') }}</h2>
+                    @if ($currentStep)
+                        <p class="text-xs text-gray-500 mt-0.5 truncate">{{ $currentStep['label'] }}</p>
+                    @endif
                 </div>
                 <div class="flex items-center gap-3 shrink-0 sm:min-w-[140px]">
                     <div class="flex-1 sm:w-24 h-2 rounded-full bg-gray-100 overflow-hidden">
@@ -83,47 +67,50 @@
                 </div>
             </div>
 
-            <ol class="p-5 sm:p-6 space-y-0">
-                @foreach ($steps as $index => $step)
-                    @php
-                        $isComplete = (bool) ($step['complete'] ?? false);
-                        $isCurrent = (bool) ($step['current'] ?? false);
-                        $isLast = $index === $steps->count() - 1;
-                        $icon = $stepIcons[$step['key'] ?? ''] ?? '📋';
-
-                        $dotClass = match (true) {
-                            $isComplete => 'bg-emerald-500 text-white',
-                            $isCurrent  => 'bg-amber-500 text-white ring-4 ring-amber-100',
-                            default     => 'bg-gray-100 text-gray-400 ring-1 ring-gray-200',
-                        };
-                        $textClass = match (true) {
-                            $isComplete => 'text-emerald-800',
-                            $isCurrent  => 'text-amber-900 font-semibold',
-                            default     => 'text-gray-500',
-                        };
-                        $lineClass = $isComplete ? 'bg-emerald-200' : 'bg-gray-200';
-                    @endphp
-                    <li class="flex gap-3">
-                        <div class="flex flex-col items-center shrink-0">
+            <div class="p-4 sm:p-5">
+                <ol class="flex items-center gap-1.5 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-none"
+                    aria-label="{{ $title ?? __('borrower.loan_profile.application_progress') }}">
+                    @foreach ($steps as $index => $step)
+                        @php
+                            $isComplete = (bool) ($step['complete'] ?? false);
+                            $isCurrent = (bool) ($step['current'] ?? false);
+                            $circleClass = match (true) {
+                                $isComplete => 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                                $isCurrent  => 'bg-brand text-white border-brand shadow-sm',
+                                default     => 'bg-white text-gray-400 border-gray-200 opacity-70',
+                            };
+                            $labelClass = match (true) {
+                                $isComplete => 'text-emerald-700',
+                                $isCurrent  => 'text-brand',
+                                default     => 'text-gray-400',
+                            };
+                        @endphp
+                        <li class="flex items-center gap-1.5 shrink-0 snap-start">
                             <span @class([
-                                'size-8 rounded-full grid place-items-center text-sm shrink-0',
-                                $dotClass,
-                            ]) aria-hidden="true">{{ $icon }}</span>
-                            @unless ($isLast)
-                                <span @class(['w-0.5 flex-1 min-h-[1.25rem] my-1', $lineClass])></span>
+                                'size-8 rounded-full grid place-items-center text-xs font-bold border-2 shrink-0',
+                                $circleClass,
+                            ])
+                                  title="{{ ($index + 1).'. '.$step['label'] }}"
+                                  aria-current="{{ $isCurrent ? 'step' : 'false' }}">
+                                @if ($isComplete)
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 20 20" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 10l3 3 7-7"/></svg>
+                                @else
+                                    {{ $index + 1 }}
+                                @endif
+                            </span>
+                            <span @class(['hidden sm:inline text-[11px] font-medium max-w-[6rem] truncate', $labelClass])
+                                  title="{{ $step['label'] }}">{{ $step['label'] }}</span>
+                            @unless ($loop->last)
+                                <span class="text-gray-200 hidden sm:inline" aria-hidden="true">→</span>
                             @endunless
-                        </div>
-                        <div @class(['pb-5 min-w-0', 'pb-0' => $isLast])>
-                            <p @class(['text-sm leading-snug', $textClass])>{{ $step['label'] }}</p>
-                            @if ($isCurrent)
-                                <p class="text-xs text-amber-700/80 mt-0.5">{{ __('borrower.loan_profile.timeline_in_progress') }}</p>
-                            @elseif ($isComplete)
-                                <p class="text-xs text-emerald-600/80 mt-0.5">{{ __('borrower.loan_profile.timeline_complete') }}</p>
-                            @endif
-                        </div>
-                    </li>
-                @endforeach
-            </ol>
+                        </li>
+                    @endforeach
+                </ol>
+                @if ($currentStep)
+                    <p class="sm:hidden text-sm font-semibold text-gray-900 mt-3">{{ $currentStep['label'] }}</p>
+                    <p class="text-xs text-amber-700/80 mt-1.5">{{ __('borrower.loan_profile.timeline_in_progress') }}</p>
+                @endif
+            </div>
         </section>
     @endif
 @endif

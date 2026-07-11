@@ -29,26 +29,29 @@
         <p class="text-xs text-gray-500">Min {{ $minPhotos }}, max {{ $maxPhotos }} · first image is the cover</p>
     </div>
 
+    <div x-data="{ expandedUrl: null }" class="space-y-3">
     @if (count($existingPhotos) > 0)
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" data-existing-grid>
             @foreach ($existingPhotos as $index => $photo)
                 @php $photoUrl = marketplace_photo_url($photo); @endphp
-                <label class="relative rounded-lg overflow-hidden ring-1 ring-gray-200 bg-gray-100 cursor-pointer group block" data-existing-card>
+                <div class="relative rounded-lg overflow-hidden ring-1 ring-gray-200 bg-gray-100 group block" data-existing-card>
                     @if ($photoUrl)
-                        <img src="{{ $photoUrl }}" alt="Asset photo {{ $index + 1 }}"
-                             class="aspect-square object-cover w-full" loading="lazy" referrerpolicy="no-referrer"
-                             onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'aspect-square grid place-items-center text-xs text-gray-400 px-2 text-center',textContent:'Image unavailable'}))">
+                        <button type="button" class="block w-full cursor-zoom-in" @click="expandedUrl = @js($photoUrl)" title="Preview">
+                            <img src="{{ $photoUrl }}" alt="Asset photo {{ $index + 1 }}"
+                                 class="aspect-square object-cover w-full" loading="lazy" referrerpolicy="no-referrer"
+                                 onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'aspect-square grid place-items-center text-xs text-gray-400 px-2 text-center',textContent:'Image unavailable'}))">
+                        </button>
                     @else
                         <div class="aspect-square grid place-items-center text-xs text-gray-400 px-2 text-center">Image unavailable</div>
                     @endif
                     @if ($index === 0)
                         <span class="absolute top-2 left-2 rounded-full bg-amber-500 text-gray-900 text-[10px] font-semibold px-2 py-0.5">Cover</span>
                     @endif
-                    <span class="absolute inset-x-0 bottom-0 bg-black/60 text-white text-[10px] px-2 py-1.5 flex items-center gap-2">
+                    <label class="absolute inset-x-0 bottom-0 bg-black/60 text-white text-[10px] px-2 py-1.5 flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" name="{{ $removeName }}[]" value="{{ $photo }}" data-remove-toggle class="rounded border-gray-300 text-red-600 focus:ring-red-500">
                         Remove
-                    </span>
-                </label>
+                    </label>
+                </div>
             @endforeach
         </div>
     @else
@@ -56,6 +59,14 @@
             No photos saved yet. Add at least one image below — you can select multiple at once.
         </div>
     @endif
+
+    <div x-show="expandedUrl" x-cloak x-transition
+         class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"
+         @keydown.escape.window="expandedUrl = null"
+         @click.self="expandedUrl = null">
+        <img :src="expandedUrl" alt="Preview" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
+    </div>
+    </div>
 
     <div data-preview-grid class="grid grid-cols-2 sm:grid-cols-4 gap-3 hidden"></div>
 
@@ -285,7 +296,10 @@
                                     hint.textContent = 'Saving images…';
                                 }
                             }
+                            // Remove the input from the form entirely when empty so Laravel
+                            // does not receive a blank photos[] payload that fails validation.
                             if (!picker.files || picker.files.length === 0) {
+                                picker.removeAttribute('name');
                                 picker.disabled = true;
                             }
                         });

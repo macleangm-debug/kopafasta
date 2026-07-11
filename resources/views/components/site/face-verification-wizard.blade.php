@@ -143,16 +143,12 @@
             </div>
         </div>
 
-        {{-- Live preview label --}}
-        <div class="absolute top-12 left-1/2 -translate-x-1/2 z-[3] pointer-events-none">
+        {{-- Live guidance stack (single column to avoid overlapping labels) --}}
+        <div class="absolute top-4 left-0 right-0 z-[3] pointer-events-none flex flex-col items-center gap-2 px-3">
             <span class="inline-flex items-center gap-2 text-xs font-semibold text-brand bg-brand-gold px-3 py-1.5 rounded-full shadow-lg">
                 <span class="w-2 h-2 rounded-full bg-brand animate-pulse"></span>
                 {{ __('borrower.face_verification_page.live_preview') }}
             </span>
-        </div>
-
-        {{-- Step illustration --}}
-        <div class="absolute top-20 left-0 right-0 flex justify-center z-[3] pointer-events-none">
             <div class="rounded-2xl bg-black/45 px-4 py-3 text-white text-center max-w-xs">
                 <p class="text-[11px] uppercase tracking-widest text-white/70"
                    x-text="@js(__('borrower.face_verification_page.step_of', ['current' => '__C__', 'total' => '__T__'])).replace('__C__', String(stepIndex + 1)).replace('__T__', String(steps.length))"></p>
@@ -422,6 +418,15 @@
                         this.simpleMode = this.isDesktop;
                         this.ready = true;
                         this.notice = null;
+
+                        // Chrome/desktop: resume camera when permission was already granted.
+                        if (await this.cameraPermissionGranted()) {
+                            try {
+                                await this.startScan();
+                            } catch (e) {
+                                this.notice = e?.message || null;
+                            }
+                        }
                     },
 
                     async cameraPermissionGranted() {
@@ -760,6 +765,11 @@
                                 this.holdProgress = Math.max(0, this.holdProgress - (dt / 6));
                             }
 
+                            if (this.holdProgress >= 100 && !this.isUploading && this.phase === 'scanning') {
+                                this.captureForPreview();
+                                return;
+                            }
+
                             if (bbox && overlay) {
                                 this.drawBox(overlay, video, bbox, this.poseOk);
                             }
@@ -848,14 +858,19 @@
                     },
 
                     async captureForPreview() {
-                        if (this.isUploading) return;
+                        if (this.isUploading || this.phase !== 'scanning') return;
+                        this.phase = 'preview';
                         const blob = await this.captureBlob();
-                        if (!blob) return;
+                        if (!blob) {
+                            this.phase = 'scanning';
+                            this.holdProgress = 0;
+                            this.startLoop();
+                            return;
+                        }
                         if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
                         this.previewBlob = blob;
                         this.previewUrl = URL.createObjectURL(blob);
                         this.stopLoop();
-                        this.phase = 'preview';
                     },
 
                     async retakePreview() {
@@ -873,7 +888,11 @@
                             try {
                                 await this.waitForVideoReady(video);
                                 await video.play();
-                            } catch (e) { /* user can tap Start again */ }
+                            } catch (e) {
+                                this.notice = 'Camera preview paused. Tap Capture or Start again.';
+                                await this.startScan();
+                                return;
+                            }
                         } else if (!this.stream) {
                             await this.startScan();
                             return;
@@ -986,8 +1005,9 @@
                             }
                         } catch (e) {
                             this.notice = e.message || 'Upload failed. Please try again.';
-                            this.phase = 'intro';
-                            this.stopCamera();
+                            this.phase = 'scanning';
+                            this.holdProgress = 0;
+                            this.startLoop();
                         } finally {
                             this.isUploading = false;
                         }

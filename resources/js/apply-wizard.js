@@ -84,6 +84,8 @@ export function applyWizard(config) {
                 advancing: false,
                 submitting: false,
                 resumeLoading: false,
+                furthestStep: 0,
+                showProfileGateModal: false,
                 isResume: !! config.isResume,
                 guarantorErrors: {},
                 externalInviteTimer: null,
@@ -164,6 +166,10 @@ export function applyWizard(config) {
                     this.stepKey = this.steps[this.step]?.key ?? '';
                 },
 
+                bumpFurthest(index = this.step) {
+                    this.furthestStep = Math.max(this.furthestStep || 0, index || 0);
+                },
+
                 resolveStepIndex(stepKey, fallbackIndex = 0) {
                     if (stepKey) {
                         const byKey = this.steps.findIndex(s => s.key === stepKey);
@@ -188,6 +194,7 @@ export function applyWizard(config) {
                         }
                     });
                     this.$watch('step', () => {
+                        this.bumpFurthest(this.step);
                         this.scheduleDraftSave();
                         this.syncStepKey();
                     });
@@ -274,13 +281,17 @@ export function applyWizard(config) {
                         form: this.form,
                         inputs,
                         guarantor_lookup: this.guarantorLookup.ok ? this.guarantorLookup : null,
-                        application_fee: this.applicationFeeState,
+                        application_fee: this.supplementMode
+                            ? (this.applicationFeeState || { status: 'waived', amount: 0 })
+                            : this.applicationFeeState,
                         valuation_fee: this.valuationFeeState,
                         asset_documents: this.assetDocuments,
                         external_guarantor: this.externalGuarantor,
                         borrower_signature: this.borrowerSignature,
                         declaration_accepted: this.declarationAccepted,
                         group: this.group,
+                        supplement_mode: !!this.supplementMode,
+                        supplement_application_id: this.supplementApplicationId || null,
                     };
                 },
 
@@ -336,6 +347,7 @@ export function applyWizard(config) {
                 },
 
                 enforceStepRequirements(onResume = false) {
+                    if (this.supplementMode) return;
                     const feeIdx = this.steps.findIndex(s => s.key === 'application_fee');
                     if (feeIdx < 0 || this.effectiveFeeAmount() <= 0 || this.feeGateSatisfied()) return;
                     const currentIdx = this.steps.findIndex(s => s.key === this.stepKey);
@@ -745,7 +757,17 @@ export function applyWizard(config) {
 
                         this.phase = 'application';
                         this.rebuildSteps(resumeKey);
-                        this.step = this.resolveStepIndex(resumeKey, resumeStep);
+                        const viewStep = this.resolveStepIndex(resumeKey, resumeStep);
+                        const savedKey = draft.step_key || '';
+                        const savedStep = this.resolveStepIndex(savedKey, draft.step ?? resumeStep ?? 0);
+                        let furthest = Math.max(viewStep, savedStep, Number(draft.step) || 0);
+                        if (draft.borrower_signature?.signature_data) {
+                            const sigIdx = this.steps.findIndex(s => s.key === 'signature');
+                            const submitIdx = this.steps.findIndex(s => s.key === 'submit');
+                            furthest = Math.max(furthest, sigIdx, submitIdx);
+                        }
+                        this.furthestStep = furthest;
+                        this.step = viewStep;
                         this.updateQuote();
                         this.syncStepKey();
                         this.enforceStepRequirements(this.isResume);
@@ -1243,6 +1265,7 @@ export function applyWizard(config) {
                         return;
                     }
                     this.step = 0;
+                    this.furthestStep = 0;
                     this.syncStepKey();
                     await this.persistDraft(true);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1254,7 +1277,11 @@ export function applyWizard(config) {
 
                 rebuildSteps(preserveStepKey = null) {
                     const prevKey = preserveStepKey || this.stepKey || this.steps[this.step]?.key || '';
-                    if (this.readiness?.step_plan?.length) {
+                    // Guarantor supplement must keep the short plan (guarantor → submit)
+                    // and never replace it with the full readiness plan (which includes application_fee).
+                    if (this.supplementMode && this.initialPlan?.length) {
+                        this.steps = this.initialPlan.map(s => this.withStepIcon(s));
+                    } else if (this.readiness?.step_plan?.length) {
                         this.steps = this.readiness.step_plan.map(s => this.withStepIcon(s));
                     } else if (this.initialPlan?.length) {
                         this.steps = this.initialPlan.map(s => this.withStepIcon(s));
@@ -1439,13 +1466,37 @@ export function applyWizard(config) {
 
                 gotoKey(key) {
                     const i = this.steps.findIndex(s => s.key === key);
-                    if (i >= 0 && i <= this.step) {
+                    if (i >= 0 && i <= (this.furthestStep ?? this.step)) {
                         this.step = i;
                         this.syncStepKey();
                         if (this.stepKey === 'review') {
                             this.reviewPage = 1;
                             this.refreshReview(this.formRoot());
                         }
+                    }
+                },
+
+                profileGateReturnUrl() {
+                    try {
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('resume', '1');
+                        url.searchParams.set('step_key', 'submit');
+                        return url.toString();
+                    } catch {
+                        return this.profileUrl || '/borrower/profile';
+                    }
+                },
+
+                profileGateActionUrl() {
+                    const base = this.firstActionUrl || this.profileUrl || null;
+                    if (! base) return null;
+                    try {
+                        const url = new URL(base, window.location.origin);
+                        url.searchParams.set('return', this.profileGateReturnUrl());
+                        return url.toString();
+                    } catch {
+                        const sep = base.includes('?') ? '&' : '?';
+                        return base + sep + 'return=' + encodeURIComponent(this.profileGateReturnUrl());
                     }
                 },
 
@@ -2091,6 +2142,9 @@ export function applyWizard(config) {
                         }
                     }
                     if (this.stepKey === 'application_fee') {
+                        if (this.supplementMode) {
+                            return true;
+                        }
                         await this.refreshApplicationFeeQuote();
                         if (this.effectiveFeeAmount() > 0) {
                             const st = this.applicationFeeState?.status || '';
@@ -2102,13 +2156,13 @@ export function applyWizard(config) {
                             await this.autoWaiveApplicationFeeIfNeeded();
                         }
                     }
-                    if (! this.feeGateSatisfied() && this.feeGateRequiredForStep(this.stepKey)) {
+                    if (! this.supplementMode && ! this.feeGateSatisfied() && this.feeGateRequiredForStep(this.stepKey)) {
                         this.enforceStepRequirements();
                         alert(this.i18n.applicationFee.requiredBeforeContinue);
                         return false;
                     }
                     const nextKey = this.steps[this.step + 1]?.key;
-                    if (nextKey && this.feeGateRequiredForStep(nextKey) && ! this.feeGateSatisfied()) {
+                    if (! this.supplementMode && nextKey && this.feeGateRequiredForStep(nextKey) && ! this.feeGateSatisfied()) {
                         alert(this.i18n.applicationFee.requiredBeforeContinue);
                         return false;
                     }
@@ -2203,6 +2257,7 @@ export function applyWizard(config) {
                             return;
                         }
                         this.step++;
+                        this.bumpFurthest(this.step);
                         this.syncStepKey();
                         this.enforceStepRequirements();
                         if (this.stepKey === 'application_fee') {
@@ -2242,7 +2297,7 @@ export function applyWizard(config) {
                 },
 
                 goto(i) {
-                    if (i <= this.step) {
+                    if (i <= (this.furthestStep ?? this.step)) {
                         this.step = i;
                         this.syncStepKey();
                         if (this.stepKey === 'signature') {
@@ -2313,12 +2368,7 @@ export function applyWizard(config) {
                         return;
                     }
                     if (! this.canApply) {
-                        const url = this.firstActionUrl || this.profileUrl || null;
-                        if (url) {
-                            window.location.href = url;
-                            return;
-                        }
-                        alert(this.i18n.kycIncompleteSubmit);
+                        this.showProfileGateModal = true;
                         return;
                     }
                     if (this.isGroupProduct(this.current) && ! this.groupProgress().can_submit) {

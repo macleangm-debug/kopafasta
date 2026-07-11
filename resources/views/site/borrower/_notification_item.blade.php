@@ -8,7 +8,9 @@
     $displayCategory = $center->normalizeCategory($n->category);
     $actionLabel = match ($n->template) {
         'guarantor_request' => __('borrower.guarantor_notifications.view_request'),
+        'guarantor_supplement_request' => __('borrower.guarantor_supplement.cta'),
         'loyalty_points_earned' => __('borrower.rewards.points_earned_cta'),
+        'document_request', 'document_requests', 'application_document_request' => __('borrower.dashboard.document_requests_cta'),
         default => __('borrower.notifications.view_application'),
     };
 @endphp

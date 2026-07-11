@@ -154,10 +154,17 @@
                 }
 
                 function render() {
+                    // Use inert off-screen hiding (not display:none / hidden) so file
+                    // inputs in inactive steps still participate in form submit.
                     stepEls.forEach(function (el, index) {
                         const show = index === step;
-                        el.hidden = ! show;
-                        el.classList.toggle('hidden', ! show);
+                        el.hidden = false;
+                        el.classList.remove('hidden');
+                        el.classList.toggle('wizard-step-inactive', ! show);
+                        el.setAttribute('aria-hidden', show ? 'false' : 'true');
+                        el.style.cssText = show
+                            ? ''
+                            : 'position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;';
                     });
 
                     backBtn.hidden = step === 0;
@@ -207,20 +214,23 @@
                 if (form && ! form.dataset.submitGuard) {
                     form.dataset.submitGuard = '1';
                     form.addEventListener('submit', function () {
-                        // File inputs inside [hidden] wizard steps are skipped by some browsers.
-                        // Reveal every step for the duration of submit so photos POST correctly.
+                        // Ensure every step (and its file inputs) is fully visible for serialize.
                         stepEls.forEach(function (el) {
                             el.hidden = false;
-                            el.classList.remove('hidden');
+                            el.classList.remove('hidden', 'wizard-step-inactive');
+                            el.removeAttribute('aria-hidden');
+                            el.style.cssText = '';
                         });
 
                         const activeSubmit = root.querySelector('[data-wizard-submit]');
                         [activeSubmit, nextBtn, backBtn].forEach(function (button) {
-                            if (! button || button.hidden) {
+                            if (! button) {
                                 return;
                             }
                             button.disabled = true;
+                            button.hidden = button !== activeSubmit;
                             if (button === activeSubmit) {
+                                activeSubmit.hidden = false;
                                 const label = activeSubmit.dataset.submitLabel || 'Save';
                                 activeSubmit.innerHTML =
                                     '<svg class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +

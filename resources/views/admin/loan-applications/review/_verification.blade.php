@@ -42,10 +42,13 @@
             <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest">NIDA reference</p>
             @if ($nidaPhotoPath)
                 <div class="mt-3">
-                    <x-admin.document-preview
-                        :url="asset('storage/'.$nidaPhotoPath)"
-                        label="Preview NIDA photo" />
-                    <img src="{{ asset('storage/'.$nidaPhotoPath) }}" alt="NIDA photo" class="max-h-48 rounded-lg object-cover ring-1 ring-gray-200 mt-3">
+                    <button type="button"
+                            onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$nidaPhotoPath)), 'NIDA photo', 'image')"
+                            class="block w-full text-left group">
+                        <img src="{{ asset('storage/'.$nidaPhotoPath) }}" alt="NIDA photo"
+                             class="max-h-48 rounded-lg object-cover ring-1 ring-gray-200 group-hover:ring-amber-400 transition cursor-zoom-in">
+                        <span class="text-xs font-semibold text-amber-700 mt-2 inline-block">Preview NIDA photo</span>
+                    </button>
                 </div>
             @else
                 <p class="text-sm text-gray-500 mt-3">NIDA database photo not stored yet.</p>
@@ -77,11 +80,13 @@
                 <div class="p-3">
                     @if ($photo)
                         <div>
-                            <x-admin.document-preview
-                                :url="asset('storage/'.$photo->file_path)"
-                                :label="'Preview '.$meta['label']"
-                                variant="link" />
-                            <img src="{{ asset('storage/'.$photo->file_path) }}" alt="{{ $meta['label'] }}" class="w-full rounded-lg object-cover max-h-40 mt-2">
+                            <button type="button"
+                                    onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$photo->file_path)), @js($meta['label']), 'image')"
+                                    class="block w-full text-left group">
+                                <img src="{{ asset('storage/'.$photo->file_path) }}" alt="{{ $meta['label'] }}"
+                                     class="w-full rounded-lg object-cover max-h-40 mt-1 ring-1 ring-gray-200 group-hover:ring-amber-400 transition cursor-zoom-in">
+                                <span class="text-xs font-semibold text-amber-700 mt-2 inline-block">Preview {{ $meta['label'] }}</span>
+                            </button>
                         </div>
                     @else
                         <div class="h-32 grid place-items-center text-xs text-gray-400 bg-gray-50 rounded-lg">Not uploaded</div>

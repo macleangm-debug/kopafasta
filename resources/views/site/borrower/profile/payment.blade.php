@@ -9,10 +9,6 @@
             'wizardMode' => $wizardMode ?? false,
             'wizardKey' => $wizardKey ?? 'payment',
         ])
-
-        @if (session('status'))
-            <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
-        @endif
         @if ($errors->any())
             <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ $errors->first() }}</div>
         @endif

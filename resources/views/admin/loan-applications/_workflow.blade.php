@@ -65,7 +65,18 @@
 
     @if ($availableActions->isNotEmpty())
         <div class="border-t border-gray-100 pt-5">
-            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Available actions</p>
+                    <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Dual approval</p>
+                    <div class="mb-4 grid sm:grid-cols-2 gap-3 text-xs">
+                        <div class="rounded-lg bg-sky-50 ring-1 ring-sky-100 px-3 py-2">
+                            <p class="font-semibold text-sky-800">1. Credit recommendation</p>
+                            <p class="text-sky-700 mt-0.5">Analyst submits approve / counter before committee.</p>
+                        </div>
+                        <div class="rounded-lg bg-amber-50 ring-1 ring-amber-100 px-3 py-2">
+                            <p class="font-semibold text-amber-900">2. Committee approve</p>
+                            <p class="text-amber-800 mt-0.5">Committee issues offer or final approval.</p>
+                        </div>
+                    </div>
+                    <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Available actions</p>
             <div class="flex flex-wrap gap-3">
                 @foreach ($availableActions as $action)
                     @if ($action['key'] === 'reject')

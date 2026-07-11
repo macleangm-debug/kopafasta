@@ -67,7 +67,8 @@ class ProfileSectionBuilderService
                 'key'         => $section->key,
                 'icon'        => $section->icon ?: '📋',
                 'label'       => $section->localizedName(),
-                'description' => $section->localizedDescription(),
+                // Hub shows category cards only — field-level copy lives inside each section.
+                'description' => null,
                 'status'      => $status,
                 'status_label'=> $this->statusLabel($status),
                 'action_label'=> $this->actionLabel($status),

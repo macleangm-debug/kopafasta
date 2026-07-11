@@ -370,6 +370,36 @@
             </div>
                 </form>
             </div>
+
+            {{-- Incomplete profile gate modal (client UX; server still enforces) --}}
+            <div x-show="showProfileGateModal"
+                 x-cloak
+                 class="fixed inset-0 z-[90] flex items-center justify-center p-4"
+                 role="dialog"
+                 aria-modal="true"
+                 @keydown.escape.window="showProfileGateModal = false">
+                <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="showProfileGateModal = false"></div>
+                <div class="relative w-full max-w-md glass-card ring-1 ring-brand/15 overflow-hidden shadow-xl">
+                    <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-5 text-white">
+                        <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">{{ __('borrower.apply.steps.submit') }}</p>
+                        <h3 class="text-lg font-bold mt-1">{{ __('borrower.apply.kyc_incomplete_submit') }}</h3>
+                    </div>
+                    <div class="px-6 py-5">
+                        <p class="text-sm text-gray-600">{{ __('borrower.apply.kyc_incomplete_submit_hint') }}</p>
+                        <div class="mt-5 flex flex-col sm:flex-row gap-2">
+                            <a :href="profileGateActionUrl() || profileUrl || '#'"
+                               class="inline-flex justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-2.5 rounded-xl text-sm">
+                                {{ __('borrower.loan_profile.complete_profile') }}
+                            </a>
+                            <button type="button"
+                                    @click="showProfileGateModal = false"
+                                    class="inline-flex justify-center bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-700 font-semibold px-5 py-2.5 rounded-xl text-sm">
+                                {{ __('borrower.apply.submit_step.gate_dismiss') }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

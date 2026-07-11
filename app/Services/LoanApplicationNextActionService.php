@@ -331,11 +331,16 @@ class LoanApplicationNextActionService
                 );
             }
 
+            // Product requirement gaps are handled in-place on the loan profile —
+            // do not surface a generic "upload documents" top CTA.
             return $this->action(
-                'upload_document',
-                __('borrower.loan_profile.next_actions.upload', ['item' => $first['label'] ?? __('borrower.loan_profile.missing_requirements_title')]),
-                __('borrower.loan_profile.upload'),
-                $first['upload_url'] ?? ($profileUrl.'#documents'),
+                'under_review',
+                __('borrower.loan_profile.next_actions.under_review', [
+                    'time' => app(UnderwritingSettingsService::class)->loanReviewSlaLabel($customer),
+                ]),
+                __('borrower.applications_list.view'),
+                $profileUrl.'#requirement-'.($first['id'] ?? ''),
+                tone: 'secondary',
             );
         }
 

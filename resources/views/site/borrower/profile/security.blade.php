@@ -13,10 +13,6 @@
             'active' => 'security',
         ])
 
-        @if (session('status'))
-            <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
-        @endif
-
         <div class="space-y-6">
             <x-site.profile-section-card :title="auth()->user()->pin_set_at ? __('borrower.security_tab.change_pin') : __('borrower.security_tab.set_pin')" :complete="(bool) auth()->user()->pin_set_at">
                 <p class="text-sm text-gray-600 mb-4">{{ __('borrower.security_tab.pin_hint') }}</p>

@@ -184,6 +184,8 @@ class ApplyController extends Controller
             : $drafts->payloadForWizard($customer);
 
         if ($supplementMode && $supplementApplication) {
+            $feeStatus = (string) ($supplementApplication->application_fee_status ?? '');
+            $feePaid = in_array($feeStatus, ['paid', 'waived'], true);
             $savedDraft = [
                 'loan_product_id' => $supplementApplication->loan_product_id,
                 'phase' => 'application',
@@ -200,6 +202,12 @@ class ApplyController extends Controller
                 ],
                 'supplement_mode' => true,
                 'supplement_application_id' => $supplementApplication->id,
+                'application_fee' => [
+                    'status' => $feePaid ? $feeStatus : 'waived',
+                    'reference' => $supplementApplication->application_fee_reference,
+                    'amount' => (float) ($supplementApplication->application_fee_amount ?? 0),
+                    'paid_at' => optional($supplementApplication->application_fee_paid_at)?->toIso8601String(),
+                ],
             ];
         }
 

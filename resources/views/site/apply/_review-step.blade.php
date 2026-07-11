@@ -6,10 +6,11 @@
         :subtitle="__('borrower.apply.review_step.subtitle')"
     />
 
-    <x-site.kyc-gate-banner :apply-requirements="$applyRequirements ?? null" variant="submit" class="mb-6" />
+    <x-site.kyc-gate-banner :apply-requirements="$applyRequirements ?? null" variant="hint" class="mb-6" />
 
-    {{-- Progress rail --}}
-    <nav class="mb-8" aria-label="{{ __('borrower.apply.review_step.pages_nav') }}">
+    {{-- Progress rail — sticky within the review step --}}
+    <nav class="sticky top-[4.5rem] z-10 -mx-2 px-2 py-3 mb-8 bg-[#faf8f5]/95 backdrop-blur-md border-b border-gray-200/60"
+         aria-label="{{ __('borrower.apply.review_step.pages_nav') }}">
         <ol class="flex items-center gap-0">
             <template x-for="page in reviewPageCount" :key="'review-rail-' + page">
                 <li class="flex items-center min-w-0" :class="page < reviewPageCount ? 'flex-1' : ''">

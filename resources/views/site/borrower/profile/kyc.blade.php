@@ -10,10 +10,6 @@
             'wizardKey' => $wizardKey ?? 'documents',
         ])
 
-        @if (session('status'))
-            <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-        @endif
-
         @php
             $editing = ($wizardMode ?? false) || ($editing ?? false);
             $editUrl = route('site.borrower.profile', ['section' => 'kyc', 'edit' => 1]);

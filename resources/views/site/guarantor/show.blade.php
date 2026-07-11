@@ -10,13 +10,16 @@
     :heading="__('borrower.guarantor_invite.heading')"
     :lede="__('borrower.guarantor_invite.intro')"
 >
-    <h1 class="text-2xl font-bold tracking-tight mb-2">{{ __('borrower.guarantor_invite.heading') }}</h1>
-    <p class="text-sm text-gray-600 mb-6">{{ __('borrower.guarantor_invite.request_explanation') }}</p>
+    <div class="text-center mb-6">
+        <div class="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-gradient-to-br from-brand to-brand-light text-2xl text-white shadow-sm">✓</div>
+        <h1 class="text-2xl font-bold tracking-tight mb-2">{{ __('borrower.guarantor_invite.heading') }}</h1>
+        <p class="text-sm text-gray-600">{{ __('borrower.guarantor_invite.request_explanation') }}</p>
+    </div>
 
-    <dl class="rounded-xl bg-gray-50 ring-1 ring-gray-200 divide-y divide-gray-200 text-sm mb-6">
-        <div class="px-4 py-3 flex justify-between gap-3">
+    <dl class="glass-card rounded-2xl ring-1 ring-brand/10 divide-y divide-gray-100 text-sm mb-6 overflow-hidden">
+        <div class="px-4 py-3 flex justify-between gap-3 bg-gradient-to-r from-brand-muted/40 to-white">
             <dt class="text-gray-500">{{ __('borrower.guarantor_invite.borrower_label') }}</dt>
-            <dd class="font-semibold text-right">{{ $borrowerName }}</dd>
+            <dd class="font-semibold text-right text-brand">{{ $borrowerName }}</dd>
         </div>
         <div class="px-4 py-3 flex justify-between gap-3">
             <dt class="text-gray-500">{{ __('borrower.guarantor_invite.product_label') }}</dt>
@@ -32,7 +35,7 @@
         </div>
         <div class="px-4 py-3 flex justify-between gap-3">
             <dt class="text-gray-500">{{ __('borrower.guarantor_invite.installment_label') }}</dt>
-            <dd class="font-semibold text-right">{{ $context['installment_label'] }}</dd>
+            <dd class="font-semibold text-right text-brand">{{ $context['installment_label'] }}</dd>
         </div>
         @if ($invitation->type === 'external')
             <div class="px-4 py-3 flex justify-between gap-3">
@@ -42,7 +45,7 @@
         @endif
     </dl>
 
-    <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-4 text-sm text-sky-900 mb-6">
+    <div class="rounded-2xl bg-gradient-to-br from-sky-50 to-white ring-1 ring-sky-200 px-4 py-4 text-sm text-sky-900 mb-6">
         <p class="font-semibold mb-1">{{ __('borrower.guarantor_invite.role_heading') }}</p>
         <p>{{ __('borrower.guarantor_invite.role_body') }}</p>
     </div>
@@ -51,16 +54,30 @@
         <p class="text-sm text-gray-600 mb-6">{{ __('borrower.guarantor_invite.external_profile_note') }}</p>
     @endif
 
-    <div class="flex flex-col sm:flex-row gap-3">
+    <div class="flex flex-col sm:flex-row gap-3 mb-6">
         <form method="POST" action="{{ route('site.guarantor.accept', $invitation->token) }}" class="flex-1"
               @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.guarantor_invite.accept_title')), message: @js(__('borrower.guarantor_invite.accept_message')), confirmLabel: @js(__('borrower.guarantor_invite.accept')), confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white' })">
             @csrf
-            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 py-3 rounded-full text-sm">{{ __('borrower.guarantor_invite.accept') }}</button>
+            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 py-3 rounded-xl text-sm">{{ __('borrower.guarantor_invite.accept') }}</button>
         </form>
         <form method="POST" action="{{ route('site.guarantor.reject', $invitation->token) }}" class="flex-1"
               @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.guarantor_invite.decline_title')), message: @js(__('borrower.guarantor_invite.decline_message')), confirmLabel: @js(__('borrower.guarantor_invite.decline')), confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">
             @csrf
-            <button type="submit" class="w-full bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-700 font-semibold px-5 py-3 rounded-full text-sm">{{ __('borrower.guarantor_invite.decline') }}</button>
+            <button type="submit" class="w-full bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-700 font-semibold px-5 py-3 rounded-xl text-sm">{{ __('borrower.guarantor_invite.decline') }}</button>
         </form>
+    </div>
+
+    <div class="rounded-2xl bg-gradient-to-br from-brand-muted/50 to-white ring-1 ring-brand/15 px-5 py-5 text-left">
+        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.guarantor_invite.declined_cta_title') }}</p>
+        <p class="text-sm text-gray-700 mt-1">{{ __('borrower.guarantor_invite.declined_upsell_lede') }}</p>
+        <ul class="mt-3 space-y-1.5 text-sm text-gray-700">
+            <li class="flex gap-2"><span class="text-brand-gold font-bold">✓</span>{{ __('borrower.guarantor_invite.declined_benefit_fast') }}</li>
+            <li class="flex gap-2"><span class="text-brand-gold font-bold">✓</span>{{ __('borrower.guarantor_invite.declined_benefit_rewards') }}</li>
+            <li class="flex gap-2"><span class="text-brand-gold font-bold">✓</span>{{ __('borrower.guarantor_invite.declined_benefit_referrals') }}</li>
+        </ul>
+        <a href="{{ route('site.register.borrower') }}"
+           class="inline-flex mt-4 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-2.5 rounded-xl text-sm">
+            {{ __('borrower.guarantor_invite.declined_cta_member') }}
+        </a>
     </div>
 </x-site.guarantor-invite-shell>

@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.profile.my_assets'))" active="profile" content-width="wide">
+<x-site.borrower-layout :title="brand_title(__('borrower.profile.my_collaterals'))" active="profile" content-width="wide">
 
     @php
         $adding = request()->boolean('add') || filled(old('asset_type'));
@@ -8,19 +8,17 @@
 
     <div>
         @include('site.borrower.profile._profile_shell', [
-            'title' => __('borrower.profile.my_assets'),
+            'title' => __('borrower.profile.my_collaterals'),
             'subtitle' => __('borrower.profile.my_assets_hint'),
             'customer' => $customer,
             'active' => 'assets',
         ])
 
-        @if (session('status'))
-            <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-        @endif
-
         @if ($adding && $selectedType)
             <x-site.profile-section-card :title="__('borrower.profile.add_asset').': '.($assetTypes[$selectedType] ?? $selectedType)">
-                <form method="POST" action="{{ route('site.borrower.profile.assets.store') }}" enctype="multipart/form-data" class="space-y-5">
+                <form method="POST" action="{{ route('site.borrower.profile.assets.store') }}" enctype="multipart/form-data" class="space-y-5"
+                      x-data="{ saving: false }"
+                      @submit="saving = true">
                     @csrf
                     <input type="hidden" name="asset_type" value="{{ $selectedType }}">
                     <div class="grid sm:grid-cols-2 gap-4">
@@ -40,7 +38,7 @@
                         </div>
                     </div>
 
-                    <div class="grid sm:grid-cols-2 gap-4 pt-2 border-t border-gray-100">
+                    <div class="grid sm:grid-cols-2 gap-4 pt-2 border-t border-gray-100" x-data="{ previews: {} }">
                         @php
                             $photoSlots = [
                                 ['key' => 0, 'icon' => '⬅️', 'label' => __('borrower.profile.asset_photo_front')],
@@ -55,8 +53,12 @@
                                     <span aria-hidden="true">{{ $slot['icon'] }}</span>
                                     <label class="text-xs font-semibold text-gray-700">{{ $slot['label'] }}</label>
                                 </div>
-                                <input type="file" name="photos[]" accept="image/*" capture="environment"
+                                <template x-if="previews[{{ $slot['key'] }}]">
+                                    <img :src="previews[{{ $slot['key'] }}]" alt="" class="mb-2 h-20 w-full object-cover rounded-lg ring-1 ring-gray-100">
+                                </template>
+                                <input type="file" name="photos[{{ $slot['key'] }}]" accept="image/*" capture="environment"
                                        class="w-full text-xs file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-brand-muted file:text-brand file:font-semibold"
+                                       @change="previews[{{ $slot['key'] }}] = $event.target.files[0] ? URL.createObjectURL($event.target.files[0]) : null"
                                        @if ($slot['key'] < 2) required @endif>
                             </div>
                         @endforeach
@@ -79,7 +81,14 @@
                     </div>
 
                     <div class="flex flex-wrap gap-3">
-                        <button type="submit" class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm">{{ __('borrower.profile.save_asset') }}</button>
+                        <button type="submit" :disabled="saving"
+                                class="inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm disabled:opacity-70">
+                            <svg x-show="saving" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                            </svg>
+                            <span x-text="saving ? @js(__('borrower.profile.saving') ?? 'Saving…') : @js(__('borrower.profile.save_asset'))"></span>
+                        </button>
                         <a href="{{ route('site.borrower.profile', ['section' => 'assets']) }}" class="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50">{{ __('borrower.profile.cancel') }}</a>
                     </div>
                 </form>
