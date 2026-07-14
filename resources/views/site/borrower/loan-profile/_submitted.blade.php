@@ -225,11 +225,26 @@
                                     @endif
 
                                     @if ($docReq->needsBorrowerAction())
-                                        <x-site.document-upload
-                                            :action="route('site.borrower.application.document-requests.store', [$application, $docReq])"
-                                            :show-clarification="$docReq->type === 'clarification'"
-                                            :multiple="true"
-                                        />
+                                        @php
+                                            $docSvc = app(\App\Services\ApplicationDocumentRequestService::class);
+                                            $profileGuided = $docSvc->isProfileGuidedRequest($docReq);
+                                            $profileUrl = $docSvc->borrowerActionUrl($docReq);
+                                        @endphp
+                                        @if ($profileGuided)
+                                            <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 py-4">
+                                                <p class="text-sm text-gray-700">{{ $docReq->instructions ?: __('borrower.notifications.profile_revision_body', ['label' => $docReq->label, 'application' => $application->application_number]) }}</p>
+                                                <a href="{{ $profileUrl }}"
+                                                   class="mt-3 inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm">
+                                                    {{ __('borrower.notifications.profile_revision_cta') }}
+                                                </a>
+                                            </div>
+                                        @else
+                                            <x-site.document-upload
+                                                :action="route('site.borrower.application.document-requests.store', [$application, $docReq])"
+                                                :show-clarification="$docReq->type === 'clarification'"
+                                                :multiple="true"
+                                            />
+                                        @endif
                                     @endif
                                 </li>
                             @endforeach

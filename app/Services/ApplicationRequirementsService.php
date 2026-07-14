@@ -374,8 +374,13 @@ class ApplicationRequirementsService
 
         $registrationComplete = $customer->hasMembership();
         $nidaComplete = $nida->isVerified($customer);
+        $nidaRevision = ($customer->nida_verification_status ?? '') === 'revision_required'
+            || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'nida')
+            || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'nida_docs');
         $faceComplete = in_array($faceStatus, ['pending', 'verified'], true);
-        $facePending = in_array($faceStatus, ['pending'], true);
+        $facePending = $faceStatus === 'pending';
+        $faceRevision = $faceStatus === 'revision_required'
+            || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'face');
         $activityComplete = $profile->isActivityComplete($customer);
         $residenceComplete = $profile->isResidenceComplete($customer);
         $kinComplete = $validation->isKinComplete($customer);
@@ -397,13 +402,15 @@ class ApplicationRequirementsService
             $items[] = [
                 'key'        => 'nida',
                 'label'      => __('borrower.onboarding.nida'),
-                'status'     => $nidaComplete ? 'complete' : 'missing',
+                'status'     => $nidaComplete ? 'complete' : ($nidaRevision ? 'stale' : 'missing'),
                 'action_url' => $nidaComplete ? null : route('site.borrower.profile', ['section' => 'personal']),
             ];
             $items[] = [
                 'key'        => 'face',
                 'label'      => __('borrower.onboarding.face'),
-                'status'     => $faceComplete ? 'complete' : ($facePending ? 'pending' : 'missing'),
+                'status'     => $faceComplete
+                    ? 'complete'
+                    : ($facePending ? 'pending' : ($faceRevision ? 'stale' : 'missing')),
                 'action_url' => $faceComplete ? null : route('site.borrower.face-verification'),
             ];
         }

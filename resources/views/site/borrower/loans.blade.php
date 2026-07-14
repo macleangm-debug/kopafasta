@@ -25,12 +25,8 @@
         </x-slot:actions>
     </x-site.borrower-page-header>
 
-    @if (session('status'))
-        <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
-    @if (session('error'))
-        <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">{{ session('error') }}</div>
-    @endif
+
+
 
     <x-site.page-loading-shell>
         <x-slot:skeleton>

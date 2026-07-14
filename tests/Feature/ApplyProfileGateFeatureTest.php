@@ -97,7 +97,7 @@ class ApplyProfileGateFeatureTest extends TestCase
         $this->assertStringContainsString(urlencode($returnUrl), (string) $checklist['first_action_url']);
     }
 
-    public function test_submit_redirects_to_incomplete_profile_section_with_return(): void
+    public function test_submit_keeps_borrower_on_submit_step_when_profile_incomplete(): void
     {
         $customer = $this->borrower();
         $product = LoanProduct::create([
@@ -125,10 +125,12 @@ class ApplyProfileGateFeatureTest extends TestCase
         $response->assertRedirect();
         $location = $response->headers->get('Location');
         $this->assertNotNull($location);
-        $this->assertStringContainsString('/borrower/profile/', $location);
-        $this->assertStringContainsString('return=', $location);
-        $this->assertStringContainsString(urlencode('step_key=submit'), $location);
+        $this->assertStringContainsString('/borrower/apply', $location);
+        $this->assertStringContainsString('step_key=submit', $location);
+        $this->assertStringContainsString('profile_gate=1', $location);
+        $this->assertStringNotContainsString('/borrower/profile/', $location);
         $response->assertSessionHas('error');
+        $response->assertSessionHas('show_profile_gate', true);
     }
 
     public function test_with_return_url_preserves_hash_fragment(): void

@@ -10,6 +10,8 @@ use App\Models\LoanTopUpRequest;
 use App\Models\RestructureRequest;
 use App\Services\CapitalPartnerMetricsService;
 use App\Services\LoanApplicationDraftService;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -53,6 +55,9 @@ class DashboardController extends Controller
             'pending_top_ups'        => LoanTopUpRequest::where('status', 'pending')->count(),
             'approved_top_ups'       => LoanTopUpRequest::where('status', 'approved')->whereNull('disbursed_at')->count(),
             'stage_counts'           => $stageCounts,
+            'decisions_30d'          => $this->decisionCounts(30),
+            'submissions_14d'        => $this->dailySubmissionSeries(14),
+            'disbursements_14d'      => $this->dailyDisbursementSeries(14),
         ];
 
         $recentApplications = LoanApplication::query()
@@ -62,5 +67,75 @@ class DashboardController extends Controller
             ->get();
 
         return view('admin.dashboard', compact('stats', 'recentApplications', 'capital'));
+    }
+
+    /** @return array{approved: int, rejected: int, withdrawn: int} */
+    private function decisionCounts(int $days): array
+    {
+        $since = now()->subDays($days)->startOfDay();
+
+        $rows = LoanApplication::query()
+            ->selectRaw('status, COUNT(*) as aggregate')
+            ->whereIn('status', ['approved', 'rejected', 'withdrawn'])
+            ->where('updated_at', '>=', $since)
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
+
+        return [
+            'approved'  => (int) ($rows['approved'] ?? 0),
+            'rejected'  => (int) ($rows['rejected'] ?? 0),
+            'withdrawn' => (int) ($rows['withdrawn'] ?? 0),
+        ];
+    }
+
+    /**
+     * @return list<array{date: string, label: string, count: int}>
+     */
+    private function dailySubmissionSeries(int $days): array
+    {
+        $start = now()->subDays($days - 1)->startOfDay();
+        $raw = LoanApplication::query()
+            ->selectRaw('DATE(created_at) as day, COUNT(*) as aggregate')
+            ->where('created_at', '>=', $start)
+            ->groupBy(DB::raw('DATE(created_at)'))
+            ->pluck('aggregate', 'day');
+
+        return $this->fillDailySeries($days, $raw);
+    }
+
+    /**
+     * @return list<array{date: string, label: string, count: int}>
+     */
+    private function dailyDisbursementSeries(int $days): array
+    {
+        $start = now()->subDays($days - 1)->startOfDay();
+        $raw = Loan::query()
+            ->selectRaw('DATE(disbursement_date) as day, COUNT(*) as aggregate')
+            ->whereNotNull('disbursement_date')
+            ->where('disbursement_date', '>=', $start->toDateString())
+            ->groupBy(DB::raw('DATE(disbursement_date)'))
+            ->pluck('aggregate', 'day');
+
+        return $this->fillDailySeries($days, $raw);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<string, int|string>  $raw
+     * @return list<array{date: string, label: string, count: int}>
+     */
+    private function fillDailySeries(int $days, $raw): array
+    {
+        $series = [];
+        for ($i = $days - 1; $i >= 0; $i--) {
+            $day = Carbon::today()->subDays($i);
+            $key = $day->toDateString();
+            $series[] = [
+                'date'  => $key,
+                'label' => $day->format('d M'),
+                'count' => (int) ($raw[$key] ?? 0),
+            ];
+        }
+
+        return $series;
     }
 }

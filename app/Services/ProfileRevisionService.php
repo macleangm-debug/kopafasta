@@ -15,6 +15,7 @@ class ProfileRevisionService
         'New face verification photo'    => ['face'],
         'New National ID photo'          => ['nida', 'nida_docs'],
         'Identity verification photo'    => ['face'],
+        'Signature Not Visible'          => ['signature'],
     ];
 
     public function applyForDocumentRequest(LoanApplication $application, LoanApplicationDocumentRequest $request): void
@@ -104,8 +105,9 @@ class ProfileRevisionService
         $lower = mb_strtolower($label);
 
         return match (true) {
+            str_contains($lower, 'signature') => ['signature'],
             str_contains($lower, 'national id') || str_contains($lower, 'nida') => ['nida', 'nida_docs'],
-            str_contains($lower, 'face') || str_contains($lower, 'selfie') || str_contains($lower, 'photo') => ['face'],
+            str_contains($lower, 'face') || str_contains($lower, 'selfie') => ['face'],
             default => [],
         };
     }
@@ -162,11 +164,44 @@ class ProfileRevisionService
             return;
         }
 
+        $actionUrl = $this->actionUrlForTargets($this->targetsForLabel((string) $request->label));
+
+        $params = [
+            'label' => $request->label,
+            'application' => $application->application_number,
+        ];
+
         app(NotificationService::class)->notifyInApp(
             $customer,
-            __('borrower.dashboard.document_requests_body', ['count' => 1]),
+            __('borrower.notifications.profile_revision_body', $params),
             'profile_revision',
             'profile_revision_requested',
+            __('borrower.notifications.profile_revision_title'),
+            $actionUrl,
+            __('borrower.notifications.profile_revision_cta'),
+            [
+                'title_key' => 'borrower.notifications.profile_revision_title',
+                'body_key'  => 'borrower.notifications.profile_revision_body',
+                'params'    => $params,
+            ],
         );
+    }
+
+    /** @param  list<string>  $targets */
+    private function actionUrlForTargets(array $targets): string
+    {
+        if (in_array('face', $targets, true)) {
+            return route('site.borrower.profile', ['section' => 'personal']).'?focus=face#profile-face';
+        }
+
+        if (in_array('signature', $targets, true)) {
+            return route('site.borrower.profile', ['section' => 'personal']).'?focus=signature#profile-signature';
+        }
+
+        if (in_array('nida', $targets, true) || in_array('nida_docs', $targets, true)) {
+            return route('site.borrower.profile', ['section' => 'personal']).'?focus=identity#profile-identity';
+        }
+
+        return route('site.borrower.profile', ['section' => 'personal']);
     }
 }

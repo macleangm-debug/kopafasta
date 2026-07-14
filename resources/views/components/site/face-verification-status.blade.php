@@ -60,7 +60,7 @@
                             <img
                                 src="{{ $url }}"
                                 alt="{{ $meta['label'] ?? $key }}"
-                                class="absolute inset-0 w-full h-full object-cover object-center"
+                                class="absolute inset-0 w-full h-full object-cover object-top"
                                 loading="lazy"
                             >
                             <span class="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/55 to-transparent opacity-80 pointer-events-none"></span>

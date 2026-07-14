@@ -91,18 +91,43 @@
                                     <p class="text-xs text-gray-500 mt-1">{{ $locked ? __('borrower.nida.locked_hint') : __('borrower.nida.saved_locked_hint') }}</p>
                                 </div>
                             </div>
-                            <dl class="mt-4 grid sm:grid-cols-2 gap-3 text-sm">
+                            <dl class="mt-4 grid sm:grid-cols-2 gap-3 text-sm" x-data="{ expandedUrl: null }">
                                 <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
                                     <dt class="text-xs text-gray-500">{{ __('borrower.profile.nida_front') }}</dt>
-                                    <dd class="mt-1 font-semibold {{ $nidaFront ? 'text-emerald-700' : 'text-amber-700' }}">
-                                        {{ $nidaFront ? __('borrower.profile.uploaded') : __('borrower.profile.missing') }}
+                                    <dd class="mt-2">
+                                        @if ($nidaFront?->file_path)
+                                            @php $frontUrl = asset('storage/'.$nidaFront->file_path); @endphp
+                                            <button type="button" @click="expandedUrl = @js($frontUrl)"
+                                                    class="h-24 w-full max-w-[7rem] rounded-lg ring-1 ring-gray-200 overflow-hidden bg-white cursor-zoom-in block"
+                                                    title="{{ __('borrower.profile.view_document') }}">
+                                                <img src="{{ $frontUrl }}" alt="" class="h-full w-full object-cover object-center">
+                                            </button>
+                                        @else
+                                            <span class="font-semibold text-amber-700">{{ __('borrower.profile.missing') }}</span>
+                                        @endif
                                     </dd>
                                 </div>
                                 <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
                                     <dt class="text-xs text-gray-500">{{ __('borrower.profile.nida_back') }}</dt>
-                                    <dd class="mt-1 font-semibold {{ $nidaBack ? 'text-emerald-700' : 'text-amber-700' }}">
-                                        {{ $nidaBack ? __('borrower.profile.uploaded') : __('borrower.profile.missing') }}
+                                    <dd class="mt-2">
+                                        @if ($nidaBack?->file_path)
+                                            @php $backUrl = asset('storage/'.$nidaBack->file_path); @endphp
+                                            <button type="button" @click="expandedUrl = @js($backUrl)"
+                                                    class="h-24 w-full max-w-[7rem] rounded-lg ring-1 ring-gray-200 overflow-hidden bg-white cursor-zoom-in block"
+                                                    title="{{ __('borrower.profile.view_document') }}">
+                                                <img src="{{ $backUrl }}" alt="" class="h-full w-full object-cover object-center">
+                                            </button>
+                                        @else
+                                            <span class="font-semibold text-amber-700">{{ __('borrower.profile.missing') }}</span>
+                                        @endif
                                     </dd>
+                                </div>
+                                <div x-show="expandedUrl" x-cloak x-transition
+                                     class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"
+                                     @keydown.escape.window="expandedUrl = null"
+                                     @click.self="expandedUrl = null">
+                                    <button type="button" class="absolute top-4 right-4 text-white/90 text-sm font-semibold" @click="expandedUrl = null">{{ __('borrower.profile.cancel') }}</button>
+                                    <img :src="expandedUrl" alt="" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
                                 </div>
                             </dl>
                         @else

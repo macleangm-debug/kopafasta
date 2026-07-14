@@ -30,7 +30,7 @@
         </button>
         <button type="button"
                 @click="submitApplication()"
-                :disabled="submitting || advancing || !canApply"
+                :disabled="submitting || advancing"
                 x-show="stepKey === 'submit'"
                 class="inline-flex items-center gap-2 bg-brand hover:bg-brand-light disabled:opacity-60 text-white font-semibold px-6 py-2.5 rounded-xl text-sm shadow-sm transition">
             <span x-text="submitting ? @js(__('borrower.apply.submitting')) : (!canApply ? @js(__('borrower.apply.complete_profile_to_submit')) : @js(__('borrower.apply.submit')))"></span>

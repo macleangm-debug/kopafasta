@@ -59,7 +59,57 @@ class ApplicationDocumentRequestService
             'Identity verification photo'    => 'Please upload a new identity verification photo holding your national ID.',
             'Image Not Clear'                => 'The uploaded image is not clear enough. Please re-upload a sharper photo.',
             'Ownership Certificate Missing Page' => 'The ownership certificate appears incomplete. Please upload all pages.',
+            'Signature Not Visible'          => 'Your signature is not clear enough for legal documents. Please update it once in your profile — it will be used on all contracts.',
+            'Updated Bank Statement'         => 'Please upload an updated bank statement covering the latest period.',
+            'Updated Mobile Money Statement' => 'Please upload an updated mobile money statement.',
+            'Additional Income Proof'        => 'Please upload additional proof of income for this application.',
+            'Business Registration Document' => 'Please upload your business registration document.',
+            'Business Photos'                => 'Please upload clear photos of your business premises or activity.',
+            'Supplier Invoices'              => 'Please upload the relevant supplier invoices for this loan.',
+            'Tax Documents'                  => 'Please upload the requested tax documents.',
+            'Employment Confirmation Letter' => 'Please upload an employment confirmation letter from your employer.',
+            'Guarantor residence letter'     => 'Please upload a residence letter for your guarantor.',
+            'Updated employment contract'    => 'Please upload your updated employment contract.',
+            'Latest salary slip'             => 'Please upload your latest salary slip.',
         ];
+    }
+
+    /**
+     * Deep-link borrowers to profile for identity/signature/face requests,
+     * otherwise to the application document request anchor.
+     */
+    public function borrowerActionUrl(LoanApplicationDocumentRequest $request): string
+    {
+        $application = $request->application;
+        $label = mb_strtolower((string) $request->label);
+
+        if (str_contains($label, 'signature')) {
+            return route('site.borrower.profile', ['section' => 'personal']).'?focus=signature#profile-signature';
+        }
+        if (str_contains($label, 'national id') || str_contains($label, 'nida')) {
+            return route('site.borrower.profile', ['section' => 'personal']).'?focus=identity#profile-identity';
+        }
+        if (str_contains($label, 'face') || str_contains($label, 'selfie') || str_contains($label, 'identity verification photo')) {
+            return route('site.borrower.profile', ['section' => 'personal']).'?focus=face#profile-face';
+        }
+
+        if ($application) {
+            return route('site.borrower.application', $application).'#request-'.$request->id;
+        }
+
+        return route('site.borrower.loans', ['tab' => 'applications']);
+    }
+
+    public function isProfileGuidedRequest(LoanApplicationDocumentRequest $request): bool
+    {
+        $label = mb_strtolower((string) $request->label);
+
+        return str_contains($label, 'signature')
+            || str_contains($label, 'national id')
+            || str_contains($label, 'nida')
+            || str_contains($label, 'face')
+            || str_contains($label, 'selfie')
+            || str_contains($label, 'identity verification photo');
     }
 
     public function __construct(private readonly NotificationService $notifier) {}
@@ -146,8 +196,11 @@ class ApplicationDocumentRequestService
             return;
         }
 
-        $uploadUrl = route('site.borrower.application', $application);
+        $uploadUrl = $this->borrowerActionUrl($request);
         $instructions = $request->instructions ?: 'Please upload the requested item.';
+        $cta = $this->isProfileGuidedRequest($request)
+            ? __('borrower.notifications.profile_revision_cta')
+            : __('borrower.notifications.document_request_cta');
 
         $this->notifier->notifyCustomer($customer, 'application_document_request', [
             'name'               => $customer->first_name ?? 'Customer',
@@ -156,22 +209,28 @@ class ApplicationDocumentRequestService
             'instructions'       => $instructions,
             'due_date'           => optional($request->due_at)->format('d M Y') ?? 'as soon as possible',
             'upload_url'         => $uploadUrl,
-            '_fallback_body'     => "Hi {$customer->first_name}, underwriting needs \"{$request->label}\" for application {$application->application_number}. Open your application to upload: {$uploadUrl}",
+            '_fallback_body'     => "Hi {$customer->first_name}, underwriting needs \"{$request->label}\" for application {$application->application_number}. Open: {$uploadUrl}",
             '_fallback_subject'  => 'Document requested for your loan application',
         ]);
 
         if ($inApp) {
+            $params = [
+                'application' => $application->application_number,
+                'label' => $request->label,
+            ];
             $this->notifier->notifyInApp(
                 $customer,
-                __('borrower.notifications.document_request_body', [
-                    'application' => $application->application_number,
-                    'label' => $request->label,
-                ]),
+                __('borrower.notifications.document_request_body', $params),
                 'document_request',
                 'application_document_request',
                 __('borrower.notifications.document_request_title'),
                 $uploadUrl,
-                __('borrower.notifications.document_request_cta'),
+                $cta,
+                [
+                    'title_key' => 'borrower.notifications.document_request_title',
+                    'body_key'  => 'borrower.notifications.document_request_body',
+                    'params'    => $params,
+                ],
             );
         }
     }
@@ -202,6 +261,15 @@ class ApplicationDocumentRequestService
             __('borrower.notifications.document_request_title'),
             $uploadUrl,
             __('borrower.notifications.document_request_cta'),
+            [
+                'title_key' => 'borrower.notifications.document_request_title',
+                'body_key'  => 'borrower.notifications.document_request_batch_body',
+                'params'    => [
+                    'application' => $application->application_number,
+                    'count' => $count,
+                    'labels' => $labels.$suffix,
+                ],
+            ],
         );
     }
 

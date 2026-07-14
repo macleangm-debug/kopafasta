@@ -3,9 +3,9 @@
 @php
     $pageTitle = $title ?? brand_title('My account');
     $contentMax = match ($contentWidth) {
-        'narrow' => 'max-w-3xl',
+        'narrow' => 'max-w-3xl mx-auto',
         'wide'   => 'max-w-7xl',
-        default  => 'max-w-6xl',
+        default  => 'max-w-7xl',
     };
     $siteLocale = $siteLocale ?? app()->getLocale();
     $siteCountry = $siteCountry ?? strtoupper((string) session('country', 'TZ'));
@@ -240,7 +240,7 @@
         @endif
 
         <main class="flex-1 px-4 lg:px-8 py-6 lg:py-8">
-            <div class="{{ $contentMax }} w-full mx-auto">
+            <div class="{{ $contentMax }} w-full">
                 {{ $slot }}
             </div>
         </main>

@@ -77,11 +77,14 @@
                                         class="relative aspect-[3/4] bg-gradient-to-b from-brand-muted/40 to-gray-100 w-full block text-left"
                                         @click="step.done && step.previewUrl ? openPreview(step.previewUrl) : null"
                                         :disabled="!(step.done && step.previewUrl)">
-                                    <img x-show="step.done && step.previewUrl"
+                                    <img x-cloak
+                                         x-show="step.done && step.previewUrl"
                                          :src="step.previewUrl"
                                          :alt="step.label"
-                                         class="absolute inset-0 w-full h-full object-cover object-center">
-                                    <div x-show="!step.done" class="absolute inset-0 flex flex-col items-center justify-center gap-1 text-xs text-gray-400">
+                                         class="absolute inset-0 w-full h-full object-cover object-top"
+                                         loading="eager"
+                                         decoding="async">
+                                    <div x-show="!(step.done && step.previewUrl)" class="absolute inset-0 flex flex-col items-center justify-center gap-1 text-xs text-gray-400">
                                         <span class="text-xl opacity-40" aria-hidden="true">◎</span>
                                         <span>{{ __('borrower.nida.face_not_captured') }}</span>
                                     </div>
@@ -133,7 +136,7 @@
                     <div x-show="step.done && step.previewUrl" class="relative shrink-0">
                         <button type="button" @click="openPreview(step.previewUrl)"
                                 class="block size-14 rounded-xl overflow-hidden ring-2 ring-white/80 shadow-lg bg-black/40">
-                            <img :src="step.previewUrl" :alt="step.label" class="w-full h-full object-cover object-center">
+                            <img :src="step.previewUrl" :alt="step.label" class="w-full h-full object-cover object-top" loading="eager" decoding="async">
                         </button>
                         <button type="button" @click="retakeStep(i)" :disabled="isRemoving || isUploading"
                                 class="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-brand-gold text-brand text-[10px] font-bold grid place-items-center shadow disabled:opacity-50"
@@ -248,8 +251,13 @@
                                 class="relative aspect-[3/4] bg-gradient-to-b from-brand-muted/40 to-gray-100 w-full block text-left"
                                 @click="step.previewUrl ? openPreview(step.previewUrl) : null"
                                 :disabled="!step.previewUrl">
-                            <img x-show="step.previewUrl" :src="step.previewUrl" :alt="step.label"
-                                 class="absolute inset-0 w-full h-full object-cover object-center">
+                            <img x-cloak
+                                 x-show="!!step.previewUrl"
+                                 :src="step.previewUrl"
+                                 :alt="step.label"
+                                 class="absolute inset-0 w-full h-full object-cover object-top"
+                                 loading="eager"
+                                 decoding="async">
                             <div class="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/55 to-transparent pointer-events-none"></div>
                             <p class="absolute bottom-2 left-2 right-2 text-[11px] font-semibold text-white drop-shadow-sm truncate" x-text="step.label"></p>
                         </button>
@@ -419,27 +427,41 @@
                         this.ready = true;
                         this.notice = null;
 
-                        // Chrome/desktop: resume camera when permission was already granted.
-                        if (await this.cameraPermissionGranted()) {
-                            try {
-                                await this.startScan();
-                            } catch (e) {
-                                this.notice = e?.message || null;
-                            }
-                        }
+                        // Never auto-start the camera — Chrome fails when the video is inside a
+                        // hidden profile section (videoWidth stays 0). User must click Start.
+                        this.observeVisibility();
+
+                        // Alpine cleanup when the component is torn down.
+                        return () => this.destroy();
                     },
 
-                    async cameraPermissionGranted() {
-                        if (! navigator.permissions?.query) {
-                            return false;
+                    observeVisibility() {
+                        if (typeof IntersectionObserver === 'undefined') {
+                            return;
                         }
 
-                        try {
-                            const status = await navigator.permissions.query({ name: 'camera' });
+                        const root = this.$el;
+                        if (! root || this._visibilityObserver) {
+                            return;
+                        }
 
-                            return status.state === 'granted';
-                        } catch {
-                            return false;
+                        this._visibilityObserver = new IntersectionObserver((entries) => {
+                            const visible = entries.some((entry) => entry.isIntersecting && entry.intersectionRatio > 0.05);
+                            if (! visible && this.phase === 'scanning') {
+                                this.stopCamera();
+                                this.phase = 'intro';
+                                this.notice = null;
+                            }
+                        }, { threshold: [0, 0.05, 0.25] });
+
+                        this._visibilityObserver.observe(root);
+                    },
+
+                    destroy() {
+                        this.stopCamera();
+                        if (this._visibilityObserver) {
+                            this._visibilityObserver.disconnect();
+                            this._visibilityObserver = null;
                         }
                     },
 
@@ -961,28 +983,38 @@
                             }
 
                             step.done = true;
-                            // Prefer the persisted server URL so the grid stays visible after we
-                            // release the temporary blob preview (revoking the blob blanked images).
-                            const blobToRelease = this.previewUrl;
+                            // Keep the blob preview until the server URL paints, then swap.
+                            // Revoking the blob too early blanks images in Chrome.
+                            const blobPreview = this.previewUrl;
+                            if (blobPreview) {
+                                step.previewUrl = blobPreview;
+                            }
+
                             if (data.previewUrl) {
-                                step.previewUrl = data.previewUrl;
-                                await this.waitForImage(data.previewUrl);
-                            } else if (this.previewUrl && !String(this.previewUrl).startsWith('blob:')) {
-                                step.previewUrl = this.previewUrl;
-                            } else if (this.previewUrl) {
-                                // Keep blob only until navigation; do not revoke while step still uses it.
+                                const serverReady = await this.waitForImage(data.previewUrl);
+                                if (serverReady) {
+                                    step.previewUrl = data.previewUrl;
+                                } else if (! step.previewUrl) {
+                                    step.previewUrl = data.previewUrl;
+                                }
+                            } else if (this.previewUrl && ! String(this.previewUrl).startsWith('blob:')) {
                                 step.previewUrl = this.previewUrl;
                             }
+
+                            // Force Alpine to re-render the step grid with the final URL.
+                            this.steps = this.steps.map((s) => ({ ...s }));
+
                             this.holdProgress = 0;
                             this.poseOk = false;
                             this.stepStartedAt = performance.now();
 
                             await new Promise(r => setTimeout(r, 700));
 
+                            const finalPreview = this.steps.find(s => s.key === step.key)?.previewUrl;
                             this.previewUrl = null;
                             this.previewBlob = null;
-                            if (blobToRelease && String(blobToRelease).startsWith('blob:') && step.previewUrl !== blobToRelease) {
-                                URL.revokeObjectURL(blobToRelease);
+                            if (blobPreview && String(blobPreview).startsWith('blob:') && finalPreview !== blobPreview) {
+                                URL.revokeObjectURL(blobPreview);
                             }
 
                             if (data.complete) {

@@ -80,6 +80,11 @@ class LoyaltyPointsService
                     __('borrower.rewards.points_earned_title'),
                     route('site.borrower.engagement', ['tab' => 'rewards']),
                     __('borrower.rewards.points_earned_cta'),
+                    [
+                        'title_key' => 'borrower.rewards.points_earned_title',
+                        'body_key'  => 'borrower.rewards.points_earned_body',
+                        'params'    => ['points' => number_format($points)],
+                    ],
                 );
             } catch (\Throwable) {
                 // Notifications must not block points credit.

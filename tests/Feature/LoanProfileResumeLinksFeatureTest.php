@@ -208,6 +208,51 @@ class LoanProfileResumeLinksFeatureTest extends TestCase
             $this->assertSame(1, substr_count((string) $profile['edit_quote_url'], 'step_key='), $case['code']);
             $this->assertStringContainsString('step_key='.$case['expected'], (string) $profile['edit_quote_url'], $case['code']);
             $this->assertNull($profile['edit_guarantor_url'], $case['code']);
+
+            // Resume into the product-aware quote step must not 500.
+            $this->actingAs($customer->user)
+                ->get((string) $profile['edit_quote_url'])
+                ->assertOk();
         }
+    }
+
+    public function test_inactive_product_resume_does_not_server_error(): void
+    {
+        $customer = $this->borrower();
+        $product = $this->individualProduct();
+        $product->forceFill(['is_active' => false])->save();
+
+        $draft = LoanApplicationDraft::create([
+            'customer_id'      => $customer->id,
+            'loan_product_id'   => $product->id,
+            'phase'             => 'application',
+            'step'              => 1,
+            'draft_reference'   => 'DR-INACTIVE-'.random_int(1000, 9999),
+            'saved_at'          => now(),
+            'payload'           => [
+                'application_started' => true,
+                'step_key'            => 'quote',
+                'form'                => [
+                    'loan_product_id'         => $product->id,
+                    'requested_amount'        => 200_000,
+                    'requested_tenure_months' => 3,
+                    'purpose'                 => 'business',
+                ],
+            ],
+        ]);
+
+        $profile = app(LoanApplicationProfileService::class)->forDraft($customer, $draft);
+
+        $this->actingAs($customer->user)
+            ->get((string) $profile['wizard_url'])
+            ->assertOk();
+
+        $this->actingAs($customer->user)
+            ->get((string) $profile['edit_quote_url'])
+            ->assertOk();
+
+        $this->actingAs($customer->user)
+            ->get((string) $profile['edit_guarantor_url'])
+            ->assertOk();
     }
 }

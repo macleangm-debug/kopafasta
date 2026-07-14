@@ -461,6 +461,9 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('credit-team', [\App\Http\Controllers\Admin\CreditTeamController::class, 'index'])
             ->middleware('permission:applications.view')
             ->name('credit-team.index');
+        Route::post('credit-team', [\App\Http\Controllers\Admin\CreditTeamController::class, 'store'])
+            ->middleware('permission:users.manage')
+            ->name('credit-team.store');
         Route::redirect('loan-applications/final-approvals', '/admin/loan-applications/pipeline/approved')->name('loan-applications.final-approvals');
         Route::view('loan-applications/rejected',         'admin.loan-applications.rejected')         ->name('loan-applications.rejected');
         Route::view('loan-applications/incomplete',      'admin.loan-applications.incomplete')      ->name('loan-applications.incomplete');
@@ -491,10 +494,6 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('loan-applications.documents.verify');
         Route::post('loan-applications/{loan_application}/documents/{document}/reject', [LoanApplicationController::class, 'rejectDocument'])
             ->name('loan-applications.documents.reject');
-        Route::post('loan-applications/{loan_application}/refresh-crb', [LoanApplicationController::class, 'refreshCrb'])
-            ->name('loan-applications.refresh-crb');
-        Route::post('loan-applications/{loan_application}/refresh-group-crb', [LoanApplicationController::class, 'refreshGroupCrb'])
-            ->name('loan-applications.refresh-group-crb');
         Route::post('loan-applications/{loan_application}/group-members/{loan_group_member}/review', [LoanApplicationController::class, 'reviewGroupMember'])
             ->name('loan-applications.review-group-member');
         Route::post('loan-applications/{loan_application}/group-feedback', [LoanApplicationController::class, 'updateGroupLeaderFeedback'])

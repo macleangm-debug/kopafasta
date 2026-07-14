@@ -38,45 +38,35 @@
                         </div>
                     </div>
 
-                    <div class="grid sm:grid-cols-2 gap-4 pt-2 border-t border-gray-100" x-data="{ previews: {} }">
+                    <div class="grid sm:grid-cols-2 gap-4 pt-2 border-t border-gray-100">
                         @php
                             $photoSlots = [
-                                ['key' => 0, 'icon' => '⬅️', 'label' => __('borrower.profile.asset_photo_front')],
-                                ['key' => 1, 'icon' => '➡️', 'label' => __('borrower.profile.asset_photo_back')],
-                                ['key' => 2, 'icon' => '↗️', 'label' => __('borrower.profile.asset_photo_side')],
-                                ['key' => 3, 'icon' => '↘️', 'label' => __('borrower.profile.asset_photo_angle')],
+                                ['key' => 0, 'label' => __('borrower.profile.asset_photo_front'), 'required' => true],
+                                ['key' => 1, 'label' => __('borrower.profile.asset_photo_back'), 'required' => true],
+                                ['key' => 2, 'label' => __('borrower.profile.asset_photo_side'), 'required' => false],
+                                ['key' => 3, 'label' => __('borrower.profile.asset_photo_angle'), 'required' => false],
                             ];
                         @endphp
                         @foreach ($photoSlots as $slot)
                             <div class="rounded-xl ring-1 ring-gray-200 p-4">
-                                <div class="flex items-center gap-2 mb-2">
-                                    <span aria-hidden="true">{{ $slot['icon'] }}</span>
-                                    <label class="text-xs font-semibold text-gray-700">{{ $slot['label'] }}</label>
-                                </div>
-                                <template x-if="previews[{{ $slot['key'] }}]">
-                                    <img :src="previews[{{ $slot['key'] }}]" alt="" class="mb-2 h-20 w-full object-cover rounded-lg ring-1 ring-gray-100">
-                                </template>
-                                <input type="file" name="photos[{{ $slot['key'] }}]" accept="image/*" capture="environment"
-                                       class="w-full text-xs file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-brand-muted file:text-brand file:font-semibold"
-                                       @change="previews[{{ $slot['key'] }}] = $event.target.files[0] ? URL.createObjectURL($event.target.files[0]) : null"
-                                       @if ($slot['key'] < 2) required @endif>
+                                <label class="text-xs font-semibold text-gray-700 mb-3 block">
+                                    {{ $slot['label'] }}
+                                    @if ($slot['required']) <span class="text-red-500">*</span> @endif
+                                </label>
+                                <x-site.single-image-document-upload :name="'photos['.$slot['key'].']'" />
                             </div>
                         @endforeach
                         <div class="rounded-xl ring-1 ring-gray-200 p-4">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span aria-hidden="true">🤳</span>
-                                <label class="text-xs font-semibold text-gray-700">{{ __('borrower.profile.person_with_asset') }}</label>
-                            </div>
-                            <input type="file" name="person_photo" accept="image/*" capture="user" required
-                                   class="w-full text-xs file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-brand-muted file:text-brand file:font-semibold">
+                            <label class="text-xs font-semibold text-gray-700 mb-3 block">
+                                {{ __('borrower.profile.person_with_asset') }} <span class="text-red-500">*</span>
+                            </label>
+                            <x-site.single-image-document-upload name="person_photo" />
                         </div>
                         <div class="rounded-xl ring-1 ring-gray-200 p-4 sm:col-span-2">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span aria-hidden="true">📄</span>
-                                <label class="text-xs font-semibold text-gray-700">{{ __('borrower.profile.ownership_document') }}</label>
-                            </div>
-                            <input type="file" name="ownership_document" accept="image/*,application/pdf" required
-                                   class="w-full text-xs file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-brand-muted file:text-brand file:font-semibold">
+                            <label class="text-xs font-semibold text-gray-700 mb-3 block">
+                                {{ __('borrower.profile.ownership_document') }} <span class="text-red-500">*</span>
+                            </label>
+                            <x-site.single-image-document-upload name="ownership_document" />
                         </div>
                     </div>
 

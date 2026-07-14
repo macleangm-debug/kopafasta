@@ -3,9 +3,7 @@
     <h1 class="text-2xl font-bold mb-1">{{ __('borrower.documents_page.title') }}</h1>
     <p class="text-sm text-gray-500 mb-6">{{ __('borrower.documents_page.subtitle') }}</p>
 
-    @if (session('status'))
-        <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
-    @endif
+
 
     <div class="mb-8 bg-white rounded-2xl ring-1 ring-gray-200 p-6">
         <h2 class="font-semibold text-gray-900">{{ __('borrower.documents_page.verification_title') }}</h2>

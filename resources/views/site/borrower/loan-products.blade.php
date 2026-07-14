@@ -8,12 +8,8 @@
             </div>
         </section>
 
-        @if (session('status'))
-            <div class="mb-6 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
-        @endif
-        @if (session('error'))
-            <div class="mb-6 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ session('error') }}</div>
-        @endif
+
+
 
         @if (! ($applyRequirements['can_apply'] ?? false))
             <div class="mb-6 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 text-sm text-amber-900">

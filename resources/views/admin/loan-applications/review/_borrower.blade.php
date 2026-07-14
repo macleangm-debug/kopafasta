@@ -72,7 +72,7 @@
             <h3 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Next of kin</h3>
             <dl class="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-3 text-sm">
                 <div><dt class="text-xs text-gray-500">Name</dt><dd class="font-medium mt-0.5">{{ $customer->nok_name ?? '—' }}</dd></div>
-                <div><dt class="text-xs text-gray-500">Relationship</dt><dd class="font-medium mt-0.5">{{ $customer->nok_relationship ?? '—' }}</dd></div>
+                <div><dt class="text-xs text-gray-500">Relationship</dt><dd class="font-medium mt-0.5">{{ kin_relationship_label($customer->nok_relationship) ?? '—' }}</dd></div>
                 <div><dt class="text-xs text-gray-500">Phone</dt><dd class="font-medium mt-0.5">{{ $customer->nok_phone ?? '—' }}</dd></div>
             </dl>
         </div>

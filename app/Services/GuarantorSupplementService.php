@@ -69,6 +69,13 @@ class GuarantorSupplementService
                 title: __('borrower.guarantor_supplement.notify_title'),
                 actionUrl: $url,
                 actionLabel: __('borrower.guarantor_supplement.cta'),
+                i18n: [
+                    'title_key' => 'borrower.guarantor_supplement.notify_title',
+                    'body_key'  => 'borrower.guarantor_supplement.notify_body',
+                    'params'    => [
+                        'reference' => $application->reference_no ?? $application->id,
+                    ],
+                ],
             );
         }
     }

@@ -70,14 +70,15 @@
 
     <div data-preview-grid class="grid grid-cols-2 sm:grid-cols-4 gap-3 hidden"></div>
 
+    {{-- Host for one named file input per pending photo (survives submit; picker stays unnamed). --}}
+    <div data-file-host class="hidden" aria-hidden="true"></div>
+
     <div data-drop-zone class="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-6 text-center transition">
         <p class="text-sm text-gray-600 mb-2">Drag and drop images here, or choose files</p>
         <label data-picker-label class="inline-flex rounded-lg bg-white ring-1 ring-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 cursor-pointer">
             Add images
-            {{-- Named input is what the server receives; JS keeps its FileList in sync with previews. --}}
             <input
                 type="file"
-                name="{{ $name }}[]"
                 data-picker
                 accept="image/jpeg,image/png,image/webp,image/jpg"
                 multiple
@@ -119,9 +120,11 @@
 
                     const max = Math.max(1, parseInt(root.dataset.max || '4', 10));
                     const existingCount = Math.max(0, parseInt(root.dataset.existingCount || '0', 10));
+                    const fieldName = root.dataset.name || 'photos';
                     const picker = root.querySelector('[data-picker]');
                     const pickerLabel = root.querySelector('[data-picker-label]');
                     const previewGrid = root.querySelector('[data-preview-grid]');
+                    const fileHost = root.querySelector('[data-file-host]');
                     const countLabel = root.querySelector('[data-count-label]');
                     const dropZone = root.querySelector('[data-drop-zone]');
                     let rejectNotice = root.querySelector('[data-reject-notice]');
@@ -172,13 +175,24 @@
                         }
                     }
 
-                    function syncPickerFiles() {
-                        if (!picker) return;
-                        const dt = new DataTransfer();
+                    /**
+                     * Mirror pending files into real named inputs so the POST always
+                     * includes photos[] even when DataTransfer on a single picker fails.
+                     */
+                    function syncHostFiles() {
+                        if (!fileHost) return;
+                        fileHost.innerHTML = '';
                         pending.forEach(function (entry) {
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.name = fieldName + '[]';
+                            input.accept = 'image/*';
+                            input.className = 'hidden';
+                            const dt = new DataTransfer();
                             dt.items.add(entry.file);
+                            input.files = dt.files;
+                            fileHost.appendChild(input);
                         });
-                        picker.files = dt.files;
                     }
 
                     function renderPreviews() {
@@ -202,7 +216,7 @@
                             btn.addEventListener('click', function () {
                                 URL.revokeObjectURL(entry.url);
                                 pending.splice(index, 1);
-                                syncPickerFiles();
+                                syncHostFiles();
                                 renderPreviews();
                             });
 
@@ -246,13 +260,13 @@
                             setRejectNotice('');
                         }
 
-                        syncPickerFiles();
+                        syncHostFiles();
                         renderPreviews();
+                        if (picker) picker.value = '';
                     }
 
                     if (picker) {
                         picker.addEventListener('change', function () {
-                            // Capture chosen files before we rewrite picker.files via DataTransfer.
                             const chosen = Array.from(picker.files || []);
                             addFiles(chosen);
                         });
@@ -282,12 +296,18 @@
                         });
                     }
 
-                    // Empty file inputs still POST and can fail "image" validation on update.
                     const form = root.closest('form');
-                    if (form && picker && !picker.dataset.emptyGuard) {
-                        picker.dataset.emptyGuard = '1';
-                        form.addEventListener('submit', function () {
-                            syncPickerFiles();
+                    if (form && !form.dataset.miuSubmitGuard) {
+                        form.dataset.miuSubmitGuard = '1';
+                        form.addEventListener('submit', function (e) {
+                            syncHostFiles();
+                            const hostInputs = fileHost
+                                ? Array.from(fileHost.querySelectorAll('input[type="file"]'))
+                                : [];
+                            const hasPendingFiles = hostInputs.some(function (input) {
+                                return input.files && input.files.length > 0;
+                            });
+
                             if (dropZone) {
                                 dropZone.classList.add('opacity-60', 'pointer-events-none');
                                 const hint = dropZone.querySelector('p');
@@ -296,11 +316,17 @@
                                     hint.textContent = 'Saving images…';
                                 }
                             }
-                            // Remove the input from the form entirely when empty so Laravel
-                            // does not receive a blank photos[] payload that fails validation.
-                            if (!picker.files || picker.files.length === 0) {
-                                picker.removeAttribute('name');
-                                picker.disabled = true;
+
+                            // Never strip photos when pending previews exist.
+                            if (pending.length > 0 && !hasPendingFiles) {
+                                e.preventDefault();
+                                setRejectNotice('Could not attach the selected images. Please remove and add them again.');
+                                if (dropZone) {
+                                    dropZone.classList.remove('opacity-60', 'pointer-events-none');
+                                    delete dropZone.dataset.saving;
+                                    const hint = dropZone.querySelector('p');
+                                    if (hint) hint.textContent = 'Drag and drop images here, or choose files';
+                                }
                             }
                         });
                     }

@@ -19,6 +19,22 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
         $this->assertSame(['loan_submitted'], $redirect->getSession()->get(Celebration::SESSION_KEY));
     }
 
+    public function test_set_review_page_helper_does_not_force_scroll_in_source(): void
+    {
+        $source = file_get_contents(resource_path('js/apply-wizard.js'));
+        $this->assertNotFalse($source);
+
+        // Review tab swaps must stay in-place under the sticky rail.
+        $this->assertMatchesRegularExpression(
+            '/setReviewPage\(page\)\s*\{[^}]*loadRepaymentSchedule\(\);[^}]*\}/s',
+            $source,
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/setReviewPage\(page\)\s*\{[^}]*scrollWizardIntoView\(\)/s',
+            $source,
+        );
+    }
+
     public function test_review_and_submit_translation_keys_exist(): void
     {
         foreach (['en', 'sw'] as $locale) {

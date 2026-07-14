@@ -66,7 +66,7 @@ class MemberEngagementRewardService
         $this->loyalty->earn(
             $customer->fresh(),
             'update_information',
-            'Profile section updated: '.$section,
+            null,
             'profile_section',
             crc32($section),
         );
@@ -79,7 +79,7 @@ class MemberEngagementRewardService
         $this->loyalty->earn(
             $customer->fresh(),
             'upload_documents',
-            'Document uploaded: '.$documentCode,
+            null,
             'customer_document',
             crc32($documentCode),
         );

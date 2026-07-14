@@ -191,15 +191,7 @@ class LoanApplicationProfileService
             'edit_quote_url'       => null,
             'edit_guarantor_url'   => app(\App\Services\GuarantorSupplementService::class)->hasOpenRequest($application)
                 ? app(\App\Services\GuarantorSupplementService::class)->borrowerWizardUrl($application)
-                : (($application->product?->requires_guarantor ?? false)
-                    ? route('site.borrower.apply', [
-                        'product'              => $application->loan_product_id,
-                        'guarantor_supplement' => 1,
-                        'application'          => $application->id,
-                        'resume'               => 1,
-                        'step_key'             => 'guarantor',
-                    ])
-                    : null),
+                : null,
             'document_requests'    => $application->documentRequests()->with('uploads')->latest()->get(),
             'document_request_groups' => $this->borrowerStatus->groupedDocumentRequests(
                 $application->documentRequests()->with('uploads')->latest()->get()
@@ -319,10 +311,11 @@ class LoanApplicationProfileService
 
         foreach ($application->documentRequests as $request) {
             if ($request->needsBorrowerAction()) {
+                $docService = app(ApplicationDocumentRequestService::class);
                 $items[] = [
                     'key'        => 'request-'.$request->id,
                     'label'      => $request->label,
-                    'upload_url' => route('site.borrower.application', $application->id).'#request-'.$request->id,
+                    'upload_url' => $docService->borrowerActionUrl($request),
                     'complete'   => false,
                 ];
             }

@@ -13,7 +13,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="app-currency" content="{{ currency_code() }}">
-    <title>{{ $title ?? 'Console' }} · Kopafasta</title>
+    <title>{{ $title ?? 'Console' }} · {{ brand_name() }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
     <style>
@@ -270,9 +270,9 @@
     <header class="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
         <div class="flex h-14 items-center justify-between gap-4 px-4 lg:px-6">
             <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3 shrink-0">
-                <div class="size-9 rounded-lg bg-amber-500 grid place-items-center font-bold text-gray-900">K</div>
+                <x-site.brand-mark size="sm" />
                 <div class="hidden sm:block">
-                    <div class="text-sm font-semibold text-gray-900 leading-tight">Kopafasta</div>
+                    <div class="text-sm font-semibold text-gray-900 leading-tight">{{ brand_name() }}</div>
                     <div class="text-[11px] text-gray-500 leading-tight">Console</div>
                 </div>
             </a>
@@ -396,10 +396,12 @@
                     {{ $backLabel }}
                 </a>
             @endif
-            <h1 class="text-xl font-semibold text-gray-900">{{ $heading ?? ($title ?? 'Dashboard') }}</h1>
-            @isset($subheading)
-                <p class="text-sm text-gray-500 mt-0.5">{{ $subheading }}</p>
-            @endisset
+            @if ($heading !== '')
+                <h1 class="text-xl font-semibold text-gray-900">{{ $heading ?? ($title ?? 'Dashboard') }}</h1>
+                @isset($subheading)
+                    <p class="text-sm text-gray-500 mt-0.5">{{ $subheading }}</p>
+                @endisset
+            @endif
         </div>
 
         @if (count($activeSectionTabs) > 1)

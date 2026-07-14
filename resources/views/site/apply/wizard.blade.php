@@ -103,6 +103,7 @@
                   marketplaceUrl: @js($marketplaceUrl ?? route('site.borrower.marketplace')),
                   profileUrl: @js(route('site.borrower.profile')),
                   canApply: @js((bool) ($applyRequirements['can_apply'] ?? false)),
+                  openProfileGateOnLoad: @js((bool) (session('show_profile_gate') || request()->boolean('profile_gate'))),
                   verifiedLegalName: @js($verifiedLegalName),
                   identityVerified: @js($identityVerified),
                   profileSignature: @js(app(\App\Services\BorrowerSignatureService::class)->profileSignature($customer)),
@@ -120,6 +121,7 @@
                   incomeVerification: @js($incomeVerification),
                   productQuestions: @js($productQuestions),
                   purposeLabels: @js(loan_purpose_options()),
+                  kinRelationshipLabels: @js(kin_relationship_options()),
                   readinessUrl: @js($readinessUrl),
                   loanProductsUrl: @js(route('site.borrower.loan-products')),
                   paymentPhone: @js(old('payment_phone', $customer->phone ?? '')),
@@ -360,8 +362,6 @@
                 @include('site.apply._product-questions-step')
 
                 @include('site.apply._review-step')
-
-                @include('site.apply._signature-step')
 
                 @include('site.apply._submit-step')
 

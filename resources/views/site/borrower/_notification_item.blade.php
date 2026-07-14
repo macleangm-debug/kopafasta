@@ -2,15 +2,15 @@
     $actionUrl = ($n->channel === 'in_app' && filled($n->recipient) && str_starts_with($n->recipient, '/'))
         ? $n->recipient
         : null;
-    $lines = preg_split("/\r\n|\n|\r/", (string) ($n->message ?: '')) ?: [];
-    $title = trim($lines[0] ?? '') ?: __('borrower.notifications.fallback_title');
-    $body = trim(implode(' ', array_slice($lines, 1))) ?: ($n->message ?: $n->template);
+    $title = $n->displayTitle();
+    $body = $n->displayBody();
     $displayCategory = $center->normalizeCategory($n->category);
     $actionLabel = match ($n->template) {
         'guarantor_request' => __('borrower.guarantor_notifications.view_request'),
         'guarantor_supplement_request' => __('borrower.guarantor_supplement.cta'),
         'loyalty_points_earned' => __('borrower.rewards.points_earned_cta'),
         'document_request', 'document_requests', 'application_document_request' => __('borrower.dashboard.document_requests_cta'),
+        'profile_revision_requested' => __('borrower.notifications.profile_revision_cta'),
         default => __('borrower.notifications.view_application'),
     };
 @endphp

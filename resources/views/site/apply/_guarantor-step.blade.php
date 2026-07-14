@@ -56,7 +56,7 @@
         <button type="button"
                 @click="changeGuarantor()"
                 :disabled="guarantorChanging"
-                class="inline-flex bg-white ring-1 ring-emerald-300 text-emerald-900 font-semibold px-4 py-2 rounded-full text-sm disabled:opacity-60">
+                class="inline-flex bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-semibold px-4 py-2.5 rounded-xl text-sm disabled:opacity-60">
             {{ __('borrower.apply.change_guarantor') }}
         </button>
     </div>
@@ -228,8 +228,10 @@
                         <span x-text="guarantorInvitePreparing ? @js(__('borrower.apply.guarantor_fields.generating_link')) : @js(__('borrower.apply.guarantor_fields.generate_link'))"></span>
                     </button>
                 </div>
-                <div class="sm:col-span-2 rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-sm text-sky-900" x-show="!isExternalGuarantorComplete()">
-                    {{ __('borrower.apply.guarantor_fields.share_generate') }}
+                <div class="sm:col-span-2 rounded-2xl bg-gradient-to-br from-brand-muted/50 to-white ring-1 ring-brand/15 px-5 py-4"
+                     x-show="!isExternalGuarantorComplete()">
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.guarantor_fields.share_via') }}</p>
+                    <p class="text-sm text-gray-700 mt-1">{{ __('borrower.apply.guarantor_fields.share_generate') }}</p>
                 </div>
             </div>
         </div>

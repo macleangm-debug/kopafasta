@@ -27,6 +27,20 @@
         </button>
     </div>
 
+    <div x-show="previewUrl || previewName" x-cloak class="mt-3">
+        <template x-if="previewUrl">
+            <button type="button" @click="expanded = true" class="relative h-28 w-28 rounded-xl overflow-hidden ring-1 ring-brand/20 bg-white cursor-zoom-in block">
+                <img :src="previewUrl" alt="" class="h-full w-full object-cover object-center">
+            </button>
+        </template>
+        <template x-if="!previewUrl && previewName">
+            <div class="h-28 w-28 rounded-xl ring-1 ring-brand/20 bg-white grid place-items-center">
+                <span class="text-xs font-bold text-brand">PDF</span>
+            </div>
+        </template>
+        <p class="text-xs text-gray-500 mt-1.5" x-text="previewName"></p>
+    </div>
+
     <p x-show="cameraNotice" x-cloak class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2 mt-3" x-text="cameraNotice"></p>
 
     <div x-show="cameraOpen" x-cloak class="rounded-2xl overflow-hidden ring-1 ring-gray-200 bg-black mt-3">
@@ -35,6 +49,14 @@
             <button type="button" @click="captureImage()" class="flex-1 bg-gray-900 text-white font-semibold px-4 py-2 rounded-xl text-sm" x-text="labels.captureImage"></button>
             <button type="button" @click="closeCamera()" class="px-4 py-2 rounded-xl text-sm ring-1 ring-gray-200" x-text="labels.close"></button>
         </div>
+    </div>
+
+    <div x-show="expanded && previewUrl" x-cloak x-transition
+         class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"
+         @keydown.escape.window="expanded = false"
+         @click.self="expanded = false">
+        <button type="button" class="absolute top-4 right-4 text-white/90 text-sm font-semibold" @click="expanded = false" x-text="labels.close"></button>
+        <img :src="previewUrl" alt="" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
     </div>
 
     <div id="{{ $hostId }}"></div>
@@ -54,6 +76,9 @@
                 cameraOpen: false,
                 cameraNotice: null,
                 stream: null,
+                previewUrl: null,
+                previewName: null,
+                expanded: false,
                 async openCamera() {
                     this.cameraNotice = null;
                     if (!window.isSecureContext) {
@@ -129,6 +154,16 @@
                     dt.items.add(file);
                     input.files = dt.files;
                     host.appendChild(input);
+
+                    if (this.previewUrl && String(this.previewUrl).startsWith('blob:')) {
+                        URL.revokeObjectURL(this.previewUrl);
+                    }
+                    this.previewName = file.name || 'capture.jpg';
+                    if (file.type && file.type.startsWith('image/')) {
+                        this.previewUrl = URL.createObjectURL(file);
+                    } else {
+                        this.previewUrl = null;
+                    }
                 },
             };
         }

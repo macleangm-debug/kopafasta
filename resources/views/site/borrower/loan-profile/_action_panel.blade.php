@@ -21,38 +21,16 @@
     $continueUrl = $next['url'] ?? ($profile['wizard_url'] ?? null);
     $continueLabel = $next['button_label'] ?? __('borrower.loan_profile.actions.continue_to_form');
 
-    $wizardUrl = $profile['wizard_url'] ?? null;
+    // Prefer service-built URLs (product-aware quote step). Do not hardcode quote/guarantor.
     $editQuoteUrl = $profile['edit_quote_url'] ?? null;
     $editGuarantorUrl = $profile['edit_guarantor_url'] ?? null;
-    if ($isDraft && ! $editQuoteUrl && ! $editGuarantorUrl && $wizardUrl) {
-        // Fallback for older payloads: replace step_key cleanly instead of appending duplicates.
-        $parts = parse_url($wizardUrl);
-        $query = [];
-        if (! empty($parts['query'])) {
-            parse_str($parts['query'], $query);
-        }
-        $query['resume'] = 1;
-        $basePath = ($parts['path'] ?? '/borrower/apply');
-        $build = function (string $stepKey) use ($basePath, $query): string {
-            $q = $query;
-            $q['step_key'] = $stepKey;
-            unset($q['step']);
-
-            return $basePath.'?'.http_build_query($q);
-        };
-        $editQuoteUrl = $build('quote');
-        $editGuarantorUrl = $build('guarantor');
-    } elseif (! $isDraft && $application && ! $editGuarantorUrl) {
-        $guarantorSupplement = app(\App\Services\GuarantorSupplementService::class);
-        $editGuarantorUrl = $guarantorSupplement->hasOpenRequest($application)
-            ? $guarantorSupplement->borrowerWizardUrl($application)
-            : route('site.borrower.apply', [
-                'product'              => $application->loan_product_id,
-                'guarantor_supplement' => 1,
-                'application'          => $application->id,
-                'resume'               => 1,
-                'step_key'             => 'guarantor',
-            ]);
+    // Change/add guarantor CTA only when underwriting opened a supplement request —
+    // never reopen the full apply wizard (which re-triggers application fee).
+    $guarantorSupplementOpen = $application
+        ? app(\App\Services\GuarantorSupplementService::class)->hasOpenRequest($application)
+        : false;
+    if (! $isDraft && $application && ! $editGuarantorUrl && $guarantorSupplementOpen) {
+        $editGuarantorUrl = app(\App\Services\GuarantorSupplementService::class)->borrowerWizardUrl($application);
     }
 
     $guarantorInvitations = $profile['guarantor_invitations'] ?? collect();
@@ -80,13 +58,7 @@
         }
     }
     $needsGuarantor = $application && ($application->product?->requires_guarantor ?? false);
-    $guarantorSupplementOpen = $application
-        ? app(\App\Services\GuarantorSupplementService::class)->hasOpenRequest($application)
-        : false;
-    $showChangeGuarantor = $needsGuarantor && (
-        $guarantorSupplementOpen
-        || in_array((string) ($application->status ?? ''), ['submitted', 'awaiting_guarantor', 'screening', 'credit_appraisal'], true)
-    );
+    $showChangeGuarantor = $needsGuarantor && $guarantorSupplementOpen;
 @endphp
 
 @if ($isDraft)

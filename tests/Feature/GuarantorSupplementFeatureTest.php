@@ -90,14 +90,62 @@ class GuarantorSupplementFeatureTest extends TestCase
     {
         $customer = $this->borrower();
         $application = $this->applicationFor($customer);
+        $application->forceFill([
+            'application_fee_status' => 'paid',
+            'application_fee_amount' => 15_000,
+            'application_fee_reference' => 'FEE-GS-PAID',
+            'application_fee_paid_at' => now(),
+        ])->save();
         $admin = User::factory()->create(['role' => 'admin']);
         app(GuarantorSupplementService::class)->request($application, $admin, 'Need another guarantor');
 
-        $this->actingAs($customer->user)
+        $response = $this->actingAs($customer->user)
             ->get(app(GuarantorSupplementService::class)->borrowerWizardUrl($application))
             ->assertOk()
-            ->assertSee('supplementMode', false)
+            ->assertSee('supplementMode:', false)
             ->assertSee(__('borrower.apply.steps.guarantor'), false);
+
+        $html = $response->getContent();
+        $this->assertTrue(
+            str_contains($html, 'supplementMode: true') || str_contains($html, 'supplementMode:true'),
+            'Supplement mode should be enabled in the wizard payload'
+        );
+        $this->assertTrue(
+            str_contains($html, 'FEE-GS-PAID') || str_contains($html, 'supplement-fee:'.$application->id),
+            'Application fee must remain marked paid/waived with a reference'
+        );
+
+        $application->refresh();
+        $this->assertSame('submitted', $application->status);
+        $this->assertSame('paid', $application->application_fee_status);
+        $this->assertDatabaseMissing('loan_application_drafts', [
+            'customer_id' => $customer->id,
+            'loan_product_id' => $application->loan_product_id,
+        ]);
+    }
+
+    public function test_stale_supplement_link_does_not_open_payment_wizard(): void
+    {
+        $customer = $this->borrower();
+        $application = $this->applicationFor($customer);
+        $application->forceFill([
+            'application_fee_status' => 'paid',
+            'application_fee_reference' => 'FEE-GS-PAID-2',
+        ])->save();
+
+        $this->actingAs($customer->user)
+            ->get(route('site.borrower.apply', [
+                'product' => $application->loan_product_id,
+                'guarantor_supplement' => 1,
+                'application' => $application->id,
+                'resume' => 1,
+                'step_key' => 'guarantor',
+            ]))
+            ->assertRedirect(route('site.borrower.application', $application));
+
+        $application->refresh();
+        $this->assertSame('submitted', $application->status);
+        $this->assertSame('paid', $application->application_fee_status);
     }
 
     public function test_profile_gate_still_blocks_incomplete_submit(): void

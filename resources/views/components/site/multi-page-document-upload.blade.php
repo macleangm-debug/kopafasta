@@ -45,8 +45,19 @@
     <ul class="space-y-2" x-show="pages.length > 0">
         <template x-for="(page, index) in pages" :key="page.id">
             <li class="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-3 py-2 text-sm">
-                <span x-text="labels.pageLabel + ' ' + (index + 1)"></span>
-                <button type="button" @click="removePage(index)" class="text-xs font-semibold text-red-600 hover:underline" x-text="labels.remove"></button>
+                <div class="flex items-center gap-3 min-w-0">
+                    <template x-if="page.previewUrl">
+                        <img :src="page.previewUrl" alt="" class="size-12 rounded-lg object-cover ring-1 ring-gray-200 shrink-0">
+                    </template>
+                    <template x-if="!page.previewUrl">
+                        <div class="size-12 rounded-lg bg-white ring-1 ring-gray-200 grid place-items-center shrink-0 text-[10px] font-bold text-brand">PDF</div>
+                    </template>
+                    <div class="min-w-0">
+                        <p class="font-semibold text-gray-900 truncate" x-text="labels.pageLabel + ' ' + (index + 1)"></p>
+                        <p class="text-xs text-gray-500 truncate" x-text="page.name"></p>
+                    </div>
+                </div>
+                <button type="button" @click="removePage(index)" class="text-xs font-semibold text-red-600 hover:underline shrink-0" x-text="labels.remove"></button>
             </li>
         </template>
     </ul>
@@ -166,10 +177,14 @@
                     event.target.value = '';
                 },
                 addBlob(blob, name) {
-                    this.pages.push({ id: this.nextId++, blob, name });
+                    const isPdf = (blob.type || '').includes('pdf') || /\.pdf$/i.test(name || '');
+                    const previewUrl = isPdf ? null : URL.createObjectURL(blob);
+                    this.pages.push({ id: this.nextId++, blob, name, previewUrl, isPdf });
                     this.syncInputs();
                 },
                 removePage(index) {
+                    const page = this.pages[index];
+                    if (page?.previewUrl) URL.revokeObjectURL(page.previewUrl);
                     this.pages.splice(index, 1);
                     this.syncInputs();
                 },

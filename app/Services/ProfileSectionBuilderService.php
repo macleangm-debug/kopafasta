@@ -48,43 +48,9 @@ class ProfileSectionBuilderService
     /** @return list<array<string, mixed>> */
     public function hubCards(Customer $customer): array
     {
-        $definitions = $this->activeSections();
-
-        if ($definitions->isEmpty()) {
-            return $this->defaultHubCards($customer);
-        }
-
-        $completion = app(ProfileCompletionService::class);
-        $tabStatuses = $completion->tabStatuses($customer);
-        $revision = app(ProfileRevisionService::class);
-        $allowed = array_keys($tabStatuses);
-
-        $cards = $definitions
-            ->filter(function (ProfileSectionDefinition $section) use ($allowed) {
-                $mappedKey = (string) ($section->metadata['maps_to'] ?? $section->key);
-
-                return in_array($mappedKey, $allowed, true) || in_array($section->key, $allowed, true);
-            })
-            ->map(function (ProfileSectionDefinition $section) use ($customer, $tabStatuses, $revision) {
-                $mappedKey = (string) ($section->metadata['maps_to'] ?? $section->key);
-                $tab = $tabStatuses[$mappedKey] ?? $tabStatuses[$section->key] ?? null;
-                $status = $this->resolveStatus($customer, $mappedKey, $tab, $revision);
-
-                return [
-                    'key'         => $section->key,
-                    'icon'        => $section->icon ?: '📋',
-                    'label'       => $section->localizedName(),
-                    // Hub shows category cards only — field-level copy lives inside each section.
-                    'description' => null,
-                    'status'      => $status,
-                    'status_label'=> $this->statusLabel($status),
-                    'action_label'=> $this->actionLabel($status),
-                    'url'         => $tab['url'] ?? route('site.borrower.profile', ['section' => $mappedKey]),
-                    'required'    => (bool) $section->is_required,
-                ];
-            })->values()->all();
-
-        return $cards !== [] ? $cards : $this->defaultHubCards($customer);
+        // Hub is always the seven main categories. Admin ProfileSectionDefinition rows
+        // drive required_before_loan / field config inside sections — never hub layout.
+        return $this->defaultHubCards($customer);
     }
 
     /** @return list<array<string, mixed>> */
@@ -123,23 +89,6 @@ class ProfileSectionBuilderService
                     'count'        => $tab['count'] ?? null,
                 ];
             })->values()->all();
-    }
-
-    private function resolveStatus(Customer $customer, string $key, ?array $tab, ProfileRevisionService $revision): string
-    {
-        if ($tab && isset($tab['status'])) {
-            return (string) $tab['status'];
-        }
-
-        if ($revision->hasOpenRevision($customer, $key)) {
-            return 'needs_work';
-        }
-
-        if ($tab && ($tab['complete'] ?? false)) {
-            return 'complete';
-        }
-
-        return 'not_started';
     }
 
     private function statusLabel(string $status): string

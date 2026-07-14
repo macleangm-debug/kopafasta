@@ -92,6 +92,10 @@ class NotificationService
         }
     }
 
+    /**
+     * @param  array{title_key?: string, body_key?: string, params?: array<string, mixed>}|null  $i18n
+     *        When provided, title/body are re-translated at read time from these keys.
+     */
     public function notifyInApp(
         Customer $customer,
         string $message,
@@ -100,8 +104,9 @@ class NotificationService
         ?string $title = null,
         ?string $actionUrl = null,
         ?string $actionLabel = null,
+        ?array $i18n = null,
     ): NotificationLog {
-        return NotificationLog::create([
+        $payload = [
             'customer_id' => $customer->id,
             'channel'     => 'in_app',
             'category'    => $category,
@@ -111,7 +116,17 @@ class NotificationService
             'message'     => Str::limit(trim(($title ? $title."\n" : '').$message), 800, ''),
             'status'      => 'sent',
             'sent_at'     => now(),
-        ]);
+        ];
+
+        if (is_array($i18n) && (filled($i18n['title_key'] ?? null) || filled($i18n['body_key'] ?? null))) {
+            $payload['meta'] = [
+                'title_key' => $i18n['title_key'] ?? null,
+                'body_key'  => $i18n['body_key'] ?? null,
+                'params'    => is_array($i18n['params'] ?? null) ? $i18n['params'] : [],
+            ];
+        }
+
+        return NotificationLog::create($payload);
     }
 
     /** Store CTA as a site-relative path so notification UIs can detect it. */

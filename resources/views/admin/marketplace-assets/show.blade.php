@@ -21,10 +21,12 @@
         'Availability' => ucfirst($record->availability_status ?? 'available'),
     ]">
     @if (! empty($record->photos))
-        <div class="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            @foreach ($record->photos as $photo)
-                <img src="{{ marketplace_photo_url($photo) }}" alt="" class="rounded-lg ring-1 ring-gray-200 aspect-square object-cover" referrerpolicy="no-referrer" loading="lazy">
-            @endforeach
+        <div class="mt-6 max-w-2xl">
+            @include('site.marketplace._photo-slider', [
+                'photos' => $record->photos,
+                'category' => $record->category ?? 'other',
+                'zoom' => true,
+            ])
         </div>
     @endif
 </x-admin.show-page>

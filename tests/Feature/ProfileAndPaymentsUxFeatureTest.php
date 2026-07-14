@@ -109,6 +109,54 @@ class ProfileAndPaymentsUxFeatureTest extends TestCase
         $this->assertSame(__('borrower.profile.hub.add'), $personal['action_label']);
     }
 
+    public function test_hub_cards_stay_main_categories_even_with_field_definitions(): void
+    {
+        $customer = $this->makeCustomer();
+
+        \App\Models\ProfileSectionDefinition::create([
+            'key'          => 'national_id_field',
+            'icon'         => '🪪',
+            'name_en'      => 'National ID',
+            'name_sw'      => 'NIDA',
+            'is_required'  => true,
+            'is_active'    => true,
+            'display_order'=> 1,
+            'input_type'   => 'text',
+            'metadata'     => ['maps_to' => 'personal'],
+        ]);
+        \App\Models\ProfileSectionDefinition::create([
+            'key'          => 'face_field',
+            'icon'         => '🙂',
+            'name_en'      => 'Facial Verification',
+            'name_sw'      => 'Uthibitishaji wa uso',
+            'is_required'  => true,
+            'is_active'    => true,
+            'display_order'=> 2,
+            'input_type'   => 'file_upload',
+            'metadata'     => ['maps_to' => 'personal'],
+        ]);
+        \App\Models\ProfileSectionDefinition::create([
+            'key'          => 'kin_field',
+            'icon'         => '👪',
+            'name_en'      => 'Next of Kin',
+            'name_sw'      => 'Ndugu wa karibu',
+            'is_required'  => false,
+            'is_active'    => true,
+            'display_order'=> 3,
+            'input_type'   => 'text',
+            'metadata'     => ['maps_to' => 'personal'],
+        ]);
+
+        $cards = app(\App\Services\ProfileSectionBuilderService::class)->hubCards($customer);
+        $keys = collect($cards)->pluck('key')->all();
+
+        $this->assertSame(
+            ['personal', 'activity', 'residence', 'kyc', 'security', 'payment', 'assets'],
+            $keys
+        );
+        $this->assertEmpty(collect($cards)->pluck('description')->filter()->all());
+    }
+
     public function test_payments_create_accepts_loan_query_and_uses_brand_ui(): void
     {
         $customer = $this->makeCustomer();

@@ -93,6 +93,13 @@ class ApplyController extends Controller
                 $preselect = $supplementApplication->loan_product_id;
                 $request->merge(['resume' => 1, 'step_key' => 'guarantor']);
             } else {
+                // Never fall through to the full apply/fee wizard for a stale supplement link.
+                if ($supplementApplication) {
+                    return redirect()
+                        ->route('site.borrower.application', $supplementApplication)
+                        ->with('status', __('borrower.guarantor_supplement.submitted'));
+                }
+
                 $supplementApplication = null;
             }
         }
@@ -134,7 +141,15 @@ class ApplyController extends Controller
                 ->with('asset')
                 ->find($request->query('reservation'));
         }
-        if (! $supplementMode && $preselectedProduct && is_marketplace_loan_product($preselectedProduct->code) && ! $reservation) {
+        // Marketplace products normally need a reservation, but resume into an existing draft
+        // must still open the wizard (Edit Quote / Continue) without bouncing to the marketplace.
+        $resumingMarketplaceDraft = $request->boolean('resume')
+            && $customer
+            && $preselectedProduct
+            && $drafts->find($customer, (int) $preselectedProduct->id);
+
+        if (! $supplementMode && $preselectedProduct && is_marketplace_loan_product($preselectedProduct->code)
+            && ! $reservation && ! $resumingMarketplaceDraft) {
             return redirect()
                 ->route('site.borrower.marketplace')
                 ->with('status', __('borrower.marketplace.subtitle'));
@@ -204,6 +219,8 @@ class ApplyController extends Controller
         if ($supplementMode && $supplementApplication) {
             $feeStatus = (string) ($supplementApplication->application_fee_status ?? '');
             $feePaid = in_array($feeStatus, ['paid', 'waived'], true);
+            // Always mark fee satisfied with a stable reference so the client cannot
+            // clear waived state and bounce the borrower back to payment.
             $savedDraft = [
                 'loan_product_id' => $supplementApplication->loan_product_id,
                 'phase' => 'application',
@@ -222,9 +239,11 @@ class ApplyController extends Controller
                 'supplement_application_id' => $supplementApplication->id,
                 'application_fee' => [
                     'status' => $feePaid ? $feeStatus : 'waived',
-                    'reference' => $supplementApplication->application_fee_reference,
+                    'reference' => $supplementApplication->application_fee_reference
+                        ?: ('supplement-fee:'.$supplementApplication->id),
                     'amount' => (float) ($supplementApplication->application_fee_amount ?? 0),
-                    'paid_at' => optional($supplementApplication->application_fee_paid_at)?->toIso8601String(),
+                    'paid_at' => optional($supplementApplication->application_fee_paid_at)?->toIso8601String()
+                        ?: now()->toIso8601String(),
                 ],
             ];
         }
@@ -279,40 +298,52 @@ class ApplyController extends Controller
             }
         }
 
-        $feeQuote = $selectedProduct
-            ? app(ApplicationFeePaymentService::class)->quote(
-                $customer,
-                $selectedProduct,
-                (bool) old('use_wallet', false),
-                old('promo_code'),
-                null,
-                old('affiliate_code', old('promo_code')),
-            )
-            : null;
-        $referralService = app(ReferralService::class);
-        $referralWallet = $referralService->wallet($customer);
-        $referralSettings = $referralService->settings();
-        $applicationFeePaymentRef = $request->session()->get('application_fee_payment_ref')
-            ?? app(ApplicationFeePaymentService::class)->generatePaymentReference();
-        $request->session()->put('application_fee_payment_ref', $applicationFeePaymentRef);
-        $bankAccounts = $this->paymentBankAccountsForProduct($selectedProduct, $applicationFeePaymentRef);
+        try {
+            $feeQuote = $selectedProduct
+                ? app(ApplicationFeePaymentService::class)->quote(
+                    $customer,
+                    $selectedProduct,
+                    (bool) old('use_wallet', false),
+                    old('promo_code'),
+                    null,
+                    old('affiliate_code', old('promo_code')),
+                )
+                : null;
+            $referralService = app(ReferralService::class);
+            $referralWallet = $referralService->wallet($customer);
+            $referralSettings = $referralService->settings();
+            $applicationFeePaymentRef = $request->session()->get('application_fee_payment_ref')
+                ?? app(ApplicationFeePaymentService::class)->generatePaymentReference();
+            $request->session()->put('application_fee_payment_ref', $applicationFeePaymentRef);
+            $bankAccounts = $this->paymentBankAccountsForProduct($selectedProduct, $applicationFeePaymentRef);
 
-        $valuationFeeQuote = $selectedProduct && is_asset_backed_loan_product($selectedProduct->code)
-            ? app(ValuationFeePaymentService::class)->quote($customer)
-            : null;
-        $valuationFeeAmount = is_asset_backed_loan_product($selectedProduct?->code)
-            ? quoted_valuation_fee($customer)
-            : 0;
-        $valuationFeePaymentRef = $request->session()->get('valuation_fee_payment_ref')
-            ?? app(ValuationFeePaymentService::class)->generatePaymentReference();
-        $request->session()->put('valuation_fee_payment_ref', $valuationFeePaymentRef);
-        $assetTypeOptions = app(\App\Services\AssetBackedLoanService::class)->assetTypeOptions();
-        $assetDocumentLabels = app(AssetBackedApplyService::class)->documentLabels();
-        $customerAssets = app(\App\Services\CustomerAssetService::class)->forCustomer($customer);
-        $pointsBalance = app(\App\Services\LoyaltyPointsService::class)->balance($customer);
-        $loyaltyRedemptions = app(\App\Services\LoyaltyRedemptionService::class);
-        $activeRewards = $loyaltyRedemptions->activeRewards($customer);
-        $loyaltyRateDiscount = $loyaltyRedemptions->additionalRateDiscount($customer);
+            $valuationFeeQuote = $selectedProduct && is_asset_backed_loan_product($selectedProduct->code)
+                ? app(ValuationFeePaymentService::class)->quote($customer)
+                : null;
+            $valuationFeeAmount = is_asset_backed_loan_product($selectedProduct?->code)
+                ? quoted_valuation_fee($customer)
+                : 0;
+            $valuationFeePaymentRef = $request->session()->get('valuation_fee_payment_ref')
+                ?? app(ValuationFeePaymentService::class)->generatePaymentReference();
+            $request->session()->put('valuation_fee_payment_ref', $valuationFeePaymentRef);
+            $assetTypeOptions = app(\App\Services\AssetBackedLoanService::class)->assetTypeOptions();
+            $assetDocumentLabels = app(AssetBackedApplyService::class)->documentLabels();
+            $customerAssets = app(\App\Services\CustomerAssetService::class)->forCustomer($customer);
+            $pointsBalance = app(\App\Services\LoyaltyPointsService::class)->balance($customer);
+            $loyaltyRedemptions = app(\App\Services\LoyaltyRedemptionService::class);
+            $activeRewards = $loyaltyRedemptions->activeRewards($customer);
+            $loyaltyRateDiscount = $loyaltyRedemptions->additionalRateDiscount($customer);
+        } catch (\Throwable $e) {
+            report($e);
+
+            if ($isResume) {
+                return redirect()
+                    ->route('site.borrower.loans', ['tab' => 'applications'])
+                    ->with('error', __('borrower.applications_list.resume_not_found'));
+            }
+
+            throw $e;
+        }
 
         return view('site.apply.wizard', compact(
             'products',
@@ -1266,33 +1297,50 @@ class ApplyController extends Controller
         $checklist = $requirements->checklistForApply($customer, $returnUrl);
 
         if (! $checklist['can_apply']) {
-            $actionUrl = $checklist['first_action_url']
-                ?? route('site.borrower.profile', ['section' => 'personal']);
             $incomplete = $checklist['first_incomplete'] ?? null;
             $message = ! empty($incomplete['label'])
                 ? __('borrower.apply.kyc_incomplete_redirect', ['section' => $incomplete['label']])
                 : __('borrower.apply.kyc_incomplete_submit');
 
+            // Stay on the submit step and open the premium profile gate modal — do not
+            // silently bounce the borrower to the profile page.
             return redirect()
-                ->to($actionUrl)
+                ->route('site.borrower.apply', array_filter([
+                    'product'      => (int) $loanProduct->id,
+                    'resume'       => 1,
+                    'step_key'     => 'submit',
+                    'profile_gate' => 1,
+                ]))
                 ->with('error', $message)
-                ->with('status', $message);
+                ->with('show_profile_gate', true);
         }
 
         if (! $faces->profileStepComplete($customer)) {
             return redirect()
-                ->to($requirements->withReturnUrl(route('site.borrower.face-verification'), $returnUrl))
+                ->route('site.borrower.apply', array_filter([
+                    'product'      => (int) $loanProduct->id,
+                    'resume'       => 1,
+                    'step_key'     => 'submit',
+                    'profile_gate' => 1,
+                ]))
                 ->with('error', __('borrower.apply.kyc_incomplete_redirect', [
                     'section' => __('borrower.nida.face_title'),
-                ]));
+                ]))
+                ->with('show_profile_gate', true);
         }
 
         if (! $freshness->canApply($customer)) {
             return redirect()
-                ->to($requirements->withReturnUrl(route('site.borrower.kyc-reconfirm'), $returnUrl))
+                ->route('site.borrower.apply', array_filter([
+                    'product'      => (int) $loanProduct->id,
+                    'resume'       => 1,
+                    'step_key'     => 'submit',
+                    'profile_gate' => 1,
+                ]))
                 ->with('error', __('borrower.apply.kyc_incomplete_redirect', [
                     'section' => __('borrower.kyc.reconfirm_title'),
-                ]));
+                ]))
+                ->with('show_profile_gate', true);
         }
 
         if ($existing = $this->findExistingSubmittedApplication($customer, $loanProduct, $draft)) {
@@ -1877,14 +1925,17 @@ class ApplyController extends Controller
         $returnUrl = $supplements->borrowerWizardUrl($application);
         $checklist = $requirements->checklistForApply($customer, $returnUrl);
         if (! $checklist['can_apply']) {
-            $actionUrl = $checklist['first_action_url']
-                ?? route('site.borrower.profile', ['section' => 'personal']);
-
-            return redirect()->to($actionUrl)->with('error', __('borrower.apply.kyc_incomplete_submit'));
+            return redirect()
+                ->to($returnUrl.(str_contains($returnUrl, '?') ? '&' : '?').'profile_gate=1')
+                ->with('error', __('borrower.apply.kyc_incomplete_submit'))
+                ->with('show_profile_gate', true);
         }
 
         if (! $faces->profileStepComplete($customer) || ! $freshness->canApply($customer)) {
-            return redirect()->to($returnUrl)->with('error', __('borrower.apply.kyc_incomplete_submit'));
+            return redirect()
+                ->to($returnUrl.(str_contains($returnUrl, '?') ? '&' : '?').'profile_gate=1')
+                ->with('error', __('borrower.apply.kyc_incomplete_submit'))
+                ->with('show_profile_gate', true);
         }
 
         $data = $request->all();

@@ -84,18 +84,26 @@ class ProfileCompletionService
         ];
 
         if ($requireIdentity) {
+            $nidaRevision = ($customer->nida_verification_status ?? '') === 'revision_required'
+                || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'nida')
+                || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'nida_docs');
+            $faceRevision = $faceStatus === 'revision_required'
+                || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'face');
+
             $sections[] = [
                 'key'        => 'identity',
                 'label'      => __('borrower.nida.title'),
-                'status'     => $nidaVerified ? 'complete' : 'missing',
+                'status'     => $nidaVerified ? 'complete' : ($nidaRevision ? 'stale' : 'missing'),
                 'action_url' => route('site.borrower.profile', ['section' => 'personal']),
             ];
             $sections[] = [
                 'key'        => 'face',
                 'label'      => __('borrower.nida.face_title'),
-                'status'     => in_array($faceStatus, ['verified', 'pending'], true)
-                    ? 'complete'
-                    : (in_array($faceStatus, ['pending'], true) ? 'pending' : 'missing'),
+                'status'     => match (true) {
+                    in_array($faceStatus, ['verified', 'pending'], true) => 'complete',
+                    $faceRevision => 'stale',
+                    default => 'missing',
+                },
                 'action_url' => route('site.borrower.face-verification'),
             ];
         }

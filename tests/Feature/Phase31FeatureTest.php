@@ -49,7 +49,7 @@ class Phase31FeatureTest extends TestCase
             __('borrower.profile.completion_summary_title', [], 'sw')
         );
         $this->assertSame(
-            'Mali zangu',
+            'Dhamana zangu',
             __('borrower.profile.my_assets', [], 'sw')
         );
     }
@@ -181,14 +181,14 @@ class Phase31FeatureTest extends TestCase
             ->assertSee(__('borrower.guarantor_invite.member_login_button'), false);
     }
 
-    public function test_profile_shell_completion_summary_renders_on_personal_tab(): void
+    public function test_profile_shell_completion_summary_renders_on_hub(): void
     {
         $customer = $this->completeBorrower();
 
         $this->actingAs($customer->user)
-            ->get(route('site.borrower.profile', ['section' => 'personal']))
+            ->get(route('site.borrower.profile'))
             ->assertOk()
-            ->assertSee(__('borrower.profile.completion_summary_title'), false)
+            ->assertSee(__('borrower.profile.completion_hub_title'), false)
             ->assertSee(__('borrower.profile.personal'), false);
     }
 }

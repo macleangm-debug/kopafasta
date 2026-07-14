@@ -30,11 +30,7 @@
         :eyebrow="__('borrower.loan_profile.label')"
         :title="$summary['product_name']"
         :subtitle="$summary['application_number']"
-    >
-        <x-slot:actions>
-            <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1.5 {{ $statusBadge }}">{{ $status['label'] }}</span>
-        </x-slot:actions>
-    </x-site.borrower-page-header>
+    />
 
     @if (! empty($summary['loan_number']))
         <p class="text-xs text-emerald-700 -mt-4 mb-4 font-mono">{{ __('borrower.loan_profile.loan_number') }}: {{ $summary['loan_number'] }}</p>
@@ -51,18 +47,18 @@
                 <p class="mt-1">{{ $status['detail'] }}</p>
             @endif
         </div>
-    @elseif (! empty($status['detail']) && ($status['code'] ?? '') !== 'rejected')
-        <div class="mb-4 rounded-xl bg-amber-50 ring-amber-200 text-amber-900 ring-1 px-4 py-3 text-sm">
-            {{ $status['detail'] }}
-        </div>
     @endif
 
+    @include('site.borrower.loan-profile._action_panel', ['profile' => $profile])
+
     @if (! empty($progress['timeline']) && ($status['code'] ?? '') !== 'rejected')
-        <x-site.application-timeline
-            :steps="$progress['timeline']"
-            :title="$progress['timeline_title'] ?? __('borrower.loan_profile.application_progress')"
-            :percent="$progress['application_percent'] ?? $progress['percent'] ?? null"
-        />
+        <div class="mb-6">
+            <x-site.application-timeline
+                :steps="$progress['timeline']"
+                :title="$progress['timeline_title'] ?? __('borrower.loan_profile.application_progress')"
+                :percent="$progress['application_percent'] ?? $progress['percent'] ?? null"
+            />
+        </div>
     @endif
 
     {{-- Application summary --}}
@@ -101,8 +97,6 @@
             </div>
         </div>
     </div>
-
-    @include('site.borrower.loan-profile._action_panel', ['profile' => $profile])
 
     @php
         $missingRequirements = collect($profile['missing_requirements'] ?? [])->filter(fn ($item) => empty($item['complete']));

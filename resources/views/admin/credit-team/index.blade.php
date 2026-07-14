@@ -6,11 +6,6 @@
             <li><span class="font-medium text-gray-800">Credit analysts</span> (Underwriting) review applications and submit a recommendation.</li>
             <li><span class="font-medium text-gray-800">Credit committee</span> members review the recommendation and pre-approve, counter-offer, or reject.</li>
         </ol>
-        <p class="mt-3 text-xs text-gray-500">
-            Assign people via
-            <a href="{{ route('admin.users.create') }}" class="font-semibold text-amber-700 hover:underline">Users</a>
-            — set role to <strong>Credit analyst</strong> or <strong>Credit committee</strong>, and department to Underwriting or Credit Committee.
-        </p>
     </div>
 
     <div class="grid lg:grid-cols-2 gap-6">
@@ -36,12 +31,14 @@
                         <a href="{{ route('admin.users.edit', $user) }}" class="text-xs font-semibold text-gray-600 hover:text-gray-900">Edit</a>
                     </li>
                 @empty
-                    <li class="px-5 py-8 text-sm text-gray-500 text-center">
-                        No credit analysts yet.
-                        <a href="{{ route('admin.users.create') }}" class="block mt-2 font-semibold text-amber-700 hover:underline">Add an analyst →</a>
-                    </li>
+                    <li class="px-5 py-8 text-sm text-gray-500 text-center">No credit analysts yet.</li>
                 @endforelse
             </ul>
+            @include('admin.credit-team._add-member-form', [
+                'team' => 'analyst',
+                'title' => 'Add credit analyst',
+                'branches' => $branches,
+            ])
         </section>
 
         <section class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
@@ -66,12 +63,14 @@
                         <a href="{{ route('admin.users.edit', $user) }}" class="text-xs font-semibold text-gray-600 hover:text-gray-900">Edit</a>
                     </li>
                 @empty
-                    <li class="px-5 py-8 text-sm text-gray-500 text-center">
-                        No committee members yet.
-                        <a href="{{ route('admin.users.create') }}" class="block mt-2 font-semibold text-amber-700 hover:underline">Add a committee member →</a>
-                    </li>
+                    <li class="px-5 py-8 text-sm text-gray-500 text-center">No committee members yet.</li>
                 @endforelse
             </ul>
+            @include('admin.credit-team._add-member-form', [
+                'team' => 'committee',
+                'title' => 'Add committee member',
+                'branches' => $branches,
+            ])
         </section>
     </div>
 

@@ -27,9 +27,7 @@
         <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1.5 {{ $statusBadge }}">{{ app(\App\Services\BorrowerApplicationsDashboardService::class)->borrowerStatusLabel($application->status, $application->current_stage) }}</span>
     </div>
 
-    @if (session('status'))
-        <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
+
     @if ($errors->any())
         <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">{{ $errors->first() }}</div>
     @endif
