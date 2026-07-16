@@ -96,6 +96,14 @@ class LoanProfileResumeLinksFeatureTest extends TestCase
     public function test_continue_edit_quote_and_edit_guarantor_resume_without_server_error(): void
     {
         $customer = $this->borrower();
+        // Nested arrays in activity_details (revision metadata) must not 500 the wizard.
+        $customer->forceFill([
+            'activity_details' => [
+                'trade_type' => 'agriculture',
+                'income_proof_method' => 'bank_statement',
+                'profile_revision_flags' => ['nida', 'nida_docs'],
+            ],
+        ])->save();
         $product = $this->individualProduct();
 
         LoanApplicationDraft::create([

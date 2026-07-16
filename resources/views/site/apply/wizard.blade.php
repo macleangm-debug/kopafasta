@@ -325,7 +325,10 @@
                 <input type="hidden" name="purpose" value="asset_financing">
             @endif
             @foreach ($customer->activity_details ?? [] as $detailKey => $detailValue)
-                <input type="hidden" name="activity_details[{{ $detailKey }}]" value="{{ $detailValue }}">
+                {{-- Skip nested metadata (e.g. profile_revision_flags); only scalars belong in hidden inputs. --}}
+                @if (is_scalar($detailValue) || $detailValue === null)
+                    <input type="hidden" name="activity_details[{{ $detailKey }}]" value="{{ $detailValue }}">
+                @endif
             @endforeach
 
             <template x-if="current && !current.requires_guarantor">
