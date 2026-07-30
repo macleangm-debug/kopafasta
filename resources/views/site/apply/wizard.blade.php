@@ -8,10 +8,20 @@
             <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
         @endif
         @if (($errors ?? null)?->any())
-            <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">
-                <p class="font-semibold mb-1">{{ __('borrower.apply.errors_fix') }}</p>
-                <ul class="list-disc ml-5 space-y-1">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
-            </div>
+            <div
+                x-data
+                x-init="
+                    window.dispatchEvent(new CustomEvent('open-feedback-default', {
+                        detail: {
+                            title: @js(__('borrower.feedback.form_errors_title')),
+                            lines: @js($errors->all()),
+                            tone: 'error',
+                        }
+                    }));
+                "
+                class="sr-only"
+                aria-hidden="true"
+            ></div>
         @endif
 
         {{-- Incomplete profile is gated on the Submit step (modal + inline hint), not a duplicate top banner. --}}
@@ -203,6 +213,7 @@
                       ],
                       'guarantorFields' => [
                           'isRequired' => __('borrower.apply.guarantor_fields.is_required'),
+                          'missingFieldsTitle' => __('borrower.apply.guarantor_fields.missing_fields_title'),
                           'labels' => [
                               'external_first_name' => __('borrower.profile.fields.first_name'),
                               'external_last_name' => __('borrower.profile.fields.last_name'),

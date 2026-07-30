@@ -1,3 +1,16 @@
+
+function showWizardFeedback(message, detail = {}) {
+    const payload = typeof message === 'string'
+        ? { message, tone: detail.tone || 'error', title: detail.title, lines: detail.lines }
+        : message;
+    if (typeof window.showBorrowerFeedback === 'function') {
+        window.showBorrowerFeedback(payload);
+        return;
+    }
+    const text = payload.message || (Array.isArray(payload.lines) ? payload.lines.join('\n') : '');
+    if (text) window.alert(text);
+}
+
 export function applyWizard(config) {
             return {
                 products: config.products,
@@ -460,7 +473,7 @@ export function applyWizard(config) {
                 async payValuationFee() {
                     if (! this.valuationFeePayUrl || ! this.form.loan_product_id) return;
                     if (! this.form.asset_type) {
-                        alert(this.i18n.assetDetails.typeRequired);
+                        showWizardFeedback(this.i18n.assetDetails.typeRequired);
                         return;
                     }
                     this.valuationFeePaying = true;
@@ -490,9 +503,9 @@ export function applyWizard(config) {
                         this.valuationFeeState = data.fee;
                         this.syncValuationFeePaidState();
                         await this.persistDraft(true);
-                        alert(data.message || this.i18n.valuationFee.paid);
+                        showWizardFeedback(data.message || this.i18n.valuationFee.paid);
                     } catch (e) {
-                        alert(e?.message || this.i18n.valuationFee.failed);
+                        showWizardFeedback(e?.message || this.i18n.valuationFee.failed);
                     } finally {
                         this.valuationFeePaying = false;
                     }
@@ -544,7 +557,7 @@ export function applyWizard(config) {
                         this.assetDocuments = data.asset_documents || {};
                         await this.persistDraft(true);
                     } catch (e) {
-                        alert(e?.message || this.i18n.assetDetails.uploadFailed);
+                        showWizardFeedback(e?.message || this.i18n.assetDetails.uploadFailed);
                     } finally {
                         this.assetDocumentUploading = false;
                         if (event.target) event.target.value = '';
@@ -1293,7 +1306,7 @@ export function applyWizard(config) {
                             if (this.readiness?.product?.id !== productId) {
                                 this.readiness = null;
                             }
-                            alert(this.i18n.alerts.loadProduct);
+                            showWizardFeedback(this.i18n.alerts.loadProduct);
                         })
                         .finally(() => {
                             this.readinessLoading = false;
@@ -1315,7 +1328,7 @@ export function applyWizard(config) {
                     this.phase = 'application';
                     this.rebuildSteps();
                     if (! this.steps.length) {
-                        alert(this.i18n.alerts.loadProduct);
+                        showWizardFeedback(this.i18n.alerts.loadProduct);
                         return;
                     }
                     this.step = 0;
@@ -1984,6 +1997,14 @@ export function applyWizard(config) {
 
                 setGuarantorFieldErrors(missingMap) {
                     this.guarantorErrors = { ...missingMap };
+                    const lines = Object.values(missingMap || {});
+                    if (lines.length) {
+                        showWizardFeedback({
+                            title: this.i18n.guarantorFields?.missingFieldsTitle || 'Please complete the following:',
+                            lines,
+                            tone: 'error',
+                        });
+                    }
                 },
 
                 isExternalGuarantorComplete() {
@@ -2014,13 +2035,13 @@ export function applyWizard(config) {
                         return;
                     }
                     if (! this.declarationAccepted) {
-                        alert(this.i18n.alerts.acceptTerms);
+                        showWizardFeedback(this.i18n.alerts.acceptTerms);
                         return;
                     }
                     const form = this.formRoot();
                     const sigData = this.readSignatureFromPad(form);
                     if (! sigData) {
-                        alert(this.i18n.alerts.drawSignature);
+                        showWizardFeedback(this.i18n.alerts.drawSignature);
                         return;
                     }
                     this.advancing = true;
@@ -2132,26 +2153,26 @@ export function applyWizard(config) {
                     if (this.stepKey === 'quote' && this.hasStep('quote')) {
                         this.syncQuoteFormFromDom();
                         if (! this.form.purpose) {
-                            alert(this.i18n.alerts.selectPurpose);
+                            showWizardFeedback(this.i18n.alerts.selectPurpose);
                             return false;
                         }
                     }
                     if (this.stepKey === 'group_setup' && this.hasStep('group_setup')) {
                         if (! (this.group.name || '').trim()) {
-                            alert(this.i18n.group.nameRequiredStep);
+                            showWizardFeedback(this.i18n.group.nameRequiredStep);
                             return false;
                         }
                         const count = this.groupTargetCount();
                         if (! count || count < this.groupLimits.min || count > this.groupLimits.max) {
-                            alert(this.i18n.group.memberCountRange);
+                            showWizardFeedback(this.i18n.group.memberCountRange);
                             return false;
                         }
                         if (! this.group.amount_per_member || Number(this.group.amount_per_member) < 1000) {
-                            alert(this.i18n.group.amountRequired);
+                            showWizardFeedback(this.i18n.group.amountRequired);
                             return false;
                         }
                         if (! this.group.purpose) {
-                            alert(this.i18n.group.purposeRequired);
+                            showWizardFeedback(this.i18n.group.purposeRequired);
                             return false;
                         }
                         this.syncGroupAmounts();
@@ -2161,36 +2182,36 @@ export function applyWizard(config) {
                         await this.refreshGroupMemberStatuses();
                         const target = this.groupTargetCount();
                         if (this.group.members.length !== target) {
-                            alert(this.i18n.group.membersRequired);
+                            showWizardFeedback(this.i18n.group.membersRequired);
                             return false;
                         }
                         const invalidAmount = this.group.members.some(m => ! m.requested_amount || Number(m.requested_amount) < 1000);
                         if (invalidAmount) {
-                            alert(this.i18n.group.amountRequired);
+                            showWizardFeedback(this.i18n.group.amountRequired);
                             return false;
                         }
                         const total = this.group.members.reduce((sum, m) => sum + Number(m.requested_amount || 0), 0);
                         if (this.current && (total < this.current.min || total > this.current.max)) {
-                            alert(`Total group amount must be between ${this.formatTzs(this.current.min)} and ${this.formatTzs(this.current.max)}.`);
+                            showWizardFeedback(`Total group amount must be between ${this.formatTzs(this.current.min)} and ${this.formatTzs(this.current.max)}.`);
                             return false;
                         }
                         this.syncGroupAmounts();
                     }
                     if (this.stepKey === 'asset_details' && this.hasStep('asset_details')) {
                         if (! this.customerAssets.length) {
-                            alert(this.i18n.assetDetails.noAssetsTitle);
+                            showWizardFeedback(this.i18n.assetDetails.noAssetsTitle);
                             return false;
                         }
                         if (! this.form.customer_asset_id) {
-                            alert(this.i18n.assetDetails.assetRequired);
+                            showWizardFeedback(this.i18n.assetDetails.assetRequired);
                             return false;
                         }
                         if (! this.form.requested_amount || this.form.requested_amount < (this.current?.min || 1000)) {
-                            alert(this.i18n.assetDetails.amountRequired);
+                            showWizardFeedback(this.i18n.assetDetails.amountRequired);
                             return false;
                         }
                         if (! this.form.requested_tenure_months) {
-                            alert(this.i18n.assetDetails.tenureRequired);
+                            showWizardFeedback(this.i18n.assetDetails.tenureRequired);
                             return false;
                         }
                         if (! this.form.purpose) {
@@ -2200,7 +2221,7 @@ export function applyWizard(config) {
                     if (this.stepKey === 'guarantor' && this.hasStep('guarantor')) {
                         this.syncGuarantorFormFromDom();
                         if (! this.form.guarantor_mode || this.form.guarantor_mode === 'none') {
-                            alert(this.i18n.alerts.selectGuarantor);
+                            showWizardFeedback(this.i18n.alerts.selectGuarantor);
                             return false;
                         }
                         if (this.form.guarantor_mode === 'internal' || this.form.guarantor_mode === 'previous') {
@@ -2345,7 +2366,7 @@ export function applyWizard(config) {
                         this.rebuildSteps();
                     }
                     if (! this.steps.length) {
-                        alert(this.i18n.alerts.loadProduct);
+                        showWizardFeedback(this.i18n.alerts.loadProduct);
                         return;
                     }
                     this.advancing = true;
@@ -2483,7 +2504,7 @@ export function applyWizard(config) {
                         return;
                     }
                     if (this.isGroupProduct(this.current) && ! this.groupProgress().can_submit) {
-                        alert(this.i18n.group.membersNotVerified);
+                        showWizardFeedback(this.i18n.group.membersNotVerified);
                         return;
                     }
                     const sigData = this.borrowerSignature?.signature_data

@@ -87,8 +87,9 @@
 
     <div @class(['px-5 pb-5 flex flex-wrap gap-2', 'mt-3' => $compact, 'pt-1' => ! $compact])>
         @php
-            $firstPhoto = collect($photos)->first();
+            $firstPhoto = collect($photos)->first(fn ($p) => filled($p?->file_path));
             $firstUrl = $firstPhoto?->file_path ? asset('storage/'.$firstPhoto->file_path) : null;
+            $canReplaceFace = in_array($statusKey, ['rejected', 'incomplete', 'pending'], true);
         @endphp
         @if ($firstUrl)
             <button type="button"
@@ -97,15 +98,15 @@
                 {{ __('borrower.nida.face_view') }}
             </button>
         @endif
-        @if ($statusKey === 'rejected' || $statusKey === 'incomplete')
+        @if ($canReplaceFace)
             <a href="{{ route('site.borrower.face-verification') }}"
                class="inline-flex items-center justify-center font-semibold px-4 py-2 rounded-full text-sm bg-brand-gold hover:bg-yellow-400 text-brand">
                 {{ __('borrower.nida.face_replace') }}
             </a>
-        @elseif ($statusKey === 'verified' && $firstUrl)
+        @elseif ($statusKey === 'verified')
             <a href="{{ route('site.borrower.face-verification') }}"
                class="inline-flex items-center justify-center font-semibold px-4 py-2 rounded-full text-sm bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand">
-                {{ __('borrower.nida.face_view') }}
+                {{ __('borrower.nida.face_manage') }}
             </a>
         @endif
     </div>

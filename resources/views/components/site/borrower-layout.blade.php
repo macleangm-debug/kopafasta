@@ -85,17 +85,20 @@
                 <div class="text-[11px] text-white/70">{{ __('borrower.portal') }}</div>
             </div>
         </a>
-        <nav class="relative flex-1 overflow-y-auto py-4">
+        <nav class="relative flex-1 overflow-y-auto px-3 py-5 space-y-1">
             @foreach ($nav as $item)
                 @php $isActive = $active === $item['key']; @endphp
                 <a href="{{ route($item['route'], $item['route_params'] ?? []) }}"
-                   class="flex items-center gap-3 mx-3 my-0.5 px-3 py-2.5 text-sm rounded-xl transition
+                   class="group relative flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition
                           {{ $isActive ? 'bg-brand-gold text-brand font-bold shadow-sm'
                                        : 'text-white/85 hover:bg-white/10 hover:text-white' }}">
-                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    @if ($isActive)
+                        <span class="absolute left-0 inset-y-2 w-1 rounded-full bg-brand" aria-hidden="true"></span>
+                    @endif
+                    <svg class="w-5 h-5 shrink-0 {{ $isActive ? '' : 'opacity-90 group-hover:opacity-100' }}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                         {!! $icon($item['icon']) !!}
                     </svg>
-                    <span>{{ $item['label'] }}</span>
+                    <span class="leading-snug">{{ $item['label'] }}</span>
                 </a>
             @endforeach
         </nav>
@@ -214,14 +217,17 @@
                     <span class="font-bold">{{ __('borrower.layout.menu') }}</span>
                     <button @click="open = false" class="p-1 text-white/80"><svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
                 </div>
-                <nav class="flex-1 overflow-y-auto py-2">
+                <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
                     @foreach ($nav as $item)
                         @php $isActive = $active === $item['key']; @endphp
                         <a href="{{ route($item['route'], $item['route_params'] ?? []) }}"
-                           class="flex items-center gap-3 mx-3 my-0.5 px-3 py-3 text-sm rounded-xl
-                                  {{ $isActive ? 'bg-brand-gold text-brand font-bold' : 'text-white/90 hover:bg-white/10' }}">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">{!! $icon($item['icon']) !!}</svg>
-                            {{ $item['label'] }}
+                           class="relative flex items-center gap-3 px-3.5 py-3 text-sm rounded-xl transition
+                                  {{ $isActive ? 'bg-brand-gold text-brand font-bold shadow-sm' : 'text-white/90 hover:bg-white/10' }}">
+                            @if ($isActive)
+                                <span class="absolute left-0 inset-y-2.5 w-1 rounded-full bg-brand" aria-hidden="true"></span>
+                            @endif
+                            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">{!! $icon($item['icon']) !!}</svg>
+                            <span class="leading-snug">{{ $item['label'] }}</span>
                         </a>
                     @endforeach
                 </nav>
@@ -231,12 +237,22 @@
             </div>
         </div>
 
-        {{-- Flash messages use modal via flash-notice --}}
+        {{-- Validation feedback uses modal (not inline error walls) --}}
         @if ($errors->any())
-            <div class="mx-4 lg:mx-8 mt-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
-                <p class="font-semibold mb-1">{{ __('borrower.layout.fix_errors') }}</p>
-                <ul class="list-disc ml-5">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
-            </div>
+            <div
+                x-data
+                x-init="
+                    window.dispatchEvent(new CustomEvent('open-feedback-default', {
+                        detail: {
+                            title: @js(__('borrower.feedback.form_errors_title')),
+                            lines: @js($errors->all()),
+                            tone: 'error',
+                        }
+                    }));
+                "
+                class="sr-only"
+                aria-hidden="true"
+            ></div>
         @endif
 
         <main class="flex-1 px-4 lg:px-8 py-6 lg:py-8">
@@ -252,6 +268,7 @@
 </div>
 
 <x-site.confirm-modal name="default" />
+<x-site.feedback-modal name="default" />
 <x-site.borrower-help-hub />
 <x-site.celebration-confetti />
 
@@ -301,6 +318,12 @@ document.addEventListener('alpine:init', () => {
     window.confirmForm = (form, detail = {}) => {
         window.dispatchEvent(new CustomEvent('open-confirm-default', {
             detail: { form, ...detail },
+        }));
+    };
+
+    window.showBorrowerFeedback = (detail = {}) => {
+        window.dispatchEvent(new CustomEvent('open-feedback-default', {
+            detail: typeof detail === 'string' ? { message: detail } : detail,
         }));
     };
 

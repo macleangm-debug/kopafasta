@@ -139,8 +139,30 @@
                 setFile(event) {
                     const file = event.target.files?.[0];
                     if (!file) return;
-                    this.syncFile(file);
+                    this.syncFile(this.normalizeFile(file));
                     event.target.value = '';
+                },
+                normalizeFile(file) {
+                    if (!file) return file;
+                    if (file.type && (file.type.startsWith('image/') || file.type === 'application/pdf')) {
+                        return file;
+                    }
+                    const match = (file.name || '').match(/\.([a-z0-9]+)$/i);
+                    const ext = match ? match[1].toLowerCase() : '';
+                    const mimeByExt = {
+                        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+                        webp: 'image/webp', gif: 'image/gif', pdf: 'application/pdf',
+                    };
+                    const mime = mimeByExt[ext];
+                    if (!mime) return file;
+                    try {
+                        return new File([file], file.name || ('upload.' + ext), {
+                            type: mime,
+                            lastModified: file.lastModified || Date.now(),
+                        });
+                    } catch (e) {
+                        return file;
+                    }
                 },
                 syncFile(file) {
                     const host = document.getElementById(this.hostId);
@@ -149,6 +171,7 @@
                     const input = document.createElement('input');
                     input.type = 'file';
                     input.name = this.fieldName;
+                    // Do not set accept — Chrome rejects empty MIME that we normalize via extension.
                     input.className = 'sr-only';
                     const dt = new DataTransfer();
                     dt.items.add(file);
@@ -160,6 +183,8 @@
                     }
                     this.previewName = file.name || 'capture.jpg';
                     if (file.type && file.type.startsWith('image/')) {
+                        this.previewUrl = URL.createObjectURL(file);
+                    } else if (!file.type && /\.(jpe?g|png|webp|gif)$/i.test(file.name || '')) {
                         this.previewUrl = URL.createObjectURL(file);
                     } else {
                         this.previewUrl = null;

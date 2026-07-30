@@ -13,6 +13,7 @@
     $minPhotos = max(1, (int) $min);
     $hasPhotoError = $errors->has($name) || $errors->has($name.'.*');
     $uid = 'miu-'.substr(md5($name.uniqid('', true)), 0, 10);
+    $existingUrls = array_map(fn ($photo) => marketplace_photo_url($photo), $existingPhotos);
 @endphp
 
 <div
@@ -26,49 +27,90 @@
 >
     <div class="flex items-center justify-between gap-3">
         <p class="text-xs font-semibold text-gray-700">{{ $label }}</p>
-        <p class="text-xs text-gray-500">Min {{ $minPhotos }}, max {{ $maxPhotos }} · first image is the cover</p>
+        <p class="text-xs text-gray-500">Min {{ $minPhotos }}, max {{ $maxPhotos }} · first image is the cover · swipe to browse</p>
     </div>
 
-    <div x-data="{ expandedUrl: null }" class="space-y-3">
-    @if (count($existingPhotos) > 0)
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" data-existing-grid>
-            @foreach ($existingPhotos as $index => $photo)
-                @php $photoUrl = marketplace_photo_url($photo); @endphp
-                <div class="relative rounded-lg overflow-hidden ring-1 ring-gray-200 bg-gray-100 group block" data-existing-card>
-                    @if ($photoUrl)
-                        <button type="button" class="block w-full cursor-zoom-in" @click="expandedUrl = @js($photoUrl)" title="Preview">
-                            <img src="{{ $photoUrl }}" alt="Asset photo {{ $index + 1 }}"
-                                 class="aspect-square object-cover w-full" loading="lazy" referrerpolicy="no-referrer"
-                                 onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'aspect-square grid place-items-center text-xs text-gray-400 px-2 text-center',textContent:'Image unavailable'}))">
+    <div x-data="{
+            index: 0,
+            zoomed: false,
+            photos: @js(array_values(array_filter($existingUrls))),
+            paths: @js($existingPhotos),
+            prev() { if (!this.photos.length) return; this.index = (this.index - 1 + this.photos.length) % this.photos.length },
+            next() { if (!this.photos.length) return; this.index = (this.index + 1) % this.photos.length },
+            touchStartX: 0,
+            onTouchStart(e) { this.touchStartX = e.changedTouches[0].screenX },
+            onTouchEnd(e) {
+                const diff = e.changedTouches[0].screenX - this.touchStartX;
+                if (Math.abs(diff) > 50) diff > 0 ? this.prev() : this.next();
+            }
+         }" class="space-y-3">
+        @if (count($existingPhotos) > 0)
+            <div class="relative rounded-xl overflow-hidden bg-gray-100 aspect-square sm:aspect-[4/3] ring-1 ring-gray-200"
+                 data-existing-carousel
+                 @touchstart="onTouchStart($event)" @touchend="onTouchEnd($event)">
+                <template x-for="(photo, i) in photos" :key="'ex-'+i+'-'+photo">
+                    <div class="absolute inset-0 transition-opacity duration-300"
+                         :class="i === index ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'">
+                        <button type="button" class="block w-full h-full cursor-zoom-in" @click="zoomed = true" title="Preview">
+                            <img :src="photo" :alt="'Asset photo ' + (i + 1)"
+                                 class="w-full h-full object-cover" loading="lazy" referrerpolicy="no-referrer"
+                                 onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'w-full h-full grid place-items-center text-xs text-gray-400 px-2 text-center',textContent:'Image unavailable'}))">
                         </button>
-                    @else
-                        <div class="aspect-square grid place-items-center text-xs text-gray-400 px-2 text-center">Image unavailable</div>
-                    @endif
-                    @if ($index === 0)
-                        <span class="absolute top-2 left-2 rounded-full bg-amber-500 text-gray-900 text-[10px] font-semibold px-2 py-0.5">Cover</span>
-                    @endif
-                    <label class="absolute inset-x-0 bottom-0 bg-black/60 text-white text-[10px] px-2 py-1.5 flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" name="{{ $removeName }}[]" value="{{ $photo }}" data-remove-toggle class="rounded border-gray-300 text-red-600 focus:ring-red-500">
-                        Remove
-                    </label>
-                </div>
-            @endforeach
-        </div>
-    @else
-        <div class="rounded-lg bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-xs text-slate-600">
-            No photos saved yet. Add at least one image below — you can select multiple at once.
-        </div>
-    @endif
+                        <span x-show="i === 0" class="absolute top-2 left-2 z-20 rounded-full bg-amber-500 text-gray-900 text-[10px] font-semibold px-2 py-0.5">Cover</span>
+                        <label class="absolute inset-x-0 bottom-0 z-20 bg-black/60 text-white text-[10px] px-2 py-1.5 flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" :name="@js($removeName) + '[]'" :value="paths[i]" data-remove-toggle class="rounded border-gray-300 text-red-600 focus:ring-red-500">
+                            Remove
+                        </label>
+                    </div>
+                </template>
 
-    <div x-show="expandedUrl" x-cloak x-transition
-         class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"
-         @keydown.escape.window="expandedUrl = null"
-         @click.self="expandedUrl = null">
-        <img :src="expandedUrl" alt="Preview" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
-    </div>
+                <template x-if="photos.length > 1">
+                    <div>
+                        <button type="button" @click="prev()"
+                                class="absolute left-2 top-1/2 -translate-y-1/2 z-20 size-9 rounded-full bg-white/90 shadow grid place-items-center text-gray-800 hover:bg-white"
+                                aria-label="Previous photo">‹</button>
+                        <button type="button" @click="next()"
+                                class="absolute right-2 top-1/2 -translate-y-1/2 z-20 size-9 rounded-full bg-white/90 shadow grid place-items-center text-gray-800 hover:bg-white"
+                                aria-label="Next photo">›</button>
+                        <div class="absolute bottom-10 inset-x-0 z-20 flex justify-center gap-1.5">
+                            <template x-for="(photo, i) in photos" :key="'dot-'+i">
+                                <button type="button" @click="index = i"
+                                        class="size-2 rounded-full transition"
+                                        :class="i === index ? 'bg-white scale-125' : 'bg-white/50'"
+                                        :aria-label="'Photo ' + (i + 1)"></button>
+                            </template>
+                        </div>
+                        <div class="absolute top-2 right-2 z-20 rounded-full bg-black/40 text-white text-xs px-2.5 py-1"
+                             x-text="(index + 1) + ' / ' + photos.length"></div>
+                    </div>
+                </template>
+            </div>
+
+            <div x-show="photos.length > 1" class="flex gap-2 overflow-x-auto pb-1">
+                <template x-for="(photo, i) in photos" :key="'thumb-'+i">
+                    <button type="button" @click="index = i"
+                            class="shrink-0 size-14 rounded-lg overflow-hidden ring-2 transition"
+                            :class="index === i ? 'ring-amber-500' : 'ring-transparent opacity-70 hover:opacity-100'">
+                        <img :src="photo" alt="" class="w-full h-full object-cover" referrerpolicy="no-referrer">
+                    </button>
+                </template>
+            </div>
+        @else
+            <div class="rounded-lg bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-xs text-slate-600">
+                No photos saved yet. Add at least one image below — you can select multiple at once.
+            </div>
+        @endif
+
+        <div x-show="zoomed" x-cloak x-transition
+             class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"
+             @keydown.escape.window="zoomed = false"
+             @click.self="zoomed = false">
+            <img :src="photos[index]" alt="Preview" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
+        </div>
     </div>
 
-    <div data-preview-grid class="grid grid-cols-2 sm:grid-cols-4 gap-3 hidden"></div>
+    <div data-preview-carousel class="hidden relative rounded-xl overflow-hidden bg-gray-100 aspect-square sm:aspect-[4/3] ring-1 ring-amber-200"></div>
+    <div data-preview-thumbs class="hidden flex gap-2 overflow-x-auto pb-1"></div>
 
     {{-- Host for one named file input per pending photo (survives submit; picker stays unnamed). --}}
     <div data-file-host class="hidden" aria-hidden="true"></div>
@@ -80,13 +122,13 @@
             <input
                 type="file"
                 data-picker
-                accept="image/jpeg,image/png,image/webp,image/jpg"
+                accept="image/jpeg,image/png,image/webp,image/jpg,.jpg,.jpeg,.png,.webp"
                 multiple
                 class="sr-only"
             >
         </label>
         <p class="mt-2 text-xs text-gray-400" data-count-label>{{ count($existingPhotos) }} / {{ $maxPhotos }} images selected</p>
-        <p class="mt-1 text-xs text-gray-400">You can select multiple images at once (up to {{ $maxPhotos }} total).</p>
+        <p class="mt-1 text-xs text-gray-400">You can select multiple images at once (up to {{ $maxPhotos }} total). Swipe across photos to review.</p>
     </div>
 
     @error($name)
@@ -102,12 +144,35 @@
         <script>
             (function () {
                 const IMAGE_EXT = /\.(jpe?g|png|webp)$/i;
+                const MIME_BY_EXT = {
+                    jpg: 'image/jpeg',
+                    jpeg: 'image/jpeg',
+                    png: 'image/png',
+                    webp: 'image/webp',
+                };
 
                 function isImageFile(file) {
                     if (!file) return false;
                     if (file.type && file.type.startsWith('image/')) return true;
                     // Chrome (esp. Windows) often leaves file.type empty for valid images.
                     return IMAGE_EXT.test(file.name || '');
+                }
+
+                function normalizeImageFile(file) {
+                    if (!file) return null;
+                    if (file.type && file.type.startsWith('image/')) return file;
+                    const match = (file.name || '').match(/\.([a-z0-9]+)$/i);
+                    const ext = match ? match[1].toLowerCase() : '';
+                    const mime = MIME_BY_EXT[ext];
+                    if (!mime) return file;
+                    try {
+                        return new File([file], file.name || ('photo.' + ext), {
+                            type: mime,
+                            lastModified: file.lastModified || Date.now(),
+                        });
+                    } catch (e) {
+                        return file;
+                    }
                 }
 
                 function fileKey(file) {
@@ -123,7 +188,8 @@
                     const fieldName = root.dataset.name || 'photos';
                     const picker = root.querySelector('[data-picker]');
                     const pickerLabel = root.querySelector('[data-picker-label]');
-                    const previewGrid = root.querySelector('[data-preview-grid]');
+                    const previewCarousel = root.querySelector('[data-preview-carousel]');
+                    const previewThumbs = root.querySelector('[data-preview-thumbs]');
                     const fileHost = root.querySelector('[data-file-host]');
                     const countLabel = root.querySelector('[data-count-label]');
                     const dropZone = root.querySelector('[data-drop-zone]');
@@ -138,6 +204,8 @@
                     }
                     /** @type {{ file: File, url: string }[]} */
                     let pending = [];
+                    let previewIndex = 0;
+                    let touchStartX = 0;
 
                     function setRejectNotice(message) {
                         if (!rejectNotice) return;
@@ -198,36 +266,91 @@
                     }
 
                     function renderPreviews() {
-                        if (!previewGrid) return;
-                        previewGrid.innerHTML = '';
+                        if (!previewCarousel || !previewThumbs) return;
+                        previewCarousel.innerHTML = '';
+                        previewThumbs.innerHTML = '';
+
+                        if (!pending.length) {
+                            previewCarousel.classList.add('hidden');
+                            previewThumbs.classList.add('hidden');
+                            refreshCount();
+                            return;
+                        }
+
+                        if (previewIndex >= pending.length) previewIndex = pending.length - 1;
+                        if (previewIndex < 0) previewIndex = 0;
 
                         pending.forEach(function (entry, index) {
-                            const card = document.createElement('div');
-                            card.className = 'relative rounded-lg overflow-hidden ring-1 ring-amber-200 bg-gray-100';
+                            const slide = document.createElement('div');
+                            slide.className = 'absolute inset-0 transition-opacity duration-300 ' +
+                                (index === previewIndex ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none');
 
                             const img = document.createElement('img');
                             img.src = entry.url;
                             img.alt = 'New photo ' + (index + 1);
-                            img.className = 'aspect-square object-cover w-full';
+                            img.className = 'w-full h-full object-cover';
                             img.referrerPolicy = 'no-referrer';
 
                             const btn = document.createElement('button');
                             btn.type = 'button';
                             btn.textContent = 'Remove';
-                            btn.className = 'absolute inset-x-0 bottom-0 bg-black/60 text-white text-[10px] px-2 py-1.5 hover:bg-red-700/80';
+                            btn.className = 'absolute inset-x-0 bottom-0 z-20 bg-black/60 text-white text-[10px] px-2 py-1.5 hover:bg-red-700/80';
                             btn.addEventListener('click', function () {
                                 URL.revokeObjectURL(entry.url);
                                 pending.splice(index, 1);
+                                if (previewIndex >= pending.length) previewIndex = Math.max(0, pending.length - 1);
                                 syncHostFiles();
                                 renderPreviews();
                             });
 
-                            card.appendChild(img);
-                            card.appendChild(btn);
-                            previewGrid.appendChild(card);
+                            slide.appendChild(img);
+                            slide.appendChild(btn);
+                            previewCarousel.appendChild(slide);
+
+                            const thumb = document.createElement('button');
+                            thumb.type = 'button';
+                            thumb.className = 'shrink-0 size-14 rounded-lg overflow-hidden ring-2 transition ' +
+                                (index === previewIndex ? 'ring-amber-500' : 'ring-transparent opacity-70 hover:opacity-100');
+                            const thumbImg = document.createElement('img');
+                            thumbImg.src = entry.url;
+                            thumbImg.alt = '';
+                            thumbImg.className = 'w-full h-full object-cover';
+                            thumbImg.referrerPolicy = 'no-referrer';
+                            thumb.appendChild(thumbImg);
+                            thumb.addEventListener('click', function () {
+                                previewIndex = index;
+                                renderPreviews();
+                            });
+                            previewThumbs.appendChild(thumb);
                         });
 
-                        previewGrid.classList.toggle('hidden', pending.length === 0);
+                        if (pending.length > 1) {
+                            const prevBtn = document.createElement('button');
+                            prevBtn.type = 'button';
+                            prevBtn.textContent = '‹';
+                            prevBtn.className = 'absolute left-2 top-1/2 -translate-y-1/2 z-20 size-9 rounded-full bg-white/90 shadow grid place-items-center text-gray-800 hover:bg-white';
+                            prevBtn.addEventListener('click', function () {
+                                previewIndex = (previewIndex - 1 + pending.length) % pending.length;
+                                renderPreviews();
+                            });
+                            const nextBtn = document.createElement('button');
+                            nextBtn.type = 'button';
+                            nextBtn.textContent = '›';
+                            nextBtn.className = 'absolute right-2 top-1/2 -translate-y-1/2 z-20 size-9 rounded-full bg-white/90 shadow grid place-items-center text-gray-800 hover:bg-white';
+                            nextBtn.addEventListener('click', function () {
+                                previewIndex = (previewIndex + 1) % pending.length;
+                                renderPreviews();
+                            });
+                            const counter = document.createElement('div');
+                            counter.className = 'absolute top-2 right-2 z-20 rounded-full bg-black/40 text-white text-xs px-2.5 py-1';
+                            counter.textContent = (previewIndex + 1) + ' / ' + pending.length;
+                            previewCarousel.appendChild(prevBtn);
+                            previewCarousel.appendChild(nextBtn);
+                            previewCarousel.appendChild(counter);
+                        }
+
+                        previewCarousel.classList.remove('hidden');
+                        previewThumbs.classList.toggle('hidden', pending.length <= 1);
                         refreshCount();
                     }
 
@@ -243,12 +366,13 @@
 
                         let accepted = 0;
                         let rejected = 0;
-                        chosen.slice(0, slots + chosen.length).forEach(function (file) {
+                        chosen.slice(0, slots + chosen.length).forEach(function (raw) {
                             if (accepted >= slots) return;
-                            if (!isImageFile(file)) {
+                            if (!isImageFile(raw)) {
                                 rejected += 1;
                                 return;
                             }
+                            const file = normalizeImageFile(raw);
                             const key = fileKey(file);
                             if (known[key]) return;
                             known[key] = true;
@@ -262,6 +386,7 @@
                             setRejectNotice('');
                         }
 
+                        if (accepted > 0) previewIndex = pending.length - 1;
                         syncHostFiles();
                         renderPreviews();
                         if (picker) picker.value = '';
@@ -277,6 +402,22 @@
                     root.querySelectorAll('[data-remove-toggle]').forEach(function (box) {
                         box.addEventListener('change', refreshCount);
                     });
+
+                    if (previewCarousel) {
+                        previewCarousel.addEventListener('touchstart', function (e) {
+                            touchStartX = e.changedTouches[0].screenX;
+                        }, { passive: true });
+                        previewCarousel.addEventListener('touchend', function (e) {
+                            if (pending.length < 2) return;
+                            const diff = e.changedTouches[0].screenX - touchStartX;
+                            if (Math.abs(diff) > 50) {
+                                previewIndex = diff > 0
+                                    ? (previewIndex - 1 + pending.length) % pending.length
+                                    : (previewIndex + 1) % pending.length;
+                                renderPreviews();
+                            }
+                        }, { passive: true });
+                    }
 
                     if (dropZone) {
                         ['dragenter', 'dragover'].forEach(function (evt) {

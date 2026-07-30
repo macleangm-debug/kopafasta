@@ -5,14 +5,7 @@
         :subtitle="__('borrower.apply.guarantor_required')"
     />
 
-    <div x-show="Object.keys(guarantorErrors).length" x-cloak class="mb-5 rounded-2xl bg-rose-50 ring-1 ring-rose-200 px-4 py-4 text-sm text-rose-800">
-        <p class="font-semibold mb-1">{{ __('borrower.apply.guarantor_fields.missing_fields_title') }}</p>
-        <ul class="list-disc list-inside space-y-0.5">
-            <template x-for="(msg, key) in guarantorErrors" :key="key">
-                <li x-text="msg"></li>
-            </template>
-        </ul>
-    </div>
+    {{-- Field-level errors stay inline; summary feedback opens as modal via setGuarantorFieldErrors() --}}
 
     <div x-show="isGuarantorLocked()" x-cloak class="glass-card rounded-2xl px-5 py-5 space-y-4 mb-5 ring-1"
          :class="guarantorLockedCardClass()">

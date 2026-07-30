@@ -152,6 +152,12 @@ class BorrowerApplicationsDashboardService
             'sort_at'            => ($application->submitted_at ?? $application->updated_at)?->timestamp ?? 0,
             'detail'             => $this->borrowerStatus->borrowerDetail($application),
             'underwriting_actions' => $underwritingActions,
+            'underwriting_active'  => ! $isRejected
+                && $firstUw === null
+                && ! $needsDocuments
+                && ! in_array($statusCode, [
+                    'disbursed', 'withdrawn', 'offer_declined', 'approved', 'pre_approved',
+                ], true),
             'action_url'         => match (true) {
                 $isRejected => route('site.borrower.application', $application->id).'#rejection',
                 $firstUw !== null => $firstUw['url'],
@@ -161,7 +167,7 @@ class BorrowerApplicationsDashboardService
                 $isRejected => __('borrower.loan_profile.actions.view_reason'),
                 $firstUw !== null => $firstUw['cta_label'],
                 $needsDocuments => __('borrower.loan_profile.actions.upload_documents'),
-                default => __('borrower.applications_list.open'),
+                default => __('borrower.applications_list.view'),
             },
             'receipt_url'        => route('site.apply.success', $application->id),
         ];

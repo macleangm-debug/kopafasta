@@ -86,6 +86,12 @@ return [
         'fix_errors'        => 'Please fix:',
     ],
 
+    'feedback' => [
+        'title' => 'Please check',
+        'ok' => 'Got it',
+        'form_errors_title' => 'Please fix the following',
+    ],
+
     'apply' => [
         'title' => 'Apply for a loan',
         'wizard_title' => 'Loan application',
@@ -1366,6 +1372,9 @@ return [
         'kyc_freshness_cta' => 'Confirm or update',
         'no_value_set' => 'Value not set',
         'tap_to_enlarge' => 'Tap to enlarge',
+        'swipe_to_browse' => 'Swipe across photos · tap to enlarge · replace on the current slot',
+        'prev_photo' => 'Previous photo',
+        'next_photo' => 'Next photo',
         'collateral_fields' => [
             'property_name' => 'Property name',
             'address' => 'Address',
@@ -1692,6 +1701,7 @@ return [
         'face_remove' => 'Remove',
         'face_replace' => 'Replace photos',
         'face_replace_hint' => 'Upload again to replace this photo.',
+        'face_manage' => 'Manage face photos',
         'face_capture_photo' => 'Capture photo',
         'face_save_photo' => 'Save photo',
         'face_use_camera' => 'Use camera',

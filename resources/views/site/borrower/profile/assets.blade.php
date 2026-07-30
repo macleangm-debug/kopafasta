@@ -237,43 +237,99 @@
                                 @endif
                             </div>
 
-                            {{-- Item 19: 2×3 gallery with tap-to-enlarge + delete --}}
+                            {{-- Item 19: swipe gallery with replace-on-slot + delete --}}
                             <div>
                                 <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-1">{{ __('borrower.profile.collateral_gallery') }}</p>
-                                <p class="text-[11px] text-gray-400 mb-3">{{ __('borrower.profile.tap_to_enlarge') }}</p>
+                                <p class="text-[11px] text-gray-400 mb-3">{{ __('borrower.profile.swipe_to_browse') }}</p>
                                 @if (count($gallery))
-                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                        @foreach ($asset->photo_paths ?? [] as $i => $path)
-                                            <div class="relative group">
-                                                <button type="button" @click="lightbox = @js(asset('storage/'.$path))"
-                                                        class="block w-full aspect-square rounded-xl overflow-hidden ring-1 ring-gray-200 cursor-zoom-in">
-                                                    <img src="{{ asset('storage/'.$path) }}" alt="" class="h-full w-full object-cover">
-                                                </button>
-                                                <div class="absolute top-1.5 right-1.5 flex flex-col gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition">
-                                                    <form method="POST" action="{{ route('site.borrower.profile.assets.photos.replace', $asset) }}" enctype="multipart/form-data">
-                                                        @csrf
-                                                        <input type="hidden" name="index" value="{{ $i }}">
-                                                        <label class="size-7 grid place-items-center rounded-full bg-black/55 hover:bg-brand text-white text-xs cursor-pointer" title="{{ __('borrower.profile.replace_photo') }}">
-                                                            ↻
-                                                            <input type="file" name="photo" accept="image/*" class="sr-only"
-                                                                   onchange="this.form.submit()">
-                                                        </label>
-                                                    </form>
-                                                    <form method="POST" action="{{ route('site.borrower.profile.assets.photos.delete', $asset) }}"
-                                                          @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.delete_photo_confirm')), message: '', confirmLabel: @js(__('borrower.profile.delete_photo')), confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">
-                                                        @csrf @method('DELETE')
-                                                        <input type="hidden" name="index" value="{{ $i }}">
-                                                        <button type="submit" class="size-7 grid place-items-center rounded-full bg-black/55 hover:bg-red-600 text-white text-xs" aria-label="{{ __('borrower.profile.delete_photo') }}">🗑</button>
-                                                    </form>
+                                    @php
+                                        $gallerySlides = collect($asset->photo_paths ?? [])
+                                            ->values()
+                                            ->map(fn ($path, $i) => [
+                                                'url' => asset('storage/'.$path),
+                                                'index' => $i,
+                                                'replaceable' => true,
+                                            ])
+                                            ->all();
+                                        if ($meta['person_with_asset_path'] ?? null) {
+                                            $gallerySlides[] = [
+                                                'url' => asset('storage/'.$meta['person_with_asset_path']),
+                                                'index' => null,
+                                                'replaceable' => false,
+                                                'label' => __('borrower.profile.person_with_asset'),
+                                            ];
+                                        }
+                                    @endphp
+                                    <div x-data="{
+                                            gIndex: 0,
+                                            slides: @js($gallerySlides),
+                                            touchStartX: 0,
+                                            prev() { this.gIndex = (this.gIndex - 1 + this.slides.length) % this.slides.length },
+                                            next() { this.gIndex = (this.gIndex + 1) % this.slides.length },
+                                            onTouchStart(e) { this.touchStartX = e.changedTouches[0].screenX },
+                                            onTouchEnd(e) {
+                                                const diff = e.changedTouches[0].screenX - this.touchStartX;
+                                                if (Math.abs(diff) > 50) diff > 0 ? this.prev() : this.next();
+                                            }
+                                         }" class="space-y-3">
+                                        <div class="relative aspect-square sm:aspect-[4/3] rounded-2xl overflow-hidden ring-1 ring-gray-200 bg-gray-100"
+                                             @touchstart="onTouchStart($event)" @touchend="onTouchEnd($event)">
+                                            <template x-for="(slide, i) in slides" :key="'g-'+i">
+                                                <div class="absolute inset-0 transition-opacity duration-300"
+                                                     :class="i === gIndex ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'">
+                                                    <button type="button" @click="lightbox = slide.url"
+                                                            class="absolute inset-0 block w-full h-full cursor-zoom-in">
+                                                        <img :src="slide.url" alt="" class="h-full w-full object-cover">
+                                                    </button>
+                                                    <p x-show="slide.label" x-cloak class="absolute bottom-3 left-3 z-20 text-[11px] font-semibold bg-black/55 text-white px-2 py-0.5 rounded-full" x-text="slide.label"></p>
                                                 </div>
+                                            </template>
+
+                                            <template x-if="slides.length > 1">
+                                                <div>
+                                                    <button type="button" @click="prev()"
+                                                            class="absolute left-2 top-1/2 -translate-y-1/2 z-20 size-9 rounded-full bg-white/90 shadow grid place-items-center text-gray-800"
+                                                            aria-label="{{ __('borrower.profile.prev_photo') }}">‹</button>
+                                                    <button type="button" @click="next()"
+                                                            class="absolute right-2 top-1/2 -translate-y-1/2 z-20 size-9 rounded-full bg-white/90 shadow grid place-items-center text-gray-800"
+                                                            aria-label="{{ __('borrower.profile.next_photo') }}">›</button>
+                                                    <div class="absolute top-3 right-3 z-20 rounded-full bg-black/45 text-white text-xs px-2.5 py-1"
+                                                         x-text="(gIndex + 1) + ' / ' + slides.length"></div>
+                                                </div>
+                                            </template>
+
+                                            <div class="absolute top-3 left-3 z-20 flex gap-1.5" x-show="slides[gIndex]?.replaceable">
+                                                <template x-for="(slide, i) in slides" :key="'act-'+i">
+                                                    <div x-show="i === gIndex && slide.replaceable" x-cloak class="flex gap-1.5">
+                                                        <form method="POST" action="{{ route('site.borrower.profile.assets.photos.replace', $asset) }}" enctype="multipart/form-data">
+                                                            @csrf
+                                                            <input type="hidden" name="index" :value="slide.index">
+                                                            <label class="size-8 grid place-items-center rounded-full bg-black/55 hover:bg-brand text-white text-sm cursor-pointer" title="{{ __('borrower.profile.replace_photo') }}">
+                                                                ↻
+                                                                <input type="file" name="photo" accept="image/jpeg,image/png,image/webp,image/jpg,.jpg,.jpeg,.png,.webp" class="sr-only"
+                                                                       onchange="this.form.submit()">
+                                                            </label>
+                                                        </form>
+                                                        <form method="POST" action="{{ route('site.borrower.profile.assets.photos.delete', $asset) }}"
+                                                              @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.delete_photo_confirm')), message: '', confirmLabel: @js(__('borrower.profile.delete_photo')), confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">
+                                                            @csrf @method('DELETE')
+                                                            <input type="hidden" name="index" :value="slide.index">
+                                                            <button type="submit" class="size-8 grid place-items-center rounded-full bg-black/55 hover:bg-red-600 text-white text-sm" aria-label="{{ __('borrower.profile.delete_photo') }}">🗑</button>
+                                                        </form>
+                                                    </div>
+                                                </template>
                                             </div>
-                                        @endforeach
-                                        @if ($meta['person_with_asset_path'] ?? null)
-                                            <button type="button" @click="lightbox = @js(asset('storage/'.$meta['person_with_asset_path']))"
-                                                    class="block w-full aspect-square rounded-xl overflow-hidden ring-1 ring-brand/20 cursor-zoom-in">
-                                                <img src="{{ asset('storage/'.$meta['person_with_asset_path']) }}" alt="{{ __('borrower.profile.person_with_asset') }}" class="h-full w-full object-cover">
-                                            </button>
-                                        @endif
+                                        </div>
+
+                                        <div x-show="slides.length > 1" class="flex gap-2 overflow-x-auto pb-1">
+                                            <template x-for="(slide, i) in slides" :key="'gt-'+i">
+                                                <button type="button" @click="gIndex = i"
+                                                        class="shrink-0 size-14 rounded-lg overflow-hidden ring-2 transition"
+                                                        :class="gIndex === i ? 'ring-brand' : 'ring-transparent opacity-70 hover:opacity-100'">
+                                                    <img :src="slide.url" alt="" class="w-full h-full object-cover">
+                                                </button>
+                                            </template>
+                                        </div>
                                     </div>
                                 @endif
 

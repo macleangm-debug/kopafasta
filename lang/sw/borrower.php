@@ -76,8 +76,14 @@ return [
     'help_center' => 'Kituo cha msaada',
     'sign_out' => 'Toka',
     'help' => 'Msaada',
+    'form_errors' => 'Tafadhali sahihisha:',
     'fix_errors' => 'Tafadhali rekebisha:',
 ],
+  'feedback' => [
+    'title' => 'Tafadhali angalia',
+    'ok' => 'Nimeelewa',
+    'form_errors_title' => 'Tafadhali sahihisha yafuatayo',
+  ],
   'apply' => 
 [
     'title' => 'Omba mkopo',
@@ -1534,6 +1540,9 @@ return [
     'asset_photo_removed' => 'Picha imefutwa.',
     'no_value_set' => 'Thamani haijawekwa',
     'tap_to_enlarge' => 'Gusa kupanua',
+    'swipe_to_browse' => 'Telezesha kidole kupitia picha · gusa kupanua · badilisha kwenye nafasi ya sasa',
+    'prev_photo' => 'Picha iliyotangulia',
+    'next_photo' => 'Picha inayofuata',
     'collateral_fields' => [
       'property_name' => 'Jina la mali',
       'address' => 'Anuani',
@@ -1819,6 +1828,7 @@ return [
     'face_remove' => 'Ondoa',
     'face_replace' => 'Badilisha picha',
     'face_replace_hint' => 'Pakia tena ili kubadilisha picha hii.',
+    'face_manage' => 'Simamia picha za uso',
     'face_capture_photo' => 'Piga picha',
     'face_save_photo' => 'Hifadhi picha',
     'face_use_camera' => 'Tumia kamera',

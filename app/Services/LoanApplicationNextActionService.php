@@ -36,9 +36,9 @@ class LoanApplicationNextActionService
 
         if ($firstMissing) {
             return $this->action(
-                'upload_document',
+                'continue_application',
                 __('borrower.loan_profile.next_actions.upload', ['item' => $firstMissing['label']]),
-                __('borrower.loan_profile.upload'),
+                __('borrower.loan_profile.actions.continue_to_form'),
                 $this->appendReturn((string) $firstMissing['action_url'], $profileUrl),
             );
         }

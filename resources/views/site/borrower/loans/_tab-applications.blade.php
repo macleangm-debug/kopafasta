@@ -136,6 +136,11 @@
                             @endforeach
                         </div>
                     </div>
+                @elseif (! empty($row['underwriting_active']))
+                    <div class="mb-4 rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 px-3 py-3">
+                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.dashboard.hero.under_review_title') }}</p>
+                        <p class="text-xs text-gray-600 mt-1">{{ __('borrower.dashboard.hero.under_review_subtitle') }}</p>
+                    </div>
                 @endif
 
                 <div class="flex items-center gap-2 text-xs flex-wrap">

@@ -49,7 +49,20 @@
     @endif
 
     @if ($errors->any())
-        <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">{{ $errors->first() }}</div>
+        <div
+            x-data
+            x-init="
+                window.dispatchEvent(new CustomEvent('open-feedback-default', {
+                    detail: {
+                        title: @js(__('borrower.feedback.form_errors_title')),
+                        lines: @js([$errors->first()]),
+                        tone: 'error',
+                    }
+                }));
+            "
+            class="sr-only"
+            aria-hidden="true"
+        ></div>
     @endif
 
     @if (($status['code'] ?? '') === 'offer_declined')
@@ -145,17 +158,9 @@
 
     @if ($missingRequirements->isNotEmpty())
         <div id="requested-actions" class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15">
-            <div class="bg-gradient-to-r from-brand-muted/50 to-white px-5 py-4 border-b border-brand/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loan_profile.missing_requirements_title') }}</p>
-                    <p class="text-sm text-gray-600 mt-1">{{ __('borrower.loan_profile.missing_requirements_chips_hint') }}</p>
-                </div>
-                @unless ($profileComplete)
-                    <a href="{{ $completeProfileUrl }}"
-                       class="inline-flex justify-center shrink-0 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-2.5 rounded-xl text-sm">
-                        {{ __('borrower.loan_profile.complete_profile') }}
-                    </a>
-                @endunless
+            <div class="bg-gradient-to-r from-brand-muted/50 to-white px-5 py-4 border-b border-brand/10">
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loan_profile.missing_requirements_title') }}</p>
+                <p class="text-sm text-gray-600 mt-1">{{ __('borrower.loan_profile.missing_requirements_chips_hint') }}</p>
             </div>
             <div class="px-5 py-4 flex flex-wrap gap-2">
                 @foreach ($missingRequirements as $item)
