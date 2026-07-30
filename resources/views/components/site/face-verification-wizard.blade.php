@@ -319,38 +319,18 @@
         {{ __('borrower.face_verification_page.privacy_note') }}
     </p>
 
-    {{-- Premium card-style enlarge preview (matches NIDA document pattern) --}}
-    <div x-show="expandedPreviewUrl" x-cloak x-transition.opacity
-         class="fixed inset-0 z-[80] flex items-center justify-center p-4 sm:p-6"
-         @keydown.escape.window="closePreview()"
-         @click.self="closePreview()">
-        <div class="absolute inset-0 bg-brand/80 backdrop-blur-sm" @click="closePreview()"></div>
-        <div class="relative w-full max-w-lg" @click.stop>
-            <div class="overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-white/20">
-                <div class="bg-gradient-to-r from-brand via-brand to-brand-light px-5 py-3.5 flex items-center justify-between gap-3 text-white">
-                    <div class="min-w-0">
-                        <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">{{ __('borrower.nida.face_title') }}</p>
-                        <p class="font-semibold truncate">{{ __('borrower.nida.face_preview') }}</p>
-                    </div>
-                    <button type="button" @click="closePreview()"
-                            class="size-9 shrink-0 grid place-items-center rounded-full bg-white/15 hover:bg-white/25 text-white text-xl"
-                            aria-label="{{ __('borrower.face_verification_page.cancel') }}">×</button>
-                </div>
-                <div class="bg-gradient-to-b from-brand-muted/30 to-gray-100 p-4 sm:p-5">
-                    <div class="mx-auto max-w-sm overflow-hidden rounded-2xl bg-black shadow-lg ring-1 ring-brand/10">
-                        <img :src="expandedPreviewUrl" alt=""
-                             class="w-full max-h-[70vh] object-contain object-top bg-black">
-                    </div>
-                </div>
-                <div class="px-5 py-4 border-t border-gray-100 bg-white">
-                    <button type="button" @click="closePreview()"
-                            class="inline-flex items-center justify-center font-semibold px-4 py-2.5 rounded-xl text-sm bg-brand-gold hover:bg-yellow-400 text-brand">
-                        {{ __('borrower.feedback.ok') }}
-                    </button>
-                </div>
-            </div>
+    {{-- Collateral / NIDA enlarge — teleport escapes overflow + backdrop-filter traps --}}
+    <template x-teleport="body">
+        <div x-show="expandedPreviewUrl" x-cloak x-transition
+             class="fixed inset-0 z-[90] bg-black/80 flex items-center justify-center p-4"
+             @keydown.escape.window="closePreview()"
+             @click.self="closePreview()">
+            <button type="button" class="absolute top-4 right-4 text-white/90 text-2xl font-semibold" @click="closePreview()"
+                    aria-label="{{ __('borrower.face_verification_page.cancel') }}">×</button>
+            <img :src="expandedPreviewUrl" alt="{{ __('borrower.nida.face_preview') }}"
+                 class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
         </div>
-    </div>
+    </template>
 </div>
 
 @once

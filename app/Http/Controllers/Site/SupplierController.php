@@ -67,7 +67,7 @@ class SupplierController extends Controller
         $vendor = $this->supplier();
         $assets->normalizeRequest($request);
         $validated = $request->validate($assets->validationRules());
-        unset($validated['photos'], $validated['remove_photos']);
+        unset($validated['photos'], $validated['remove_photos'], $validated['cover_path']);
 
         $data = $assets->prepareForSave(array_merge($validated, [
             'vendor_id'     => $vendor->id,
@@ -76,7 +76,12 @@ class SupplierController extends Controller
         ]));
 
         $record = MarketplaceAsset::create($data);
-        $assets->syncPhotos($record, $request->file('photos', []));
+        $assets->syncPhotos(
+            $record,
+            $request->file('photos', []),
+            $request->input('remove_photos', []),
+            $request->input('cover_path')
+        );
 
         return redirect()->route('site.supplier.assets')->with('status', 'Asset uploaded successfully.');
     }
@@ -104,13 +109,18 @@ class SupplierController extends Controller
         $assets->normalizeRequest($request);
         $assets->validateMinimumPhotos($asset, $request->file('photos', []), $request->input('remove_photos', []));
         $validated = $request->validate($assets->validationRules($asset));
-        unset($validated['photos'], $validated['remove_photos']);
+        unset($validated['photos'], $validated['remove_photos'], $validated['cover_path']);
         $data = $assets->prepareForSave(array_merge($validated, [
             'is_active' => $request->boolean('is_active', true),
         ]), $asset);
 
         $asset->update($data);
-        $assets->syncPhotos($asset, $request->file('photos', []), $request->input('remove_photos', []));
+        $assets->syncPhotos(
+            $asset,
+            $request->file('photos', []),
+            $request->input('remove_photos', []),
+            $request->input('cover_path')
+        );
 
         return redirect()->route('site.supplier.assets')->with('status', 'Asset updated.');
     }

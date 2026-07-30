@@ -72,7 +72,7 @@ class MarketplaceAssetService
     /** @param array<string, mixed> $data */
     public function prepareForSave(array $data, ?MarketplaceAsset $existing = null): array
     {
-        unset($data['insurance_available'], $data['photos'], $data['remove_photos']);
+        unset($data['insurance_available'], $data['photos'], $data['remove_photos'], $data['cover_path']);
 
         if (empty($data['slug']) && ! empty($data['title'])) {
             $data['slug'] = Str::slug($data['title']).'-'.Str::lower(Str::random(4));
@@ -156,36 +156,89 @@ class MarketplaceAssetService
         ));
     }
 
-    /** @param array<int, UploadedFile>|UploadedFile|null $newFiles */
-    public function syncPhotos(MarketplaceAsset $asset, array|UploadedFile|null $newFiles = [], array $removePaths = []): void
-    {
-        $photos = collect($asset->photos ?? [])->filter()->values();
-        $newFiles = $this->normalizeUploadedPhotos($newFiles);
+    /**
+     * Sync marketplace photos with collateral-style slot replace + explicit cover.
+     *
+     * Cover is persisted as photos[0]. New uploads may arrive as photos[0..3] slot keys.
+     * cover_path may be an existing path or "__new_{slot}" for a just-uploaded slot.
+     *
+     * @param  array<int, UploadedFile>|UploadedFile|null  $newFiles
+     * @param  array<int, string>  $removePaths
+     */
+    public function syncPhotos(
+        MarketplaceAsset $asset,
+        array|UploadedFile|null $newFiles = [],
+        array $removePaths = [],
+        ?string $coverPath = null,
+    ): void {
+        $maxPhotos = min(4, $this->maxPhotos());
         $removePaths = array_values(array_filter(array_map('strval', $removePaths)));
 
+        $slots = array_fill(0, $maxPhotos, null);
+        foreach (array_values(array_filter($asset->photos ?? [])) as $i => $path) {
+            if ($i < $maxPhotos) {
+                $slots[$i] = $path;
+            }
+        }
+
         foreach ($removePaths as $path) {
-            if ($photos->contains($path)) {
+            foreach ($slots as $i => $existing) {
+                if ($existing !== $path) {
+                    continue;
+                }
                 if (! str_starts_with($path, 'http://') && ! str_starts_with($path, 'https://')) {
                     Storage::disk('public')->delete($path);
                 }
-                $photos = $photos->reject(fn ($p) => $p === $path)->values();
+                $slots[$i] = null;
             }
         }
 
-        $maxPhotos = $this->maxPhotos();
-
-        foreach ($newFiles as $file) {
-            if ($photos->count() >= $maxPhotos) {
-                break;
+        $filesBySlot = [];
+        if ($newFiles instanceof UploadedFile) {
+            $filesBySlot[0] = $newFiles;
+        } elseif (is_array($newFiles)) {
+            foreach ($newFiles as $key => $file) {
+                if ($file instanceof UploadedFile && $file->isValid()) {
+                    $filesBySlot[(int) $key] = $file;
+                }
             }
+        }
+
+        $newPathBySlot = [];
+        foreach ($filesBySlot as $slot => $file) {
+            if ($slot < 0 || $slot >= $maxPhotos) {
+                continue;
+            }
+            $previous = $slots[$slot];
+            if (is_string($previous) && $previous !== ''
+                && ! str_starts_with($previous, 'http://')
+                && ! str_starts_with($previous, 'https://')) {
+                Storage::disk('public')->delete($previous);
+            }
+
             $stored = $file->store("marketplace/{$asset->id}", 'public');
             if (is_string($stored) && $stored !== '') {
-                $photos->push($stored);
+                $slots[$slot] = $stored;
+                $newPathBySlot[$slot] = $stored;
             }
+        }
+
+        $final = array_values(array_filter($slots, fn ($path) => filled($path)));
+
+        if (is_string($coverPath) && str_starts_with($coverPath, '__new_')) {
+            $slot = (int) substr($coverPath, strlen('__new_'));
+            $coverPath = $newPathBySlot[$slot] ?? null;
+        }
+
+        if (is_string($coverPath) && $coverPath !== '' && in_array($coverPath, $final, true)) {
+            $final = array_values(array_merge(
+                [$coverPath],
+                array_values(array_filter($final, fn ($path) => $path !== $coverPath))
+            ));
         }
 
         $asset->forceFill([
-            'photos' => $photos->values()->take($maxPhotos)->values()->all(),
+            'photos' => array_slice($final, 0, $maxPhotos),
         ])->save();
     }
 
@@ -278,9 +331,10 @@ class MarketplaceAssetService
             'max_tenure_months'      => ['required', 'integer', 'min:1', 'max:120'],
             'is_active'              => ['nullable', 'boolean'],
             'photos'                 => [$existing ? 'nullable' : 'required', 'array', 'min:'.($existing ? 0 : 1), 'max:'.$maxPhotos],
-            'photos.*'               => ['image', 'max:5120'],
+            'photos.*'               => ['nullable', 'image', 'max:5120'],
             'remove_photos'          => ['nullable', 'array'],
             'remove_photos.*'        => ['string', 'max:2048'],
+            'cover_path'             => ['nullable', 'string', 'max:2048'],
             'vendor_id'              => [$requireSupplier ? 'required' : 'nullable', 'exists:partners,id'],
         ];
     }

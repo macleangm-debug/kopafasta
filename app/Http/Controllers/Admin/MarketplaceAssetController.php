@@ -49,7 +49,7 @@ class MarketplaceAssetController extends ResourceController
     protected function transform(array $data, ?Model $existing = null): array
     {
         $data['is_active'] = (bool) ($data['is_active'] ?? true);
-        unset($data['photos'], $data['remove_photos']);
+        unset($data['photos'], $data['remove_photos'], $data['cover_path']);
 
         return app(MarketplaceAssetService::class)->prepareForSave($data, $existing instanceof MarketplaceAsset ? $existing : null);
     }
@@ -75,7 +75,12 @@ class MarketplaceAssetController extends ResourceController
         $validated = $request->validate($this->rules());
         $data = $this->transform($validated);
         $record = MarketplaceAsset::create($data);
-        $service->syncPhotos($record, $request->file('photos', []), $request->input('remove_photos', []));
+        $service->syncPhotos(
+            $record,
+            $request->file('photos', []),
+            $request->input('remove_photos', []),
+            $request->input('cover_path')
+        );
         $this->auditAdminCreated($record);
 
         return redirect()
@@ -93,7 +98,12 @@ class MarketplaceAssetController extends ResourceController
         $validated = $request->validate($this->rules($record));
         $data = $this->transform($validated, $record);
         $record->update($data);
-        $service->syncPhotos($record, $request->file('photos', []), $request->input('remove_photos', []));
+        $service->syncPhotos(
+            $record,
+            $request->file('photos', []),
+            $request->input('remove_photos', []),
+            $request->input('cover_path')
+        );
         $this->auditAdminUpdated($record, $before);
 
         return redirect()

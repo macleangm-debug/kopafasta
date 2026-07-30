@@ -18,7 +18,7 @@
             if (Math.abs(diff) > 50) diff > 0 ? this.prev() : this.next();
         }
     }">
-        <div class="relative rounded-3xl overflow-hidden bg-slate-100 aspect-[4/3] ring-1 ring-white/50 shadow-xl"
+        <div class="relative rounded-2xl overflow-hidden bg-slate-100 aspect-[4/3] sm:aspect-[16/10] max-h-72 ring-1 ring-white/50 shadow-lg"
              @touchstart="onTouchStart($event)" @touchend="onTouchEnd($event)">
             <template x-for="(photo, i) in photos" :key="photo">
                 <img :src="photo" alt="" @if($zoom) @click="zoomed = !zoomed" @endif

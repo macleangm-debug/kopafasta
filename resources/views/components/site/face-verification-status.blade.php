@@ -16,7 +16,8 @@
     };
     $photoEntries = collect($angles)->map(function ($meta, $key) use ($photos) {
         $photo = $photos[$key] ?? null;
-        $url = $photo?->file_path ? asset('storage/'.$photo->file_path) : null;
+        $path = $photo?->file_path;
+        $url = filled($path) ? asset('storage/'.$path) : null;
 
         return [
             'key' => $key,
@@ -28,22 +29,22 @@
     $canReplaceFace = in_array($statusKey, ['rejected', 'incomplete', 'pending'], true);
 @endphp
 
+{{-- Mirror NIDA card + collateral lightbox: no overflow trap, teleport escape glass-card backdrop-filter --}}
 <div
     x-data="{
-        expandedUrl: null,
-        expandedLabel: null,
+        lightbox: null,
+        lightboxLabel: null,
         openPreview(url, label) {
             if (!url) return;
-            this.expandedUrl = url;
-            this.expandedLabel = label || '';
+            this.lightbox = url;
+            this.lightboxLabel = label || '';
         },
         closePreview() {
-            this.expandedUrl = null;
-            this.expandedLabel = null;
+            this.lightbox = null;
+            this.lightboxLabel = null;
         },
     }"
     @class([
-        'overflow-hidden',
         'rounded-3xl ring-1 ring-brand/15 bg-white' => ! $compact,
     ])
 >
@@ -70,7 +71,7 @@
         </div>
     @endif
 
-    {{-- NIDA-style card previews per angle --}}
+    {{-- NIDA-style card thumbnails per angle --}}
     <div @class(['grid sm:grid-cols-2 gap-3', 'p-5' => ! $compact])>
         @foreach ($photoEntries as $entry)
             <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
@@ -79,7 +80,7 @@
                     @if ($entry['url'])
                         <button type="button"
                                 @click="openPreview(@js($entry['url']), @js($entry['label']))"
-                                class="h-28 w-24 shrink-0 rounded-lg ring-1 ring-brand/15 overflow-hidden bg-white cursor-zoom-in block shadow-sm hover:ring-brand/40 transition"
+                                class="h-28 w-24 shrink-0 rounded-lg ring-1 ring-gray-200 overflow-hidden bg-white cursor-zoom-in block"
                                 title="{{ __('borrower.profile.view_document') }}">
                             <img src="{{ $entry['url'] }}"
                                  alt="{{ $entry['label'] }}"
@@ -90,7 +91,7 @@
                             <p class="text-[11px] text-gray-500">{{ __('borrower.profile.tap_to_enlarge') }}</p>
                             <button type="button"
                                     @click="openPreview(@js($entry['url']), @js($entry['label']))"
-                                    class="inline-flex items-center justify-center self-start rounded-full bg-white ring-1 ring-brand/20 px-3 py-1.5 text-xs font-semibold text-brand hover:bg-brand-muted/40">
+                                    class="inline-flex items-center justify-center self-start rounded-full bg-white ring-1 ring-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100">
                                 {{ __('borrower.nida.face_view_angle') }}
                             </button>
                         </div>
@@ -133,41 +134,25 @@
         @endif
     </div>
 
-    {{-- Premium card-style enlarge preview --}}
-    <div x-show="expandedUrl" x-cloak x-transition.opacity
-         class="fixed inset-0 z-[80] flex items-center justify-center p-4 sm:p-6"
-         @keydown.escape.window="closePreview()"
-         @click.self="closePreview()">
-        <div class="absolute inset-0 bg-brand/80 backdrop-blur-sm" @click="closePreview()"></div>
-        <div class="relative w-full max-w-lg" @click.stop>
-            <div class="overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-white/20">
-                <div class="bg-gradient-to-r from-brand via-brand to-brand-light px-5 py-3.5 flex items-center justify-between gap-3 text-white">
-                    <div class="min-w-0">
-                        <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">{{ __('borrower.nida.face_title') }}</p>
-                        <p class="font-semibold truncate" x-text="expandedLabel || @js(__('borrower.nida.face_preview'))"></p>
-                    </div>
-                    <button type="button" @click="closePreview()"
-                            class="size-9 shrink-0 grid place-items-center rounded-full bg-white/15 hover:bg-white/25 text-white text-xl"
-                            aria-label="{{ __('borrower.profile.cancel') }}">×</button>
-                </div>
-                <div class="bg-gradient-to-b from-brand-muted/30 to-gray-100 p-4 sm:p-5">
-                    <div class="mx-auto max-w-sm overflow-hidden rounded-2xl bg-black shadow-lg ring-1 ring-brand/10">
-                        <img :src="expandedUrl" alt="" class="w-full max-h-[70vh] object-contain object-top bg-black">
-                    </div>
-                </div>
-                <div class="px-5 py-4 flex flex-wrap gap-2 border-t border-gray-100 bg-white">
-                    <button type="button" @click="closePreview()"
-                            class="inline-flex items-center justify-center font-semibold px-4 py-2.5 rounded-xl text-sm bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-800">
-                        {{ __('borrower.feedback.ok') }}
-                    </button>
-                    @if ($canReplaceFace)
-                        <a href="{{ route('site.borrower.face-verification') }}"
-                           class="inline-flex items-center justify-center font-semibold px-4 py-2.5 rounded-xl text-sm bg-brand-gold hover:bg-yellow-400 text-brand">
-                            {{ __('borrower.nida.face_replace') }}
-                        </a>
-                    @endif
-                </div>
+    {{-- Collateral / NIDA enlarge: teleport out of glass-card backdrop-filter + overflow --}}
+    <template x-teleport="body">
+        <div x-show="lightbox" x-cloak x-transition
+             class="fixed inset-0 z-[90] bg-black/80 flex items-center justify-center p-4"
+             @keydown.escape.window="closePreview()"
+             @click.self="closePreview()">
+            <button type="button" class="absolute top-4 right-4 text-white/90 text-2xl font-semibold" @click="closePreview()"
+                    aria-label="{{ __('borrower.profile.cancel') }}">×</button>
+            <div class="relative max-h-[90vh] max-w-[95vw]">
+                <p class="absolute -top-8 left-0 right-0 text-center text-sm font-semibold text-white/90 truncate px-8"
+                   x-text="lightboxLabel || @js(__('borrower.nida.face_preview'))"></p>
+                <img :src="lightbox" alt="" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
             </div>
+            @if ($canReplaceFace)
+                <a href="{{ route('site.borrower.face-verification') }}"
+                   class="absolute bottom-6 left-1/2 -translate-x-1/2 inline-flex items-center justify-center font-semibold px-5 py-2.5 rounded-full text-sm bg-brand-gold hover:bg-yellow-400 text-brand shadow-lg">
+                    {{ __('borrower.nida.face_replace') }}
+                </a>
+            @endif
         </div>
-    </div>
+    </template>
 </div>

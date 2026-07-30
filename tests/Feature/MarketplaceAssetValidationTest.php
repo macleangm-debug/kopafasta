@@ -95,9 +95,10 @@ class MarketplaceAssetValidationTest extends TestCase
                 'max_tenure_months'   => 12,
                 'is_active'           => '1',
                 'photos'              => [
-                    \Illuminate\Http\UploadedFile::fake()->image('one.jpg'),
-                    \Illuminate\Http\UploadedFile::fake()->image('two.jpg'),
+                    0 => \Illuminate\Http\UploadedFile::fake()->image('one.jpg'),
+                    1 => \Illuminate\Http\UploadedFile::fake()->image('two.jpg'),
                 ],
+                'cover_path'          => '__new_1',
             ]);
 
         $response->assertRedirect();
@@ -108,6 +109,80 @@ class MarketplaceAssetValidationTest extends TestCase
         foreach ($asset->photos as $path) {
             \Illuminate\Support\Facades\Storage::disk('public')->assertExists($path);
         }
+
+        // Re-run with known paths to prove cover_path=__new_1 promotes slot 1.
+        $slot0 = $asset->photos[0];
+        $slot1 = $asset->photos[1];
+        $asset->update(['photos' => [$slot0, $slot1]]);
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.marketplace-assets.update', $asset), [
+                'vendor_id'           => $supplier->id,
+                'category'            => 'vehicle',
+                'title'               => 'Multi Photo Asset',
+                'insurance_available' => '0',
+                'asset_value'         => '2,000,000.00',
+                'deposit_percent'     => '20',
+                'max_tenure_months'   => 12,
+                'is_active'           => '1',
+                'cover_path'          => $slot1,
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $asset->refresh();
+        $this->assertSame([$slot1, $slot0], $asset->photos);
+    }
+
+    public function test_admin_asset_update_sets_existing_cover(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $supplier = Vendor::create([
+            'vendor_number' => 'PT-SP-TZ-COVER',
+            'name'          => 'Cover Photo Supplier',
+            'category'      => 'supplier',
+            'status'        => 'active',
+        ]);
+
+        $first = 'marketplace/cover-a.jpg';
+        $second = 'marketplace/cover-b.jpg';
+        \Illuminate\Support\Facades\Storage::disk('public')->put($first, 'a');
+        \Illuminate\Support\Facades\Storage::disk('public')->put($second, 'b');
+
+        $asset = \App\Models\MarketplaceAsset::create([
+            'vendor_id'         => $supplier->id,
+            'slug'              => 'cover-photo-asset',
+            'category'          => 'vehicle',
+            'title'             => 'Cover Photo Asset',
+            'supplier_name'     => $supplier->name,
+            'asset_value'       => 2_000_000,
+            'supplier_deposit'  => 400_000,
+            'customer_deposit'  => 440_000,
+            'max_tenure_months' => 12,
+            'is_active'         => true,
+            'photos'            => [$first, $second],
+        ]);
+
+        $response = $this->actingAs($admin, 'admin')
+            ->put(route('admin.marketplace-assets.update', $asset), [
+                'vendor_id'           => $supplier->id,
+                'category'            => 'vehicle',
+                'title'               => 'Cover Photo Asset',
+                'insurance_available' => '0',
+                'asset_value'         => '2,000,000.00',
+                'deposit_percent'     => '20',
+                'max_tenure_months'   => 12,
+                'is_active'           => '1',
+                'cover_path'          => $second,
+            ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+
+        $asset->refresh();
+        $this->assertSame([$second, $first], $asset->photos);
     }
 
     public function test_admin_edit_page_shows_existing_photo_urls(): void
@@ -139,9 +214,9 @@ class MarketplaceAssetValidationTest extends TestCase
             ->get(route('admin.marketplace-assets.edit', $asset))
             ->assertOk()
             ->assertSee($photoUrl, false)
-            ->assertSee('Current photos (1)', false)
             ->assertSee('data-multi-image-upload', false)
-            ->assertSee('Cover', false);
+            ->assertSee('Cover', false)
+            ->assertSee('Set as cover', false);
     }
 
     public function test_admin_asset_update_keeps_existing_photos_when_no_new_files_uploaded(): void

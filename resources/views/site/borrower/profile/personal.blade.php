@@ -297,7 +297,8 @@
                     :complete="$faceComplete"
                     :empty="! $faceHasPhotos"
                     :inline-edit="! in_array($faceKey, ['verified', 'pending'], true)"
-                    :default-open="$focusHash === 'face'">
+                    :default-open="$focusHash === 'face'"
+                    :allow-overflow="true">
                     <x-slot:view>
                         @if ($faceHasPhotos && ! empty($faceAngles ?? []))
                             <x-site.face-verification-status
