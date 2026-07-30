@@ -117,6 +117,8 @@
                       'fee_type' => $r->fee_type,
                   ])->values()->all()),
                   pointsBalance: {{ (int) ($pointsBalance ?? 0) }},
+                  feeLoyaltyOption: @js($feeLoyaltyOption ?? null),
+                  returnTo: @js($returnTo ?? null),
                   profileSections: @js($profileSections),
                   incomeVerification: @js($incomeVerification),
                   productQuestions: @js($productQuestions),

@@ -186,7 +186,9 @@
                             const input = document.createElement('input');
                             input.type = 'file';
                             input.name = fieldName + '[]';
-                            input.accept = 'image/*';
+                            // Do not set accept — Chrome rejects empty MIME types that still
+                            // pass isImageFile() via extension, which surfaces as a native
+                            // "Please select an item in the list" / file constraint error.
                             input.className = 'hidden';
                             const dt = new DataTransfer();
                             dt.items.add(entry.file);

@@ -28,6 +28,12 @@ export function applyWizard(config) {
                 feeQuoteData: config.feeQuoteData ?? null,
                 feePaying: false,
                 feePaymentReference: config.feePaymentReference ?? null,
+                feeNotice: null,
+                feeLoyaltyOption: config.feeLoyaltyOption || null,
+                feeRedeemLoyalty: !!(config.feeLoyaltyOption?.can_redeem),
+                returnTo: config.returnTo || null,
+                guarantorInviteError: '',
+                stepNotice: null,
                 purposeLabels: config.purposeLabels,
                 kinRelationshipLabels: config.kinRelationshipLabels || {},
                 productQuestions: config.productQuestions,
@@ -590,9 +596,21 @@ export function applyWizard(config) {
                     }
                 },
 
+                estimatedLoyaltySave() {
+                    const option = this.feeLoyaltyOption;
+                    if (! option || ! this.feeRedeemLoyalty) return 0;
+                    const base = Number(this.feeQuoteData?.base ?? this.applicationFee ?? 0);
+                    if (base <= 0) return 0;
+                    if (option.benefit_type === 'fixed_discount') {
+                        return Math.min(base, Number(option.benefit_value || 0));
+                    }
+                    return Math.round(base * (Number(option.benefit_value || 0) / 100));
+                },
+
                 async payApplicationFee() {
                     if (! this.applicationFeePayUrl || ! this.form.loan_product_id) return;
                     this.feePaying = true;
+                    this.feeNotice = null;
                     try {
                         const feeCode = this.feePromoCode
                             ? String(this.feePromoCode).trim().toUpperCase()
@@ -604,6 +622,8 @@ export function applyWizard(config) {
                             use_wallet: !!this.feeUseWallet,
                             promo_code: feeCode,
                             affiliate_code: feeCode,
+                            redeem_loyalty: !!(this.feeRedeemLoyalty && this.feeLoyaltyOption?.can_redeem),
+                            loyalty_option_key: this.feeLoyaltyOption?.key || null,
                         };
                         const res = await fetch(this.applicationFeePayUrl, {
                             method: 'POST',
@@ -616,7 +636,7 @@ export function applyWizard(config) {
                             credentials: 'same-origin',
                             body: JSON.stringify(body),
                         });
-                        const data = await res.json();
+                        const data = await res.json().catch(() => ({}));
                         if (! res.ok || ! data.ok) {
                             throw new Error(data.message || this.i18n.applicationFee.failed);
                         }
@@ -624,12 +644,29 @@ export function applyWizard(config) {
                         if (this.isAssetBackedProduct(this.current) && data.fee) {
                             this.valuationFeeState = data.fee;
                         }
+                        if (data.fee_loyalty_option === null || data.loyalty_redeemed) {
+                            this.feeLoyaltyOption = null;
+                            this.feeRedeemLoyalty = false;
+                        }
                         this.syncFeePaidState();
                         this.syncValuationFeePaidState();
                         await this.persistDraft(true);
-                        alert(data.message || this.i18n.applicationFee.paid);
+                        this.feeNotice = {
+                            tone: 'success',
+                            message: data.message || this.i18n.applicationFee.paid,
+                        };
+                        // Auto-advance without interrupting with alert().
+                        this.feePaying = false;
+                        try {
+                            await this.next();
+                        } catch (advanceErr) {
+                            console.warn('post-fee advance failed', advanceErr);
+                        }
                     } catch (e) {
-                        alert(e?.message || this.i18n.applicationFee.failed);
+                        this.feeNotice = {
+                            tone: 'error',
+                            message: e?.message || this.i18n.applicationFee.failed,
+                        };
                     } finally {
                         this.feePaying = false;
                     }
@@ -1206,7 +1243,7 @@ export function applyWizard(config) {
                     this.selectProduct(p, false);
                     this.phase = 'details';
                     this.loadReadiness(p.id);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    this.scrollWizardIntoView();
                 },
 
                 backToBrowse() {
@@ -1215,7 +1252,7 @@ export function applyWizard(config) {
 
                 backToDetails() {
                     this.phase = 'details';
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    this.scrollWizardIntoView();
                 },
 
                 completeMissingRequirements() {
@@ -1285,7 +1322,7 @@ export function applyWizard(config) {
                     this.furthestStep = 0;
                     this.syncStepKey();
                     await this.persistDraft(true);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    this.scrollWizardIntoView();
                 },
 
                 withStepIcon(step) {
@@ -1463,7 +1500,11 @@ export function applyWizard(config) {
                         });
                         const data = await response.json();
                         if (! data.ok) {
-                            alert(data.message || this.i18n.previousGuarantor.failed);
+                            this.guarantorLookup = {
+                                ...this.guarantorLookup,
+                                ok: false,
+                                error: data.message || this.i18n.previousGuarantor.failed,
+                            };
                             return;
                         }
                         this.form.guarantor_mode = 'internal';
@@ -1593,7 +1634,11 @@ export function applyWizard(config) {
                         this.form.guarantor_mode = this.requiresGuarantor() ? '' : 'none';
                         this.scheduleDraftSave();
                     } catch {
-                        alert(this.i18n.alerts.guarantor_lookup_failed);
+                        this.guarantorLookup = {
+                            ...this.guarantorLookup,
+                            ok: false,
+                            error: this.i18n.alerts.guarantor_lookup_failed,
+                        };
                     } finally {
                         this.guarantorChanging = false;
                     }
@@ -2032,20 +2077,22 @@ export function applyWizard(config) {
                     const missing = this.externalGuarantorMissingFields();
                     if (Object.keys(missing).length) {
                         this.setGuarantorFieldErrors(missing);
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        this.scrollWizardIntoView();
                         return;
                     }
                     this.guarantorErrors = {};
+                    this.guarantorInviteError = '';
                     await this.prepareExternalGuarantorInvite();
                 },
 
                 async prepareExternalGuarantorInvite() {
+                    this.guarantorInviteError = '';
                     if (! this.guarantorInviteUrl) {
-                        alert(this.i18n.alerts.guarantor_invite_failed);
+                        this.guarantorInviteError = this.i18n.alerts.guarantor_invite_failed;
                         return false;
                     }
                     if (! this.form.loan_product_id) {
-                        alert(this.i18n.alerts.loadProduct);
+                        this.guarantorInviteError = this.i18n.alerts.loadProduct;
                         return false;
                     }
                     this.guarantorInvitePreparing = true;
@@ -2063,17 +2110,18 @@ export function applyWizard(config) {
                         });
                         const data = await res.json().catch(() => ({}));
                         if (! res.ok || ! data.ok || ! data.share) {
-                            alert(data.message || this.i18n.alerts.guarantor_invite_failed);
+                            this.guarantorInviteError = data.message || this.i18n.alerts.guarantor_invite_failed;
                             return false;
                         }
                         this.externalGuarantor = {
                             ...data.share,
                             _fingerprint: this.externalGuarantorFingerprint(),
                         };
+                        this.guarantorInviteError = '';
                         this.scheduleDraftSave();
                         return true;
                     } catch {
-                        alert(this.i18n.alerts.guarantor_invite_failed);
+                        this.guarantorInviteError = this.i18n.alerts.guarantor_invite_failed;
                         return false;
                     } finally {
                         this.guarantorInvitePreparing = false;
@@ -2157,7 +2205,12 @@ export function applyWizard(config) {
                         }
                         if (this.form.guarantor_mode === 'internal' || this.form.guarantor_mode === 'previous') {
                             if (! this.internalGuarantorValidated()) {
-                                alert(this.i18n.alerts.guarantor_validate_first);
+                                this.guarantorLookup = {
+                                    ...this.guarantorLookup,
+                                    ok: false,
+                                    error: this.i18n.alerts.guarantor_validate_first,
+                                };
+                                this.scrollWizardIntoView();
                                 return false;
                             }
                             return true;
@@ -2167,13 +2220,16 @@ export function applyWizard(config) {
                                 const missing = this.externalGuarantorMissingFields();
                                 if (Object.keys(missing).length) {
                                     this.setGuarantorFieldErrors(missing);
-                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    this.scrollWizardIntoView();
                                     return false;
                                 }
-                                alert(this.i18n.alerts.guarantor_external_invite_required || this.i18n.alerts.guarantor_validate_first);
+                                this.guarantorInviteError = this.i18n.alerts.guarantor_external_invite_required
+                                    || this.i18n.alerts.guarantor_validate_first;
+                                this.scrollWizardIntoView();
                                 return false;
                             }
                             this.guarantorErrors = {};
+                            this.guarantorInviteError = '';
                             return true;
                         }
                     }
@@ -2185,7 +2241,10 @@ export function applyWizard(config) {
                         if (this.effectiveFeeAmount() > 0) {
                             const st = this.applicationFeeState?.status || '';
                             if (! ['paid', 'waived', 'pending'].includes(st)) {
-                                alert(this.i18n.applicationFee.requiredBeforeContinue);
+                                this.feeNotice = {
+                                    tone: 'error',
+                                    message: this.i18n.applicationFee.requiredBeforeContinue,
+                                };
                                 return false;
                             }
                         } else if (! this.applicationFeePaid) {
@@ -2194,12 +2253,18 @@ export function applyWizard(config) {
                     }
                     if (! this.supplementMode && ! this.feeGateSatisfied() && this.feeGateRequiredForStep(this.stepKey)) {
                         this.enforceStepRequirements();
-                        alert(this.i18n.applicationFee.requiredBeforeContinue);
+                        this.feeNotice = {
+                            tone: 'error',
+                            message: this.i18n.applicationFee.requiredBeforeContinue,
+                        };
                         return false;
                     }
                     const nextKey = this.steps[this.step + 1]?.key;
                     if (! this.supplementMode && nextKey && this.feeGateRequiredForStep(nextKey) && ! this.feeGateSatisfied()) {
-                        alert(this.i18n.applicationFee.requiredBeforeContinue);
+                        this.feeNotice = {
+                            tone: 'error',
+                            message: this.i18n.applicationFee.requiredBeforeContinue,
+                        };
                         return false;
                     }
                     return true;
@@ -2234,7 +2299,7 @@ export function applyWizard(config) {
                     }
                     if (Object.keys(errors).length) {
                         this.setGuarantorFieldErrors(errors);
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        this.scrollWizardIntoView();
                         return;
                     }
                     this.guarantorErrors = {};
@@ -2290,6 +2355,14 @@ export function applyWizard(config) {
 
                         await this.persistDraft(true);
                         if (this.step >= this.steps.length - 1) {
+                            return;
+                        }
+                        // Edit Amount / Edit Guarantor: return to Review/Submit instead of restarting.
+                        const returnKey = this.returnTo;
+                        const fromEdit = ['quote', 'asset_details', 'asset_tenure', 'group_setup', 'guarantor'].includes(this.stepKey);
+                        if (returnKey && fromEdit && this.steps.some(s => s.key === returnKey)) {
+                            this.gotoKey(returnKey);
+                            this.returnTo = null;
                             return;
                         }
                         this.step++;

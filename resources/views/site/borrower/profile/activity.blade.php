@@ -12,6 +12,7 @@
 
         @php
             $activityComplete = app(\App\Services\ProfileCompletionService::class)->isActivityComplete($customer);
+            $activityStale = in_array('activity', app(\App\Services\KycFreshnessService::class)->sectionsDueForRefresh($customer), true);
             $activityLabel = activity_type_label($customer->activity_type ?? $customer->employment_type);
             $incomeLabel = income_range_label($customer->income_range);
             $saveConfirm = [
@@ -21,6 +22,15 @@
                 'confirmClass' => 'bg-amber-500 hover:bg-amber-400 text-gray-900',
             ];
         @endphp
+
+        @if ($activityStale && $activityComplete)
+            <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 text-sm text-amber-900 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <p>{{ __('borrower.profile.kyc_freshness_banner') }}</p>
+                <a href="{{ route('site.borrower.kyc-reconfirm') }}" class="inline-flex shrink-0 font-semibold underline">
+                    {{ __('borrower.profile.kyc_freshness_cta') }}
+                </a>
+            </div>
+        @endif
 
         <x-site.profile-section-card
             section-id="profile-activity"

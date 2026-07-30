@@ -18,6 +18,18 @@
         $statusBadge = $toneClasses[$status['tone']] ?? $toneClasses['sky'];
         $application = $profile['application'] ?? null;
         $draft = $profile['draft'] ?? null;
+        $editQuoteUrl = $profile['edit_quote_url'] ?? null;
+        $underwritingActionKeys = collect($profile['underwriting_actions'] ?? [])
+            ->map(fn ($action) => 'request-'.($action['id'] ?? ''))
+            ->filter()
+            ->all();
+        // UW requests surface as guided CTAs in the action panel — keep this list to product gaps.
+        $missingRequirements = collect($profile['missing_requirements'] ?? [])
+            ->filter(fn ($item) => empty($item['complete']))
+            ->reject(fn ($item) => in_array($item['key'] ?? '', $underwritingActionKeys, true));
+        $profilePercent = (int) ($progress['profile_percent'] ?? $progress['percent'] ?? 0);
+        $profileComplete = (bool) ($progress['profile_complete'] ?? $profilePercent >= 100);
+        $completeProfileUrl = route('site.borrower.profile');
     @endphp
 
     <div class="mb-4">
@@ -61,9 +73,40 @@
         </div>
     @endif
 
-    {{-- Application summary --}}
+    {{-- PDF section order: Profile → Summary → Guarantor → Missing --}}
+    @unless ($profile['is_draft'] ?? false)
+        @unless ($profileComplete)
+            <div class="glass-card p-5 mb-6">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex-1">
+                        <h2 class="font-semibold">{{ __('borrower.loan_profile.profile_completion') }}</h2>
+                        <div class="flex items-center gap-3 mt-3">
+                            <div class="flex-1 max-w-xs h-2 rounded-full bg-gray-100 overflow-hidden">
+                                <div class="h-full rounded-full bg-brand" style="width: {{ $profilePercent }}%"></div>
+                            </div>
+                            <span class="text-sm font-bold tabular-nums">{{ $profilePercent }}%</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-2">{{ __('borrower.loan_profile.profile_completion_hint') }}</p>
+                    </div>
+                    <a href="{{ $completeProfileUrl }}"
+                       class="inline-flex items-center justify-center font-semibold px-6 py-2.5 rounded-xl text-sm shrink-0 bg-brand hover:bg-brand-light text-white">
+                        {{ __('borrower.loan_profile.complete_profile') }}
+                    </a>
+                </div>
+            </div>
+        @endunless
+    @endunless
+
     <div class="glass-card p-5 mb-6">
-        <h2 class="font-semibold mb-4">{{ __('borrower.loan_profile.summary_title') }}</h2>
+        <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+            <h2 class="font-semibold">{{ __('borrower.loan_profile.summary_title') }}</h2>
+            @if ($editQuoteUrl)
+                <a href="{{ $editQuoteUrl }}"
+                   class="inline-flex text-xs font-semibold text-brand bg-brand-muted/40 ring-1 ring-brand/20 hover:bg-brand-muted px-3 py-2 rounded-lg">
+                    {{ __('borrower.loan_profile.actions.edit_quote') }}
+                </a>
+            @endif
+        </div>
         <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
             <div>
                 <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.loan_type') }}</p>
@@ -98,29 +141,30 @@
         </div>
     </div>
 
-    @php
-        $missingRequirements = collect($profile['missing_requirements'] ?? [])->filter(fn ($item) => empty($item['complete']));
-    @endphp
+    @include('site.borrower.loan-profile._guarantor_progress', ['profile' => $profile])
+
     @if ($missingRequirements->isNotEmpty())
         <div id="requested-actions" class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15">
-            <div class="bg-gradient-to-r from-brand-muted/50 to-white px-5 py-4 border-b border-brand/10">
-                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loan_profile.missing_requirements_title') }}</p>
-                <p class="text-sm text-gray-600 mt-1">{{ __('borrower.loan_profile.missing_requirements_hint') }}</p>
+            <div class="bg-gradient-to-r from-brand-muted/50 to-white px-5 py-4 border-b border-brand/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loan_profile.missing_requirements_title') }}</p>
+                    <p class="text-sm text-gray-600 mt-1">{{ __('borrower.loan_profile.missing_requirements_chips_hint') }}</p>
+                </div>
+                @unless ($profileComplete)
+                    <a href="{{ $completeProfileUrl }}"
+                       class="inline-flex justify-center shrink-0 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-2.5 rounded-xl text-sm">
+                        {{ __('borrower.loan_profile.complete_profile') }}
+                    </a>
+                @endunless
             </div>
-            <ul class="divide-y divide-gray-100">
+            <div class="px-5 py-4 flex flex-wrap gap-2">
                 @foreach ($missingRequirements as $item)
-                    <li class="px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        <div class="min-w-0">
-                            <p class="text-sm font-semibold text-gray-900">{{ $item['label'] ?? '—' }}</p>
-                            <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.dashboard.document_requests_title') }}</p>
-                        </div>
-                        <a href="{{ $item['upload_url'] ?? '#' }}"
-                           class="inline-flex justify-center shrink-0 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm">
-                            {{ __('borrower.loan_profile.upload') }}
-                        </a>
-                    </li>
+                    <a href="{{ $item['upload_url'] ?? $completeProfileUrl }}"
+                       class="inline-flex items-center gap-1.5 rounded-full bg-brand-muted/50 ring-1 ring-brand/15 px-3 py-1.5 text-xs font-semibold text-brand hover:bg-brand-muted">
+                        <span>{{ $item['label'] ?? '—' }}</span>
+                    </a>
                 @endforeach
-            </ul>
+            </div>
         </div>
     @endif
 
@@ -156,33 +200,6 @@
             @endforeach
         </div>
     @endif
-
-    @unless ($profile['is_draft'] ?? false)
-        @php
-            $profilePercent = (int) ($progress['profile_percent'] ?? $progress['percent'] ?? 0);
-            $profileComplete = (bool) ($progress['profile_complete'] ?? $profilePercent >= 100);
-        @endphp
-        @unless ($profileComplete)
-            <div class="glass-card p-5 mb-6">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div class="flex-1">
-                        <h2 class="font-semibold">{{ __('borrower.loan_profile.profile_completion') }}</h2>
-                        <div class="flex items-center gap-3 mt-3">
-                            <div class="flex-1 max-w-xs h-2 rounded-full bg-gray-100 overflow-hidden">
-                                <div class="h-full rounded-full bg-brand" style="width: {{ $profilePercent }}%"></div>
-                            </div>
-                            <span class="text-sm font-bold tabular-nums">{{ $profilePercent }}%</span>
-                        </div>
-                        <p class="text-sm text-gray-600 mt-2">{{ __('borrower.loan_profile.profile_completion_hint') }}</p>
-                    </div>
-                    <a href="{{ route('site.borrower.profile') }}"
-                       class="inline-flex items-center justify-center font-semibold px-6 py-2.5 rounded-xl text-sm shrink-0 bg-brand hover:bg-brand-light text-white">
-                        {{ __('borrower.loan_profile.complete_profile') }}
-                    </a>
-                </div>
-            </div>
-        @endunless
-    @endunless
 
     @if ($profile['is_draft'] ?? false)
         {{-- Draft summary only; details live on profile --}}

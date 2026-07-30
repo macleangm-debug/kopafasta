@@ -332,21 +332,31 @@ class LoanApplicationNextActionService
             }
         }
 
+        // Underwriting document / profile revision requests — always surface as primary CTAs
+        // with deep-links (signature/face/ID → profile; docs → request anchor).
+        $openUwRequests = $application->relationLoaded('documentRequests')
+            ? $application->documentRequests->filter(fn ($r) => $r->needsBorrowerAction())->values()
+            : $application->documentRequests()->whereIn('status', ['pending', 'rejected'])->latest()->get();
+
+        if ($openUwRequests->isNotEmpty()) {
+            $docService = app(ApplicationDocumentRequestService::class);
+            $first = $openUwRequests->first();
+            $guided = $docService->borrowerGuidedAction($first);
+            $count = $openUwRequests->count();
+
+            return $this->action(
+                'upload_documents',
+                $count === 1
+                    ? __('borrower.loan_profile.next_actions.upload', ['item' => $first->label])
+                    : __('borrower.loan_profile.next_actions.upload_documents', ['count' => $count]),
+                $guided['cta_label'],
+                $guided['url'],
+                tone: 'primary',
+            );
+        }
+
         if ($missingRequirements !== []) {
             $first = $missingRequirements[0];
-            $openRequests = $application->documentRequests()
-                ->whereIn('status', ['pending', 'rejected'])
-                ->count();
-
-            if ($openRequests > 0) {
-                return $this->action(
-                    'upload_documents',
-                    __('borrower.loan_profile.next_actions.upload_documents', ['count' => $openRequests]),
-                    __('borrower.loan_profile.upload'),
-                    $profileUrl.'#documents',
-                    tone: 'primary',
-                );
-            }
 
             // Product requirement gaps are handled in-place on the loan profile —
             // do not surface a generic "upload documents" top CTA.

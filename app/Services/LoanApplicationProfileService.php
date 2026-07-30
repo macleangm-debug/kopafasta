@@ -72,6 +72,7 @@ class LoanApplicationProfileService
             'edit_guarantor_url'   => $editGuarantorUrl,
             'snapshot'             => $this->drafts->adminSnapshot($draft),
             'document_requests'    => [],
+            'underwriting_actions' => [],
             'guarantor_invitations' => collect(),
             'customer_guarantors'  => collect(),
             'product_requirements' => collect(),
@@ -196,6 +197,8 @@ class LoanApplicationProfileService
             'document_request_groups' => $this->borrowerStatus->groupedDocumentRequests(
                 $application->documentRequests()->with('uploads')->latest()->get()
             ),
+            'underwriting_actions' => app(ApplicationDocumentRequestService::class)
+                ->openGuidedActionsForApplication($application),
             'guarantor_invitations' => $guarantorInvitations,
             'customer_guarantors'  => $application->customerGuarantors,
             'product_requirements' => $requirements,

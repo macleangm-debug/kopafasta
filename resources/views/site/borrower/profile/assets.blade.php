@@ -249,12 +249,23 @@
                                                         class="block w-full aspect-square rounded-xl overflow-hidden ring-1 ring-gray-200 cursor-zoom-in">
                                                     <img src="{{ asset('storage/'.$path) }}" alt="" class="h-full w-full object-cover">
                                                 </button>
-                                                <form method="POST" action="{{ route('site.borrower.profile.assets.photos.delete', $asset) }}" class="absolute top-1.5 right-1.5"
-                                                      @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.delete_photo_confirm')), message: '', confirmLabel: @js(__('borrower.profile.delete_photo')), confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">
-                                                    @csrf @method('DELETE')
-                                                    <input type="hidden" name="index" value="{{ $i }}">
-                                                    <button type="submit" class="size-7 grid place-items-center rounded-full bg-black/55 hover:bg-red-600 text-white text-xs opacity-0 group-hover:opacity-100 focus:opacity-100 transition" aria-label="{{ __('borrower.profile.delete_photo') }}">🗑</button>
-                                                </form>
+                                                <div class="absolute top-1.5 right-1.5 flex flex-col gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition">
+                                                    <form method="POST" action="{{ route('site.borrower.profile.assets.photos.replace', $asset) }}" enctype="multipart/form-data">
+                                                        @csrf
+                                                        <input type="hidden" name="index" value="{{ $i }}">
+                                                        <label class="size-7 grid place-items-center rounded-full bg-black/55 hover:bg-brand text-white text-xs cursor-pointer" title="{{ __('borrower.profile.replace_photo') }}">
+                                                            ↻
+                                                            <input type="file" name="photo" accept="image/*" class="sr-only"
+                                                                   onchange="this.form.submit()">
+                                                        </label>
+                                                    </form>
+                                                    <form method="POST" action="{{ route('site.borrower.profile.assets.photos.delete', $asset) }}"
+                                                          @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.delete_photo_confirm')), message: '', confirmLabel: @js(__('borrower.profile.delete_photo')), confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">
+                                                        @csrf @method('DELETE')
+                                                        <input type="hidden" name="index" value="{{ $i }}">
+                                                        <button type="submit" class="size-7 grid place-items-center rounded-full bg-black/55 hover:bg-red-600 text-white text-xs" aria-label="{{ __('borrower.profile.delete_photo') }}">🗑</button>
+                                                    </form>
+                                                </div>
                                             </div>
                                         @endforeach
                                         @if ($meta['person_with_asset_path'] ?? null)

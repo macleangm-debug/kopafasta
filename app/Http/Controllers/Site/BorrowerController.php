@@ -2725,4 +2725,23 @@ class BorrowerController extends Controller
             ->route('site.borrower.profile', ['section' => 'assets'])
             ->with('status', __('borrower.profile.asset_photo_removed'));
     }
+
+    public function replaceAssetPhoto(Request $request, CustomerAsset $asset): RedirectResponse
+    {
+        abort_unless($asset->customer_id === $this->customer()->id, 403);
+        $data = $request->validate([
+            'index' => ['required', 'integer', 'min:0'],
+            'photo' => ['required', 'image', 'max:5120'],
+        ]);
+
+        app(\App\Services\CustomerAssetService::class)->replacePhoto(
+            $asset,
+            (int) $data['index'],
+            $request->file('photo')
+        );
+
+        return redirect()
+            ->route('site.borrower.profile', ['section' => 'assets'])
+            ->with('status', __('borrower.profile.asset_photo_replaced'));
+    }
 }

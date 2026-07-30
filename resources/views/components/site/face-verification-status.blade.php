@@ -85,6 +85,31 @@
         </div>
     @endif
 
+    <div @class(['px-5 pb-5 flex flex-wrap gap-2', 'mt-3' => $compact, 'pt-1' => ! $compact])>
+        @php
+            $firstPhoto = collect($photos)->first();
+            $firstUrl = $firstPhoto?->file_path ? asset('storage/'.$firstPhoto->file_path) : null;
+        @endphp
+        @if ($firstUrl)
+            <button type="button"
+                    @click="expandedUrl = @js($firstUrl)"
+                    class="inline-flex items-center justify-center font-semibold px-4 py-2 rounded-full text-sm bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-800">
+                {{ __('borrower.nida.face_view') }}
+            </button>
+        @endif
+        @if ($statusKey === 'rejected' || $statusKey === 'incomplete')
+            <a href="{{ route('site.borrower.face-verification') }}"
+               class="inline-flex items-center justify-center font-semibold px-4 py-2 rounded-full text-sm bg-brand-gold hover:bg-yellow-400 text-brand">
+                {{ __('borrower.nida.face_replace') }}
+            </a>
+        @elseif ($statusKey === 'verified' && $firstUrl)
+            <a href="{{ route('site.borrower.face-verification') }}"
+               class="inline-flex items-center justify-center font-semibold px-4 py-2 rounded-full text-sm bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand">
+                {{ __('borrower.nida.face_view') }}
+            </a>
+        @endif
+    </div>
+
     <div x-show="expandedUrl" x-cloak x-transition
          class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"
          @keydown.escape.window="expandedUrl = null"

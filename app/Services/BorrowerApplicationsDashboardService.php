@@ -122,8 +122,12 @@ class BorrowerApplicationsDashboardService
             ->profileProgress($application->customer, $application->product);
         $borrowerStatus = $this->borrowerStatus->forApplication($application);
         $statusCode = $borrowerStatus['code'];
-        $needsDocuments = in_array($statusCode, ['documents_requested', 'documents_resubmitted'], true);
+        $docService = app(ApplicationDocumentRequestService::class);
+        $underwritingActions = $docService->openGuidedActionsForApplication($application);
+        $needsDocuments = $underwritingActions !== []
+            || in_array($statusCode, ['documents_requested', 'documents_resubmitted'], true);
         $isRejected = $statusCode === 'rejected';
+        $firstUw = $underwritingActions[0] ?? null;
 
         return [
             'is_draft'           => false,
@@ -147,12 +151,16 @@ class BorrowerApplicationsDashboardService
             'last_updated_human' => optional($application->updated_at)->diffForHumans(),
             'sort_at'            => ($application->submitted_at ?? $application->updated_at)?->timestamp ?? 0,
             'detail'             => $this->borrowerStatus->borrowerDetail($application),
-            'action_url'         => $isRejected
-                ? route('site.borrower.application', $application->id).'#rejection'
-                : route('site.borrower.application', $application->id),
+            'underwriting_actions' => $underwritingActions,
+            'action_url'         => match (true) {
+                $isRejected => route('site.borrower.application', $application->id).'#rejection',
+                $firstUw !== null => $firstUw['url'],
+                default => route('site.borrower.application', $application->id),
+            },
             'action_label'       => match (true) {
                 $isRejected => __('borrower.loan_profile.actions.view_reason'),
-                $needsDocuments => __('borrower.loan_profile.upload'),
+                $firstUw !== null => $firstUw['cta_label'],
+                $needsDocuments => __('borrower.loan_profile.actions.upload_documents'),
                 default => __('borrower.applications_list.open'),
             },
             'receipt_url'        => route('site.apply.success', $application->id),

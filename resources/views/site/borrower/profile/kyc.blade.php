@@ -11,25 +11,52 @@
         ])
 
         @php
-            $editing = ($wizardMode ?? false) || ($editing ?? false);
-            $editUrl = route('site.borrower.profile', ['section' => 'kyc', 'edit' => 1]);
             $documentsComplete = app(\App\Services\ProfileCompletionService::class)->isDocumentsComplete($customer);
             $incomeLabel = filled($customer->income_range)
                 ? income_range_label($customer->income_range)
                 : null;
+            $saveConfirm = [
+                'title' => __('borrower.profile.save_confirm_title'),
+                'message' => __('borrower.profile.save_confirm_message'),
+                'confirmLabel' => __('borrower.profile.save'),
+                'confirmClass' => 'bg-amber-500 hover:bg-amber-400 text-gray-900',
+            ];
         @endphp
 
         <x-site.profile-section-card
+            section-id="profile-documents"
+            icon="📄"
             :title="__('borrower.profile.proof_of_income_title')"
-            :editing="$editing"
-            :edit-url="$editUrl"
             :complete="$documentsComplete"
-            :empty="! $documentsComplete">
-            @if ($editing)
+            :empty="! $documentsComplete"
+            :default-open="($wizardMode ?? false) || ($editing ?? false)">
+            <x-slot:view>
+                <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <dt class="text-gray-500">{{ __('borrower.profile.income_range') }}</dt>
+                        @if ($incomeLabel)
+                            <dd class="font-medium mt-0.5">{{ $incomeLabel }}</dd>
+                        @else
+                            <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
+                        @endif
+                    </div>
+                    <div>
+                        <dt class="text-gray-500">{{ __('borrower.profile.documents_proof') }}</dt>
+                        <dd class="font-medium mt-0.5">{{ $documentsComplete ? __('borrower.profile.section_complete') : __('borrower.profile.section_incomplete') }}</dd>
+                    </div>
+                </dl>
+                @unless ($documentsComplete)
+                    <button type="button" @click="open = true"
+                            class="mt-4 text-sm font-semibold text-amber-700 hover:text-amber-800">
+                        {{ __('borrower.profile.add_details') }}
+                    </button>
+                @endunless
+            </x-slot:view>
+            <x-slot:form>
                 <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'kyc']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
                       enctype="multipart/form-data"
                       x-data="{ incomeMethod: @js(old('income_proof_method', $incomeProofMethod ?? '')) }"
-                      @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.save_confirm_title')), message: @js(__('borrower.profile.save_confirm_message')), confirmLabel: @js(__('borrower.profile.save')), confirmClass: 'bg-amber-500 hover:bg-amber-400 text-gray-900' })">
+                      @submit.prevent="window.confirmForm($el, @js($saveConfirm))">
                     @csrf @method('PUT')
                     @if ($wizardMode ?? false)
                         <input type="hidden" name="wizard" value="1">
@@ -161,27 +188,9 @@
                         <button class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
                             {{ ($wizardMode ?? false) ? __('borrower.profile_wizard.save_continue') : __('borrower.profile.save_documents') }}
                         </button>
-                        @unless ($wizardMode ?? false)
-                            <a href="{{ route('site.borrower.profile', ['section' => 'kyc']) }}" class="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-2.5">{{ __('borrower.profile.cancel_edit') }}</a>
-                        @endunless
                     </div>
                 </form>
-            @else
-                <dl class="grid sm:grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <dt class="text-gray-500">{{ __('borrower.profile.income_range') }}</dt>
-                        @if ($incomeLabel)
-                            <dd class="font-medium mt-0.5">{{ $incomeLabel }}</dd>
-                        @else
-                            <dd class="mt-0.5"><a href="{{ $editUrl ?? route('site.borrower.profile', ['section' => 'kyc', 'edit' => 1]) }}" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</a></dd>
-                        @endif
-                    </div>
-                    <div>
-                        <dt class="text-gray-500">{{ __('borrower.profile.documents_proof') }}</dt>
-                        <dd class="font-medium mt-0.5">{{ $documentsComplete ? __('borrower.profile.section_complete') : __('borrower.profile.section_incomplete') }}</dd>
-                    </div>
-                </dl>
-            @endif
+            </x-slot:form>
         </x-site.profile-section-card>
 
         @include('site.borrower.profile._wizard_footer', ['customer' => $customer, 'wizardMode' => $wizardMode ?? false, 'wizardKey' => $wizardKey ?? 'documents'])

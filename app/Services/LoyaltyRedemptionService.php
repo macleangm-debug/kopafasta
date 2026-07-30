@@ -123,6 +123,57 @@ class LoyaltyRedemptionService
         return $redemption ? (float) $redemption->benefit_value : 0.0;
     }
 
+    /**
+     * Best application-fee redemption the customer can claim inline at checkout.
+     * Hidden unless they have enough points and no overlapping active fee reward.
+     *
+     * @return array{key: string, label: string, points: int, benefit_type: string, benefit_value: float, can_redeem: bool, save_estimate: float}|null
+     */
+    public function availableApplicationFeeOption(Customer $customer, float $feeBase = 0): ?array
+    {
+        if ($this->activeForFee($customer, 'application_fee')) {
+            return null;
+        }
+
+        $option = collect($this->redemptionOptions())
+            ->filter(fn (array $row) => ($row['fee_type'] ?? null) === 'application_fee')
+            ->filter(fn (array $row) => in_array(($row['benefit_type'] ?? ''), ['percent_discount', 'fixed_discount'], true))
+            ->sortByDesc(fn (array $row) => (float) ($row['benefit_value'] ?? 0))
+            ->first();
+
+        if (! $option) {
+            return null;
+        }
+
+        $pointsCost = (int) ($option['points'] ?? 0);
+        $balance = $this->points->balance($customer);
+        if ($pointsCost <= 0 || $balance < $pointsCost) {
+            return null;
+        }
+
+        $benefitType = (string) ($option['benefit_type'] ?? 'percent_discount');
+        $benefitValue = (float) ($option['benefit_value'] ?? 0);
+        $saveEstimate = match ($benefitType) {
+            'fixed_discount' => min(max(0, $feeBase), $benefitValue),
+            default => round(max(0, $feeBase) * ($benefitValue / 100), 0),
+        };
+
+        $locale = app()->getLocale();
+        $label = $locale === 'sw' && filled($option['label_sw'] ?? null)
+            ? $option['label_sw']
+            : ($option['label'] ?? $option['key']);
+
+        return [
+            'key'           => (string) ($option['key'] ?? ''),
+            'label'         => (string) $label,
+            'points'        => $pointsCost,
+            'benefit_type'  => $benefitType,
+            'benefit_value' => $benefitValue,
+            'can_redeem'    => true,
+            'save_estimate' => (float) $saveEstimate,
+        ];
+    }
+
     /** @return Collection<int, LoyaltyRedemption> */
     public function activeRewards(Customer $customer): Collection
     {

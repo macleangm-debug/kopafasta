@@ -87,36 +87,55 @@
         $submissions14d = $stats['submissions_14d'] ?? [];
         $disbursements14d = $stats['disbursements_14d'] ?? [];
         $decisions30d = $stats['decisions_30d'] ?? ['approved' => 0, 'rejected' => 0, 'withdrawn' => 0];
+        $portfolioStatus = $stats['portfolio_status'] ?? ['active' => 0, 'arrears' => 0, 'closed' => 0];
         $maxSubmissions = max(1, ...array_column($submissions14d ?: [['count' => 0]], 'count'));
         $maxDisbursements = max(1, ...array_column($disbursements14d ?: [['count' => 0]], 'count'));
+        $maxIntake = max($maxSubmissions, $maxDisbursements);
         $decisionTotal = max(1, array_sum($decisions30d));
+        $approvedCount = (int) ($decisions30d['approved'] ?? 0);
+        $approvalRate = (int) round(($approvedCount / $decisionTotal) * 100);
+        $portfolioTotal = max(1, array_sum($portfolioStatus));
     @endphp
     <div class="grid lg:grid-cols-3 gap-4 mb-6">
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5 lg:col-span-2">
-            <div class="flex items-center justify-between mb-4">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div>
-                    <h2 class="text-sm font-semibold text-gray-900">Submissions · last 14 days</h2>
-                    <p class="text-xs text-gray-500 mt-0.5">Daily application intake for managers</p>
+                    <h2 class="text-sm font-semibold text-gray-900">Intake vs disbursement · 14 days</h2>
+                    <p class="text-xs text-gray-500 mt-0.5">Applications submitted compared with loans disbursed</p>
                 </div>
-                <span class="text-xs font-semibold tabular-nums text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg">
-                    {{ format_number(array_sum(array_column($submissions14d, 'count'))) }} total
-                </span>
+                <div class="flex flex-wrap items-center gap-3 text-[11px] font-semibold">
+                    <span class="inline-flex items-center gap-1.5 text-amber-800"><span class="w-2.5 h-2.5 rounded-sm bg-amber-500"></span> Submissions {{ format_number(array_sum(array_column($submissions14d, 'count'))) }}</span>
+                    <span class="inline-flex items-center gap-1.5 text-teal-800"><span class="w-2.5 h-2.5 rounded-sm bg-teal-500"></span> Disbursed {{ format_number(array_sum(array_column($disbursements14d, 'count'))) }}</span>
+                </div>
             </div>
-            <div class="flex items-end gap-1.5 h-36">
-                @foreach ($submissions14d as $point)
-                    @php $height = max(4, (int) round(($point['count'] / $maxSubmissions) * 100)); @endphp
+            <div class="flex items-end gap-1.5 h-40">
+                @foreach ($submissions14d as $index => $point)
+                    @php
+                        $disb = $disbursements14d[$index]['count'] ?? 0;
+                        $subHeight = max(4, (int) round(($point['count'] / $maxIntake) * 100));
+                        $disbHeight = max($disb > 0 ? 4 : 0, (int) round(($disb / $maxIntake) * 100));
+                    @endphp
                     <div class="flex-1 flex flex-col items-center justify-end h-full gap-1 group">
-                        <span class="text-[10px] font-semibold tabular-nums text-slate-600 opacity-0 group-hover:opacity-100 transition">{{ $point['count'] }}</span>
-                        <div class="w-full rounded-t-md bg-gradient-to-t from-amber-600 to-amber-400" style="height: {{ $height }}%"></div>
+                        <span class="text-[9px] font-semibold tabular-nums text-slate-600 opacity-0 group-hover:opacity-100 transition">{{ $point['count'] }}/{{ $disb }}</span>
+                        <div class="w-full flex items-end justify-center gap-0.5 h-[85%]">
+                            <div class="w-1/2 rounded-t-md bg-gradient-to-t from-amber-600 to-amber-400" style="height: {{ $subHeight }}%"></div>
+                            <div class="w-1/2 rounded-t-md bg-gradient-to-t from-teal-600 to-teal-400" style="height: {{ $disbHeight }}%"></div>
+                        </div>
                         <span class="text-[9px] text-gray-400 {{ $loop->index % 2 === 1 ? 'hidden sm:inline' : '' }}">{{ $point['label'] }}</span>
                     </div>
                 @endforeach
             </div>
         </div>
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5">
-            <div class="mb-4">
-                <h2 class="text-sm font-semibold text-gray-900">Decisions · 30 days</h2>
-                <p class="text-xs text-gray-500 mt-0.5">Approved vs declined outcomes</p>
+            <div class="mb-4 flex items-start justify-between gap-3">
+                <div>
+                    <h2 class="text-sm font-semibold text-gray-900">Decisions · 30 days</h2>
+                    <p class="text-xs text-gray-500 mt-0.5">Approved vs declined outcomes</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-2xl font-black tabular-nums text-emerald-700">{{ $approvalRate }}%</p>
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Approval rate</p>
+                </div>
             </div>
             <div class="space-y-3">
                 @foreach ([
@@ -136,11 +155,20 @@
                 @endforeach
             </div>
             <div class="mt-5 pt-4 border-t border-gray-100">
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">Disbursements · 14d</p>
-                <div class="flex items-end gap-1 h-16">
-                    @foreach ($disbursements14d as $point)
-                        @php $height = max(3, (int) round(($point['count'] / $maxDisbursements) * 100)); @endphp
-                        <div class="flex-1 rounded-t bg-teal-500/80" style="height: {{ $height }}%" title="{{ $point['label'] }}: {{ $point['count'] }}"></div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-3">Portfolio mix</p>
+                <div class="space-y-2">
+                    @foreach ([
+                        ['Active', $portfolioStatus['active'] ?? 0, 'bg-emerald-500'],
+                        ['Arrears', $portfolioStatus['arrears'] ?? 0, 'bg-rose-500'],
+                        ['Closed', $portfolioStatus['closed'] ?? 0, 'bg-slate-400'],
+                    ] as [$label, $count, $bar])
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="w-16 text-gray-600 font-medium">{{ $label }}</span>
+                            <div class="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
+                                <div class="h-full rounded-full {{ $bar }}" style="width: {{ (int) round(($count / $portfolioTotal) * 100) }}%"></div>
+                            </div>
+                            <span class="w-8 text-right font-bold tabular-nums text-gray-900">{{ format_number($count) }}</span>
+                        </div>
                     @endforeach
                 </div>
             </div>

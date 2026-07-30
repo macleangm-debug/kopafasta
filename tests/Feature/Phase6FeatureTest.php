@@ -73,6 +73,72 @@ class Phase6FeatureTest extends TestCase
         $this->assertContains('New Asset Photo', $presets);
     }
 
+    public function test_underwriting_requests_surface_as_guided_borrower_ctas(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $product = LoanProduct::create([
+            'code'              => 'IL-P6-UW',
+            'name'              => 'Installment UW',
+            'is_active'         => true,
+            'interest_rate'     => 0.15,
+            'min_amount'        => 100_000,
+            'max_amount'        => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 24,
+        ]);
+
+        $customer = Customer::create([
+            'customer_number' => 'CU-P6-UW',
+            'type'            => 'individual',
+            'status'          => 'active',
+            'first_name'      => 'Guided',
+            'last_name'       => 'Borrower',
+            'phone'           => '255712345698',
+        ]);
+
+        $application = LoanApplication::create([
+            'customer_id'             => $customer->id,
+            'loan_product_id'         => $product->id,
+            'application_number'      => 'APP-P6-UW',
+            'status'                  => 'submitted',
+            'current_stage'           => 'credit_appraisal',
+            'requested_amount'        => 1_000_000,
+            'requested_tenure_months' => 12,
+        ]);
+
+        $svc = app(ApplicationDocumentRequestService::class);
+        $svc->create($application, $admin, 'Signature Not Visible');
+        $svc->create($application, $admin, 'New face verification photo');
+        $svc->create($application, $admin, 'Updated Bank Statement');
+
+        $application->refresh()->load('documentRequests');
+        $actions = $svc->openGuidedActionsForApplication($application);
+
+        $this->assertCount(3, $actions);
+        $this->assertSame('signature', $actions[0]['kind']);
+        $this->assertStringContainsString('signature', $actions[0]['url']);
+        $this->assertSame('face', $actions[1]['kind']);
+        $this->assertStringContainsString('face', $actions[1]['url']);
+        $this->assertSame('document', $actions[2]['kind']);
+        $this->assertStringContainsString('#request-', $actions[2]['url']);
+
+        $next = app(\App\Services\LoanApplicationNextActionService::class)
+            ->forApplication($customer, $application->fresh());
+
+        $this->assertSame('upload_documents', $next['code']);
+        $this->assertSame($actions[0]['url'], $next['url']);
+        $this->assertSame($actions[0]['cta_label'], $next['button_label']);
+
+        $profile = app(\App\Services\LoanApplicationProfileService::class)
+            ->forApplication($customer, $application->fresh());
+        $this->assertCount(3, $profile['underwriting_actions']);
+
+        $row = app(\App\Services\BorrowerApplicationsDashboardService::class)
+            ->formatSubmitted($application->fresh()->load(['product', 'documentRequests', 'loan']));
+        $this->assertNotEmpty($row['underwriting_actions']);
+        $this->assertSame($actions[0]['url'], $row['action_url']);
+    }
+
     public function test_public_marketplace_hides_internal_deposit_breakdown(): void
     {
         MarketplaceAsset::create([

@@ -23,9 +23,10 @@
         :subtitle="__('borrower.apply.application_fee.subtitle')"
     />
 
-    @if ($applyRequirements && ! ($applyRequirements['can_apply'] ?? true))
-        <x-site.kyc-gate-banner :apply-requirements="$applyRequirements" class="mb-6" />
-    @endif
+    <div x-show="feeNotice" x-cloak class="mb-6 rounded-xl px-4 py-4 text-sm"
+         :class="feeNotice?.tone === 'success' ? 'bg-emerald-50 ring-1 ring-emerald-200 text-emerald-900' : 'bg-rose-50 ring-1 ring-rose-200 text-rose-900'">
+        <p class="font-semibold" x-text="feeNotice?.message"></p>
+    </div>
 
     @if ($paymentGatewayDummy)
         <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 text-sm text-amber-900 mb-6">
@@ -130,8 +131,26 @@
             </div>
         </div>
 
+        <div class="mb-6 rounded-xl bg-brand-muted/30 ring-1 ring-brand/15 px-4 py-4 text-sm text-brand"
+             x-show="feeLoyaltyOption?.can_redeem" x-cloak>
+            <label class="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox"
+                       x-model="feeRedeemLoyalty"
+                       class="mt-1 rounded border-brand/30 text-brand focus:ring-brand">
+                <span>
+                    <span class="font-semibold" x-text="feeLoyaltyOption?.label || @js(__('borrower.apply.application_fee.redeem_loyalty_label'))"></span>
+                    <span class="block mt-1 text-xs text-brand/80"
+                          x-show="estimatedLoyaltySave() > 0"
+                          x-text="@js(__('borrower.apply.application_fee.youll_save')).replace(':amount', formatTzs(estimatedLoyaltySave()))"></span>
+                    <span class="block mt-1 text-xs text-brand/70"
+                          x-text="@js(__('borrower.apply.application_fee.redeem_costs_points')).replace(':points', String(feeLoyaltyOption?.points || 0))"></span>
+                </span>
+            </label>
+        </div>
+
         @if ($hasRewardsCta)
-            <div class="mb-6 rounded-xl bg-brand-muted/30 ring-1 ring-brand/15 px-4 py-3 text-sm text-brand flex flex-wrap items-center justify-between gap-3">
+            <div class="mb-6 rounded-xl bg-brand-muted/30 ring-1 ring-brand/15 px-4 py-3 text-sm text-brand flex flex-wrap items-center justify-between gap-3"
+                 x-show="!feeLoyaltyOption?.can_redeem">
                 <span>
                     @if ($loyaltyPoints > 0)
                         {{ __('borrower.apply.application_fee.loyalty_points_hint', ['points' => number_format($loyaltyPoints)]) }}

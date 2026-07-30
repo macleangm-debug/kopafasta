@@ -123,17 +123,38 @@
                     <p class="text-xs {{ ($row['status'] ?? '') === 'rejected' ? 'text-red-600' : 'text-gray-600' }} mb-3">{{ $row['detail'] }}</p>
                 @endif
 
+                @if (! empty($row['underwriting_actions']))
+                    <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200/80 px-3 py-3">
+                        <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">{{ __('borrower.loan_profile.uw_feedback_title') }}</p>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            @foreach ($row['underwriting_actions'] as $uwAction)
+                                <a href="{{ $uwAction['url'] }}"
+                                   class="inline-flex items-center gap-1.5 rounded-full bg-white ring-1 ring-amber-200 px-3 py-1.5 text-xs font-semibold text-amber-950 hover:bg-amber-100">
+                                    <span>{{ $uwAction['label'] }}</span>
+                                    <span class="text-brand">→ {{ $uwAction['cta_label'] }}</span>
+                                </a>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
                 <div class="flex items-center gap-2 text-xs flex-wrap">
                     <a href="{{ $row['action_url'] }}" class="inline-flex bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2 rounded-xl text-sm">
                         {{ $row['action_label'] }}
                     </a>
+                    @if (! ($row['is_draft'] ?? false) && ! empty($row['underwriting_actions']))
+                        <a href="{{ route('site.borrower.application', $row['id']) }}"
+                           class="inline-flex bg-white hover:bg-brand-muted/30 text-gray-800 font-semibold px-4 py-2 rounded-xl text-sm ring-1 ring-gray-200/80">
+                            {{ __('borrower.applications_list.view') }}
+                        </a>
+                    @endif
                     @if ($row['is_draft'] ?? false)
                         @if (! empty($row['continue_url']))
                             <a href="{{ $row['continue_url'] }}" class="inline-flex bg-white hover:bg-brand-muted/30 text-gray-800 font-semibold px-4 py-2 rounded-xl text-sm ring-1 ring-gray-200/80">
                                 {{ $row['continue_label'] ?? __('borrower.applications_list.continue_application') }}
                             </a>
                         @endif
-                    @elseif (! empty($row['receipt_url']))
+                    @elseif (! empty($row['receipt_url']) && empty($row['underwriting_actions']))
                         <a href="{{ $row['receipt_url'] }}" class="text-gray-500 hover:text-gray-700">{{ __('borrower.applications_list.receipt') }}</a>
                     @endif
                 </div>

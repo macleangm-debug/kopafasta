@@ -53,7 +53,7 @@ class ProfileCompletionService
         $freshness = app(KycFreshnessService::class);
         $staleKeys = $freshness->sectionsDueForRefresh($customer);
 
-        $personalComplete = app(ProfileValidationService::class)->isCorePersonalComplete($customer);
+        $personalComplete = app(ProfileValidationService::class)->isPersonalInfoComplete($customer);
         $requireIdentity = app(IdentityVerificationPolicyService::class)->requiredDuringProfileCreation();
 
         $sections = [

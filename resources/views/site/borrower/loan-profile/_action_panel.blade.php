@@ -6,6 +6,7 @@
     $next = $profile['next_action'] ?? [];
     $isDraft = (bool) ($profile['is_draft'] ?? false);
     $application = $profile['application'] ?? null;
+    $underwritingActions = collect($profile['underwriting_actions'] ?? []);
     $toneClasses = [
         'gray'    => 'bg-gray-100 text-gray-700',
         'amber'   => 'bg-amber-100 text-amber-700',
@@ -32,33 +33,6 @@
     if (! $isDraft && $application && ! $editGuarantorUrl && $guarantorSupplementOpen) {
         $editGuarantorUrl = app(\App\Services\GuarantorSupplementService::class)->borrowerWizardUrl($application);
     }
-
-    $guarantorInvitations = $profile['guarantor_invitations'] ?? collect();
-    $guarantorLinks = $application?->customerGuarantors ?? collect();
-    $guarantorTotal = $guarantorInvitations->count() + $guarantorLinks->reject(
-        fn ($link) => $guarantorInvitations->contains('customer_guarantor_id', $link->id)
-    )->count();
-    $guarantorAccepted = 0;
-    if ($application && ($application->product?->requires_guarantor ?? false)) {
-        $inviteSvc = app(\App\Services\GuarantorInvitationService::class);
-        foreach ($guarantorInvitations as $invite) {
-            $label = strtolower($inviteSvc->invitationWorkflowStatusLabel($invite));
-            if (str_contains($label, 'accepted') || str_contains($label, 'approved')) {
-                $guarantorAccepted++;
-            }
-        }
-        foreach ($guarantorLinks as $link) {
-            if ($guarantorInvitations->contains('customer_guarantor_id', $link->id)) {
-                continue;
-            }
-            $label = strtolower($inviteSvc->guarantorLinkStatusLabel($link));
-            if (str_contains($label, 'accepted') || str_contains($label, 'approved')) {
-                $guarantorAccepted++;
-            }
-        }
-    }
-    $needsGuarantor = $application && ($application->product?->requires_guarantor ?? false);
-    $showChangeGuarantor = $needsGuarantor && $guarantorSupplementOpen;
 @endphp
 
 @if ($isDraft)
@@ -161,34 +135,7 @@
             </div>
         </div>
 
-        <div class="px-5 sm:px-6 py-5 space-y-4">
-            @if ($needsGuarantor)
-                <div class="rounded-xl ring-1 ring-amber-200 bg-gradient-to-br from-amber-50 to-white px-4 py-4">
-                    <div class="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                            <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">{{ __('borrower.application.guarantor_section') }}</p>
-                            <p class="text-sm font-semibold text-amber-950 mt-1">
-                                {{ __('borrower.loan_profile.guarantor_progress', [
-                                    'accepted' => $guarantorAccepted,
-                                    'total' => max(1, $guarantorTotal),
-                                ]) }}
-                            </p>
-                            @if ($guarantorSupplementOpen)
-                                <p class="text-xs text-amber-800 mt-1">{{ __('borrower.guarantor_supplement.borrower_banner') }}</p>
-                            @endif
-                        </div>
-                        @if ($showChangeGuarantor && $editGuarantorUrl)
-                            <a href="{{ $editGuarantorUrl }}"
-                               class="inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shrink-0">
-                                {{ $guarantorSupplementOpen
-                                    ? __('borrower.guarantor_supplement.cta')
-                                    : __('borrower.apply.change_guarantor') }}
-                            </a>
-                        @endif
-                    </div>
-                </div>
-            @endif
-
+        <div class="px-5 sm:px-6 py-5">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                     <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-1">{{ __('borrower.loan_profile.next_action_title') }}</p>
@@ -201,6 +148,41 @@
                     </a>
                 @endif
             </div>
+
+            @if ($underwritingActions->isNotEmpty())
+                <div id="underwriting-requests" class="mt-5 rounded-xl bg-amber-50 ring-1 ring-amber-200/80 px-4 py-4">
+                    <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">{{ __('borrower.loan_profile.uw_feedback_title') }}</p>
+                    <p class="text-xs text-amber-900/80 mt-1">{{ __('borrower.loan_profile.uw_feedback_hint') }}</p>
+                    <div class="mt-3 flex flex-col gap-2">
+                        @foreach ($underwritingActions as $action)
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg bg-white/90 ring-1 ring-amber-100 px-3 py-2.5">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-gray-900">{{ $action['label'] }}</p>
+                                    @if (! empty($action['instructions']))
+                                        <p class="text-xs text-gray-600 mt-0.5 line-clamp-2">{{ $action['instructions'] }}</p>
+                                    @endif
+                                    @if (! empty($action['rejected']))
+                                        <p class="text-[11px] font-semibold text-red-700 mt-1">{{ __('borrower.loan_profile.uw_rejected_hint') }}</p>
+                                    @endif
+                                </div>
+                                <a href="{{ $action['url'] }}"
+                                   class="inline-flex items-center justify-center shrink-0 font-bold px-4 py-2 rounded-xl text-sm bg-brand-gold hover:bg-yellow-400 text-brand">
+                                    {{ $action['cta_label'] }}
+                                </a>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            @if ($editGuarantorUrl && $guarantorSupplementOpen)
+                <div class="mt-4">
+                    <a href="{{ $editGuarantorUrl }}"
+                       class="inline-flex text-xs font-semibold text-brand bg-brand-muted/40 ring-1 ring-brand/20 hover:bg-brand-muted px-3 py-2 rounded-lg">
+                        {{ __('borrower.guarantor_supplement.cta') }}
+                    </a>
+                </div>
+            @endif
         </div>
     </div>
 @endif

@@ -333,6 +333,14 @@ class ApplyController extends Controller
             $loyaltyRedemptions = app(\App\Services\LoyaltyRedemptionService::class);
             $activeRewards = $loyaltyRedemptions->activeRewards($customer);
             $loyaltyRateDiscount = $loyaltyRedemptions->additionalRateDiscount($customer);
+            $feeLoyaltyOption = $loyaltyRedemptions->availableApplicationFeeOption(
+                $customer,
+                (float) ($feeQuote['base'] ?? $applicationFee ?? 0)
+            );
+            $returnTo = $request->query('return_to');
+            if (! is_string($returnTo) || $returnTo === '' || strlen($returnTo) > 64) {
+                $returnTo = null;
+            }
         } catch (\Throwable $e) {
             report($e);
 
@@ -376,6 +384,8 @@ class ApplyController extends Controller
             'pointsBalance',
             'activeRewards',
             'loyaltyRateDiscount',
+            'feeLoyaltyOption',
+            'returnTo',
             'supplementMode',
             'supplementApplication',
         ))->with('paymentGatewayDummy', payment_gateway_is_dummy())
@@ -883,6 +893,8 @@ class ApplyController extends Controller
             'use_wallet'      => ['nullable', 'boolean'],
             'promo_code'      => ['nullable', 'string', 'max:40'],
             'affiliate_code'  => ['nullable', 'string', 'max:40'],
+            'redeem_loyalty'  => ['nullable', 'boolean'],
+            'loyalty_option_key' => ['nullable', 'string', 'max:64'],
         ]);
 
         $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
@@ -891,6 +903,22 @@ class ApplyController extends Controller
         $memberCount = $groups->isGroupProduct($product)
             ? $groups->memberCountFromPayload($draft?->payload['group'] ?? null)
             : 1;
+
+        $loyaltyRedeemed = false;
+        if ($request->boolean('redeem_loyalty') && filled($data['loyalty_option_key'] ?? null)) {
+            try {
+                app(\App\Services\LoyaltyRedemptionService::class)
+                    ->redeem($customer, (string) $data['loyalty_option_key']);
+                $loyaltyRedeemed = true;
+                $customer->refresh();
+            } catch (\InvalidArgumentException $e) {
+                if ($request->expectsJson()) {
+                    return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
+                }
+
+                return back()->with('error', $e->getMessage());
+            }
+        }
 
         $amount = $groups->isGroupProduct($product)
             ? $groups->quotedApplicationFee($customer, $product, $memberCount)
@@ -935,7 +963,13 @@ class ApplyController extends Controller
                 : __('borrower.apply.application_fee.paid');
 
             if ($request->expectsJson()) {
-                return response()->json(['ok' => true, 'fee' => $feeState, 'message' => $message, 'dummy' => $dummyGateway]);
+                return response()->json([
+                    'ok' => true,
+                    'fee' => $feeState,
+                    'message' => $message,
+                    'dummy' => $dummyGateway,
+                    'loyalty_redeemed' => $loyaltyRedeemed,
+                ]);
             }
 
             return back()->with('status', $message);
@@ -966,6 +1000,7 @@ class ApplyController extends Controller
                 'fee'     => $feeState,
                 'message' => $bankMessage,
                 'dummy'   => $dummyGateway,
+                'loyalty_redeemed' => $loyaltyRedeemed,
             ]);
         }
 

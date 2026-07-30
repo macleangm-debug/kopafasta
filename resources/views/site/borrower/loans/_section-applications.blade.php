@@ -56,6 +56,21 @@
                         <p class="text-xs {{ ($row['status'] ?? '') === 'rejected' ? 'text-red-600' : 'text-gray-600' }} mb-3">{{ $row['detail'] }}</p>
                     @endif
 
+                    @if (! empty($row['underwriting_actions']))
+                        <div class="mb-3 rounded-xl bg-amber-50 ring-1 ring-amber-200/80 px-3 py-3">
+                            <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">{{ __('borrower.loan_profile.uw_feedback_title') }}</p>
+                            <div class="mt-2 flex flex-wrap gap-2">
+                                @foreach ($row['underwriting_actions'] as $uwAction)
+                                    <a href="{{ $uwAction['url'] }}"
+                                       class="inline-flex items-center gap-1.5 rounded-full bg-white ring-1 ring-amber-200 px-3 py-1.5 text-xs font-semibold text-amber-950 hover:bg-amber-100">
+                                        <span>{{ $uwAction['label'] }}</span>
+                                        <span class="text-brand">→ {{ $uwAction['cta_label'] }}</span>
+                                    </a>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
                     <a href="{{ $row['action_url'] }}" class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2 rounded-full text-sm">
                         {{ $row['action_label'] }}
                     </a>

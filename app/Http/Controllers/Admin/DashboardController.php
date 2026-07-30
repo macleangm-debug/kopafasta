@@ -58,6 +58,7 @@ class DashboardController extends Controller
             'decisions_30d'          => $this->decisionCounts(30),
             'submissions_14d'        => $this->dailySubmissionSeries(14),
             'disbursements_14d'      => $this->dailyDisbursementSeries(14),
+            'portfolio_status'       => $this->portfolioStatusCounts(),
         ];
 
         $recentApplications = LoanApplication::query()
@@ -117,6 +118,22 @@ class DashboardController extends Controller
             ->pluck('aggregate', 'day');
 
         return $this->fillDailySeries($days, $raw);
+    }
+
+    /** @return array{active: int, arrears: int, closed: int} */
+    private function portfolioStatusCounts(): array
+    {
+        $rows = Loan::query()
+            ->selectRaw('status, COUNT(*) as aggregate')
+            ->whereIn('status', ['active', 'arrears', 'closed', 'disbursed'])
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
+
+        return [
+            'active'  => (int) ($rows['active'] ?? 0) + (int) ($rows['disbursed'] ?? 0),
+            'arrears' => (int) ($rows['arrears'] ?? 0),
+            'closed'  => (int) ($rows['closed'] ?? 0),
+        ];
     }
 
     /**

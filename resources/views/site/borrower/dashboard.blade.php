@@ -48,13 +48,25 @@
     @endif
 
     @if (($openDocumentRequests ?? collect())->isNotEmpty())
-        @php $firstDocRequest = $openDocumentRequests->first(); @endphp
+        @php
+            $firstDocRequest = $openDocumentRequests->first();
+            $docRequestSvc = app(\App\Services\ApplicationDocumentRequestService::class);
+            $firstGuided = $firstDocRequest ? $docRequestSvc->borrowerGuidedAction($firstDocRequest) : null;
+        @endphp
         <div class="mb-6 rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
                 <p class="text-sm font-semibold text-sky-900">{{ __('borrower.dashboard.document_requests_title') }}</p>
                 <p class="text-xs text-sky-800 mt-1">{{ __('borrower.dashboard.document_requests_body', ['count' => $openDocumentRequests->count()]) }}</p>
+                @if ($firstGuided)
+                    <p class="text-xs text-sky-900/80 mt-1 font-medium">{{ $firstGuided['label'] }}</p>
+                @endif
             </div>
-            @if ($firstDocRequest?->application)
+            @if ($firstGuided)
+                <a href="{{ $firstGuided['url'] }}"
+                   class="inline-flex items-center justify-center shrink-0 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm">
+                    {{ $firstGuided['cta_label'] }}
+                </a>
+            @elseif ($firstDocRequest?->application)
                 <a href="{{ route('site.borrower.application', $firstDocRequest->application) }}"
                    class="text-sm font-semibold text-sky-900 hover:underline shrink-0">{{ __('borrower.dashboard.document_requests_cta') }}</a>
             @endif

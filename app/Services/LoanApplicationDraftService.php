@@ -165,6 +165,7 @@ class LoanApplicationDraftService
             'phase'       => $target['phase'] ?? null,
             'step'        => array_key_exists('step', $target) ? (int) $target['step'] : null,
             'step_key'    => $target['step_key'] ?? null,
+            'return_to'   => $target['return_to'] ?? null,
         ], fn ($value) => $value !== null && $value !== '');
 
         return route('site.borrower.apply', $params);
@@ -172,12 +173,17 @@ class LoanApplicationDraftService
 
     /**
      * Build a resume wizard URL that jumps to a specific step without duplicating query params.
+     * When editing from Review/Submit, pass return_to so Continue returns there.
      *
-     * @param  array{phase?: string, step_key?: string|null, step?: int, reason?: string|null}  $baseTarget
+     * @param  array{phase?: string, step_key?: string|null, step?: int, reason?: string|null, return_to?: string|null}  $baseTarget
      */
     public function wizardApplyUrlForStep(LoanApplicationDraft $draft, string $stepKey, array $baseTarget = []): string
     {
         $target = $baseTarget;
+        $currentKey = $target['step_key'] ?? null;
+        if (is_string($currentKey) && $currentKey !== '' && $currentKey !== $stepKey) {
+            $target['return_to'] = $currentKey;
+        }
         $target['step_key'] = $stepKey;
         unset($target['step']);
 

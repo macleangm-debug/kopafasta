@@ -102,14 +102,76 @@ class ApplicationDocumentRequestService
 
     public function isProfileGuidedRequest(LoanApplicationDocumentRequest $request): bool
     {
+        return in_array($this->borrowerActionKind($request), ['signature', 'face', 'identity'], true);
+    }
+
+    /** Classify UW requests for borrower CTAs (docs, signature, face, identity, clarification). */
+    public function borrowerActionKind(LoanApplicationDocumentRequest $request): string
+    {
         $label = mb_strtolower((string) $request->label);
 
-        return str_contains($label, 'signature')
-            || str_contains($label, 'national id')
-            || str_contains($label, 'nida')
-            || str_contains($label, 'face')
-            || str_contains($label, 'selfie')
-            || str_contains($label, 'identity verification photo');
+        if (str_contains($label, 'signature')) {
+            return 'signature';
+        }
+        if (str_contains($label, 'face') || str_contains($label, 'selfie') || str_contains($label, 'identity verification photo')) {
+            return 'face';
+        }
+        if (str_contains($label, 'national id') || str_contains($label, 'nida')) {
+            return 'identity';
+        }
+        if ($request->type === 'clarification') {
+            return 'clarification';
+        }
+
+        return 'document';
+    }
+
+    /**
+     * Guided CTA payload for View Application / loan preview cards.
+     *
+     * @return array{id: int, kind: string, label: string, cta_label: string, url: string, status: string, rejected: bool, instructions: ?string}
+     */
+    public function borrowerGuidedAction(LoanApplicationDocumentRequest $request): array
+    {
+        $kind = $this->borrowerActionKind($request);
+        $rejected = $request->status === 'rejected';
+
+        $ctaLabel = match ($kind) {
+            'signature' => __('borrower.loan_profile.uw_cta.update_signature'),
+            'face' => __('borrower.loan_profile.uw_cta.recapture_face'),
+            'identity' => __('borrower.loan_profile.uw_cta.update_identity'),
+            'clarification' => __('borrower.loan_profile.uw_cta.respond'),
+            default => $rejected
+                ? __('borrower.loan_profile.reupload')
+                : __('borrower.loan_profile.upload'),
+        };
+
+        return [
+            'id'           => (int) $request->id,
+            'kind'         => $kind,
+            'label'        => (string) $request->label,
+            'cta_label'    => $ctaLabel,
+            'url'          => $this->borrowerActionUrl($request),
+            'status'       => (string) $request->status,
+            'rejected'     => $rejected,
+            'instructions' => $request->instructions,
+        ];
+    }
+
+    /**
+     * Open underwriting requests as guided borrower CTAs (pending / rejected).
+     *
+     * @return list<array{id: int, kind: string, label: string, cta_label: string, url: string, status: string, rejected: bool, instructions: ?string}>
+     */
+    public function openGuidedActionsForApplication(LoanApplication $application): array
+    {
+        $application->loadMissing('documentRequests');
+
+        return $application->documentRequests
+            ->filter(fn (LoanApplicationDocumentRequest $request) => $request->needsBorrowerAction())
+            ->values()
+            ->map(fn (LoanApplicationDocumentRequest $request) => $this->borrowerGuidedAction($request))
+            ->all();
     }
 
     public function __construct(private readonly NotificationService $notifier) {}

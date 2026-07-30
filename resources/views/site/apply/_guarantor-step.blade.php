@@ -140,7 +140,15 @@
                     <p class="font-semibold">{{ __('borrower.apply.alerts.guarantor_verified') }}</p>
                     <p class="mt-1" x-text="guarantorLookup.label"></p>
                 </div>
-                <p x-show="guarantorLookup.error" x-cloak class="text-sm text-red-700" x-text="guarantorLookup.error"></p>
+                <div x-show="guarantorValidating" x-cloak class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-sm text-sky-900">
+                    <p class="font-semibold">{{ __('borrower.apply.guarantor_fields.validating') }}</p>
+                    <p class="mt-1 text-sky-800">{{ __('borrower.apply.guarantor_fields.validating_hint') }}</p>
+                </div>
+                <div x-show="guarantorLookup.error && !guarantorLookup.ok && !guarantorValidating" x-cloak
+                     class="rounded-xl bg-rose-50 ring-1 ring-rose-200 px-4 py-3 text-sm text-rose-900">
+                    <p class="font-semibold">{{ __('borrower.apply.guarantor_fields.validation_failed_title') }}</p>
+                    <p class="mt-1" x-text="guarantorLookup.error"></p>
+                </div>
                 <p class="text-xs text-gray-500">{{ __('borrower.apply.guarantor_fields.membership_hint_short') }}</p>
                 <button type="button"
                         @click="validateInternalGuarantor()"
@@ -218,6 +226,18 @@
                             </template>
                         </select>
                         <p x-show="guarantorErrors.external_district" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.external_district"></p>
+                    </div>
+                </div>
+                <div class="sm:col-span-2" x-show="guarantorInvitePreparing" x-cloak>
+                    <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-sm text-sky-900">
+                        <p class="font-semibold">{{ __('borrower.apply.guarantor_fields.generating_link') }}</p>
+                        <p class="mt-1 text-sky-800">{{ __('borrower.apply.guarantor_fields.generating_link_hint') }}</p>
+                    </div>
+                </div>
+                <div class="sm:col-span-2" x-show="guarantorInviteError && !guarantorInvitePreparing" x-cloak>
+                    <div class="rounded-xl bg-rose-50 ring-1 ring-rose-200 px-4 py-3 text-sm text-rose-900">
+                        <p class="font-semibold">{{ __('borrower.apply.guarantor_fields.invite_failed_title') }}</p>
+                        <p class="mt-1" x-text="guarantorInviteError"></p>
                     </div>
                 </div>
                 <div class="sm:col-span-2" x-show="isExternalGuarantorComplete() && !externalGuarantor?.invitation_url">
