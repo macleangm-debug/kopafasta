@@ -10,16 +10,16 @@ return new class extends Migration
     {
         Schema::table('customers', function (Blueprint $table): void {
             if (! Schema::hasColumn('customers', 'middle_name')) {
-                $table->string('middle_name', 60)->nullable()->after('first_name');
+                $table->string('middle_name', 60)->nullable();
             }
         });
 
         Schema::table('notification_logs', function (Blueprint $table): void {
             if (! Schema::hasColumn('notification_logs', 'read_at')) {
-                $table->timestamp('read_at')->nullable()->after('sent_at');
+                $table->timestamp('read_at')->nullable();
             }
             if (! Schema::hasColumn('notification_logs', 'category')) {
-                $table->string('category', 40)->nullable()->after('template');
+                $table->string('category', 40)->nullable();
             }
         });
     }

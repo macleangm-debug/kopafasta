@@ -15,16 +15,16 @@ return new class extends Migration
 
         Schema::table('loan_product_rate_tiers', function (Blueprint $table): void {
             if (! Schema::hasColumn('loan_product_rate_tiers', 'bot_regulated_rate')) {
-                $table->decimal('bot_regulated_rate', 8, 4)->nullable()->after('max_amount');
+                $table->decimal('bot_regulated_rate', 8, 4)->nullable();
             }
             if (! Schema::hasColumn('loan_product_rate_tiers', 'processing_fee_rate')) {
-                $table->decimal('processing_fee_rate', 8, 4)->default(0)->after('bot_regulated_rate');
+                $table->decimal('processing_fee_rate', 8, 4)->default(0);
             }
             if (! Schema::hasColumn('loan_product_rate_tiers', 'service_fee_rate')) {
-                $table->decimal('service_fee_rate', 8, 4)->default(0)->after('processing_fee_rate');
+                $table->decimal('service_fee_rate', 8, 4)->default(0);
             }
             if (! Schema::hasColumn('loan_product_rate_tiers', 'administration_fee_rate')) {
-                $table->decimal('administration_fee_rate', 8, 4)->default(0)->after('service_fee_rate');
+                $table->decimal('administration_fee_rate', 8, 4)->default(0);
             }
         });
 

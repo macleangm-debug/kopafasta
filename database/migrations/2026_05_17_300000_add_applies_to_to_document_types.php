@@ -10,7 +10,7 @@ return new class extends Migration {
     {
         Schema::table('document_types', function (Blueprint $table) {
             // any | individual | business | group
-            $table->string('applies_to', 20)->default('any')->after('category');
+            $table->string('applies_to', 20)->default('any');
             $table->index(['category', 'applies_to']);
         });
 

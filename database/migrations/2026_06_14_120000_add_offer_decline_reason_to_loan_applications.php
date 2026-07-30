@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('loan_applications', function (Blueprint $table) {
             if (! Schema::hasColumn('loan_applications', 'offer_decline_reason')) {
-                $table->text('offer_decline_reason')->nullable()->after('offer_responded_at');
+                $table->text('offer_decline_reason')->nullable();
             }
         });
     }

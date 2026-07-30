@@ -10,10 +10,10 @@ return new class extends Migration
     {
         Schema::table('loan_agreements', function (Blueprint $table): void {
             if (! Schema::hasColumn('loan_agreements', 'expires_at')) {
-                $table->timestamp('expires_at')->nullable()->after('sent_at');
+                $table->timestamp('expires_at')->nullable();
             }
             if (! Schema::hasColumn('loan_agreements', 'acceptance_signature_data')) {
-                $table->text('acceptance_signature_data')->nullable()->after('signature_method');
+                $table->text('acceptance_signature_data')->nullable();
             }
         });
     }

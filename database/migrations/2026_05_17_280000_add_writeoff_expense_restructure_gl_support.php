@@ -22,7 +22,7 @@ return new class extends Migration
 
         Schema::table('expenses', function (Blueprint $table) {
             if (!Schema::hasColumn('expenses', 'gl_account_id')) {
-                $table->unsignedBigInteger('gl_account_id')->nullable()->after('vendor_id');
+                $table->unsignedBigInteger('gl_account_id')->nullable();
             }
             if (!Schema::hasColumn('expenses', 'journal_posted_at')) {
                 $table->timestamp('journal_posted_at')->nullable();

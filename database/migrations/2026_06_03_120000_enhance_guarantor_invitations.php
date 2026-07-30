@@ -10,13 +10,13 @@ return new class extends Migration
     {
         Schema::table('guarantor_invitations', function (Blueprint $table) {
             if (! Schema::hasColumn('guarantor_invitations', 'short_code')) {
-                $table->string('short_code', 12)->nullable()->unique()->after('token');
+                $table->string('short_code', 12)->nullable()->unique();
             }
             if (! Schema::hasColumn('guarantor_invitations', 'requested_amount')) {
-                $table->unsignedInteger('requested_amount')->nullable()->after('invitee_name');
+                $table->unsignedInteger('requested_amount')->nullable();
             }
             if (! Schema::hasColumn('guarantor_invitations', 'requested_tenure_months')) {
-                $table->unsignedSmallInteger('requested_tenure_months')->nullable()->after('requested_amount');
+                $table->unsignedSmallInteger('requested_tenure_months')->nullable();
             }
         });
     }

@@ -23,9 +23,9 @@ return new class extends Migration
         });
 
         Schema::table('customers', function (Blueprint $table): void {
-            $table->string('face_verification_status')->default('incomplete')->after('identity_locked');
-            $table->timestamp('face_verified_at')->nullable()->after('face_verification_status');
-            $table->text('face_rejection_notes')->nullable()->after('face_verified_at');
+            $table->string('face_verification_status')->default('incomplete');
+            $table->timestamp('face_verified_at')->nullable();
+            $table->text('face_rejection_notes')->nullable();
         });
     }
 

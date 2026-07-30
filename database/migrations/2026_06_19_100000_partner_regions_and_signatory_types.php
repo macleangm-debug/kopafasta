@@ -10,16 +10,16 @@ return new class extends Migration
     {
         Schema::table('vendors', function (Blueprint $table): void {
             if (! Schema::hasColumn('vendors', 'regions')) {
-                $table->json('regions')->nullable()->after('address');
+                $table->json('regions')->nullable();
             }
         });
 
         Schema::table('company_signatories', function (Blueprint $table): void {
             if (! Schema::hasColumn('company_signatories', 'signatory_type')) {
-                $table->string('signatory_type', 40)->default('company')->after('email');
+                $table->string('signatory_type', 40)->default('company');
             }
             if (! Schema::hasColumn('company_signatories', 'stamp_path')) {
-                $table->string('stamp_path')->nullable()->after('signature_path');
+                $table->string('stamp_path')->nullable();
             }
         });
     }

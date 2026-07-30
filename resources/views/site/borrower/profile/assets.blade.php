@@ -3,10 +3,11 @@
     @php
         $adding = request()->boolean('add') || filled(old('asset_type'));
         $selectedType = old('asset_type', request('type'));
-        $typeIcons = ['vehicle' => '🚗', 'house' => '🏠', 'land' => '🌍', 'equipment' => '⚙️'];
+        $typeIcons = \App\Models\CustomerAsset::typeIcons();
+        $detailFields = $selectedType ? \App\Models\CustomerAsset::detailFieldsFor($selectedType) : [];
     @endphp
 
-    <div>
+    <div x-data="{ addOpen: false, openAsset: null, lightbox: null }">
         @include('site.borrower.profile._profile_shell', [
             'title' => __('borrower.profile.my_collaterals'),
             'subtitle' => __('borrower.profile.my_assets_hint'),
@@ -15,21 +16,42 @@
         ])
 
         @if ($adding && $selectedType)
-            <x-site.profile-section-card :title="__('borrower.profile.add_asset').': '.($assetTypes[$selectedType] ?? $selectedType)">
-                <form method="POST" action="{{ route('site.borrower.profile.assets.store') }}" enctype="multipart/form-data" class="space-y-5"
+            {{-- ============ Item 18: type-specific add form ============ --}}
+            <x-site.profile-section-card :title="($typeIcons[$selectedType] ?? '📦').'  '.__('borrower.profile.add_asset').': '.($assetTypes[$selectedType] ?? $selectedType)">
+                <form method="POST" action="{{ route('site.borrower.profile.assets.store') }}" enctype="multipart/form-data" class="space-y-6"
                       x-data="{ saving: false }"
                       @submit="saving = true">
                     @csrf
                     <input type="hidden" name="asset_type" value="{{ $selectedType }}">
+
                     <div class="grid sm:grid-cols-2 gap-4">
                         <div class="sm:col-span-2">
-                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.asset_label') }}</label>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.asset_label') }} <span class="text-red-500">*</span></label>
                             <input type="text" name="label" value="{{ old('label') }}" required maxlength="150"
+                                   placeholder="{{ __('borrower.profile.asset_label_placeholder') }}"
                                    class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                         </div>
+
+                        @foreach ($detailFields as $field)
+                            @php
+                                $fieldKey = $field['key'];
+                                $isColumn = $field['column'] ?? false;
+                                $inputName = $isColumn ? $fieldKey : 'details['.$fieldKey.']';
+                                $oldVal = $isColumn ? old($fieldKey) : old('details.'.$fieldKey);
+                                $fieldLabel = __('borrower.profile.collateral_fields.'.$fieldKey);
+                            @endphp
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ $fieldLabel }}</label>
+                                <input type="{{ $field['type'] === 'number' ? 'number' : 'text' }}"
+                                       @if ($field['type'] === 'number') inputmode="numeric" min="0" @endif
+                                       name="{{ $inputName }}" value="{{ $oldVal }}" maxlength="150"
+                                       class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                            </div>
+                        @endforeach
+
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.registration_number') }}</label>
-                            <input type="text" name="registration_number" value="{{ old('registration_number') }}" maxlength="80"
+                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.estimated_value') }}</label>
+                            <input type="number" name="estimated_value" value="{{ old('estimated_value') }}" min="0" inputmode="numeric"
                                    class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                         </div>
                         <div class="sm:col-span-2">
@@ -38,31 +60,41 @@
                         </div>
                     </div>
 
-                    <div class="grid sm:grid-cols-2 gap-4 pt-2 border-t border-gray-100">
-                        @php
-                            $photoSlots = [
-                                ['key' => 0, 'label' => __('borrower.profile.asset_photo_front'), 'required' => true],
-                                ['key' => 1, 'label' => __('borrower.profile.asset_photo_back'), 'required' => true],
-                                ['key' => 2, 'label' => __('borrower.profile.asset_photo_side'), 'required' => false],
-                                ['key' => 3, 'label' => __('borrower.profile.asset_photo_angle'), 'required' => false],
-                            ];
-                        @endphp
-                        @foreach ($photoSlots as $slot)
-                            <div class="rounded-xl ring-1 ring-gray-200 p-4">
-                                <label class="text-xs font-semibold text-gray-700 mb-3 block">
-                                    {{ $slot['label'] }}
-                                    @if ($slot['required']) <span class="text-red-500">*</span> @endif
-                                </label>
-                                <x-site.single-image-document-upload :name="'photos['.$slot['key'].']'" />
-                            </div>
-                        @endforeach
+                    {{-- ============ Item 19: 2 × 3 photo grid ============ --}}
+                    <div class="pt-4 border-t border-gray-100">
+                        <p class="text-sm font-semibold text-gray-800">{{ __('borrower.profile.collateral_gallery') }}</p>
+                        <p class="text-xs text-gray-500 mb-3">{{ __('borrower.profile.collateral_photos_hint') }}</p>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            @php
+                                $photoSlots = [
+                                    ['key' => 0, 'label' => __('borrower.profile.asset_photo_front'), 'required' => true],
+                                    ['key' => 1, 'label' => __('borrower.profile.asset_photo_back'), 'required' => true],
+                                    ['key' => 2, 'label' => __('borrower.profile.asset_photo_side'), 'required' => false],
+                                    ['key' => 3, 'label' => __('borrower.profile.asset_photo_angle'), 'required' => false],
+                                    ['key' => 4, 'label' => __('borrower.profile.asset_photo').' 5', 'required' => false],
+                                    ['key' => 5, 'label' => __('borrower.profile.asset_photo').' 6', 'required' => false],
+                                ];
+                            @endphp
+                            @foreach ($photoSlots as $slot)
+                                <div class="rounded-xl ring-1 ring-gray-200 p-3">
+                                    <label class="text-[11px] font-semibold text-gray-700 mb-2 block">
+                                        {{ $slot['label'] }}
+                                        @if ($slot['required']) <span class="text-red-500">*</span> @endif
+                                    </label>
+                                    <x-site.single-image-document-upload :name="'photos['.$slot['key'].']'" />
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div class="grid sm:grid-cols-2 gap-3">
                         <div class="rounded-xl ring-1 ring-gray-200 p-4">
                             <label class="text-xs font-semibold text-gray-700 mb-3 block">
                                 {{ __('borrower.profile.person_with_asset') }} <span class="text-red-500">*</span>
                             </label>
                             <x-site.single-image-document-upload name="person_photo" />
                         </div>
-                        <div class="rounded-xl ring-1 ring-gray-200 p-4 sm:col-span-2">
+                        <div class="rounded-xl ring-1 ring-gray-200 p-4">
                             <label class="text-xs font-semibold text-gray-700 mb-3 block">
                                 {{ __('borrower.profile.ownership_document') }} <span class="text-red-500">*</span>
                             </label>
@@ -77,69 +109,212 @@
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
                             </svg>
-                            <span x-text="saving ? @js(__('borrower.profile.saving') ?? 'Saving…') : @js(__('borrower.profile.save_asset'))"></span>
+                            <span x-text="saving ? @js(__('borrower.profile.saving')) : @js(__('borrower.profile.save_asset'))"></span>
                         </button>
                         <a href="{{ route('site.borrower.profile', ['section' => 'assets']) }}" class="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50">{{ __('borrower.profile.cancel') }}</a>
                     </div>
                 </form>
             </x-site.profile-section-card>
-        @elseif (! $adding)
+        @else
+            {{-- ============ Item 17: swipeable collateral cards ============ --}}
             @if ($assets->isNotEmpty())
-                <div class="space-y-4 mb-8">
+                <div class="flex items-center justify-between mb-3">
+                    <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">
+                        {{ __('borrower.profile.collateral_count', ['count' => $assets->count()]) }}
+                    </p>
+                </div>
+                <div class="-mx-1 px-1 flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 mb-6"
+                     style="scrollbar-width: thin;">
                     @foreach ($assets as $asset)
-                        @php $meta = $asset->metadata ?? []; @endphp
-                        <x-site.profile-section-card :title="$asset->label" :complete="true">
-                            <p class="text-xs uppercase tracking-widest text-gray-500 mb-2">{{ $assetTypes[$asset->asset_type] ?? $asset->asset_type }}</p>
-                            @if ($asset->registration_number)
-                                <p class="text-sm font-mono text-gray-700">{{ $asset->registration_number }}</p>
-                            @endif
-                            @if ($asset->estimated_value)
-                                <p class="text-sm text-gray-600 mt-1">{{ format_money($asset->estimated_value) }}</p>
-                            @endif
-                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
-                                @foreach ($asset->photo_paths ?? [] as $i => $path)
-                                    <div>
-                                        <p class="text-[10px] text-gray-500 mb-1">{{ __('borrower.profile.asset_photo') }} {{ $i + 1 }}</p>
-                                        <img src="{{ asset('storage/'.$path) }}" alt="" class="w-full h-20 object-cover rounded-lg ring-1 ring-gray-100">
-                                    </div>
-                                @endforeach
-                                @if ($meta['person_with_asset_path'] ?? null)
-                                    <div>
-                                        <p class="text-[10px] text-gray-500 mb-1">{{ __('borrower.profile.person_with_asset') }}</p>
-                                        <img src="{{ asset('storage/'.$meta['person_with_asset_path']) }}" alt="" class="w-full h-20 object-cover rounded-lg ring-1 ring-gray-100">
-                                    </div>
-                                @endif
-                                @if ($meta['ownership_document_path'] ?? null)
-                                    <div>
-                                        <p class="text-[10px] text-gray-500 mb-1">{{ __('borrower.profile.ownership_document') }}</p>
-                                        @if (str_ends_with(strtolower($meta['ownership_document_path']), '.pdf'))
-                                            <a href="{{ asset('storage/'.$meta['ownership_document_path']) }}" target="_blank" class="text-xs text-brand font-semibold">{{ __('borrower.profile.view_document') }}</a>
-                                        @else
-                                            <img src="{{ asset('storage/'.$meta['ownership_document_path']) }}" alt="" class="w-full h-20 object-cover rounded-lg ring-1 ring-gray-100">
-                                        @endif
-                                    </div>
-                                @endif
+                        @php
+                            $thumb = $asset->thumbnailPath();
+                            $gallery = $asset->galleryPaths();
+                        @endphp
+                        <div class="snap-start shrink-0 w-[80%] sm:w-72">
+                            <div class="glass-card overflow-hidden ring-1 ring-gray-200/80 h-full flex flex-col">
+                                <div class="relative h-40 bg-gradient-to-br from-brand-muted/60 to-white">
+                                    @if ($thumb)
+                                        <img src="{{ asset('storage/'.$thumb) }}" alt="" class="absolute inset-0 h-full w-full object-cover">
+                                    @else
+                                        <span class="absolute inset-0 grid place-items-center text-5xl" aria-hidden="true">{{ $typeIcons[$asset->asset_type] ?? '📦' }}</span>
+                                    @endif
+                                    <span class="absolute top-3 left-3 inline-flex items-center gap-1 text-[11px] font-semibold bg-white/90 backdrop-blur px-2.5 py-1 rounded-full text-gray-800 ring-1 ring-black/5">
+                                        {{ $typeIcons[$asset->asset_type] ?? '📦' }} {{ $assetTypes[$asset->asset_type] ?? $asset->asset_type }}
+                                    </span>
+                                    <span class="absolute top-3 right-3 inline-flex items-center gap-1 text-[11px] font-semibold bg-emerald-500/90 text-white px-2.5 py-1 rounded-full">
+                                        {{ __('borrower.profile.collateral_status_active') }}
+                                    </span>
+                                    @if (count($gallery) > 1)
+                                        <span class="absolute bottom-3 right-3 text-[11px] font-semibold bg-black/55 text-white px-2 py-0.5 rounded-full">
+                                            {{ count($gallery) }} 📷
+                                        </span>
+                                    @endif
+                                </div>
+                                <div class="p-4 flex-1 flex flex-col">
+                                    <h3 class="font-bold text-gray-900 truncate">{{ $asset->label }}</h3>
+                                    <p class="text-sm text-brand font-semibold mt-1 tabular-nums">
+                                        {{ $asset->estimated_value ? format_money($asset->estimated_value) : __('borrower.profile.no_value_set') }}
+                                    </p>
+                                    <button type="button" @click="openAsset = {{ $asset->id }}"
+                                            class="mt-4 inline-flex items-center justify-center w-full bg-gray-900 hover:bg-black text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                                        {{ __('borrower.profile.view_manage') }}
+                                    </button>
+                                </div>
                             </div>
-                            <form method="POST" action="{{ route('site.borrower.profile.assets.destroy', $asset) }}" class="mt-4"
-                                  @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.remove_asset_confirm')), message: '', confirmLabel: @js(__('borrower.profile.remove_asset')), confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">{{ __('borrower.profile.remove_asset') }}</button>
-                            </form>
-                        </x-site.profile-section-card>
+                        </div>
                     @endforeach
                 </div>
             @endif
 
-            <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-3">{{ __('borrower.profile.choose_asset_type') }}</p>
-            <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                @foreach ($assetTypes as $key => $label)
-                    <a href="{{ route('site.borrower.profile', ['section' => 'assets', 'add' => 1, 'type' => $key]) }}"
-                       class="group rounded-2xl ring-1 ring-gray-200/80 p-5 hover:ring-brand/40 hover:shadow-md transition bg-white text-center">
-                        <span class="text-3xl block mb-3" aria-hidden="true">{{ $typeIcons[$key] ?? '📦' }}</span>
-                        <h3 class="font-bold text-gray-900 group-hover:text-brand">{{ $label }}</h3>
-                        <p class="mt-2 text-xs font-semibold text-brand">{{ __('borrower.profile.add_asset') }} →</p>
-                    </a>
-                @endforeach
+            {{-- ============ Item 17: Add New Collateral CTA + type chooser ============ --}}
+            <div class="glass-card p-5 sm:p-6">
+                @if ($assets->isEmpty())
+                    <p class="text-sm text-gray-600 mb-4">{{ __('borrower.profile.no_assets_yet') }}</p>
+                @endif
+                <button type="button" @click="addOpen = !addOpen"
+                        class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-3 rounded-xl text-sm">
+                    <span class="text-lg leading-none">＋</span>
+                    {{ $assets->isEmpty() ? __('borrower.profile.add_first_collateral') : __('borrower.profile.add_new_collateral') }}
+                </button>
+
+                <div x-show="addOpen" x-cloak x-collapse class="mt-5">
+                    <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-3">{{ __('borrower.profile.choose_asset_type') }}</p>
+                    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        @foreach ($assetTypes as $key => $label)
+                            <a href="{{ route('site.borrower.profile', ['section' => 'assets', 'add' => 1, 'type' => $key]) }}"
+                               class="group rounded-2xl ring-1 ring-gray-200/80 p-5 hover:ring-brand/40 hover:shadow-md transition bg-white text-center">
+                                <span class="text-3xl block mb-3" aria-hidden="true">{{ $typeIcons[$key] ?? '📦' }}</span>
+                                <h3 class="font-bold text-gray-900 group-hover:text-brand">{{ $label }}</h3>
+                                <p class="mt-2 text-xs font-semibold text-brand">{{ __('borrower.profile.add_asset') }} →</p>
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+
+            {{-- ============ Per-collateral detail modal (Item 18 details + Item 19 gallery) ============ --}}
+            @foreach ($assets as $asset)
+                @php
+                    $meta = $asset->metadata ?? [];
+                    $gallery = $asset->galleryPaths();
+                    $ownershipDoc = $meta['ownership_document_path'] ?? null;
+                @endphp
+                <div x-show="openAsset === {{ $asset->id }}" x-cloak x-transition
+                     class="fixed inset-0 z-[70] bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4"
+                     @keydown.escape.window="openAsset = null" @click.self="openAsset = null">
+                    <div class="bg-white w-full sm:max-w-2xl sm:rounded-2xl rounded-t-2xl max-h-[92vh] overflow-y-auto">
+                        <div class="sticky top-0 bg-white/95 backdrop-blur px-5 py-4 border-b border-gray-100 flex items-center justify-between z-10">
+                            <div class="min-w-0">
+                                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $assetTypes[$asset->asset_type] ?? $asset->asset_type }}</p>
+                                <h2 class="font-bold text-gray-900 truncate">{{ $asset->label }}</h2>
+                            </div>
+                            <button type="button" @click="openAsset = null" class="shrink-0 size-9 grid place-items-center rounded-full hover:bg-gray-100 text-gray-500 text-xl">×</button>
+                        </div>
+
+                        <div class="p-5 space-y-6">
+                            {{-- Details --}}
+                            <div>
+                                <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-3">{{ __('borrower.profile.collateral_details') }}</p>
+                                <dl class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                                    <div>
+                                        <dt class="text-[11px] text-gray-500">{{ __('borrower.profile.estimated_value') }}</dt>
+                                        <dd class="font-semibold text-gray-900">{{ $asset->estimated_value ? format_money($asset->estimated_value) : __('borrower.profile.no_value_set') }}</dd>
+                                    </div>
+                                    @foreach (\App\Models\CustomerAsset::detailFieldsFor($asset->asset_type) as $field)
+                                        @php
+                                            $val = ($field['column'] ?? false) ? $asset->{$field['key']} : $asset->detail($field['key']);
+                                        @endphp
+                                        @if (filled($val))
+                                            <div>
+                                                <dt class="text-[11px] text-gray-500">{{ __('borrower.profile.collateral_fields.'.$field['key']) }}</dt>
+                                                <dd class="font-semibold text-gray-900">{{ $val }}</dd>
+                                            </div>
+                                        @endif
+                                    @endforeach
+                                </dl>
+                                @if (filled($asset->description))
+                                    <p class="text-sm text-gray-600 mt-3">{{ $asset->description }}</p>
+                                @endif
+                            </div>
+
+                            {{-- Item 19: 2×3 gallery with tap-to-enlarge + delete --}}
+                            <div>
+                                <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-1">{{ __('borrower.profile.collateral_gallery') }}</p>
+                                <p class="text-[11px] text-gray-400 mb-3">{{ __('borrower.profile.tap_to_enlarge') }}</p>
+                                @if (count($gallery))
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                        @foreach ($asset->photo_paths ?? [] as $i => $path)
+                                            <div class="relative group">
+                                                <button type="button" @click="lightbox = @js(asset('storage/'.$path))"
+                                                        class="block w-full aspect-square rounded-xl overflow-hidden ring-1 ring-gray-200 cursor-zoom-in">
+                                                    <img src="{{ asset('storage/'.$path) }}" alt="" class="h-full w-full object-cover">
+                                                </button>
+                                                <form method="POST" action="{{ route('site.borrower.profile.assets.photos.delete', $asset) }}" class="absolute top-1.5 right-1.5"
+                                                      @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.delete_photo_confirm')), message: '', confirmLabel: @js(__('borrower.profile.delete_photo')), confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">
+                                                    @csrf @method('DELETE')
+                                                    <input type="hidden" name="index" value="{{ $i }}">
+                                                    <button type="submit" class="size-7 grid place-items-center rounded-full bg-black/55 hover:bg-red-600 text-white text-xs opacity-0 group-hover:opacity-100 focus:opacity-100 transition" aria-label="{{ __('borrower.profile.delete_photo') }}">🗑</button>
+                                                </form>
+                                            </div>
+                                        @endforeach
+                                        @if ($meta['person_with_asset_path'] ?? null)
+                                            <button type="button" @click="lightbox = @js(asset('storage/'.$meta['person_with_asset_path']))"
+                                                    class="block w-full aspect-square rounded-xl overflow-hidden ring-1 ring-brand/20 cursor-zoom-in">
+                                                <img src="{{ asset('storage/'.$meta['person_with_asset_path']) }}" alt="{{ __('borrower.profile.person_with_asset') }}" class="h-full w-full object-cover">
+                                            </button>
+                                        @endif
+                                    </div>
+                                @endif
+
+                                {{-- Add more photos (up to 6) --}}
+                                @if (count($asset->photo_paths ?? []) < 6)
+                                    <form method="POST" action="{{ route('site.borrower.profile.assets.photos.add', $asset) }}" enctype="multipart/form-data"
+                                          class="mt-3" x-data="{ busy: false }" @submit="busy = true">
+                                        @csrf
+                                        <label class="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold px-4 py-2.5 rounded-xl text-sm cursor-pointer">
+                                            <span class="text-lg leading-none">＋</span> {{ __('borrower.profile.add_photos') }}
+                                            <input type="file" name="photos[]" accept="image/*" multiple class="sr-only"
+                                                   @change="if ($el.files.length) { busy = true; $el.form.submit(); }">
+                                        </label>
+                                        <span x-show="busy" x-cloak class="ml-2 text-xs text-gray-500">{{ __('borrower.profile.saving') }}</span>
+                                    </form>
+                                @endif
+                            </div>
+
+                            {{-- Ownership document --}}
+                            @if ($ownershipDoc)
+                                <div>
+                                    <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-2">{{ __('borrower.profile.ownership_document') }}</p>
+                                    @if (str_ends_with(strtolower($ownershipDoc), '.pdf'))
+                                        <a href="{{ asset('storage/'.$ownershipDoc) }}" target="_blank" class="inline-flex items-center gap-2 text-sm text-brand font-semibold">📄 {{ __('borrower.profile.view_document') }}</a>
+                                    @else
+                                        <button type="button" @click="lightbox = @js(asset('storage/'.$ownershipDoc))"
+                                                class="block h-28 w-28 rounded-xl overflow-hidden ring-1 ring-gray-200 cursor-zoom-in">
+                                            <img src="{{ asset('storage/'.$ownershipDoc) }}" alt="" class="h-full w-full object-cover">
+                                        </button>
+                                    @endif
+                                </div>
+                            @endif
+
+                            {{-- Remove collateral --}}
+                            <div class="pt-4 border-t border-gray-100">
+                                <form method="POST" action="{{ route('site.borrower.profile.assets.destroy', $asset) }}"
+                                      @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.profile.remove_asset_confirm')), message: '', confirmLabel: @js(__('borrower.profile.remove_asset')), confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="text-sm font-semibold text-red-600 hover:underline">{{ __('borrower.profile.remove_asset') }}</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+
+            {{-- Shared lightbox --}}
+            <div x-show="lightbox" x-cloak x-transition
+                 class="fixed inset-0 z-[90] bg-black/80 flex items-center justify-center p-4"
+                 @keydown.escape.window="lightbox = null" @click.self="lightbox = null">
+                <button type="button" class="absolute top-4 right-4 text-white/90 text-2xl font-semibold" @click="lightbox = null">×</button>
+                <img :src="lightbox" alt="" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
             </div>
         @endif
     </div>

@@ -12,12 +12,12 @@ return new class extends Migration
             if (! Schema::hasColumn('loan_applications', 'assigned_analyst_id')) {
                 $table->foreignId('assigned_analyst_id')
                     ->nullable()
-                    ->after('recommended_by')
+                    
                     ->constrained('users')
                     ->nullOnDelete();
             }
             if (! Schema::hasColumn('loan_applications', 'assigned_at')) {
-                $table->timestamp('assigned_at')->nullable()->after('assigned_analyst_id');
+                $table->timestamp('assigned_at')->nullable();
             }
         });
     }

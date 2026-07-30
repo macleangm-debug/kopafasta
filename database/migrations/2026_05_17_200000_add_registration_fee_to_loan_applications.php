@@ -9,11 +9,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('loan_applications', function (Blueprint $table) {
-            $table->unsignedInteger('registration_fee_amount')->nullable()->after('purpose');
-            $table->string('registration_fee_status', 20)->default('unpaid')->after('registration_fee_amount');
-            $table->string('registration_fee_reference', 60)->nullable()->after('registration_fee_status');
-            $table->string('registration_fee_channel', 30)->nullable()->after('registration_fee_reference');
-            $table->timestamp('registration_fee_paid_at')->nullable()->after('registration_fee_channel');
+            $table->unsignedInteger('registration_fee_amount')->nullable();
+            $table->string('registration_fee_status', 20)->default('unpaid');
+            $table->string('registration_fee_reference', 60)->nullable();
+            $table->string('registration_fee_channel', 30)->nullable();
+            $table->timestamp('registration_fee_paid_at')->nullable();
         });
     }
 

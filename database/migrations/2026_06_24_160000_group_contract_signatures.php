@@ -10,22 +10,22 @@ return new class extends Migration
     {
         Schema::table('loan_group_members', function (Blueprint $table) {
             if (! Schema::hasColumn('loan_group_members', 'contract_signature_status')) {
-                $table->string('contract_signature_status', 20)->default('pending')->after('underwriting_status');
+                $table->string('contract_signature_status', 20)->default('pending');
             }
             if (! Schema::hasColumn('loan_group_members', 'contract_signer_name')) {
-                $table->string('contract_signer_name', 120)->nullable()->after('contract_signature_status');
+                $table->string('contract_signer_name', 120)->nullable();
             }
             if (! Schema::hasColumn('loan_group_members', 'contract_signature_data')) {
-                $table->longText('contract_signature_data')->nullable()->after('contract_signer_name');
+                $table->longText('contract_signature_data')->nullable();
             }
             if (! Schema::hasColumn('loan_group_members', 'contract_signed_at')) {
-                $table->timestamp('contract_signed_at')->nullable()->after('contract_signature_data');
+                $table->timestamp('contract_signed_at')->nullable();
             }
             if (! Schema::hasColumn('loan_group_members', 'contract_declined_at')) {
-                $table->timestamp('contract_declined_at')->nullable()->after('contract_signed_at');
+                $table->timestamp('contract_declined_at')->nullable();
             }
             if (! Schema::hasColumn('loan_group_members', 'contract_decline_reason')) {
-                $table->string('contract_decline_reason', 500)->nullable()->after('contract_declined_at');
+                $table->string('contract_decline_reason', 500)->nullable();
             }
         });
     }

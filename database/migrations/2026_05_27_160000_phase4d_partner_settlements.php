@@ -29,39 +29,41 @@ return new class extends Migration
 
         Schema::table('vendor_payments', function (Blueprint $table): void {
             if (! Schema::hasColumn('vendor_payments', 'partner_settlement_id')) {
-                $table->foreignId('partner_settlement_id')->nullable()->after('vendor_task_id')->constrained('partner_settlements')->nullOnDelete();
+                $table->foreignId('partner_settlement_id')->nullable()->constrained('partner_settlements')->nullOnDelete();
             }
             if (! Schema::hasColumn('vendor_payments', 'approved_at')) {
-                $table->timestamp('approved_at')->nullable()->after('status');
+                $table->timestamp('approved_at')->nullable();
             }
             if (! Schema::hasColumn('vendor_payments', 'approved_by')) {
-                $table->foreignId('approved_by')->nullable()->after('approved_at')->constrained('users')->nullOnDelete();
+                $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
             }
             if (! Schema::hasColumn('vendor_payments', 'source_type')) {
-                $table->string('source_type', 40)->nullable()->after('approved_by');
+                $table->string('source_type', 40)->nullable();
             }
             if (! Schema::hasColumn('vendor_payments', 'source_id')) {
-                $table->unsignedBigInteger('source_id')->nullable()->after('source_type');
+                $table->unsignedBigInteger('source_id')->nullable();
             }
             if (! Schema::hasColumn('vendor_payments', 'description')) {
-                $table->string('description')->nullable()->after('source_id');
+                $table->string('description')->nullable();
             }
         });
 
-        Schema::table('asset_reservations', function (Blueprint $table): void {
-            if (! Schema::hasColumn('asset_reservations', 'reservation_fee_paid_at')) {
-                $table->timestamp('reservation_fee_paid_at')->nullable()->after('reservation_fee_status');
-            }
-            if (! Schema::hasColumn('asset_reservations', 'reservation_payment_reference')) {
-                $table->string('reservation_payment_reference', 60)->nullable()->after('reservation_fee_paid_at');
-            }
-            if (! Schema::hasColumn('asset_reservations', 'deposit_paid_at')) {
-                $table->timestamp('deposit_paid_at')->nullable()->after('deposit_status');
-            }
-            if (! Schema::hasColumn('asset_reservations', 'deposit_payment_reference')) {
-                $table->string('deposit_payment_reference', 60)->nullable()->after('deposit_paid_at');
-            }
-        });
+        if (Schema::hasTable('asset_reservations')) {
+            Schema::table('asset_reservations', function (Blueprint $table): void {
+                if (! Schema::hasColumn('asset_reservations', 'reservation_fee_paid_at')) {
+                    $table->timestamp('reservation_fee_paid_at')->nullable();
+                }
+                if (! Schema::hasColumn('asset_reservations', 'reservation_payment_reference')) {
+                    $table->string('reservation_payment_reference', 60)->nullable();
+                }
+                if (! Schema::hasColumn('asset_reservations', 'deposit_paid_at')) {
+                    $table->timestamp('deposit_paid_at')->nullable();
+                }
+                if (! Schema::hasColumn('asset_reservations', 'deposit_payment_reference')) {
+                    $table->string('deposit_payment_reference', 60)->nullable();
+                }
+            });
+        }
     }
 
     public function down(): void

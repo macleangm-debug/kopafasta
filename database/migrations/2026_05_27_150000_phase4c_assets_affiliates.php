@@ -10,19 +10,20 @@ return new class extends Migration
     {
         Schema::table('vendors', function (Blueprint $table): void {
             if (! Schema::hasColumn('vendors', 'deposit_markup_percent')) {
-                $table->decimal('deposit_markup_percent', 8, 2)->nullable()->after('markup_percent');
+                // No : that column is added in a later migration.
+                $table->decimal('deposit_markup_percent', 8, 2)->nullable();
             }
             if (! Schema::hasColumn('vendors', 'affiliate_code')) {
-                $table->string('affiliate_code', 32)->nullable()->unique()->after('deposit_markup_percent');
+                $table->string('affiliate_code', 32)->nullable()->unique();
             }
             if (! Schema::hasColumn('vendors', 'registration_discount_percent')) {
-                $table->decimal('registration_discount_percent', 8, 2)->nullable()->after('affiliate_code');
+                $table->decimal('registration_discount_percent', 8, 2)->nullable();
             }
             if (! Schema::hasColumn('vendors', 'application_discount_percent')) {
-                $table->decimal('application_discount_percent', 8, 2)->nullable()->after('registration_discount_percent');
+                $table->decimal('application_discount_percent', 8, 2)->nullable();
             }
             if (! Schema::hasColumn('vendors', 'affiliate_commission_percent')) {
-                $table->decimal('affiliate_commission_percent', 8, 2)->nullable()->after('application_discount_percent');
+                $table->decimal('affiliate_commission_percent', 8, 2)->nullable();
             }
         });
 
@@ -43,7 +44,7 @@ return new class extends Migration
         if (Schema::hasTable('marketplace_assets')) {
             Schema::table('marketplace_assets', function (Blueprint $table): void {
                 if (! Schema::hasColumn('marketplace_assets', 'vendor_id')) {
-                    $table->foreignId('vendor_id')->nullable()->after('id')->constrained()->nullOnDelete();
+                    $table->foreignId('vendor_id')->nullable()->constrained()->nullOnDelete();
                 }
             });
         }
@@ -51,12 +52,13 @@ return new class extends Migration
         if (Schema::hasTable('asset_requests')) {
             Schema::table('asset_requests', function (Blueprint $table): void {
                 if (! Schema::hasColumn('asset_requests', 'vendor_id')) {
-                    $table->foreignId('vendor_id')->nullable()->after('customer_id')->constrained()->nullOnDelete();
+                    $table->foreignId('vendor_id')->nullable()->constrained()->nullOnDelete();
                 }
             });
         }
 
-        if (! Schema::hasTable('asset_reservations')) {
+        // marketplace_assets is created in a later migration; defer FK table until then.
+        if (Schema::hasTable('marketplace_assets') && ! Schema::hasTable('asset_reservations')) {
             Schema::create('asset_reservations', function (Blueprint $table): void {
                 $table->id();
                 $table->foreignId('customer_id')->constrained()->cascadeOnDelete();
@@ -78,7 +80,7 @@ return new class extends Migration
 
         Schema::table('customers', function (Blueprint $table): void {
             if (! Schema::hasColumn('customers', 'affiliate_vendor_id')) {
-                $table->foreignId('affiliate_vendor_id')->nullable()->after('referred_by_customer_id')->constrained('vendors')->nullOnDelete();
+                $table->foreignId('affiliate_vendor_id')->nullable()->constrained('vendors')->nullOnDelete();
             }
         });
     }

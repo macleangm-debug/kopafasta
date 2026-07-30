@@ -11,10 +11,10 @@ return new class extends Migration
         if (Schema::hasTable('vendors')) {
             Schema::table('vendors', function (Blueprint $table): void {
                 if (! Schema::hasColumn('vendors', 'partner_cost')) {
-                    $table->decimal('partner_cost', 14, 2)->nullable()->after('status');
+                    $table->decimal('partner_cost', 14, 2)->nullable();
                 }
                 if (! Schema::hasColumn('vendors', 'markup_percent')) {
-                    $table->decimal('markup_percent', 5, 2)->nullable()->after('partner_cost');
+                    $table->decimal('markup_percent', 5, 2)->nullable();
                 }
             });
         }

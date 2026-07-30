@@ -22,7 +22,7 @@ return new class extends Migration
 
         if (Schema::hasTable('loan_application_drafts') && ! Schema::hasColumn('loan_application_drafts', 'draft_reference')) {
             Schema::table('loan_application_drafts', function (Blueprint $table): void {
-                $table->string('draft_reference', 32)->nullable()->after('loan_product_id');
+                $table->string('draft_reference', 32)->nullable();
             });
         }
     }

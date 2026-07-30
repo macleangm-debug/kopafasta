@@ -13,7 +13,7 @@ return new class extends Migration
             if (! Schema::hasColumn('partner_payout_requests', 'source_type')
                 && Schema::hasColumn('partner_payout_requests', 'wallet_type')) {
                 Schema::table('partner_payout_requests', function (Blueprint $table): void {
-                    $table->string('source_type', 64)->nullable()->after('partner_id');
+                    $table->string('source_type', 64)->nullable();
                 });
 
                 DB::table('partner_payout_requests')->update([
@@ -23,14 +23,14 @@ return new class extends Migration
 
             if (! Schema::hasColumn('partner_payout_requests', 'source_type')) {
                 Schema::table('partner_payout_requests', function (Blueprint $table): void {
-                    $table->string('source_type', 64)->nullable()->after('partner_id');
+                    $table->string('source_type', 64)->nullable();
                 });
             }
 
             if (! Schema::hasColumn('partner_payout_requests', 'reviewed_by')
                 && Schema::hasColumn('partner_payout_requests', 'reviewed_by_user_id')) {
                 Schema::table('partner_payout_requests', function (Blueprint $table): void {
-                    $table->unsignedBigInteger('reviewed_by')->nullable()->after('notes');
+                    $table->unsignedBigInteger('reviewed_by')->nullable();
                 });
 
                 DB::table('partner_payout_requests')->update([
@@ -41,7 +41,7 @@ return new class extends Migration
             if (! Schema::hasColumn('partner_payout_requests', 'admin_notes')
                 && Schema::hasColumn('partner_payout_requests', 'review_notes')) {
                 Schema::table('partner_payout_requests', function (Blueprint $table): void {
-                    $table->text('admin_notes')->nullable()->after('notes');
+                    $table->text('admin_notes')->nullable();
                 });
 
                 DB::table('partner_payout_requests')->update([
@@ -51,7 +51,7 @@ return new class extends Migration
 
             if (! Schema::hasColumn('partner_payout_requests', 'admin_notes')) {
                 Schema::table('partner_payout_requests', function (Blueprint $table): void {
-                    $table->text('admin_notes')->nullable()->after('notes');
+                    $table->text('admin_notes')->nullable();
                 });
             }
         }
@@ -59,10 +59,10 @@ return new class extends Migration
         if (Schema::hasTable('partner_payments')) {
             Schema::table('partner_payments', function (Blueprint $table): void {
                 if (! Schema::hasColumn('partner_payments', 'dispute_reason')) {
-                    $table->text('dispute_reason')->nullable()->after('status');
+                    $table->text('dispute_reason')->nullable();
                 }
                 if (! Schema::hasColumn('partner_payments', 'disputed_at')) {
-                    $table->timestamp('disputed_at')->nullable()->after('dispute_reason');
+                    $table->timestamp('disputed_at')->nullable();
                 }
             });
         }

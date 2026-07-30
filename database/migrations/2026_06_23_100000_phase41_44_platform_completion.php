@@ -42,13 +42,13 @@ return new class extends Migration {
 
         Schema::table('loan_applications', function (Blueprint $table): void {
             if (! Schema::hasColumn('loan_applications', 'loan_group_id')) {
-                $table->foreignId('loan_group_id')->nullable()->after('customer_id')->constrained('loan_groups')->nullOnDelete();
+                $table->foreignId('loan_group_id')->nullable()->constrained('loan_groups')->nullOnDelete();
             }
         });
 
         Schema::table('vendors', function (Blueprint $table): void {
             if (! Schema::hasColumn('vendors', 'coverage_type')) {
-                $table->string('coverage_type', 20)->default('regions')->after('regions');
+                $table->string('coverage_type', 20)->default('regions');
             }
         });
 

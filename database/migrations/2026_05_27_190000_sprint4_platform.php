@@ -11,7 +11,7 @@ return new class extends Migration
     {
         if (! Schema::hasColumn('vendors', 'roles')) {
             Schema::table('vendors', function (Blueprint $table): void {
-                $table->json('roles')->nullable()->after('category');
+                $table->json('roles')->nullable();
             });
         }
 

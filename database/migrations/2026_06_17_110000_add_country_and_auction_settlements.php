@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('customers', function (Blueprint $table): void {
             if (! Schema::hasColumn('customers', 'country_code')) {
-                $table->string('country_code', 2)->nullable()->after('branch_id');
+                $table->string('country_code', 2)->nullable();
             }
         });
 

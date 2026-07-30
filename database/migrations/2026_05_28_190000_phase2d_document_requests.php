@@ -29,7 +29,7 @@ return new class extends Migration
         Schema::table('customer_documents', function (Blueprint $table) {
             $table->unsignedBigInteger('loan_application_document_request_id')
                 ->nullable()
-                ->after('loan_product_requirement_id');
+                ;
             $table->index('loan_application_document_request_id', 'cust_docs_la_doc_req_idx');
         });
     }

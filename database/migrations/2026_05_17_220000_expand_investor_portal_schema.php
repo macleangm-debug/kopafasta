@@ -10,28 +10,28 @@ return new class extends Migration
     {
         Schema::table('lenders', function (Blueprint $table): void {
             if (! Schema::hasColumn('lenders', 'user_id')) {
-                $table->foreignId('user_id')->nullable()->after('id')->constrained()->nullOnDelete();
+                $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             }
             if (! Schema::hasColumn('lenders', 'available_balance')) {
-                $table->decimal('available_balance', 18, 2)->default(0)->after('credit_limit');
+                $table->decimal('available_balance', 18, 2)->default(0);
             }
             if (! Schema::hasColumn('lenders', 'risk_preference')) {
-                $table->string('risk_preference', 20)->default('medium')->after('available_balance'); // low | medium | high
+                $table->string('risk_preference', 20)->default('medium'); // low | medium | high
             }
             if (! Schema::hasColumn('lenders', 'auto_invest')) {
-                $table->boolean('auto_invest')->default(false)->after('risk_preference');
+                $table->boolean('auto_invest')->default(false);
             }
         });
 
         Schema::table('funding_pools', function (Blueprint $table): void {
             if (! Schema::hasColumn('funding_pools', 'pool_type')) {
-                $table->string('pool_type', 30)->default('business')->after('name'); // salary | business | car | emergency
+                $table->string('pool_type', 30)->default('business'); // salary | business | car | emergency
             }
             if (! Schema::hasColumn('funding_pools', 'risk_level')) {
-                $table->string('risk_level', 20)->default('medium')->after('pool_type'); // low | medium | high
+                $table->string('risk_level', 20)->default('medium'); // low | medium | high
             }
             if (! Schema::hasColumn('funding_pools', 'description')) {
-                $table->text('description')->nullable()->after('risk_level');
+                $table->text('description')->nullable();
             }
             if (! Schema::hasColumn('funding_pools', 'active_borrowers')) {
                 $table->unsignedInteger('active_borrowers')->default(0);

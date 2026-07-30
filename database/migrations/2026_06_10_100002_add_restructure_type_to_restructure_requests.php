@@ -10,10 +10,10 @@ return new class extends Migration
     {
         Schema::table('restructure_requests', function (Blueprint $table) {
             if (! Schema::hasColumn('restructure_requests', 'restructure_type')) {
-                $table->string('restructure_type', 40)->nullable()->after('reason');
+                $table->string('restructure_type', 40)->nullable();
             }
             if (! Schema::hasColumn('restructure_requests', 'customer_id')) {
-                $table->foreignId('customer_id')->nullable()->after('loan_id')->constrained()->nullOnDelete();
+                $table->foreignId('customer_id')->nullable()->constrained()->nullOnDelete();
             }
         });
     }

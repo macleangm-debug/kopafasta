@@ -14,7 +14,7 @@ return new class extends Migration
 
         Schema::table('marketplace_assets', function (Blueprint $table): void {
             if (! Schema::hasColumn('marketplace_assets', 'vendor_id')) {
-                $table->foreignId('vendor_id')->nullable()->after('id')->constrained()->nullOnDelete();
+                $table->foreignId('vendor_id')->nullable()->constrained()->nullOnDelete();
             }
             foreach ([
                 'serial_number'           => fn () => $table->string('serial_number', 80)->nullable(),

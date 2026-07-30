@@ -10,10 +10,10 @@ return new class extends Migration
     {
         Schema::table('loan_applications', function (Blueprint $table): void {
             if (! Schema::hasColumn('loan_applications', 'rejection_reason_code')) {
-                $table->string('rejection_reason_code', 80)->nullable()->after('rejection_reason');
+                $table->string('rejection_reason_code', 80)->nullable();
             }
             if (! Schema::hasColumn('loan_applications', 'rejection_internal_notes')) {
-                $table->text('rejection_internal_notes')->nullable()->after('rejection_reason_code');
+                $table->text('rejection_internal_notes')->nullable();
             }
         });
     }

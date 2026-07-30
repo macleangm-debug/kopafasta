@@ -9,16 +9,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('loan_applications', function (Blueprint $table): void {
-            $table->string('recommendation_type')->nullable()->after('recommended_amount');
-            $table->decimal('offered_amount', 15, 2)->nullable()->after('recommendation_type');
-            $table->unsignedInteger('offered_tenure_months')->nullable()->after('offered_amount');
-            $table->string('offer_status')->nullable()->after('offered_tenure_months');
-            $table->timestamp('offer_issued_at')->nullable()->after('offer_status');
-            $table->timestamp('offer_responded_at')->nullable()->after('offer_issued_at');
-            $table->text('committee_recommendation')->nullable()->after('offer_responded_at');
-            $table->foreignId('recommended_by')->nullable()->after('committee_recommendation')->constrained('users')->nullOnDelete();
-            $table->timestamp('recommended_at')->nullable()->after('recommended_by');
-            $table->foreignId('alternative_loan_product_id')->nullable()->after('recommended_at')->constrained('loan_products')->nullOnDelete();
+            $table->string('recommendation_type')->nullable();
+            $table->decimal('offered_amount', 15, 2)->nullable();
+            $table->unsignedInteger('offered_tenure_months')->nullable();
+            $table->string('offer_status')->nullable();
+            $table->timestamp('offer_issued_at')->nullable();
+            $table->timestamp('offer_responded_at')->nullable();
+            $table->text('committee_recommendation')->nullable();
+            $table->foreignId('recommended_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->timestamp('recommended_at')->nullable();
+            $table->foreignId('alternative_loan_product_id')->nullable()->constrained('loan_products')->nullOnDelete();
         });
     }
 

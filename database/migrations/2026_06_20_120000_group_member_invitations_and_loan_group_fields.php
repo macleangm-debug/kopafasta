@@ -32,10 +32,10 @@ return new class extends Migration
         if (Schema::hasTable('loan_group_members')) {
             Schema::table('loan_group_members', function (Blueprint $table): void {
                 if (! Schema::hasColumn('loan_group_members', 'onboarding_status')) {
-                    $table->string('onboarding_status', 40)->nullable()->after('role');
+                    $table->string('onboarding_status', 40)->nullable();
                 }
                 if (! Schema::hasColumn('loan_group_members', 'group_member_invitation_id')) {
-                    $table->unsignedBigInteger('group_member_invitation_id')->nullable()->after('customer_id');
+                    $table->unsignedBigInteger('group_member_invitation_id')->nullable();
                 }
             });
         }

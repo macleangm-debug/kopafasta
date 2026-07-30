@@ -134,13 +134,15 @@ From your project folder on Mac:
 
 ```bash
 chmod +x scripts/deploy.sh
-./scripts/deploy.sh user@server-ip /var/www/kopafasta
+./scripts/deploy.sh root@167.99.239.125 /var/www/kopafasta
 ```
+
+SSH alias (after installing the deploy key): `ssh kopafasta`
 
 If you want to skip Node build on server:
 
 ```bash
-RUN_NPM_BUILD=0 ./scripts/deploy.sh user@server-ip /var/www/kopafasta
+RUN_NPM_BUILD=0 ./scripts/deploy.sh root@167.99.239.125 /var/www/kopafasta
 ```
 
 ## 8) SSL certificate (recommended)

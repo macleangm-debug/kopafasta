@@ -13,10 +13,10 @@ return new class extends Migration {
 
         Schema::table('loan_groups', function (Blueprint $table): void {
             if (! Schema::hasColumn('loan_groups', 'application_status')) {
-                $table->string('application_status', 40)->nullable()->after('status');
+                $table->string('application_status', 40)->nullable();
             }
             if (! Schema::hasColumn('loan_groups', 'scoring_snapshot')) {
-                $table->json('scoring_snapshot')->nullable()->after('application_status');
+                $table->json('scoring_snapshot')->nullable();
             }
         });
     }

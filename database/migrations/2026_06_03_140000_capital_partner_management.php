@@ -28,13 +28,13 @@ return new class extends Migration
         if (Schema::hasTable('lender_transactions')) {
             Schema::table('lender_transactions', function (Blueprint $table): void {
                 if (! Schema::hasColumn('lender_transactions', 'loan_id')) {
-                    $table->foreignId('loan_id')->nullable()->after('lender_investment_id')->constrained()->nullOnDelete();
+                    $table->foreignId('loan_id')->nullable()->constrained()->nullOnDelete();
                 }
                 if (! Schema::hasColumn('lender_transactions', 'created_by')) {
-                    $table->foreignId('created_by')->nullable()->after('notes')->constrained('users')->nullOnDelete();
+                    $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
                 }
                 if (! Schema::hasColumn('lender_transactions', 'direction')) {
-                    $table->string('direction', 10)->nullable()->after('type'); // credit | debit
+                    $table->string('direction', 10)->nullable(); // credit | debit
                 }
             });
         }

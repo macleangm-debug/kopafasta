@@ -28,11 +28,11 @@ return new class extends Migration
         Schema::table('loan_applications', function (Blueprint $table) {
             $table->foreignId('disbursement_account_id')
                 ->nullable()
-                ->after('disbursement_details_snapshot')
+                
                 ->constrained('customer_disbursement_accounts')
                 ->nullOnDelete();
-            $table->string('borrower_current_action', 60)->nullable()->after('disbursement_account_id');
-            $table->json('borrower_completed_steps')->nullable()->after('borrower_current_action');
+            $table->string('borrower_current_action', 60)->nullable();
+            $table->json('borrower_completed_steps')->nullable();
         });
 
         if (Schema::hasTable('customers')) {

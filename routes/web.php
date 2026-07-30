@@ -289,6 +289,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::put('/borrower/profile/{section}',              [\App\Http\Controllers\Site\BorrowerController::class, 'updateProfile'])->name('borrower.profile.update')->where('section', 'personal|activity|residence|kin|kyc|payment');
             Route::post('/borrower/profile/assets',                  [\App\Http\Controllers\Site\BorrowerController::class, 'storeAsset'])->name('borrower.profile.assets.store');
             Route::delete('/borrower/profile/assets/{asset}',        [\App\Http\Controllers\Site\BorrowerController::class, 'destroyAsset'])->name('borrower.profile.assets.destroy');
+            Route::post('/borrower/profile/assets/{asset}/photos',   [\App\Http\Controllers\Site\BorrowerController::class, 'addAssetPhotos'])->name('borrower.profile.assets.photos.add');
+            Route::delete('/borrower/profile/assets/{asset}/photos', [\App\Http\Controllers\Site\BorrowerController::class, 'deleteAssetPhoto'])->name('borrower.profile.assets.photos.delete');
             Route::delete('/borrower/profile/documents/{code}',     [\App\Http\Controllers\Site\BorrowerController::class, 'destroyProfileDocument'])->name('borrower.profile.documents.destroy');
             Route::delete('/borrower/profile/payment-accounts/{account}', [\App\Http\Controllers\Site\BorrowerController::class, 'destroyPaymentAccount'])->name('borrower.profile.payment-accounts.destroy');
             Route::post('/borrower/profile/payment-accounts/{account}/default', [\App\Http\Controllers\Site\BorrowerController::class, 'setDefaultPaymentAccount'])->name('borrower.profile.payment-accounts.default');

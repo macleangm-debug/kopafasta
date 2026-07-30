@@ -10,30 +10,30 @@ return new class extends Migration
     {
         Schema::table('customers', function (Blueprint $t): void {
             if (! Schema::hasColumn('customers', 'member_no')) {
-                $t->string('member_no')->nullable()->unique()->after('customer_number');
+                $t->string('member_no')->nullable()->unique();
             }
             if (! Schema::hasColumn('customers', 'membership_status')) {
                 // active | expiring | expired | grace | archived
-                $t->string('membership_status', 20)->nullable()->index()->after('status');
+                $t->string('membership_status', 20)->nullable()->index();
             }
             if (! Schema::hasColumn('customers', 'membership_issued_at')) {
-                $t->date('membership_issued_at')->nullable()->after('membership_status');
+                $t->date('membership_issued_at')->nullable();
             }
             if (! Schema::hasColumn('customers', 'membership_expires_at')) {
-                $t->date('membership_expires_at')->nullable()->index()->after('membership_issued_at');
+                $t->date('membership_expires_at')->nullable()->index();
             }
             if (! Schema::hasColumn('customers', 'last_renewal_at')) {
-                $t->date('last_renewal_at')->nullable()->after('membership_expires_at');
+                $t->date('last_renewal_at')->nullable();
             }
             if (! Schema::hasColumn('customers', 'renewal_count')) {
-                $t->unsignedInteger('renewal_count')->default(0)->after('last_renewal_at');
+                $t->unsignedInteger('renewal_count')->default(0);
             }
             if (! Schema::hasColumn('customers', 'last_renewal_payment_ref')) {
-                $t->string('last_renewal_payment_ref')->nullable()->after('renewal_count');
+                $t->string('last_renewal_payment_ref')->nullable();
             }
             if (! Schema::hasColumn('customers', 'reminders_sent')) {
                 // tracks ['30','14','7','1','expired'] => date sent, to prevent double-sends
-                $t->json('reminders_sent')->nullable()->after('last_renewal_payment_ref');
+                $t->json('reminders_sent')->nullable();
             }
         });
 

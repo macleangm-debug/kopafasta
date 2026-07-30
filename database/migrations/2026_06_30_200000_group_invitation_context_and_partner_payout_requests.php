@@ -10,25 +10,25 @@ return new class extends Migration
     {
         Schema::table('group_member_invitations', function (Blueprint $table): void {
             if (! Schema::hasColumn('group_member_invitations', 'draft_reference')) {
-                $table->string('draft_reference', 40)->nullable()->after('loan_application_draft_id');
+                $table->string('draft_reference', 40)->nullable();
             }
             if (! Schema::hasColumn('group_member_invitations', 'invitation_reason')) {
-                $table->text('invitation_reason')->nullable()->after('draft_reference');
+                $table->text('invitation_reason')->nullable();
             }
             if (! Schema::hasColumn('group_member_invitations', 'group_name')) {
-                $table->string('group_name', 150)->nullable()->after('invitation_reason');
+                $table->string('group_name', 150)->nullable();
             }
             if (! Schema::hasColumn('group_member_invitations', 'group_purpose')) {
-                $table->string('group_purpose', 80)->nullable()->after('group_name');
+                $table->string('group_purpose', 80)->nullable();
             }
             if (! Schema::hasColumn('group_member_invitations', 'amount_per_member')) {
-                $table->decimal('amount_per_member', 15, 2)->nullable()->after('group_purpose');
+                $table->decimal('amount_per_member', 15, 2)->nullable();
             }
             if (! Schema::hasColumn('group_member_invitations', 'requested_tenure_months')) {
-                $table->unsignedSmallInteger('requested_tenure_months')->nullable()->after('amount_per_member');
+                $table->unsignedSmallInteger('requested_tenure_months')->nullable();
             }
             if (! Schema::hasColumn('group_member_invitations', 'repayment_cadence')) {
-                $table->string('repayment_cadence', 20)->nullable()->after('requested_tenure_months');
+                $table->string('repayment_cadence', 20)->nullable();
             }
         });
 

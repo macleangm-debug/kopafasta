@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('customers', function (Blueprint $table): void {
-            $table->json('profile_section_confirmed_at')->nullable()->after('kyc_reconfirmed_at');
+            $table->json('profile_section_confirmed_at')->nullable();
         });
     }
 

@@ -10,10 +10,10 @@ return new class extends Migration
     {
         Schema::table('customers', function (Blueprint $table): void {
             if (! Schema::hasColumn('customers', 'nok_ward')) {
-                $table->string('nok_ward')->nullable()->after('nok_district');
+                $table->string('nok_ward')->nullable();
             }
             if (! Schema::hasColumn('customers', 'nok_street')) {
-                $table->string('nok_street')->nullable()->after('nok_ward');
+                $table->string('nok_street')->nullable();
             }
         });
     }

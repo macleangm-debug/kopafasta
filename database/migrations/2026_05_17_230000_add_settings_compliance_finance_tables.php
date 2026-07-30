@@ -225,16 +225,16 @@ return new class extends Migration
         // ---------- Customer risk additions ----------
         Schema::table('customers', function (Blueprint $t): void {
             if (! Schema::hasColumn('customers', 'risk_score')) {
-                $t->integer('risk_score')->nullable()->after('id');
+                $t->integer('risk_score')->nullable();
             }
             if (! Schema::hasColumn('customers', 'risk_band')) {
-                $t->enum('risk_band', ['low', 'medium', 'high', 'extreme'])->nullable()->after('risk_score');
+                $t->enum('risk_band', ['low', 'medium', 'high', 'extreme'])->nullable();
             }
             if (! Schema::hasColumn('customers', 'is_pep')) {
-                $t->boolean('is_pep')->default(false)->after('risk_band');
+                $t->boolean('is_pep')->default(false);
             }
             if (! Schema::hasColumn('customers', 'is_blacklisted')) {
-                $t->boolean('is_blacklisted')->default(false)->after('is_pep');
+                $t->boolean('is_blacklisted')->default(false);
             }
         });
     }

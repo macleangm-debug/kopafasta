@@ -10,10 +10,10 @@ return new class extends Migration
     {
         Schema::table('loan_top_up_requests', function (Blueprint $table) {
             if (! Schema::hasColumn('loan_top_up_requests', 'disbursed_at')) {
-                $table->timestamp('disbursed_at')->nullable()->after('reviewed_at');
+                $table->timestamp('disbursed_at')->nullable();
             }
             if (! Schema::hasColumn('loan_top_up_requests', 'disbursed_by')) {
-                $table->foreignId('disbursed_by')->nullable()->after('disbursed_at')->constrained('users')->nullOnDelete();
+                $table->foreignId('disbursed_by')->nullable()->constrained('users')->nullOnDelete();
             }
         });
     }

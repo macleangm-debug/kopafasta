@@ -32,10 +32,10 @@ return new class extends Migration {
 
         Schema::table('loans', function (Blueprint $t): void {
             if (!Schema::hasColumn('loans', 'fees_total')) {
-                $t->decimal('fees_total', 16, 2)->default(0)->after('outstanding_balance');
+                $t->decimal('fees_total', 16, 2)->default(0);
             }
             if (!Schema::hasColumn('loans', 'net_disbursed_amount')) {
-                $t->decimal('net_disbursed_amount', 16, 2)->nullable()->after('fees_total');
+                $t->decimal('net_disbursed_amount', 16, 2)->nullable();
             }
         });
     }

@@ -10,10 +10,10 @@ return new class extends Migration
     {
         Schema::table('customers', function (Blueprint $table): void {
             if (! Schema::hasColumn('customers', 'referral_code')) {
-                $table->string('referral_code', 32)->nullable()->unique()->after('customer_number');
+                $table->string('referral_code', 32)->nullable()->unique();
             }
             if (! Schema::hasColumn('customers', 'referred_by_customer_id')) {
-                $table->foreignId('referred_by_customer_id')->nullable()->after('referral_code')->constrained('customers')->nullOnDelete();
+                $table->foreignId('referred_by_customer_id')->nullable()->constrained('customers')->nullOnDelete();
             }
         });
 
@@ -92,7 +92,7 @@ return new class extends Migration
         } elseif (! $this->hasForeign('loan_application_post_approval_fees', 'app_post_approval_fee_template_fk')) {
             Schema::table('loan_application_post_approval_fees', function (Blueprint $table): void {
                 if (! Schema::hasColumn('loan_application_post_approval_fees', 'loan_product_post_approval_fee_id')) {
-                    $table->unsignedBigInteger('loan_product_post_approval_fee_id')->nullable()->after('loan_application_id');
+                    $table->unsignedBigInteger('loan_product_post_approval_fee_id')->nullable();
                 }
             });
 

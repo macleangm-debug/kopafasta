@@ -11,10 +11,10 @@ return new class extends Migration
         if (Schema::hasTable('marketplace_assets')) {
             Schema::table('marketplace_assets', function (Blueprint $table): void {
                 if (! Schema::hasColumn('marketplace_assets', 'insurance_expires_at')) {
-                    $table->date('insurance_expires_at')->nullable()->after('insurance_policy_number');
+                    $table->date('insurance_expires_at')->nullable();
                 }
                 if (! Schema::hasColumn('marketplace_assets', 'waiting_period_days')) {
-                    $table->unsignedSmallInteger('waiting_period_days')->nullable()->after('max_tenure_months');
+                    $table->unsignedSmallInteger('waiting_period_days')->nullable();
                 }
             });
         }

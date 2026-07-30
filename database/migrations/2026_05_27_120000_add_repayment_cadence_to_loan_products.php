@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('loan_products', function (Blueprint $table): void {
-            $table->string('repayment_cadence', 20)->default('weekly')->after('tenure_max_months');
+            $table->string('repayment_cadence', 20)->default('weekly');
         });
     }
 

@@ -12,11 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table): void {
-            $table->string('phone')->nullable()->after('email');
-            $table->string('role')->default('customer')->after('password');
-            $table->foreignId('branch_id')->nullable()->after('role')->constrained('branches')->nullOnDelete();
-            $table->decimal('approval_limit', 15, 2)->nullable()->after('branch_id');
-            $table->boolean('is_active')->default(true)->after('approval_limit');
+            $table->string('phone')->nullable();
+            $table->string('role')->default('customer');
+            $table->foreignId('branch_id')->nullable()->constrained('branches')->nullOnDelete();
+            $table->decimal('approval_limit', 15, 2)->nullable();
+            $table->boolean('is_active')->default(true);
         });
 
         Schema::table('branches', function (Blueprint $table): void {

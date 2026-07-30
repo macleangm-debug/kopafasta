@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('loan_products', function (Blueprint $table): void {
-            $table->string('status')->default('active')->after('is_active');
+            $table->string('status')->default('active');
         });
     }
 

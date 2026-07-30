@@ -10,7 +10,7 @@ return new class extends Migration
     {
         if (! Schema::hasColumn('customers', 'loyalty_points')) {
             Schema::table('customers', function (Blueprint $table) {
-                $table->unsignedInteger('loyalty_points')->default(0)->after('referral_code');
+                $table->unsignedInteger('loyalty_points')->default(0);
             });
         }
 
@@ -67,22 +67,22 @@ return new class extends Migration
         if (Schema::hasTable('promotions')) {
             Schema::table('promotions', function (Blueprint $table) {
                 if (! Schema::hasColumn('promotions', 'original_fee')) {
-                    $table->decimal('original_fee', 14, 2)->nullable()->after('discount_amount');
+                    $table->decimal('original_fee', 14, 2)->nullable();
                 }
                 if (! Schema::hasColumn('promotions', 'discount_type')) {
-                    $table->string('discount_type', 20)->default('percentage')->after('original_fee');
+                    $table->string('discount_type', 20)->default('percentage');
                 }
                 if (! Schema::hasColumn('promotions', 'eligible_members')) {
-                    $table->string('eligible_members', 30)->default('all')->after('discount_type');
+                    $table->string('eligible_members', 30)->default('all');
                 }
                 if (! Schema::hasColumn('promotions', 'banner_path')) {
-                    $table->string('banner_path')->nullable()->after('eligible_members');
+                    $table->string('banner_path')->nullable();
                 }
                 if (! Schema::hasColumn('promotions', 'message_en')) {
-                    $table->text('message_en')->nullable()->after('message_template');
+                    $table->text('message_en')->nullable();
                 }
                 if (! Schema::hasColumn('promotions', 'message_sw')) {
-                    $table->text('message_sw')->nullable()->after('message_en');
+                    $table->text('message_sw')->nullable();
                 }
             });
         }

@@ -9,7 +9,7 @@ return new class extends Migration {
     {
         Schema::table('vendors', function (Blueprint $table) {
             if (! Schema::hasColumn('vendors', 'user_id')) {
-                $table->foreignId('user_id')->nullable()->after('id');
+                $table->foreignId('user_id')->nullable();
             }
             if (! Schema::hasColumn('vendors', 'address')) {
                 $table->text('address')->nullable();
@@ -17,16 +17,16 @@ return new class extends Migration {
         });
 
         Schema::table('vendor_tasks', function (Blueprint $table) {
-            if (! Schema::hasColumn('vendor_tasks', 'customer_name'))    $table->string('customer_name', 120)->nullable()->after('loan_id');
-            if (! Schema::hasColumn('vendor_tasks', 'customer_phone'))   $table->string('customer_phone', 30)->nullable()->after('customer_name');
-            if (! Schema::hasColumn('vendor_tasks', 'vehicle_details'))  $table->string('vehicle_details', 180)->nullable()->after('customer_phone');
-            if (! Schema::hasColumn('vendor_tasks', 'location'))         $table->string('location', 180)->nullable()->after('vehicle_details');
-            if (! Schema::hasColumn('vendor_tasks', 'instructions'))     $table->text('instructions')->nullable()->after('location');
-            if (! Schema::hasColumn('vendor_tasks', 'fee_amount'))       $table->unsignedInteger('fee_amount')->default(0)->after('instructions');
-            if (! Schema::hasColumn('vendor_tasks', 'accepted_at'))      $table->timestamp('accepted_at')->nullable()->after('due_at');
-            if (! Schema::hasColumn('vendor_tasks', 'started_at'))       $table->timestamp('started_at')->nullable()->after('accepted_at');
-            if (! Schema::hasColumn('vendor_tasks', 'gps_serial'))       $table->string('gps_serial', 60)->nullable()->after('proof_path');
-            if (! Schema::hasColumn('vendor_tasks', 'payment_status'))   $table->string('payment_status', 20)->default('pending')->after('gps_serial');
+            if (! Schema::hasColumn('vendor_tasks', 'customer_name'))    $table->string('customer_name', 120)->nullable();
+            if (! Schema::hasColumn('vendor_tasks', 'customer_phone'))   $table->string('customer_phone', 30)->nullable();
+            if (! Schema::hasColumn('vendor_tasks', 'vehicle_details'))  $table->string('vehicle_details', 180)->nullable();
+            if (! Schema::hasColumn('vendor_tasks', 'location'))         $table->string('location', 180)->nullable();
+            if (! Schema::hasColumn('vendor_tasks', 'instructions'))     $table->text('instructions')->nullable();
+            if (! Schema::hasColumn('vendor_tasks', 'fee_amount'))       $table->unsignedInteger('fee_amount')->default(0);
+            if (! Schema::hasColumn('vendor_tasks', 'accepted_at'))      $table->timestamp('accepted_at')->nullable();
+            if (! Schema::hasColumn('vendor_tasks', 'started_at'))       $table->timestamp('started_at')->nullable();
+            if (! Schema::hasColumn('vendor_tasks', 'gps_serial'))       $table->string('gps_serial', 60)->nullable();
+            if (! Schema::hasColumn('vendor_tasks', 'payment_status'))   $table->string('payment_status', 20)->default('pending');
         });
 
         if (! Schema::hasTable('vendor_documents')) {

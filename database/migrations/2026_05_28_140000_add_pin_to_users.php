@@ -10,10 +10,10 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table): void {
             if (! Schema::hasColumn('users', 'pin_hash')) {
-                $table->string('pin_hash')->nullable()->after('password');
+                $table->string('pin_hash')->nullable();
             }
             if (! Schema::hasColumn('users', 'pin_set_at')) {
-                $table->timestamp('pin_set_at')->nullable()->after('pin_hash');
+                $table->timestamp('pin_set_at')->nullable();
             }
         });
     }

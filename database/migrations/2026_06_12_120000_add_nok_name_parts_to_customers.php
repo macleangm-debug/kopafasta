@@ -10,13 +10,13 @@ return new class extends Migration
     {
         Schema::table('customers', function (Blueprint $table) {
             if (! Schema::hasColumn('customers', 'nok_first_name')) {
-                $table->string('nok_first_name')->nullable()->after('nok_name');
+                $table->string('nok_first_name')->nullable();
             }
             if (! Schema::hasColumn('customers', 'nok_middle_name')) {
-                $table->string('nok_middle_name')->nullable()->after('nok_first_name');
+                $table->string('nok_middle_name')->nullable();
             }
             if (! Schema::hasColumn('customers', 'nok_last_name')) {
-                $table->string('nok_last_name')->nullable()->after('nok_middle_name');
+                $table->string('nok_last_name')->nullable();
             }
         });
     }

@@ -9,10 +9,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('customers', function (Blueprint $table): void {
-            $table->string('nida_verification_status')->default('unverified')->after('national_id');
-            $table->timestamp('nida_verified_at')->nullable()->after('nida_verification_status');
-            $table->string('nida_verified_source')->nullable()->after('nida_verified_at');
-            $table->boolean('identity_locked')->default(false)->after('nida_verified_source');
+            $table->string('nida_verification_status')->default('unverified');
+            $table->timestamp('nida_verified_at')->nullable();
+            $table->string('nida_verified_source')->nullable();
+            $table->boolean('identity_locked')->default(false);
         });
     }
 

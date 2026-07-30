@@ -11,7 +11,7 @@ return new class extends Migration
         if (Schema::hasTable('loan_application_post_approval_fees') && ! $this->hasForeign('loan_application_post_approval_fees', 'app_post_approval_fee_template_fk')) {
             Schema::table('loan_application_post_approval_fees', function (Blueprint $table): void {
                 if (! Schema::hasColumn('loan_application_post_approval_fees', 'loan_product_post_approval_fee_id')) {
-                    $table->unsignedBigInteger('loan_product_post_approval_fee_id')->nullable()->after('loan_application_id');
+                    $table->unsignedBigInteger('loan_product_post_approval_fee_id')->nullable();
                 }
             });
 
@@ -75,6 +75,30 @@ return new class extends Migration
                 $table->string('photo_path')->nullable();
                 $table->string('status', 20)->default('pending');
                 $table->text('admin_notes')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        if (Schema::hasTable('marketplace_assets') && ! Schema::hasTable('asset_reservations')) {
+            Schema::create('asset_reservations', function (Blueprint $table): void {
+                $table->id();
+                $table->foreignId('customer_id')->constrained()->cascadeOnDelete();
+                $table->foreignId('marketplace_asset_id')->constrained()->cascadeOnDelete();
+                $table->foreignId('loan_application_id')->nullable()->constrained()->nullOnDelete();
+                $table->string('status', 40)->default('viewing_scheduled');
+                $table->date('viewing_date')->nullable();
+                $table->string('viewing_time', 20)->nullable();
+                $table->decimal('reservation_fee_amount', 15, 2)->default(0);
+                $table->string('reservation_fee_status', 20)->default('pending');
+                $table->timestamp('reservation_fee_paid_at')->nullable();
+                $table->string('reservation_payment_reference', 60)->nullable();
+                $table->decimal('deposit_amount', 15, 2)->default(0);
+                $table->string('deposit_status', 20)->default('pending');
+                $table->timestamp('deposit_paid_at')->nullable();
+                $table->string('deposit_payment_reference', 60)->nullable();
+                $table->timestamp('viewing_completed_at')->nullable();
+                $table->timestamp('released_at')->nullable();
+                $table->text('notes')->nullable();
                 $table->timestamps();
             });
         }

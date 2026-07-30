@@ -12,16 +12,16 @@ return new class extends Migration
         if (Schema::hasTable('partners')) {
             Schema::table('partners', function (Blueprint $table): void {
                 if (! Schema::hasColumn('partners', 'affiliate_lifecycle_status')) {
-                    $table->string('affiliate_lifecycle_status', 30)->nullable()->after('affiliate_kyc_status');
+                    $table->string('affiliate_lifecycle_status', 30)->nullable();
                 }
                 if (! Schema::hasColumn('partners', 'affiliate_evaluation_snapshot')) {
-                    $table->json('affiliate_evaluation_snapshot')->nullable()->after('affiliate_lifecycle_status');
+                    $table->json('affiliate_evaluation_snapshot')->nullable();
                 }
                 if (! Schema::hasColumn('partners', 'affiliate_leaderboard_rank')) {
-                    $table->unsignedInteger('affiliate_leaderboard_rank')->nullable()->after('affiliate_evaluation_snapshot');
+                    $table->unsignedInteger('affiliate_leaderboard_rank')->nullable();
                 }
                 if (! Schema::hasColumn('partners', 'affiliate_lifecycle_note')) {
-                    $table->string('affiliate_lifecycle_note', 500)->nullable()->after('affiliate_leaderboard_rank');
+                    $table->string('affiliate_lifecycle_note', 500)->nullable();
                 }
             });
         }

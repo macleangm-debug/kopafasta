@@ -10,8 +10,8 @@ return new class extends Migration
     {
         if (! Schema::hasColumn('vendors', 'recovery_commission_percent')) {
             Schema::table('vendors', function (Blueprint $table): void {
-                $table->decimal('recovery_commission_percent', 8, 2)->nullable()->after('affiliate_commission_percent');
-                $table->decimal('recovery_markup_percent', 8, 2)->nullable()->after('recovery_commission_percent');
+                $table->decimal('recovery_commission_percent', 8, 2)->nullable();
+                $table->decimal('recovery_markup_percent', 8, 2)->nullable();
             });
         }
 

@@ -10,25 +10,25 @@ return new class extends Migration
     {
         Schema::table('loan_products', function (Blueprint $table): void {
             if (! Schema::hasColumn('loan_products', 'default_grace_days')) {
-                $table->unsignedSmallInteger('default_grace_days')->default(7)->after('max_amount');
+                $table->unsignedSmallInteger('default_grace_days')->default(7);
             }
             if (! Schema::hasColumn('loan_products', 'penalty_rate_percent')) {
-                $table->decimal('penalty_rate_percent', 5, 2)->default(1)->after('default_grace_days');
+                $table->decimal('penalty_rate_percent', 5, 2)->default(1);
             }
             if (! Schema::hasColumn('loan_products', 'penalty_basis')) {
-                $table->string('penalty_basis', 20)->default('per_day')->after('penalty_rate_percent');
+                $table->string('penalty_basis', 20)->default('per_day');
             }
         });
 
         Schema::table('loans', function (Blueprint $table): void {
             if (! Schema::hasColumn('loans', 'default_grace_days')) {
-                $table->unsignedSmallInteger('default_grace_days')->nullable()->after('interest_rate');
+                $table->unsignedSmallInteger('default_grace_days')->nullable();
             }
             if (! Schema::hasColumn('loans', 'penalty_rate_percent')) {
-                $table->decimal('penalty_rate_percent', 5, 2)->nullable()->after('default_grace_days');
+                $table->decimal('penalty_rate_percent', 5, 2)->nullable();
             }
             if (! Schema::hasColumn('loans', 'penalty_basis')) {
-                $table->string('penalty_basis', 20)->nullable()->after('penalty_rate_percent');
+                $table->string('penalty_basis', 20)->nullable();
             }
         });
     }

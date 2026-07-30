@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table): void {
-            $table->timestamp('locked_until')->nullable()->after('is_active');
-            $table->timestamp('password_changed_at')->nullable()->after('locked_until');
+            $table->timestamp('locked_until')->nullable();
+            $table->timestamp('password_changed_at')->nullable();
         });
     }
 

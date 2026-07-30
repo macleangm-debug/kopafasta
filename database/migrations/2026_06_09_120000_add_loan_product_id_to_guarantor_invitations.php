@@ -12,7 +12,7 @@ return new class extends Migration
             if (! Schema::hasColumn('guarantor_invitations', 'loan_product_id')) {
                 $table->foreignId('loan_product_id')
                     ->nullable()
-                    ->after('loan_application_id')
+                    
                     ->constrained('loan_products')
                     ->nullOnDelete();
             }

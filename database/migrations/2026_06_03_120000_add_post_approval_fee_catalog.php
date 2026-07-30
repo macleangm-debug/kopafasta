@@ -24,7 +24,7 @@ return new class extends Migration
             if (! Schema::hasColumn('loan_product_post_approval_fees', 'charges_fee_id')) {
                 $table->foreignId('charges_fee_id')
                     ->nullable()
-                    ->after('loan_product_id')
+                    
                     ->constrained('charges_fees')
                     ->nullOnDelete();
             }

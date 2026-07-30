@@ -10,7 +10,7 @@ return new class extends Migration
     {
         if (Schema::hasTable('affiliate_events') && ! Schema::hasColumn('affiliate_events', 'device_fingerprint')) {
             Schema::table('affiliate_events', function (Blueprint $table): void {
-                $table->string('device_fingerprint', 64)->nullable()->after('device_type');
+                $table->string('device_fingerprint', 64)->nullable();
                 $table->index('device_fingerprint');
             });
         }
@@ -18,10 +18,10 @@ return new class extends Migration
         if (Schema::hasTable('partners')) {
             Schema::table('partners', function (Blueprint $table): void {
                 if (! Schema::hasColumn('partners', 'affiliate_risk_flag')) {
-                    $table->string('affiliate_risk_flag', 20)->default('low')->after('affiliate_lifecycle_note');
+                    $table->string('affiliate_risk_flag', 20)->default('low');
                 }
                 if (! Schema::hasColumn('partners', 'affiliate_fraud_snapshot')) {
-                    $table->json('affiliate_fraud_snapshot')->nullable()->after('affiliate_risk_flag');
+                    $table->json('affiliate_fraud_snapshot')->nullable();
                 }
             });
         }

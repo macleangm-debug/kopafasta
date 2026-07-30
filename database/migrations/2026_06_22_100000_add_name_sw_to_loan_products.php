@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('loan_products', function (Blueprint $table): void {
             if (! Schema::hasColumn('loan_products', 'name_sw')) {
-                $table->string('name_sw', 150)->nullable()->after('name');
+                $table->string('name_sw', 150)->nullable();
             }
         });
     }

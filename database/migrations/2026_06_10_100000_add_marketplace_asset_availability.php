@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('marketplace_assets', function (Blueprint $table) {
             if (! Schema::hasColumn('marketplace_assets', 'availability_status')) {
-                $table->string('availability_status', 20)->default('available')->after('is_active');
+                $table->string('availability_status', 20)->default('available');
             }
         });
     }

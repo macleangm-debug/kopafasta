@@ -14,34 +14,34 @@ return new class extends Migration
 
         Schema::table('affiliate_events', function (Blueprint $table): void {
             if (! Schema::hasColumn('affiliate_events', 'referral_code')) {
-                $table->string('referral_code', 40)->nullable()->after('event_type');
+                $table->string('referral_code', 40)->nullable();
             }
             if (! Schema::hasColumn('affiliate_events', 'campaign')) {
-                $table->string('campaign', 120)->nullable()->after('referral_code');
+                $table->string('campaign', 120)->nullable();
             }
             if (! Schema::hasColumn('affiliate_events', 'landing_page')) {
-                $table->string('landing_page', 500)->nullable()->after('campaign');
+                $table->string('landing_page', 500)->nullable();
             }
             if (! Schema::hasColumn('affiliate_events', 'referrer_url')) {
-                $table->string('referrer_url', 500)->nullable()->after('landing_page');
+                $table->string('referrer_url', 500)->nullable();
             }
             if (! Schema::hasColumn('affiliate_events', 'utm_source')) {
-                $table->string('utm_source', 120)->nullable()->after('referrer_url');
+                $table->string('utm_source', 120)->nullable();
             }
             if (! Schema::hasColumn('affiliate_events', 'utm_medium')) {
-                $table->string('utm_medium', 120)->nullable()->after('utm_source');
+                $table->string('utm_medium', 120)->nullable();
             }
             if (! Schema::hasColumn('affiliate_events', 'utm_campaign')) {
-                $table->string('utm_campaign', 120)->nullable()->after('utm_medium');
+                $table->string('utm_campaign', 120)->nullable();
             }
             if (! Schema::hasColumn('affiliate_events', 'utm_term')) {
-                $table->string('utm_term', 120)->nullable()->after('utm_campaign');
+                $table->string('utm_term', 120)->nullable();
             }
             if (! Schema::hasColumn('affiliate_events', 'utm_content')) {
-                $table->string('utm_content', 120)->nullable()->after('utm_term');
+                $table->string('utm_content', 120)->nullable();
             }
             if (! Schema::hasColumn('affiliate_events', 'device_type')) {
-                $table->string('device_type', 20)->nullable()->after('user_agent');
+                $table->string('device_type', 20)->nullable();
             }
         });
     }

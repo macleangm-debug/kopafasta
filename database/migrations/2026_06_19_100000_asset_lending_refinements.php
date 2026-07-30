@@ -10,17 +10,17 @@ return new class extends Migration
     {
         if (Schema::hasTable('vendors') && ! Schema::hasColumn('vendors', 'supplier_type')) {
             Schema::table('vendors', function (Blueprint $table): void {
-                $table->string('supplier_type', 30)->default('managed_loan')->after('category');
+                $table->string('supplier_type', 30)->default('managed_loan');
             });
         }
 
         if (Schema::hasTable('asset_requests')) {
             Schema::table('asset_requests', function (Blueprint $table): void {
                 if (! Schema::hasColumn('asset_requests', 'description')) {
-                    $table->text('description')->nullable()->after('asset_name');
+                    $table->text('description')->nullable();
                 }
                 if (! Schema::hasColumn('asset_requests', 'additional_photos')) {
-                    $table->json('additional_photos')->nullable()->after('photo_path');
+                    $table->json('additional_photos')->nullable();
                 }
             });
         }

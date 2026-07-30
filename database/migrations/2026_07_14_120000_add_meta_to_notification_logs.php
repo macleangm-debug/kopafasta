@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('notification_logs', function (Blueprint $table): void {
             if (! Schema::hasColumn('notification_logs', 'meta')) {
-                $table->json('meta')->nullable()->after('message');
+                $table->json('meta')->nullable();
             }
         });
     }

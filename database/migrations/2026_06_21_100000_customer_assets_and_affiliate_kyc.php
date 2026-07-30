@@ -28,25 +28,25 @@ return new class extends Migration
 
         if (Schema::hasTable('loan_application_assets') && ! Schema::hasColumn('loan_application_assets', 'customer_asset_id')) {
             Schema::table('loan_application_assets', function (Blueprint $table): void {
-                $table->foreignId('customer_asset_id')->nullable()->after('loan_application_id')->constrained()->nullOnDelete();
+                $table->foreignId('customer_asset_id')->nullable()->constrained()->nullOnDelete();
             });
         }
 
         Schema::table('vendors', function (Blueprint $table): void {
             if (! Schema::hasColumn('vendors', 'affiliate_kyc_status')) {
-                $table->string('affiliate_kyc_status', 30)->nullable()->after('affiliate_commission_percent');
+                $table->string('affiliate_kyc_status', 30)->nullable();
             }
             if (! Schema::hasColumn('vendors', 'affiliate_selfie_path')) {
-                $table->string('affiliate_selfie_path', 255)->nullable()->after('affiliate_kyc_status');
+                $table->string('affiliate_selfie_path', 255)->nullable();
             }
             if (! Schema::hasColumn('vendors', 'affiliate_id_path')) {
-                $table->string('affiliate_id_path', 255)->nullable()->after('affiliate_selfie_path');
+                $table->string('affiliate_id_path', 255)->nullable();
             }
             if (! Schema::hasColumn('vendors', 'affiliate_photo_path')) {
-                $table->string('affiliate_photo_path', 255)->nullable()->after('affiliate_id_path');
+                $table->string('affiliate_photo_path', 255)->nullable();
             }
             if (! Schema::hasColumn('vendors', 'affiliate_phone_verified_at')) {
-                $table->timestamp('affiliate_phone_verified_at')->nullable()->after('affiliate_photo_path');
+                $table->timestamp('affiliate_phone_verified_at')->nullable();
             }
         });
     }

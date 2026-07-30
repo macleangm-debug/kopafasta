@@ -10,13 +10,13 @@ return new class extends Migration
     {
         Schema::table('guarantor_invitations', function (Blueprint $table): void {
             if (! Schema::hasColumn('guarantor_invitations', 'guarantor_signer_name')) {
-                $table->string('guarantor_signer_name', 120)->nullable()->after('response_notes');
+                $table->string('guarantor_signer_name', 120)->nullable();
             }
             if (! Schema::hasColumn('guarantor_invitations', 'guarantor_signature_data')) {
-                $table->text('guarantor_signature_data')->nullable()->after('guarantor_signer_name');
+                $table->text('guarantor_signature_data')->nullable();
             }
             if (! Schema::hasColumn('guarantor_invitations', 'guarantor_signed_at')) {
-                $table->timestamp('guarantor_signed_at')->nullable()->after('guarantor_signature_data');
+                $table->timestamp('guarantor_signed_at')->nullable();
             }
         });
     }

@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('lenders', function (Blueprint $table): void {
             if (! Schema::hasColumn('lenders', 'allocation_priority')) {
-                $table->unsignedSmallInteger('allocation_priority')->nullable()->after('status');
+                $table->unsignedSmallInteger('allocation_priority')->nullable();
             }
         });
 

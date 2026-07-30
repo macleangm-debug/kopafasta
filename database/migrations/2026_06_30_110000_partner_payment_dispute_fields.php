@@ -13,10 +13,10 @@ return new class extends Migration {
 
         Schema::table('partner_payments', function (Blueprint $table): void {
             if (! Schema::hasColumn('partner_payments', 'disputed_at')) {
-                $table->timestamp('disputed_at')->nullable()->after('approved_at');
+                $table->timestamp('disputed_at')->nullable();
             }
             if (! Schema::hasColumn('partner_payments', 'dispute_reason')) {
-                $table->text('dispute_reason')->nullable()->after('disputed_at');
+                $table->text('dispute_reason')->nullable();
             }
         });
     }

@@ -11,7 +11,7 @@ return new class extends Migration
     {
         Schema::table('loan_products', function (Blueprint $table): void {
             if (! Schema::hasColumn('loan_products', 'uses_capital_partner')) {
-                $table->boolean('uses_capital_partner')->default(true)->after('requires_guarantor');
+                $table->boolean('uses_capital_partner')->default(true);
             }
         });
 

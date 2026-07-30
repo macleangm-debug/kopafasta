@@ -50,6 +50,14 @@ class CustomerAssetService
             $metadata['ownership_document_path'] = $files['ownership_document']->store("customer/{$customer->id}/assets/docs", 'public');
         }
 
+        $details = array_filter(
+            (array) ($data['details'] ?? []),
+            fn ($value) => $value !== null && $value !== ''
+        );
+        if ($details !== []) {
+            $metadata['details'] = $details;
+        }
+
         return CustomerAsset::create([
             'customer_id'          => $customer->id,
             'asset_type'           => $type,
@@ -87,5 +95,53 @@ class CustomerAssetService
     public function deactivate(CustomerAsset $asset): void
     {
         $asset->update(['is_active' => false]);
+    }
+
+    /**
+     * Append additional gallery photos to an existing collateral (within a hard cap).
+     *
+     * @param  array<int, UploadedFile>  $photos
+     */
+    public function addPhotos(CustomerAsset $asset, array $photos, int $max = 6): CustomerAsset
+    {
+        $paths = array_values($asset->photo_paths ?? []);
+        foreach ($photos as $photo) {
+            if (count($paths) >= $max) {
+                break;
+            }
+            if ($photo instanceof UploadedFile && $photo->isValid()) {
+                $paths[] = $photo->store("customer/{$asset->customer_id}/assets", 'public');
+            }
+        }
+
+        $asset->update(['photo_paths' => $paths ?: null]);
+
+        return $asset->refresh();
+    }
+
+    /** Remove a single gallery photo by its zero-based index. */
+    public function deletePhoto(CustomerAsset $asset, int $index): CustomerAsset
+    {
+        $paths = array_values($asset->photo_paths ?? []);
+        if (array_key_exists($index, $paths)) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($paths[$index]);
+            unset($paths[$index]);
+            $asset->update(['photo_paths' => array_values($paths) ?: null]);
+        }
+
+        return $asset->refresh();
+    }
+
+    /** Replace a single gallery photo by index. */
+    public function replacePhoto(CustomerAsset $asset, int $index, UploadedFile $photo): CustomerAsset
+    {
+        $paths = array_values($asset->photo_paths ?? []);
+        if (array_key_exists($index, $paths) && $photo->isValid()) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($paths[$index]);
+            $paths[$index] = $photo->store("customer/{$asset->customer_id}/assets", 'public');
+            $asset->update(['photo_paths' => array_values($paths)]);
+        }
+
+        return $asset->refresh();
     }
 }

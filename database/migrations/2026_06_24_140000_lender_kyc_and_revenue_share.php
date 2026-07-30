@@ -13,25 +13,25 @@ return new class extends Migration {
 
         Schema::table('lenders', function (Blueprint $table): void {
             if (! Schema::hasColumn('lenders', 'revenue_share_percent')) {
-                $table->decimal('revenue_share_percent', 5, 2)->nullable()->after('funding_source');
+                $table->decimal('revenue_share_percent', 5, 2)->nullable();
             }
             if (! Schema::hasColumn('lenders', 'registration_number')) {
-                $table->string('registration_number', 80)->nullable()->after('revenue_share_percent');
+                $table->string('registration_number', 80)->nullable();
             }
             if (! Schema::hasColumn('lenders', 'tax_id')) {
-                $table->string('tax_id', 40)->nullable()->after('registration_number');
+                $table->string('tax_id', 40)->nullable();
             }
             if (! Schema::hasColumn('lenders', 'license_number')) {
-                $table->string('license_number', 80)->nullable()->after('tax_id');
+                $table->string('license_number', 80)->nullable();
             }
             if (! Schema::hasColumn('lenders', 'kyc_status')) {
-                $table->string('kyc_status', 20)->nullable()->default('pending')->after('license_number');
+                $table->string('kyc_status', 20)->nullable()->default('pending');
             }
             if (! Schema::hasColumn('lenders', 'kyc_verified_at')) {
-                $table->timestamp('kyc_verified_at')->nullable()->after('kyc_status');
+                $table->timestamp('kyc_verified_at')->nullable();
             }
             if (! Schema::hasColumn('lenders', 'kyc_notes')) {
-                $table->text('kyc_notes')->nullable()->after('kyc_verified_at');
+                $table->text('kyc_notes')->nullable();
             }
         });
     }

@@ -10,19 +10,19 @@ return new class extends Migration
     {
         Schema::table('vendors', function (Blueprint $table): void {
             if (! Schema::hasColumn('vendors', 'recovery_fee_type')) {
-                $table->string('recovery_fee_type', 20)->nullable()->after('recovery_markup_percent');
+                $table->string('recovery_fee_type', 20)->nullable();
             }
             if (! Schema::hasColumn('vendors', 'recovery_fixed_amount')) {
-                $table->decimal('recovery_fixed_amount', 15, 2)->nullable()->after('recovery_fee_type');
+                $table->decimal('recovery_fixed_amount', 15, 2)->nullable();
             }
             if (! Schema::hasColumn('vendors', 'activation_token')) {
-                $table->string('activation_token', 64)->nullable()->unique()->after('status');
+                $table->string('activation_token', 64)->nullable()->unique();
             }
             if (! Schema::hasColumn('vendors', 'activation_sent_at')) {
-                $table->timestamp('activation_sent_at')->nullable()->after('activation_token');
+                $table->timestamp('activation_sent_at')->nullable();
             }
             if (! Schema::hasColumn('vendors', 'activated_at')) {
-                $table->timestamp('activated_at')->nullable()->after('activation_sent_at');
+                $table->timestamp('activated_at')->nullable();
             }
         });
     }

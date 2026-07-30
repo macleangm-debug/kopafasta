@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('personal_access_tokens', function (Blueprint $table): void {
-            $table->string('created_ip', 45)->nullable()->after('expires_at');
-            $table->string('created_user_agent', 1000)->nullable()->after('created_ip');
+            $table->string('created_ip', 45)->nullable();
+            $table->string('created_user_agent', 1000)->nullable();
         });
     }
 

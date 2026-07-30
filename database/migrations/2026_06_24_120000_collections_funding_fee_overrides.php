@@ -11,13 +11,13 @@ return new class extends Migration
         if (Schema::hasTable('loan_application_post_approval_fees')) {
             Schema::table('loan_application_post_approval_fees', function (Blueprint $table): void {
                 if (! Schema::hasColumn('loan_application_post_approval_fees', 'override_reason')) {
-                    $table->string('override_reason')->nullable()->after('calculated_amount');
+                    $table->string('override_reason')->nullable();
                 }
                 if (! Schema::hasColumn('loan_application_post_approval_fees', 'waived_at')) {
-                    $table->timestamp('waived_at')->nullable()->after('paid_at');
+                    $table->timestamp('waived_at')->nullable();
                 }
                 if (! Schema::hasColumn('loan_application_post_approval_fees', 'waived_by')) {
-                    $table->foreignId('waived_by')->nullable()->after('waived_at')->constrained('users')->nullOnDelete();
+                    $table->foreignId('waived_by')->nullable()->constrained('users')->nullOnDelete();
                 }
             });
         }
@@ -25,13 +25,13 @@ return new class extends Migration
         if (Schema::hasTable('repayments')) {
             Schema::table('repayments', function (Blueprint $table): void {
                 if (! Schema::hasColumn('repayments', 'recorded_by')) {
-                    $table->foreignId('recorded_by')->nullable()->after('paid_at')->constrained('users')->nullOnDelete();
+                    $table->foreignId('recorded_by')->nullable()->constrained('users')->nullOnDelete();
                 }
                 if (! Schema::hasColumn('repayments', 'approved_by')) {
-                    $table->foreignId('approved_by')->nullable()->after('recorded_by')->constrained('users')->nullOnDelete();
+                    $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
                 }
                 if (! Schema::hasColumn('repayments', 'approved_at')) {
-                    $table->timestamp('approved_at')->nullable()->after('approved_by');
+                    $table->timestamp('approved_at')->nullable();
                 }
             });
         }
@@ -39,10 +39,10 @@ return new class extends Migration
         if (Schema::hasTable('loan_applications')) {
             Schema::table('loan_applications', function (Blueprint $table): void {
                 if (! Schema::hasColumn('loan_applications', 'funding_source')) {
-                    $table->string('funding_source', 20)->nullable()->after('approved_at');
+                    $table->string('funding_source', 20)->nullable();
                 }
                 if (! Schema::hasColumn('loan_applications', 'preferred_lender_id')) {
-                    $table->foreignId('preferred_lender_id')->nullable()->after('funding_source')->constrained('lenders')->nullOnDelete();
+                    $table->foreignId('preferred_lender_id')->nullable()->constrained('lenders')->nullOnDelete();
                 }
             });
         }
@@ -50,7 +50,7 @@ return new class extends Migration
         if (Schema::hasTable('lenders')) {
             Schema::table('lenders', function (Blueprint $table): void {
                 if (! Schema::hasColumn('lenders', 'funding_source')) {
-                    $table->string('funding_source', 20)->default('external')->after('type');
+                    $table->string('funding_source', 20)->default('external');
                 }
             });
         }

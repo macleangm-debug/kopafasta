@@ -11,13 +11,13 @@ return new class extends Migration
         if (Schema::hasTable('group_member_invitations')) {
             Schema::table('group_member_invitations', function (Blueprint $table): void {
                 if (! Schema::hasColumn('group_member_invitations', 'member_signer_name')) {
-                    $table->string('member_signer_name', 120)->nullable()->after('responded_at');
+                    $table->string('member_signer_name', 120)->nullable();
                 }
                 if (! Schema::hasColumn('group_member_invitations', 'member_signature_data')) {
-                    $table->text('member_signature_data')->nullable()->after('member_signer_name');
+                    $table->text('member_signature_data')->nullable();
                 }
                 if (! Schema::hasColumn('group_member_invitations', 'member_signed_at')) {
-                    $table->timestamp('member_signed_at')->nullable()->after('member_signature_data');
+                    $table->timestamp('member_signed_at')->nullable();
                 }
             });
         }
@@ -25,25 +25,25 @@ return new class extends Migration
         if (Schema::hasTable('loan_group_members')) {
             Schema::table('loan_group_members', function (Blueprint $table): void {
                 if (! Schema::hasColumn('loan_group_members', 'onboarding_status')) {
-                    $table->string('onboarding_status', 40)->nullable()->after('role');
+                    $table->string('onboarding_status', 40)->nullable();
                 }
                 if (! Schema::hasColumn('loan_group_members', 'group_member_invitation_id')) {
-                    $table->unsignedBigInteger('group_member_invitation_id')->nullable()->after('customer_id');
+                    $table->unsignedBigInteger('group_member_invitation_id')->nullable();
                 }
                 if (! Schema::hasColumn('loan_group_members', 'underwriting_status')) {
-                    $table->string('underwriting_status', 40)->default('pending')->after('onboarding_status');
+                    $table->string('underwriting_status', 40)->default('pending');
                 }
                 if (! Schema::hasColumn('loan_group_members', 'underwriting_notes')) {
-                    $table->text('underwriting_notes')->nullable()->after('underwriting_status');
+                    $table->text('underwriting_notes')->nullable();
                 }
                 if (! Schema::hasColumn('loan_group_members', 'leader_feedback')) {
-                    $table->text('leader_feedback')->nullable()->after('underwriting_notes');
+                    $table->text('leader_feedback')->nullable();
                 }
                 if (! Schema::hasColumn('loan_group_members', 'reviewed_at')) {
-                    $table->timestamp('reviewed_at')->nullable()->after('leader_feedback');
+                    $table->timestamp('reviewed_at')->nullable();
                 }
                 if (! Schema::hasColumn('loan_group_members', 'reviewed_by_user_id')) {
-                    $table->unsignedBigInteger('reviewed_by_user_id')->nullable()->after('reviewed_at');
+                    $table->unsignedBigInteger('reviewed_by_user_id')->nullable();
                 }
             });
         }
@@ -51,7 +51,7 @@ return new class extends Migration
         if (Schema::hasTable('loan_groups')) {
             Schema::table('loan_groups', function (Blueprint $table): void {
                 if (! Schema::hasColumn('loan_groups', 'leader_feedback')) {
-                    $table->text('leader_feedback')->nullable()->after('target_member_count');
+                    $table->text('leader_feedback')->nullable();
                 }
             });
         }
@@ -59,7 +59,7 @@ return new class extends Migration
         if (Schema::hasTable('application_signatures')) {
             Schema::table('application_signatures', function (Blueprint $table): void {
                 if (! Schema::hasColumn('application_signatures', 'group_member_invitation_id')) {
-                    $table->unsignedBigInteger('group_member_invitation_id')->nullable()->after('guarantor_invitation_id');
+                    $table->unsignedBigInteger('group_member_invitation_id')->nullable();
                 }
             });
         }

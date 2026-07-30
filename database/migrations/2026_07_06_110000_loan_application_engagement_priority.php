@@ -10,7 +10,7 @@ return new class extends Migration
     {
         if (Schema::hasTable('loan_applications') && ! Schema::hasColumn('loan_applications', 'engagement_priority')) {
             Schema::table('loan_applications', function (Blueprint $table) {
-                $table->unsignedTinyInteger('engagement_priority')->default(0)->after('submitted_at');
+                $table->unsignedTinyInteger('engagement_priority')->default(0);
             });
         }
     }

@@ -8,8 +8,8 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::table('customer_documents', function (Blueprint $table) {
-            $table->unsignedBigInteger('loan_application_id')->nullable()->after('customer_id');
-            $table->unsignedBigInteger('loan_product_requirement_id')->nullable()->after('document_type_id');
+            $table->unsignedBigInteger('loan_application_id')->nullable();
+            $table->unsignedBigInteger('loan_product_requirement_id')->nullable();
             $table->index('loan_application_id');
             $table->index('loan_product_requirement_id');
         });

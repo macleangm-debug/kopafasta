@@ -10,19 +10,19 @@ return new class extends Migration
     {
         Schema::table('membership_histories', function (Blueprint $table): void {
             if (! Schema::hasColumn('membership_histories', 'referral_discount_amount')) {
-                $table->decimal('referral_discount_amount', 15, 2)->nullable()->after('fee_amount');
+                $table->decimal('referral_discount_amount', 15, 2)->nullable();
             }
             if (! Schema::hasColumn('membership_histories', 'wallet_amount_used')) {
-                $table->decimal('wallet_amount_used', 15, 2)->nullable()->after('referral_discount_amount');
+                $table->decimal('wallet_amount_used', 15, 2)->nullable();
             }
             if (! Schema::hasColumn('membership_histories', 'cash_amount_paid')) {
-                $table->decimal('cash_amount_paid', 15, 2)->nullable()->after('wallet_amount_used');
+                $table->decimal('cash_amount_paid', 15, 2)->nullable();
             }
         });
 
         Schema::table('loan_applications', function (Blueprint $table): void {
             if (! Schema::hasColumn('loan_applications', 'referral_discount_amount')) {
-                $table->decimal('referral_discount_amount', 15, 2)->nullable()->after('application_fee_amount');
+                $table->decimal('referral_discount_amount', 15, 2)->nullable();
             }
         });
     }

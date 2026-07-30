@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('partner_applications', function (Blueprint $table): void {
             if (! Schema::hasColumn('partner_applications', 'applicant_category')) {
-                $table->string('applicant_category', 30)->default('individual')->after('type');
+                $table->string('applicant_category', 30)->default('individual');
             }
         });
     }

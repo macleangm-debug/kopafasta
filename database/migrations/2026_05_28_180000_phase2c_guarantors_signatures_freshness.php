@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('customers', function (Blueprint $table): void {
-            $table->timestamp('kyc_reconfirmed_at')->nullable()->after('face_rejection_notes');
+            $table->timestamp('kyc_reconfirmed_at')->nullable();
         });
 
         Schema::create('guarantor_invitations', function (Blueprint $table): void {

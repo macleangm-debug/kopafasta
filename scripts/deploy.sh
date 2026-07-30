@@ -7,7 +7,7 @@ Usage:
   ./scripts/deploy.sh <user@host> <remote_app_dir>
 
 Example:
-  ./scripts/deploy.sh root@137.184.55.36 /var/www/kopafasta
+  ./scripts/deploy.sh root@167.99.239.125 /var/www/kopafasta
 
 Optional environment variables:
   SSH_PORT=22

@@ -2620,11 +2620,22 @@ class BorrowerController extends Controller
             'description'         => ['nullable', 'string', 'max:2000'],
             'registration_number' => ['nullable', 'string', 'max:80'],
             'estimated_value'     => ['nullable', 'numeric', 'min:0'],
-            'photos'              => ['required', 'array', 'min:2', 'max:4'],
+            'details'             => ['nullable', 'array'],
+            'details.*'           => ['nullable', 'string', 'max:150'],
+            'photos'              => ['required', 'array', 'min:2', 'max:6'],
             'photos.*'            => ['required', 'image', 'max:5120'],
             'person_photo'        => ['required', 'image', 'max:5120'],
             'ownership_document'  => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
         ]);
+
+        // Keep only detail keys that belong to the selected type (guards against tampering).
+        $allowed = collect(\App\Models\CustomerAsset::detailFieldsFor($data['asset_type']))
+            ->reject(fn ($f) => $f['column'] ?? false)
+            ->pluck('key')
+            ->all();
+        $data['details'] = collect($data['details'] ?? [])
+            ->only($allowed)
+            ->all();
 
         app(\App\Services\CustomerAssetService::class)->store($customer, $data, [
             'photos'              => array_values(array_filter(
@@ -2678,5 +2689,40 @@ class BorrowerController extends Controller
         return redirect()
             ->route('site.borrower.profile', ['section' => 'assets'])
             ->with('status', __('borrower.profile.asset_removed'));
+    }
+
+    public function addAssetPhotos(Request $request, CustomerAsset $asset): RedirectResponse
+    {
+        abort_unless($asset->customer_id === $this->customer()->id, 403);
+        $request->validate([
+            'photos'   => ['required', 'array', 'min:1', 'max:6'],
+            'photos.*' => ['required', 'image', 'max:5120'],
+        ]);
+
+        app(\App\Services\CustomerAssetService::class)->addPhotos(
+            $asset,
+            array_values(array_filter(
+                is_array($request->file('photos')) ? $request->file('photos') : [],
+                fn ($file) => $file instanceof \Illuminate\Http\UploadedFile && $file->isValid()
+            ))
+        );
+
+        return redirect()
+            ->route('site.borrower.profile', ['section' => 'assets'])
+            ->with('status', __('borrower.profile.asset_photos_added'));
+    }
+
+    public function deleteAssetPhoto(Request $request, CustomerAsset $asset): RedirectResponse
+    {
+        abort_unless($asset->customer_id === $this->customer()->id, 403);
+        $data = $request->validate([
+            'index' => ['required', 'integer', 'min:0'],
+        ]);
+
+        app(\App\Services\CustomerAssetService::class)->deletePhoto($asset, (int) $data['index']);
+
+        return redirect()
+            ->route('site.borrower.profile', ['section' => 'assets'])
+            ->with('status', __('borrower.profile.asset_photo_removed'));
     }
 }

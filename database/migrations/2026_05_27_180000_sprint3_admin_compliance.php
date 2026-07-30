@@ -10,28 +10,28 @@ return new class extends Migration
     {
         Schema::table('loan_products', function (Blueprint $table): void {
             if (! Schema::hasColumn('loan_products', 'bot_regulated_rate')) {
-                $table->decimal('bot_regulated_rate', 8, 4)->nullable()->after('interest_rate');
+                $table->decimal('bot_regulated_rate', 8, 4)->nullable();
             }
             if (! Schema::hasColumn('loan_products', 'processing_fee_rate')) {
-                $table->decimal('processing_fee_rate', 8, 4)->default(0)->after('bot_regulated_rate');
+                $table->decimal('processing_fee_rate', 8, 4)->default(0);
             }
             if (! Schema::hasColumn('loan_products', 'service_fee_rate')) {
-                $table->decimal('service_fee_rate', 8, 4)->default(0)->after('processing_fee_rate');
+                $table->decimal('service_fee_rate', 8, 4)->default(0);
             }
             if (! Schema::hasColumn('loan_products', 'administration_fee_rate')) {
-                $table->decimal('administration_fee_rate', 8, 4)->default(0)->after('service_fee_rate');
+                $table->decimal('administration_fee_rate', 8, 4)->default(0);
             }
             if (! Schema::hasColumn('loan_products', 'offer_letter_template_id')) {
-                $table->foreignId('offer_letter_template_id')->nullable()->after('approval_workflow_id')->constrained('document_templates')->nullOnDelete();
+                $table->foreignId('offer_letter_template_id')->nullable()->constrained('document_templates')->nullOnDelete();
             }
             if (! Schema::hasColumn('loan_products', 'loan_contract_template_id')) {
-                $table->foreignId('loan_contract_template_id')->nullable()->after('offer_letter_template_id')->constrained('document_templates')->nullOnDelete();
+                $table->foreignId('loan_contract_template_id')->nullable()->constrained('document_templates')->nullOnDelete();
             }
             if (! Schema::hasColumn('loan_products', 'guarantor_agreement_template_id')) {
-                $table->foreignId('guarantor_agreement_template_id')->nullable()->after('loan_contract_template_id')->constrained('document_templates')->nullOnDelete();
+                $table->foreignId('guarantor_agreement_template_id')->nullable()->constrained('document_templates')->nullOnDelete();
             }
             if (! Schema::hasColumn('loan_products', 'asset_lending_agreement_template_id')) {
-                $table->foreignId('asset_lending_agreement_template_id')->nullable()->after('guarantor_agreement_template_id')->constrained('document_templates')->nullOnDelete();
+                $table->foreignId('asset_lending_agreement_template_id')->nullable()->constrained('document_templates')->nullOnDelete();
             }
         });
     }
