@@ -14,10 +14,34 @@
         'rejected' => [__('borrower.nida.face_status.failed'), 'bg-red-100 text-red-800'],
         default    => [__('borrower.nida.face_status.incomplete'), 'bg-amber-100 text-amber-800'],
     };
+    $photoEntries = collect($angles)->map(function ($meta, $key) use ($photos) {
+        $photo = $photos[$key] ?? null;
+        $url = $photo?->file_path ? asset('storage/'.$photo->file_path) : null;
+
+        return [
+            'key' => $key,
+            'label' => $meta['label'] ?? $key,
+            'url' => $url,
+        ];
+    })->values();
+    $captured = $photoEntries->filter(fn ($p) => filled($p['url']))->values();
+    $canReplaceFace = in_array($statusKey, ['rejected', 'incomplete', 'pending'], true);
 @endphp
 
 <div
-    x-data="{ expandedUrl: null }"
+    x-data="{
+        expandedUrl: null,
+        expandedLabel: null,
+        openPreview(url, label) {
+            if (!url) return;
+            this.expandedUrl = url;
+            this.expandedLabel = label || '';
+        },
+        closePreview() {
+            this.expandedUrl = null;
+            this.expandedLabel = null;
+        },
+    }"
     @class([
         'overflow-hidden',
         'rounded-3xl ring-1 ring-brand/15 bg-white' => ! $compact,
@@ -46,54 +70,52 @@
         </div>
     @endif
 
-    <div @class(['grid grid-cols-2 gap-3', 'p-5 sm:gap-4' => ! $compact])>
-        @foreach ($angles as $key => $meta)
-            @php
-                $photo = $photos[$key] ?? null;
-                $url = $photo?->file_path ? asset('storage/'.$photo->file_path) : null;
-            @endphp
-            <figure class="rounded-2xl overflow-hidden ring-1 ring-gray-200 bg-white shadow-sm">
-                <div class="relative aspect-[3/4] bg-gradient-to-b from-gray-100 to-gray-200">
-                    @if ($url)
-                        <button type="button" @click="expandedUrl = @js($url)"
-                                class="absolute inset-0 block group cursor-zoom-in text-left w-full">
-                            <img
-                                src="{{ $url }}"
-                                alt="{{ $meta['label'] ?? $key }}"
-                                class="absolute inset-0 w-full h-full object-cover object-top"
-                                loading="lazy"
-                            >
-                            <span class="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/55 to-transparent opacity-80 pointer-events-none"></span>
-                            <span class="absolute bottom-2 left-2 right-2 text-[11px] font-semibold text-white drop-shadow-sm truncate">
-                                {{ $meta['label'] ?? $key }}
-                            </span>
+    {{-- NIDA-style card previews per angle --}}
+    <div @class(['grid sm:grid-cols-2 gap-3', 'p-5' => ! $compact])>
+        @foreach ($photoEntries as $entry)
+            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
+                <p class="text-xs text-gray-500">{{ $entry['label'] }}</p>
+                <div class="mt-2 flex items-start gap-3">
+                    @if ($entry['url'])
+                        <button type="button"
+                                @click="openPreview(@js($entry['url']), @js($entry['label']))"
+                                class="h-28 w-24 shrink-0 rounded-lg ring-1 ring-brand/15 overflow-hidden bg-white cursor-zoom-in block shadow-sm hover:ring-brand/40 transition"
+                                title="{{ __('borrower.profile.view_document') }}">
+                            <img src="{{ $entry['url'] }}"
+                                 alt="{{ $entry['label'] }}"
+                                 class="h-full w-full object-cover object-top"
+                                 loading="lazy">
                         </button>
-                    @else
-                        <div class="absolute inset-0 flex flex-col items-center justify-center gap-1 px-2 text-center">
-                            <span class="text-2xl opacity-40" aria-hidden="true">📷</span>
-                            <span class="text-xs text-gray-400">{{ __('borrower.nida.face_not_captured') }}</span>
+                        <div class="min-w-0 flex-1 flex flex-col gap-2 pt-0.5">
+                            <p class="text-[11px] text-gray-500">{{ __('borrower.profile.tap_to_enlarge') }}</p>
+                            <button type="button"
+                                    @click="openPreview(@js($entry['url']), @js($entry['label']))"
+                                    class="inline-flex items-center justify-center self-start rounded-full bg-white ring-1 ring-brand/20 px-3 py-1.5 text-xs font-semibold text-brand hover:bg-brand-muted/40">
+                                {{ __('borrower.nida.face_view_angle') }}
+                            </button>
                         </div>
+                    @else
+                        <div class="h-28 w-24 shrink-0 rounded-lg ring-1 ring-dashed ring-gray-300 bg-white flex flex-col items-center justify-center gap-1 text-center px-1">
+                            <span class="text-lg opacity-40" aria-hidden="true">◎</span>
+                            <span class="text-[10px] text-gray-400 leading-tight">{{ __('borrower.nida.face_not_captured') }}</span>
+                        </div>
+                        <p class="text-sm font-semibold text-amber-700 pt-2">{{ __('borrower.profile.missing') }}</p>
                     @endif
                 </div>
-            </figure>
+            </div>
         @endforeach
     </div>
 
     @if ($statusKey === 'pending' && ! $compact)
-        <div class="px-5 pb-5">
+        <div class="px-5 pb-2">
             <p class="text-sm text-gray-600">{{ __('borrower.nida.face_submitted_body') }}</p>
         </div>
     @endif
 
     <div @class(['px-5 pb-5 flex flex-wrap gap-2', 'mt-3' => $compact, 'pt-1' => ! $compact])>
-        @php
-            $firstPhoto = collect($photos)->first(fn ($p) => filled($p?->file_path));
-            $firstUrl = $firstPhoto?->file_path ? asset('storage/'.$firstPhoto->file_path) : null;
-            $canReplaceFace = in_array($statusKey, ['rejected', 'incomplete', 'pending'], true);
-        @endphp
-        @if ($firstUrl)
+        @if ($captured->isNotEmpty())
             <button type="button"
-                    @click="expandedUrl = @js($firstUrl)"
+                    @click="openPreview(@js($captured->first()['url']), @js($captured->first()['label']))"
                     class="inline-flex items-center justify-center font-semibold px-4 py-2 rounded-full text-sm bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-800">
                 {{ __('borrower.nida.face_view') }}
             </button>
@@ -111,10 +133,41 @@
         @endif
     </div>
 
-    <div x-show="expandedUrl" x-cloak x-transition
-         class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"
-         @keydown.escape.window="expandedUrl = null"
-         @click.self="expandedUrl = null">
-        <img :src="expandedUrl" alt="" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
+    {{-- Premium card-style enlarge preview --}}
+    <div x-show="expandedUrl" x-cloak x-transition.opacity
+         class="fixed inset-0 z-[80] flex items-center justify-center p-4 sm:p-6"
+         @keydown.escape.window="closePreview()"
+         @click.self="closePreview()">
+        <div class="absolute inset-0 bg-brand/80 backdrop-blur-sm" @click="closePreview()"></div>
+        <div class="relative w-full max-w-lg" @click.stop>
+            <div class="overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-white/20">
+                <div class="bg-gradient-to-r from-brand via-brand to-brand-light px-5 py-3.5 flex items-center justify-between gap-3 text-white">
+                    <div class="min-w-0">
+                        <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">{{ __('borrower.nida.face_title') }}</p>
+                        <p class="font-semibold truncate" x-text="expandedLabel || @js(__('borrower.nida.face_preview'))"></p>
+                    </div>
+                    <button type="button" @click="closePreview()"
+                            class="size-9 shrink-0 grid place-items-center rounded-full bg-white/15 hover:bg-white/25 text-white text-xl"
+                            aria-label="{{ __('borrower.profile.cancel') }}">×</button>
+                </div>
+                <div class="bg-gradient-to-b from-brand-muted/30 to-gray-100 p-4 sm:p-5">
+                    <div class="mx-auto max-w-sm overflow-hidden rounded-2xl bg-black shadow-lg ring-1 ring-brand/10">
+                        <img :src="expandedUrl" alt="" class="w-full max-h-[70vh] object-contain object-top bg-black">
+                    </div>
+                </div>
+                <div class="px-5 py-4 flex flex-wrap gap-2 border-t border-gray-100 bg-white">
+                    <button type="button" @click="closePreview()"
+                            class="inline-flex items-center justify-center font-semibold px-4 py-2.5 rounded-xl text-sm bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-800">
+                        {{ __('borrower.feedback.ok') }}
+                    </button>
+                    @if ($canReplaceFace)
+                        <a href="{{ route('site.borrower.face-verification') }}"
+                           class="inline-flex items-center justify-center font-semibold px-4 py-2.5 rounded-xl text-sm bg-brand-gold hover:bg-yellow-400 text-brand">
+                            {{ __('borrower.nida.face_replace') }}
+                        </a>
+                    @endif
+                </div>
+            </div>
+        </div>
     </div>
 </div>

@@ -70,37 +70,46 @@
             <template x-if="steps.some(s => s.done)">
                 <div class="px-5 sm:px-7 pb-2">
                     <p class="text-[10px] uppercase tracking-widest text-brand font-semibold mb-3">{{ __('borrower.nida.face_captured_photos') }}</p>
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid sm:grid-cols-2 gap-3">
                         <template x-for="(step, i) in steps" :key="'intro-' + step.key + '-' + (step.previewUrl || '')">
-                            <div class="rounded-2xl overflow-hidden ring-1 ring-brand/10 bg-white">
-                                <button type="button"
-                                        class="relative aspect-[3/4] bg-gradient-to-b from-brand-muted/40 to-gray-100 w-full block text-left"
-                                        @click="step.done && step.previewUrl ? openPreview(step.previewUrl) : null"
-                                        :disabled="!(step.done && step.previewUrl)">
-                                    <img x-cloak
-                                         x-show="step.done && step.previewUrl"
-                                         :src="step.previewUrl"
-                                         :alt="step.label"
-                                         class="absolute inset-0 w-full h-full object-cover object-top"
-                                         loading="eager"
-                                         decoding="async">
-                                    <div x-show="!(step.done && step.previewUrl)" class="absolute inset-0 flex flex-col items-center justify-center gap-1 text-xs text-gray-400">
-                                        <span class="text-xl opacity-40" aria-hidden="true">◎</span>
-                                        <span>{{ __('borrower.nida.face_not_captured') }}</span>
+                            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
+                                <p class="text-xs text-gray-500" x-text="step.label"></p>
+                                <div class="mt-2 flex items-start gap-3">
+                                    <button type="button"
+                                            class="h-28 w-24 shrink-0 rounded-lg ring-1 ring-brand/15 overflow-hidden bg-white cursor-zoom-in block shadow-sm hover:ring-brand/40 transition relative"
+                                            @click="step.done && step.previewUrl ? openPreview(step.previewUrl) : null"
+                                            :disabled="!(step.done && step.previewUrl)">
+                                        <img x-cloak
+                                             x-show="step.done && step.previewUrl"
+                                             :src="step.previewUrl"
+                                             :alt="step.label"
+                                             class="absolute inset-0 w-full h-full object-cover object-top"
+                                             loading="eager"
+                                             decoding="async">
+                                        <div x-show="!(step.done && step.previewUrl)" class="absolute inset-0 flex flex-col items-center justify-center gap-1 text-[10px] text-gray-400 px-1 text-center">
+                                            <span class="text-lg opacity-40" aria-hidden="true">◎</span>
+                                            <span>{{ __('borrower.nida.face_not_captured') }}</span>
+                                        </div>
+                                    </button>
+                                    <div class="min-w-0 flex-1 flex flex-col gap-2 pt-0.5" x-show="step.done && step.previewUrl">
+                                        <p class="text-[11px] text-gray-500">{{ __('borrower.profile.tap_to_enlarge') }}</p>
+                                        <button type="button" @click="openPreview(step.previewUrl)"
+                                                class="inline-flex items-center justify-center self-start rounded-full bg-white ring-1 ring-brand/20 px-3 py-1.5 text-xs font-semibold text-brand hover:bg-brand-muted/40">
+                                            {{ __('borrower.nida.face_view_angle') }}
+                                        </button>
+                                        <div class="flex gap-2 pt-1">
+                                            <button type="button" @click="retakeStep(i)" :disabled="isRemoving"
+                                                    class="flex-1 text-[11px] font-semibold px-2 py-2 rounded-xl bg-brand-muted/60 hover:bg-brand-muted text-brand disabled:opacity-50">
+                                                {{ __('borrower.nida.face_retake') }}
+                                            </button>
+                                            <button type="button" @click="removePhoto(step.key)" :disabled="isRemoving"
+                                                    class="flex-1 text-[11px] font-semibold px-2 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 disabled:opacity-50">
+                                                <span x-show="!isRemoving">{{ __('borrower.nida.face_remove') }}</span>
+                                                <span x-show="isRemoving" x-cloak>…</span>
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div x-show="step.done" class="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/55 to-transparent pointer-events-none"></div>
-                                    <p x-show="step.done" class="absolute bottom-2 left-2 right-2 text-[11px] font-semibold text-white drop-shadow-sm truncate" x-text="step.label"></p>
-                                </button>
-                                <div x-show="step.done" class="p-2 flex gap-2 border-t border-gray-100">
-                                    <button type="button" @click="retakeStep(i)" :disabled="isRemoving"
-                                            class="flex-1 text-[11px] font-semibold px-2 py-2 rounded-xl bg-brand-muted/60 hover:bg-brand-muted text-brand disabled:opacity-50">
-                                        {{ __('borrower.nida.face_retake') }}
-                                    </button>
-                                    <button type="button" @click="removePhoto(step.key)" :disabled="isRemoving"
-                                            class="flex-1 text-[11px] font-semibold px-2 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 disabled:opacity-50">
-                                        <span x-show="!isRemoving">{{ __('borrower.nida.face_remove') }}</span>
-                                        <span x-show="isRemoving" x-cloak>…</span>
-                                    </button>
+                                    <p x-show="!(step.done && step.previewUrl)" class="text-sm font-semibold text-amber-700 pt-2">{{ __('borrower.profile.missing') }}</p>
                                 </div>
                             </div>
                         </template>
@@ -244,32 +253,40 @@
                 <h2 class="mt-1 text-lg font-bold text-gray-900 tracking-tight">{{ __('borrower.face_verification_page.review_all_heading') }}</h2>
                 <p class="text-sm text-gray-500 mt-1">{{ __('borrower.face_verification_page.review_all_hint') }}</p>
             </div>
-            <div class="grid grid-cols-2 gap-3 p-5">
+            <div class="grid sm:grid-cols-2 gap-3 p-5">
                 <template x-for="(step, i) in steps" :key="'review-' + step.key + '-' + (step.previewUrl || '')">
-                    <div class="rounded-2xl overflow-hidden ring-1 ring-brand/10 bg-white">
-                        <button type="button"
-                                class="relative aspect-[3/4] bg-gradient-to-b from-brand-muted/40 to-gray-100 w-full block text-left"
-                                @click="step.previewUrl ? openPreview(step.previewUrl) : null"
-                                :disabled="!step.previewUrl">
-                            <img x-cloak
-                                 x-show="!!step.previewUrl"
-                                 :src="step.previewUrl"
-                                 :alt="step.label"
-                                 class="absolute inset-0 w-full h-full object-cover object-top"
-                                 loading="eager"
-                                 decoding="async">
-                            <div class="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/55 to-transparent pointer-events-none"></div>
-                            <p class="absolute bottom-2 left-2 right-2 text-[11px] font-semibold text-white drop-shadow-sm truncate" x-text="step.label"></p>
-                        </button>
-                        <div class="p-2 flex gap-2 border-t border-gray-100">
-                            <button type="button" @click="retakeStep(i)" :disabled="isRemoving"
-                                    class="flex-1 text-[11px] font-semibold px-2 py-2 rounded-xl bg-brand-muted/60 hover:bg-brand-muted text-brand disabled:opacity-50">
-                                {{ __('borrower.nida.face_retake') }}
+                    <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
+                        <p class="text-xs text-gray-500" x-text="step.label"></p>
+                        <div class="mt-2 flex items-start gap-3">
+                            <button type="button"
+                                    class="h-28 w-24 shrink-0 rounded-lg ring-1 ring-brand/15 overflow-hidden bg-white cursor-zoom-in block shadow-sm hover:ring-brand/40 transition relative"
+                                    @click="step.previewUrl ? openPreview(step.previewUrl) : null"
+                                    :disabled="!step.previewUrl">
+                                <img x-cloak
+                                     x-show="!!step.previewUrl"
+                                     :src="step.previewUrl"
+                                     :alt="step.label"
+                                     class="absolute inset-0 w-full h-full object-cover object-top"
+                                     loading="eager"
+                                     decoding="async">
                             </button>
-                            <button type="button" @click="removePhoto(step.key)" :disabled="isRemoving"
-                                    class="flex-1 text-[11px] font-semibold px-2 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 disabled:opacity-50">
-                                {{ __('borrower.nida.face_remove') }}
-                            </button>
+                            <div class="min-w-0 flex-1 flex flex-col gap-2 pt-0.5">
+                                <p class="text-[11px] text-gray-500">{{ __('borrower.profile.tap_to_enlarge') }}</p>
+                                <button type="button" @click="openPreview(step.previewUrl)" :disabled="!step.previewUrl"
+                                        class="inline-flex items-center justify-center self-start rounded-full bg-white ring-1 ring-brand/20 px-3 py-1.5 text-xs font-semibold text-brand hover:bg-brand-muted/40 disabled:opacity-50">
+                                    {{ __('borrower.nida.face_view_angle') }}
+                                </button>
+                                <div class="flex gap-2 pt-1">
+                                    <button type="button" @click="retakeStep(i)" :disabled="isRemoving"
+                                            class="flex-1 text-[11px] font-semibold px-2 py-2 rounded-xl bg-brand-muted/60 hover:bg-brand-muted text-brand disabled:opacity-50">
+                                        {{ __('borrower.nida.face_retake') }}
+                                    </button>
+                                    <button type="button" @click="removePhoto(step.key)" :disabled="isRemoving"
+                                            class="flex-1 text-[11px] font-semibold px-2 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 disabled:opacity-50">
+                                        {{ __('borrower.nida.face_remove') }}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </template>
@@ -302,16 +319,37 @@
         {{ __('borrower.face_verification_page.privacy_note') }}
     </p>
 
-    {{-- Expandable photo lightbox --}}
-    <div x-show="expandedPreviewUrl" x-cloak
-         class="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4"
+    {{-- Premium card-style enlarge preview (matches NIDA document pattern) --}}
+    <div x-show="expandedPreviewUrl" x-cloak x-transition.opacity
+         class="fixed inset-0 z-[80] flex items-center justify-center p-4 sm:p-6"
          @keydown.escape.window="closePreview()"
          @click.self="closePreview()">
-        <button type="button" @click="closePreview()"
-                class="absolute top-4 right-4 size-10 rounded-full bg-white/15 hover:bg-white/25 text-white text-xl grid place-items-center"
-                aria-label="{{ __('borrower.face_verification_page.cancel') }}">×</button>
-        <img :src="expandedPreviewUrl" alt=""
-             class="max-h-[90vh] max-w-[95vw] rounded-2xl object-contain shadow-2xl ring-1 ring-white/20">
+        <div class="absolute inset-0 bg-brand/80 backdrop-blur-sm" @click="closePreview()"></div>
+        <div class="relative w-full max-w-lg" @click.stop>
+            <div class="overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-white/20">
+                <div class="bg-gradient-to-r from-brand via-brand to-brand-light px-5 py-3.5 flex items-center justify-between gap-3 text-white">
+                    <div class="min-w-0">
+                        <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">{{ __('borrower.nida.face_title') }}</p>
+                        <p class="font-semibold truncate">{{ __('borrower.nida.face_preview') }}</p>
+                    </div>
+                    <button type="button" @click="closePreview()"
+                            class="size-9 shrink-0 grid place-items-center rounded-full bg-white/15 hover:bg-white/25 text-white text-xl"
+                            aria-label="{{ __('borrower.face_verification_page.cancel') }}">×</button>
+                </div>
+                <div class="bg-gradient-to-b from-brand-muted/30 to-gray-100 p-4 sm:p-5">
+                    <div class="mx-auto max-w-sm overflow-hidden rounded-2xl bg-black shadow-lg ring-1 ring-brand/10">
+                        <img :src="expandedPreviewUrl" alt=""
+                             class="w-full max-h-[70vh] object-contain object-top bg-black">
+                    </div>
+                </div>
+                <div class="px-5 py-4 border-t border-gray-100 bg-white">
+                    <button type="button" @click="closePreview()"
+                            class="inline-flex items-center justify-center font-semibold px-4 py-2.5 rounded-xl text-sm bg-brand-gold hover:bg-yellow-400 text-brand">
+                        {{ __('borrower.feedback.ok') }}
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 

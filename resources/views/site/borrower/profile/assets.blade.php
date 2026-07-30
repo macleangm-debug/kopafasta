@@ -129,6 +129,19 @@
                         @php
                             $thumb = $asset->thumbnailPath();
                             $gallery = $asset->galleryPaths();
+                            $cardDetails = collect(\App\Models\CustomerAsset::detailFieldsFor($asset->asset_type))
+                                ->map(function ($field) use ($asset) {
+                                    $val = ($field['column'] ?? false) ? $asset->{$field['key']} : $asset->detail($field['key']);
+
+                                    return filled($val) ? [
+                                        'key' => $field['key'],
+                                        'label' => __('borrower.profile.collateral_fields.'.$field['key']),
+                                        'value' => $val,
+                                    ] : null;
+                                })
+                                ->filter()
+                                ->take(4)
+                                ->values();
                         @endphp
                         <div class="snap-start shrink-0 w-[80%] sm:w-72">
                             <div class="glass-card overflow-hidden ring-1 ring-gray-200/80 h-full flex flex-col">
@@ -155,6 +168,18 @@
                                     <p class="text-sm text-brand font-semibold mt-1 tabular-nums">
                                         {{ $asset->estimated_value ? format_money($asset->estimated_value) : __('borrower.profile.no_value_set') }}
                                     </p>
+                                    @if ($cardDetails->isNotEmpty())
+                                        <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
+                                            @foreach ($cardDetails as $detail)
+                                                <div class="min-w-0">
+                                                    <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold truncate">{{ $detail['label'] }}</dt>
+                                                    <dd class="text-xs font-semibold text-gray-900 truncate" title="{{ $detail['value'] }}">{{ $detail['value'] }}</dd>
+                                                </div>
+                                            @endforeach
+                                        </dl>
+                                    @elseif (filled($asset->description))
+                                        <p class="mt-2 text-xs text-gray-500 line-clamp-2">{{ $asset->description }}</p>
+                                    @endif
                                     <button type="button" @click="openAsset = {{ $asset->id }}"
                                             class="mt-4 inline-flex items-center justify-center w-full bg-gray-900 hover:bg-black text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
                                         {{ __('borrower.profile.view_manage') }}
@@ -213,12 +238,12 @@
 
                         <div class="p-5 space-y-6">
                             {{-- Details --}}
-                            <div>
-                                <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-3">{{ __('borrower.profile.collateral_details') }}</p>
+                            <div class="rounded-2xl bg-brand-muted/25 ring-1 ring-brand/10 p-4">
+                                <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-3">{{ __('borrower.profile.collateral_details') }}</p>
                                 <dl class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                                     <div>
-                                        <dt class="text-[11px] text-gray-500">{{ __('borrower.profile.estimated_value') }}</dt>
-                                        <dd class="font-semibold text-gray-900">{{ $asset->estimated_value ? format_money($asset->estimated_value) : __('borrower.profile.no_value_set') }}</dd>
+                                        <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.profile.estimated_value') }}</dt>
+                                        <dd class="font-semibold text-gray-900 mt-0.5">{{ $asset->estimated_value ? format_money($asset->estimated_value) : __('borrower.profile.no_value_set') }}</dd>
                                     </div>
                                     @foreach (\App\Models\CustomerAsset::detailFieldsFor($asset->asset_type) as $field)
                                         @php
@@ -226,14 +251,14 @@
                                         @endphp
                                         @if (filled($val))
                                             <div>
-                                                <dt class="text-[11px] text-gray-500">{{ __('borrower.profile.collateral_fields.'.$field['key']) }}</dt>
-                                                <dd class="font-semibold text-gray-900">{{ $val }}</dd>
+                                                <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.profile.collateral_fields.'.$field['key']) }}</dt>
+                                                <dd class="font-semibold text-gray-900 mt-0.5">{{ $val }}</dd>
                                             </div>
                                         @endif
                                     @endforeach
                                 </dl>
                                 @if (filled($asset->description))
-                                    <p class="text-sm text-gray-600 mt-3">{{ $asset->description }}</p>
+                                    <p class="text-sm text-gray-600 mt-3 pt-3 border-t border-brand/10">{{ $asset->description }}</p>
                                 @endif
                             </div>
 

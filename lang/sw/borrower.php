@@ -83,6 +83,13 @@ return [
     'title' => 'Tafadhali angalia',
     'ok' => 'Nimeelewa',
     'form_errors_title' => 'Tafadhali sahihisha yafuatayo',
+    'tones' => [
+      'success' => 'Imefanikiwa',
+      'error' => 'Inahitaji uangalifu',
+      'warning' => 'Tafadhali kagua',
+      'info' => 'Taarifa',
+      'confirm' => 'Thibitisha',
+    ],
   ],
   'apply' => 
 [
@@ -1779,6 +1786,7 @@ return [
     'face_title' => 'Uthibitisho wa uso',
     'face_required' => 'Inahitajika kabla ya kuomba mikopo.',
     'face_view' => 'Angalia uthibitisho wa uso',
+    'face_view_angle' => 'Angalia',
     'face_complete' => 'Kamilisha uthibitisho wa uso →',
     'status' => 
 [

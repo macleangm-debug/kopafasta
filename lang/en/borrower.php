@@ -90,6 +90,13 @@ return [
         'title' => 'Please check',
         'ok' => 'Got it',
         'form_errors_title' => 'Please fix the following',
+        'tones' => [
+            'success' => 'Success',
+            'error' => 'Attention needed',
+            'warning' => 'Please review',
+            'info' => 'Information',
+            'confirm' => 'Please confirm',
+        ],
     ],
 
     'apply' => [
@@ -1719,6 +1726,7 @@ return [
         'face_submitted_body' => 'Thank you. Our underwriting team will review your photos when you submit a loan application. You can continue with the rest of your profile.',
         'face_required' => 'Required before loan applications.',
         'face_view' => 'View face verification',
+        'face_view_angle' => 'View',
         'face_complete' => 'Complete face verification →',
         'status' => [
             'verified' => 'Identity verified',

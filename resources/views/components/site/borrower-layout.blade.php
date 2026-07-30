@@ -316,8 +316,10 @@
 <script>
 document.addEventListener('alpine:init', () => {
     window.confirmForm = (form, detail = {}) => {
+        const tone = detail.tone
+            || (String(detail.confirmClass || '').includes('red') ? 'warning' : 'confirm');
         window.dispatchEvent(new CustomEvent('open-confirm-default', {
-            detail: { form, ...detail },
+            detail: { form, tone, ...detail },
         }));
     };
 

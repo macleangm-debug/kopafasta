@@ -185,6 +185,7 @@
 
     <x-site.chatbot-widget />
     <x-site.confirm-modal name="default" />
+    <x-site.feedback-modal name="default" />
     @stack('scripts')
     <script>
         (function () {
@@ -221,7 +222,17 @@
     <script>
         document.addEventListener('alpine:init', () => {
             window.confirmForm = (form, detail = {}) => {
-                window.dispatchEvent(new CustomEvent('open-confirm-default', { detail: { form, ...detail } }));
+                const tone = detail.tone
+                    || (String(detail.confirmClass || '').includes('red') ? 'warning' : 'confirm');
+                window.dispatchEvent(new CustomEvent('open-confirm-default', {
+                    detail: { form, tone, ...detail },
+                }));
+            };
+
+            window.showBorrowerFeedback = (detail = {}) => {
+                window.dispatchEvent(new CustomEvent('open-feedback-default', {
+                    detail: typeof detail === 'string' ? { message: detail } : detail,
+                }));
             };
         });
     </script>

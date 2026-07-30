@@ -386,31 +386,38 @@
                 </form>
             </div>
 
-            {{-- Incomplete profile gate modal (client UX; server still enforces) --}}
+            {{-- Incomplete profile gate modal — same premium feedback shell --}}
             <div x-show="showProfileGateModal"
                  x-cloak
                  class="fixed inset-0 z-[90] flex items-center justify-center p-4"
                  role="dialog"
                  aria-modal="true"
                  @keydown.escape.window="showProfileGateModal = false">
-                <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="showProfileGateModal = false"></div>
-                <div class="relative w-full max-w-md glass-card ring-1 ring-brand/15 overflow-hidden shadow-xl">
+                <div class="absolute inset-0 bg-brand/70 backdrop-blur-sm" @click="showProfileGateModal = false"></div>
+                <div class="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-brand/15">
                     <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-5 text-white">
-                        <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">{{ __('borrower.apply.steps.submit') }}</p>
-                        <h3 class="text-lg font-bold mt-1">{{ __('borrower.apply.kyc_incomplete_submit') }}</h3>
+                        <div class="flex items-start gap-3">
+                            <span class="mt-0.5 size-11 rounded-2xl grid place-items-center ring-1 shrink-0 bg-amber-400/25 text-amber-50 ring-amber-300/40">
+                                <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.feedback.tones.warning') }}</p>
+                                <h3 class="text-lg font-bold mt-1">{{ __('borrower.apply.kyc_incomplete_submit') }}</h3>
+                            </div>
+                        </div>
                     </div>
                     <div class="px-6 py-5">
-                        <p class="text-sm text-gray-600">{{ __('borrower.apply.kyc_incomplete_submit_hint') }}</p>
-                        <div class="mt-5 flex flex-col sm:flex-row gap-2">
-                            <a :href="profileGateActionUrl() || profileUrl || '#'"
-                               class="inline-flex justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-2.5 rounded-xl text-sm">
-                                {{ __('borrower.loan_profile.complete_profile') }}
-                            </a>
+                        <p class="text-sm text-gray-600 leading-relaxed">{{ __('borrower.apply.kyc_incomplete_submit_hint') }}</p>
+                        <div class="mt-5 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
                             <button type="button"
                                     @click="showProfileGateModal = false"
                                     class="inline-flex justify-center bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-700 font-semibold px-5 py-2.5 rounded-xl text-sm">
                                 {{ __('borrower.apply.submit_step.gate_dismiss') }}
                             </button>
+                            <a :href="profileGateActionUrl() || profileUrl || '#'"
+                               class="inline-flex justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-2.5 rounded-xl text-sm shadow-sm">
+                                {{ __('borrower.loan_profile.complete_profile') }}
+                            </a>
                         </div>
                     </div>
                 </div>
