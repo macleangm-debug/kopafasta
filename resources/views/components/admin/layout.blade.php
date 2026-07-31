@@ -31,7 +31,8 @@
         ['Dashboard', 'M3 12l9-9 9 9M5 10v10h14V10', [
             ['Dashboard', 'admin.dashboard'],
         ], null],
-        ['Applications', 'M9 12h6m-6 4h6M5 7h14M5 4h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z', [
+        ['Lending', 'M3 10h18M3 14h18M5 6h14M5 18h14', [
+            ['— Applications —', '__group__'],
             ['Credit review',         'admin.loan-applications.pipeline.under-review'],
             ['Credit committee',      'admin.loan-applications.pre-approvals'],
             ['Approved Loans',        'admin.loan-applications.pipeline.approved'],
@@ -41,14 +42,12 @@
             ['Incomplete Applications', 'admin.loan-applications.incomplete'],
             ['Rejected Applications', 'admin.loan-applications.rejected'],
             ['Credit team',           'admin.credit-team.index'],
-        ], ['applications.view']],
-        ['Customers', 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-5a4 4 0 11-8 0 4 4 0 018 0z', [
+            ['— Customers —', '__group__'],
             ['All Customers', 'admin.customers.index'],
             ['Membership Payments', 'admin.membership-payments.index'],
             ['Identity & KYC', 'admin.customer-kycs.index'],
             ['Face verification', 'admin.face-verifications.index'],
-        ], ['customers.view', 'kyc.review', 'membership.approve_payments']],
-        ['Loans', 'M3 10h18M3 14h18M5 6h14M5 18h14', [
+            ['— Loans —', '__group__'],
             ['All loans',           'admin.loans.index'],
             ['Disbursement queue',  'admin.loans.disbursement'],
             ['Active loans',        'admin.loans.active'],
@@ -60,36 +59,50 @@
             ['Top-up requests',     'admin.top-up-requests.index'],
             ['Restructuring',       'admin.loans.restructuring'],
             ['Closed loans',        'admin.loans.closed'],
-        ], ['loans.view']],
-        ['Recovery', 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z', [
-            ['Recovery partners',   'admin.recovery.partners.index'],
-            ['Valuation partners',  'admin.origination.valuation-partners'],
+            ['— Recovery ops —', '__group__'],
             ['Recovery assignments','admin.recovery.assignments.index'],
-            ['Recovery policy',     'admin.settings.recovery'],
-        ], null],
-        ['Partners', 'M3 7h18M3 12h18M3 17h18', [
+            ['— Lending reports —', '__group__'],
+            ['Portfolio',         'admin.reports.portfolio',          'reports.view'],
+            ['Applications',      'admin.reports.applications',       'reports.view'],
+            ['Disbursements',     'admin.reports.disbursements',      'reports.view'],
+            ['Arrears',           'admin.reports.arrears',            'reports.view'],
+            ['Collections',       'admin.reports.collections-performance', 'reports.view'],
+            ['Repayments report', 'admin.reports.repayments',         'reports.view'],
+            ['PAR',               'admin.reports.par',                'reports.view'],
+            ['Customers report',  'admin.reports.customers',          'reports.view'],
+        ], ['applications.view', 'customers.view', 'kyc.review', 'membership.approve_payments', 'loans.view', 'reports.view']],
+        ['Assets', 'M3 7h18M3 12h18M3 17h18', [
+            ['Asset Marketplace',   'admin.marketplace-assets.index', 'marketplace.view'],
+            ['Asset Requests',      'admin.asset-requests.index', 'marketplace.view'],
+            ['Suppliers',           'admin.partners.suppliers'],
+            ['Asset lending settings', 'admin.settings.asset-lending'],
+        ], ['marketplace.view', 'settings.manage']],
+        ['Partners', 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-5a4 4 0 11-8 0 4 4 0 018 0z', [
             ['Partners hub',         'admin.partners.index'],
             ['All Partners',         'admin.partners.all'],
             ['Partner Applications', 'admin.partners.applications'],
             ['Affiliate applications', 'admin.partner-applications.index'],
-            ['Suppliers',           'admin.partners.suppliers'],
-            ['Asset Marketplace',   'admin.marketplace-assets.index', 'marketplace.view'],
-            ['Asset Requests',      'admin.asset-requests.index', 'marketplace.view'],
             ['GPS Installers',      'admin.partners.gps-installers'],
             ['Insurance Providers', 'admin.partners.insurance-providers'],
             ['Valuers',             'admin.partners.valuers'],
             ['Partner Tasks',        'admin.partners.tasks'],
-        ], null],
-        ['Capital', 'M19 7H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2zM3 11h18', [
+            ['Recovery partners',   'admin.recovery.partners.index'],
+            ['Valuation partners',  'admin.origination.valuation-partners'],
+            ['Affiliate Partners', 'admin.partners.affiliates'],
+            ['Affiliate Performance','admin.reports.partner-performance', 'reports.view'],
+            ['Marketing attribution','admin.reports.affiliate-marketing-attribution', 'reports.view'],
+            ['Capital attribution','admin.reports.affiliate-capital-attribution', 'reports.view'],
+            ['Affiliate fraud',   'admin.reports.affiliate-fraud',    'reports.view'],
+        ], ['reports.view']],
+        ['Money', 'M12 8c-1.66 0-3 .9-3 2s1.34 2 3 2 3 .9 3 2-1.34 2-3 2m0-8v8m0 0v2m-9-5a9 9 0 1018 0 9 9 0 00-18 0z', [
+            ['— Capital —', '__group__'],
             ['Capital funding',      'admin.capital-funding.index'],
             ['Funded loans',         'admin.capital-funding.funded-loans'],
             ['Withdrawal requests',  'admin.capital-funding.withdrawals'],
             ['Capital Partners',     'admin.lenders.index'],
             ['Funding Pools',      'admin.funding-pools.index'],
             ['Lender Investments', 'admin.lender-investments.index'],
-        ], null],
-        ['Finance', 'M12 8c-1.66 0-3 .9-3 2s1.34 2 3 2 3 .9 3 2-1.34 2-3 2m0-8v8m0 0v2m-9-5a9 9 0 1018 0 9 9 0 00-18 0z', [
-            ['— Setup —', '__group__'],
+            ['— Finance setup —', '__group__'],
             ['Chart of Accounts',     'admin.chart-of-accounts.index',     'finance.accounts'],
             ['Bank Accounts',         'admin.bank-accounts.index',         'finance.accounts'],
             ['Mobile Money Accounts', 'admin.mobile-money-accounts.index', 'finance.accounts'],
@@ -114,21 +127,8 @@
             ['Cash Flow',             'admin.reports.cash-flow',           'finance.reports'],
             ['NPL',                   'admin.reports.npl',                 'finance.reports'],
         ], ['finance.accounts', 'finance.methods', 'finance.operations', 'finance.reports']],
-        ['Reports', 'M3 3v18h18M7 17V9m4 8V5m4 12v-7m4 7V11', [
-            ['Portfolio',         'admin.reports.portfolio',          'reports.view'],
-            ['Applications',      'admin.reports.applications',       'reports.view'],
-            ['Disbursements',     'admin.reports.disbursements',      'reports.view'],
-            ['Arrears',           'admin.reports.arrears',            'reports.view'],
-            ['Collections',       'admin.reports.collections-performance', 'reports.view'],
-            ['Repayments',        'admin.reports.repayments',         'reports.view'],
-            ['PAR',               'admin.reports.par',                'reports.view'],
-            ['Customers',         'admin.reports.customers',          'reports.view'],
-            ['Affiliate Performance','admin.reports.partner-performance', 'reports.view'],
-            ['Marketing attribution','admin.reports.affiliate-marketing-attribution', 'reports.view'],
-            ['Capital attribution','admin.reports.affiliate-capital-attribution', 'reports.view'],
-            ['Affiliate fraud',   'admin.reports.affiliate-fraud',    'reports.view'],
-        ], ['reports.view']],
-        ['Compliance', 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z', [
+        ['Ops', 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z', [
+            ['— Compliance —', '__group__'],
             ['BOT Reports',         'admin.compliance.bot-reports'],
             ['AML Reports',         'admin.compliance.aml-reports'],
             ['KYC Reports',         'admin.compliance.kyc-reports'],
@@ -139,52 +139,36 @@
             ['Risk Scoring',        'admin.risk-scoring-rules.index'],
             ['Audit Logs',          'admin.audit-logs.index'],
             ['Regulatory Exports',  'admin.compliance.exports'],
-        ], ['audit.view']],
-        ['Support', 'M21 11.5a8.38 8.38 0 01-9 8.5 8.5 8.5 0 01-7.6-4.6L3 21l1.9-5.8A8.38 8.38 0 013 11.5 8.5 8.5 0 0111.5 3 8.38 8.38 0 0121 11.5z', [
+            ['— Support —', '__group__'],
             ['Tickets',    'admin.support-tickets.index'],
             ['Complaints', 'admin.complaints.index'],
-        ], null],
-        ['Marketing', 'M11 5.882V19.24a1.76 1.76 0 01-3.27.87l-4.5-7.79A1.76 1.76 0 015.882 9H4a2 2 0 110-4h1.882a1.76 1.76 0 011.27.87l1.27 2.2', [
+            ['— Marketing —', '__group__'],
             ['Campaigns', 'admin.promotions.index'],
-            ['Affiliate Partners', 'admin.partners.affiliates'],
-            ['Marketing attribution', 'admin.reports.affiliate-marketing-attribution'],
-            ['Capital attribution', 'admin.reports.affiliate-capital-attribution'],
-            ['Affiliate fraud', 'admin.reports.affiliate-fraud'],
-            ['Affiliate Settings', 'admin.settings.affiliates'],
-        ], null],
-        ['Administration', 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', [
+            ['— Administration —', '__group__'],
             ['Departments', 'admin.departments.index', 'users.view'],
             ['Users', 'admin.users.index', 'users.view'],
             ['Roles & Permissions', 'admin.roles.index', 'users.manage'],
-        ], ['users.view', 'users.manage']],
-        ['Settings', 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z', [
+            ['— Settings hub —', '__group__'],
             ['Settings hub',            'admin.settings.index'],
-            ['— Lending —',             '__group__'],
             ['Loan products',           'admin.loan-products.index'],
             ['Underwriting',            'admin.settings.underwriting'],
             ['Loan rules',              'admin.settings.loan-rules'],
             ['Offer settings',          'admin.settings.offer'],
             ['Asset lending',           'admin.settings.asset-lending'],
-            ['— Compliance —',          '__group__'],
             ['KYC rules',               'admin.settings.kyc'],
             ['Identity verification',   'admin.settings.identity'],
             ['Credit policy',           'admin.settings.credit-policy'],
             ['AML thresholds',          'admin.settings.aml'],
             ['Countries',               'admin.settings.countries'],
-            ['— Finance —',             '__group__'],
             ['Finance defaults',        'admin.settings.finance'],
             ['Payment accounts',        'admin.settings.payment-accounts'],
             ['Charges & fees',          'admin.charges-fees.index'],
-            ['— Partners & marketing —','__group__'],
             ['Affiliate settings',      'admin.settings.affiliates'],
             ['Membership',              'admin.settings.membership'],
             ['Referrals',               'admin.settings.referrals'],
-            ['Campaigns',               'admin.promotions.index'],
-            ['— Integrations —',        '__group__'],
             ['SMS / Email',             'admin.settings.gateways'],
             ['CRB integration',         'admin.settings.crb'],
             ['Notification templates',  'admin.notification-templates.index'],
-            ['— Organization —',        '__group__'],
             ['Company profile',         'admin.settings.company'],
             ['Legal & contracts',       'admin.settings.legal'],
             ['Signatories',             'admin.settings.signatories.index'],
@@ -192,7 +176,10 @@
             ['Branches',                'admin.branches.index'],
             ['Approval limits',         'admin.approval-limits.index'],
             ['Document templates',      'admin.document-templates.index'],
-        ], ['settings.manage', 'users.view', 'users.manage']],
+            ['Auth portal',             'admin.settings.auth-portal'],
+            ['Locations',               'admin.settings.locations.index'],
+            ['Chatbot',                 'admin.settings.chatbot'],
+        ], ['audit.view', 'users.view', 'users.manage', 'settings.manage']],
     ];
 
     $currentRoute = request()->route()?->getName();
@@ -421,10 +408,18 @@
 </div>
 
 <x-site.feedback-modal name="admin" title="Console" />
+<x-site.confirm-modal name="admin" />
 <script>
     window.showAdminFeedback = (detail = {}) => {
         window.dispatchEvent(new CustomEvent('open-feedback-admin', {
             detail: typeof detail === 'string' ? { message: detail } : detail,
+        }));
+    };
+    window.confirmForm = (form, detail = {}) => {
+        const tone = detail.tone
+            || (String(detail.confirmClass || '').includes('red') ? 'warning' : 'confirm');
+        window.dispatchEvent(new CustomEvent('open-confirm-admin', {
+            detail: { form, tone, ...detail },
         }));
     };
     document.addEventListener('DOMContentLoaded', () => {

@@ -415,8 +415,18 @@ class InvestorController extends Controller
 
     public function notifications()
     {
-        $notifications = NotificationLog::where('user_id', Auth::id())
-            ->latest()->paginate(20);
+        $notifications = NotificationLog::query()
+            ->when(
+                Schema::hasColumn('notification_logs', 'user_id'),
+                fn ($q) => $q->where('user_id', Auth::id()),
+                fn ($q) => $q->where(function ($inner) {
+                    $inner->where('recipient', Auth::user()?->email)
+                        ->orWhere('recipient', Auth::user()?->phone);
+                })
+            )
+            ->latest()
+            ->paginate(20);
+
         return view('site.investor.notifications', compact('notifications'));
     }
 

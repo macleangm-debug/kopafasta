@@ -63,6 +63,8 @@ class VendorController extends ResourceController
             'doc_brela'                      => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_tin_certificate'            => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_business_licence'           => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'doc_national_id_front'          => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'doc_national_id_back'           => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_other'                      => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ];
     }
@@ -152,6 +154,8 @@ class VendorController extends ResourceController
             'doc_brela' => 'brela',
             'doc_tin_certificate' => 'tin_certificate',
             'doc_business_licence' => 'business_licence',
+            'doc_national_id_front' => 'national_id_front',
+            'doc_national_id_back' => 'national_id_back',
             'doc_other' => 'other',
         ];
 
@@ -223,6 +227,8 @@ class VendorController extends ResourceController
             $data['doc_brela'],
             $data['doc_tin_certificate'],
             $data['doc_business_licence'],
+            $data['doc_national_id_front'],
+            $data['doc_national_id_back'],
             $data['doc_other'],
         );
 

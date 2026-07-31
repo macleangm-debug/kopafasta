@@ -205,6 +205,31 @@ class BorrowerController extends Controller
         return view('site.borrower.loan-profile', compact('customer', 'profile', 'groupFeedback', 'groupContract', 'groupPayout'));
     }
 
+    public function withdrawApplication(Request $request, LoanApplication $application): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_if($application->customer_id !== $customer->id, 404);
+
+        if (in_array($application->status, ['disbursed', 'withdrawn'], true) || $application->loan) {
+            return back()->with('error', __('borrower.policy.withdraw_not_allowed'));
+        }
+
+        $application->update([
+            'status' => 'withdrawn',
+            'rejection_reason' => $application->rejection_reason ?: 'Withdrawn by borrower',
+        ]);
+
+        $this->auditBorrower('loan_application.withdrawn', $application, [
+            'application_number' => $application->application_number,
+        ]);
+
+        return redirect()
+            ->route('site.borrower.loans', ['tab' => 'applications'])
+            ->with('status', __('borrower.policy.withdraw_success', [
+                'number' => $application->application_number,
+            ]));
+    }
+
     public function applicationOffer(LoanApplication $application): View
     {
         $customer = $this->customer();

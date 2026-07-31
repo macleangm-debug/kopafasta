@@ -81,6 +81,8 @@
             'doc_brela' => 'BRELA / company registration',
             'doc_tin_certificate' => 'TIN certificate',
             'doc_business_licence' => 'Business licence',
+            'doc_national_id_front' => 'Registrant National ID (front)',
+            'doc_national_id_back' => 'Registrant National ID (back)',
             'doc_other' => 'Other supporting document',
         ] as $input => $label)
             <div class="md:col-span-2">

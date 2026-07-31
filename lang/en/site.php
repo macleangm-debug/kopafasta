@@ -115,6 +115,9 @@ return [
         'message_placeholder'   => 'Regions you cover, team size, relevant experience…',
         'documents_section'     => 'Business documents',
         'documents_hint'        => 'Upload PDF or image files (max 5MB each). Collection partners need BRELA, TIN certificate, and business licence.',
+        'documents_hint_individual' => 'Upload clear images of your National ID — front and back (PDF or image, max 5MB each).',
+        'documents_hint_company' => 'Upload BRELA, TIN, and the registrant’s National ID (front and back). PDF or image, max 5MB each.',
+        'registrant_id'         => 'Registrant National ID',
         'submit'                => 'Submit application',
         'success'               => 'Thank you — your partner application was received. Our team will review your documents and contact you shortly.',
         'types' => [

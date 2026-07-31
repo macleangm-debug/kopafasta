@@ -12,11 +12,18 @@
 
     <div class="max-w-2xl mx-auto py-10 px-4 -mt-6"
          x-data="{
-            step: {{ $errors->hasAny(['doc_brela','doc_tin_certificate','doc_business_licence','documents','registration_number','tin']) ? 3 : ($errors->hasAny(['region','coverage_regions']) ? 2 : 1) }},
+            step: {{ $errors->hasAny(['doc_brela','doc_tin_certificate','doc_business_licence','doc_national_id_front','doc_national_id_back','documents','registration_number','tin']) ? 3 : ($errors->hasAny(['region','coverage_regions']) ? 2 : 1) }},
             category: @js(old('partner_category', $category)),
-            applicant: @js(old('applicant_category', 'company')),
+            applicant: @js(old('applicant_category', ($category === 'valuer' && old('applicant_category') === 'individual') ? 'individual' : 'company')),
             changingType: false,
             labels: @js(collect($categories)->mapWithKeys(fn ($label, $key) => [$key => __('site.partner_apply.types.'.$key)])->all()),
+            get allowsIndividual() { return this.category === 'valuer'; },
+            setCategory(value) {
+                this.category = value;
+                if (value !== 'valuer') {
+                    this.applicant = 'company';
+                }
+            },
          }">
         @if ($errors->any())
             <div class="mb-6 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">
@@ -37,10 +44,11 @@
             </button>
             <div x-show="changingType" x-cloak class="w-full grid sm:grid-cols-2 gap-2 pt-2 border-t border-gray-100">
                 @foreach ($categories as $value => $label)
-                    <label class="cursor-pointer">
-                        <input type="radio" name="partner_category_picker" value="{{ $value }}" class="peer sr-only" x-model="category">
-                        <span class="block rounded-xl ring-1 ring-gray-200 px-3 py-2.5 text-center text-sm font-semibold peer-checked:ring-brand peer-checked:bg-brand-muted/50 transition">{{ __('site.partner_apply.types.'.$value) }}</span>
-                    </label>
+                    <button type="button" @click="setCategory(@js($value)); changingType = false"
+                            class="rounded-xl ring-1 px-3 py-2.5 text-center text-sm font-semibold transition"
+                            :class="category === @js($value) ? 'ring-brand bg-brand-muted/50' : 'ring-gray-200 hover:bg-gray-50'">
+                        {{ __('site.partner_apply.types.'.$value) }}
+                    </button>
                 @endforeach
             </div>
         </div>
@@ -63,25 +71,24 @@
 
             {{-- Step 1: Contact --}}
             <div x-show="step === 1" x-cloak class="space-y-5">
-                @if ($category === 'valuer')
+                <input type="hidden" name="applicant_category" :value="allowsIndividual ? applicant : 'company'">
+
+                {{-- Applicant type only for valuers; all other partner types are company-only. --}}
+                <template x-if="allowsIndividual">
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-2">{{ __('site.partner_apply.applicant_type') }}</label>
                         <div class="grid grid-cols-2 gap-2">
                             @foreach (['individual' => __('site.affiliate.type_individual'), 'company' => __('site.affiliate.type_company')] as $value => $label)
-                                <label class="cursor-pointer">
-                                    <input type="radio" name="applicant_category" value="{{ $value }}" class="peer sr-only" x-model="applicant" @checked(old('applicant_category', 'company') === $value) required>
-                                    <span class="block rounded-xl ring-1 ring-gray-200 px-3 py-3 text-center text-sm font-semibold peer-checked:ring-brand peer-checked:bg-brand-muted/50 transition">{{ $label }}</span>
-                                </label>
+                                <button type="button" @click="applicant = @js($value)"
+                                        class="rounded-xl ring-1 px-3 py-3 text-center text-sm font-semibold transition"
+                                        :class="applicant === @js($value) ? 'ring-brand bg-brand-muted/50' : 'ring-gray-200 hover:bg-gray-50'">
+                                    {{ $label }}
+                                </button>
                             @endforeach
                         </div>
+                        <p class="mt-2 text-xs text-gray-500" x-show="applicant === 'individual'" x-cloak>{{ __('site.partner_apply.individual_hint') }}</p>
                     </div>
-                @else
-                    <input type="hidden" name="applicant_category" value="company" x-init="applicant = 'company'">
-                    <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/15 px-4 py-3 text-sm text-brand">
-                        <span class="font-semibold">{{ __('site.affiliate.type_company') }}</span>
-                        <span class="text-brand/70"> — {{ __('site.partner_apply.company_only_hint') }}</span>
-                    </div>
-                @endif
+                </template>
 
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_apply.contact_name') }}</label>
@@ -100,15 +107,14 @@
                     </div>
                 </div>
 
-                <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 p-4 space-y-4">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-brand">{{ __('site.partner_apply.business_section') }}</p>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_apply.trading_name') }}</label>
-                        <input name="business_name" value="{{ old('business_name') }}"
-                               :required="applicant === 'company'"
-                               class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                    </div>
-                    <div x-show="applicant === 'company'" x-cloak class="space-y-4">
+                <template x-if="!allowsIndividual || applicant === 'company'">
+                    <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 p-4 space-y-4">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-brand">{{ __('site.partner_apply.business_section') }}</p>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_apply.trading_name') }}</label>
+                            <input name="business_name" value="{{ old('business_name') }}" required
+                                   class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                        </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_apply.legal_name') }}</label>
                             <input name="legal_name" value="{{ old('legal_name') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" placeholder="{{ __('site.partner_apply.legal_name_hint') }}">
@@ -124,8 +130,7 @@
                             </div>
                         </div>
                     </div>
-                    <p x-show="applicant === 'individual'" x-cloak class="text-xs text-gray-600">{{ __('site.partner_apply.individual_hint') }}</p>
-                </div>
+                </template>
 
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_apply.message') }}</label>
@@ -168,28 +173,53 @@
                 </div>
             </div>
 
-            {{-- Step 3: Business documents --}}
+            {{-- Step 3: Documents --}}
             <div x-show="step === 3" x-cloak class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-wide text-gray-700">{{ __('site.partner_apply.documents_section') }}</p>
-                <p class="text-xs text-gray-500">{{ __('site.partner_apply.documents_hint') }}</p>
+                <p class="text-xs text-gray-500" x-text="allowsIndividual && applicant === 'individual' ? @js(__('site.partner_apply.documents_hint_individual')) : @js(__('site.partner_apply.documents_hint_company'))"></p>
+
+                <template x-if="!allowsIndividual || applicant === 'company'">
+                    <div class="space-y-3">
+                        @foreach ([
+                            'doc_brela' => ['label' => $docTypes['brela'], 'required' => true],
+                            'doc_tin_certificate' => ['label' => $docTypes['tin_certificate'], 'required' => true],
+                            'doc_business_licence' => ['label' => $docTypes['business_licence'], 'required' => false],
+                        ] as $input => $meta)
+                            <label class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 rounded-xl ring-1 ring-gray-200 bg-gray-50/80 px-4 py-3 cursor-pointer hover:bg-brand-muted/30 transition">
+                                <span class="text-sm font-medium text-gray-800 min-w-[12rem]">
+                                    {{ $meta['label'] }}
+                                    @if ($meta['required']) <span class="text-red-500">*</span> @endif
+                                </span>
+                                <input type="file" name="{{ $input }}" accept=".jpg,.jpeg,.png,.pdf"
+                                       class="flex-1 text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white">
+                            </label>
+                        @endforeach
+                    </div>
+                </template>
 
                 <div class="space-y-3">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-brand">{{ __('site.partner_apply.registrant_id') }}</p>
                     @foreach ([
-                        'doc_brela' => ['label' => $docTypes['brela'], 'required' => true],
-                        'doc_tin_certificate' => ['label' => $docTypes['tin_certificate'], 'required' => true],
-                        'doc_business_licence' => ['label' => $docTypes['business_licence'], 'required' => $category === 'debt_collector'],
-                        'doc_other' => ['label' => $docTypes['other'], 'required' => false],
-                    ] as $input => $meta)
+                        'doc_national_id_front' => $docTypes['national_id_front'],
+                        'doc_national_id_back' => $docTypes['national_id_back'],
+                    ] as $input => $label)
                         <label class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 rounded-xl ring-1 ring-gray-200 bg-gray-50/80 px-4 py-3 cursor-pointer hover:bg-brand-muted/30 transition">
-                            <span class="text-sm font-medium text-gray-800 min-w-[12rem]">
-                                {{ $meta['label'] }}
-                                @if ($meta['required']) <span class="text-red-500">*</span> @endif
-                            </span>
+                            <span class="text-sm font-medium text-gray-800 min-w-[12rem]">{{ $label }} <span class="text-red-500">*</span></span>
                             <input type="file" name="{{ $input }}" accept=".jpg,.jpeg,.png,.pdf"
-                                   class="flex-1 text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-brand-light">
+                                   class="flex-1 text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white">
                         </label>
                     @endforeach
                 </div>
+
+                <template x-if="!allowsIndividual || applicant === 'company'">
+                    <div class="space-y-3">
+                        <label class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 rounded-xl ring-1 ring-gray-200 bg-gray-50/80 px-4 py-3 cursor-pointer hover:bg-brand-muted/30 transition">
+                            <span class="text-sm font-medium text-gray-800 min-w-[12rem]">{{ $docTypes['other'] }}</span>
+                            <input type="file" name="doc_other" accept=".jpg,.jpeg,.png,.pdf"
+                                   class="flex-1 text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white">
+                        </label>
+                    </div>
+                </template>
 
                 <div class="flex justify-between pt-2">
                     <button type="button" @click="step = 2" class="text-sm font-semibold text-gray-600 hover:text-brand">← {{ __('site.partner_apply.back') }}</button>

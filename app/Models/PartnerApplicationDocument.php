@@ -21,6 +21,8 @@ class PartnerApplicationDocument extends Model
         'brela' => 'BRELA / company registration',
         'tin_certificate' => 'TIN certificate',
         'business_licence' => 'Business licence',
+        'national_id_front' => 'National ID (front)',
+        'national_id_back' => 'National ID (back)',
         'other' => 'Other supporting document',
     ];
 

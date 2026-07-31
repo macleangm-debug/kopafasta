@@ -53,7 +53,8 @@
             <div class="grid sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.business_name') }}</label>
-                    <input name="business_name" value="{{ old('business_name') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                    <input name="business_name" value="{{ old('business_name') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"
+                           :required="['company','institution'].includes(applicant)">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.region') }}</label>
@@ -86,14 +87,28 @@
                         <input name="tin" value="{{ old('tin') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                     </div>
                 </div>
-                <p class="text-xs text-gray-500">{{ __('site.partner_apply.documents_hint') }}</p>
+                <p class="text-xs text-gray-500">{{ __('site.partner_apply.documents_hint_company') }}</p>
                 @foreach ([
-                    'doc_brela' => 'BRELA / company registration',
-                    'doc_tin_certificate' => 'TIN certificate',
-                    'doc_business_licence' => 'Business licence',
+                    'doc_brela' => \App\Models\PartnerApplicationDocument::DOC_TYPES['brela'],
+                    'doc_tin_certificate' => \App\Models\PartnerApplicationDocument::DOC_TYPES['tin_certificate'],
+                    'doc_business_licence' => \App\Models\PartnerApplicationDocument::DOC_TYPES['business_licence'],
                 ] as $input => $label)
                     <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ $label }}</label>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ $label }} <span class="text-red-500">*</span></label>
+                        <input type="file" name="{{ $input }}" accept=".jpg,.jpeg,.png,.pdf" class="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white">
+                    </div>
+                @endforeach
+            </div>
+
+            <div class="space-y-3 rounded-xl bg-gray-50 ring-1 ring-gray-200 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-brand">{{ __('site.partner_apply.registrant_id') }}</p>
+                <p class="text-xs text-gray-500" x-text="applicant === 'individual' ? @js(__('site.partner_apply.documents_hint_individual')) : @js(__('site.partner_apply.documents_hint_company'))"></p>
+                @foreach ([
+                    'doc_national_id_front' => \App\Models\PartnerApplicationDocument::DOC_TYPES['national_id_front'],
+                    'doc_national_id_back' => \App\Models\PartnerApplicationDocument::DOC_TYPES['national_id_back'],
+                ] as $input => $label)
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ $label }} <span class="text-red-500">*</span></label>
                         <input type="file" name="{{ $input }}" accept=".jpg,.jpeg,.png,.pdf" class="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white">
                     </div>
                 @endforeach

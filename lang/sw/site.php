@@ -115,6 +115,9 @@ return [
         'message_placeholder'   => 'Mikoa unayohudumia, ukubwa wa timu, uzoefu…',
         'documents_section'     => 'Hati za biashara',
         'documents_hint'        => 'Pakia PDF au picha (kisha 5MB). Washirika wa ukusanyaji wanahitaji BRELA, cheti cha TIN, na leseni ya biashara.',
+        'documents_hint_individual' => 'Pakia picha wazi za Kitambulisho cha Taifa — mbele na nyuma (PDF au picha, kisha 5MB).',
+        'documents_hint_company' => 'Pakia BRELA, TIN, na Kitambulisho cha Taifa cha msajili (mbele na nyuma). PDF au picha, kisha 5MB.',
+        'registrant_id'         => 'Registrant National ID',
         'submit'                => 'Wasilisha ombi',
         'success'               => 'Asante — ombi lako limepokelewa. Timu yetu itakagua hati zako na kuwasiliana nawe.',
         'types' => [

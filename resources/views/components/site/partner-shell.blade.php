@@ -30,15 +30,17 @@
     $profileLinks = $profileLinks ?: [
         ['label' => 'Profile', 'route' => 'site.partner.profile'],
     ];
-    $partnerUnread = \App\Models\NotificationLog::query()
-        ->where('user_id', auth()->id())
-        ->whereNull('read_at')
-        ->count();
-    $partnerPreview = \App\Models\NotificationLog::query()
-        ->where('user_id', auth()->id())
-        ->latest()
-        ->limit(8)
-        ->get();
+    $partnerNotificationsQuery = \App\Models\NotificationLog::query()
+        ->when(
+            \Illuminate\Support\Facades\Schema::hasColumn('notification_logs', 'user_id'),
+            fn ($q) => $q->where('user_id', auth()->id()),
+            fn ($q) => $q->where(function ($inner) {
+                $inner->where('recipient', auth()->user()?->email)
+                    ->orWhere('recipient', auth()->user()?->phone);
+            })
+        );
+    $partnerUnread = (clone $partnerNotificationsQuery)->whereNull('read_at')->count();
+    $partnerPreview = (clone $partnerNotificationsQuery)->latest()->limit(8)->get();
 @endphp
 <!doctype html>
 <html lang="{{ str_replace('_', '-', $siteLocale) }}" class="h-full">

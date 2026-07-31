@@ -11,30 +11,52 @@
     @endphp
 
     @if ($sameProductBlock)
-        <div class="mb-5 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 flex flex-wrap items-center justify-between gap-3"
-             x-data x-init="window.showBorrowerFeedback({
-                tone: 'warning',
-                title: @js(__('borrower.policy.same_product_title')),
-                message: @js($sameProductBlock['message'] ?? ''),
-                lines: [
-                    @js(__('borrower.policy.same_product_existing', ['number' => $sameProductBlock['application_number'] ?? ''])),
-                    @js(__('borrower.policy.same_product_hint')),
-                ],
-             })">
-            <div>
-                <p class="text-sm font-bold text-amber-950">{{ __('borrower.policy.same_product_title') }}</p>
-                <p class="text-sm text-amber-900/80 mt-1">{{ $sameProductBlock['message'] }}</p>
-                <p class="text-xs text-amber-800 mt-1">{{ __('borrower.policy.same_product_hint') }}</p>
-            </div>
-            <div class="flex flex-wrap gap-2">
-                <a href="{{ route('site.borrower.application', $sameProductBlock['application_id']) }}"
-                   class="inline-flex bg-brand text-white font-semibold px-4 py-2 rounded-xl text-sm">
-                    {{ __('borrower.policy.same_product_view') }}
-                </a>
-                <a href="{{ route('site.borrower.loan-products') }}"
-                   class="inline-flex bg-white ring-1 ring-gray-200 text-gray-800 font-semibold px-4 py-2 rounded-xl text-sm">
-                    {{ __('borrower.policy.same_product_other') }}
-                </a>
+        <div
+            x-data="{ open: true }"
+            x-show="open"
+            x-cloak
+            class="fixed inset-0 z-[10050] flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+        >
+            <div class="absolute inset-0 bg-brand/70 backdrop-blur-sm" @click="open = false"></div>
+            <div class="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-brand/15"
+                 x-transition>
+                <div class="bg-gradient-to-r from-brand via-brand to-brand-light px-6 py-5 text-white">
+                    <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.feedback.tones.warning') }}</p>
+                    <h2 class="text-xl font-bold mt-1">{{ __('borrower.policy.same_product_title') }}</h2>
+                </div>
+                <div class="px-6 py-5 space-y-3">
+                    <p class="text-sm text-gray-700">{{ $sameProductBlock['message'] }}</p>
+                    <p class="text-xs text-gray-500">{{ __('borrower.policy.same_product_existing', ['number' => $sameProductBlock['application_number'] ?? '']) }}</p>
+                    <p class="text-xs text-gray-500">{{ __('borrower.policy.same_product_hint') }}</p>
+                    <div class="pt-2 space-y-2">
+                        <a href="{{ route('site.borrower.application', $sameProductBlock['application_id']) }}"
+                           class="w-full inline-flex justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-3 rounded-xl text-sm">
+                            {{ __('borrower.policy.same_product_view') }}
+                        </a>
+                        <form method="POST" action="{{ route('site.borrower.application.withdraw', $sameProductBlock['application_id']) }}"
+                              onsubmit="event.preventDefault(); confirmForm(this, {
+                                  title: @js(__('borrower.policy.withdraw_confirm_title')),
+                                  message: @js(__('borrower.policy.withdraw_confirm_body')),
+                                  confirmLabel: @js(__('borrower.policy.withdraw_confirm_action')),
+                                  tone: 'warning',
+                                  confirmClass: 'bg-red-600 hover:bg-red-700 text-white'
+                              }); return false;">
+                            @csrf
+                            <button type="submit" class="w-full inline-flex justify-center bg-white ring-1 ring-red-200 text-red-700 hover:bg-red-50 font-semibold px-4 py-3 rounded-xl text-sm">
+                                {{ __('borrower.policy.withdraw_and_reapply') }}
+                            </button>
+                        </form>
+                        <a href="{{ route('site.borrower.loan-products') }}"
+                           class="w-full inline-flex justify-center bg-white ring-1 ring-gray-200 text-gray-800 font-semibold px-4 py-3 rounded-xl text-sm">
+                            {{ __('borrower.policy.same_product_other') }}
+                        </a>
+                        <button type="button" @click="open = false" class="w-full text-sm text-gray-500 hover:text-gray-700 py-2">
+                            {{ __('borrower.feedback.ok') }}
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     @endif

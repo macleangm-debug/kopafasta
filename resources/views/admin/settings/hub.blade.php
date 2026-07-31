@@ -49,6 +49,7 @@
             ['Identity verification', 'admin.settings.identity'],
             ['CRB integration', 'admin.settings.crb'],
             ['Notification templates', 'admin.notification-templates.index'],
+            ['Chatbot', 'admin.settings.chatbot'],
         ],
         'Recovery' => [
             ['Recovery policy', 'admin.settings.recovery'],

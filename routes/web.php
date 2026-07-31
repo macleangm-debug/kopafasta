@@ -212,6 +212,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/marketplace/{assetId}/reservation/pay', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'payReservation'])->name('borrower.marketplace.reservation.pay');
             Route::get('/borrower/marketplace/{assetId}/reserve', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'reserveFlow'])->name('borrower.marketplace.reserve');
             Route::get('/borrower/applications/{application}',     [\App\Http\Controllers\Site\BorrowerController::class, 'application'])  ->name('borrower.application');
+            Route::post('/borrower/applications/{application}/withdraw', [\App\Http\Controllers\Site\BorrowerController::class, 'withdrawApplication'])->name('borrower.application.withdraw');
             Route::get('/borrower/applications/{application}/offer', [\App\Http\Controllers\Site\BorrowerController::class, 'applicationOffer'])->name('borrower.application.offer');
             Route::post('/borrower/applications/{application}/offer', [\App\Http\Controllers\Site\BorrowerController::class, 'respondToOffer'])->name('borrower.application.offer.respond');
             Route::get('/borrower/applications/{application}/asset-conversion', [\App\Http\Controllers\Site\BorrowerController::class, 'assetConversion'])->name('borrower.application.asset-conversion');

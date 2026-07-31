@@ -44,6 +44,8 @@ class PartnerEnrollmentFeatureTest extends TestCase
             'doc_brela' => UploadedFile::fake()->create('brela.pdf', 120, 'application/pdf'),
             'doc_tin_certificate' => UploadedFile::fake()->create('tin.pdf', 80, 'application/pdf'),
             'doc_business_licence' => UploadedFile::fake()->create('licence.pdf', 90, 'application/pdf'),
+            'doc_national_id_front' => UploadedFile::fake()->image('id-front.jpg'),
+            'doc_national_id_back' => UploadedFile::fake()->image('id-back.jpg'),
         ];
 
         $this->post(route('site.partners.apply.post'), $payload)
@@ -55,7 +57,7 @@ class PartnerEnrollmentFeatureTest extends TestCase
         $this->assertSame('debt_collector', $application->partner_category);
         $this->assertSame('BRELA-12345', $application->registration_number);
         $this->assertSame('100-200-300', $application->tin);
-        $this->assertCount(3, $application->documents);
+        $this->assertCount(5, $application->documents);
     }
 
     public function test_admin_can_approve_and_convert_application_to_partner(): void
@@ -81,6 +83,8 @@ class PartnerEnrollmentFeatureTest extends TestCase
             'doc_brela' => UploadedFile::fake()->create('brela.pdf', 100, 'application/pdf'),
             'doc_tin_certificate' => UploadedFile::fake()->create('tin.pdf', 100, 'application/pdf'),
             'doc_business_licence' => UploadedFile::fake()->create('licence.pdf', 100, 'application/pdf'),
+            'doc_national_id_front' => UploadedFile::fake()->image('id-front.jpg'),
+            'doc_national_id_back' => UploadedFile::fake()->image('id-back.jpg'),
         ])->assertRedirect();
 
         $application = PartnerApplication::query()->firstOrFail();

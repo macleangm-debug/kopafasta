@@ -21,6 +21,9 @@
     $applicationPercent = (int) ($progress['application_percent'] ?? $progress['percent'] ?? 0);
     $continueUrl = $next['url'] ?? ($profile['wizard_url'] ?? null);
     $continueLabel = $next['button_label'] ?? __('borrower.loan_profile.actions.continue_to_form');
+    $canWithdraw = $application
+        && ! in_array((string) $application->status, ['disbursed', 'withdrawn'], true)
+        && ! $application->loan;
 
     // Prefer service-built URLs (product-aware quote step). Do not hardcode quote/guarantor.
     $editQuoteUrl = $profile['edit_quote_url'] ?? null;
@@ -78,6 +81,22 @@
                         </a>
                     @endif
                 </div>
+            @endif
+
+            @if ($canWithdraw)
+                <form method="POST" action="{{ route('site.borrower.application.withdraw', $application) }}" class="mt-4"
+                      onsubmit="event.preventDefault(); confirmForm(this, {
+                          title: @js(__('borrower.policy.withdraw_confirm_title')),
+                          message: @js(__('borrower.policy.withdraw_confirm_body')),
+                          confirmLabel: @js(__('borrower.policy.withdraw_confirm_action')),
+                          tone: 'warning',
+                          confirmClass: 'bg-red-600 hover:bg-red-700 text-white'
+                      }); return false;">
+                    @csrf
+                    <button type="submit" class="inline-flex text-xs font-semibold text-red-700 bg-white ring-1 ring-red-200 hover:bg-red-50 px-3 py-2 rounded-lg">
+                        {{ __('borrower.loan_profile.actions.withdraw') }}
+                    </button>
+                </form>
             @endif
         </div>
 
@@ -182,6 +201,22 @@
                         {{ __('borrower.guarantor_supplement.cta') }}
                     </a>
                 </div>
+            @endif
+
+            @if ($canWithdraw)
+                <form method="POST" action="{{ route('site.borrower.application.withdraw', $application) }}" class="mt-5"
+                      onsubmit="event.preventDefault(); confirmForm(this, {
+                          title: @js(__('borrower.policy.withdraw_confirm_title')),
+                          message: @js(__('borrower.policy.withdraw_confirm_body')),
+                          confirmLabel: @js(__('borrower.policy.withdraw_confirm_action')),
+                          tone: 'warning',
+                          confirmClass: 'bg-red-600 hover:bg-red-700 text-white'
+                      }); return false;">
+                    @csrf
+                    <button type="submit" class="inline-flex text-sm font-semibold text-red-700 bg-white ring-1 ring-red-200 hover:bg-red-50 px-4 py-2.5 rounded-xl">
+                        {{ __('borrower.loan_profile.actions.withdraw') }}
+                    </button>
+                </form>
             @endif
         </div>
     </div>

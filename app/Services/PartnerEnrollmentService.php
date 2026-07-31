@@ -67,14 +67,22 @@ class PartnerEnrollmentService
             ]);
         }
 
-        $requiresBusinessDocs = $category === 'debt_collector'
-            || (
-                isset(self::ENROLLABLE_CATEGORIES[$category])
-                && in_array($data['applicant_category'] ?? 'company', ['company', 'institution'], true)
-            );
+        $applicantCategory = (string) ($data['applicant_category'] ?? 'company');
+        $isIndividual = $applicantCategory === 'individual';
 
-        if ($requiresBusinessDocs) {
-            $this->assertRequiredDocuments($documents, $category);
+        if ($isIndividual) {
+            $this->assertRequiredDocuments($documents, $category, 'individual');
+        } else {
+            $requiresBusinessDocs = $category === 'debt_collector'
+                || (
+                    isset(self::ENROLLABLE_CATEGORIES[$category])
+                    && in_array($applicantCategory, ['company', 'institution'], true)
+                )
+                || $category === 'affiliate';
+
+            if ($requiresBusinessDocs || isset(self::ENROLLABLE_CATEGORIES[$category])) {
+                $this->assertRequiredDocuments($documents, $category, 'company');
+            }
         }
 
         return DB::transaction(function () use ($data, $documents, $category) {
@@ -203,11 +211,15 @@ class PartnerEnrollmentService
     /**
      * @param  array<string, UploadedFile|null>  $documents
      */
-    private function assertRequiredDocuments(array $documents, string $category): void
+    private function assertRequiredDocuments(array $documents, string $category, string $applicantCategory = 'company'): void
     {
-        $required = ['brela', 'tin_certificate'];
-        if ($category === 'debt_collector') {
-            $required[] = 'business_licence';
+        if ($applicantCategory === 'individual') {
+            $required = ['national_id_front', 'national_id_back'];
+        } else {
+            $required = ['brela', 'tin_certificate', 'national_id_front', 'national_id_back'];
+            if ($category === 'debt_collector') {
+                $required[] = 'business_licence';
+            }
         }
 
         $missing = [];

@@ -34,11 +34,17 @@ class PartnerApplicationController extends Controller
             'doc_brela' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_tin_certificate' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_business_licence' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'doc_national_id_front' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'doc_national_id_back' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_other' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
         if (in_array($data['applicant_category'], ['company', 'institution'], true) && blank($data['business_name'] ?? null)) {
             return back()->withErrors(['business_name' => __('site.affiliate_apply.business_required')])->withInput();
+        }
+
+        if ($data['applicant_category'] === 'individual') {
+            $data['business_name'] = $data['business_name'] ?: $data['full_name'];
         }
 
         app(PartnerEnrollmentService::class)->submitApplication(
@@ -95,6 +101,8 @@ class PartnerApplicationController extends Controller
             'doc_brela' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_tin_certificate' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_business_licence' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'doc_national_id_front' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'doc_national_id_back' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_other' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
@@ -137,6 +145,8 @@ class PartnerApplicationController extends Controller
             'brela' => $request->file('doc_brela'),
             'tin_certificate' => $request->file('doc_tin_certificate'),
             'business_licence' => $request->file('doc_business_licence'),
+            'national_id_front' => $request->file('doc_national_id_front'),
+            'national_id_back' => $request->file('doc_national_id_back'),
             'other' => $request->file('doc_other'),
         ];
     }
