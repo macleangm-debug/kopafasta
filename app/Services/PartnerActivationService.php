@@ -35,34 +35,53 @@ class PartnerActivationService
             || collect($vendor->partnerRoles())->intersect(self::ACTIVATABLE_CATEGORIES)->isNotEmpty();
     }
 
-    public function sendActivationInvite(Vendor $vendor, ?User $actor = null): Vendor
+    /** Create/refresh activation token without sending SMS or email. */
+    public function prepareActivation(Vendor $vendor): string
     {
         $token = Str::random(64);
 
         $vendor->update([
-            'activation_token'    => hash('sha256', $token),
-            'activation_sent_at'  => now(),
-            'status'              => $vendor->status === 'active' && ! $vendor->user_id ? 'inactive' : $vendor->status,
+            'activation_token'   => hash('sha256', $token),
+            'activation_sent_at' => now(),
+            'status'             => $vendor->status === 'active' && ! $vendor->user_id ? 'inactive' : $vendor->status,
         ]);
 
-        $url = URL::temporarySignedRoute(
+        return $token;
+    }
+
+    public function activationUrl(Vendor $vendor, string $plainToken): string
+    {
+        return URL::temporarySignedRoute(
             'site.partner.activate',
-            now()->addDays(7),
-            ['vendor' => $vendor->id, 'token' => $token],
+            now()->addDays(14),
+            ['vendor' => $vendor->id, 'token' => $plainToken],
         );
+    }
 
-        $message = 'Activate your '.brand_name().' partner account: '.$url;
+    /**
+     * Prepare activation. SMS/email skipped by default (partner code is shown on track status).
+     *
+     * @param  bool  $notify  When true, also email/SMS the signed link (off until integrations are live).
+     */
+    public function sendActivationInvite(Vendor $vendor, ?User $actor = null, bool $notify = false): Vendor
+    {
+        $token = $this->prepareActivation($vendor);
+        $url = $this->activationUrl($vendor->fresh(), $token);
 
-        if (filled($vendor->email)) {
-            app(NotificationService::class)->sendEmail(
-                $vendor->email,
-                'Activate your partner account',
-                $message,
-            );
-        }
+        if ($notify) {
+            $message = 'Activate your '.brand_name().' partner account: '.$url;
 
-        if (filled($vendor->phone)) {
-            app(NotificationService::class)->sendSms($vendor->phone, $message);
+            if (filled($vendor->email)) {
+                app(NotificationService::class)->sendEmail(
+                    $vendor->email,
+                    'Activate your partner account',
+                    $message,
+                );
+            }
+
+            if (filled($vendor->phone)) {
+                app(NotificationService::class)->sendSms($vendor->phone, $message);
+            }
         }
 
         return $vendor->fresh();
@@ -143,5 +162,28 @@ class PartnerActivationService
         ]);
 
         return $user;
+    }
+
+    /** Activate using partner code + matching phone (no SMS). */
+    public function activateWithPartnerCode(Vendor $vendor, string $phone, string $pin): User
+    {
+        $normalizedPhone = preg_replace('/\D+/', '', $phone) ?: $phone;
+        $vendorPhone = preg_replace('/\D+/', '', (string) $vendor->phone) ?: (string) $vendor->phone;
+
+        if ($vendorPhone !== $normalizedPhone && ! str_ends_with($vendorPhone, $normalizedPhone) && ! str_ends_with($normalizedPhone, $vendorPhone)) {
+            throw ValidationException::withMessages([
+                'phone' => 'Phone number does not match this partner code.',
+            ]);
+        }
+
+        if ($vendor->user_id && $vendor->activated_at) {
+            throw ValidationException::withMessages([
+                'partner_code' => 'This partner account is already activated. Sign in with your phone and PIN.',
+            ]);
+        }
+
+        $token = $this->prepareActivation($vendor);
+
+        return $this->activate($vendor->fresh(), $token, ['pin' => $pin]);
     }
 }

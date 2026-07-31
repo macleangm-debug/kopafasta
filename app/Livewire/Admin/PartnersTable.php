@@ -14,6 +14,18 @@ class PartnersTable extends Component
     #[Url(as: 'q')] public string $search = '';
     #[Url] public string $role = '';
 
+    public string $category = '';
+    public bool $lockCategory = false;
+
+    public function mount(?string $category = null, bool $lockCategory = false): void
+    {
+        if (filled($category)) {
+            $this->category = $category;
+            $this->role = $category;
+            $this->lockCategory = $lockCategory;
+        }
+    }
+
     public function updatingSearch(): void
     {
         $this->resetPage();
@@ -26,13 +38,19 @@ class PartnersTable extends Component
 
     public function render(PartnerService $partners)
     {
-        $rows = $partners->filteredQuery($this->role ?: null, $this->search ?: null)
+        $role = $this->lockCategory && filled($this->category)
+            ? $this->category
+            : ($this->role ?: null);
+
+        $rows = $partners->filteredQuery($role, $this->search ?: null)
             ->orderByDesc('id')
             ->paginate(15);
 
         return view('livewire.admin.partners-table', [
-            'rows'        => $rows,
-            'roleOptions' => $partners->roleOptions(),
+            'rows'         => $rows,
+            'roleOptions'  => $partners->roleOptions(),
+            'lockCategory' => $this->lockCategory,
+            'lockedRole'   => $this->category,
         ]);
     }
 }

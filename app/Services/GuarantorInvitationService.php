@@ -829,6 +829,16 @@ class GuarantorInvitationService
             __('borrower.guarantor_invite.notify_sent_title'),
             $actionUrl,
             __('borrower.notifications.view_application'),
+            [
+                'title_key' => 'borrower.guarantor_invite.notify_sent_title',
+                'body_key'  => 'borrower.guarantor_invite.borrower_sent',
+                'params'    => [
+                    'guarantor' => $inviteeName,
+                    'product'   => $context['product_name'],
+                    'amount'    => $context['amount_label'],
+                    'duration'  => $context['duration_label'],
+                ],
+            ],
         );
 
         if (filled($borrower->phone)) {
@@ -927,6 +937,11 @@ class GuarantorInvitationService
                         ? route('site.borrower.application', $applicationId)
                         : route('site.borrower.loans', ['tab' => 'applications']),
                     __('borrower.notifications.view_application'),
+                    [
+                        'title_key' => 'borrower.guarantor_invite.notify_declined_title',
+                        'body_key'  => 'borrower.guarantor_invite.borrower_declined',
+                        'params'    => ['guarantor' => trim($guarantorName)],
+                    ],
                 );
             }
         });

@@ -98,6 +98,7 @@
                       'registration_number' => $a->registration_number,
                       'estimated_value' => $a->estimated_value,
                       'has_insurance' => $a->hasComprehensiveInsurance(),
+                      'thumbnail_url' => ($thumb = $a->thumbnailPath()) ? asset('storage/'.$thumb) : null,
                   ])->values()->all()),
                   valuationFeeAmount: {{ (int) ($valuationFeeAmount ?? 0) }},
                   paymentGatewayDummy: @js($paymentGatewayDummy ?? payment_gateway_is_dummy()),

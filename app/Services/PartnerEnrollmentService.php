@@ -169,7 +169,7 @@ class PartnerEnrollmentService
             }
 
             if (app(PartnerActivationService::class)->requiresActivation($partner)) {
-                app(PartnerActivationService::class)->sendActivationInvite($partner, $actor);
+                app(PartnerActivationService::class)->sendActivationInvite($partner, $actor, notify: false);
             }
 
             $application->update([

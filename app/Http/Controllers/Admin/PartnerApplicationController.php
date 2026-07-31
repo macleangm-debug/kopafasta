@@ -55,7 +55,6 @@ class PartnerApplicationController extends Controller
         $data = $request->validate([
             'status' => ['required', 'in:pending,approved,rejected'],
             'admin_notes' => ['nullable', 'string', 'max:2000'],
-            'convert' => ['nullable', 'boolean'],
         ]);
 
         $partnerApplication->fill([
@@ -71,7 +70,7 @@ class PartnerApplicationController extends Controller
         $partnerApplication->save();
 
         $converted = null;
-        if ($request->boolean('convert') && $partnerApplication->status === 'approved' && ! $partnerApplication->partner_id) {
+        if ($partnerApplication->status === 'approved' && ! $partnerApplication->partner_id) {
             $converted = app(PartnerEnrollmentService::class)->convertToPartner(
                 $partnerApplication->fresh('documents'),
                 Auth::user(),
@@ -79,11 +78,15 @@ class PartnerApplicationController extends Controller
         }
 
         $message = $converted
-            ? 'Application approved and partner '.$converted->vendor_number.' created. Activation invite sent.'
-            : 'Partner application updated.';
+            ? 'Partner approved. Partner code '.$converted->vendor_number.' is ready — they can activate via Track status / Activate account (no SMS).'
+            : ($partnerApplication->status === 'approved'
+                ? 'Partner application approved.'
+                : ($partnerApplication->status === 'rejected'
+                    ? 'Partner application rejected.'
+                    : 'Partner application updated.'));
 
         return redirect()
-            ->route('admin.partner-applications.show', $partnerApplication)
+            ->route('admin.partner-applications.show', $partnerApplication->fresh('partner'))
             ->with('status', $message);
     }
 }

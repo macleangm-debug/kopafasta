@@ -66,6 +66,27 @@ class NotificationLog extends Model
             }
         }
 
+        // Legacy rows without i18n keys — rematch known templates so locale switches still work.
+        $templateMap = [
+            'guarantor_sent' => [
+                'title' => 'borrower.guarantor_invite.notify_sent_title',
+                'body'  => null,
+            ],
+            'guarantor_declined' => [
+                'title' => 'borrower.guarantor_invite.notify_declined_title',
+                'body'  => null,
+            ],
+        ];
+        $template = (string) ($this->template ?? '');
+        if (isset($templateMap[$template])) {
+            $title = (string) __($templateMap[$template]['title']);
+            $lines = preg_split("/\r\n|\n|\r/", (string) ($this->message ?: '')) ?: [];
+            $body = trim(implode(' ', array_slice($lines, 1))) ?: (string) ($this->message ?: '');
+
+            // Prefer translating title; keep stored body (may be EN) until re-sent with keys.
+            return [$title, $body];
+        }
+
         $lines = preg_split("/\r\n|\n|\r/", (string) ($this->message ?: '')) ?: [];
         $title = trim($lines[0] ?? '') ?: __('borrower.notifications.fallback_title');
         $body = trim(implode(' ', array_slice($lines, 1))) ?: (string) ($this->message ?: $this->template ?: '');

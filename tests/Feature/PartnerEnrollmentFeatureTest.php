@@ -5,11 +5,9 @@ namespace Tests\Feature;
 use App\Models\PartnerApplication;
 use App\Models\User;
 use App\Models\Vendor;
-use App\Services\NotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Mockery;
 use Tests\TestCase;
 
 class PartnerEnrollmentFeatureTest extends TestCase
@@ -64,11 +62,6 @@ class PartnerEnrollmentFeatureTest extends TestCase
     {
         Storage::fake('public');
 
-        $notifications = Mockery::mock(NotificationService::class);
-        $notifications->shouldReceive('sendEmail')->atLeast()->once();
-        $notifications->shouldReceive('sendSms')->atLeast()->once();
-        $this->app->instance(NotificationService::class, $notifications);
-
         $this->post(route('site.partners.apply.post'), [
             'partner_category' => 'debt_collector',
             'applicant_category' => 'company',
@@ -94,7 +87,6 @@ class PartnerEnrollmentFeatureTest extends TestCase
             ->put(route('admin.partner-applications.update', $application), [
                 'status' => 'approved',
                 'admin_notes' => 'Looks good',
-                'convert' => '1',
             ])
             ->assertRedirect(route('admin.partner-applications.show', $application));
 
@@ -108,6 +100,7 @@ class PartnerEnrollmentFeatureTest extends TestCase
         $this->assertSame('BRELA-999', $partner->registration_number);
         $this->assertSame('111-222-333', $partner->tin);
         $this->assertNotNull($partner->activation_token);
+        $this->assertNotEmpty($partner->vendor_number);
         $this->assertGreaterThanOrEqual(1, $partner->documents()->count());
     }
 

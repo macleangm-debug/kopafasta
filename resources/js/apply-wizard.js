@@ -539,6 +539,18 @@ export function applyWizard(config) {
                     return this.selectedCustomerAssetIds().includes(String(id));
                 },
 
+                profileCompletionPercent() {
+                    const sections = this.profileSections || [];
+                    if (! sections.length) return 100;
+                    const done = sections.filter(s => s && s.complete).length;
+                    return Math.round((done / sections.length) * 100);
+                },
+
+                profileIncompleteCount() {
+                    const sections = this.profileSections || [];
+                    return sections.filter(s => s && ! s.complete).length;
+                },
+
                 toggleCustomerAsset(id) {
                     const key = String(id);
                     let ids = this.selectedCustomerAssetIds().slice();

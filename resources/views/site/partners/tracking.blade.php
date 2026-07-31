@@ -1,4 +1,25 @@
 <x-site.layout :title="brand_title(__('site.partner_apply.track_title'))">
+    @php
+        $showSubmittedModal = session()->pull('partner_submitted');
+        $resultPayload = null;
+        if ($phone !== '' && $applications->isNotEmpty()) {
+            $app = $applications->first();
+            $partner = $app->partner;
+            $resultPayload = [
+                'status' => (string) $app->status,
+                'name' => $app->business_name ?: $app->full_name,
+                'category' => \App\Services\PartnerEnrollmentService::ENROLLABLE_CATEGORIES[$app->partner_category] ?? ucfirst(str_replace('_', ' ', (string) $app->partner_category)),
+                'phone' => $app->phone,
+                'submitted' => optional($app->created_at)->format('d M Y H:i'),
+                'notes' => $app->admin_notes,
+                'partner_code' => $partner?->vendor_number ?: $partner?->partner_number,
+                'activated' => (bool) ($partner?->activated_at && $partner?->user_id),
+            ];
+        } elseif ($phone !== '') {
+            $resultPayload = ['empty' => true];
+        }
+    @endphp
+
     <section class="bg-brand text-white">
         <div class="max-w-2xl mx-auto px-4 py-10">
             <a href="{{ route('site.partners') }}" class="text-sm text-white/70 hover:text-white inline-flex items-center gap-1 mb-4">
@@ -10,75 +31,120 @@
         </div>
     </section>
 
-    <div class="max-w-2xl mx-auto py-10 px-4 -mt-6 space-y-5">
-        @if (session('status'))
-            <div class="rounded-2xl bg-gradient-to-br from-brand to-brand-light text-white px-5 py-5 shadow-lg ring-1 ring-brand/20">
-                <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.feedback.tones.success') }}</p>
-                <p class="mt-2 text-sm leading-relaxed">{{ session('status') }}</p>
-            </div>
-        @endif
-
+    <div class="max-w-2xl mx-auto py-10 px-4 -mt-6 space-y-5"
+         x-data="{
+            resultOpen: {{ $resultPayload ? 'true' : 'false' }},
+            submittedOpen: {{ $showSubmittedModal ? 'true' : 'false' }},
+         }">
         <form method="GET" action="{{ route('site.partners.apply.tracking') }}" class="glass-card p-6 space-y-4">
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">{{ __('site.partner_apply.track_phone_label') }}</label>
-                <input type="text" name="phone" value="{{ $phone }}" required
-                       class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"
-                       placeholder="{{ __('site.partner_apply.track_phone_placeholder') }}">
-            </div>
+            <x-site.phone-input
+                name="phone"
+                :label="__('site.partner_apply.track_phone_label')"
+                :value="$phone"
+                variant="rounded"
+                :required="true"
+                :help="__('site.partner_apply.track_phone_help')"
+            />
             <button type="submit" class="w-full sm:w-auto bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm">
                 {{ __('site.partner_apply.track_submit') }}
             </button>
         </form>
 
-        @if ($phone !== '')
-            @forelse ($applications as $application)
-                <div class="glass-card p-5 space-y-3">
-                    <div class="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                            <p class="text-[11px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('site.partner_apply.track_application') }}</p>
-                            <p class="text-lg font-bold text-gray-900 mt-1">{{ $application->business_name ?: $application->full_name }}</p>
-                            <p class="text-sm text-gray-600">{{ \App\Services\PartnerEnrollmentService::ENROLLABLE_CATEGORIES[$application->partner_category] ?? ucfirst(str_replace('_', ' ', (string) $application->partner_category)) }}</p>
-                        </div>
-                        @php
-                            $status = (string) $application->status;
-                            $tone = match ($status) {
-                                'approved' => 'bg-brand-muted text-brand ring-brand/20',
-                                'rejected' => 'bg-red-50 text-red-700 ring-red-200',
-                                default => 'bg-brand-muted/60 text-brand ring-brand/15',
-                            };
-                        @endphp
-                        <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1 ring-1 {{ $tone }}">
-                            {{ __('site.partner_apply.track_statuses.'.$status) }}
-                        </span>
-                    </div>
-                    <p class="text-sm text-gray-600">{{ __('site.partner_apply.track_phone_used', ['phone' => $application->phone]) }}</p>
-                    <p class="text-xs text-gray-500">{{ __('site.partner_apply.track_submitted', ['date' => optional($application->created_at)->format('d M Y H:i')]) }}</p>
+        {{-- Submitted modal --}}
+        <div x-show="submittedOpen" x-cloak class="fixed inset-0 z-[10050] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+            <div class="absolute inset-0 bg-brand/70 backdrop-blur-sm" @click="submittedOpen = false"></div>
+            <div class="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-brand/15"
+                 @keydown.escape.window="submittedOpen = false">
+                <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-5 text-white">
+                    <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.feedback.tones.success') }}</p>
+                    <h2 class="mt-1 text-xl font-bold">{{ __('site.partner_apply.success_modal_title') }}</h2>
+                </div>
+                <div class="px-6 py-5 space-y-4 text-sm text-gray-700">
+                    <p>{{ __('site.partner_apply.success_modal_body') }}</p>
+                    <a href="{{ route('site.partners.apply.tracking') }}"
+                       class="inline-flex w-full justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                        {{ __('site.partner_apply.track_cta') }}
+                    </a>
+                    <button type="button" @click="submittedOpen = false"
+                            class="w-full text-sm font-semibold text-gray-600 hover:text-gray-900 py-2">
+                        {{ __('borrower.feedback.ok') }}
+                    </button>
+                </div>
+            </div>
+        </div>
 
-                    @if ($status === 'approved')
-                        <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/15 px-4 py-3 text-sm text-brand">
-                            <p class="font-semibold">{{ __('site.partner_apply.track_approved_title') }}</p>
-                            <p class="mt-1 text-brand/80">{{ __('site.partner_apply.track_approved_body') }}</p>
-                            <a href="{{ route('site.login', ['portal' => 'partner']) }}"
-                               class="inline-flex mt-3 bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2 rounded-xl text-sm">
-                                {{ __('site.partner_apply.track_login_cta') }}
-                            </a>
+        {{-- Status result modal --}}
+        @if ($resultPayload)
+            <div x-show="resultOpen" x-cloak class="fixed inset-0 z-[10050] flex items-center justify-center p-4" role="dialog" aria-modal="true"
+                 @keydown.escape.window="resultOpen = false">
+                <div class="absolute inset-0 bg-brand/70 backdrop-blur-sm" @click="resultOpen = false"></div>
+                <div class="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-brand/15">
+                    @if (! empty($resultPayload['empty']))
+                        <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-5 text-white">
+                            <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.partner_apply.track_application') }}</p>
+                            <h2 class="mt-1 text-xl font-bold">{{ __('site.partner_apply.track_empty_title') }}</h2>
                         </div>
-                    @elseif ($status === 'rejected')
-                        <div class="rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">
-                            <p class="font-semibold">{{ __('site.partner_apply.track_rejected_title') }}</p>
-                            <p class="mt-1">{{ $application->admin_notes ?: __('site.partner_apply.track_rejected_body') }}</p>
+                        <div class="px-6 py-5 space-y-4 text-sm text-gray-700">
+                            <p>{{ __('site.partner_apply.track_empty') }}</p>
+                            <button type="button" @click="resultOpen = false"
+                                    class="w-full bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                                {{ __('borrower.feedback.ok') }}
+                            </button>
                         </div>
                     @else
-                        <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-4 py-3 text-sm text-brand">
-                            {{ __('site.partner_apply.track_pending_body') }}
+                        @php $status = $resultPayload['status']; @endphp
+                        <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-5 text-white">
+                            <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.partner_apply.track_application') }}</p>
+                            <h2 class="mt-1 text-xl font-bold">{{ $resultPayload['name'] }}</h2>
+                            <p class="text-sm text-white/80 mt-1">{{ $resultPayload['category'] }}</p>
+                            <span class="inline-flex mt-3 text-xs font-semibold rounded-full px-3 py-1 bg-white/15 ring-1 ring-white/25">
+                                {{ __('site.partner_apply.track_statuses.'.$status) }}
+                            </span>
+                        </div>
+                        <div class="px-6 py-5 space-y-4 text-sm text-gray-700">
+                            <p class="text-xs text-gray-500">{{ __('site.partner_apply.track_submitted', ['date' => $resultPayload['submitted']]) }}</p>
+
+                            @if ($status === 'approved')
+                                <div class="rounded-2xl bg-brand-muted/50 ring-1 ring-brand/15 p-4 space-y-3">
+                                    <p class="font-semibold text-brand">{{ __('site.partner_apply.track_approved_title') }}</p>
+                                    @if ($resultPayload['partner_code'])
+                                        <div>
+                                            <p class="text-[10px] uppercase tracking-widest text-brand/70 font-semibold">{{ __('site.partner_apply.track_partner_code') }}</p>
+                                            <p class="mt-1 text-2xl font-extrabold tracking-widest font-mono text-brand">{{ $resultPayload['partner_code'] }}</p>
+                                            <p class="mt-2 text-xs text-brand/80">{{ __('site.partner_apply.track_partner_code_hint') }}</p>
+                                        </div>
+                                    @endif
+                                    @if ($resultPayload['activated'])
+                                        <a href="{{ route('site.login', ['portal' => 'partner']) }}"
+                                           class="inline-flex w-full justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                                            {{ __('site.partner_apply.track_login_cta') }}
+                                        </a>
+                                    @else
+                                        <a href="{{ route('site.partner.start') }}"
+                                           class="inline-flex w-full justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                                            {{ __('site.partner_apply.track_activate_cta') }}
+                                        </a>
+                                    @endif
+                                </div>
+                            @elseif ($status === 'rejected')
+                                <div class="rounded-2xl bg-red-50 ring-1 ring-red-200 p-4 text-red-800">
+                                    <p class="font-semibold">{{ __('site.partner_apply.track_rejected_title') }}</p>
+                                    <p class="mt-1">{{ $resultPayload['notes'] ?: __('site.partner_apply.track_rejected_body') }}</p>
+                                </div>
+                            @else
+                                <div class="rounded-2xl bg-brand-muted/40 ring-1 ring-brand/10 p-4 text-brand">
+                                    {{ __('site.partner_apply.track_pending_body') }}
+                                </div>
+                            @endif
+
+                            <button type="button" @click="resultOpen = false"
+                                    class="w-full text-sm font-semibold text-gray-600 hover:text-gray-900 py-2">
+                                {{ __('borrower.feedback.ok') }}
+                            </button>
                         </div>
                     @endif
                 </div>
-            @empty
-                <div class="glass-card p-6 text-sm text-gray-600">
-                    {{ __('site.partner_apply.track_empty') }}
-                </div>
-            @endforelse
+            </div>
         @endif
     </div>
 </x-site.layout>

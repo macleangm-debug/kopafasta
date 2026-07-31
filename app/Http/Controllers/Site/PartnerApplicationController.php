@@ -58,9 +58,7 @@ class PartnerApplicationController extends Controller
 
         return redirect()
             ->route('site.partners.apply.tracking', ['phone' => $application->phone])
-            ->with('status', __('site.partner_apply.success_review', [
-                'tracking' => $application->phone,
-            ]));
+            ->with('partner_submitted', true);
     }
 
     public function tracking(Request $request): View
@@ -71,6 +69,7 @@ class PartnerApplicationController extends Controller
         if ($phone !== '') {
             $normalized = preg_replace('/\D+/', '', $phone) ?: $phone;
             $applications = \App\Models\PartnerApplication::query()
+                ->with('partner')
                 ->where(function ($q) use ($phone, $normalized) {
                     $q->where('phone', $phone)
                         ->orWhere('phone', 'like', '%'.$normalized)
@@ -161,9 +160,7 @@ class PartnerApplicationController extends Controller
 
         return redirect()
             ->route('site.partners.apply.tracking', ['phone' => $application->phone])
-            ->with('status', __('site.partner_apply.success_review', [
-                'tracking' => $application->phone,
-            ]));
+            ->with('partner_submitted', true);
     }
 
     /** @return array<string, \Illuminate\Http\UploadedFile|null> */

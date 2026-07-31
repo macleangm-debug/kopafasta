@@ -131,23 +131,34 @@
         </div>
 
         <section class="rounded-2xl ring-1 ring-brand/15 overflow-hidden" x-show="profileSections?.length">
-            <div class="px-5 py-3.5 bg-gradient-to-r from-brand-muted/50 to-white border-b border-brand/10">
-                <h3 class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.profile_verify.title') }}</h3>
-                <p class="text-xs text-gray-500 mt-1">{{ __('borrower.apply.profile_verify.subtitle') }}</p>
+            <div class="px-5 sm:px-6 py-5 bg-gradient-to-br from-brand-muted/50 to-white">
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                    <div class="min-w-0">
+                        <h3 class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.profile_verify.title') }}</h3>
+                        <p class="text-sm text-gray-600 mt-1">{{ __('borrower.apply.profile_verify.compact_subtitle') }}</p>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <p class="text-3xl font-extrabold tabular-nums text-brand"
+                           x-text="profileCompletionPercent() + '%'"></p>
+                        <p class="text-[11px] uppercase tracking-widest text-gray-500 mt-0.5">{{ __('borrower.apply.profile_verify.profile_label') }}</p>
+                    </div>
+                </div>
+                <div class="mt-4 h-2.5 rounded-full bg-white/80 ring-1 ring-brand/10 overflow-hidden">
+                    <div class="h-full rounded-full bg-brand transition-all duration-500"
+                         :style="'width:' + profileCompletionPercent() + '%'"></div>
+                </div>
+                <p class="mt-3 text-xs text-gray-500"
+                   x-show="profileIncompleteCount() > 0"
+                   x-text="profileIncompleteCount() + ' ' + @js(__('borrower.apply.profile_verify.items_left'))"></p>
+                <p class="mt-3 text-xs text-emerald-700 font-semibold" x-show="profileIncompleteCount() === 0">
+                    {{ __('borrower.apply.profile_verify.all_set') }}
+                </p>
+                <a :href="profileUrl || '{{ route('site.borrower.profile') }}'"
+                   class="mt-4 inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
+                    <span x-text="profileIncompleteCount() > 0 ? @js(__('borrower.apply.profile_verify.complete_cta')) : @js(__('borrower.apply.profile_verify.view_profile_cta'))"></span>
+                    <span aria-hidden="true">→</span>
+                </a>
             </div>
-            <ul class="divide-y divide-gray-100/80">
-                <template x-for="section in (profileSections || [])" :key="section.key">
-                    <li class="px-5 py-3 flex items-center justify-between gap-3 text-sm">
-                        <div class="min-w-0">
-                            <p class="font-semibold text-gray-900" x-text="section.label"></p>
-                            <p class="text-xs text-gray-500 mt-0.5" x-text="section.detail"></p>
-                        </div>
-                        <span class="shrink-0 size-8 rounded-full grid place-items-center text-sm font-bold"
-                              :class="section.complete ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
-                              x-text="section.complete ? '✓' : '!'"></span>
-                    </li>
-                </template>
-            </ul>
         </section>
     </div>
 

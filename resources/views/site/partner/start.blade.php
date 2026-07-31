@@ -32,6 +32,13 @@
                                class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm font-mono uppercase outline-none">
                     </div>
                     <x-site.phone-input name="phone" :label="__('site.feedback.phone')" :value="old('phone')" variant="rounded" :required="true" />
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('site.auth.create_pin_label') }}</label>
+                        <input type="password" name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required
+                               class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none tracking-widest"
+                               placeholder="••••">
+                        <p class="mt-1.5 text-xs text-gray-500">{{ __('site.auth.create_pin_hint') }}</p>
+                    </div>
                     <button type="submit" class="w-full bg-brand hover:bg-brand-light text-white font-bold py-3.5 rounded-xl transition shadow-md">
                         {{ __('site.auth.continue_activation') }}
                     </button>

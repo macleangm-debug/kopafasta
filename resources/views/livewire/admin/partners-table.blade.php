@@ -1,17 +1,23 @@
 <div>
     <div class="mb-4 flex flex-wrap gap-3">
-        <select wire:model.live="role" class="rounded-lg border-gray-300 text-sm">
-            <option value="">All partner roles</option>
-            @foreach ($roleOptions as $key => $label)
-                <option value="{{ $key }}">{{ $label }}</option>
-            @endforeach
-        </select>
+        @if (! ($lockCategory ?? false))
+            <select wire:model.live="role" class="rounded-lg border-gray-300 text-sm">
+                <option value="">All partner roles</option>
+                @foreach ($roleOptions as $key => $label)
+                    <option value="{{ $key }}">{{ $label }}</option>
+                @endforeach
+            </select>
+        @else
+            <span class="inline-flex items-center rounded-lg bg-brand-muted text-brand text-sm font-semibold px-3 py-2 ring-1 ring-brand/15">
+                {{ $roleOptions[$lockedRole] ?? ucfirst((string) $lockedRole) }}
+            </span>
+        @endif
         <input wire:model.live.debounce.300ms="search" type="search" placeholder="Search partners…" class="rounded-lg border-gray-300 text-sm min-w-[16rem]">
     </div>
 
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
         <table class="min-w-full text-sm">
-            <thead class="bg-gray-50 text-xs uppercase text-gray-500">
+            <thead class="bg-brand-muted/40 text-xs uppercase text-brand">
                 <tr>
                     <th class="px-5 py-3 text-left">Partner #</th>
                     <th class="px-5 py-3 text-left">Name</th>
@@ -23,20 +29,27 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @forelse ($rows as $row)
-                    <tr class="hover:bg-gray-50">
+                    <tr class="hover:bg-brand-muted/20">
                         <td class="px-5 py-3 font-mono text-xs">{{ $row->vendor_number }}</td>
                         <td class="px-5 py-3 font-medium">
-                            <a href="{{ route('admin.partners.show', $row) }}" class="text-amber-700 hover:underline">{{ $row->name }}</a>
+                            <a href="{{ route('admin.partners.show', $row) }}" class="text-brand hover:underline">{{ $row->name }}</a>
                         </td>
                         <td class="px-5 py-3 text-xs">
                             @foreach (($row->roles ?? [$row->category]) as $role)
-                                <span class="inline-flex mr-1 mb-1 rounded-full bg-gray-100 px-2 py-0.5">{{ $roleOptions[$role] ?? $role }}</span>
+                                <span class="inline-flex mr-1 mb-1 rounded-full bg-brand-muted px-2 py-0.5 text-brand">{{ $roleOptions[$role] ?? $role }}</span>
                             @endforeach
                         </td>
                         <td class="px-5 py-3">{{ $row->phone ?? '—' }}</td>
-                        <td class="px-5 py-3 capitalize">{{ $row->status }}</td>
+                        <td class="px-5 py-3">
+                            <span class="capitalize">{{ $row->status }}</span>
+                            @if ($row->activated_at)
+                                <span class="block text-[10px] text-emerald-700 font-semibold">Activated</span>
+                            @elseif ($row->status === 'inactive')
+                                <span class="block text-[10px] text-amber-700 font-semibold">Awaiting activation</span>
+                            @endif
+                        </td>
                         <td class="px-5 py-3 text-right">
-                            <a href="{{ route('admin.partners.edit', $row) }}" class="text-gray-600 hover:text-amber-700">Edit</a>
+                            <a href="{{ route('admin.partners.edit', $row) }}" class="text-gray-600 hover:text-brand">Edit</a>
                         </td>
                     </tr>
                 @empty

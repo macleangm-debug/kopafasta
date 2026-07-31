@@ -221,8 +221,14 @@ return [
 ],
     'profile_verify' => 
 [
-      'title' => 'Uthibitisho wa wasifu',
+      'title' => 'Utayari wa wasifu',
       'subtitle' => 'Tunathibitisha vipengele hivi vya wasifu kabla ya ukaguzi.',
+      'compact_subtitle' => 'Maliza vipengele vinavyokosekana kwenye wasifu, kisha rudi hapa kuwasilisha.',
+      'profile_label' => 'Wasifu',
+      'items_left' => 'vipengele bado vinahitaji kushughulikiwa kwenye wasifu',
+      'all_set' => 'Wasifu uko tayari kwa ukaguzi.',
+      'complete_cta' => 'Kamilisha wasifu',
+      'view_profile_cta' => 'Angalia wasifu',
       'verified' => ':section imethibitishwa',
 ],
     'personal' => 
@@ -1073,8 +1079,8 @@ return [
       'offer_after_review_body' => 'Baada ya kuwasilisha, tutathamini mali, kuangalia CRB, na kukamilisha ukaguzi — kisha tutatuma ofa yako.',
       'request_not_offer_title' => 'Ombi lako (si ofa ya mwisho)',
       'request_not_offer_body' => 'Tuambie kiasi na muda unavyotaka. Hii ni ombi tu. Tunaweza kukubali, kupunguza, au kukataa baada ya uthamini na CRB.',
-      'requested_amount' => 'Kiasi kinachoomba',
-      'requested_tenure' => 'Muda unaopendelea (miezi)',
+      'requested_amount' => 'Kiasi cha mkopo',
+      'requested_tenure' => 'Muda',
       'request_label' => 'Ombi — ofa ya mwisho baada ya ukaguzi',
       'amount_pending_offer' => 'Baada ya uthamini na ukaguzi',
       'tenure_pending_offer' => 'Itawekwa kwenye ofa',

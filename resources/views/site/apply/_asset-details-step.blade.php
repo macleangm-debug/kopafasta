@@ -25,14 +25,22 @@
                     <p class="text-xs text-gray-500 mb-3">{{ __('borrower.apply.asset_details.multi_asset_hint') }}</p>
                     <div class="space-y-2">
                         <template x-for="asset in customerAssets" :key="asset.id">
-                            <label class="flex items-start gap-3 rounded-xl ring-1 ring-gray-200 px-4 py-3 cursor-pointer hover:bg-brand-muted/20"
+                            <label class="flex items-center gap-3 rounded-xl ring-1 ring-gray-200 px-3 py-3 cursor-pointer hover:bg-brand-muted/20"
                                    :class="isCustomerAssetSelected(asset.id) ? 'ring-brand/40 bg-brand-muted/30' : ''">
                                 <input type="checkbox"
-                                       class="mt-1 rounded border-gray-300 text-brand focus:ring-brand"
+                                       class="rounded border-gray-300 text-brand focus:ring-brand shrink-0"
                                        :value="asset.id"
                                        :checked="isCustomerAssetSelected(asset.id)"
                                        @change="toggleCustomerAsset(asset.id)">
-                                <span class="min-w-0">
+                                <span class="size-14 rounded-xl overflow-hidden bg-brand-muted/40 ring-1 ring-brand/10 shrink-0 grid place-items-center">
+                                    <template x-if="asset.thumbnail_url">
+                                        <img :src="asset.thumbnail_url" alt="" class="size-full object-cover">
+                                    </template>
+                                    <template x-if="!asset.thumbnail_url">
+                                        <span class="text-lg" x-text="(assetTypeOptions[asset.asset_type] || '📦').charAt(0)"></span>
+                                    </template>
+                                </span>
+                                <span class="min-w-0 flex-1">
                                     <span class="block text-sm font-semibold text-gray-900" x-text="asset.label"></span>
                                     <span class="block text-xs text-gray-500 mt-0.5"
                                           x-text="(assetTypeOptions[asset.asset_type] || asset.asset_type) + (asset.registration_number ? ' · ' + asset.registration_number : '')"></span>
@@ -55,24 +63,42 @@
                     <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.asset_details.request_not_offer_title') }}</p>
                     <p class="text-sm text-gray-600 mt-2">{{ __('borrower.apply.asset_details.request_not_offer_body') }}</p>
                 </div>
-                <div class="p-5 sm:p-6 grid sm:grid-cols-2 gap-4">
+                <div class="p-5 sm:p-6 space-y-6">
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                            {{ __('borrower.apply.asset_details.requested_amount') }} <span class="text-rose-500">*</span>
-                        </label>
-                        <input type="number" min="1000" step="1000" x-model.number="form.requested_amount" @input="updateQuote()"
-                               class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-4 py-3 text-sm">
-                        <p class="text-[11px] text-gray-500 mt-1" x-show="current"
-                           x-text="'Min ' + formatTzs(current.min) + ' · Max ' + formatTzs(current.max)"></p>
+                        <div class="flex items-end justify-between gap-3 mb-3">
+                            <label class="text-sm font-semibold text-gray-700">{{ __('borrower.apply.quote.loan_amount') }} <span class="text-rose-500">*</span></label>
+                            <span class="text-lg font-extrabold text-brand tabular-nums" x-text="formatTzs(form.requested_amount)"></span>
+                        </div>
+                        <input type="range"
+                               :min="current.min"
+                               :max="current.max"
+                               step="50000"
+                               x-model.number="form.requested_amount"
+                               @input="updateQuote()"
+                               class="w-full accent-brand h-2 rounded-full">
+                        <div class="flex justify-between text-xs text-gray-500 mt-2 tabular-nums">
+                            <span x-text="formatTzs(current.min)"></span>
+                            <span x-text="formatTzs(current.max)"></span>
+                        </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                            {{ __('borrower.apply.asset_details.requested_tenure') }} <span class="text-rose-500">*</span>
-                        </label>
-                        <input type="number" min="1" step="1" x-model.number="form.requested_tenure_months" @input="updateQuote()"
-                               class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-4 py-3 text-sm">
-                        <p class="text-[11px] text-gray-500 mt-1" x-show="current"
-                           x-text="(current.tmin || 3) + '–' + (current.tmax || 24) + ' {{ __('borrower.apply.browse.months_short') }}'"></p>
+                        <div class="flex items-end justify-between gap-3 mb-3">
+                            <label class="text-sm font-semibold text-gray-700">{{ __('borrower.apply.quote.tenure') }} <span class="text-rose-500">*</span></label>
+                            <span class="text-lg font-extrabold text-brand tabular-nums">
+                                <span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.quote.months') }}
+                            </span>
+                        </div>
+                        <input type="range"
+                               :min="current.tmin"
+                               :max="current.tmax"
+                               step="1"
+                               x-model.number="form.requested_tenure_months"
+                               @input="updateQuote()"
+                               class="w-full accent-brand h-2 rounded-full">
+                        <div class="flex justify-between text-xs text-gray-500 mt-2 tabular-nums">
+                            <span><span x-text="current.tmin"></span> {{ __('borrower.apply.browse.months_short') }}</span>
+                            <span><span x-text="current.tmax"></span> {{ __('borrower.apply.browse.months_short') }}</span>
+                        </div>
                     </div>
                 </div>
             </div>

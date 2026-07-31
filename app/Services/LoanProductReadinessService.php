@@ -47,6 +47,8 @@ class LoanProductReadinessService
             default         => '🔴',
         };
 
+        $profilePercent = (int) (app(ProfileCompletionService::class)->calculate($customer)['percent'] ?? $percent);
+
         return [
             'product' => [
                 'id'                 => $product->id,
@@ -65,6 +67,7 @@ class LoanProductReadinessService
                 'requires_guarantor' => (bool) $product->requires_guarantor,
                 'repayment_frequency'=> app(\App\Services\GroupLendingService::class)->effectiveRepaymentCadence($product),
             ],
+            'profile_percent'    => $profilePercent,
             'readiness_percent'  => $percent,
             'readiness_level'    => $percent >= 90 ? 'green' : ($percent >= 60 ? 'amber' : 'red'),
             'readiness_label'    => $readinessEmoji.' '.__('borrower.apply.readiness.score', ['percent' => $percent]),
