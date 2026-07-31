@@ -31,7 +31,7 @@ class LenderInvestmentsTable extends Component
     public function render()
     {
         $rows = LenderInvestment::query()
-            ->with('lender', 'fundingPool')
+            ->with('lender', 'pool')
             ->when($this->search !== '', function ($q) {
                 $term = '%'.$this->search.'%';
                 $q->where(function ($q) use ($term) {

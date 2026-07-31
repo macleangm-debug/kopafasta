@@ -8,17 +8,24 @@
         <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
     @endif
 
-    <div class="mb-6">
-        <a href="{{ route('admin.settings.finance') }}" class="text-sm font-semibold text-amber-700 hover:text-amber-800">← Finance defaults</a>
+    <div class="mb-6 rounded-2xl bg-brand-muted/40 ring-1 ring-brand/10 px-5 py-4 text-sm text-gray-800 space-y-2">
+        <p class="font-semibold text-brand">Collection channels (bank + mobile money)</p>
+        <p class="text-xs text-gray-600">Borrowers repay via bank transfer or mobile money only. Create the PSP / collection mobile account once, then map it here. You do not need separate repayment-method catalogs.</p>
+        <div class="flex flex-wrap gap-3 pt-1">
+            <a href="{{ route('admin.mobile-money-accounts.create') }}" class="inline-flex text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-2 rounded-xl">+ Add PSP / collection account</a>
+            <a href="{{ route('admin.bank-accounts.create') }}" class="inline-flex text-xs font-semibold text-brand ring-1 ring-brand/20 hover:bg-brand-muted px-3 py-2 rounded-xl">+ Add bank account</a>
+            <a href="{{ route('admin.mobile-money-accounts.index') }}" class="inline-flex text-xs font-semibold text-brand hover:underline px-2 py-2">View mobile accounts →</a>
+            <a href="{{ route('admin.bank-accounts.index') }}" class="inline-flex text-xs font-semibold text-brand hover:underline px-2 py-2">View bank accounts →</a>
+        </div>
     </div>
 
-    <form method="POST" action="{{ route('admin.settings.payment-accounts.default-collection') }}" class="bg-white rounded-xl ring-1 ring-gray-200 p-5 mb-8 space-y-4">
+    <form method="POST" action="{{ route('admin.settings.payment-accounts.default-collection') }}" class="bg-white rounded-2xl ring-1 ring-brand/10 p-5 mb-8 space-y-4">
         @csrf @method('PUT')
 
         <div>
-            <h2 class="text-sm font-semibold text-gray-900">PSP collection account</h2>
+            <h2 class="text-sm font-semibold text-brand">PSP collection account</h2>
             <p class="text-xs text-gray-500 mt-1">
-                One paybill or till number for all mobile money collections. Used as fallback when a payment type mapping has no account, and can be applied to every mobile money row at once.
+                One aggregation paybill/till for all mobile money collections. If the dropdown is empty, add a collection account first (button above).
             </p>
         </div>
 
@@ -53,18 +60,18 @@
             </p>
         @endif
 
-        <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-4 py-2 rounded-lg">
+        <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-4 py-2.5 rounded-xl">
             Save PSP collection account
         </button>
     </form>
 
-    <form method="POST" action="{{ route('admin.settings.payment-accounts.default-disbursement') }}" class="bg-white rounded-xl ring-1 ring-gray-200 p-5 mb-8 space-y-4">
+    <form method="POST" action="{{ route('admin.settings.payment-accounts.default-disbursement') }}" class="bg-white rounded-2xl ring-1 ring-brand/10 p-5 mb-8 space-y-4">
         @csrf @method('PUT')
 
         <div>
-            <h2 class="text-sm font-semibold text-gray-900">Disbursement account</h2>
+            <h2 class="text-sm font-semibold text-brand">Disbursement account</h2>
             <p class="text-xs text-gray-500 mt-1">
-                Mobile money wallet used for outbound payouts (borrower refunds, etc.). In live mode, API credentials on the account are required.
+                Mobile money wallet used for outbound payouts. In live mode, API credentials on the account are required.
             </p>
         </div>
 
@@ -89,7 +96,7 @@
             </p>
         @endif
 
-        <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-4 py-2 rounded-lg">
+        <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-4 py-2.5 rounded-xl">
             Save disbursement account
         </button>
     </form>

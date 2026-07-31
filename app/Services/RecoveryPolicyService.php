@@ -35,9 +35,7 @@ class RecoveryPolicyService
             return $this->gracePeriodDays();
         }
 
-        $loan->loadMissing('product');
-
-        return max(1, (int) app(LoanPenaltyPolicy::class)->for($loan)['default_grace_days']);
+        return max(1, LoanPenaltyPolicy::for($loan)->graceDaysAfterDefault);
     }
 
     public function feeBase(): string

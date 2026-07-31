@@ -12,6 +12,18 @@ class RepaymentMethodController extends ResourceController
     protected string $viewFolder = 'repayment-methods';
     protected string $singular = 'repayment method';
 
+    public function index()
+    {
+        return redirect()
+            ->route('admin.settings.payment-accounts')
+            ->with('status', 'Repayment channels are bank transfer or mobile money. Configure collection accounts under Payment accounts.');
+    }
+
+    public function create()
+    {
+        return $this->index();
+    }
+
     protected function rules(?Model $model = null): array
     {
         return [

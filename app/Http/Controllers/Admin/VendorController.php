@@ -39,6 +39,7 @@ class VendorController extends ResourceController
             'registration_number'            => ['nullable', 'string', 'max:80'],
             'tin'                            => ['nullable', 'string', 'max:40'],
             'category'                       => ['required', 'in:gps_installer,insurance,valuer,towing,yard,auctioneer,supplier,affiliate,call_center,debt_collector,legal_partner'],
+            'applicant_category'             => ['nullable', 'in:individual,company'],
             'roles'                          => ['nullable', 'array'],
             'roles.*'                        => ['string', 'in:gps_installer,insurance,valuer,towing,yard,auctioneer,supplier,affiliate,capital,call_center,debt_collector,legal_partner'],
             'phone'                          => ['nullable', 'string', 'max:30'],
@@ -75,10 +76,6 @@ class VendorController extends ResourceController
             return redirect()->route('admin.partners.create', request()->query());
         }
 
-        if (! request()->query('category')) {
-            return view('admin.partners.choose-type', $this->formData());
-        }
-
         return view("admin.{$this->viewFolder}.create", $this->formData());
     }
 
@@ -108,6 +105,7 @@ class VendorController extends ResourceController
     public function store(Request $request)
     {
         $data = $this->transform($request->validate($this->rules()));
+        $data = $this->normalizeApplicantCategory($data);
         $this->validateAffiliateCode($data, null);
         $this->validateRegions($data);
         $record = Vendor::create($data);
@@ -138,6 +136,7 @@ class VendorController extends ResourceController
     {
         $vendor = Vendor::findOrFail($id);
         $data = $this->transform($request->validate($this->rules($vendor)), $vendor);
+        $data = $this->normalizeApplicantCategory($data);
         $this->validateAffiliateCode($data, $vendor);
         $this->validateRegions($data);
         $vendor->update($data);
@@ -199,6 +198,22 @@ class VendorController extends ResourceController
                 'regions' => 'Select at least one operating region for this partner type, or mark coverage as nationwide.',
             ]);
         }
+    }
+
+    /** @param array<string, mixed> $data */
+    private function normalizeApplicantCategory(array $data): array
+    {
+        $category = (string) ($data['category'] ?? '');
+        $allowsPerson = in_array($category, ['affiliate', 'valuer'], true);
+        $applicant = (string) ($data['applicant_category'] ?? 'company');
+
+        if (! $allowsPerson || ! in_array($applicant, ['individual', 'company'], true)) {
+            $data['applicant_category'] = 'company';
+        } else {
+            $data['applicant_category'] = $applicant;
+        }
+
+        return $data;
     }
 
     /** @param array<string, mixed> $data */

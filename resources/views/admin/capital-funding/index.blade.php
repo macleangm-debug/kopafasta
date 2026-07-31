@@ -3,11 +3,22 @@
     :heading="__('admin.capital_funding.title')"
     :subheading="__('admin.capital_funding.subtitle')">
 
+    <div class="mb-6 rounded-2xl bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-5 text-white shadow-sm ring-1 ring-brand/20">
+        <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">How capital funding works</p>
+        <ol class="mt-3 space-y-1.5 text-sm text-white/90 list-decimal list-inside">
+            <li><strong class="text-white">Capital partners</strong> commit money into the platform.</li>
+            <li><strong class="text-white">Funding pools</strong> are buckets of that capital (why you add a pool: to ring-fence a partner’s commitment for deployment).</li>
+            <li>When a loan is funded, the system auto-creates a <strong class="text-white">loan allocation</strong> from a pool and splits interest (partner vs company) using Settings → Finance defaults.</li>
+            <li>This page = dashboard. Setup lives under Capital partners / Funding pools. Allocations list is the ledger of deployed capital.</li>
+        </ol>
+    </div>
+
     <div class="mb-6 rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-sm text-sky-900">
         {{ __('admin.capital_funding.hint', [
             'partner' => format_number($partnerSharePct, 0),
             'company' => format_number($companySharePct, 0),
         ]) }}
+        <a href="{{ route('admin.settings.finance') }}" class="ml-1 font-semibold underline">Edit interest share in settings →</a>
     </div>
 
     <div class="mb-4 flex flex-wrap gap-2 text-xs">

@@ -42,7 +42,11 @@ return [
     'Finance' => [
         ['Finance defaults', 'admin.settings.finance', 'finance'],
         ['Payment accounts', 'admin.settings.payment-accounts', 'payment-accounts'],
+        ['Bank accounts', 'admin.bank-accounts.index', 'bank-accounts'],
+        ['Mobile money (PSP)', 'admin.mobile-money-accounts.index', 'mobile-money'],
         ['Charges & fees', 'admin.charges-fees.index', 'fees'],
+        ['Chart of accounts', 'admin.chart-of-accounts.index', 'chart-of-accounts'],
+        ['Write-off rules', 'admin.write-off-rules.index', 'write-off-rules'],
     ],
     'Growth' => [
         ['Membership', 'admin.settings.membership', 'membership'],

@@ -11,8 +11,9 @@
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <h3 class="text-sm font-semibold text-gray-900 mb-4">Timeline</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <x-admin.input name="grace_period_days" label="Grace period (days, from loan product)" type="number" min="1" max="60"
-                               :value="$values['grace_period_days'] ?? 2" required />
+                <x-admin.input name="grace_period_days" label="Fallback grace (days) — only if loan has no product grace" type="number" min="1" max="60"
+                               :value="$values['grace_period_days'] ?? 2" required
+                               help="Canonical grace lives on each loan product (and Loan rules). Recovery uses the loan’s product grace first; this value is only the fallback." />
                 <x-admin.input name="call_center_lead_days" label="Call center lead (days before grace ends)" type="number" min="0" max="30"
                                :value="$values['call_center_lead_days'] ?? 0" required />
                 <div class="md:col-span-2">
@@ -43,8 +44,11 @@
                     <label for="auto_escalate" class="text-sm text-gray-700">Auto escalate when partner SLA expires</label>
                 </div>
             </div>
-            <p class="text-xs text-gray-500 mt-3">Grace uses each loan product’s default grace days (this setting is the platform fallback). Partner SLA days below are applied when a recovery assignment is created — due dates drive auto-escalation when enabled.</p>
-            <p class="text-xs text-gray-500 mt-1">Typical path: grace → Call Center → Debt Collector (incl. repossession) → Auctioneer → Legal. GPS partners use their own SLA for tracking tasks.</p>
+            <p class="text-xs text-gray-500 mt-3">
+                <strong>Grace:</strong> set per loan product (or Loan rules default). Do not treat this Recovery fallback as a second competing grace.
+                Partner SLA days below apply when a recovery assignment is created and drive auto-escalation when enabled.
+            </p>
+            <p class="text-xs text-gray-500 mt-1">Typical path: product grace → Call Center → Debt Collector → Auctioneer → Legal. GPS partners use their own SLA for tracking tasks.</p>
         </div>
 
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">

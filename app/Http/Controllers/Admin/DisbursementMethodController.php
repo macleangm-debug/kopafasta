@@ -12,6 +12,18 @@ class DisbursementMethodController extends ResourceController
     protected string $viewFolder = 'disbursement-methods';
     protected string $singular = 'disbursement method';
 
+    public function index()
+    {
+        return redirect()
+            ->route('admin.settings.payment-accounts')
+            ->with('status', 'Disbursement uses the PSP / disbursement mobile account under Payment accounts.');
+    }
+
+    public function create()
+    {
+        return $this->index();
+    }
+
     protected function rules(?Model $model = null): array
     {
         return [

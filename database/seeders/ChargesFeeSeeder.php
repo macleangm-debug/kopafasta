@@ -20,13 +20,13 @@ class ChargesFeeSeeder extends Seeder
                 'description' => 'One-time fee charged when a loan application is submitted.',
             ],
             [
-                'name'        => 'Registration fee',
+                'name'        => 'Membership registration fee (catalog mirror)',
                 'code'        => 'REG_FEE',
                 'type'        => 'processing',
                 'basis'       => 'fixed',
                 'amount'      => 10000,
                 'charge_when' => 'application',
-                'description' => 'Flat customer onboarding / registration fee.',
+                'description' => 'Catalog mirror only. Live membership / onboarding fee is controlled in Settings → Membership — do not treat this as a second registration fee.',
             ],
             [
                 'name'        => 'Loan origination fee',
@@ -103,13 +103,13 @@ class ChargesFeeSeeder extends Seeder
                 'description' => 'Legal documentation and contract processing.',
             ],
             [
-                'name'        => 'Registration fee (post-approval)',
+                'name'        => 'Asset registration / transfer fee',
                 'code'        => 'REG_POST_FEE',
                 'type'        => 'other',
                 'basis'       => 'fixed',
                 'amount'      => 35000,
                 'charge_when' => 'post_approval',
-                'description' => 'Asset registration / transfer fee after approval.',
+                'description' => 'Asset registration or ownership transfer fee charged after loan approval (before disbursement). Not the membership registration fee.',
             ],
             [
                 'name'        => 'Valuation fee (post-approval)',

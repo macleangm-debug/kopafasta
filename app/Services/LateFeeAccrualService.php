@@ -65,7 +65,7 @@ class LateFeeAccrualService
         if (!$firstOverdue) return $out;
 
         $policy = LoanPenaltyPolicy::for($loan);
-        $graceDays = $policy->graceDaysAfterDefault();
+        $graceDays = $policy->graceDaysAfterDefault;
         $start = Carbon::parse($firstOverdue->due_date)->copy()->startOfDay()->addDays($graceDays + 1);
         $end   = $asOf->copy()->startOfDay();
 

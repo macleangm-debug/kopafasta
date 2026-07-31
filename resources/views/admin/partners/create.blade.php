@@ -1,7 +1,7 @@
 <x-admin.create-page
     title="New partner"
     heading="New partner"
-    subheading="Add a service partner"
+    subheading="Choose the partner type — only relevant sections appear"
     :action="route('admin.partners.store')"
     :cancelUrl="route('admin.partners.all')"
     submitLabel="Create partner"
