@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class InvestorController extends Controller
@@ -85,15 +86,27 @@ class InvestorController extends Controller
 
         $recentTx = $lender->transactions()->latest()->limit(6)->get();
 
+        $driver = DB::connection()->getDriverName();
+        $monthExpr = $driver === 'sqlite'
+            ? "strftime('%Y-%m', created_at)"
+            : "DATE_FORMAT(created_at, '%Y-%m')";
+
         $monthlyEarnings = LenderTransaction::where('lender_id', $lender->id)
             ->where('type', 'return')
             ->where('status', 'completed')
             ->where('created_at', '>=', now()->subMonths(6)->startOfMonth())
-            ->selectRaw("strftime('%Y-%m', created_at) as ym, SUM(amount) as total")
+            ->selectRaw("{$monthExpr} as ym, SUM(amount) as total")
             ->groupBy('ym')->orderBy('ym')->get();
 
-        $notifications = NotificationLog::where('user_id', Auth::id())
-            ->latest()->limit(4)->get();
+        $notifications = NotificationLog::query()
+            ->when(
+                Schema::hasColumn('notification_logs', 'user_id'),
+                fn ($q) => $q->where('user_id', Auth::id()),
+                fn ($q) => $q->where('recipient', Auth::user()?->email)->orWhere('recipient', Auth::user()?->phone)
+            )
+            ->latest()
+            ->limit(4)
+            ->get();
 
         return view('site.investor.dashboard', compact(
             'lender', 'stats', 'capitalMetrics', 'recentInvestments', 'recentTx', 'monthlyEarnings', 'notifications'
@@ -247,10 +260,15 @@ class InvestorController extends Controller
         $lender = $this->lender();
         $stats  = $this->stats($lender);
 
+        $driver = DB::connection()->getDriverName();
+        $monthExpr = $driver === 'sqlite'
+            ? "strftime('%Y-%m', created_at)"
+            : "DATE_FORMAT(created_at, '%Y-%m')";
+
         $monthly = LenderTransaction::where('lender_id', $lender->id)
             ->where('type', 'return')->where('status', 'completed')
             ->where('created_at', '>=', now()->subMonths(12)->startOfMonth())
-            ->selectRaw("strftime('%Y-%m', created_at) as ym, SUM(amount) as total")
+            ->selectRaw("{$monthExpr} as ym, SUM(amount) as total")
             ->groupBy('ym')->orderBy('ym')->get();
 
         $byPool = $lender->investments()

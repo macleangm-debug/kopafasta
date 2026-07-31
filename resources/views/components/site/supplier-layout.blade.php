@@ -1,23 +1,25 @@
-@props(['title' => 'Supplier portal — KopaFasta', 'active' => 'dashboard'])
+@props(['title' => 'Supplier portal — Kopafasta', 'active' => 'dashboard', 'contentWidth' => 'wide'])
+
 @php
-$nav = [
-    ['key' => 'dashboard', 'label' => 'Dashboard', 'route' => 'site.supplier.dashboard'],
-    ['key' => 'assets', 'label' => 'Assets', 'route' => 'site.supplier.assets'],
-    ['key' => 'applications', 'label' => 'Applications', 'route' => 'site.supplier.applications'],
-    ['key' => 'reservations', 'label' => 'Reservations', 'route' => 'site.supplier.reservations'],
-    ['key' => 'delivered', 'label' => 'Delivered', 'route' => 'site.supplier.delivered'],
-    ['key' => 'requests', 'label' => 'Asset requests', 'route' => 'site.supplier.requests'],
-    ['key' => 'settlements', 'label' => 'Settlements', 'route' => 'site.supplier.settlements'],
-];
+    $vendor = auth()->user()
+        ? \App\Models\Vendor::query()->where('user_id', auth()->id())->first()
+        : null;
+    $navService = app(\App\Services\PartnerPortalNavService::class);
+    $nav = $navService->supplierNav();
+    $displayName = $vendor?->name ?? auth()->user()?->name ?? 'Supplier';
 @endphp
-<x-site.borrower-layout :title="$title" active="">
-    <div class="mb-6 flex flex-wrap gap-2">
-        @foreach ($nav as $item)
-            <a href="{{ route($item['route']) }}"
-               class="px-3 py-1.5 rounded-full text-sm font-semibold {{ $active === $item['key'] ? 'bg-amber-500 text-gray-900' : 'bg-white ring-1 ring-gray-200 text-gray-600' }}">
-                {{ $item['label'] }}
-            </a>
-        @endforeach
-    </div>
+
+<x-site.partner-shell
+    :title="$title"
+    :active="$active"
+    :content-width="$contentWidth"
+    :nav="$nav"
+    home-route="site.supplier.dashboard"
+    portal-label="Supplier portal"
+    :display-name="$displayName"
+    :subtitle="$vendor?->partner_number ?? auth()->user()?->email"
+    banner="Supplier workspace — manage assets, applications, and settlements."
+    :profile-links="[['label' => 'Dashboard', 'route' => 'site.supplier.dashboard'], ['label' => 'Assets', 'route' => 'site.supplier.assets']]"
+>
     {{ $slot }}
-</x-site.borrower-layout>
+</x-site.partner-shell>

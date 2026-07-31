@@ -168,6 +168,8 @@ return [
         'capital_partner'    => 'Capital partner',
         'open_account'       => 'Open an account',
         'partners'           => 'Partners',
+        'service_partners'   => 'Service partners',
+        'enroll_partner'     => 'Enroll as a partner',
         'become_partner'     => 'Become a partner',
         'become_affiliate'   => 'Become an affiliate',
         'company'            => 'Company',

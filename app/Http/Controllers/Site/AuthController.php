@@ -97,7 +97,7 @@ class AuthController extends Controller
             || filled($data['partner_code'] ?? null);
 
         $user = $partnerPortal
-            ? $this->findVendorUserByPhone($phone)
+            ? ($this->findVendorUserByPhone($phone) ?? $this->findInvestorUserByPhone($phone))
             : $this->findBorrowerUserByPhone($phone);
 
         if (! $user) {
@@ -124,7 +124,7 @@ class AuthController extends Controller
                 ->withInput(['phone' => $phone, 'auth_method' => 'pin']);
         }
 
-        if ($partnerPortal && $user->role !== 'vendor') {
+        if ($partnerPortal && ! in_array($user->role, ['vendor', 'investor'], true)) {
             return back()
                 ->withErrors(['phone' => 'No partner account found for this phone number.'])
                 ->withInput(['phone' => $phone, 'auth_method' => 'pin', 'partner_code' => $data['partner_code'] ?? null]);
@@ -191,7 +191,7 @@ class AuthController extends Controller
 
         $partnerPortal = $request->session()->get('login_portal') === 'partner';
 
-        if ($partnerPortal && $user->role !== 'vendor') {
+        if ($partnerPortal && ! in_array($user->role, ['vendor', 'investor'], true)) {
             $vendorUser = $this->findVendorUserByPhone($login);
             if ($vendorUser) {
                 $user = $vendorUser;
@@ -471,6 +471,25 @@ class AuthController extends Controller
 
         return User::query()
             ->where('role', 'vendor')
+            ->where(function ($query) use ($phone, $digits, $suffix) {
+                $query->where('phone', $phone)
+                    ->orWhere('phone', $digits)
+                    ->orWhere('phone', 'like', '%'.$suffix);
+            })
+            ->first();
+    }
+
+    private function findInvestorUserByPhone(string $phone): ?User
+    {
+        $digits = preg_replace('/\D/', '', $phone);
+        if ($digits === '') {
+            return null;
+        }
+
+        $suffix = substr($digits, -9);
+
+        return User::query()
+            ->where('role', 'investor')
             ->where(function ($query) use ($phone, $digits, $suffix) {
                 $query->where('phone', $phone)
                     ->orWhere('phone', $digits)

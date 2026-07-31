@@ -13,6 +13,7 @@ use App\Services\MarketplaceAssetService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class SupplierController extends Controller
@@ -34,7 +35,9 @@ class SupplierController extends Controller
             'stats'  => [
                 'assets'       => MarketplaceAsset::where('partner_id', $vendor->id)->count(),
                 'reservations' => AssetReservation::whereHas('asset', fn ($q) => $q->where('partner_id', $vendor->id))->whereNotIn('status', ['released', 'cancelled'])->count(),
-                'requests'     => AssetRequest::where('partner_id', $vendor->id)->where('status', '!=', 'closed')->count(),
+                'requests'     => Schema::hasColumn('asset_requests', 'partner_id')
+                    ? AssetRequest::where('partner_id', $vendor->id)->where('status', '!=', 'closed')->count()
+                    : 0,
                 'pending_pay'  => (int) VendorPayment::where('partner_id', $vendor->id)->where('status', 'pending')->sum('amount'),
             ],
         ]);

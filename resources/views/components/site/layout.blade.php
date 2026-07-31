@@ -154,10 +154,10 @@
             <div>
                 <h4 class="text-xs uppercase tracking-widest text-gray-400 mb-3">{{ __('site.footer.partners') }}</h4>
                 <ul class="space-y-2 text-sm">
-                    <li><a href="{{ route('site.partners') }}" class="hover:text-brand-gold transition">{{ __('site.footer.become_partner') }}</a></li>
+                    <li><a href="{{ route('site.partners') }}" class="hover:text-brand-gold transition">{{ __('site.footer.service_partners') }}</a></li>
+                    <li><a href="{{ route('site.partners.apply', 'debt_collector') }}" class="hover:text-brand-gold transition">{{ __('site.footer.enroll_partner') }}</a></li>
                     <li><a href="{{ route('site.affiliate') }}" class="hover:text-brand-gold transition">{{ __('site.footer.become_affiliate') }}</a></li>
                     <li><a href="{{ route('site.login', ['portal' => 'partner']) }}" class="hover:text-brand-gold transition">{{ __('site.auth.partner_portal') }}</a></li>
-                    <li><a href="{{ route('site.register.vendor') }}" class="hover:text-brand-gold transition">{{ __('site.auth.create_account') }}</a></li>
                 </ul>
             </div>
             <div>

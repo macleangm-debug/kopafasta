@@ -165,6 +165,8 @@ return [
         'capital_partner'    => 'Mshirika wa mtaji',
         'open_account'       => 'Fungua akaunti',
         'partners'           => 'Washirika',
+        'service_partners'   => 'Washirika wa huduma',
+        'enroll_partner'     => 'Jiandikishe kama mshirika',
         'become_partner'     => 'Kuwa mshirika',
         'become_affiliate'   => 'Kuwa wakala',
         'company'            => 'Kampuni',

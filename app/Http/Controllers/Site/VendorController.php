@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class VendorController extends Controller
@@ -70,8 +71,15 @@ class VendorController extends Controller
             ->orderByRaw('COALESCE(due_at, created_at) ASC')
             ->limit(5)->get();
 
-        $notifications = NotificationLog::where('user_id', Auth::id())
-            ->latest()->limit(4)->get();
+        $notifications = NotificationLog::query()
+            ->when(
+                Schema::hasColumn('notification_logs', 'user_id'),
+                fn ($q) => $q->where('user_id', Auth::id()),
+                fn ($q) => $q->where('recipient', Auth::user()?->email)->orWhere('recipient', Auth::user()?->phone)
+            )
+            ->latest()
+            ->limit(4)
+            ->get();
 
         $affiliateStats = null;
         $affiliateShare = null;
