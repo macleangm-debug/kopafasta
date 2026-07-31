@@ -40,7 +40,7 @@
 
             <button type="button"
                     data-wizard-next
-                    class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-5 py-2 rounded-lg shadow-sm transition">
+                    class="inline-flex items-center gap-2 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-5 py-2.5 rounded-xl shadow-sm transition">
                 Next
                 <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
@@ -51,7 +51,7 @@
                     data-wizard-submit
                     hidden
                     data-submit-label="{{ $submitLabel }}"
-                    class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-70 disabled:cursor-wait px-5 py-2 rounded-lg shadow-sm transition">
+                    class="inline-flex items-center gap-2 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 disabled:opacity-70 disabled:cursor-wait px-5 py-2.5 rounded-xl shadow-sm transition">
                 {{ $submitLabel }}
             </button>
         </div>
@@ -63,20 +63,20 @@
         (function () {
             function pillClass(state) {
                 if (state === 'active') {
-                    return 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border transition bg-amber-600 text-white border-amber-600';
+                    return 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border transition bg-brand text-white border-brand';
                 }
                 if (state === 'done') {
-                    return 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border transition bg-emerald-50 text-emerald-700 border-emerald-300';
+                    return 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border transition bg-brand-muted text-brand border-brand/25';
                 }
-                return 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border transition bg-white text-gray-600 border-gray-300 hover:border-gray-400';
+                return 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border transition bg-white text-gray-600 border-brand/15 hover:border-brand/30';
             }
 
             function badgeClass(state) {
                 if (state === 'active') {
-                    return 'size-5 grid place-items-center rounded-full text-[11px] bg-white text-amber-700';
+                    return 'size-5 grid place-items-center rounded-full text-[11px] bg-brand-gold text-brand';
                 }
                 if (state === 'done') {
-                    return 'size-5 grid place-items-center rounded-full text-[11px] bg-emerald-200 text-emerald-800';
+                    return 'size-5 grid place-items-center rounded-full text-[11px] bg-brand/20 text-brand';
                 }
                 return 'size-5 grid place-items-center rounded-full text-[11px] bg-gray-100 text-gray-600';
             }

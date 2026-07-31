@@ -43,7 +43,8 @@
                     <label for="auto_escalate" class="text-sm text-gray-700">Auto escalate when partner SLA expires</label>
                 </div>
             </div>
-            <p class="text-xs text-gray-500 mt-3">Industry timeline: 2-day grace → Call Center (7) → Debt Collector incl. repossession (10) → Auctioneer (11) = 30 days max. Escalation: Call Center → Debt Collector → Auctioneer → Legal.</p>
+            <p class="text-xs text-gray-500 mt-3">Grace uses each loan product’s default grace days (this setting is the platform fallback). Partner SLA days below are applied when a recovery assignment is created — due dates drive auto-escalation when enabled.</p>
+            <p class="text-xs text-gray-500 mt-1">Typical path: grace → Call Center → Debt Collector (incl. repossession) → Auctioneer → Legal. GPS partners use their own SLA for tracking tasks.</p>
         </div>
 
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
@@ -75,18 +76,18 @@
             <p class="text-xs text-gray-500 mb-4">Configure priority, loan scope, collateral scope, SLA, commission, and per-stage auto-escalation. Loan types: <code class="text-[11px]">all</code> or comma-separated product codes (e.g. <code class="text-[11px]">GL,IL,AB</code>).</p>
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
-                    <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                    <thead class="bg-gradient-to-r from-brand via-brand to-brand-light text-left text-[11px] uppercase tracking-wide text-white/90">
                         <tr>
-                            <th class="px-3 py-2">Partner</th>
-                            <th class="px-3 py-2">Priority</th>
-                            <th class="px-3 py-2">Loan types</th>
-                            <th class="px-3 py-2">Collateral</th>
-                            <th class="px-3 py-2">SLA days</th>
-                            <th class="px-3 py-2">Fee type</th>
-                            <th class="px-3 py-2">Commission %</th>
-                            <th class="px-3 py-2">Fixed fee</th>
-                            <th class="px-3 py-2">Markup %</th>
-                            <th class="px-3 py-2">Auto escalate</th>
+                            <th class="px-3 py-2.5 font-semibold">Partner</th>
+                            <th class="px-3 py-2.5 font-semibold">Priority</th>
+                            <th class="px-3 py-2.5 font-semibold">Loan types</th>
+                            <th class="px-3 py-2.5 font-semibold">Collateral</th>
+                            <th class="px-3 py-2.5 font-semibold">SLA days</th>
+                            <th class="px-3 py-2.5 font-semibold">Fee type</th>
+                            <th class="px-3 py-2.5 font-semibold">Commission %</th>
+                            <th class="px-3 py-2.5 font-semibold">Fixed fee</th>
+                            <th class="px-3 py-2.5 font-semibold">Markup %</th>
+                            <th class="px-3 py-2.5 font-semibold">Auto escalate</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">

@@ -263,11 +263,11 @@ class Phase48GroupLoanPhase2FeatureTest extends TestCase
         $this->assertArrayHasKey('invitation_id', $share);
 
         $invitation = GroupMemberInvitation::find($share['invitation_id']);
-        $this->assertSame('accepted', $invitation->status);
+        $this->assertSame('pending', $invitation->status);
         $this->assertSame($member->id, $invitation->customer_id);
 
         $status = app(GroupMemberProgressService::class)->statusFromInvitation($invitation);
-        $this->assertSame('registration_complete', $status['key']);
+        $this->assertSame('invitation_sent', $status['key']);
         $this->assertFalse($status['complete']);
     }
 

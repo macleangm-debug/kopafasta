@@ -399,6 +399,7 @@ class SettingsController extends Controller
             'group_max_members'                     => ['required', 'integer', 'min:3', 'max:200'],
             'group_repayment_cadence'               => ['required', 'in:weekly,monthly'],
             'group_leader_unlock_repayments'        => ['required', 'integer', 'min:1', 'max:12'],
+            'group_unlock_days'                     => ['nullable', 'integer', 'min:0', 'max:365'],
             'group_payout_order'                    => ['required', 'in:leader_first,leader_last,manual,random,rotation,committee'],
             'group_application_fee_per_member'      => ['nullable', 'boolean'],
             'group_post_approval_fee_per_group'     => ['nullable', 'boolean'],
@@ -430,6 +431,7 @@ class SettingsController extends Controller
         $data['group_min_members'] = $groupMin;
         $data['group_max_members'] = $groupMax;
         $data['group_leader_unlock_repayments'] = max(1, (int) ($data['group_leader_unlock_repayments'] ?? 2));
+        $data['group_unlock_days'] = max(0, (int) ($data['group_unlock_days'] ?? 0));
         $data['group_payout_order'] = in_array($data['group_payout_order'] ?? '', ['leader_first', 'leader_last', 'manual', 'random', 'rotation', 'committee'], true)
             ? $data['group_payout_order']
             : 'leader_first';

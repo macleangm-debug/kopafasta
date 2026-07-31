@@ -179,6 +179,7 @@ class GroupMemberInvitationService
             ->first();
 
         if (! $invitation) {
+            // Mirror guarantor invites: stay pending until Accept / Decline.
             $invitation = GroupMemberInvitation::create([
                 'leader_customer_id'  => $leader->id,
                 'loan_product_id'     => $product->id,
@@ -191,15 +192,21 @@ class GroupMemberInvitationService
                 'membership_id'       => \App\Support\MemberNumberFormatter::lookupKey($member->member_no ?? ''),
                 'token'               => Str::random(48),
                 'short_code'          => Str::upper(Str::random(8)),
-                'status'              => 'accepted',
+                'status'              => 'pending',
                 'expires_at'          => now()->addDays(14),
-                'responded_at'        => now(),
+            ]);
+        } elseif ($invitation->status !== 'pending') {
+            $invitation->update([
+                'status'       => 'pending',
+                'responded_at' => null,
+                'expires_at'   => now()->addDays(14),
             ]);
         }
 
-        app(GroupLoanNotificationService::class)->notifyInternalMemberConsent($member, $leader);
+        $invitation = $invitation->fresh();
+        app(GroupLoanNotificationService::class)->notifyInternalMemberConsent($member, $leader, $invitation);
 
-        $status = app(GroupMemberProgressService::class)->statusFromInvitation($invitation->fresh());
+        $status = app(GroupMemberProgressService::class)->statusFromInvitation($invitation);
 
         return array_merge($this->sharePayload($invitation), [
             'customer_id' => $member->id,

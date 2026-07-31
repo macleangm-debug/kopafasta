@@ -8,6 +8,9 @@ return [
 
     'leader_unlock_repayments' => 2,
 
+    /** Extra waiting days after gatekeeper disbursement before next unlock (0 = repayments only). */
+    'unlock_days' => 0,
+
     'payout_order' => 'leader_first',
 
     'recovery_stages' => [

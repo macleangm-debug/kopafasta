@@ -25,7 +25,7 @@
             id="{{ $name }}"
             name="{{ $name }}"
             @if ($required) required @endif
-            {{ $attributes->merge(['class' => 'appearance-none w-full text-sm bg-white border border-gray-300 rounded-lg shadow-sm pl-3.5 pr-9 py-2 font-medium text-gray-700 cursor-pointer hover:border-gray-400 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition']) }}
+            {{ $attributes->merge(['class' => 'appearance-none w-full text-sm bg-white border border-brand/15 rounded-xl shadow-sm pl-3.5 pr-9 py-2.5 font-medium text-gray-700 cursor-pointer hover:border-brand/30 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/15 transition']) }}
         >
             @if ($placeholder !== null)
                 <option value="">{{ $placeholder }}</option>

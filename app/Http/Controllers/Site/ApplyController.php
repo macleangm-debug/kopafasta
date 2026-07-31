@@ -1741,6 +1741,15 @@ class ApplyController extends Controller
 
         $crbMeta = $crbCredit->ensureFreshForSubmission($customer);
 
+        if ($isGroupProduct && $groupData) {
+            $groupCrbErrors = $crbCredit->validateGroupMemberCrbs($groupData['members']);
+            if ($groupCrbErrors !== []) {
+                return $this->wizardSubmitRedirect($request, $draft)->withInput()->withErrors([
+                    'crb' => __('borrower.apply.group.crb_group_blocked').' '.implode(' ', $groupCrbErrors),
+                ]);
+            }
+        }
+
         $referenceService = app(ReferenceNumberService::class);
         $draftReference = $draft?->draft_reference;
 

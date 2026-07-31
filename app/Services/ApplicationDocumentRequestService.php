@@ -45,6 +45,16 @@ class ApplicationDocumentRequestService
         'Image Not Clear',
     ];
 
+    /** Collateral requests for loans that are not already asset-backed / asset-lending. */
+    /** @var list<string> */
+    public const COLLATERAL_PRESET_LABELS = [
+        'Add collateral asset',
+        'Updated collateral ownership document',
+        'Updated collateral insurance certificate',
+        'New collateral photo',
+        'Collateral valuation document',
+    ];
+
     /** @return array<string, string> preset => default borrower instructions */
     public static function presetInstructions(): array
     {
@@ -71,6 +81,11 @@ class ApplicationDocumentRequestService
             'Guarantor residence letter'     => 'Please upload a residence letter for your guarantor.',
             'Updated employment contract'    => 'Please upload your updated employment contract.',
             'Latest salary slip'             => 'Please upload your latest salary slip.',
+            'Add collateral asset'           => 'Underwriting needs collateral for this loan. Please add a collateral asset in your profile with ownership and insurance documents.',
+            'Updated collateral ownership document' => 'Please upload an updated ownership or logbook document for your collateral asset.',
+            'Updated collateral insurance certificate' => 'Please upload a current insurance certificate for your collateral asset.',
+            'New collateral photo'           => 'Please upload a clear, recent photo of your collateral asset.',
+            'Collateral valuation document'  => 'Please upload a valuation or appraisal document for your collateral.',
         ];
     }
 
@@ -92,6 +107,9 @@ class ApplicationDocumentRequestService
         if (str_contains($label, 'face') || str_contains($label, 'selfie') || str_contains($label, 'identity verification photo')) {
             return route('site.borrower.profile', ['section' => 'personal']).'?focus=face#profile-face';
         }
+        if (str_contains($label, 'collateral') || str_contains($label, 'add collateral')) {
+            return route('site.borrower.profile', ['section' => 'assets', 'add' => 1]);
+        }
 
         if ($application) {
             return route('site.borrower.application', $application).'#request-'.$request->id;
@@ -102,7 +120,7 @@ class ApplicationDocumentRequestService
 
     public function isProfileGuidedRequest(LoanApplicationDocumentRequest $request): bool
     {
-        return in_array($this->borrowerActionKind($request), ['signature', 'face', 'identity'], true);
+        return in_array($this->borrowerActionKind($request), ['signature', 'face', 'identity', 'collateral'], true);
     }
 
     /** Classify UW requests for borrower CTAs (docs, signature, face, identity, clarification). */
@@ -118,6 +136,9 @@ class ApplicationDocumentRequestService
         }
         if (str_contains($label, 'national id') || str_contains($label, 'nida')) {
             return 'identity';
+        }
+        if (str_contains($label, 'collateral') || str_contains($label, 'add collateral')) {
+            return 'collateral';
         }
         if ($request->type === 'clarification') {
             return 'clarification';
@@ -140,6 +161,7 @@ class ApplicationDocumentRequestService
             'signature' => __('borrower.loan_profile.uw_cta.update_signature'),
             'face' => __('borrower.loan_profile.uw_cta.recapture_face'),
             'identity' => __('borrower.loan_profile.uw_cta.update_identity'),
+            'collateral' => __('borrower.loan_profile.uw_cta.add_collateral'),
             'clarification' => __('borrower.loan_profile.uw_cta.respond'),
             default => $rejected
                 ? __('borrower.loan_profile.reupload')

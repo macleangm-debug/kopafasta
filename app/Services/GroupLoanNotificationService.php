@@ -162,9 +162,14 @@ class GroupLoanNotificationService
         ]);
     }
 
-    public function notifyInternalMemberConsent(Customer $member, Customer $leader): void
-    {
-        $onboardingUrl = route('site.group-member.onboarding');
+    public function notifyInternalMemberConsent(
+        Customer $member,
+        Customer $leader,
+        ?\App\Models\GroupMemberInvitation $invitation = null,
+    ): void {
+        $inviteUrl = $invitation
+            ? route('site.group-member.invite', ['token' => $invitation->token])
+            : route('site.group-member.onboarding');
         $title = __('borrower.apply.group.internal_member_sign_title');
         $message = __('borrower.apply.group.internal_member_sign_notice', ['leader' => $leader->full_name]);
 
@@ -176,14 +181,15 @@ class GroupLoanNotificationService
             'group_loan',
             'group_member_consent_required',
             $title,
-            $onboardingUrl,
-            __('borrower.apply.group.confirm_button'),
+            $inviteUrl,
+            __('borrower.apply.group.accept_invite'),
         );
 
         $notifier->notifyCustomer($member, 'group_member_consent_required', [
             'name'               => $member->first_name ?: $member->full_name,
             'leader_name'        => $leader->full_name,
-            'onboarding_url'     => $onboardingUrl,
+            'onboarding_url'     => $inviteUrl,
+            'invite_url'         => $inviteUrl,
             '_fallback_subject'  => $title,
             '_fallback_body'     => $message,
         ]);

@@ -227,6 +227,41 @@ class CrbCreditCheckService
         $application->update(['credit_appraisal_payload' => $payload]);
     }
 
+    /**
+     * Fail-closed CRB freshness check for every group member before submission.
+     *
+     * @param  list<array{customer_id: int, invitation_id?: int, name?: string}>  $members
+     * @return list<string> human-readable blocking errors (empty = ok)
+     */
+    public function validateGroupMemberCrbs(array $members): array
+    {
+        if (! $this->creditPullEnabled()) {
+            return [];
+        }
+
+        $errors = [];
+
+        foreach ($members as $member) {
+            $customer = Customer::find((int) ($member['customer_id'] ?? 0));
+            if (! $customer) {
+                $errors[] = __('borrower.apply.group.crb_member_missing');
+                continue;
+            }
+
+            $meta = $this->ensureFreshForSubmission($customer);
+            $name = $member['name'] ?? $customer->full_name ?? ('#'.$customer->id);
+
+            if (! empty($meta['error']) || ! ($meta['history'] ?? null)) {
+                $errors[] = __('borrower.apply.group.crb_member_failed', [
+                    'name'   => $name,
+                    'reason' => $meta['error'] ?? __('borrower.apply.group.crb_unavailable'),
+                ]);
+            }
+        }
+
+        return $errors;
+    }
+
     /** @return array<string, mixed> */
     public function summaryForCustomer(Customer $customer, ?LoanApplication $application = null): array
     {

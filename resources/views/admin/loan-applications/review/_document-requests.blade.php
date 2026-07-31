@@ -1,8 +1,13 @@
 @perm('applications.request_documents')
 @php
-    $presets = app(\App\Services\ApplicationDocumentRequestService::class)::PRESET_LABELS;
-    $assetPresets = app(\App\Services\ApplicationDocumentRequestService::class)::ASSET_BACKED_PRESET_LABELS;
+    $docService = app(\App\Services\ApplicationDocumentRequestService::class);
+    $presets = $docService::PRESET_LABELS;
+    $assetPresets = $docService::ASSET_BACKED_PRESET_LABELS;
+    $collateralPresets = $docService::COLLATERAL_PRESET_LABELS;
     $generalPresets = array_values(array_diff($presets, $assetPresets));
+    $record->loadMissing('product');
+    $isAssetProduct = app(\App\Services\AssetBackedLoanService::class)->isAssetBackedApplication($record)
+        || app(\App\Services\AssetLendingService::class)->isAssetLendingApplication($record);
     $groups = $groupedDocumentRequests ?? [
         'pending' => collect(),
         'uploaded' => collect(),
@@ -81,32 +86,50 @@
         <div class="grid md:grid-cols-2 gap-4">
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1">Type</label>
-                <select name="type" class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 px-3 py-2">
+                <select name="type" class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5 focus:border-brand focus:ring-brand/15">
                     <option value="document">Document upload</option>
                     <option value="clarification">Clarification</option>
                 </select>
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1">Due date (optional)</label>
-                <input type="date" name="due_at" class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 px-3 py-2">
+                <input type="date" name="due_at" class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5 focus:border-brand focus:ring-brand/15">
             </div>
         </div>
 
-        <div>
-            <label class="block text-xs font-semibold text-gray-600 mb-2">Asset-backed requests</label>
-            <div class="grid sm:grid-cols-2 gap-2 mb-4">
-                @foreach ($assetPresets as $preset)
-                    <label class="flex items-start gap-2 text-sm text-gray-700 bg-amber-50 rounded-lg px-3 py-2 ring-1 ring-amber-100">
-                        <input type="checkbox" name="presets[]" value="{{ $preset }}" class="mt-0.5 rounded border-gray-300 text-amber-600">
-                        <span>{{ $preset }}</span>
-                    </label>
-                @endforeach
+        @if ($isAssetProduct)
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-2">Asset-backed / asset lending requests</label>
+                <div class="grid sm:grid-cols-2 gap-2 mb-4">
+                    @foreach ($assetPresets as $preset)
+                        <label class="flex items-start gap-2 text-sm text-gray-700 bg-brand-muted/50 rounded-xl px-3 py-2 ring-1 ring-brand/10">
+                            <input type="checkbox" name="presets[]" value="{{ $preset }}" class="mt-0.5 rounded border-gray-300 text-brand">
+                            <span>{{ $preset }}</span>
+                        </label>
+                    @endforeach
+                </div>
             </div>
+        @else
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-2">Request collateral</label>
+                <p class="text-xs text-gray-500 mb-2">For personal / group / other loans without built-in collateral. Borrower is deep-linked to My Collaterals.</p>
+                <div class="grid sm:grid-cols-2 gap-2 mb-4">
+                    @foreach ($collateralPresets as $preset)
+                        <label class="flex items-start gap-2 text-sm text-gray-700 bg-emerald-50/80 rounded-xl px-3 py-2 ring-1 ring-brand/10">
+                            <input type="checkbox" name="presets[]" value="{{ $preset }}" class="mt-0.5 rounded border-gray-300 text-brand">
+                            <span>{{ $preset }}</span>
+                        </label>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
+        <div>
             <label class="block text-xs font-semibold text-gray-600 mb-2">Profile / identity re-upload</label>
             <div class="grid sm:grid-cols-2 gap-2 mb-4">
                 @foreach (['Updated National ID', 'New National ID photo', 'New face verification photo', 'Identity verification photo', 'Image Not Clear'] as $preset)
-                    <label class="flex items-start gap-2 text-sm text-gray-700 bg-sky-50 rounded-lg px-3 py-2 ring-1 ring-sky-100">
-                        <input type="checkbox" name="presets[]" value="{{ $preset }}" class="mt-0.5 rounded border-gray-300 text-amber-600">
+                    <label class="flex items-start gap-2 text-sm text-gray-700 bg-sky-50 rounded-xl px-3 py-2 ring-1 ring-sky-100">
+                        <input type="checkbox" name="presets[]" value="{{ $preset }}" class="mt-0.5 rounded border-gray-300 text-brand">
                         <span>{{ $preset }}</span>
                     </label>
                 @endforeach
@@ -114,8 +137,8 @@
             <label class="block text-xs font-semibold text-gray-600 mb-2">Other common requests</label>
             <div class="grid sm:grid-cols-2 gap-2">
                 @foreach ($generalPresets as $preset)
-                    <label class="flex items-start gap-2 text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2 ring-1 ring-gray-100">
-                        <input type="checkbox" name="presets[]" value="{{ $preset }}" class="mt-0.5 rounded border-gray-300 text-amber-600">
+                    <label class="flex items-start gap-2 text-sm text-gray-700 bg-gray-50 rounded-xl px-3 py-2 ring-1 ring-gray-100">
+                        <input type="checkbox" name="presets[]" value="{{ $preset }}" class="mt-0.5 rounded border-gray-300 text-brand">
                         <span>{{ $preset }}</span>
                     </label>
                 @endforeach
@@ -135,7 +158,7 @@
         </div>
 
         <div>
-            <button type="submit" class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-4 py-2 rounded-lg">
+            <button type="submit" class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl">
                 Request document re-upload
             </button>
         </div>

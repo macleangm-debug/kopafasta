@@ -32,6 +32,14 @@ class GroupLendingService
         return max(1, (int) ($loan['group_leader_unlock_repayments'] ?? config('group_lending.leader_unlock_repayments', 2)));
     }
 
+    /** Days after the gatekeeper was disbursed before the next member can unlock (0 = repayments-only). */
+    public function unlockDays(): int
+    {
+        $loan = Setting::group('loan');
+
+        return max(0, (int) ($loan['group_unlock_days'] ?? config('group_lending.unlock_days', 0)));
+    }
+
     public function payoutOrder(): string
     {
         return app(GroupPayoutService::class)->payoutOrder();
@@ -223,7 +231,20 @@ class GroupLendingService
         $group->loadMissing('members');
 
         $gatekeeper = app(GroupPayoutService::class)->gatekeeperMember($group);
-        if (! $gatekeeper || (int) $gatekeeper->successful_repayments < $this->leaderUnlockRepayments()) {
+        if (! $gatekeeper) {
+            return null;
+        }
+
+        $repaymentsOk = (int) $gatekeeper->successful_repayments >= $this->leaderUnlockRepayments();
+        $daysRequired = $this->unlockDays();
+        $daysOk = $daysRequired <= 0;
+        if ($daysRequired > 0) {
+            $anchor = $gatekeeper->disbursed_at ?? $gatekeeper->disbursement_unlocked_at;
+            $daysOk = $anchor !== null && $anchor->lte(now()->subDays($daysRequired));
+        }
+
+        // Require repayments always; when days > 0 also require the waiting period.
+        if (! $repaymentsOk || ! $daysOk) {
             return null;
         }
 

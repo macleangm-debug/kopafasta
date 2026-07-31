@@ -58,6 +58,7 @@ class GroupPayoutService
         $group->loadMissing(['members.customer', 'members.loan', 'leader', 'primaryApplication']);
 
         $installmentsRequired = $this->installmentsBetweenPayouts();
+        $unlockDays = app(GroupLendingService::class)->unlockDays();
         $members = $group->members->sortBy('sort_order')->values();
         $current = $members->first(fn (LoanGroupMember $member) => in_array($member->disbursement_status, ['unlocked', 'disbursed'], true)
             && $member->disbursement_status !== 'disbursed'
@@ -102,6 +103,7 @@ class GroupPayoutService
             'leader'                    => $group->leader?->full_name,
             'payout_order'              => $this->payoutOrder(),
             'installments_between'      => $installmentsRequired,
+            'unlock_days'               => $unlockDays,
             'current_recipient'         => $current ? [
                 'name'   => $current->customer?->full_name,
                 'status' => $this->disbursementStatusLabel((string) $current->disbursement_status),

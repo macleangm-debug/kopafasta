@@ -50,6 +50,16 @@ class GroupMemberProgressService
 
     public function statusFromInvitation(GroupMemberInvitation $invitation): array
     {
+        // Pending always means awaiting Accept/Decline (same as guarantor invites),
+        // even when the invitee is already a registered member.
+        if ($invitation->status === 'pending') {
+            if ($invitation->link_opened_at) {
+                return $this->wrapStatus('link_opened');
+            }
+
+            return $this->wrapStatus('invitation_sent');
+        }
+
         if ($invitation->customer_id) {
             $customer = Customer::find($invitation->customer_id);
 
@@ -73,14 +83,6 @@ class GroupMemberProgressService
             }
 
             return $this->wrapStatus('registration_started');
-        }
-
-        if ($invitation->status === 'pending') {
-            if ($invitation->link_opened_at) {
-                return $this->wrapStatus('link_opened');
-            }
-
-            return $this->wrapStatus('invitation_sent');
         }
 
         if ($invitation->status === 'accepted') {

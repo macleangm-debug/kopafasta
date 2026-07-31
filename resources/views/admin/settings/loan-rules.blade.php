@@ -82,49 +82,50 @@
             </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
-            <h3 class="text-sm font-semibold text-gray-700 mb-4">Group lending</h3>
-            <p class="text-xs text-gray-500 mb-4">Member limits and fee rules for group loan products. Group loans always charge the application fee per member (configured on the product or APP_FEE charge).</p>
+        <div class="bg-white rounded-2xl shadow-sm ring-1 ring-brand/10 p-6">
+            <h3 class="text-sm font-semibold text-brand mb-1">Group lending — staggered payouts</h3>
+            <p class="text-xs text-gray-500 mb-4">Members are not paid at the same time. The next member unlocks only after the current recipient has made enough successful repayments (and optionally waited a set number of days). This keeps the group standing on each other to repay.</p>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <x-admin.input name="group_min_members" label="Minimum group members" type="number" :value="$values['group_min_members'] ?? '3'" required />
                 <x-admin.input name="group_max_members" label="Maximum group members" type="number" :value="$values['group_max_members'] ?? '10'" required />
-                <x-admin.input name="group_leader_unlock_repayments" label="Installments before next payout unlocks" type="number" :value="$values['group_leader_unlock_repayments'] ?? '2'" required />
+                <x-admin.input name="group_leader_unlock_repayments" label="Successful repayments before next payout" type="number" :value="$values['group_leader_unlock_repayments'] ?? '2'" required help="How many successful repayments the current recipient must make before the next member unlocks." />
+                <x-admin.input name="group_unlock_days" label="Minimum days before next payout (optional)" type="number" :value="$values['group_unlock_days'] ?? '0'" help="Extra waiting period after the current member was disbursed. Use 0 to rely on repayments only." />
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Payout order</label>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Payout order</label>
                     @php $payoutOrder = $values['group_payout_order'] ?? 'leader_first'; @endphp
-                    <select name="group_payout_order" class="w-full rounded-lg border-gray-300 text-sm">
-                        <option value="leader_first" @selected($payoutOrder === 'leader_first')>Leader first</option>
-                        <option value="leader_last" @selected($payoutOrder === 'leader_last')>Leader last</option>
-                        <option value="manual" @selected($payoutOrder === 'manual')>Manual (wizard member order)</option>
-                        <option value="random" @selected($payoutOrder === 'random')>Random (fixed at submission)</option>
-                        <option value="rotation" @selected($payoutOrder === 'rotation')>Rotation</option>
-                        <option value="committee" @selected($payoutOrder === 'committee')>Committee (alphabetical)</option>
-                    </select>
+                    <x-admin.select name="group_payout_order" :value="$payoutOrder" :options="[
+                        'leader_first' => 'Leader first',
+                        'leader_last' => 'Leader last',
+                        'manual' => 'Manual (wizard member order)',
+                        'random' => 'Random (fixed at submission)',
+                        'rotation' => 'Rotation',
+                        'committee' => 'Committee (alphabetical)',
+                    ]" />
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Group repayment cadence</label>
-                    <select name="group_repayment_cadence" class="w-full rounded-lg border-gray-300 text-sm">
-                        <option value="weekly" @selected(($values['group_repayment_cadence'] ?? 'weekly') === 'weekly')>Weekly</option>
-                        <option value="monthly" @selected(($values['group_repayment_cadence'] ?? '') === 'monthly')>Monthly</option>
-                    </select>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Group repayment cadence</label>
+                    <x-admin.select name="group_repayment_cadence" :value="$values['group_repayment_cadence'] ?? 'weekly'" :options="[
+                        'weekly' => 'Weekly',
+                        'monthly' => 'Monthly',
+                    ]" />
                 </div>
             </div>
             <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-                <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
+                <label class="flex items-center gap-2 text-sm bg-brand-muted/40 ring-1 ring-brand/10 rounded-xl px-3 py-2">
                     <input type="hidden" name="group_application_fee_per_member" value="0">
-                    <input type="checkbox" name="group_application_fee_per_member" value="1" @checked(! empty($values['group_application_fee_per_member'])) class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                    <input type="checkbox" name="group_application_fee_per_member" value="1" @checked(! empty($values['group_application_fee_per_member'])) class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
                     <span class="text-gray-800">Per member application fee (group loans always multiply fee × members)</span>
                 </label>
-                <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
+                <label class="flex items-center gap-2 text-sm bg-brand-muted/40 ring-1 ring-brand/10 rounded-xl px-3 py-2">
                     <input type="hidden" name="group_post_approval_fee_per_group" value="0">
-                    <input type="checkbox" name="group_post_approval_fee_per_group" value="1" @checked(! isset($values['group_post_approval_fee_per_group']) || ! empty($values['group_post_approval_fee_per_group'])) class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                    <input type="checkbox" name="group_post_approval_fee_per_group" value="1" @checked(! isset($values['group_post_approval_fee_per_group']) || ! empty($values['group_post_approval_fee_per_group'])) class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
                     <span class="text-gray-800">Charge post-approval fees once per group</span>
                 </label>
             </div>
         </div>
 
         <div class="flex justify-end">
-            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">Save loan rules</button>
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2.5 rounded-xl shadow-sm">Save loan rules</button>
         </div>
     </form>
 </x-admin.layout>

@@ -2,7 +2,7 @@
     @include('admin.settings._tabs', ['active' => 'loan-products'])
 
     @if (session('status'))
-        <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">
+        <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">
             {{ session('status') }}
         </div>
     @endif
@@ -14,24 +14,24 @@
         $rateService = app(\App\Services\DisplayedRateService::class);
     @endphp
 
-    <div class="bg-white rounded-xl ring-1 ring-gray-200 overflow-hidden">
+    <div class="bg-white rounded-2xl ring-1 ring-brand/10 overflow-hidden shadow-sm">
         <table class="min-w-full text-sm">
-            <thead class="bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
+            <thead class="bg-gradient-to-r from-brand via-brand to-brand-light text-[11px] uppercase tracking-wider text-white/90">
                 <tr>
-                    <th class="px-5 py-2.5 text-left">Code</th>
-                    <th class="px-5 py-2.5 text-left">Name</th>
-                    <th class="px-5 py-2.5 text-left">Category</th>
-                    <th class="px-5 py-2.5 text-right">Monthly rate</th>
-                    <th class="px-5 py-2.5 text-right">Tenure (m)</th>
-                    <th class="px-5 py-2.5 text-right">Amount range</th>
-                    <th class="px-5 py-2.5 text-left">Status</th>
-                    <th class="px-5 py-2.5 text-right">Actions</th>
+                    <th class="px-5 py-3 text-left font-semibold">Code</th>
+                    <th class="px-5 py-3 text-left font-semibold">Name</th>
+                    <th class="px-5 py-3 text-left font-semibold">Category</th>
+                    <th class="px-5 py-3 text-right font-semibold">Monthly rate</th>
+                    <th class="px-5 py-3 text-right font-semibold">Tenure (m)</th>
+                    <th class="px-5 py-3 text-right font-semibold">Amount range</th>
+                    <th class="px-5 py-3 text-left font-semibold">Status</th>
+                    <th class="px-5 py-3 text-right font-semibold">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-100">
+            <tbody class="divide-y divide-brand/5">
                 @forelse ($products as $p)
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-5 py-3 font-mono text-xs">{{ $p->code }}</td>
+                    <tr class="hover:bg-brand-muted/30 transition">
+                        <td class="px-5 py-3 font-mono text-xs text-brand">{{ $p->code }}</td>
                         <td class="px-5 py-3 font-medium text-gray-900">{{ $p->name }}</td>
                         <td class="px-5 py-3">{{ display_label((string) $p->category, 'product_category') }}</td>
                         <td class="px-5 py-3 text-right font-semibold">{{ $rateService->formatBorrowerRateRange($p) }}</td>
@@ -44,9 +44,9 @@
                             ]" />
                         </td>
                         <td class="px-5 py-3 text-right whitespace-nowrap">
-                            <a href="{{ route('admin.loan-products.show', $p) }}" class="text-xs font-medium text-amber-600 hover:text-amber-700">View</a>
-                            <a href="{{ route('admin.loan-products.edit', $p) }}" class="ml-3 text-xs font-medium text-gray-600 hover:text-gray-900">Edit</a>
-                            <a href="{{ route('admin.loan-products.edit', $p) }}#documents" class="ml-3 text-xs font-medium text-gray-500 hover:text-gray-800">Docs</a>
+                            <a href="{{ route('admin.loan-products.show', $p) }}" class="text-xs font-semibold text-brand hover:underline">View</a>
+                            <a href="{{ route('admin.loan-products.edit', $p) }}" class="ml-3 text-xs font-semibold text-gray-600 hover:text-brand">Edit</a>
+                            <a href="{{ route('admin.loan-products.edit', $p) }}#documents" class="ml-3 text-xs font-medium text-gray-500 hover:text-brand">Docs</a>
                         </td>
                     </tr>
                 @empty

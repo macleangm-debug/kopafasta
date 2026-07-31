@@ -28,7 +28,7 @@
         @if ($placeholder) placeholder="{{ $placeholder }}" @endif
         @if ($required) required @endif
         data-money-input="{{ (int) $decimals }}"
-        {{ $attributes->merge(['class' => 'w-full text-sm bg-white border border-gray-300 rounded-lg shadow-sm px-3 py-2 placeholder:text-gray-400 hover:border-gray-400 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition']) }}
+        {{ $attributes->merge(['class' => 'w-full text-sm bg-white border border-brand/15 rounded-xl shadow-sm px-3.5 py-2.5 placeholder:text-gray-400 hover:border-brand/30 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/15 transition']) }}
     >
     @if ($help)
         <p class="mt-1 text-xs text-gray-500">{{ $help }}</p>

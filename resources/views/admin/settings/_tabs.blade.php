@@ -1,98 +1,44 @@
 @props(['active' => 'company'])
 @php
-    $groups = [
-        'Organization' => [
-            'company'     => ['Company', 'admin.settings.company'],
-            'auth-portal' => ['Authentication', 'admin.settings.auth-portal'],
-            'departments' => ['Departments', 'admin.departments.index'],
-            'users'       => ['Users', 'admin.users.index'],
-            'roles'       => ['Roles', 'admin.roles.index'],
-        ],
-        'Legal' => [
-            'legal'       => ['Contracts & clauses', 'admin.settings.legal'],
-            'signatories' => ['Signatories', 'admin.settings.signatories.index'],
-        ],
-        'Lending' => [
-            'loan-products'     => ['Loan products', 'admin.loan-products.index'],
-            'underwriting'      => ['Underwriting', 'admin.settings.underwriting'],
-            'loan-rules'        => ['Loan rules', 'admin.settings.loan-rules'],
-            'offer'             => ['Offer settings', 'admin.settings.offer'],
-            'asset-lending'     => ['Asset lending', 'admin.settings.asset-lending'],
-            'marketplace-assets'=> ['Marketplace assets', 'admin.marketplace-assets.index'],
-        ],
-        'Recovery' => [
-            'recovery' => ['Recovery policy', 'admin.settings.recovery'],
-        ],
-        'Finance' => [
-            'finance'          => ['Finance defaults', 'admin.settings.finance'],
-            'fees'             => ['Fees', 'admin.charges-fees.index'],
-            'payment-accounts' => ['Payment accounts', 'admin.settings.payment-accounts'],
-            'disbursement'     => ['Disbursement accounts', 'admin.settings.payment-accounts'],
-        ],
-        'Reports' => [
-            'portfolio'   => ['Portfolio report', 'admin.reports.portfolio'],
-            'disbursements' => ['Disbursements report', 'admin.reports.disbursements'],
-            'par'         => ['PAR report', 'admin.reports.par'],
-        ],
-        'Capital' => [
-            'capital-funding' => ['Capital funding', 'admin.capital-funding.index'],
-            'lenders'         => ['Lenders', 'admin.lenders.index'],
-        ],
-        'Marketing' => [
-            'membership' => ['Membership', 'admin.settings.membership'],
-            'referrals'  => ['Referrals', 'admin.settings.referrals'],
-            'engagement' => ['Engagement', 'admin.settings.engagement'],
-            'affiliates' => ['Affiliates', 'admin.settings.affiliates'],
-            'chatbot'    => ['Chatbot', 'admin.settings.chatbot'],
-            'campaigns'  => ['Campaigns', 'admin.promotions.index'],
-        ],
-        'Partners' => [
-            'partners-hub' => ['Partners hub', 'admin.partners.index'],
-            'partner-tasks'=> ['Partner tasks', 'admin.partners.tasks'],
-        ],
-        'Compliance' => [
-            'kyc'           => ['KYC rules', 'admin.settings.kyc'],
-            'identity'      => ['Identity verification', 'admin.settings.identity'],
-            'credit-policy' => ['Credit policy', 'admin.settings.credit-policy'],
-            'aml'           => ['AML thresholds', 'admin.settings.aml'],
-            'countries'     => ['Countries', 'admin.settings.countries'],
-            'locations'     => ['Location master', 'admin.settings.locations.index'],
-        ],
-        'Integrations' => [
-            'gateways'                => ['SMS / Email', 'admin.settings.gateways'],
-            'identity'                => ['Identity verification', 'admin.settings.identity'],
-            'crb'                     => ['CRB integration', 'admin.settings.crb'],
-            'notification-templates'  => ['Notification templates', 'admin.notification-templates.index'],
-        ],
-    ];
+    $navGroups = config('settings_nav', []);
+    $groups = [];
+    foreach ($navGroups as $groupName => $links) {
+        $tabs = [];
+        foreach ($links as $link) {
+            $label = $link[0];
+            $route = $link[1];
+            $key = $link[2] ?? Str::slug($label);
+            $tabs[$key] = [$label, $route];
+        }
+        $groups[$groupName] = $tabs;
+    }
 
-    $activeGroup = collect($groups)->search(fn ($tabs) => array_key_exists($active, $tabs)) ?: 'Organization';
+    $activeGroup = collect($groups)->search(fn ($tabs) => array_key_exists($active, $tabs)) ?: array_key_first($groups);
 @endphp
 
 <div class="mb-6 space-y-3" x-data="{ group: @js($activeGroup) }">
-    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-3">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-brand/10 pb-3">
         <div class="flex flex-wrap gap-2">
             @foreach (array_keys($groups) as $groupName)
                 <button type="button"
                         @click="group = @js($groupName)"
-                        :class="group === @js($groupName) ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50'"
-                        class="px-3 py-1.5 rounded-md text-sm font-medium transition">
+                        :class="group === @js($groupName) ? 'bg-brand text-white ring-brand' : 'bg-white text-gray-600 ring-1 ring-brand/15 hover:bg-brand-muted/40'"
+                        class="px-3 py-1.5 rounded-xl text-sm font-semibold transition ring-1">
                     {{ $groupName }}
                 </button>
             @endforeach
         </div>
-        <a href="{{ route('admin.settings.index') }}" class="text-sm font-semibold text-amber-700 hover:underline">Settings hub →</a>
+        <a href="{{ route('admin.settings.index') }}" class="text-xs font-semibold text-brand hover:underline">← Settings hub</a>
     </div>
 
     @foreach ($groups as $groupName => $tabs)
-        <nav x-show="group === @js($groupName)" x-cloak class="flex flex-wrap gap-2">
+        <div x-show="group === @js($groupName)" x-cloak class="flex flex-wrap gap-2">
             @foreach ($tabs as $key => [$label, $route])
-                @php($isActive = $active === $key)
                 <a href="{{ route($route) }}"
-                   class="px-3 py-1.5 rounded-md text-sm font-medium transition {{ $isActive ? 'bg-amber-500 text-gray-900' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
+                   class="px-3 py-1.5 rounded-xl text-xs font-semibold transition ring-1 {{ $active === $key ? 'bg-brand-muted text-brand ring-brand/25' : 'bg-white text-gray-600 ring-gray-200 hover:ring-brand/20' }}">
                     {{ $label }}
                 </a>
             @endforeach
-        </nav>
+        </div>
     @endforeach
 </div>
