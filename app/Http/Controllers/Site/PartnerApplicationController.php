@@ -44,10 +44,10 @@ class PartnerApplicationController extends Controller
         }
 
         if ($data['applicant_category'] === 'individual') {
-            $data['business_name'] = $data['business_name'] ?: $data['full_name'];
+            $data['business_name'] = ($data['business_name'] ?? null) ?: $data['full_name'];
         }
 
-        app(PartnerEnrollmentService::class)->submitApplication(
+        $application = app(PartnerEnrollmentService::class)->submitApplication(
             [
                 ...$data,
                 'partner_category' => 'affiliate',
@@ -57,8 +57,34 @@ class PartnerApplicationController extends Controller
         );
 
         return redirect()
-            ->route('site.affiliate')
-            ->with('status', __('site.affiliate_apply.success'));
+            ->route('site.partners.apply.tracking', ['phone' => $application->phone])
+            ->with('status', __('site.partner_apply.success_review', [
+                'tracking' => $application->phone,
+            ]));
+    }
+
+    public function tracking(Request $request): View
+    {
+        $phone = trim((string) $request->query('phone', $request->input('phone', '')));
+        $applications = collect();
+
+        if ($phone !== '') {
+            $normalized = preg_replace('/\D+/', '', $phone) ?: $phone;
+            $applications = \App\Models\PartnerApplication::query()
+                ->where(function ($q) use ($phone, $normalized) {
+                    $q->where('phone', $phone)
+                        ->orWhere('phone', 'like', '%'.$normalized)
+                        ->orWhereRaw("REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', '') LIKE ?", ['%'.$normalized]);
+                })
+                ->latest()
+                ->limit(10)
+                ->get();
+        }
+
+        return view('site.partners.tracking', [
+            'phone' => $phone,
+            'applications' => $applications,
+        ]);
     }
 
     public function createService(?string $category = null): View
@@ -118,7 +144,7 @@ class PartnerApplicationController extends Controller
         }
 
         if ($data['applicant_category'] === 'individual') {
-            $data['business_name'] = $data['business_name'] ?: $data['full_name'];
+            $data['business_name'] = ($data['business_name'] ?? null) ?: $data['full_name'];
         }
 
         if ($data['applicant_category'] === 'company'
@@ -131,11 +157,13 @@ class PartnerApplicationController extends Controller
             }
         }
 
-        $enrollment->submitApplication($data, $this->documentUploads($request));
+        $application = $enrollment->submitApplication($data, $this->documentUploads($request));
 
         return redirect()
-            ->route('site.partners')
-            ->with('status', __('site.partner_apply.success'));
+            ->route('site.partners.apply.tracking', ['phone' => $application->phone])
+            ->with('status', __('site.partner_apply.success_review', [
+                'tracking' => $application->phone,
+            ]));
     }
 
     /** @return array<string, \Illuminate\Http\UploadedFile|null> */

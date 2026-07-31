@@ -145,6 +145,7 @@ class SmartLoanApplicationWizardService
             $steps[] = ['key' => 'group_setup', 'label' => __('borrower.apply.steps.group_setup'), 'skippable' => false, 'skipped' => false];
             $steps[] = ['key' => 'group_members', 'label' => __('borrower.apply.steps.group_members'), 'skippable' => false, 'skipped' => false];
         } elseif ($isAssetBacked) {
+            // Asset + purpose (no quote). Offer is issued only after submit + valuation + CRB/UW.
             $steps[] = ['key' => 'asset_details', 'label' => __('borrower.apply.steps.asset_details'), 'skippable' => false, 'skipped' => false];
         } elseif (! $isAssetLending) {
             $steps[] = ['key' => 'quote', 'label' => __('borrower.apply.steps.quote'), 'skippable' => false, 'skipped' => false];

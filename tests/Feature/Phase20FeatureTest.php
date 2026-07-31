@@ -25,6 +25,25 @@ class Phase20FeatureTest extends TestCase
         $this->assertDatabaseHas('departments', ['code' => 'CRD', 'name' => 'Credit']);
         $this->assertDatabaseHas('departments', ['code' => 'CMP', 'name' => 'Compliance']);
         $this->assertDatabaseHas('departments', ['code' => 'IT', 'name' => 'Information Technology']);
+        $this->assertDatabaseHas('departments', ['code' => 'MKT', 'name' => 'Marketing']);
+        $this->assertDatabaseHas('departments', ['code' => 'PRT', 'name' => 'Partner Operations']);
+    }
+
+    public function test_staff_can_belong_to_multiple_departments(): void
+    {
+        $this->seed(DepartmentSeeder::class);
+
+        $user = User::factory()->create(['role' => 'officer']);
+        $mkt = \App\Models\Department::where('code', 'MKT')->firstOrFail();
+        $und = \App\Models\Department::where('code', 'UND')->firstOrFail();
+
+        $user->update(['department_id' => $mkt->id]);
+        $user->departments()->sync([$mkt->id, $und->id]);
+
+        $prefixes = app(\App\Services\DepartmentAccessService::class)->allowedRoutePrefixes($user->fresh());
+
+        $this->assertContains('promotions', $prefixes);
+        $this->assertContains('loan-applications', $prefixes);
     }
 
     public function test_admin_asset_lending_settings_page_shows_monthly_rate_field(): void

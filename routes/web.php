@@ -97,6 +97,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
     Route::post('/become-affiliate', [\App\Http\Controllers\Site\PartnerApplicationController::class, 'store'])->name('affiliate.apply.post');
     Route::get('/partners/apply/{category?}', [\App\Http\Controllers\Site\PartnerApplicationController::class, 'createService'])->name('partners.apply');
     Route::post('/partners/apply', [\App\Http\Controllers\Site\PartnerApplicationController::class, 'storeService'])->name('partners.apply.post');
+    Route::get('/partners/track', [\App\Http\Controllers\Site\PartnerApplicationController::class, 'tracking'])->name('partners.apply.tracking');
+    Route::post('/partners/track', [\App\Http\Controllers\Site\PartnerApplicationController::class, 'tracking'])->name('partners.apply.tracking.post');
 
     Route::get('/marketplace', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'publicIndex'])->name('marketplace');
     Route::post('/marketplace/request', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'storePublicRequest'])->name('marketplace.request');
@@ -563,6 +565,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('recovery/partners/{type}', [RecoveryPartnerController::class, 'byType'])->name('recovery.partners.type');
         Route::get('origination/valuation-partners', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'valuationIndex'])->name('origination.valuation-partners');
         Route::post('loan-applications/{loan_application}/assign-valuer', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'assignValuer'])->name('loan-applications.assign-valuer');
+        Route::post('loan-applications/{loan_application}/collateral/{asset}/uw-status', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'updateCollateralUwStatus'])->name('loan-applications.collateral.uw-status');
         Route::post('loan-applications/{loan_application}/assign-gps', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'assignGpsInstaller'])->name('loan-applications.assign-gps');
         Route::post('loan-applications/{loan_application}/manual-fee', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'addManualFee'])->name('loan-applications.manual-fee');
         Route::post('loan-applications/{loan_application}/post-approval-fees/{fee}', [\App\Http\Controllers\Admin\OriginationPartnerController::class, 'updatePostApprovalFee'])->name('loan-applications.post-approval-fees.update');

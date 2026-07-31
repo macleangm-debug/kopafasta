@@ -49,6 +49,30 @@ class OriginationPartnerController extends Controller
         return back()->with('status', 'Valuation partner assigned: '.$valuer->name.'.');
     }
 
+    public function updateCollateralUwStatus(
+        Request $request,
+        LoanApplication $loanApplication,
+        \App\Models\LoanApplicationAsset $asset,
+        \App\Services\AssetBackedApplyService $assetApply,
+    ): RedirectResponse {
+        abort_unless($asset->loan_application_id === $loanApplication->id, 404);
+
+        $data = $request->validate([
+            'uw_status' => ['required', 'in:pending,accepted,declined'],
+            'uw_notes'  => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $assetApply->setUnderwritingStatus($asset, $data['uw_status'], $data['uw_notes'] ?? null);
+
+        $label = match ($data['uw_status']) {
+            'accepted' => 'accepted',
+            'declined' => 'declined',
+            default    => 'reset to pending',
+        };
+
+        return back()->with('status', 'Collateral '.$label.'.');
+    }
+
     public function addManualFee(Request $request, LoanApplication $loanApplication, PostApprovalFeeService $fees): RedirectResponse
     {
         $data = $request->validate([

@@ -10,14 +10,14 @@
             'disbursement' => route('admin.loan-applications.pipeline.disbursement'),
         ];
         $cards = [
-            ['My queue', format_number($stats['my_assigned_queue'] ?? 0), 'bg-amber-500', route('admin.loan-applications.index', ['mine' => 1])],
-            ['Credit review', format_number($stats['credit_review_queue'] ?? 0), 'bg-sky-600', route('admin.loan-applications.pipeline.under-review')],
-            ['Committee', format_number($stats['committee_queue'] ?? 0), 'bg-amber-600', route('admin.loan-applications.pre-approvals')],
-            ['Incomplete', format_number($stats['incomplete_applications']), 'bg-orange-500', route('admin.loan-applications.incomplete')],
-            ['Applications', format_number($stats['applications']), 'bg-slate-700', route('admin.loan-applications.index')],
-            ['Active loans', format_number($stats['active_loans']), 'bg-emerald-600', route('admin.loans.index')],
-            ['Portfolio', format_money($stats['portfolio_tzs'] ?? 0), 'bg-slate-600', route('admin.loans.active')],
-            ['Capital free', format_money($stats['capital_available']), 'bg-teal-600', route('admin.capital-funding.index')],
+            ['My queue', format_number($stats['my_assigned_queue'] ?? 0), route('admin.loan-applications.index', ['mine' => 1])],
+            ['Credit review', format_number($stats['credit_review_queue'] ?? 0), route('admin.loan-applications.pipeline.under-review')],
+            ['Committee', format_number($stats['committee_queue'] ?? 0), route('admin.loan-applications.pre-approvals')],
+            ['Incomplete', format_number($stats['incomplete_applications']), route('admin.loan-applications.incomplete')],
+            ['Applications', format_number($stats['applications']), route('admin.loan-applications.index')],
+            ['Active loans', format_number($stats['active_loans']), route('admin.loans.index')],
+            ['Portfolio', format_money($stats['portfolio_tzs'] ?? 0), route('admin.loans.active')],
+            ['Capital free', format_money($stats['capital_available']), route('admin.capital-funding.index')],
         ];
         $ops = [
             ['Restructures', (int) ($stats['pending_restructures'] ?? 0), route('admin.restructure-requests.index')],
@@ -27,20 +27,20 @@
         ];
     @endphp
 
-    <div class="mb-6 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-amber-900 px-5 sm:px-6 py-5 text-white shadow-sm">
+    <div class="mb-6 rounded-2xl bg-gradient-to-br from-brand via-brand to-brand-light px-5 sm:px-6 py-5 text-white shadow-sm ring-1 ring-brand/20">
         <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
             <div>
-                <p class="text-[10px] uppercase tracking-widest text-amber-300 font-semibold">{{ brand_name() }}</p>
+                <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ brand_name() }}</p>
                 <p class="text-lg font-semibold mt-1">Credit &amp; portfolio overview</p>
                 <p class="text-sm text-white/70 mt-1">Jump into your assigned work, committee queue, or capital position.</p>
             </div>
             <div class="flex flex-wrap gap-2">
                 <a href="{{ route('admin.loan-applications.index', ['mine' => 1]) }}"
-                   class="inline-flex items-center rounded-lg bg-amber-500 hover:bg-amber-400 text-gray-900 text-xs font-semibold px-3 py-2">
+                   class="inline-flex items-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand text-xs font-bold px-3 py-2">
                     Open my queue
                 </a>
                 <a href="{{ route('admin.credit-team.index') }}"
-                   class="inline-flex items-center rounded-lg bg-white/10 hover:bg-white/15 ring-1 ring-white/20 text-white text-xs font-semibold px-3 py-2">
+                   class="inline-flex items-center rounded-xl bg-white/10 hover:bg-white/15 ring-1 ring-white/20 text-white text-xs font-semibold px-3 py-2">
                     Credit team
                 </a>
             </div>
@@ -48,12 +48,12 @@
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        @foreach ($cards as [$label, $value, $accent, $url])
-            <a href="{{ $url }}" class="bg-white rounded-xl p-5 shadow-sm ring-1 ring-gray-200 relative overflow-hidden hover:ring-amber-300 transition block">
-                <div class="absolute top-0 left-0 w-1 h-full {{ $accent }}"></div>
+        @foreach ($cards as [$label, $value, $url])
+            <a href="{{ $url }}" class="bg-white rounded-xl p-5 shadow-sm ring-1 ring-brand/10 relative overflow-hidden hover:ring-brand/30 transition block">
+                <div class="absolute top-0 left-0 w-1 h-full bg-brand"></div>
                 <div class="pl-2">
                     <div class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ $label }}</div>
-                    <div class="mt-2 text-2xl font-bold text-gray-900 tabular-nums">{{ $value }}</div>
+                    <div class="mt-2 text-2xl font-bold text-brand tabular-nums">{{ $value }}</div>
                 </div>
             </a>
         @endforeach
@@ -61,9 +61,9 @@
 
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         @foreach ($ops as [$label, $value, $url])
-            <a href="{{ $url }}" class="rounded-xl bg-white ring-1 ring-gray-200 px-4 py-3 hover:ring-amber-300 transition">
+            <a href="{{ $url }}" class="rounded-xl bg-white ring-1 ring-brand/10 px-4 py-3 hover:ring-brand/30 transition">
                 <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $label }}</p>
-                <p class="mt-1 text-xl font-bold tabular-nums text-gray-900">{{ format_number($value) }}</p>
+                <p class="mt-1 text-xl font-bold tabular-nums text-brand">{{ format_number($value) }}</p>
             </a>
         @endforeach
     </div>

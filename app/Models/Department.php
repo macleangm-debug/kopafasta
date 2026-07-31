@@ -12,4 +12,9 @@ class Department extends Model
     public function branch() { return $this->belongsTo(Branch::class); }
     public function head()   { return $this->belongsTo(User::class, 'head_user_id'); }
     public function users()  { return $this->hasMany(User::class); }
+
+    public function members()
+    {
+        return $this->belongsToMany(User::class)->withTimestamps();
+    }
 }

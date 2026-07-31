@@ -10,6 +10,7 @@ use App\Models\LoanApplication;
 use App\Models\LoanApplicationAsset;
 use App\Models\LoanApplicationDraft;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 class AssetBackedApplyService
@@ -34,35 +35,53 @@ class AssetBackedApplyService
     /** @param array<string, mixed> $form */
     public function validateAssetDetails(Customer $customer, array $form): void
     {
-        $customerAsset = $this->resolveCustomerAsset($customer, $form);
+        $customerAssets = $this->resolveCustomerAssets($customer, $form);
 
-        if (! $customerAsset) {
+        if ($customerAssets->isEmpty()) {
             throw ValidationException::withMessages([
-                'customer_asset_id' => 'Select an asset from your profile. Add one under Profile → Assets if you have not yet.',
+                'customer_asset_ids' => 'Select at least one asset from your profile. Add one under Profile → Assets if you have not yet.',
             ]);
         }
 
-        $type = $customerAsset->asset_type;
         $options = $this->assets->assetTypeOptions();
+        $typeOptions = array_merge($options, CustomerAsset::typeOptions());
 
-        if ($type === '' || ! array_key_exists($type, $options)) {
+        foreach ($customerAssets as $customerAsset) {
+            $type = $customerAsset->asset_type;
+            if ($type === '' || (! array_key_exists($type, $typeOptions) && ! array_key_exists($type, $options))) {
+                throw ValidationException::withMessages([
+                    'customer_asset_ids' => 'A selected profile asset has an invalid type. Update it on your profile.',
+                ]);
+            }
+
+            if ($type === 'vehicle' && ! $customerAsset->hasComprehensiveInsurance()) {
+                throw ValidationException::withMessages([
+                    'customer_asset_ids' => __('borrower.apply.asset_details.vehicle_insurance_required', [
+                        'label' => $customerAsset->label,
+                    ]),
+                ]);
+            }
+        }
+
+        $purpose = trim((string) ($form['purpose'] ?? ''));
+
+        if ($purpose === '') {
             throw ValidationException::withMessages([
-                'customer_asset_id' => 'The selected profile asset has an invalid type. Update it on your profile.',
+                'purpose' => __('borrower.apply.quote.select_purpose'),
             ]);
         }
 
         $amount = (float) ($form['requested_amount'] ?? 0);
-        $tenure = (int) ($form['requested_tenure_months'] ?? 0);
-
         if ($amount < 1000) {
             throw ValidationException::withMessages([
-                'requested_amount' => 'Enter the loan amount you need.',
+                'requested_amount' => __('borrower.apply.asset_details.amount_required'),
             ]);
         }
 
+        $tenure = (int) ($form['requested_tenure_months'] ?? 0);
         if ($tenure < 1) {
             throw ValidationException::withMessages([
-                'requested_tenure_months' => 'Enter a valid loan tenure.',
+                'requested_tenure_months' => __('borrower.apply.asset_details.tenure_required'),
             ]);
         }
     }
@@ -108,8 +127,13 @@ class AssetBackedApplyService
         return $document;
     }
 
-    /** @param array<string, mixed> $draftPayload */
-    public function persistOnSubmit(LoanApplication $application, array $draftPayload): LoanApplicationAsset
+    /**
+     * Persist one or more collateral rows for the application.
+     *
+     * @param  array<string, mixed>  $draftPayload
+     * @return Collection<int, LoanApplicationAsset>
+     */
+    public function persistOnSubmit(LoanApplication $application, array $draftPayload): Collection
     {
         $form = $draftPayload['form'] ?? [];
         $valuationFee = $draftPayload['valuation_fee'] ?? null;
@@ -121,42 +145,87 @@ class AssetBackedApplyService
                 : now();
         }
 
-        $customerAsset = $this->resolveCustomerAsset($application->customer, $form);
-        $assetType = (string) ($customerAsset?->asset_type ?? $form['asset_type'] ?? 'saloon_car');
-        $description = $customerAsset
-            ? trim(collect([$customerAsset->label, $customerAsset->description, $customerAsset->registration_number])->filter()->implode(' · '))
-            : (filled($form['asset_description'] ?? null) ? (string) $form['asset_description'] : null);
+        $customerAssets = $this->resolveCustomerAssets($application->customer, $form);
 
-        $asset = LoanApplicationAsset::updateOrCreate(
-            ['loan_application_id' => $application->id],
-            [
-                'customer_asset_id'     => $customerAsset?->id,
+        // Replace prior draft rows for this application (idempotent re-submit).
+        LoanApplicationAsset::query()
+            ->where('loan_application_id', $application->id)
+            ->delete();
+
+        $created = collect();
+        foreach ($customerAssets->values() as $index => $customerAsset) {
+            $assetType = (string) $customerAsset->asset_type;
+            $description = trim(collect([
+                $customerAsset->label,
+                $customerAsset->description,
+                $customerAsset->registration_number,
+            ])->filter()->implode(' · '));
+
+            $created->push(LoanApplicationAsset::create([
+                'loan_application_id'   => $application->id,
+                'customer_asset_id'     => $customerAsset->id,
                 'asset_type'            => $assetType,
                 'description'           => $description ?: null,
                 'valuation_status'      => 'awaiting_valuation',
-                'valuation_fee_paid_at' => $paidAt,
-                'gps_required'          => in_array($assetType, ['motorcycle', 'saloon_car', 'suv', 'truck', 'heavy_machinery'], true),
-            ],
-        );
+                'valuation_fee_paid_at' => $index === 0 ? $paidAt : null,
+                'gps_required'          => in_array($assetType, ['motorcycle', 'saloon_car', 'suv', 'truck', 'heavy_machinery', 'vehicle'], true),
+                'uw_status'             => LoanApplicationAsset::UW_PENDING,
+                'is_primary'            => $index === 0,
+            ]));
+        }
 
         $this->linkDocuments($application, $draftPayload);
 
-        return $asset;
+        return $created;
     }
 
-    /** @param array<string, mixed> $form */
-    private function resolveCustomerAsset(Customer $customer, array $form): ?CustomerAsset
+    public function setUnderwritingStatus(
+        LoanApplicationAsset $asset,
+        string $status,
+        ?string $notes = null,
+    ): LoanApplicationAsset {
+        abort_unless(in_array($status, [
+            LoanApplicationAsset::UW_PENDING,
+            LoanApplicationAsset::UW_ACCEPTED,
+            LoanApplicationAsset::UW_DECLINED,
+        ], true), 422);
+
+        $asset->update([
+            'uw_status' => $status,
+            'uw_notes'  => $notes,
+        ]);
+
+        return $asset->refresh();
+    }
+
+    /** @param array<string, mixed> $form @return Collection<int, CustomerAsset> */
+    private function resolveCustomerAssets(Customer $customer, array $form): Collection
     {
-        $id = (int) ($form['customer_asset_id'] ?? 0);
-        if ($id <= 0) {
-            return null;
+        $ids = collect($form['customer_asset_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        // Backward compat: single select field.
+        if ($ids->isEmpty() && filled($form['customer_asset_id'] ?? null)) {
+            $ids = collect([(int) $form['customer_asset_id']])->filter(fn ($id) => $id > 0);
         }
 
-        return CustomerAsset::query()
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        $assets = CustomerAsset::query()
             ->where('customer_id', $customer->id)
             ->where('is_active', true)
-            ->where('id', $id)
-            ->first();
+            ->whereIn('id', $ids->all())
+            ->get();
+
+        return $ids
+            ->map(fn ($id) => $assets->firstWhere('id', $id))
+            ->filter()
+            ->values();
     }
 
     /** @param array<string, mixed> $draftPayload */

@@ -1444,7 +1444,7 @@ class ApplyController extends Controller
             'loan_product_id'         => ['required', 'exists:loan_products,id'],
             'requested_amount'        => ['required', 'numeric', 'min:1000'],
             'requested_tenure_months' => ['required', 'integer', 'min:1', 'max:60'],
-            'purpose'                 => [$isMarketplaceProduct || $isAssetBackedProduct || $isGroupProduct ? 'nullable' : 'required', 'string', 'max:100'],
+            'purpose'                 => [$isMarketplaceProduct || $isGroupProduct ? 'nullable' : 'required', 'string', 'max:100'],
             'asset_type'              => [$isAssetBackedProduct ? 'required' : 'nullable', 'string', 'max:40'],
             'asset_description'       => ['nullable', 'string', 'max:500'],
             'first_name'              => ['required', 'string', 'max:60'],
@@ -1534,10 +1534,15 @@ class ApplyController extends Controller
 
         if ($isAssetBackedProduct) {
             if (blank($data['purpose'] ?? null)) {
-                $data['purpose'] = 'asset_financing';
+                return $this->wizardSubmitRedirect($request, $draft)
+                    ->withInput()
+                    ->withErrors(['purpose' => __('borrower.apply.quote.select_purpose')]);
             }
 
             $draftForm = $draftPayload['form'] ?? [];
+            if (! empty($draftForm['customer_asset_ids']) && is_array($draftForm['customer_asset_ids'])) {
+                $data['customer_asset_ids'] = $draftForm['customer_asset_ids'];
+            }
             if (filled($draftForm['customer_asset_id'] ?? null)) {
                 $data['customer_asset_id'] = $draftForm['customer_asset_id'];
             }
@@ -1546,6 +1551,13 @@ class ApplyController extends Controller
             }
             if (blank($data['asset_description'] ?? null) && filled($draftForm['asset_description'] ?? null)) {
                 $data['asset_description'] = $draftForm['asset_description'];
+            }
+            // Soft request from draft (not a binding offer).
+            if (blank($data['requested_amount'] ?? null) && filled($draftForm['requested_amount'] ?? null)) {
+                $data['requested_amount'] = $draftForm['requested_amount'];
+            }
+            if (blank($data['requested_tenure_months'] ?? null) && filled($draftForm['requested_tenure_months'] ?? null)) {
+                $data['requested_tenure_months'] = $draftForm['requested_tenure_months'];
             }
 
             try {
@@ -1774,6 +1786,7 @@ class ApplyController extends Controller
             app(AssetBackedApplyService::class)->persistOnSubmit($app, array_merge($draftPayload, [
                 'form' => array_merge($draftPayload['form'] ?? [], [
                     'customer_asset_id'       => $data['customer_asset_id'] ?? ($draftPayload['form']['customer_asset_id'] ?? null),
+                    'customer_asset_ids'      => $data['customer_asset_ids'] ?? ($draftPayload['form']['customer_asset_ids'] ?? null),
                     'asset_type'              => $data['asset_type'] ?? ($draftPayload['form']['asset_type'] ?? null),
                     'asset_description'       => $data['asset_description'] ?? ($draftPayload['form']['asset_description'] ?? null),
                     'requested_amount'        => $data['requested_amount'],

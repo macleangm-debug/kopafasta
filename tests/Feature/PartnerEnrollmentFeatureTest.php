@@ -49,7 +49,7 @@ class PartnerEnrollmentFeatureTest extends TestCase
         ];
 
         $this->post(route('site.partners.apply.post'), $payload)
-            ->assertRedirect(route('site.partners'));
+            ->assertRedirect(route('site.partners.apply.tracking', ['phone' => '255712000111']));
 
         $application = PartnerApplication::query()->first();
         $this->assertNotNull($application);

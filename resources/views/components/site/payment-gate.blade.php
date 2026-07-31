@@ -17,7 +17,7 @@
     $applyUrl = $applyUrl ?? url()->current();
 @endphp
 
-<div class="rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white p-6 shadow-lg mb-6">
+<div class="rounded-2xl bg-gradient-to-br from-brand to-brand-light text-white p-6 shadow-lg mb-6 ring-1 ring-brand/20">
     @if ($quote && ($quote['base'] ?? 0) > 0)
         <x-site.payment-gate-breakdown :label="$feeLabel" :currency="$currency" :quote="$quote" class="mb-0" />
     @elseif ($amount !== null)

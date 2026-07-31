@@ -314,6 +314,20 @@ class ApplicationBorrowerStatusService
             return 'disbursed';
         }
 
+        $requests = $application->relationLoaded('documentRequests')
+            ? $application->documentRequests
+            : $application->documentRequests()->get();
+
+        // Open underwriting requests always win over "approved" labels — borrower should
+        // never see Approved while still asked for documents or other UW actions.
+        if ($requests->where('status', 'uploaded')->isNotEmpty()) {
+            return 'documents_resubmitted';
+        }
+
+        if ($status === 'pending_documents' || $requests->whereIn('status', ['pending', 'rejected'])->isNotEmpty()) {
+            return 'documents_requested';
+        }
+
         if ($status === 'awaiting_offer' || $application->offer_status === 'pending_borrower') {
             return 'awaiting_offer';
         }
@@ -322,6 +336,11 @@ class ApplicationBorrowerStatusService
             || in_array($status, ['approved', 'pre_approved'], true)
             || in_array($stage, app(\App\Services\ApplicationDisbursementReadinessService::class)->borrowerPostApprovalStages(), true)
             || in_array($stage, ['pre_approval'], true)) {
+            // Committee / pre-approval is still "under review" to the borrower until final approve.
+            if (in_array($status, ['pre_approved'], true) || $stage === 'pre_approval') {
+                return 'under_review';
+            }
+
             $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
 
             if ($readiness->needsBorrowerSignature($application)) {
@@ -345,18 +364,6 @@ class ApplicationBorrowerStatusService
             }
 
             return 'approved';
-        }
-
-        $requests = $application->relationLoaded('documentRequests')
-            ? $application->documentRequests
-            : $application->documentRequests()->get();
-
-        if ($requests->where('status', 'uploaded')->isNotEmpty()) {
-            return 'documents_resubmitted';
-        }
-
-        if ($status === 'pending_documents' || $requests->whereIn('status', ['pending', 'rejected'])->isNotEmpty()) {
-            return 'documents_requested';
         }
 
         if ($stage === 'credit_appraisal' || $status === 'under_review' || $stage === 'screening' || $stage === 'pre_approval') {

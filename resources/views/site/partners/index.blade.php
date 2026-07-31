@@ -9,6 +9,9 @@
                 <a href="{{ route('site.partners.apply', 'debt_collector') }}" class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-semibold px-6 py-3 rounded-xl transition">
                     {{ __('site.partners.cta_enroll') }}
                 </a>
+                <a href="{{ route('site.partners.apply.tracking') }}" class="inline-flex items-center gap-2 glass-card-dark font-semibold px-6 py-3 rounded-xl transition hover:bg-white/10">
+                    {{ __('site.partner_apply.track_title') }}
+                </a>
                 <a href="{{ route('site.login', ['portal' => 'partner']) }}" class="inline-flex items-center gap-2 glass-card-dark font-semibold px-6 py-3 rounded-xl transition hover:bg-white/10">
                     {{ __('site.partners.cta_login') }}
                 </a>

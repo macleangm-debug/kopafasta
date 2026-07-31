@@ -97,6 +97,7 @@
                       'description' => $a->description,
                       'registration_number' => $a->registration_number,
                       'estimated_value' => $a->estimated_value,
+                      'has_insurance' => $a->hasComprehensiveInsurance(),
                   ])->values()->all()),
                   valuationFeeAmount: {{ (int) ($valuationFeeAmount ?? 0) }},
                   paymentGatewayDummy: @js($paymentGatewayDummy ?? payment_gateway_is_dummy()),
@@ -181,6 +182,8 @@
                           'assetRequired' => __('borrower.apply.asset_details.asset_required'),
                           'amountRequired' => __('borrower.apply.asset_details.amount_required'),
                           'tenureRequired' => __('borrower.apply.asset_details.tenure_required'),
+                          'purposeRequired' => __('borrower.apply.asset_details.purpose_required'),
+                          'vehicleNeedsInsurance' => __('borrower.apply.asset_details.vehicle_needs_insurance'),
                       ],
                       'applicationFee' => [
                           'failed' => __('borrower.apply.application_fee.failed'),

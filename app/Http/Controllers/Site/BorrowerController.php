@@ -2651,13 +2651,33 @@ class BorrowerController extends Controller
             'photos.*'            => ['required', 'image', 'max:5120'],
             'person_photo'        => ['required', 'image', 'max:5120'],
             'ownership_document'  => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
+            'insurance_document'  => [
+                $request->input('asset_type') === 'vehicle' ? 'required' : 'nullable',
+                'file',
+                'mimes:jpg,jpeg,png,webp,pdf',
+                'max:8192',
+            ],
         ]);
 
-        // Keep only detail keys that belong to the selected type (guards against tampering).
+        if (($data['asset_type'] ?? '') === 'vehicle') {
+            $details = $data['details'] ?? [];
+            $details['insurance_type'] = $details['insurance_type'] ?? 'comprehensive';
+            $data['details'] = $details;
+        }
+
+        // Keep only detail keys that belong to the selected type (guards against tampering),
+        // plus vehicle insurance metadata collected in the dedicated insurance block.
         $allowed = collect(\App\Models\CustomerAsset::detailFieldsFor($data['asset_type']))
             ->reject(fn ($f) => $f['column'] ?? false)
             ->pluck('key')
             ->all();
+        if (($data['asset_type'] ?? '') === 'vehicle') {
+            $allowed = array_merge($allowed, [
+                'insurance_type',
+                'insurance_policy_number',
+                'insurance_expires_at',
+            ]);
+        }
         $data['details'] = collect($data['details'] ?? [])
             ->only($allowed)
             ->all();
@@ -2669,6 +2689,7 @@ class BorrowerController extends Controller
             )),
             'person_photo'        => $request->file('person_photo'),
             'ownership_document'  => $request->file('ownership_document'),
+            'insurance_document'  => $request->file('insurance_document'),
         ]);
 
         return redirect()

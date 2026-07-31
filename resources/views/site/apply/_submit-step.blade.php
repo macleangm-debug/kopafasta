@@ -56,14 +56,17 @@
             <div class="px-5 py-4 border-b border-gray-100">
                 <dt class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.apply.review_step.loan_amount') }}</dt>
                 <dd class="mt-1 font-semibold tabular-nums text-gray-900" x-text="formatTzs(form.requested_amount)"></dd>
+                <dd class="text-[11px] text-gray-500 mt-0.5" x-show="isAssetBackedProduct(current)">{{ __('borrower.apply.asset_details.request_label') }}</dd>
             </div>
             <div class="px-5 py-4 sm:border-r border-gray-100">
                 <dt class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.apply.review_step.duration') }}</dt>
                 <dd class="mt-1 font-semibold text-gray-900"><span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.browse.months_short') }}</dd>
+                <dd class="text-[11px] text-gray-500 mt-0.5" x-show="isAssetBackedProduct(current)">{{ __('borrower.apply.asset_details.request_label') }}</dd>
             </div>
             <div class="px-5 py-4">
                 <dt class="text-[10px] uppercase tracking-widest text-gray-500" x-text="repaymentCadence() === 'monthly' ? @js(__('borrower.apply.review_step.monthly_repayment')) : @js(__('borrower.apply.review_step.weekly_repayment'))"></dt>
-                <dd class="mt-1 font-semibold tabular-nums text-brand" x-text="formatTzs(reviewSummary.installment_amount ?? quote.primary ?? quote.monthly)"></dd>
+                <dd class="mt-1 font-semibold text-brand" x-show="isAssetBackedProduct(current)">{{ __('borrower.apply.asset_details.repayment_pending_offer') }}</dd>
+                <dd class="mt-1 font-semibold tabular-nums text-brand" x-show="!isAssetBackedProduct(current)" x-text="formatTzs(reviewSummary.installment_amount ?? quote.primary ?? quote.monthly)"></dd>
             </div>
         </dl>
     </section>

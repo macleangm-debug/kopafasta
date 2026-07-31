@@ -125,7 +125,13 @@ class LoanApplication extends Model
 
     public function collateralAsset(): HasOne
     {
-        return $this->hasOne(LoanApplicationAsset::class);
+        // Preferred / first submitted collateral (legacy single-asset callers).
+        return $this->hasOne(LoanApplicationAsset::class)->oldestOfMany();
+    }
+
+    public function collateralAssets(): HasMany
+    {
+        return $this->hasMany(LoanApplicationAsset::class)->orderByDesc('is_primary')->orderBy('id');
     }
 
     public function valuationAssignments(): HasMany

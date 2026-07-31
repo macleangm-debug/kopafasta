@@ -14,15 +14,33 @@ class DepartmentAccessService
             return ['*'];
         }
 
-        $department = $user->department_id
-            ? Department::query()->find($user->department_id)
-            : null;
+        $codes = $user->relationLoaded('departments')
+            ? $user->departments->pluck('code')->filter()->values()->all()
+            : $user->departments()->pluck('code')->filter()->values()->all();
 
-        if (! $department?->code) {
+        if ($codes === []) {
+            $primary = $user->department_id
+                ? Department::query()->find($user->department_id)
+                : null;
+            if ($primary?->code) {
+                $codes = [$primary->code];
+            }
+        }
+
+        if ($codes === []) {
             return ['*'];
         }
 
-        return config('departments.modules.'.$department->code, ['*']);
+        $prefixes = [];
+        foreach ($codes as $code) {
+            $modules = config('departments.modules.'.$code, ['*']);
+            if (in_array('*', $modules, true)) {
+                return ['*'];
+            }
+            $prefixes = array_merge($prefixes, $modules);
+        }
+
+        return array_values(array_unique($prefixes));
     }
 
     public function canAccessRoute(User $user, string $routeName): bool

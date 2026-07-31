@@ -24,7 +24,7 @@
         dialog::backdrop{background:rgba(0,0,0,.4)}
     </style>
 </head>
-<body class="h-full bg-[#faf8f5] text-gray-900 antialiased">
+<body class="h-full bg-[#f4f7f5] text-gray-900 antialiased">
 
 @php
     $sections = [
@@ -61,39 +61,24 @@
             ['Closed loans',        'admin.loans.closed'],
             ['— Recovery ops —', '__group__'],
             ['Recovery assignments','admin.recovery.assignments.index'],
-            ['— Lending reports —', '__group__'],
-            ['Portfolio',         'admin.reports.portfolio',          'reports.view'],
-            ['Applications',      'admin.reports.applications',       'reports.view'],
-            ['Disbursements',     'admin.reports.disbursements',      'reports.view'],
-            ['Arrears',           'admin.reports.arrears',            'reports.view'],
-            ['Collections',       'admin.reports.collections-performance', 'reports.view'],
-            ['Repayments report', 'admin.reports.repayments',         'reports.view'],
-            ['PAR',               'admin.reports.par',                'reports.view'],
-            ['Customers report',  'admin.reports.customers',          'reports.view'],
-        ], ['applications.view', 'customers.view', 'kyc.review', 'membership.approve_payments', 'loans.view', 'reports.view']],
+        ], ['applications.view', 'customers.view', 'kyc.review', 'membership.approve_payments', 'loans.view']],
         ['Assets', 'M3 7h18M3 12h18M3 17h18', [
             ['Asset Marketplace',   'admin.marketplace-assets.index', 'marketplace.view'],
             ['Asset Requests',      'admin.asset-requests.index', 'marketplace.view'],
             ['Suppliers',           'admin.partners.suppliers'],
-            ['Asset lending settings', 'admin.settings.asset-lending'],
-        ], ['marketplace.view', 'settings.manage']],
+        ], ['marketplace.view']],
         ['Partners', 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-5a4 4 0 11-8 0 4 4 0 018 0z', [
             ['Partners hub',         'admin.partners.index'],
             ['All Partners',         'admin.partners.all'],
             ['Partner Applications', 'admin.partners.applications'],
-            ['Affiliate applications', 'admin.partner-applications.index'],
+            ['Enrollment applications', 'admin.partner-applications.index'],
             ['GPS Installers',      'admin.partners.gps-installers'],
             ['Insurance Providers', 'admin.partners.insurance-providers'],
             ['Valuers',             'admin.partners.valuers'],
             ['Partner Tasks',        'admin.partners.tasks'],
             ['Recovery partners',   'admin.recovery.partners.index'],
-            ['Valuation partners',  'admin.origination.valuation-partners'],
             ['Affiliate Partners', 'admin.partners.affiliates'],
-            ['Affiliate Performance','admin.reports.partner-performance', 'reports.view'],
-            ['Marketing attribution','admin.reports.affiliate-marketing-attribution', 'reports.view'],
-            ['Capital attribution','admin.reports.affiliate-capital-attribution', 'reports.view'],
-            ['Affiliate fraud',   'admin.reports.affiliate-fraud',    'reports.view'],
-        ], ['reports.view']],
+        ], null],
         ['Money', 'M12 8c-1.66 0-3 .9-3 2s1.34 2 3 2 3 .9 3 2-1.34 2-3 2m0-8v8m0 0v2m-9-5a9 9 0 1018 0 9 9 0 00-18 0z', [
             ['— Capital —', '__group__'],
             ['Capital funding',      'admin.capital-funding.index'],
@@ -119,14 +104,30 @@
             ['Borrower refunds',      'admin.borrower-refunds.index',        'finance.operations'],
             ['Reconciliations',       'admin.reconciliations.index',       'finance.operations'],
             ['Journal Entries',       'admin.journal-entries.index',       'finance.operations'],
-            ['— Financial reports —', '__group__'],
+        ], ['finance.accounts', 'finance.methods', 'finance.operations']],
+        ['Reports', 'M3 3v18h18M7 17V9m4 8V5m4 12v-7m4 7V11', [
+            ['— Lending —', '__group__'],
+            ['Portfolio',         'admin.reports.portfolio',          'reports.view'],
+            ['Applications',      'admin.reports.applications',       'reports.view'],
+            ['Disbursements',     'admin.reports.disbursements',      'reports.view'],
+            ['Arrears',           'admin.reports.arrears',            'reports.view'],
+            ['Collections',       'admin.reports.collections-performance', 'reports.view'],
+            ['Repayments report', 'admin.reports.repayments',         'reports.view'],
+            ['PAR',               'admin.reports.par',                'reports.view'],
+            ['Customers report',  'admin.reports.customers',          'reports.view'],
+            ['— Finance —', '__group__'],
             ['Finance summary',       'admin.reports.finance-summary',     'finance.reports'],
             ['Trial Balance',         'admin.reports.trial-balance',       'finance.reports'],
             ['Income Statement',      'admin.reports.income-statement',    'finance.reports'],
             ['Balance Sheet',         'admin.reports.balance-sheet',       'finance.reports'],
             ['Cash Flow',             'admin.reports.cash-flow',           'finance.reports'],
             ['NPL',                   'admin.reports.npl',                 'finance.reports'],
-        ], ['finance.accounts', 'finance.methods', 'finance.operations', 'finance.reports']],
+            ['— Partners —', '__group__'],
+            ['Affiliate Performance','admin.reports.partner-performance', 'reports.view'],
+            ['Marketing attribution','admin.reports.affiliate-marketing-attribution', 'reports.view'],
+            ['Capital attribution','admin.reports.affiliate-capital-attribution', 'reports.view'],
+            ['Affiliate fraud',   'admin.reports.affiliate-fraud',    'reports.view'],
+        ], ['reports.view', 'finance.reports']],
         ['Ops', 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z', [
             ['— Compliance —', '__group__'],
             ['BOT Reports',         'admin.compliance.bot-reports'],
@@ -162,7 +163,6 @@
             ['Countries',               'admin.settings.countries'],
             ['Finance defaults',        'admin.settings.finance'],
             ['Payment accounts',        'admin.settings.payment-accounts'],
-            ['Charges & fees',          'admin.charges-fees.index'],
             ['Affiliate settings',      'admin.settings.affiliates'],
             ['Membership',              'admin.settings.membership'],
             ['Referrals',               'admin.settings.referrals'],
@@ -393,13 +393,6 @@
                 @endisset
             @endif
         </div>
-
-        @if (count($activeSectionTabs) > 1)
-            <x-admin.tabs :items="array_map(
-                fn ($t) => ['label' => $t[0], 'route' => $t[1]],
-                array_values(array_filter($activeSectionTabs, fn ($t) => ($t[1] ?? '') !== '__group__'))
-            )" />
-        @endif
 
         {{-- Flash + validation feedback is shown via premium modal (below). --}}
 

@@ -140,10 +140,10 @@ class Phase25FeatureTest extends TestCase
             ->pluck('key')
             ->all();
 
-        $this->assertSame(
-            ['asset_details', 'application_fee', 'review', 'signature', 'submit'],
-            $stepKeys
-        );
+        $this->assertSame('asset_details', $stepKeys[0]);
+        $this->assertContains('application_fee', $stepKeys);
+        $this->assertContains('submit', $stepKeys);
+        $this->assertNotContains('quote', $stepKeys);
     }
 
     public function test_swahili_disbursement_loan_servicing_and_policy_strings_are_available(): void

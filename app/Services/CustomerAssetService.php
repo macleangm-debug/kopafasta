@@ -49,11 +49,17 @@ class CustomerAssetService
         if ($files['ownership_document'] ?? null) {
             $metadata['ownership_document_path'] = $files['ownership_document']->store("customer/{$customer->id}/assets/docs", 'public');
         }
+        if ($files['insurance_document'] ?? null) {
+            $metadata['insurance_document_path'] = $files['insurance_document']->store("customer/{$customer->id}/assets/docs", 'public');
+        }
 
         $details = array_filter(
             (array) ($data['details'] ?? []),
             fn ($value) => $value !== null && $value !== ''
         );
+        if ($type === 'vehicle') {
+            $details['insurance_type'] = $details['insurance_type'] ?? 'comprehensive';
+        }
         if ($details !== []) {
             $metadata['details'] = $details;
         }

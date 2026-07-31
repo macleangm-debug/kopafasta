@@ -100,6 +100,28 @@
                             </label>
                             <x-site.single-image-document-upload name="ownership_document" />
                         </div>
+                        @if ($selectedType === 'vehicle')
+                            <div class="sm:col-span-2 rounded-xl ring-1 ring-brand/20 bg-brand-muted/30 p-4">
+                                <label class="text-xs font-semibold text-brand mb-1 block">
+                                    {{ __('borrower.profile.comprehensive_insurance') }} <span class="text-red-500">*</span>
+                                </label>
+                                <p class="text-xs text-brand/80 mb-3">{{ __('borrower.profile.comprehensive_insurance_hint') }}</p>
+                                <input type="hidden" name="details[insurance_type]" value="comprehensive">
+                                <div class="grid sm:grid-cols-2 gap-3 mb-3">
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.collateral_fields.insurance_policy_number') }}</label>
+                                        <input type="text" name="details[insurance_policy_number]" value="{{ old('details.insurance_policy_number') }}" maxlength="150"
+                                               class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.collateral_fields.insurance_expires_at') }}</label>
+                                        <input type="date" name="details[insurance_expires_at]" value="{{ old('details.insurance_expires_at') }}"
+                                               class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                    </div>
+                                </div>
+                                <x-site.single-image-document-upload name="insurance_document" />
+                            </div>
+                        @endif
                     </div>
 
                     <div class="flex flex-wrap gap-3">

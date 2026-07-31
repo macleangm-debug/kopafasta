@@ -29,19 +29,19 @@
     </div>
 
     @if ($paymentGatewayDummy)
-        <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 text-sm text-amber-900 mb-6">
+        <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/15 px-4 py-4 text-sm text-brand mb-6">
             <p class="font-semibold">{{ __('borrower.apply.application_fee.dummy_banner_title') }}</p>
-            <p class="mt-1 text-amber-800">{{ __('borrower.apply.application_fee.dummy_banner') }}</p>
+            <p class="mt-1 text-brand/80">{{ __('borrower.apply.application_fee.dummy_banner') }}</p>
         </div>
     @endif
 
-    <div x-show="applicationFeeState?.status === 'pending'" x-cloak class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-4 text-sm text-sky-900 mb-6">
+    <div x-show="applicationFeeState?.status === 'pending'" x-cloak class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 py-4 text-sm text-brand mb-6">
         <p class="font-semibold">{{ __('borrower.apply.application_fee.bank_submitted', ['ref' => $paymentReference ?? '—']) }}</p>
         <p class="mt-1 text-xs font-mono" x-show="applicationFeeState?.reference" x-text="applicationFeeState.reference"></p>
-        <p class="mt-2 text-xs">{{ __('borrower.membership.bank_hint') }}</p>
+        <p class="mt-2 text-xs text-brand/70">{{ __('borrower.membership.bank_hint') }}</p>
     </div>
 
-    <div x-show="applicationFeePaid" x-cloak class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-4 text-sm text-emerald-900 mb-6">
+    <div x-show="applicationFeePaid" x-cloak class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/20 px-4 py-4 text-sm text-brand mb-6">
         <p class="font-semibold">{{ __('borrower.apply.application_fee.already_paid') }}</p>
         <p class="mt-1 text-xs" x-show="applicationFeeState?.reference">
             {{ __('borrower.apply.application_fee.reference') }}:
@@ -71,11 +71,11 @@
             </div>
             <p class="text-xs text-gray-500 pt-1">{{ __('borrower.apply.application_fee.fee_breakdown.valuation_note') }}</p>
         </div>
-        <div x-show="isGroupProduct(current) && groupFeeBreakdown()" x-cloak class="rounded-xl ring-1 ring-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950 mb-6 space-y-2">
-            <p class="text-xs font-semibold uppercase tracking-widest text-amber-800">{{ __('borrower.apply.group.fee_breakdown.settings_note') }}</p>
+        <div x-show="isGroupProduct(current) && groupFeeBreakdown()" x-cloak class="rounded-xl ring-1 ring-brand/15 bg-brand-muted/40 px-4 py-4 text-sm text-brand mb-6 space-y-2">
+            <p class="text-xs font-semibold uppercase tracking-widest text-brand">{{ __('borrower.apply.group.fee_breakdown.settings_note') }}</p>
             <div class="flex justify-between gap-4"><span>{{ __('borrower.apply.group.fee_breakdown.per_member') }}</span><span class="font-mono font-semibold" x-text="formatTzs(groupFeeBreakdown().per_member)"></span></div>
             <div class="flex justify-between gap-4"><span>{{ __('borrower.apply.group.fee_breakdown.members') }}</span><span class="font-semibold" x-text="groupFeeBreakdown().member_count"></span></div>
-            <div class="flex justify-between gap-4 pt-2 border-t border-amber-200 font-semibold"><span>{{ __('borrower.apply.group.fee_breakdown.total') }}</span><span class="font-mono" x-text="formatTzs(groupFeeBreakdown().total)"></span></div>
+            <div class="flex justify-between gap-4 pt-2 border-t border-brand/15 font-semibold"><span>{{ __('borrower.apply.group.fee_breakdown.total') }}</span><span class="font-mono" x-text="formatTzs(groupFeeBreakdown().total)"></span></div>
         </div>
 
         <div class="glass-card overflow-hidden ring-1 ring-brand/15 mb-6">

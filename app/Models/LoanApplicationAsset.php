@@ -7,6 +7,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class LoanApplicationAsset extends Model
 {
+    public const UW_PENDING = 'pending';
+    public const UW_ACCEPTED = 'accepted';
+    public const UW_DECLINED = 'declined';
+
     protected $fillable = [
         'loan_application_id',
         'customer_asset_id',
@@ -20,6 +24,9 @@ class LoanApplicationAsset extends Model
         'valuation_status',
         'valuation_fee_paid_at',
         'valuer_notes',
+        'uw_status',
+        'uw_notes',
+        'is_primary',
     ];
 
     protected function casts(): array
@@ -31,6 +38,7 @@ class LoanApplicationAsset extends Model
             'max_loan_amount'       => 'decimal:2',
             'gps_required'          => 'boolean',
             'valuation_fee_paid_at' => 'datetime',
+            'is_primary'            => 'boolean',
         ];
     }
 
@@ -46,6 +54,24 @@ class LoanApplicationAsset extends Model
 
     public function isMovableAsset(): bool
     {
-        return in_array($this->asset_type, ['motorcycle', 'saloon_car', 'suv', 'truck', 'heavy_machinery'], true);
+        return in_array($this->asset_type, ['motorcycle', 'saloon_car', 'suv', 'truck', 'heavy_machinery', 'vehicle'], true);
+    }
+
+    public function isDeclined(): bool
+    {
+        return $this->uw_status === self::UW_DECLINED;
+    }
+
+    public function isAccepted(): bool
+    {
+        return $this->uw_status === self::UW_ACCEPTED;
+    }
+
+    public function hasComprehensiveInsurance(): bool
+    {
+        $meta = $this->customerAsset?->metadata ?? [];
+
+        return filled($meta['insurance_document_path'] ?? null)
+            || filled($meta['details']['insurance_policy_number'] ?? null);
     }
 }

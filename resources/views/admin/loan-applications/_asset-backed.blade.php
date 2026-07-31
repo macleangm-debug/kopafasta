@@ -1,6 +1,9 @@
 @php
     $application = $record;
-    $asset = $application->collateralAsset;
+    $assets = $application->relationLoaded('collateralAssets')
+        ? $application->collateralAssets
+        : $application->collateralAssets()->with('customerAsset')->get();
+    $asset = $assets->firstWhere('is_primary', true) ?? $assets->first() ?? $application->collateralAsset;
     $isAb = app(\App\Services\AssetBackedLoanService::class)->isAssetBackedApplication($application);
     $openAssignment = $application->valuationAssignments
         ->first(fn ($a) => in_array($a->status, ['assigned', 'in_progress'], true));
@@ -9,20 +12,72 @@
 @if ($isAb)
     <div class="bg-white rounded-xl ring-1 ring-gray-200 p-5 mb-6">
         <h3 class="text-sm font-semibold text-gray-900 mb-3">Asset-backed collateral</h3>
+        <p class="text-xs text-gray-500 mb-4">Accept or decline each pledged asset. Vehicle comprehensive insurance must be on file and verified during underwriting. Formal offer issues only after valuation + CRB.</p>
 
-        @if ($asset)
-            <dl class="grid sm:grid-cols-2 gap-3 text-sm mb-4">
-                <div><dt class="text-xs text-gray-500">Asset type</dt><dd class="font-medium capitalize">{{ str_replace('_', ' ', $asset->asset_type) }}</dd></div>
-                <div><dt class="text-xs text-gray-500">Valuation status</dt><dd class="font-medium capitalize">{{ str_replace('_', ' ', $asset->valuation_status) }}</dd></div>
-                @if ($asset->description)<div class="sm:col-span-2"><dt class="text-xs text-gray-500">Description</dt><dd>{{ $asset->description }}</dd></div>@endif
-                @if ($asset->market_value)<div><dt class="text-xs text-gray-500">Market value</dt><dd>{{ format_money($asset->market_value) }}</dd></div>@endif
-                @if ($asset->forced_sale_value)<div><dt class="text-xs text-gray-500">Forced sale value</dt><dd>{{ format_money($asset->forced_sale_value) }}</dd></div>@endif
-                @if ($asset->max_loan_amount)<div><dt class="text-xs text-gray-500">Max loan (LTV)</dt><dd class="font-semibold">{{ format_money($asset->max_loan_amount) }} @ {{ $asset->ltv_percent }}%</dd></div>@endif
-                @if ($asset->gps_required)<div><dt class="text-xs text-gray-500">GPS</dt><dd>Required</dd></div>@endif
-            </dl>
-        @else
+        @forelse ($assets as $row)
+            @php
+                $ca = $row->customerAsset;
+                $hasInsurance = $row->hasComprehensiveInsurance();
+                $isVehicle = in_array($row->asset_type, ['vehicle', 'motorcycle', 'saloon_car', 'suv', 'truck'], true);
+            @endphp
+            <div class="rounded-xl ring-1 ring-gray-200 p-4 mb-4 {{ $row->uw_status === 'declined' ? 'opacity-70 bg-gray-50' : '' }}">
+                <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
+                    <div>
+                        <p class="font-semibold text-gray-900">
+                            {{ $ca?->label ?? ($row->description ?: 'Collateral #'.$row->id) }}
+                            @if ($row->is_primary)
+                                <span class="ml-1 text-[10px] uppercase tracking-widest text-brand font-semibold">Primary</span>
+                            @endif
+                        </p>
+                        <p class="text-xs text-gray-500 mt-1 capitalize">
+                            {{ str_replace('_', ' ', $row->asset_type) }}
+                            · UW: {{ ucfirst($row->uw_status ?? 'pending') }}
+                            · Valuation: {{ str_replace('_', ' ', $row->valuation_status ?? '—') }}
+                        </p>
+                    </div>
+                    @if ($isVehicle)
+                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold {{ $hasInsurance ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200' : 'bg-rose-50 text-rose-800 ring-1 ring-rose-200' }}">
+                            {{ $hasInsurance ? 'Comprehensive insurance on file' : 'Missing comprehensive insurance' }}
+                        </span>
+                    @endif
+                </div>
+
+                <dl class="grid sm:grid-cols-2 gap-3 text-sm mb-4">
+                    @if ($row->description)<div class="sm:col-span-2"><dt class="text-xs text-gray-500">Description</dt><dd>{{ $row->description }}</dd></div>@endif
+                    @if ($row->market_value)<div><dt class="text-xs text-gray-500">Market value</dt><dd>{{ format_money($row->market_value) }}</dd></div>@endif
+                    @if ($row->forced_sale_value)<div><dt class="text-xs text-gray-500">Forced sale value</dt><dd>{{ format_money($row->forced_sale_value) }}</dd></div>@endif
+                    @if ($row->max_loan_amount)<div><dt class="text-xs text-gray-500">Max loan (LTV)</dt><dd class="font-semibold">{{ format_money($row->max_loan_amount) }} @ {{ $row->ltv_percent }}%</dd></div>@endif
+                    @if ($ca?->metadata['insurance_document_path'] ?? null)
+                        <div>
+                            <dt class="text-xs text-gray-500">Insurance document</dt>
+                            <dd><a href="{{ asset('storage/'.$ca->metadata['insurance_document_path']) }}" target="_blank" class="text-brand font-semibold hover:underline">View</a></dd>
+                        </div>
+                    @endif
+                    @if ($row->uw_notes)
+                        <div class="sm:col-span-2"><dt class="text-xs text-gray-500">UW notes</dt><dd>{{ $row->uw_notes }}</dd></div>
+                    @endif
+                </dl>
+
+                <form method="POST" action="{{ route('admin.loan-applications.collateral.uw-status', [$application, $row]) }}" class="flex flex-wrap gap-2 items-end border-t border-gray-100 pt-3">
+                    @csrf
+                    <div class="flex-1 min-w-[180px]">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Underwriting decision</label>
+                        <select name="uw_status" class="w-full rounded-lg border-gray-300 text-sm">
+                            <option value="pending" @selected(($row->uw_status ?? 'pending') === 'pending')>Pending</option>
+                            <option value="accepted" @selected(($row->uw_status ?? '') === 'accepted')>Accept asset</option>
+                            <option value="declined" @selected(($row->uw_status ?? '') === 'declined')>Decline asset</option>
+                        </select>
+                    </div>
+                    <div class="flex-[2] min-w-[200px]">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+                        <input type="text" name="uw_notes" value="{{ $row->uw_notes }}" class="w-full rounded-lg border-gray-300 text-sm" placeholder="Reason if declined…">
+                    </div>
+                    <button type="submit" class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-sm">Save</button>
+                </form>
+            </div>
+        @empty
             <p class="text-sm text-gray-500 mb-4">Borrower has not submitted asset details yet.</p>
-        @endif
+        @endforelse
 
         @if ($valuationReport ?? null)
             <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 p-4 mb-4 text-sm">

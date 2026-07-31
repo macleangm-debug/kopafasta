@@ -111,7 +111,7 @@
                 <p class="font-semibold">Default rates come from Settings</p>
                 <p class="text-xs text-amber-900/80">
                     Platform defaults (commission / markup) are managed in
-                    <a href="{{ route('admin.settings.hub') }}" class="font-semibold underline">Settings hub</a>
+                    <a href="{{ route('admin.settings.index') }}" class="font-semibold underline">Settings hub</a>
                     → Recovery / partner pricing. Leave override fields blank to use defaults.
                 </p>
                 <ul class="text-xs space-y-1 pt-1">

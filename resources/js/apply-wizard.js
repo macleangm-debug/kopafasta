@@ -158,6 +158,7 @@ export function applyWizard(config) {
                     asset_type: '',
                     asset_description: '',
                     customer_asset_id: '',
+                    customer_asset_ids: [],
                 },
                 quote: { monthly: 0, weekly: 0, primary: 0, frequency: 'monthly', interest: 0, total: 0, fees: 0 },
                 review: { personal: '', residence: '', employment: '', nok: '', activity: '', guarantor: '', guarantorType: '', guarantorName: '', guarantorStatus: '' },
@@ -512,21 +513,47 @@ export function applyWizard(config) {
                 },
 
                 applyExistingAsset() {
-                    const id = String(this.form.customer_asset_id || '');
-                    if (! id) return;
-                    const asset = (this.customerAssets || []).find(a => String(a.id) === id);
+                    const ids = this.selectedCustomerAssetIds();
+                    if (! ids.length) return;
+                    const primaryId = String(ids[0]);
+                    const asset = (this.customerAssets || []).find(a => String(a.id) === primaryId);
                     if (! asset) return;
+                    this.form.customer_asset_id = asset.id;
                     this.form.asset_type = asset.asset_type || this.form.asset_type;
                     this.form.asset_description = asset.description || asset.label || this.form.asset_description;
-                    if (asset.estimated_value && ! this.form.requested_amount) {
-                        this.form.requested_amount = Number(asset.estimated_value);
-                        this.updateQuote();
-                    }
                     this.scheduleDraftSave();
                 },
 
+                selectedCustomerAssetIds() {
+                    const raw = this.form.customer_asset_ids;
+                    if (Array.isArray(raw) && raw.length) {
+                        return raw.map(String);
+                    }
+                    if (this.form.customer_asset_id) {
+                        return [String(this.form.customer_asset_id)];
+                    }
+                    return [];
+                },
+
+                isCustomerAssetSelected(id) {
+                    return this.selectedCustomerAssetIds().includes(String(id));
+                },
+
+                toggleCustomerAsset(id) {
+                    const key = String(id);
+                    let ids = this.selectedCustomerAssetIds().slice();
+                    if (ids.includes(key)) {
+                        ids = ids.filter(v => v !== key);
+                    } else {
+                        ids.push(key);
+                    }
+                    this.form.customer_asset_ids = ids.map(v => Number(v) || v);
+                    this.form.customer_asset_id = ids[0] || '';
+                    this.applyExistingAsset();
+                },
+
                 selectedCustomerAsset() {
-                    const id = String(this.form.customer_asset_id || '');
+                    const id = String(this.form.customer_asset_id || this.selectedCustomerAssetIds()[0] || '');
                     if (! id) return null;
                     return (this.customerAssets || []).find(a => String(a.id) === id) || null;
                 },
@@ -1388,7 +1415,12 @@ export function applyWizard(config) {
                     }
                     if (! this.form.requested_amount || this.form.requested_amount < p.min) this.form.requested_amount = p.min;
                     if (! this.form.requested_tenure_months || this.form.requested_tenure_months < p.tmin) this.form.requested_tenure_months = p.tmin;
-                    if (this.isAssetBackedProduct(p) && ! this.form.purpose) this.form.purpose = 'asset_financing';
+                    // AB: borrower states soft requested amount/tenure; final offer is post-submit.
+                    if (this.isAssetBackedProduct(p)) {
+                        if (! this.form.customer_asset_ids?.length && this.form.customer_asset_id) {
+                            this.form.customer_asset_ids = [this.form.customer_asset_id];
+                        }
+                    }
                     if (this.isGroupProduct(p)) {
                         this.initGroupLeader();
                         const tenureOptions = p.tenure_options || [];
@@ -2202,21 +2234,35 @@ export function applyWizard(config) {
                             showWizardFeedback(this.i18n.assetDetails.noAssetsTitle);
                             return false;
                         }
-                        if (! this.form.customer_asset_id) {
+                        if (! this.selectedCustomerAssetIds().length) {
                             showWizardFeedback(this.i18n.assetDetails.assetRequired);
                             return false;
                         }
-                        if (! this.form.requested_amount || this.form.requested_amount < (this.current?.min || 1000)) {
-                            showWizardFeedback(this.i18n.assetDetails.amountRequired);
+                        const missingInsurance = this.selectedCustomerAssetIds().some((id) => {
+                            const asset = (this.customerAssets || []).find(a => String(a.id) === String(id));
+                            return asset && asset.asset_type === 'vehicle' && ! asset.has_insurance;
+                        });
+                        if (missingInsurance) {
+                            showWizardFeedback(this.i18n.assetDetails.vehicleNeedsInsurance || this.i18n.assetDetails.assetRequired);
                             return false;
                         }
-                        if (! this.form.requested_tenure_months) {
-                            showWizardFeedback(this.i18n.assetDetails.tenureRequired);
+                        if (! this.form.requested_amount || this.form.requested_amount < (this.current?.min || 1000)) {
+                            showWizardFeedback(this.i18n.assetDetails.amountRequired || this.i18n.alerts.amountRequired);
+                            return false;
+                        }
+                        if (this.current && this.form.requested_amount > this.current.max) {
+                            showWizardFeedback(`Amount must be at most ${this.formatTzs(this.current.max)}.`);
+                            return false;
+                        }
+                        if (! this.form.requested_tenure_months || this.form.requested_tenure_months < (this.current?.tmin || 1)) {
+                            showWizardFeedback(this.i18n.assetDetails.tenureRequired || this.i18n.alerts.tenureRequired);
                             return false;
                         }
                         if (! this.form.purpose) {
-                            this.form.purpose = 'asset_financing';
+                            showWizardFeedback(this.i18n.alerts.selectPurpose || this.i18n.assetDetails.purposeRequired);
+                            return false;
                         }
+                    }
                     }
                     if (this.stepKey === 'guarantor' && this.hasStep('guarantor')) {
                         this.syncGuarantorFormFromDom();

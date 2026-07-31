@@ -6,10 +6,8 @@
         :subtitle="__('borrower.apply.review_step.subtitle')"
     />
 
-    <x-site.kyc-gate-banner :apply-requirements="$applyRequirements ?? null" variant="hint" class="mb-6" />
-
     {{-- Progress rail — sticky within the review step --}}
-    <nav class="sticky top-[4.5rem] z-10 -mx-2 px-2 py-3 mb-8 bg-[#faf8f5]/95 backdrop-blur-md border-b border-gray-200/60"
+    <nav class="sticky top-[4.5rem] z-10 -mx-2 px-2 py-3 mb-8 bg-white/95 backdrop-blur-md border-b border-gray-200/60"
          aria-label="{{ __('borrower.apply.review_step.pages_nav') }}">
         <ol class="flex items-center gap-0">
             <template x-for="page in reviewPageCount" :key="'review-rail-' + page">
@@ -52,6 +50,7 @@
                     <div>
                         <p class="text-[10px] uppercase tracking-widest text-white/60">{{ __('borrower.apply.review_step.loan_amount') }}</p>
                         <p class="mt-1 text-base sm:text-2xl font-extrabold tabular-nums tracking-tight" x-text="formatTzs(form.requested_amount)"></p>
+                        <p class="mt-1 text-[10px] text-white/55" x-show="isAssetBackedProduct(current)">{{ __('borrower.apply.asset_details.request_label') }}</p>
                     </div>
                     <div>
                         <p class="text-[10px] uppercase tracking-widest text-white/60">{{ __('borrower.apply.review_step.duration') }}</p>
@@ -59,12 +58,18 @@
                             <span x-text="form.requested_tenure_months"></span>
                             <span class="text-sm font-semibold text-white/70">{{ __('borrower.apply.browse.months_short') }}</span>
                         </p>
+                        <p class="mt-1 text-[10px] text-white/55" x-show="isAssetBackedProduct(current)">{{ __('borrower.apply.asset_details.request_label') }}</p>
                     </div>
                     <div>
                         <p class="text-[10px] uppercase tracking-widest text-white/60"
                            x-text="repaymentCadence() === 'monthly' ? @js(__('borrower.apply.review_step.monthly_repayment')) : @js(__('borrower.apply.review_step.weekly_repayment'))"></p>
-                        <p class="mt-1 text-base sm:text-2xl font-extrabold tabular-nums tracking-tight text-amber-300"
-                           x-text="formatTzs(reviewSummary.installment_amount ?? quote.primary ?? quote.monthly)"></p>
+                        <template x-if="isAssetBackedProduct(current)">
+                            <p class="mt-1 text-sm sm:text-base font-semibold text-brand-gold leading-snug">{{ __('borrower.apply.asset_details.repayment_pending_offer') }}</p>
+                        </template>
+                        <template x-if="!isAssetBackedProduct(current)">
+                            <p class="mt-1 text-base sm:text-2xl font-extrabold tabular-nums tracking-tight text-brand-gold"
+                               x-text="formatTzs(reviewSummary.installment_amount ?? quote.primary ?? quote.monthly)"></p>
+                        </template>
                     </div>
                 </div>
             </div>

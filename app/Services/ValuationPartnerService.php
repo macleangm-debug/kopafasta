@@ -38,10 +38,22 @@ class ValuationPartnerService
             ]);
         }
 
-        $asset = LoanApplicationAsset::query()->firstOrCreate(
-            ['loan_application_id' => $application->id],
-            ['asset_type' => 'saloon_car', 'valuation_status' => 'awaiting_valuation'],
-        );
+        $asset = LoanApplicationAsset::query()
+            ->where('loan_application_id', $application->id)
+            ->where('uw_status', '!=', LoanApplicationAsset::UW_DECLINED)
+            ->orderByDesc('is_primary')
+            ->orderBy('id')
+            ->first();
+
+        if (! $asset) {
+            $asset = LoanApplicationAsset::query()->create([
+                'loan_application_id' => $application->id,
+                'asset_type'          => 'saloon_car',
+                'valuation_status'    => 'awaiting_valuation',
+                'uw_status'           => LoanApplicationAsset::UW_PENDING,
+                'is_primary'          => true,
+            ]);
+        }
 
         $open = ValuationAssignment::query()
             ->where('loan_application_id', $application->id)

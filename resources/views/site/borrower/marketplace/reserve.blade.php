@@ -74,31 +74,9 @@
         <h2 class="font-semibold">{{ __('borrower.marketplace.next_action') }}</h2>
 
         @php
-            $profileIncomplete = ! ($applyRequirements['can_apply'] ?? false);
             $feePaid = $reservation->reservation_fee_status === 'paid';
             $viewingOptional = $feePaid && ! $reservation->viewing_completed_at;
         @endphp
-
-        @if ($profileIncomplete)
-            <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 p-4">
-                <p class="text-sm font-semibold text-sky-900">{{ __('borrower.apply.kyc_incomplete_hint') }}</p>
-                <ul class="mt-2 space-y-1 text-sm text-sky-800">
-                    @foreach (($applyRequirements['items'] ?? []) as $item)
-                        @if (! ($item['complete'] ?? false))
-                            <li class="flex items-start gap-2">
-                                <span>•</span>
-                                <span>
-                                    {{ $item['label'] }}
-                                    @if (! empty($item['action_url']))
-                                        — <a href="{{ $item['action_url'] }}" class="font-semibold underline">{{ __('borrower.marketplace.complete_item') }}</a>
-                                    @endif
-                                </span>
-                            </li>
-                        @endif
-                    @endforeach
-                </ul>
-            </div>
-        @endif
 
         @if ($reservation->status === 'application_started')
             <p class="text-sm text-gray-600">{{ __('borrower.marketplace.confirm_interest_hint') }}</p>

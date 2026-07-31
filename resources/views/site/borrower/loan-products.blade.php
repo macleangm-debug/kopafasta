@@ -11,27 +11,7 @@
 
 
 
-        @if (! ($applyRequirements['can_apply'] ?? false))
-            <div class="mb-6 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 text-sm text-amber-900">
-                <p class="font-semibold">{{ __('borrower.apply.kyc_incomplete_title') }}</p>
-                <p class="mt-1 text-amber-800">{{ __('borrower.apply.kyc_incomplete_hint') }}</p>
-                <ul class="mt-3 space-y-1 text-amber-800">
-                    @foreach (($applyRequirements['items'] ?? []) as $item)
-                        @if (! ($item['complete'] ?? false))
-                            <li class="flex items-start gap-2">
-                                <span>•</span>
-                                <span>
-                                    {{ $item['label'] }}
-                                    @if (! empty($item['action_url']))
-                                        <a href="{{ $item['action_url'] }}" class="font-semibold underline">{{ __('borrower.apply.details.complete_missing') }}</a>
-                                    @endif
-                                </span>
-                            </li>
-                        @endif
-                    @endforeach
-                </ul>
-            </div>
-        @endif
+        {{-- Profile completeness is enforced only at final submit — never as a product-list hurdle. --}}
 
         <div class="glass-card p-4 sm:p-5 mb-6">
             <div class="flex flex-col lg:flex-row lg:items-center gap-4">

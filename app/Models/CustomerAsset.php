@@ -118,6 +118,15 @@ class CustomerAsset extends Model
         return $this->details()[$key] ?? null;
     }
 
+    public function hasComprehensiveInsurance(): bool
+    {
+        $meta = $this->metadata ?? [];
+
+        return filled($meta['insurance_document_path'] ?? null)
+            || filled($meta['details']['insurance_policy_number'] ?? null)
+            || (($meta['details']['insurance_type'] ?? null) === 'comprehensive');
+    }
+
     /** Ordered list of every stored image path (asset photos + person shot). @return array<int, string> */
     public function galleryPaths(): array
     {
