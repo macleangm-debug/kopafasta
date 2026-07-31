@@ -70,20 +70,35 @@ class NotificationLog extends Model
         $templateMap = [
             'guarantor_sent' => [
                 'title' => 'borrower.guarantor_invite.notify_sent_title',
-                'body'  => null,
+                'body'  => 'borrower.guarantor_invite.borrower_sent',
             ],
             'guarantor_declined' => [
                 'title' => 'borrower.guarantor_invite.notify_declined_title',
-                'body'  => null,
+                'body'  => 'borrower.guarantor_invite.borrower_declined',
+            ],
+            'guarantor_request' => [
+                'title' => 'borrower.guarantor_invite.notify_request_title',
+                'body'  => 'borrower.guarantor_invite.guarantor_received',
             ],
         ];
         $template = (string) ($this->template ?? '');
         if (isset($templateMap[$template])) {
-            $title = (string) __($templateMap[$template]['title']);
+            $params = is_array($meta['params'] ?? null) ? $meta['params'] : [];
+            $title = (string) __($templateMap[$template]['title'], $params);
+            $bodyKey = $templateMap[$template]['body'] ?? null;
+            if ($bodyKey) {
+                $translated = (string) __($bodyKey, $params);
+                // Only use translation when params exist or key clearly resolved.
+                if ($translated !== $bodyKey || $params !== []) {
+                    return [$title, $translated !== $bodyKey ? $translated : trim(implode(' ', array_slice(
+                        preg_split("/\r\n|\n|\r/", (string) ($this->message ?: '')) ?: [],
+                        1
+                    )))];
+                }
+            }
             $lines = preg_split("/\r\n|\n|\r/", (string) ($this->message ?: '')) ?: [];
             $body = trim(implode(' ', array_slice($lines, 1))) ?: (string) ($this->message ?: '');
 
-            // Prefer translating title; keep stored body (may be EN) until re-sent with keys.
             return [$title, $body];
         }
 

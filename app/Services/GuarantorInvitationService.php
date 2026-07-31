@@ -735,6 +735,14 @@ class GuarantorInvitationService
                 __('borrower.guarantor_invite.notify_request_title'),
                 route('site.borrower.guarantor-requests.show', $link),
                 __('borrower.guarantor_notifications.view_request'),
+                [
+                    'title_key' => 'borrower.guarantor_invite.notify_request_title',
+                    'body_key'  => 'borrower.guarantor_invite.guarantor_received',
+                    'params'    => [
+                        'borrower'  => $borrowerName,
+                        'reference' => $application->application_number ?? $application->draft_reference ?? '—',
+                    ],
+                ],
             );
 
             $this->notifyBorrowerInvitationSent(

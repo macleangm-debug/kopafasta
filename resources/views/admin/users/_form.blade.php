@@ -1,17 +1,16 @@
-{{-- Shared User form. Expects $record, $branches, $roles --}}
+{{-- Shared User form. Expects $record, $branches, $roles, $departments --}}
 @php($r = $record ?? null)
 
-<x-admin.step title="Identity">
+<div class="grid sm:grid-cols-2 gap-4">
     <x-admin.input  name="name"            label="Full name"      :value="$r?->name"  required />
     <x-admin.input  name="email"           label="Email"          :value="$r?->email" type="email" required />
     <x-admin.phone-input name="phone" label="Phone" :value="$r?->phone" />
     <x-admin.input  name="password"        label="{{ $r ? 'New password (leave blank to keep)' : 'Password' }}" type="password" :required="! $r" />
-</x-admin.step>
-
-<x-admin.step title="Role & access">
     <x-admin.select name="role"            label="Role"           :options="$roles"   :value="$r?->role ?? 'officer'" required />
     <x-admin.select name="branch_id"       label="Branch"         :options="$branches" :value="$r?->branch_id" placeholder="— None —" />
     <x-admin.select name="department_id"   label="Primary department" :options="$departments" :value="$r?->department_id" placeholder="— None —" />
+    <x-admin.input  name="approval_limit"  label="Approval limit (TZS)" :value="$r?->approval_limit" money />
+    <x-admin.select name="is_active"       label="Status"         :options="['1' => 'Active', '0' => 'Inactive']" :value="(string) ($r?->is_active ?? '1')" required />
     <div class="sm:col-span-2">
         <label class="block text-sm font-medium text-gray-700 mb-1">Teams <span class="text-gray-400 font-normal">(multi-team)</span></label>
         <p class="text-xs text-gray-500 mb-2">Assign every team this person works in. Nav access is the union of all selected teams. Marketing (MKT) unlocks promotions &amp; offers.</p>
@@ -30,6 +29,4 @@
             @endforeach
         </div>
     </div>
-    <x-admin.input  name="approval_limit"  label="Approval limit (TZS)" :value="$r?->approval_limit" money />
-    <x-admin.select name="is_active"       label="Status"         :options="['1' => 'Active', '0' => 'Inactive']" :value="(string) ($r?->is_active ?? '1')" required />
-</x-admin.step>
+</div>

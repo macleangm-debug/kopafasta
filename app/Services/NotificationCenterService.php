@@ -61,14 +61,14 @@ class NotificationCenterService
             'loan'     => 'repayment',
             'kyc'      => 'application',
             'document' => 'application',
-            'system'   => 'promotions',
-            'guarantor'=> 'application',
+            'system'   => 'system',
         ];
 
-        $normalized = $map[$category] ?? $category ?? 'application';
+        $normalized = $map[$category] ?? $category ?? 'general';
+        $allowed = array_merge($this->categories(), ['general', 'guarantor', 'system']);
 
-        if (! in_array($normalized, $this->categories(), true)) {
-            return 'application';
+        if (! in_array($normalized, $allowed, true)) {
+            return 'general';
         }
 
         return $normalized;

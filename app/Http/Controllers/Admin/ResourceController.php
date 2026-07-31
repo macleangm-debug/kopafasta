@@ -55,6 +55,22 @@ abstract class ResourceController extends Controller
         return (bool) preg_match('/(amount|balance|principal|income|cost|gross|net|variance|deployed|committed|limit|threshold|installment|deposit|value|fee|penalty|interest|opening|budget|paid)/i', $key);
     }
 
+    /** Strip money formatting before validation so `numeric` rules accept comma-grouped values. */
+    protected function normalizeMoneyRequest(Request $request): void
+    {
+        $payload = $request->all();
+        $changed = false;
+        foreach ($payload as $key => $value) {
+            if (is_string($value) && $this->isMoneyFieldKey((string) $key)) {
+                $payload[$key] = MoneyFormat::toNumber($value);
+                $changed = true;
+            }
+        }
+        if ($changed) {
+            $request->merge($payload);
+        }
+    }
+
     public function create()
     {
         return view("admin.{$this->viewFolder}.create", $this->formData());
@@ -62,6 +78,7 @@ abstract class ResourceController extends Controller
 
     public function store(Request $request)
     {
+        $this->normalizeMoneyRequest($request);
         $data = $this->transform($request->validate($this->rules()));
         $record = $this->model::create($data);
         $this->auditAdminCreated($record);
@@ -89,6 +106,7 @@ abstract class ResourceController extends Controller
     {
         $record = $this->model::findOrFail($id);
         $before = app(AuditService::class)->snapshot($record);
+        $this->normalizeMoneyRequest($request);
         $data = $this->transform($request->validate($this->rules($record)), $record);
         $record->update($data);
         $record->refresh();

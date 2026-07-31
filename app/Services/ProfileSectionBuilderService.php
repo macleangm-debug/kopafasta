@@ -79,8 +79,12 @@ class ProfileSectionBuilderService
                     'key'          => $key,
                     'icon'         => $sectionMeta['icon'],
                     'label'        => $tab['label'],
-                    // Hub shows category cards only — field-level copy lives inside each section.
-                    'description'  => null,
+                    'description'  => $key === 'personal'
+                        ? $this->personalGapSummary($customer)
+                        : null,
+                    'missing'      => $key === 'personal'
+                        ? app(ProfileValidationService::class)->personalGaps($customer)
+                        : [],
                     'status'       => $status,
                     'status_label' => $this->statusLabel($status),
                     'action_label' => $this->actionLabel($status, $sectionMeta['action']),
@@ -89,6 +93,18 @@ class ProfileSectionBuilderService
                     'count'        => $tab['count'] ?? null,
                 ];
             })->values()->all();
+    }
+
+    private function personalGapSummary(Customer $customer): ?string
+    {
+        $gaps = app(ProfileValidationService::class)->personalGaps($customer);
+        if ($gaps === []) {
+            return null;
+        }
+
+        return __('borrower.profile.gaps.summary', [
+            'items' => collect($gaps)->pluck('label')->take(3)->implode(', '),
+        ]);
     }
 
     private function statusLabel(string $status): string

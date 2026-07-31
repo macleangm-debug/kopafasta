@@ -28,8 +28,8 @@
             ['key' => 'marketplace',   'label' => __('borrower.nav.marketplace'),   'route' => 'site.borrower.marketplace', 'icon' => 'folder'],
             ['key' => 'payments',      'label' => __('borrower.nav.payments'),      'route' => 'site.borrower.payments',      'icon' => 'pay'],
             ['key' => 'notifications', 'label' => __('borrower.nav.notifications'), 'route' => 'site.borrower.notifications', 'icon' => 'bell'],
-            ['key' => 'support',       'label' => __('borrower.nav.support'),       'route' => 'site.borrower.support',       'icon' => 'help'],
             ['key' => 'profile',       'label' => __('borrower.nav.profile'),       'route' => 'site.borrower.profile',       'icon' => 'user'],
+            ['key' => 'support',       'label' => __('borrower.nav.support'),       'route' => 'site.borrower.support',       'icon' => 'help'],
         ];
 
     $borrowerCustomer = auth()->user()?->customer;
@@ -133,8 +133,9 @@
                             </template>
                             <template x-for="item in items" :key="item.id">
                                 <div class="px-4 py-3 border-b border-gray-50 hover:bg-brand-muted/30" :class="!item.read ? 'bg-brand-muted/50' : ''">
-                                    <p class="text-[11px] font-bold uppercase tracking-widest text-brand" x-text="item.category"></p>
-                                    <p class="text-sm text-gray-800 mt-0.5" x-text="item.message"></p>
+                                    <p class="text-[11px] font-bold uppercase tracking-widest text-brand" x-text="item.category_label || item.category"></p>
+                                    <p class="text-sm font-semibold text-gray-900 mt-0.5" x-show="item.title" x-text="item.title"></p>
+                                    <p class="text-sm text-gray-800 mt-0.5" x-text="item.body || item.message"></p>
                                     <p class="text-[11px] text-gray-400 mt-1" x-text="item.when"></p>
                                     <template x-if="item.action_url">
                                         <a :href="item.action_url" class="inline-flex mt-2 text-xs font-semibold text-brand hover:underline" x-text="item.action_label || @js(__('borrower.notifications.view_application'))"></a>

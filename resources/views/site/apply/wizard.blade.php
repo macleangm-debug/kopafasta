@@ -114,6 +114,7 @@
                   marketplaceOnlyCodes: @js($marketplaceOnlyCodes ?? marketplace_only_loan_codes()),
                   marketplaceUrl: @js($marketplaceUrl ?? route('site.borrower.marketplace')),
                   profileUrl: @js(route('site.borrower.profile')),
+                  profileAssetsUrl: @js(route('site.borrower.profile', ['section' => 'assets'])),
                   canApply: @js((bool) ($applyRequirements['can_apply'] ?? false)),
                   openProfileGateOnLoad: @js((bool) (session('show_profile_gate') || request()->boolean('profile_gate'))),
                   verifiedLegalName: @js($verifiedLegalName),
@@ -185,6 +186,7 @@
                           'tenureRequired' => __('borrower.apply.asset_details.tenure_required'),
                           'purposeRequired' => __('borrower.apply.asset_details.purpose_required'),
                           'vehicleNeedsInsurance' => __('borrower.apply.asset_details.vehicle_needs_insurance'),
+                          'completeInsuranceCta' => __('borrower.apply.asset_details.complete_insurance_cta'),
                       ],
                       'applicationFee' => [
                           'failed' => __('borrower.apply.application_fee.failed'),

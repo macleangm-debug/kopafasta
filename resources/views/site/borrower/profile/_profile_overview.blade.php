@@ -63,7 +63,14 @@
                 @if (! empty($section['count']))
                     <p class="text-xs text-gray-500 mt-1">{{ __('borrower.profile.registered_count', ['count' => $section['count']]) }}</p>
                 @elseif (! empty($section['description']))
-                    <p class="text-xs text-gray-500 mt-1 line-clamp-2">{{ $section['description'] }}</p>
+                    <p class="text-xs text-gray-500 mt-1 line-clamp-3">{{ $section['description'] }}</p>
+                @endif
+                @if (! empty($section['missing']))
+                    <ul class="mt-2 space-y-1">
+                        @foreach (array_slice($section['missing'], 0, 3) as $gap)
+                            <li class="text-[11px] text-amber-800 font-medium">• {{ $gap['label'] }}</li>
+                        @endforeach
+                    </ul>
                 @endif
                 <p class="mt-4 text-xs font-semibold text-brand">{{ $section['action_label'] ?? __('borrower.profile.hub.view_edit') }} →</p>
             </a>

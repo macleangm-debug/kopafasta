@@ -1223,11 +1223,16 @@ class BorrowerController extends Controller
                 $actionUrl = ($n->channel === 'in_app' && filled($n->recipient) && str_starts_with($n->recipient, '/'))
                     ? $n->recipient
                     : null;
+                $center = app(\App\Services\NotificationCenterService::class);
+                $category = $center->normalizeCategory((string) ($n->category ?: 'general'));
 
                 return [
                     'id'         => $n->id,
-                    'message'    => $n->message ?: $n->template,
-                    'category'   => $n->category ?: 'general',
+                    'title'      => $n->displayTitle(),
+                    'body'       => $n->displayBody(),
+                    'message'    => trim($n->displayTitle().' '.$n->displayBody()),
+                    'category'   => $category,
+                    'category_label' => $center->categoryLabel($category),
                     'read'       => (bool) $n->read_at,
                     'when'       => $n->created_at?->diffForHumans(),
                     'action_url' => $actionUrl,
@@ -2738,29 +2743,41 @@ class BorrowerController extends Controller
     public function storeAsset(Request $request): RedirectResponse
     {
         $customer = $this->customer();
-        $data = $request->validate([
+        $type = (string) $request->input('asset_type');
+        $detailRules = [];
+        foreach (\App\Models\CustomerAsset::detailFieldsFor($type) as $field) {
+            if ($field['column'] ?? false) {
+                continue;
+            }
+            $detailRules['details.'.$field['key']] = ['required', 'string', 'max:150'];
+        }
+        if ($type === 'vehicle') {
+            $detailRules['details.insurance_policy_number'] = ['required', 'string', 'max:150'];
+            $detailRules['details.insurance_expires_at'] = ['required', 'date', 'after:today'];
+        }
+
+        $data = $request->validate(array_merge([
             'asset_type'          => ['required', 'string', 'max:40'],
             'label'               => ['required', 'string', 'max:150'],
             'description'         => ['nullable', 'string', 'max:2000'],
-            'registration_number' => ['nullable', 'string', 'max:80'],
-            'estimated_value'     => ['nullable', 'numeric', 'min:0'],
+            'registration_number' => [$type === 'vehicle' ? 'required' : 'nullable', 'string', 'max:80'],
+            'estimated_value'     => ['required', 'numeric', 'min:1'],
             'details'             => ['nullable', 'array'],
-            'details.*'           => ['nullable', 'string', 'max:150'],
             'photos'              => ['required', 'array', 'min:2', 'max:6'],
             'photos.*'            => ['required', 'image', 'max:5120'],
             'person_photo'        => ['required', 'image', 'max:5120'],
             'ownership_document'  => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
             'insurance_document'  => [
-                $request->input('asset_type') === 'vehicle' ? 'required' : 'nullable',
+                $type === 'vehicle' ? 'required' : 'nullable',
                 'file',
                 'mimes:jpg,jpeg,png,webp,pdf',
                 'max:8192',
             ],
-        ]);
+        ], $detailRules));
 
         if (($data['asset_type'] ?? '') === 'vehicle') {
             $details = $data['details'] ?? [];
-            $details['insurance_type'] = $details['insurance_type'] ?? 'comprehensive';
+            $details['insurance_type'] = 'comprehensive';
             $data['details'] = $details;
         }
 
@@ -2794,6 +2811,64 @@ class BorrowerController extends Controller
         return redirect()
             ->route('site.borrower.profile', ['section' => 'assets'])
             ->with('status', __('borrower.profile.asset_saved'));
+    }
+
+    public function updateAsset(Request $request, \App\Models\CustomerAsset $asset): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_if($asset->customer_id !== $customer->id || ! $asset->is_active, 404);
+
+        $type = (string) $asset->asset_type;
+        $detailRules = [];
+        foreach (\App\Models\CustomerAsset::detailFieldsFor($type) as $field) {
+            if ($field['column'] ?? false) {
+                continue;
+            }
+            $detailRules['details.'.$field['key']] = ['required', 'string', 'max:150'];
+        }
+        if ($type === 'vehicle') {
+            $detailRules['details.insurance_policy_number'] = ['required', 'string', 'max:150'];
+            $detailRules['details.insurance_expires_at'] = ['required', 'date'];
+        }
+
+        $data = $request->validate(array_merge([
+            'label'               => ['required', 'string', 'max:150'],
+            'description'         => ['nullable', 'string', 'max:2000'],
+            'registration_number' => [$type === 'vehicle' ? 'required' : 'nullable', 'string', 'max:80'],
+            'estimated_value'     => ['required', 'numeric', 'min:1'],
+            'details'             => ['nullable', 'array'],
+        ], $detailRules));
+
+        $allowed = collect(\App\Models\CustomerAsset::detailFieldsFor($type))
+            ->reject(fn ($f) => $f['column'] ?? false)
+            ->pluck('key')
+            ->all();
+        if ($type === 'vehicle') {
+            $allowed = array_merge($allowed, [
+                'insurance_type',
+                'insurance_policy_number',
+                'insurance_expires_at',
+            ]);
+            $data['details']['insurance_type'] = 'comprehensive';
+        }
+        $data['details'] = collect($data['details'] ?? [])->only($allowed)->all();
+        $data['asset_type'] = $type;
+
+        $meta = $asset->metadata ?? [];
+        if ($data['details'] !== []) {
+            $meta['details'] = array_merge((array) ($meta['details'] ?? []), $data['details']);
+        }
+        $asset->update([
+            'label'               => $data['label'],
+            'description'         => $data['description'] ?? null,
+            'registration_number' => $data['registration_number'] ?? null,
+            'estimated_value'     => (float) $data['estimated_value'],
+            'metadata'            => $meta,
+        ]);
+
+        return redirect()
+            ->route('site.borrower.profile', ['section' => 'assets', 'edit' => $asset->id])
+            ->with('status', __('borrower.profile.asset_updated'));
     }
 
     public function updateNotificationPreferences(Request $request): RedirectResponse

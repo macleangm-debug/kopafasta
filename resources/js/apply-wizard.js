@@ -2250,12 +2250,13 @@ export function applyWizard(config) {
                             showWizardFeedback(this.i18n.assetDetails.assetRequired);
                             return false;
                         }
-                        const missingInsurance = this.selectedCustomerAssetIds().some((id) => {
+                        const missingInsuranceId = this.selectedCustomerAssetIds().find((id) => {
                             const asset = (this.customerAssets || []).find(a => String(a.id) === String(id));
                             return asset && asset.asset_type === 'vehicle' && ! asset.has_insurance;
                         });
-                        if (missingInsurance) {
-                            showWizardFeedback(this.i18n.assetDetails.vehicleNeedsInsurance || this.i18n.assetDetails.assetRequired);
+                        if (missingInsuranceId) {
+                            const base = this.profileAssetsUrl || this.profileUrl || '/borrower/profile';
+                            window.location = base + (base.includes('?') ? '&' : '?') + 'edit=' + encodeURIComponent(missingInsuranceId) + '&focus=insurance';
                             return false;
                         }
                         if (! this.form.requested_amount || this.form.requested_amount < (this.current?.min || 1000)) {

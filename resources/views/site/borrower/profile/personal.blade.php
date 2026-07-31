@@ -11,6 +11,22 @@
         ])
 
         @php
+            $personalGaps = app(\App\Services\ProfileValidationService::class)->personalGaps($customer);
+        @endphp
+        @if ($personalGaps !== [])
+            <div class="mb-6 rounded-2xl bg-amber-50 ring-1 ring-amber-200/80 p-5">
+                <p class="text-sm font-bold text-amber-950">{{ __('borrower.profile.gaps.banner_title') }}</p>
+                <ul class="mt-3 space-y-2">
+                    @foreach ($personalGaps as $gap)
+                        <li>
+                            <a href="{{ $gap['url'] }}" class="text-sm font-semibold text-brand hover:underline">• {{ $gap['label'] }} →</a>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        @php
             $locked = (bool) $customer->identity_locked;
             $nidaSaved = filled($customer->national_id);
             $nidaReadonly = $locked || $nidaSaved;

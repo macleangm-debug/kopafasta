@@ -7,7 +7,8 @@
         $detailFields = $selectedType ? \App\Models\CustomerAsset::detailFieldsFor($selectedType) : [];
     @endphp
 
-    <div x-data="{ addOpen: false, openAsset: null, lightbox: null }">
+    <div x-data="{ addOpen: false, openAsset: {{ (int) request('edit', 0) ?: 'null' }}, lightbox: null }"
+         x-init="if (openAsset) { $nextTick(() => { const el = document.getElementById('asset-edit-' + openAsset); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }); }">
         @include('site.borrower.profile._profile_shell', [
             'title' => __('borrower.profile.my_collaterals'),
             'subtitle' => __('borrower.profile.my_assets_hint'),
@@ -41,17 +42,17 @@
                                 $fieldLabel = __('borrower.profile.collateral_fields.'.$fieldKey);
                             @endphp
                             <div>
-                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ $fieldLabel }}</label>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ $fieldLabel }} <span class="text-red-500">*</span></label>
                                 <input type="{{ $field['type'] === 'number' ? 'number' : 'text' }}"
                                        @if ($field['type'] === 'number') inputmode="numeric" min="0" @endif
-                                       name="{{ $inputName }}" value="{{ $oldVal }}" maxlength="150"
+                                       name="{{ $inputName }}" value="{{ $oldVal }}" maxlength="150" required
                                        class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                             </div>
                         @endforeach
 
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.estimated_value') }}</label>
-                            <input type="number" name="estimated_value" value="{{ old('estimated_value') }}" min="0" inputmode="numeric"
+                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.estimated_value') }} <span class="text-red-500">*</span></label>
+                            <input type="number" name="estimated_value" value="{{ old('estimated_value') }}" min="1" inputmode="numeric" required
                                    class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                         </div>
                         <div class="sm:col-span-2">
@@ -109,13 +110,13 @@
                                 <input type="hidden" name="details[insurance_type]" value="comprehensive">
                                 <div class="grid sm:grid-cols-2 gap-3 mb-3">
                                     <div>
-                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.collateral_fields.insurance_policy_number') }}</label>
-                                        <input type="text" name="details[insurance_policy_number]" value="{{ old('details.insurance_policy_number') }}" maxlength="150"
+                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.collateral_fields.insurance_policy_number') }} <span class="text-red-500">*</span></label>
+                                        <input type="text" name="details[insurance_policy_number]" value="{{ old('details.insurance_policy_number') }}" maxlength="150" required
                                                class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                                     </div>
                                     <div>
-                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.collateral_fields.insurance_expires_at') }}</label>
-                                        <input type="date" name="details[insurance_expires_at]" value="{{ old('details.insurance_expires_at') }}"
+                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.collateral_fields.insurance_expires_at') }} <span class="text-red-500">*</span></label>
+                                        <input type="date" name="details[insurance_expires_at]" value="{{ old('details.insurance_expires_at') }}" required
                                                class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                                     </div>
                                 </div>
@@ -264,43 +265,56 @@
                             <button type="button" @click="openAsset = null" class="shrink-0 size-9 grid place-items-center rounded-full hover:bg-gray-100 text-gray-500 text-xl">×</button>
                         </div>
 
-                        <div class="p-5 space-y-6">
-                            {{-- Details: all type fields --}}
-                            <div class="rounded-2xl bg-brand-muted/25 ring-1 ring-brand/10 p-4">
-                                <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-3">{{ __('borrower.profile.collateral_details') }}</p>
-                                <dl class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                        <div class="p-5 space-y-6" id="asset-edit-{{ $asset->id }}">
+                            <form method="POST" action="{{ route('site.borrower.profile.assets.update', $asset) }}" class="rounded-2xl bg-brand-muted/25 ring-1 ring-brand/10 p-4 space-y-4">
+                                @csrf
+                                @method('PUT')
+                                <p class="text-xs uppercase tracking-widest text-brand font-semibold">{{ __('borrower.profile.collateral_details') }}</p>
+                                <div class="grid sm:grid-cols-2 gap-3">
+                                    <div class="sm:col-span-2">
+                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.asset_label') }} <span class="text-red-500">*</span></label>
+                                        <input type="text" name="label" value="{{ old('label', $asset->label) }}" required maxlength="150"
+                                               class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                    </div>
                                     <div>
-                                        <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.profile.estimated_value') }}</dt>
-                                        <dd class="font-semibold text-gray-900 mt-0.5">{{ $asset->estimated_value ? format_money($asset->estimated_value) : __('borrower.profile.no_value_set') }}</dd>
+                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.estimated_value') }} <span class="text-red-500">*</span></label>
+                                        <input type="number" name="estimated_value" value="{{ old('estimated_value', $asset->estimated_value) }}" min="1" required
+                                               class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                                     </div>
                                     @foreach (\App\Models\CustomerAsset::detailFieldsFor($asset->asset_type) as $field)
                                         @php
                                             $val = ($field['column'] ?? false) ? $asset->{$field['key']} : $asset->detail($field['key']);
+                                            $inputName = ($field['column'] ?? false) ? $field['key'] : 'details['.$field['key'].']';
+                                            $oldKey = ($field['column'] ?? false) ? $field['key'] : 'details.'.$field['key'];
                                         @endphp
                                         <div>
-                                            <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.profile.collateral_fields.'.$field['key']) }}</dt>
-                                            <dd class="font-semibold text-gray-900 mt-0.5 {{ filled($val) ? '' : 'text-gray-400 font-normal' }}">{{ filled($val) ? $val : __('borrower.profile.missing_value') }}</dd>
+                                            <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.collateral_fields.'.$field['key']) }} <span class="text-red-500">*</span></label>
+                                            <input type="{{ ($field['type'] ?? '') === 'number' ? 'number' : 'text' }}"
+                                                   name="{{ $inputName }}" value="{{ old($oldKey, $val) }}" required maxlength="150"
+                                                   class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                                         </div>
                                     @endforeach
                                     @if ($asset->asset_type === 'vehicle')
-                                        @foreach ([
-                                            'insurance_type' => __('borrower.profile.collateral_fields.insurance_type'),
-                                            'insurance_policy_number' => __('borrower.profile.collateral_fields.insurance_policy_number'),
-                                            'insurance_expires_at' => __('borrower.profile.collateral_fields.insurance_expires_at'),
-                                        ] as $insKey => $insLabel)
-                                            <div>
-                                                <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ $insLabel }}</dt>
-                                                <dd class="font-semibold text-gray-900 mt-0.5 {{ filled($insuranceDetails[$insKey] ?? null) ? '' : 'text-gray-400 font-normal' }}">
-                                                    {{ filled($insuranceDetails[$insKey] ?? null) ? $insuranceDetails[$insKey] : __('borrower.profile.missing_value') }}
-                                                </dd>
-                                            </div>
-                                        @endforeach
+                                        <div>
+                                            <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.collateral_fields.insurance_policy_number') }} <span class="text-red-500">*</span></label>
+                                            <input type="text" name="details[insurance_policy_number]" value="{{ old('details.insurance_policy_number', $asset->detail('insurance_policy_number')) }}" required maxlength="150"
+                                                   class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.collateral_fields.insurance_expires_at') }} <span class="text-red-500">*</span></label>
+                                            <input type="date" name="details[insurance_expires_at]" value="{{ old('details.insurance_expires_at', $asset->detail('insurance_expires_at')) }}" required
+                                                   class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                        </div>
                                     @endif
-                                </dl>
-                                @if (filled($asset->description))
-                                    <p class="text-sm text-gray-600 mt-3 pt-3 border-t border-brand/10">{{ $asset->description }}</p>
-                                @endif
-                            </div>
+                                    <div class="sm:col-span-2">
+                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.description') }}</label>
+                                        <textarea name="description" rows="2" class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">{{ old('description', $asset->description) }}</textarea>
+                                    </div>
+                                </div>
+                                <button type="submit" class="inline-flex bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
+                                    {{ __('borrower.profile.save') }}
+                                </button>
+                            </form>
 
                             {{-- Item 19: swipe gallery with replace-on-slot + delete --}}
                             <div>
