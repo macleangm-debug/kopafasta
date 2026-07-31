@@ -122,9 +122,8 @@ class CustomerAsset extends Model
     {
         $meta = $this->metadata ?? [];
 
-        return filled($meta['insurance_document_path'] ?? null)
-            || filled($meta['details']['insurance_policy_number'] ?? null)
-            || (($meta['details']['insurance_type'] ?? null) === 'comprehensive');
+        // Certificate upload is the source of truth for underwriting.
+        return filled($meta['insurance_document_path'] ?? null);
     }
 
     /** Ordered list of every stored image path (asset photos + person shot). @return array<int, string> */

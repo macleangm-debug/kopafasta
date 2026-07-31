@@ -52,8 +52,10 @@ class Phase7FeatureTest extends TestCase
         $draftRow = collect($rows)->firstWhere('is_draft', true);
 
         $this->assertNotNull($draftRow);
-        $this->assertSame(__('borrower.applications_list.view_application'), $draftRow['action_label']);
+        $this->assertSame(__('borrower.applications_list.continue_application'), $draftRow['action_label']);
         $this->assertNotEmpty($draftRow['continue_url']);
+        $this->assertNotEmpty($draftRow['preview_url']);
+        $this->assertSame(__('borrower.applications_list.view_application'), $draftRow['preview_label']);
     }
 
     public function test_loan_profile_draft_includes_completion_snapshot(): void

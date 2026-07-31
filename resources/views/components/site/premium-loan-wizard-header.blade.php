@@ -12,11 +12,18 @@
                 </p>
                 <p class="mt-1 text-sm text-gray-600" x-show="! current" x-cloak>{{ __('borrower.apply.subtitle') }}</p>
             </div>
-            <a :href="loanProductsUrl"
-               x-show="! reservationMode"
-               class="text-sm font-semibold text-gray-600 hover:text-gray-900 shrink-0">
-                {{ __('borrower.apply.details.all_products') }}
-            </a>
+            <div class="flex flex-col items-end gap-2 shrink-0">
+                <a :href="loanProductsUrl"
+                   x-show="! reservationMode"
+                   class="text-sm font-semibold text-gray-600 hover:text-gray-900">
+                    {{ __('borrower.apply.details.all_products') }}
+                </a>
+                <div x-show="draftReference" x-cloak
+                     class="inline-flex items-center gap-2 rounded-xl bg-white/90 ring-1 ring-brand/15 px-3 py-2 shadow-sm">
+                    <span class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.submit_step.reference') }}</span>
+                    <span class="font-mono text-xs font-bold text-gray-900" x-text="draftReference"></span>
+                </div>
+            </div>
         </div>
 
         <div class="mt-5" x-show="phase === 'details' || phase === 'application'" x-cloak>
@@ -43,9 +50,4 @@
             </ol>
         </div>
     </div>
-
-    <p x-show="draftReference" x-cloak class="mt-3 text-sm text-gray-600">
-        {{ __('borrower.apply.submit_step.reference') }}:
-        <span class="font-mono font-semibold text-gray-900" x-text="draftReference"></span>
-    </p>
 </div>

@@ -215,6 +215,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/marketplace/{assetId}/reserve', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'reserveFlow'])->name('borrower.marketplace.reserve');
             Route::get('/borrower/applications/{application}',     [\App\Http\Controllers\Site\BorrowerController::class, 'application'])  ->name('borrower.application');
             Route::post('/borrower/applications/{application}/withdraw', [\App\Http\Controllers\Site\BorrowerController::class, 'withdrawApplication'])->name('borrower.application.withdraw');
+            Route::post('/borrower/loan-profile/draft/{draft}/discard', [\App\Http\Controllers\Site\BorrowerController::class, 'discardDraft'])->name('borrower.draft.discard');
             Route::get('/borrower/applications/{application}/offer', [\App\Http\Controllers\Site\BorrowerController::class, 'applicationOffer'])->name('borrower.application.offer');
             Route::post('/borrower/applications/{application}/offer', [\App\Http\Controllers\Site\BorrowerController::class, 'respondToOffer'])->name('borrower.application.offer.respond');
             Route::get('/borrower/applications/{application}/asset-conversion', [\App\Http\Controllers\Site\BorrowerController::class, 'assetConversion'])->name('borrower.application.asset-conversion');
@@ -294,6 +295,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::put('/borrower/profile/{section}',              [\App\Http\Controllers\Site\BorrowerController::class, 'updateProfile'])->name('borrower.profile.update')->where('section', 'personal|activity|residence|kin|kyc|payment');
             Route::post('/borrower/profile/assets',                  [\App\Http\Controllers\Site\BorrowerController::class, 'storeAsset'])->name('borrower.profile.assets.store');
             Route::delete('/borrower/profile/assets/{asset}',        [\App\Http\Controllers\Site\BorrowerController::class, 'destroyAsset'])->name('borrower.profile.assets.destroy');
+            Route::post('/borrower/profile/assets/{asset}/documents', [\App\Http\Controllers\Site\BorrowerController::class, 'replaceAssetDocument'])->name('borrower.profile.assets.documents.replace');
             Route::post('/borrower/profile/assets/{asset}/photos',   [\App\Http\Controllers\Site\BorrowerController::class, 'addAssetPhotos'])->name('borrower.profile.assets.photos.add');
             Route::post('/borrower/profile/assets/{asset}/photos/replace', [\App\Http\Controllers\Site\BorrowerController::class, 'replaceAssetPhoto'])->name('borrower.profile.assets.photos.replace');
             Route::delete('/borrower/profile/assets/{asset}/photos', [\App\Http\Controllers\Site\BorrowerController::class, 'deleteAssetPhoto'])->name('borrower.profile.assets.photos.delete');

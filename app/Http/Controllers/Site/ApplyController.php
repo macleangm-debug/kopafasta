@@ -126,18 +126,37 @@ class ApplyController extends Controller
         }
 
         if ($preselectedProduct && ! $request->boolean('resume') && ! $supplementMode) {
-            $blockingApp = app(\App\Services\LoanPolicyService::class)
-                ->blockingApplicationForProduct($customer, $preselectedProduct);
+            $policy = app(\App\Services\LoanPolicyService::class);
+            $blockingApp = $policy->blockingApplicationForProduct($customer, $preselectedProduct);
             if ($blockingApp) {
                 return redirect()
                     ->route('site.borrower.loans', ['tab' => 'applications'])
                     ->with('same_product_block', [
+                        'kind' => 'application',
                         'product' => $preselectedProduct->localizedName() ?: $preselectedProduct->name,
                         'application_id' => $blockingApp->id,
                         'application_number' => $blockingApp->application_number,
                         'status' => $blockingApp->status,
-                        'message' => app(\App\Services\LoanPolicyService::class)
-                            ->canSubmitApplication($customer, $preselectedProduct),
+                        'message' => $policy->canSubmitApplication($customer, $preselectedProduct),
+                    ]);
+            }
+
+            $blockingDraft = $drafts->find($customer, (int) $preselectedProduct->id);
+            if ($blockingDraft && in_array($blockingDraft->phase, ['details', 'application'], true)) {
+                $resumeTarget = $drafts->resumeTarget($customer, $blockingDraft);
+
+                return redirect()
+                    ->route('site.borrower.loans', ['tab' => 'applications'])
+                    ->with('same_product_block', [
+                        'kind' => 'draft',
+                        'product' => $preselectedProduct->localizedName() ?: $preselectedProduct->name,
+                        'draft_id' => $blockingDraft->id,
+                        'application_number' => $blockingDraft->draft_reference,
+                        'continue_url' => $drafts->wizardApplyUrl($blockingDraft, $resumeTarget),
+                        'message' => __('borrower.policy.max_active_applications', [
+                            'product' => $preselectedProduct->localizedName() ?: $preselectedProduct->name,
+                            'max' => 1,
+                        ]),
                     ]);
             }
         }

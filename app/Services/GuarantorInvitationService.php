@@ -927,15 +927,28 @@ class GuarantorInvitationService
             $guarantorName = trim((string) ($invitation?->invitee_name ?: $link->guarantor?->first_name.' '.$link->guarantor?->last_name));
             if ($borrower) {
                 $applicationId = $link->loan_application_id ?? $invitation?->loan_application_id;
+                $actionUrl = $applicationId
+                    ? route('site.borrower.application', $applicationId)
+                    : null;
+
+                if (! $actionUrl && $invitation?->loan_product_id) {
+                    $draft = app(LoanApplicationDraftService::class)
+                        ->find($borrower, (int) $invitation->loan_product_id);
+                    $actionUrl = $draft
+                        ? route('site.borrower.loan-profile.draft', $draft)
+                        : route('site.borrower.apply', [
+                            'product' => $invitation->loan_product_id,
+                            'resume' => 1,
+                        ]);
+                }
+
                 app(NotificationService::class)->notifyInApp(
                     $borrower,
                     __('borrower.guarantor_invite.borrower_declined', ['guarantor' => trim($guarantorName)]),
                     'guarantor',
                     'guarantor_declined',
                     __('borrower.guarantor_invite.notify_declined_title'),
-                    $applicationId
-                        ? route('site.borrower.application', $applicationId)
-                        : route('site.borrower.loans', ['tab' => 'applications']),
+                    $actionUrl ?: route('site.borrower.loans', ['tab' => 'applications']),
                     __('borrower.notifications.view_application'),
                     [
                         'title_key' => 'borrower.guarantor_invite.notify_declined_title',

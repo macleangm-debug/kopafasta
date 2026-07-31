@@ -11,6 +11,10 @@
     @endphp
 
     @if ($sameProductBlock)
+        @php
+            $blockKind = $sameProductBlock['kind'] ?? 'application';
+            $isDraftBlock = $blockKind === 'draft';
+        @endphp
         <div
             x-data="{ open: true }"
             x-show="open"
@@ -31,23 +35,44 @@
                     <p class="text-xs text-gray-500">{{ __('borrower.policy.same_product_existing', ['number' => $sameProductBlock['application_number'] ?? '']) }}</p>
                     <p class="text-xs text-gray-500">{{ __('borrower.policy.same_product_hint') }}</p>
                     <div class="pt-2 space-y-2">
-                        <a href="{{ route('site.borrower.application', $sameProductBlock['application_id']) }}"
-                           class="w-full inline-flex justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-3 rounded-xl text-sm">
-                            {{ __('borrower.policy.same_product_view') }}
-                        </a>
-                        <form method="POST" action="{{ route('site.borrower.application.withdraw', $sameProductBlock['application_id']) }}"
-                              onsubmit="event.preventDefault(); confirmForm(this, {
-                                  title: @js(__('borrower.policy.withdraw_confirm_title')),
-                                  message: @js(__('borrower.policy.withdraw_confirm_body')),
-                                  confirmLabel: @js(__('borrower.policy.withdraw_confirm_action')),
-                                  tone: 'warning',
-                                  confirmClass: 'bg-red-600 hover:bg-red-700 text-white'
-                              }); return false;">
-                            @csrf
-                            <button type="submit" class="w-full inline-flex justify-center bg-white ring-1 ring-red-200 text-red-700 hover:bg-red-50 font-semibold px-4 py-3 rounded-xl text-sm">
-                                {{ __('borrower.policy.withdraw_and_reapply') }}
-                            </button>
-                        </form>
+                        @if ($isDraftBlock)
+                            <a href="{{ $sameProductBlock['continue_url'] }}"
+                               class="w-full inline-flex justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-3 rounded-xl text-sm">
+                                {{ __('borrower.policy.same_product_continue') }}
+                            </a>
+                            <form method="POST" action="{{ route('site.borrower.draft.discard', $sameProductBlock['draft_id']) }}"
+                                  onsubmit="event.preventDefault(); confirmForm(this, {
+                                      title: @js(__('borrower.policy.discard_draft_confirm_title')),
+                                      message: @js(__('borrower.policy.discard_draft_confirm_body')),
+                                      confirmLabel: @js(__('borrower.policy.discard_draft_confirm_action')),
+                                      tone: 'warning',
+                                      confirmClass: 'bg-red-600 hover:bg-red-700 text-white'
+                                  }); return false;">
+                                @csrf
+                                <input type="hidden" name="reapply" value="1">
+                                <button type="submit" class="w-full inline-flex justify-center bg-white ring-1 ring-red-200 text-red-700 hover:bg-red-50 font-semibold px-4 py-3 rounded-xl text-sm">
+                                    {{ __('borrower.policy.withdraw_and_reapply') }}
+                                </button>
+                            </form>
+                        @else
+                            <a href="{{ route('site.borrower.application', $sameProductBlock['application_id']) }}"
+                               class="w-full inline-flex justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-3 rounded-xl text-sm">
+                                {{ __('borrower.policy.same_product_view') }}
+                            </a>
+                            <form method="POST" action="{{ route('site.borrower.application.withdraw', $sameProductBlock['application_id']) }}"
+                                  onsubmit="event.preventDefault(); confirmForm(this, {
+                                      title: @js(__('borrower.policy.withdraw_confirm_title')),
+                                      message: @js(__('borrower.policy.withdraw_confirm_body')),
+                                      confirmLabel: @js(__('borrower.policy.withdraw_confirm_action')),
+                                      tone: 'warning',
+                                      confirmClass: 'bg-red-600 hover:bg-red-700 text-white'
+                                  }); return false;">
+                                @csrf
+                                <button type="submit" class="w-full inline-flex justify-center bg-white ring-1 ring-red-200 text-red-700 hover:bg-red-50 font-semibold px-4 py-3 rounded-xl text-sm">
+                                    {{ __('borrower.policy.withdraw_and_reapply') }}
+                                </button>
+                            </form>
+                        @endif
                         <a href="{{ route('site.borrower.loan-products') }}"
                            class="w-full inline-flex justify-center bg-white ring-1 ring-gray-200 text-gray-800 font-semibold px-4 py-3 rounded-xl text-sm">
                             {{ __('borrower.policy.same_product_other') }}

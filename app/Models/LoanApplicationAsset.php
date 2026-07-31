@@ -71,7 +71,6 @@ class LoanApplicationAsset extends Model
     {
         $meta = $this->customerAsset?->metadata ?? [];
 
-        return filled($meta['insurance_document_path'] ?? null)
-            || filled($meta['details']['insurance_policy_number'] ?? null);
+        return filled($meta['insurance_document_path'] ?? null);
     }
 }

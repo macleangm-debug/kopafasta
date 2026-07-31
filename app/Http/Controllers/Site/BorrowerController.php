@@ -66,17 +66,61 @@ class BorrowerController extends Controller
         $c = Customer::where('user_id', Auth::id())->first();
         if (! $c) {
             $u = Auth::user();
+            [$firstName, $lastName] = $this->splitUserDisplayName((string) ($u->name ?? ''));
             $c = Customer::create([
                 'user_id'         => $u->id,
                 'customer_number' => 'CUS-'.strtoupper(Str::random(6)),
-                'first_name'      => $u->name,
-                'last_name'       => '',
+                'first_name'      => $firstName,
+                'last_name'       => $lastName,
                 'email'           => $u->email,
                 'type'            => 'individual',
                 'status'          => 'active',
             ]);
+        } else {
+            $this->healCustomerNameFromUser($c);
         }
+
         return $c;
+    }
+
+    /** @return array{0: string, 1: string} */
+    protected function splitUserDisplayName(string $name): array
+    {
+        $parts = preg_split('/\s+/', trim($name), 2) ?: [];
+        $first = trim((string) ($parts[0] ?? ''));
+        $last = trim((string) ($parts[1] ?? ''));
+
+        if ($first === '') {
+            $first = 'Member';
+        }
+        if ($last === '') {
+            $last = $first;
+        }
+
+        return [$first, $last];
+    }
+
+    /** Fix legacy rows that stuffed the full legal name into first_name with an empty last_name. */
+    protected function healCustomerNameFromUser(Customer $customer): void
+    {
+        if (filled($customer->last_name)) {
+            return;
+        }
+
+        $source = trim((string) (Auth::user()?->name ?: $customer->first_name));
+        if ($source === '' || ! str_contains($source, ' ')) {
+            return;
+        }
+
+        [$first, $last] = $this->splitUserDisplayName($source);
+        if ($last === '' || $last === $first) {
+            return;
+        }
+
+        $customer->forceFill([
+            'first_name' => $first,
+            'last_name' => $last,
+        ])->save();
     }
 
     protected function eligibility(Customer $c): array
@@ -228,6 +272,61 @@ class BorrowerController extends Controller
             ->with('status', __('borrower.policy.withdraw_success', [
                 'number' => $application->application_number,
             ]));
+    }
+
+    public function discardDraft(Request $request, \App\Models\LoanApplicationDraft $draft): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_if($draft->customer_id !== $customer->id, 404);
+
+        $productId = (int) $draft->loan_product_id;
+        $reference = $draft->draft_reference;
+        app(\App\Services\LoanApplicationDraftService::class)->clear($customer, $productId);
+
+        $reapply = $request->boolean('reapply') && $productId > 0;
+
+        return $reapply
+            ? redirect()->route('site.borrower.apply', ['product' => $productId])
+            : redirect()
+                ->route('site.borrower.loans', ['tab' => 'applications'])
+                ->with('status', __('borrower.policy.draft_discarded', [
+                    'number' => $reference ?: __('borrower.apply.title'),
+                ]));
+    }
+
+    public function replaceAssetDocument(Request $request, \App\Models\CustomerAsset $asset): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_if($asset->customer_id !== $customer->id || ! $asset->is_active, 404);
+
+        $data = $request->validate([
+            'document' => ['required', 'in:ownership_document,insurance_document'],
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
+        ]);
+
+        if ($data['document'] === 'insurance_document' && $asset->asset_type !== 'vehicle') {
+            return back()->with('error', __('borrower.profile.insurance_vehicle_only'));
+        }
+
+        $meta = $asset->metadata ?? [];
+        $key = $data['document'] === 'insurance_document'
+            ? 'insurance_document_path'
+            : 'ownership_document_path';
+        $previous = $meta[$key] ?? null;
+        $meta[$key] = $request->file('file')->store("customer/{$customer->id}/assets/docs", 'public');
+        if ($data['document'] === 'insurance_document') {
+            $details = (array) ($meta['details'] ?? []);
+            $details['insurance_type'] = $details['insurance_type'] ?? 'comprehensive';
+            $meta['details'] = $details;
+        }
+        $asset->update(['metadata' => $meta]);
+        if (filled($previous)) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($previous);
+        }
+
+        return redirect()
+            ->route('site.borrower.profile', ['section' => 'assets'])
+            ->with('status', __('borrower.profile.document_replaced'));
     }
 
     public function applicationOffer(LoanApplication $application): View

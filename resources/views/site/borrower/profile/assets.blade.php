@@ -245,6 +245,12 @@
                     $meta = $asset->metadata ?? [];
                     $gallery = $asset->galleryPaths();
                     $ownershipDoc = $meta['ownership_document_path'] ?? null;
+                    $insuranceDoc = $meta['insurance_document_path'] ?? null;
+                    $insuranceDetails = [
+                        'insurance_type' => $asset->detail('insurance_type'),
+                        'insurance_policy_number' => $asset->detail('insurance_policy_number'),
+                        'insurance_expires_at' => $asset->detail('insurance_expires_at'),
+                    ];
                 @endphp
                 <div x-show="openAsset === {{ $asset->id }}" x-cloak x-transition
                      class="fixed inset-0 z-[70] bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4"
@@ -259,7 +265,7 @@
                         </div>
 
                         <div class="p-5 space-y-6">
-                            {{-- Details --}}
+                            {{-- Details: all type fields --}}
                             <div class="rounded-2xl bg-brand-muted/25 ring-1 ring-brand/10 p-4">
                                 <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-3">{{ __('borrower.profile.collateral_details') }}</p>
                                 <dl class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
@@ -271,13 +277,25 @@
                                         @php
                                             $val = ($field['column'] ?? false) ? $asset->{$field['key']} : $asset->detail($field['key']);
                                         @endphp
-                                        @if (filled($val))
-                                            <div>
-                                                <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.profile.collateral_fields.'.$field['key']) }}</dt>
-                                                <dd class="font-semibold text-gray-900 mt-0.5">{{ $val }}</dd>
-                                            </div>
-                                        @endif
+                                        <div>
+                                            <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.profile.collateral_fields.'.$field['key']) }}</dt>
+                                            <dd class="font-semibold text-gray-900 mt-0.5 {{ filled($val) ? '' : 'text-gray-400 font-normal' }}">{{ filled($val) ? $val : __('borrower.profile.missing_value') }}</dd>
+                                        </div>
                                     @endforeach
+                                    @if ($asset->asset_type === 'vehicle')
+                                        @foreach ([
+                                            'insurance_type' => __('borrower.profile.collateral_fields.insurance_type'),
+                                            'insurance_policy_number' => __('borrower.profile.collateral_fields.insurance_policy_number'),
+                                            'insurance_expires_at' => __('borrower.profile.collateral_fields.insurance_expires_at'),
+                                        ] as $insKey => $insLabel)
+                                            <div>
+                                                <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ $insLabel }}</dt>
+                                                <dd class="font-semibold text-gray-900 mt-0.5 {{ filled($insuranceDetails[$insKey] ?? null) ? '' : 'text-gray-400 font-normal' }}">
+                                                    {{ filled($insuranceDetails[$insKey] ?? null) ? $insuranceDetails[$insKey] : __('borrower.profile.missing_value') }}
+                                                </dd>
+                                            </div>
+                                        @endforeach
+                                    @endif
                                 </dl>
                                 @if (filled($asset->description))
                                     <p class="text-sm text-gray-600 mt-3 pt-3 border-t border-brand/10">{{ $asset->description }}</p>
@@ -395,20 +413,63 @@
                                 @endif
                             </div>
 
-                            {{-- Ownership document --}}
-                            @if ($ownershipDoc)
-                                <div>
+                            {{-- Ownership + insurance documents --}}
+                            <div class="space-y-4">
+                                <div class="rounded-2xl ring-1 ring-gray-200 p-4">
                                     <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-2">{{ __('borrower.profile.ownership_document') }}</p>
-                                    @if (str_ends_with(strtolower($ownershipDoc), '.pdf'))
-                                        <a href="{{ asset('storage/'.$ownershipDoc) }}" target="_blank" class="inline-flex items-center gap-2 text-sm text-brand font-semibold">📄 {{ __('borrower.profile.view_document') }}</a>
+                                    @if ($ownershipDoc)
+                                        <div class="flex flex-wrap items-center gap-3">
+                                            @if (str_ends_with(strtolower($ownershipDoc), '.pdf'))
+                                                <a href="{{ asset('storage/'.$ownershipDoc) }}" target="_blank" class="inline-flex items-center gap-2 text-sm text-brand font-semibold">📄 {{ __('borrower.profile.view_document') }}</a>
+                                            @else
+                                                <button type="button" @click="lightbox = @js(asset('storage/'.$ownershipDoc))"
+                                                        class="block h-28 w-28 rounded-xl overflow-hidden ring-1 ring-gray-200 cursor-zoom-in">
+                                                    <img src="{{ asset('storage/'.$ownershipDoc) }}" alt="" class="h-full w-full object-cover">
+                                                </button>
+                                            @endif
+                                        </div>
                                     @else
-                                        <button type="button" @click="lightbox = @js(asset('storage/'.$ownershipDoc))"
-                                                class="block h-28 w-28 rounded-xl overflow-hidden ring-1 ring-gray-200 cursor-zoom-in">
-                                            <img src="{{ asset('storage/'.$ownershipDoc) }}" alt="" class="h-full w-full object-cover">
-                                        </button>
+                                        <p class="text-xs text-gray-500 mb-2">{{ __('borrower.profile.no_document_yet') }}</p>
                                     @endif
+                                    <form method="POST" action="{{ route('site.borrower.profile.assets.documents.replace', $asset) }}" enctype="multipart/form-data" class="mt-3">
+                                        @csrf
+                                        <input type="hidden" name="document" value="ownership_document">
+                                        <label class="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold px-4 py-2.5 rounded-xl text-sm cursor-pointer">
+                                            {{ $ownershipDoc ? __('borrower.profile.replace_document') : __('borrower.profile.upload_document') }}
+                                            <input type="file" name="file" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf" class="sr-only" onchange="this.form.submit()">
+                                        </label>
+                                    </form>
                                 </div>
-                            @endif
+
+                                @if ($asset->asset_type === 'vehicle')
+                                    <div class="rounded-2xl ring-1 ring-brand/20 bg-brand-muted/20 p-4">
+                                        <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-1">{{ __('borrower.profile.comprehensive_insurance') }}</p>
+                                        <p class="text-[11px] text-brand/80 mb-3">{{ __('borrower.profile.comprehensive_insurance_hint') }}</p>
+                                        @if ($insuranceDoc)
+                                            <div class="flex flex-wrap items-center gap-3 mb-3">
+                                                @if (str_ends_with(strtolower($insuranceDoc), '.pdf'))
+                                                    <a href="{{ asset('storage/'.$insuranceDoc) }}" target="_blank" class="inline-flex items-center gap-2 text-sm text-brand font-semibold">📄 {{ __('borrower.profile.view_document') }}</a>
+                                                @else
+                                                    <button type="button" @click="lightbox = @js(asset('storage/'.$insuranceDoc))"
+                                                            class="block h-28 w-28 rounded-xl overflow-hidden ring-1 ring-gray-200 cursor-zoom-in">
+                                                        <img src="{{ asset('storage/'.$insuranceDoc) }}" alt="" class="h-full w-full object-cover">
+                                                    </button>
+                                                @endif
+                                            </div>
+                                        @else
+                                            <p class="text-xs text-amber-700 mb-2">{{ __('borrower.profile.no_document_yet') }}</p>
+                                        @endif
+                                        <form method="POST" action="{{ route('site.borrower.profile.assets.documents.replace', $asset) }}" enctype="multipart/form-data">
+                                            @csrf
+                                            <input type="hidden" name="document" value="insurance_document">
+                                            <label class="inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm cursor-pointer">
+                                                {{ $insuranceDoc ? __('borrower.profile.replace_document') : __('borrower.profile.upload_document') }}
+                                                <input type="file" name="file" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf" class="sr-only" onchange="this.form.submit()">
+                                            </label>
+                                        </form>
+                                    </div>
+                                @endif
+                            </div>
 
                             {{-- Remove collateral --}}
                             <div class="pt-4 border-t border-gray-100">

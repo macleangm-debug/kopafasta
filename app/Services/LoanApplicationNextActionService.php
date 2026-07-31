@@ -35,11 +35,12 @@ class LoanApplicationNextActionService
         $firstMissing = $requirements->first(fn (array $item) => ! ($item['complete'] ?? false) && filled($item['action_url'] ?? null));
 
         if ($firstMissing) {
+            // Always resume the wizard — profile gaps are surfaced inside the apply flow.
             return $this->action(
                 'continue_application',
-                __('borrower.loan_profile.next_actions.upload', ['item' => $firstMissing['label']]),
+                __('borrower.loan_profile.next_actions.continue_form'),
                 __('borrower.loan_profile.actions.continue_to_form'),
-                $this->appendReturn((string) $firstMissing['action_url'], $profileUrl),
+                $wizardUrl,
             );
         }
 

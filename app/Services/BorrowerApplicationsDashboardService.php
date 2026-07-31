@@ -106,10 +106,12 @@ class BorrowerApplicationsDashboardService
             'detail'             => $feePending
                 ? __('borrower.applications_list.draft_fee_pending')
                 : __('borrower.applications_list.draft_in_progress'),
-            'action_url'         => $this->drafts->resumeUrl($customer, $draft),
-            'action_label'       => __('borrower.applications_list.view_application'),
+            'action_url'         => $this->drafts->wizardApplyUrl($draft, $resumeTarget),
+            'action_label'       => __('borrower.applications_list.continue_application'),
             'continue_url'       => $this->drafts->wizardApplyUrl($draft, $resumeTarget),
             'continue_label'     => __('borrower.applications_list.continue_application'),
+            'preview_url'        => $this->drafts->resumeUrl($customer, $draft),
+            'preview_label'      => __('borrower.applications_list.view_application'),
             'saved_at_human'     => optional($draft->saved_at)->diffForHumans(),
         ];
     }

@@ -311,7 +311,7 @@ class ProfileCompletionService
         foreach ($base as $key => $tab) {
             $complete = (bool) ($tab['complete'] ?? false);
             $status = match ($key) {
-                'personal' => $resolve($complete, 'personal'),
+                'personal' => $resolve($complete, 'personal', $complete ? null : ($this->personalSectionStarted($customer) ? 'in_progress' : 'not_started')),
                 'activity' => $resolve($complete, 'activity', $complete ? null : 'in_progress'),
                 'residence' => $resolve($complete, 'residence', $complete ? null : 'in_progress'),
                 'kyc' => $resolve($complete, 'kyc', $complete ? null : 'pending'),
@@ -343,5 +343,23 @@ class ProfileCompletionService
         }
 
         return $sections;
+    }
+
+    /** True when the borrower has started any personal / next-of-kin field. */
+    protected function personalSectionStarted(Customer $customer): bool
+    {
+        return filled($customer->first_name)
+            || filled($customer->last_name)
+            || filled($customer->date_of_birth)
+            || filled($customer->national_id)
+            || filled($customer->nok_first_name)
+            || filled($customer->nok_last_name)
+            || filled($customer->nok_name)
+            || filled($customer->nok_phone)
+            || filled($customer->nok_relationship)
+            || filled($customer->nok_region)
+            || filled($customer->nok_district)
+            || filled($customer->nok_street)
+            || in_array((string) ($customer->face_verification_status ?? 'incomplete'), ['pending', 'verified', 'rejected'], true);
     }
 }

@@ -44,9 +44,6 @@
                                     <span class="block text-sm font-semibold text-gray-900" x-text="asset.label"></span>
                                     <span class="block text-xs text-gray-500 mt-0.5"
                                           x-text="(assetTypeOptions[asset.asset_type] || asset.asset_type) + (asset.registration_number ? ' · ' + asset.registration_number : '')"></span>
-                                    <span class="block text-[11px] text-amber-700 mt-1" x-show="asset.asset_type === 'vehicle' && !asset.has_insurance">
-                                        {{ __('borrower.apply.asset_details.vehicle_needs_insurance') }}
-                                    </span>
                                 </span>
                             </label>
                         </template>
@@ -58,47 +55,41 @@
                 </div>
             </div>
 
-            <div x-show="customerAssets.length && selectedCustomerAssetIds().length" class="glass-card overflow-hidden ring-1 ring-brand/15">
-                <div class="bg-gradient-to-br from-brand-muted/50 to-white px-5 sm:px-6 py-4 border-b border-brand/10">
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.asset_details.request_not_offer_title') }}</p>
-                    <p class="text-sm text-gray-600 mt-2">{{ __('borrower.apply.asset_details.request_not_offer_body') }}</p>
-                </div>
-                <div class="p-5 sm:p-6 space-y-6">
-                    <div>
-                        <div class="flex items-end justify-between gap-3 mb-3">
-                            <label class="text-sm font-semibold text-gray-700">{{ __('borrower.apply.quote.loan_amount') }} <span class="text-rose-500">*</span></label>
-                            <span class="text-lg font-extrabold text-brand tabular-nums" x-text="formatTzs(form.requested_amount)"></span>
-                        </div>
-                        <input type="range"
-                               :min="current.min"
-                               :max="current.max"
-                               step="50000"
-                               x-model.number="form.requested_amount"
-                               @input="updateQuote()"
-                               class="w-full accent-brand h-2 rounded-full">
-                        <div class="flex justify-between text-xs text-gray-500 mt-2 tabular-nums">
-                            <span x-text="formatTzs(current.min)"></span>
-                            <span x-text="formatTzs(current.max)"></span>
-                        </div>
+            <div x-show="customerAssets.length && selectedCustomerAssetIds().length" class="glass-card p-5 sm:p-6 ring-1 ring-brand/15 space-y-6">
+                <div>
+                    <div class="flex items-end justify-between gap-3 mb-3">
+                        <label class="text-sm font-semibold text-gray-700">{{ __('borrower.apply.quote.loan_amount') }} <span class="text-rose-500">*</span></label>
+                        <span class="text-lg font-extrabold text-brand tabular-nums" x-text="formatTzs(form.requested_amount)"></span>
                     </div>
-                    <div>
-                        <div class="flex items-end justify-between gap-3 mb-3">
-                            <label class="text-sm font-semibold text-gray-700">{{ __('borrower.apply.quote.tenure') }} <span class="text-rose-500">*</span></label>
-                            <span class="text-lg font-extrabold text-brand tabular-nums">
-                                <span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.quote.months') }}
-                            </span>
-                        </div>
-                        <input type="range"
-                               :min="current.tmin"
-                               :max="current.tmax"
-                               step="1"
-                               x-model.number="form.requested_tenure_months"
-                               @input="updateQuote()"
-                               class="w-full accent-brand h-2 rounded-full">
-                        <div class="flex justify-between text-xs text-gray-500 mt-2 tabular-nums">
-                            <span><span x-text="current.tmin"></span> {{ __('borrower.apply.browse.months_short') }}</span>
-                            <span><span x-text="current.tmax"></span> {{ __('borrower.apply.browse.months_short') }}</span>
-                        </div>
+                    <input type="range"
+                           :min="current.min"
+                           :max="current.max"
+                           step="50000"
+                           x-model.number="form.requested_amount"
+                           @input="updateQuote()"
+                           class="w-full accent-brand h-2 rounded-full">
+                    <div class="flex justify-between text-xs text-gray-500 mt-2 tabular-nums">
+                        <span x-text="formatTzs(current.min)"></span>
+                        <span x-text="formatTzs(current.max)"></span>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-end justify-between gap-3 mb-3">
+                        <label class="text-sm font-semibold text-gray-700">{{ __('borrower.apply.quote.tenure') }} <span class="text-rose-500">*</span></label>
+                        <span class="text-lg font-extrabold text-brand tabular-nums">
+                            <span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.quote.months') }}
+                        </span>
+                    </div>
+                    <input type="range"
+                           :min="current.tmin"
+                           :max="current.tmax"
+                           step="1"
+                           x-model.number="form.requested_tenure_months"
+                           @input="updateQuote()"
+                           class="w-full accent-brand h-2 rounded-full">
+                    <div class="flex justify-between text-xs text-gray-500 mt-2 tabular-nums">
+                        <span><span x-text="current.tmin"></span> {{ __('borrower.apply.browse.months_short') }}</span>
+                        <span><span x-text="current.tmax"></span> {{ __('borrower.apply.browse.months_short') }}</span>
                     </div>
                 </div>
             </div>

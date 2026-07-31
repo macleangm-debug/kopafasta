@@ -20,18 +20,33 @@
                 </button>
             </div>
 
-            <div class="glass-card p-5 sm:p-6 ring-1 ring-brand/15 grid sm:grid-cols-3 gap-4">
-                <div>
-                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.apply.details.loan_amount') }}</p>
-                    <p class="mt-1 text-sm font-bold tabular-nums text-gray-900" x-text="formatTzs(readiness.product.min_amount) + ' – ' + formatTzs(readiness.product.max_amount)"></p>
+            <div class="grid sm:grid-cols-3 gap-3">
+                <div class="rounded-2xl bg-gradient-to-br from-brand-muted/50 to-white ring-1 ring-brand/15 px-4 py-4">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="size-8 rounded-xl bg-brand/10 text-brand grid place-items-center shrink-0" aria-hidden="true">
+                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </span>
+                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.details.loan_amount') }}</p>
+                    </div>
+                    <p class="text-sm font-bold tabular-nums text-gray-900 leading-snug" x-text="formatTzs(readiness.product.min_amount) + ' – ' + formatTzs(readiness.product.max_amount)"></p>
                 </div>
-                <div>
-                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.apply.details.tenure') }}</p>
-                    <p class="mt-1 text-sm font-bold tabular-nums text-gray-900" x-text="readiness.product.tenure_min_months + ' – ' + readiness.product.tenure_max_months + ' {{ __('borrower.apply.details.months') }}'"></p>
+                <div class="rounded-2xl bg-gradient-to-br from-brand-muted/50 to-white ring-1 ring-brand/15 px-4 py-4">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="size-8 rounded-xl bg-brand/10 text-brand grid place-items-center shrink-0" aria-hidden="true">
+                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        </span>
+                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.details.tenure') }}</p>
+                    </div>
+                    <p class="text-sm font-bold tabular-nums text-gray-900 leading-snug" x-text="readiness.product.tenure_min_months + ' – ' + readiness.product.tenure_max_months + ' {{ __('borrower.apply.details.months') }}'"></p>
                 </div>
-                <div>
-                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold" x-text="readiness.fees.application_label"></p>
-                    <p class="mt-1 text-sm font-bold tabular-nums text-brand" x-text="formatTzs(readiness.fees.application)"></p>
+                <div class="rounded-2xl bg-gradient-to-br from-brand/10 to-white ring-1 ring-brand/20 px-4 py-4">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="size-8 rounded-xl bg-brand text-white grid place-items-center shrink-0" aria-hidden="true">
+                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
+                        </span>
+                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold" x-text="readiness.fees.application_label"></p>
+                    </div>
+                    <p class="text-sm font-extrabold tabular-nums text-brand leading-snug" x-text="formatTzs(readiness.fees.application)"></p>
                 </div>
             </div>
 
