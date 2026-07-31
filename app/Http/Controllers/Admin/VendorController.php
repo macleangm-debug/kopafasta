@@ -32,6 +32,9 @@ class VendorController extends ResourceController
         return [
             'vendor_number'                  => ['prohibited'],
             'name'                           => ['required', 'string', 'max:150'],
+            'legal_name'                     => ['nullable', 'string', 'max:150'],
+            'registration_number'            => ['nullable', 'string', 'max:80'],
+            'tin'                            => ['nullable', 'string', 'max:40'],
             'category'                       => ['required', 'in:gps_installer,insurance,valuer,towing,yard,auctioneer,supplier,affiliate,call_center,debt_collector,legal_partner'],
             'roles'                          => ['nullable', 'array'],
             'roles.*'                        => ['string', 'in:gps_installer,insurance,valuer,towing,yard,auctioneer,supplier,affiliate,capital,call_center,debt_collector,legal_partner'],

@@ -1810,6 +1810,7 @@ return [
       'incomplete' => 'Inahitajika',
       'submitted' => 'Picha zimewasilishwa',
       'review_required' => 'Ukaguzi unahitajika',
+      'revision_required' => 'Picha mpya zimeombwa',
       'failed' => 'Imeshindwa',
 ],
     'result' => 

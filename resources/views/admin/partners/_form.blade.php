@@ -23,7 +23,10 @@
                 <p class="text-sm font-mono text-gray-900">{{ $r->vendor_number }}</p>
             </div>
         @endif
-        <x-admin.input  name="name"          label="Name"          :value="$r?->name"          required />
+        <x-admin.input  name="name"          label="Trading / display name" :value="$r?->name" required />
+        <x-admin.input  name="legal_name"    label="Legal business name" :value="$r?->legal_name" />
+        <x-admin.input  name="registration_number" label="BRELA / registration no." :value="$r?->registration_number" />
+        <x-admin.input  name="tin"           label="TIN" :value="$r?->tin" />
         <x-admin.select name="category"      label="Category"      :options="$categories"      :value="$category" required x-model="category"
                         @if (! $r && ($defaultCategory ?? null)) disabled @endif />
         @if (! $r && ($defaultCategory ?? null))

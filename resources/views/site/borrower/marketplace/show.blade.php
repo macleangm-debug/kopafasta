@@ -13,7 +13,7 @@
 
     <div class="grid lg:grid-cols-2 gap-6">
         <div>
-            @include('site.marketplace._photo-slider', ['photos' => $asset['photos'] ?? [], 'category' => $asset['category'] ?? 'other'])
+            @include('site.marketplace._photo-slider', ['photos' => $asset['photos'] ?? [], 'category' => $asset['category'] ?? 'other', 'zoom' => true])
         </div>
 
         <div>

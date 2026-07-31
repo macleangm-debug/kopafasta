@@ -12,11 +12,12 @@
         'verified' => [__('borrower.nida.face_status.verified'), 'bg-emerald-100 text-emerald-800'],
         'pending'  => [__('borrower.nida.face_status.submitted'), 'bg-sky-100 text-sky-800'],
         'rejected' => [__('borrower.nida.face_status.failed'), 'bg-red-100 text-red-800'],
+        'revision_required' => [__('borrower.nida.face_status.revision_required'), 'bg-amber-100 text-amber-800'],
         default    => [__('borrower.nida.face_status.incomplete'), 'bg-amber-100 text-amber-800'],
     };
     $photoEntries = collect($angles)->map(function ($meta, $key) use ($photos) {
         $photo = $photos[$key] ?? null;
-        $path = $photo?->file_path;
+        $path = is_object($photo) ? ($photo->file_path ?? null) : null;
         $url = filled($path) ? asset('storage/'.$path) : null;
 
         return [
@@ -26,7 +27,8 @@
         ];
     })->values();
     $captured = $photoEntries->filter(fn ($p) => filled($p['url']))->values();
-    $canReplaceFace = in_array($statusKey, ['rejected', 'incomplete', 'pending'], true);
+    // Uploads are locked while approved or under review; UW sets revision_required to unlock
+    $canReplaceFace = ! in_array($statusKey, ['verified', 'pending'], true);
 @endphp
 
 {{-- Mirror NIDA card + collateral lightbox: no overflow trap, teleport escape glass-card backdrop-filter --}}
@@ -64,10 +66,14 @@
         </div>
     @endunless
 
-    @if ($customer->face_rejection_notes && $statusKey === 'rejected')
+    @if ($customer->face_rejection_notes && in_array($statusKey, ['rejected', 'revision_required'], true))
         <div @class(['rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800', 'mx-5 mt-4' => ! $compact, 'mb-3' => $compact])>
-            <p class="font-medium">{{ __('borrower.face_verification_page.rejected_title') }}</p>
+            <p class="font-medium">{{ $statusKey === 'revision_required' ? __('borrower.apply.checklist.face_revision') : __('borrower.face_verification_page.rejected_title') }}</p>
             <p class="mt-1">{{ $customer->face_rejection_notes }}</p>
+        </div>
+    @elseif ($statusKey === 'revision_required')
+        <div @class(['rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900', 'mx-5 mt-4' => ! $compact, 'mb-3' => $compact])>
+            <p class="font-medium">{{ __('borrower.apply.checklist.face_revision') }}</p>
         </div>
     @endif
 

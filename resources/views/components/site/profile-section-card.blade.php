@@ -87,7 +87,7 @@
                     </a>
                 </div>
             @else
-                {{ $slot }}
+                {{ $view ?? $slot }}
             @endif
         </div>
     @endif

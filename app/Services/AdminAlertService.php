@@ -50,8 +50,8 @@ class AdminAlertService
                 'category' => 'customers',
             ],
             [
-                'key'      => 'affiliate_applications',
-                'label'    => 'Affiliate applications pending',
+                'key'      => 'partner_applications',
+                'label'    => 'Partner applications pending',
                 'count'    => PartnerApplication::where('status', 'pending')->count(),
                 'url'      => route('admin.partner-applications.index'),
                 'category' => 'partners',

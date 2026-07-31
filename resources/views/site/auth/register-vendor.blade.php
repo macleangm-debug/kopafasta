@@ -83,7 +83,14 @@
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Service category <span class="text-red-500">*</span></label>
                                     <div class="grid grid-cols-2 gap-2">
-                                        @foreach (['gps_installer'=>['GPS installer','📡'],'insurance_provider'=>['Insurance','🛡️'],'valuer'=>['Valuer','📋'],'yard_partner'=>['Yard partner','🏭'],'collection_partner'=>['Collections','💼'],'other'=>['Other','✨']] as $v=>$meta)
+                                        @foreach ([
+                                            'gps_installer' => ['GPS installer', '📡'],
+                                            'insurance' => ['Insurance', '🛡️'],
+                                            'valuer' => ['Valuer', '📋'],
+                                            'yard' => ['Yard partner', '🏭'],
+                                            'debt_collector' => ['Collections', '💼'],
+                                            'supplier' => ['Other / supplier', '✨'],
+                                        ] as $v => $meta)
                                             <label class="cursor-pointer">
                                                 <input type="radio" name="category" value="{{ $v }}" x-model="form.category" class="sr-only peer">
                                                 <div class="px-4 py-3 rounded-xl border-2 border-gray-200 peer-checked:border-gray-900 peer-checked:bg-gray-900 peer-checked:text-white text-sm font-medium text-gray-700 hover:border-gray-400 transition flex items-center gap-2">
@@ -92,6 +99,7 @@
                                             </label>
                                         @endforeach
                                     </div>
+                                    <p class="mt-2 text-xs text-gray-500">Prefer guided enrollment with business documents? <a href="{{ route('site.partners.apply', 'debt_collector') }}" class="font-semibold text-amber-700 hover:underline">Apply as a service partner</a>.</p>
                                 </div>
                             </div>
                         </div>

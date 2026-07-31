@@ -288,22 +288,22 @@
                     </x-slot:form>
                 </x-site.profile-section-card>
 
-                {{-- Face capture --}}
+                {{-- Face capture — always inline-edit like signature so Complete still shows previews + Edit --}}
                 @if ($requireIdentityDuringProfile || app(\App\Services\IdentityVerificationPolicyService::class)->facialRequired())
                 <x-site.profile-section-card
                     section-id="profile-face"
                     icon="📷"
                     :title="__('borrower.nida.face_title')"
                     :complete="$faceComplete"
-                    :empty="! $faceHasPhotos"
-                    :inline-edit="! in_array($faceKey, ['verified', 'pending'], true)"
-                    :default-open="$focusHash === 'face'"
+                    :empty="! $faceHasPhotos && ! $faceComplete"
+                    :inline-edit="true"
+                    :default-open="$focusHash === 'face' || in_array($faceKey, ['rejected', 'revision_required'], true)"
                     :allow-overflow="true">
                     <x-slot:view>
-                        @if ($faceHasPhotos && ! empty($faceAngles ?? []))
+                        @if (! empty($faceAngles ?? []))
                             <x-site.face-verification-status
                                 :customer="$customer"
-                                :photos="$facePhotos"
+                                :photos="$facePhotos ?? collect()"
                                 :angles="$faceAngles"
                                 :compact="true"
                             />
@@ -313,28 +313,42 @@
                                     'verified' => [__('borrower.nida.face_status.verified'), 'text-emerald-700'],
                                     'pending'  => [__('borrower.nida.face_status.submitted'), 'text-sky-700'],
                                     'rejected' => [__('borrower.nida.face_status.failed'), 'text-red-700'],
+                                    'revision_required' => [__('borrower.nida.face_status.revision_required'), 'text-amber-700'],
                                     default    => [__('borrower.nida.face_status.incomplete'), 'text-amber-700'],
                                 };
                             @endphp
                             <p class="text-sm font-semibold {{ $faceStatus[1] }}">{{ $faceStatus[0] }}</p>
                             <p class="text-xs text-gray-500 mt-2">{{ __('borrower.profile.face_angles_hint') }}</p>
+                            <a href="{{ route('site.borrower.face-verification') }}" class="inline-flex mt-3 text-sm font-semibold text-amber-700 hover:text-amber-800">
+                                {{ __('borrower.nida.face_replace') }}
+                            </a>
                         @endif
                     </x-slot:view>
                     <x-slot:form>
-                        @if (in_array($faceKey, ['verified', 'pending'], true))
-                            <x-site.face-verification-status
-                                :customer="$customer"
-                                :photos="$facePhotos ?? collect()"
-                                :angles="$faceAngles ?? []"
-                                :compact="true"
-                            />
-                        @elseif (isset($faceSteps, $faceUploadUrls))
+                        @if (in_array($faceKey, ['rejected', 'revision_required', 'incomplete'], true) && isset($faceSteps, $faceUploadUrls))
+                            @if ($faceKey === 'revision_required')
+                                <p class="text-sm text-amber-800 mb-4 font-medium">{{ __('borrower.apply.checklist.face_revision') }}</p>
+                            @elseif ($faceKey === 'rejected' && filled($customer->face_rejection_notes))
+                                <p class="text-sm text-red-800 mb-4">{{ $customer->face_rejection_notes }}</p>
+                            @endif
                             @include('site.borrower.profile._face_inline', [
                                 'steps' => $faceSteps,
                                 'uploadUrls' => $faceUploadUrls,
                                 'deleteUrls' => $faceDeleteUrls ?? [],
                                 'wizard' => $faceWizard ?? ['current_index' => 0],
                             ])
+                        @elseif (isset($faceSteps, $faceUploadUrls) || ! empty($faceAngles ?? []))
+                            <x-site.face-verification-status
+                                :customer="$customer"
+                                :photos="$facePhotos ?? collect()"
+                                :angles="$faceAngles ?? []"
+                                :compact="true"
+                            />
+                            @if ($faceKey === 'pending')
+                                <p class="text-xs text-gray-500 mt-3">{{ __('borrower.nida.face_submitted_body') }}</p>
+                            @elseif ($faceKey === 'verified')
+                                <p class="text-xs text-gray-500 mt-3">{{ __('borrower.nida.face_replace_hint') }}</p>
+                            @endif
                         @else
                             <p class="text-sm text-gray-600">{{ __('borrower.nida.face_capture_hint') }}</p>
                             <a href="{{ route('site.borrower.face-verification') }}" class="inline-flex mt-3 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2 rounded-full text-sm">

@@ -21,14 +21,15 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('site.affiliate.apply.post') }}" class="glass-card p-6 sm:p-8 space-y-5">
+        <form method="POST" action="{{ route('site.affiliate.apply.post') }}" enctype="multipart/form-data" class="glass-card p-6 sm:p-8 space-y-5"
+              x-data="{ applicant: @js(old('applicant_category', 'individual')) }">
             @csrf
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-2">{{ __('site.affiliate.type_hint') }}</label>
                 <div class="grid sm:grid-cols-3 gap-2">
                     @foreach (['individual' => __('site.affiliate.type_individual'), 'company' => __('site.affiliate.type_company'), 'institution' => __('site.affiliate.type_institution')] as $value => $label)
                         <label class="cursor-pointer">
-                            <input type="radio" name="applicant_category" value="{{ $value }}" class="peer sr-only" @checked(old('applicant_category', 'individual') === $value) required>
+                            <input type="radio" name="applicant_category" value="{{ $value }}" class="peer sr-only" x-model="applicant" @checked(old('applicant_category', 'individual') === $value) required>
                             <span class="block rounded-xl ring-1 ring-gray-200 px-3 py-3 text-center text-sm font-semibold peer-checked:ring-brand peer-checked:bg-brand-muted/50 transition">{{ $label }}</span>
                         </label>
                     @endforeach
@@ -68,6 +69,36 @@
                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.message') }}</label>
                 <textarea name="message" rows="4" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" placeholder="{{ __('site.affiliate_apply.message_placeholder') }}">{{ old('message') }}</textarea>
             </div>
+
+            <div class="space-y-3 rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 p-4" x-show="['company','institution'].includes(applicant)" x-cloak>
+                <p class="text-xs font-semibold uppercase tracking-wide text-brand">{{ __('site.partner_apply.business_section') }}</p>
+                <div class="grid sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_apply.legal_name') }}</label>
+                        <input name="legal_name" value="{{ old('legal_name') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_apply.registration_number') }}</label>
+                        <input name="registration_number" value="{{ old('registration_number') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_apply.tin') }}</label>
+                        <input name="tin" value="{{ old('tin') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500">{{ __('site.partner_apply.documents_hint') }}</p>
+                @foreach ([
+                    'doc_brela' => 'BRELA / company registration',
+                    'doc_tin_certificate' => 'TIN certificate',
+                    'doc_business_licence' => 'Business licence',
+                ] as $input => $label)
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ $label }}</label>
+                        <input type="file" name="{{ $input }}" accept=".jpg,.jpeg,.png,.pdf" class="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white">
+                    </div>
+                @endforeach
+            </div>
+
             <button class="w-full sm:w-auto bg-brand hover:bg-brand-light text-white font-semibold px-8 py-3 rounded-xl text-sm">{{ __('site.affiliate_apply.submit') }}</button>
         </form>
     </div>

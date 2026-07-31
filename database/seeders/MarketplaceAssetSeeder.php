@@ -21,7 +21,7 @@ class MarketplaceAssetSeeder extends Seeder
                 'asset_value' => 45000000,
                 'supplier_deposit' => 9000000,
                 'weekly_installment' => 850000,
-                'photos' => ['https://images.unsplash.com/photo-1533473359331-0135ef1eb58e?auto=format&fit=crop&w=800&q=80'],
+                'photos' => ['https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?auto=format&fit=crop&w=800&q=80'],
             ],
             [
                 'slug' => 'isuzu-dmax-2021',

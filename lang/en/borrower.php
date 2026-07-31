@@ -1746,6 +1746,7 @@ return [
             'submitted' => 'Photos submitted',
             'pending' => 'Review required',
             'review_required' => 'Review required',
+            'revision_required' => 'New photos requested',
             'rejected' => 'Failed',
             'failed' => 'Failed',
             'incomplete' => 'Required',

@@ -95,6 +95,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
     Route::get('/country/{code}',   [\App\Http\Controllers\Site\PageController::class, 'country'])->name('country');
     Route::get('/become-affiliate', [\App\Http\Controllers\Site\PartnerApplicationController::class, 'create'])->name('affiliate.apply');
     Route::post('/become-affiliate', [\App\Http\Controllers\Site\PartnerApplicationController::class, 'store'])->name('affiliate.apply.post');
+    Route::get('/partners/apply/{category?}', [\App\Http\Controllers\Site\PartnerApplicationController::class, 'createService'])->name('partners.apply');
+    Route::post('/partners/apply', [\App\Http\Controllers\Site\PartnerApplicationController::class, 'storeService'])->name('partners.apply.post');
 
     Route::get('/marketplace', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'publicIndex'])->name('marketplace');
     Route::post('/marketplace/request', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'storePublicRequest'])->name('marketplace.request');
@@ -599,6 +601,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('asset-requests', [\App\Http\Controllers\Admin\AssetRequestController::class, 'index'])->name('asset-requests.index')->middleware('permission:marketplace.view,marketplace.manage');
         Route::put('asset-requests/{assetRequest}', [\App\Http\Controllers\Admin\AssetRequestController::class, 'update'])->name('asset-requests.update')->middleware('permission:marketplace.manage');
         Route::get('partner-applications', [\App\Http\Controllers\Admin\PartnerApplicationController::class, 'index'])->name('partner-applications.index');
+        Route::get('partner-applications/{partnerApplication}', [\App\Http\Controllers\Admin\PartnerApplicationController::class, 'show'])->name('partner-applications.show');
         Route::put('partner-applications/{partnerApplication}', [\App\Http\Controllers\Admin\PartnerApplicationController::class, 'update'])->name('partner-applications.update');
         Route::middleware('permission:marketplace.view,marketplace.manage')->group(function (): void {
             Route::view('marketplace-assets', 'admin.marketplace-assets.index')->name('marketplace-assets.index');

@@ -749,12 +749,14 @@ class AuthController extends Controller
     {
         $data = $request->validate([
             'name'       => ['required', 'string', 'max:120'],
-            'category'   => ['required', 'string', 'max:60'],
+            'category'   => ['required', 'string', 'in:gps_installer,insurance,valuer,yard,debt_collector,supplier,auctioneer,legal_partner,call_center,towing'],
             'email'      => ['required', 'email', 'unique:users,email'],
             'phone'      => ['required', 'string', 'max:20'],
             'address'    => ['nullable', 'string', 'max:255'],
             'password'   => ['required', 'string', 'min:8', 'confirmed'],
         ]);
+
+        $data['category'] = app(\App\Services\PartnerEnrollmentService::class)->normalizeCategory($data['category']);
 
         $user = DB::transaction(function () use ($data) {
             $user = User::create([
