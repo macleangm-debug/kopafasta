@@ -2263,7 +2263,6 @@ export function applyWizard(config) {
                             return false;
                         }
                     }
-                    }
                     if (this.stepKey === 'guarantor' && this.hasStep('guarantor')) {
                         this.syncGuarantorFormFromDom();
                         if (! this.form.guarantor_mode || this.form.guarantor_mode === 'none') {
