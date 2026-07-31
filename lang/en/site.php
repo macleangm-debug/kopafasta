@@ -98,6 +98,8 @@ return [
         'back'                  => 'Back',
         'partner_type'          => 'Partner type',
         'applicant_type'        => 'Applicant type',
+        'company_only_hint'     => 'This partner type registers as a company / business.',
+        'individual_hint'       => 'As an individual valuer you can still upload professional documents in the Documents step.',
         'contact_name'          => 'Contact person full name',
         'business_section'      => 'Business profile',
         'trading_name'          => 'Trading / business name',
@@ -462,6 +464,23 @@ return [
         'commission_body'   => 'Earn competitive commission on referred membership fees and loan applications. Rates vary by product and are disclosed in your affiliate agreement.',
         'portal_title'      => 'Affiliate portal',
         'portal_body'       => 'Once activated, access your dashboard to view referrals, wallet balance, and marketing materials.',
+    ],
+
+    'partner_portal' => [
+        'nav_dashboard'     => 'Dashboard',
+        'nav_jobs'          => 'Jobs',
+        'nav_recovery'      => 'Recovery cases',
+        'nav_commission'    => 'Commission wallet',
+        'nav_documents'     => 'Documents',
+        'nav_payments'      => 'Payments',
+        'nav_calendar'      => 'Calendar',
+        'nav_notifications' => 'Notifications',
+        'nav_support'       => 'Support',
+        'nav_profile'       => 'Profile',
+        'jobs_title'        => 'Jobs',
+        'jobs_subtitle'     => 'All assigned work across statuses. Filter, open a job, and upload proof.',
+        'view_all'          => 'View all',
+        'no_notifications'  => 'No notifications yet.',
     ],
 
     'affiliate_portal' => [

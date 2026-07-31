@@ -84,7 +84,7 @@ class PartnerApplicationController extends Controller
             'full_name' => ['required', 'string', 'max:150'],
             'email' => ['required', 'email', 'max:150'],
             'phone' => ['required', 'string', 'max:30'],
-            'business_name' => ['required', 'string', 'max:150'],
+            'business_name' => ['nullable', 'string', 'max:150'],
             'legal_name' => ['nullable', 'string', 'max:150'],
             'registration_number' => ['nullable', 'string', 'max:80'],
             'tin' => ['nullable', 'string', 'max:40'],
@@ -100,7 +100,21 @@ class PartnerApplicationController extends Controller
 
         $category = $enrollment->normalizeCategory($data['partner_category']);
 
-        if (in_array($category, ['debt_collector', 'valuer', 'gps_installer', 'insurance', 'yard'], true)) {
+        // Only valuers may register as individuals; all other service partners are companies.
+        if ($category !== 'valuer') {
+            $data['applicant_category'] = 'company';
+        }
+
+        if ($data['applicant_category'] === 'company' && blank($data['business_name'] ?? null)) {
+            return back()->withErrors(['business_name' => __('validation.required', ['attribute' => 'business name'])])->withInput();
+        }
+
+        if ($data['applicant_category'] === 'individual') {
+            $data['business_name'] = $data['business_name'] ?: $data['full_name'];
+        }
+
+        if ($data['applicant_category'] === 'company'
+            && in_array($category, ['debt_collector', 'valuer', 'gps_installer', 'insurance', 'yard'], true)) {
             if (blank($data['registration_number'] ?? null)) {
                 return back()->withErrors(['registration_number' => __('site.partner_apply.registration_required')])->withInput();
             }

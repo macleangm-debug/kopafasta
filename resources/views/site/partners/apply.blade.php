@@ -63,17 +63,25 @@
 
             {{-- Step 1: Contact --}}
             <div x-show="step === 1" x-cloak class="space-y-5">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-2">{{ __('site.partner_apply.applicant_type') }}</label>
-                    <div class="grid grid-cols-2 gap-2">
-                        @foreach (['individual' => __('site.affiliate.type_individual'), 'company' => __('site.affiliate.type_company')] as $value => $label)
-                            <label class="cursor-pointer">
-                                <input type="radio" name="applicant_category" value="{{ $value }}" class="peer sr-only" x-model="applicant" @checked(old('applicant_category', 'company') === $value) required>
-                                <span class="block rounded-xl ring-1 ring-gray-200 px-3 py-3 text-center text-sm font-semibold peer-checked:ring-brand peer-checked:bg-brand-muted/50 transition">{{ $label }}</span>
-                            </label>
-                        @endforeach
+                @if ($category === 'valuer')
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-2">{{ __('site.partner_apply.applicant_type') }}</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            @foreach (['individual' => __('site.affiliate.type_individual'), 'company' => __('site.affiliate.type_company')] as $value => $label)
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="applicant_category" value="{{ $value }}" class="peer sr-only" x-model="applicant" @checked(old('applicant_category', 'company') === $value) required>
+                                    <span class="block rounded-xl ring-1 ring-gray-200 px-3 py-3 text-center text-sm font-semibold peer-checked:ring-brand peer-checked:bg-brand-muted/50 transition">{{ $label }}</span>
+                                </label>
+                            @endforeach
+                        </div>
                     </div>
-                </div>
+                @else
+                    <input type="hidden" name="applicant_category" value="company" x-init="applicant = 'company'">
+                    <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/15 px-4 py-3 text-sm text-brand">
+                        <span class="font-semibold">{{ __('site.affiliate.type_company') }}</span>
+                        <span class="text-brand/70"> — {{ __('site.partner_apply.company_only_hint') }}</span>
+                    </div>
+                @endif
 
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_apply.contact_name') }}</label>
@@ -96,22 +104,27 @@
                     <p class="text-xs font-semibold uppercase tracking-wide text-brand">{{ __('site.partner_apply.business_section') }}</p>
                     <div>
                         <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_apply.trading_name') }}</label>
-                        <input name="business_name" value="{{ old('business_name') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                        <input name="business_name" value="{{ old('business_name') }}"
+                               :required="applicant === 'company'"
+                               class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                     </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_apply.legal_name') }}</label>
-                        <input name="legal_name" value="{{ old('legal_name') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" placeholder="{{ __('site.partner_apply.legal_name_hint') }}">
-                    </div>
-                    <div class="grid sm:grid-cols-2 gap-4">
+                    <div x-show="applicant === 'company'" x-cloak class="space-y-4">
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_apply.registration_number') }}</label>
-                            <input name="registration_number" value="{{ old('registration_number') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_apply.legal_name') }}</label>
+                            <input name="legal_name" value="{{ old('legal_name') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" placeholder="{{ __('site.partner_apply.legal_name_hint') }}">
                         </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_apply.tin') }}</label>
-                            <input name="tin" value="{{ old('tin') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                        <div class="grid sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_apply.registration_number') }}</label>
+                                <input name="registration_number" value="{{ old('registration_number') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_apply.tin') }}</label>
+                                <input name="tin" value="{{ old('tin') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                            </div>
                         </div>
                     </div>
+                    <p x-show="applicant === 'individual'" x-cloak class="text-xs text-gray-600">{{ __('site.partner_apply.individual_hint') }}</p>
                 </div>
 
                 <div>

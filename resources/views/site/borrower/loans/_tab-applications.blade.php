@@ -84,12 +84,22 @@
             @php $badge = $toneClasses[$row['status_tone']] ?? $toneClasses['sky']; @endphp
             <div class="glass-card p-5">
                 <div class="flex items-start justify-between gap-3 mb-3">
-                    <div>
+                    <div class="min-w-0">
                         <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ $row['loan_type'] }}</p>
-                        <p class="font-mono font-semibold text-sm mt-0.5">{{ $row['application_number'] }}</p>
-                        <p class="text-xs text-gray-500">{{ $row['product_name'] }}</p>
+                        <p class="text-lg sm:text-xl font-bold text-gray-900 tracking-tight mt-0.5 leading-snug">{{ $row['product_name'] }}</p>
+                        <p class="font-mono text-xs text-gray-500 mt-1">{{ $row['application_number'] }}</p>
                     </div>
-                    <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $badge }}">{{ $row['application_status'] ?? $row['status_label'] }}</span>
+                    <div class="flex flex-col items-end gap-1.5 shrink-0">
+                        <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $badge }}">{{ $row['application_status'] ?? $row['status_label'] }}</span>
+                        @if (! empty($row['underwriting_actions']))
+                            <a href="{{ route('site.borrower.application', $row['id']) }}"
+                               class="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-900 ring-1 ring-amber-200 px-2 py-1 text-[10px] font-bold uppercase tracking-wide"
+                               title="{{ __('borrower.loan_profile.uw_feedback_title') }}">
+                                <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                                {{ count($row['underwriting_actions']) }}
+                            </a>
+                        @endif
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3 mb-4">
@@ -124,17 +134,11 @@
                 @endif
 
                 @if (! empty($row['underwriting_actions']))
-                    <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200/80 px-3 py-3">
-                        <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">{{ __('borrower.loan_profile.uw_feedback_title') }}</p>
-                        <div class="mt-2 flex flex-wrap gap-2">
-                            @foreach ($row['underwriting_actions'] as $uwAction)
-                                <a href="{{ $uwAction['url'] }}"
-                                   class="inline-flex items-center gap-1.5 rounded-full bg-white ring-1 ring-amber-200 px-3 py-1.5 text-xs font-semibold text-amber-950 hover:bg-amber-100">
-                                    <span>{{ $uwAction['label'] }}</span>
-                                    <span class="text-brand">→ {{ $uwAction['cta_label'] }}</span>
-                                </a>
-                            @endforeach
-                        </div>
+                    <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200/80 px-3 py-2.5 flex items-center justify-between gap-2">
+                        <p class="text-xs text-amber-950 font-semibold">{{ __('borrower.loan_profile.uw_feedback_title') }}</p>
+                        <a href="{{ route('site.borrower.application', $row['id']) }}" class="text-xs font-bold text-brand hover:underline shrink-0">
+                            {{ __('borrower.applications_list.view') }} →
+                        </a>
                     </div>
                 @elseif (! empty($row['underwriting_active']))
                     <div class="mb-4 rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 px-3 py-3">

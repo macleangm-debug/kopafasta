@@ -12,18 +12,16 @@ class PartnerPortalNavService
     public function serviceNav(?Vendor $vendor): array
     {
         $nav = [
-            ['key' => 'dashboard', 'label' => 'Dashboard', 'route' => 'site.partner.dashboard', 'icon' => 'home'],
-            ['key' => 'tasks', 'label' => 'Assigned Tasks', 'route' => 'site.partner.tasks', 'icon' => 'clipboard'],
-            ['key' => 'active', 'label' => 'Active Jobs', 'route' => 'site.partner.tasks.active', 'icon' => 'play'],
-            ['key' => 'completed', 'label' => 'Completed Jobs', 'route' => 'site.partner.tasks.completed', 'icon' => 'check'],
-            ['key' => 'recovery', 'label' => 'Recovery Cases', 'route' => 'site.partner.recovery-cases', 'icon' => 'alert'],
-            ['key' => 'recovery_wallet', 'label' => 'Commission Wallet', 'route' => 'site.partner.recovery-wallet', 'icon' => 'wallet'],
-            ['key' => 'documents', 'label' => 'Documents', 'route' => 'site.partner.documents', 'icon' => 'folder'],
-            ['key' => 'payments', 'label' => 'Payments', 'route' => 'site.partner.payments', 'icon' => 'wallet'],
-            ['key' => 'calendar', 'label' => 'Calendar', 'route' => 'site.partner.calendar', 'icon' => 'calendar'],
-            ['key' => 'notifications', 'label' => 'Notifications', 'route' => 'site.partner.notifications', 'icon' => 'bell'],
-            ['key' => 'support', 'label' => 'Support', 'route' => 'site.partner.support', 'icon' => 'help'],
-            ['key' => 'profile', 'label' => 'Profile', 'route' => 'site.partner.profile', 'icon' => 'user'],
+            ['key' => 'dashboard', 'label' => __('site.partner_portal.nav_dashboard'), 'route' => 'site.partner.dashboard', 'icon' => 'home'],
+            ['key' => 'tasks', 'label' => __('site.partner_portal.nav_jobs'), 'route' => 'site.partner.tasks', 'icon' => 'clipboard'],
+            ['key' => 'recovery', 'label' => __('site.partner_portal.nav_recovery'), 'route' => 'site.partner.recovery-cases', 'icon' => 'alert'],
+            ['key' => 'recovery_wallet', 'label' => __('site.partner_portal.nav_commission'), 'route' => 'site.partner.recovery-wallet', 'icon' => 'wallet'],
+            ['key' => 'documents', 'label' => __('site.partner_portal.nav_documents'), 'route' => 'site.partner.documents', 'icon' => 'folder'],
+            ['key' => 'payments', 'label' => __('site.partner_portal.nav_payments'), 'route' => 'site.partner.payments', 'icon' => 'wallet'],
+            ['key' => 'calendar', 'label' => __('site.partner_portal.nav_calendar'), 'route' => 'site.partner.calendar', 'icon' => 'calendar'],
+            ['key' => 'notifications', 'label' => __('site.partner_portal.nav_notifications'), 'route' => 'site.partner.notifications', 'icon' => 'bell'],
+            ['key' => 'support', 'label' => __('site.partner_portal.nav_support'), 'route' => 'site.partner.support', 'icon' => 'help'],
+            ['key' => 'profile', 'label' => __('site.partner_portal.nav_profile'), 'route' => 'site.partner.profile', 'icon' => 'user'],
         ];
 
         $showRecovery = $vendor && app(RecoveryPartnerService::class)->isRecoveryPartner($vendor);
@@ -34,7 +32,7 @@ class PartnerPortalNavService
             ));
         }
 
-        // Collection-focused partners: lead with recovery tools
+        // Collection-focused partners: lead with recovery tools; hide job calendar noise
         if ($showRecovery && in_array($vendor?->category, ['debt_collector', 'call_center', 'legal_partner', 'auctioneer'], true)) {
             $priority = ['dashboard', 'recovery', 'recovery_wallet', 'tasks', 'documents', 'payments', 'notifications', 'support', 'profile'];
             usort($nav, function (array $a, array $b) use ($priority) {
@@ -45,11 +43,10 @@ class PartnerPortalNavService
 
                 return $ai <=> $bi;
             });
-            // Hide job calendar noise for pure recovery roles
             if (in_array($vendor?->category, ['debt_collector', 'call_center', 'legal_partner'], true)) {
                 $nav = array_values(array_filter(
                     $nav,
-                    fn (array $item) => ! in_array($item['key'], ['active', 'completed', 'calendar'], true)
+                    fn (array $item) => $item['key'] !== 'calendar'
                 ));
             }
         }

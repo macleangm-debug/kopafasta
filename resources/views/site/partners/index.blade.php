@@ -58,11 +58,14 @@
                     ['legal_partner', '⚖️', __('site.partner_apply.types.legal_partner'), __('site.partners.card_legal')],
                     ['call_center', '🎧', __('site.partner_apply.types.call_center'), __('site.partners.card_call_center')],
                 ] as [$slug, $icon, $title, $body])
-                    <a href="{{ route('site.partners.apply', $slug) }}" class="glass-card p-6 hover:shadow-lg transition block group">
-                        <div class="size-12 grid place-items-center rounded-2xl bg-brand-muted text-2xl mb-3">{{ $icon }}</div>
-                        <h3 class="font-bold text-gray-900 group-hover:text-brand transition">{{ $title }}</h3>
-                        <p class="mt-2 text-sm text-gray-600 leading-relaxed">{{ $body }}</p>
-                        <span class="mt-4 inline-flex text-sm font-semibold text-brand">{{ __('site.partners.apply_now') }} →</span>
+                    <a href="{{ route('site.partners.apply', $slug) }}" class="group relative overflow-hidden rounded-2xl bg-brand text-white p-6 shadow-lg hover:shadow-xl transition block ring-1 ring-brand/20">
+                        <div class="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)] pointer-events-none"></div>
+                        <div class="relative">
+                            <div class="size-12 grid place-items-center rounded-2xl bg-brand-gold text-brand text-2xl mb-3 shadow-sm">{{ $icon }}</div>
+                            <h3 class="font-bold text-white group-hover:text-brand-gold transition">{{ $title }}</h3>
+                            <p class="mt-2 text-sm text-white/75 leading-relaxed">{{ $body }}</p>
+                            <span class="mt-4 inline-flex text-sm font-semibold text-brand-gold">{{ __('site.partners.apply_now') }} →</span>
+                        </div>
                     </a>
                 @endforeach
             </div>

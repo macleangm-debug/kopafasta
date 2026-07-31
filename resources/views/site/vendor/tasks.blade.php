@@ -1,7 +1,7 @@
-<x-site.vendor-layout title="Assigned tasks" active="tasks">
+<x-site.vendor-layout :title="__('site.partner_portal.jobs_title')" active="tasks">
     @php
         $tabs = [
-            'all'         => 'All',
+            'all'         => __('site.partner_portal.jobs_title'),
             'assigned'    => 'Assigned',
             'in_progress' => 'In progress',
             'completed'   => 'Completed',
@@ -11,7 +11,7 @@
         $current = $status ?: 'all';
         $badge = fn ($s) => match ($s) {
             'assigned'    => 'bg-amber-100 text-amber-700',
-            'in_progress' => 'bg-indigo-100 text-indigo-700',
+            'in_progress' => 'bg-brand-muted text-brand',
             'completed'   => 'bg-emerald-100 text-emerald-700',
             'rejected'    => 'bg-red-100 text-red-700',
             'cancelled'   => 'bg-gray-100 text-gray-600',
@@ -19,16 +19,23 @@
         };
     @endphp
 
-    <h1 class="text-2xl font-extrabold mb-1">Assigned tasks</h1>
-    <p class="text-sm text-gray-500 mb-5">All work assigned to you. Tap a task to see details and upload proof.</p>
+    <div class="flex flex-wrap items-end justify-between gap-3 mb-5">
+        <div>
+            <h1 class="text-2xl font-extrabold mb-1">{{ __('site.partner_portal.jobs_title') }}</h1>
+            <p class="text-sm text-gray-500">{{ __('site.partner_portal.jobs_subtitle') }}</p>
+        </div>
+        <a href="{{ route('site.partner.calendar') }}" class="inline-flex items-center gap-2 text-sm font-semibold text-brand hover:underline">
+            {{ __('site.partner_portal.nav_calendar') }} →
+        </a>
+    </div>
 
     {{-- Filter pills --}}
     <div class="flex flex-wrap gap-2 mb-5">
         @foreach ($tabs as $k => $label)
             <a href="{{ route('site.partner.tasks', $k === 'all' ? [] : ['status' => $k]) }}"
                class="px-3 py-1.5 rounded-full text-xs font-semibold border
-                      {{ $current === $k ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50' }}">
-                {{ $label }}
+                      {{ $current === $k ? 'bg-brand text-white border-brand' : 'bg-white text-gray-700 border-gray-300 hover:bg-brand-muted/40' }}">
+                {{ $k === 'all' ? 'All' : $label }}
             </a>
         @endforeach
     </div>

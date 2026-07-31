@@ -2953,6 +2953,11 @@ return [
 
     'policy' => [
         'max_active_applications' => 'You already have the maximum of :max active :product application(s). Complete or withdraw the existing one before starting another.',
+        'same_product_title' => 'You already have an open application for this product',
+        'same_product_existing' => 'Existing application: :number',
+        'same_product_hint' => 'Continue or cancel the open application first. You can apply again for the same product after it is rejected by underwriting.',
+        'same_product_view' => 'View existing application',
+        'same_product_other' => 'Browse other products',
         'max_active_loans' => 'You already have the maximum of :max active loan(s). Complete repayment before applying for another loan.',
         'max_active_guarantees' => 'This member has reached the maximum of :max active guarantees.',
         'restructure_disabled' => 'Loan restructuring is not currently available.',

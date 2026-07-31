@@ -285,11 +285,14 @@
                             <span class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $adminAlerts->unreadCount() > 9 ? '9+' : $adminAlerts->unreadCount() }}</span>
                         @endif
                     </summary>
-                    <div class="absolute right-0 top-full mt-2 w-96 rounded-xl bg-white shadow-xl ring-1 ring-gray-200 overflow-hidden z-50">
-                        <div class="px-4 py-3 border-b border-gray-100"><p class="text-sm font-semibold">Admin alerts</p></div>
+                    <div class="absolute right-0 top-full mt-2 w-96 rounded-2xl bg-white/95 shadow-xl ring-1 ring-brand/10 overflow-hidden z-50 backdrop-blur">
+                        <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                            <p class="text-sm font-semibold text-gray-900">Admin alerts</p>
+                        </div>
                         @forelse ($adminAlertItems as $alert)
-                            <a href="{{ $alert['url'] }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-50">
-                                <p class="text-sm text-gray-800">{{ $alert['label'] }}</p>
+                            <a href="{{ $alert['url'] }}" class="block px-4 py-3 hover:bg-brand-muted/30 border-b border-gray-50">
+                                <p class="text-[11px] font-bold uppercase tracking-widest text-brand">{{ $alert['group'] ?? 'Queue' }}</p>
+                                <p class="text-sm text-gray-800 mt-0.5">{{ $alert['label'] }}</p>
                                 <p class="text-xs text-amber-700 font-semibold mt-0.5">{{ $alert['count'] }} pending</p>
                             </a>
                         @empty
@@ -411,31 +414,44 @@
             )" />
         @endif
 
-        @if (session('status'))
-            <div class="mb-4 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-800">
-                {{ session('status') }}
-            </div>
-        @endif
-
-        @if (session('error'))
-            <div class="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
-                {{ session('error') }}
-            </div>
-        @endif
-
-        @if ($errors instanceof \Illuminate\Support\ViewErrorBag && $errors->any())
-            <div class="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
-                <ul class="list-disc list-inside space-y-1">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
+        {{-- Flash + validation feedback is shown via premium modal (below). --}}
 
         {{ $slot }}
     </main>
 </div>
+
+<x-site.feedback-modal name="admin" title="Console" />
+<script>
+    window.showAdminFeedback = (detail = {}) => {
+        window.dispatchEvent(new CustomEvent('open-feedback-admin', {
+            detail: typeof detail === 'string' ? { message: detail } : detail,
+        }));
+    };
+    document.addEventListener('DOMContentLoaded', () => {
+        @if (session('status'))
+            window.showAdminFeedback({
+                tone: 'success',
+                title: @js(__('borrower.feedback.tones.success')),
+                message: @js(session('status')),
+            });
+        @endif
+        @if (session('error'))
+            window.showAdminFeedback({
+                tone: 'error',
+                title: @js(__('borrower.feedback.tones.error')),
+                message: @js(session('error')),
+            });
+        @endif
+        @if ($errors instanceof \Illuminate\Support\ViewErrorBag && $errors->any())
+            window.showAdminFeedback({
+                tone: 'error',
+                title: @js(__('borrower.layout.form_errors')),
+                message: '',
+                lines: @js($errors->all()),
+            });
+        @endif
+    });
+</script>
 
 {{-- Embedded document preview drawer (underwriting) --}}
 <div id="kf-doc-drawer" class="fixed inset-0 z-50 hidden" aria-hidden="true">

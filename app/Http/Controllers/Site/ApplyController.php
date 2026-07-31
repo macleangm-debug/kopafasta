@@ -125,6 +125,23 @@ class ApplyController extends Controller
             $preselect = $preselectedProduct?->id;
         }
 
+        if ($preselectedProduct && ! $request->boolean('resume') && ! $supplementMode) {
+            $blockingApp = app(\App\Services\LoanPolicyService::class)
+                ->blockingApplicationForProduct($customer, $preselectedProduct);
+            if ($blockingApp) {
+                return redirect()
+                    ->route('site.borrower.loans', ['tab' => 'applications'])
+                    ->with('same_product_block', [
+                        'product' => $preselectedProduct->localizedName() ?: $preselectedProduct->name,
+                        'application_id' => $blockingApp->id,
+                        'application_number' => $blockingApp->application_number,
+                        'status' => $blockingApp->status,
+                        'message' => app(\App\Services\LoanPolicyService::class)
+                            ->canSubmitApplication($customer, $preselectedProduct),
+                    ]);
+            }
+        }
+
         $selectedProduct = $preselect ? $products->firstWhere('id', (int) $preselect) : null;
         if (! $selectedProduct && $preselectedProduct) {
             $selectedProduct = $preselectedProduct;

@@ -7,7 +7,37 @@
             'guarantor' => ($pendingGuarantorRequests ?? collect())->count(),
             'guaranteed' => ($guaranteedLinks ?? collect())->count(),
         ];
+        $sameProductBlock = session('same_product_block');
     @endphp
+
+    @if ($sameProductBlock)
+        <div class="mb-5 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 flex flex-wrap items-center justify-between gap-3"
+             x-data x-init="window.showBorrowerFeedback({
+                tone: 'warning',
+                title: @js(__('borrower.policy.same_product_title')),
+                message: @js($sameProductBlock['message'] ?? ''),
+                lines: [
+                    @js(__('borrower.policy.same_product_existing', ['number' => $sameProductBlock['application_number'] ?? ''])),
+                    @js(__('borrower.policy.same_product_hint')),
+                ],
+             })">
+            <div>
+                <p class="text-sm font-bold text-amber-950">{{ __('borrower.policy.same_product_title') }}</p>
+                <p class="text-sm text-amber-900/80 mt-1">{{ $sameProductBlock['message'] }}</p>
+                <p class="text-xs text-amber-800 mt-1">{{ __('borrower.policy.same_product_hint') }}</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a href="{{ route('site.borrower.application', $sameProductBlock['application_id']) }}"
+                   class="inline-flex bg-brand text-white font-semibold px-4 py-2 rounded-xl text-sm">
+                    {{ __('borrower.policy.same_product_view') }}
+                </a>
+                <a href="{{ route('site.borrower.loan-products') }}"
+                   class="inline-flex bg-white ring-1 ring-gray-200 text-gray-800 font-semibold px-4 py-2 rounded-xl text-sm">
+                    {{ __('borrower.policy.same_product_other') }}
+                </a>
+            </div>
+        </div>
+    @endif
 
     <x-site.borrower-page-header
         :eyebrow="__('borrower.nav.loans')"

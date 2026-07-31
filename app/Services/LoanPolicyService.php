@@ -70,24 +70,38 @@ class LoanPolicyService
             return $blocked;
         }
 
-        $max = $this->settings()['max_active_applications_per_product'];
-        $query = LoanApplication::query()
-            ->where('customer_id', $customer->id)
-            ->where('loan_product_id', $product->id)
-            ->whereNotIn('status', ['rejected', 'disbursed', 'withdrawn']);
+        $blocking = $this->blockingApplicationForProduct($customer, $product, $excluding);
+        if ($blocking) {
+            $max = $this->settings()['max_active_applications_per_product'];
 
-        if ($excluding) {
-            $query->where('id', '!=', $excluding->id);
-        }
-
-        if ($query->count() >= $max) {
             return __('borrower.policy.max_active_applications', [
-                'product' => $product->name,
+                'product' => $product->localizedName() ?: $product->name,
                 'max'     => $max,
             ]);
         }
 
         return null;
+    }
+
+    public function blockingApplicationForProduct(Customer $customer, LoanProduct $product, ?LoanApplication $excluding = null): ?LoanApplication
+    {
+        $max = $this->settings()['max_active_applications_per_product'];
+        $query = LoanApplication::query()
+            ->where('customer_id', $customer->id)
+            ->where('loan_product_id', $product->id)
+            ->whereNotIn('status', ['rejected', 'disbursed', 'withdrawn'])
+            ->latest('id');
+
+        if ($excluding) {
+            $query->where('id', '!=', $excluding->id);
+        }
+
+        $count = (clone $query)->count();
+        if ($count < $max) {
+            return null;
+        }
+
+        return $query->first();
     }
 
     public function activeLoanCount(Customer $customer): int

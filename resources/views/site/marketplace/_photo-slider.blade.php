@@ -34,9 +34,9 @@
         }"
         @keydown.window="onKey($event)"
     >
-        {{-- Main preview (cover / selected) — compact, clickable --}}
+        {{-- Main preview (cover / selected) --}}
         <div
-            class="relative rounded-2xl overflow-hidden bg-slate-100 aspect-[4/3] max-h-64 sm:max-h-72 ring-1 ring-black/5 shadow-md select-none"
+            class="relative rounded-2xl overflow-hidden bg-slate-100 aspect-[4/3] max-h-[22rem] sm:max-h-[28rem] lg:max-h-none ring-1 ring-black/5 shadow-md select-none"
             @touchstart.passive="onTouchStart($event)"
             @touchend.passive="onTouchEnd($event)"
         >
@@ -78,7 +78,7 @@
                         type="button"
                         role="tab"
                         @click="go(i)"
-                        class="shrink-0 size-12 sm:size-14 rounded-lg overflow-hidden ring-2 transition focus:outline-none focus-visible:ring-brand"
+                        class="shrink-0 size-16 sm:size-20 lg:size-24 rounded-xl overflow-hidden ring-2 transition focus:outline-none focus-visible:ring-brand"
                         :class="index === i ? 'ring-brand opacity-100' : 'ring-gray-200 opacity-70 hover:opacity-100'"
                         :aria-selected="index === i"
                         :aria-label="'Photo ' + (i + 1)"
@@ -143,7 +143,7 @@
         @endif
     </div>
 @else
-    <div class="aspect-[4/3] max-h-64 rounded-2xl bg-gradient-to-br from-brand-muted to-brand/10 grid place-items-center text-6xl ring-1 ring-black/5">
+    <div class="aspect-[4/3] max-h-[22rem] sm:max-h-[28rem] lg:max-h-none rounded-2xl bg-gradient-to-br from-brand-muted to-brand/10 grid place-items-center text-6xl ring-1 ring-black/5">
         {{ marketplace_category_emoji($category) }}
     </div>
 @endif

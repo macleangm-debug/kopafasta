@@ -30,6 +30,15 @@
     $profileLinks = $profileLinks ?: [
         ['label' => 'Profile', 'route' => 'site.partner.profile'],
     ];
+    $partnerUnread = \App\Models\NotificationLog::query()
+        ->where('user_id', auth()->id())
+        ->whereNull('read_at')
+        ->count();
+    $partnerPreview = \App\Models\NotificationLog::query()
+        ->where('user_id', auth()->id())
+        ->latest()
+        ->limit(8)
+        ->get();
 @endphp
 <!doctype html>
 <html lang="{{ str_replace('_', '-', $siteLocale) }}" class="h-full">
@@ -83,6 +92,31 @@
             </a>
             <div class="flex items-center gap-3">
                 <x-site.locale-switcher variant="header" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
+                <div class="relative" x-data="{ open: false }">
+                    <button type="button" @click="open = !open" class="relative p-2 rounded-lg text-gray-600 hover:bg-brand-muted hover:text-brand" title="{{ __('site.partner_portal.nav_notifications') }}">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $navService->iconSvg('bell') !!}</svg>
+                        @if ($partnerUnread > 0)
+                            <span class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $partnerUnread > 9 ? '9+' : $partnerUnread }}</span>
+                        @endif
+                    </button>
+                    <div x-show="open" @click.outside="open = false" x-cloak class="absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-2xl glass-card overflow-hidden z-50 bg-white/95 shadow-xl">
+                        <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                            <p class="text-sm font-semibold text-gray-900">{{ __('site.partner_portal.nav_notifications') }}</p>
+                            <a href="{{ route('site.partner.notifications') }}" class="text-xs font-semibold text-brand hover:underline">{{ __('site.partner_portal.view_all') }}</a>
+                        </div>
+                        <div class="max-h-80 overflow-y-auto">
+                            @forelse ($partnerPreview as $n)
+                                <div class="px-4 py-3 border-b border-gray-50 hover:bg-brand-muted/30 {{ $n->read_at ? '' : 'bg-brand-muted/40' }}">
+                                    <p class="text-[11px] font-bold uppercase tracking-widest text-brand">{{ $n->category ?: 'general' }}</p>
+                                    <p class="text-sm text-gray-800 mt-0.5">{{ $n->message ?: $n->template }}</p>
+                                    <p class="text-[11px] text-gray-400 mt-1">{{ $n->created_at?->diffForHumans() }}</p>
+                                </div>
+                            @empty
+                                <p class="px-4 py-8 text-sm text-gray-500 text-center">{{ __('site.partner_portal.no_notifications') }}</p>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
                 <div class="relative" x-data="{ profileOpen: false }">
                     <button type="button" @click="profileOpen = !profileOpen"
                             class="flex items-center gap-3 rounded-xl hover:bg-brand-muted/60 px-2 py-1.5 transition">
@@ -116,6 +150,12 @@
             </a>
             <div class="flex items-center gap-0.5 shrink-0">
                 <x-site.locale-switcher variant="compact" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
+                <a href="{{ route('site.partner.notifications') }}" class="relative p-2 text-gray-600 hover:text-brand" title="{{ __('site.partner_portal.nav_notifications') }}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $navService->iconSvg('bell') !!}</svg>
+                    @if (($partnerUnread ?? 0) > 0)
+                        <span class="absolute top-1 right-1 min-w-[1rem] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $partnerUnread > 9 ? '9+' : $partnerUnread }}</span>
+                    @endif
+                </a>
                 <div class="relative" x-data="{ profileOpen: false }">
                     <button type="button" @click="profileOpen = !profileOpen" class="p-1.5 rounded-lg hover:bg-brand-muted/60">
                         <div class="size-8 rounded-full bg-brand text-white grid place-items-center font-bold text-xs">

@@ -3291,6 +3291,11 @@ Asante.',
   'policy' => 
 [
     'max_active_applications' => 'Tayari una idadi ya juu ya maombi :max yanayoendelea ya :product. Kamilisha au futa lile lililopo kabla ya kuanza lingine.',
+    'same_product_title' => 'Tayari una ombi lililofunguliwa kwa bidhaa hii',
+    'same_product_existing' => 'Ombi lililopo: :number',
+    'same_product_hint' => 'Endelea au batilisha ombi lililopo kwanza. Unaweza kuomba tena bidhaa ile ile baada ya kukataliwa na UW.',
+    'same_product_view' => 'Tazama ombi lililopo',
+    'same_product_other' => 'Angalia bidhaa zingine',
     'max_active_loans' => 'Tayari una idadi ya juu ya mikopo :max inayoendelea. Kamilisha malipo kabla ya kuomba mkopo mwingine.',
     'max_active_guarantees' => 'Mwanachama huyu amefikia kiwango cha juu cha dhamana :max.',
     'restructure_disabled' => 'Urekebishaji wa mkopo haupatikani kwa sasa.',

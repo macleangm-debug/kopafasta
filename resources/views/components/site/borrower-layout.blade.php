@@ -133,7 +133,7 @@
                             </template>
                             <template x-for="item in items" :key="item.id">
                                 <div class="px-4 py-3 border-b border-gray-50 hover:bg-brand-muted/30" :class="!item.read ? 'bg-brand-muted/50' : ''">
-                                    <p class="text-xs uppercase tracking-widest text-gray-400" x-text="item.category"></p>
+                                    <p class="text-[11px] font-bold uppercase tracking-widest text-brand" x-text="item.category"></p>
                                     <p class="text-sm text-gray-800 mt-0.5" x-text="item.message"></p>
                                     <p class="text-[11px] text-gray-400 mt-1" x-text="item.when"></p>
                                     <template x-if="item.action_url">

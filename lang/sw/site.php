@@ -98,6 +98,8 @@ return [
         'back'                  => 'Rudi',
         'partner_type'          => 'Aina ya mshirika',
         'applicant_type'        => 'Aina ya mwombaji',
+        'company_only_hint'     => 'Aina hii ya mshirika inasajiliwa kama kampuni / biashara.',
+        'individual_hint'       => 'Kama mthaminishaji binafsi bado unaweza kupakia hati za kitaalamu katika hatua ya Hati.',
         'contact_name'          => 'Jina kamili la mwasiliani',
         'business_section'      => 'Wasifu wa biashara',
         'trading_name'          => 'Jina la biashara',
@@ -438,6 +440,23 @@ return [
         'commission_body'   => 'Pata kamisheni ya ushindani kwa ada za uanachama na maombi ya mkopo yaliyorejelewa.',
         'portal_title'      => 'Portal ya msambazaji',
         'portal_body'       => 'Baada ya kuwashwa, fikia dashibodi yako kuona marejeleo, salio, na nyenzo za uuzaji.',
+    ],
+
+    'partner_portal' => [
+        'nav_dashboard'     => 'Dashibodi',
+        'nav_jobs'          => 'Kazi',
+        'nav_recovery'      => 'Kesi za ukusanyaji',
+        'nav_commission'    => 'Mkoba wa kamisheni',
+        'nav_documents'     => 'Hati',
+        'nav_payments'      => 'Malipo',
+        'nav_calendar'      => 'Kalenda',
+        'nav_notifications' => 'Arifa',
+        'nav_support'       => 'Msaada',
+        'nav_profile'       => 'Wasifu',
+        'jobs_title'        => 'Kazi',
+        'jobs_subtitle'     => 'Kazi zote zilizopangiwa kwa hali zote. Chuja, fungua, na pakia ushahidi.',
+        'view_all'          => 'Tazama zote',
+        'no_notifications'  => 'Hakuna arifa bado.',
     ],
 
     'affiliate_portal' => [
