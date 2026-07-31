@@ -3,6 +3,7 @@
     'label' => 'Phone',
     'value' => null,
     'required' => false,
+    'requiredWhen' => null,
     'help' => null,
     'variant' => 'default',
     'id' => null,
@@ -54,6 +55,7 @@
         </select>
         <input type="tel" inputmode="numeric" x-model="local" data-phone-local placeholder="712 345 678"
                @input="syncHidden()"
+               @if ($requiredWhen) data-required-when="{{ $requiredWhen }}" @endif
                @if ($required) required @endif
                class="{{ $inputClass }} @error($name) border-red-400 @enderror">
     </div>

@@ -23,7 +23,26 @@
         </div>
     @endif
 
-    <section class="py-16 bg-white">
+    <section class="py-14 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-2xl font-bold text-center mb-3">{{ __('site.partners.why_title') }}</h2>
+            <p class="text-center text-sm text-gray-600 max-w-2xl mx-auto mb-10">{{ __('site.partners.why_body') }}</p>
+            <div class="grid sm:grid-cols-3 gap-5">
+                @foreach ([
+                    [__('site.partners.why_jobs_title'), __('site.partners.why_jobs_body')],
+                    [__('site.partners.why_pay_title'), __('site.partners.why_pay_body')],
+                    [__('site.partners.why_tools_title'), __('site.partners.why_tools_body')],
+                ] as [$title, $body])
+                    <div class="glass-card p-6">
+                        <h3 class="font-bold text-gray-900">{{ $title }}</h3>
+                        <p class="mt-2 text-sm text-gray-600 leading-relaxed">{{ $body }}</p>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    </section>
+
+    <section class="py-14 bg-[#faf8f5]">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 class="text-2xl font-bold text-center mb-3">{{ __('site.partners.enroll_title') }}</h2>
             <p class="text-center text-sm text-gray-600 max-w-2xl mx-auto mb-10">{{ __('site.partners.enroll_body') }}</p>
@@ -59,6 +78,58 @@
                     <p class="mt-2 text-sm text-gray-600">{{ __('site.partners.card_capital') }}</p>
                     <span class="mt-4 inline-flex text-sm font-semibold text-brand">{{ __('site.partners.apply_now') }} →</span>
                 </a>
+            </div>
+
+            <div class="glass-card p-8 max-w-3xl mx-auto mb-12">
+                <h3 class="font-bold text-lg text-center">{{ __('site.partners.how_title') }}</h3>
+                <ol class="mt-6 space-y-4">
+                    @foreach ([
+                        __('site.partners.how_1'),
+                        __('site.partners.how_2'),
+                        __('site.partners.how_3'),
+                        __('site.partners.how_4'),
+                    ] as $i => $step)
+                        <li class="flex gap-3 text-sm text-gray-700">
+                            <span class="size-7 shrink-0 grid place-items-center rounded-full bg-brand text-white text-xs font-bold">{{ $i + 1 }}</span>
+                            <span class="pt-1">{{ $step }}</span>
+                        </li>
+                    @endforeach
+                </ol>
+            </div>
+
+            <div class="grid lg:grid-cols-2 gap-6 mb-12">
+                <div class="glass-card p-8">
+                    <h3 class="font-bold text-lg">{{ __('site.partners.need_title') }}</h3>
+                    <p class="mt-2 text-sm text-gray-600">{{ __('site.partners.need_body') }}</p>
+                    <ul class="mt-5 space-y-3 text-sm text-gray-700">
+                        @foreach ([
+                            __('site.partners.need_1'),
+                            __('site.partners.need_2'),
+                            __('site.partners.need_3'),
+                            __('site.partners.need_4'),
+                        ] as $item)
+                            <li class="flex gap-2">
+                                <span class="text-brand font-bold">✓</span>
+                                <span>{{ $item }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+                <div class="glass-card p-8">
+                    <h3 class="font-bold text-lg">{{ __('site.partners.faq_title') }}</h3>
+                    <dl class="mt-5 space-y-4">
+                        @foreach ([
+                            [__('site.partners.faq_1_q'), __('site.partners.faq_1_a')],
+                            [__('site.partners.faq_2_q'), __('site.partners.faq_2_a')],
+                            [__('site.partners.faq_3_q'), __('site.partners.faq_3_a')],
+                        ] as [$q, $a])
+                            <div>
+                                <dt class="text-sm font-semibold text-gray-900">{{ $q }}</dt>
+                                <dd class="mt-1 text-sm text-gray-600 leading-relaxed">{{ $a }}</dd>
+                            </div>
+                        @endforeach
+                    </dl>
+                </div>
             </div>
 
             <div class="glass-card p-8 text-center max-w-2xl mx-auto">

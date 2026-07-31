@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Models\PartnerApplicationDocument;
+use App\Models\PartnerDocument;
 use App\Models\Vendor;
 use App\Services\AffiliateService;
 use App\Services\PartnerCodeService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 
 class VendorController extends ResourceController
 {
@@ -57,6 +60,10 @@ class VendorController extends ResourceController
             'regions'                        => ['nullable', 'array'],
             'regions.*'                      => ['string', 'max:100'],
             'coverage_type'                  => ['nullable', 'in:regions,nationwide'],
+            'doc_brela'                      => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'doc_tin_certificate'            => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'doc_business_licence'           => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'doc_other'                      => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ];
     }
 
@@ -102,6 +109,7 @@ class VendorController extends ResourceController
         $this->validateAffiliateCode($data, null);
         $this->validateRegions($data);
         $record = Vendor::create($data);
+        $this->storeBusinessDocuments($request, $record);
 
         if ($record->isAffiliate() && blank($record->affiliate_code)) {
             app(AffiliateService::class)->ensureCode($record);
@@ -131,10 +139,39 @@ class VendorController extends ResourceController
         $this->validateAffiliateCode($data, $vendor);
         $this->validateRegions($data);
         $vendor->update($data);
+        $this->storeBusinessDocuments($request, $vendor);
 
         return redirect()
             ->route("{$this->routePrefix}.show", $vendor)
             ->with('status', ucfirst($this->singular).' updated.');
+    }
+
+    private function storeBusinessDocuments(Request $request, Vendor $partner): void
+    {
+        $map = [
+            'doc_brela' => 'brela',
+            'doc_tin_certificate' => 'tin_certificate',
+            'doc_business_licence' => 'business_licence',
+            'doc_other' => 'other',
+        ];
+
+        foreach ($map as $input => $docType) {
+            $file = $request->file($input);
+            if (! $file instanceof UploadedFile) {
+                continue;
+            }
+
+            $path = $file->store('partners/'.$partner->id.'/compliance', 'public');
+
+            PartnerDocument::create([
+                'partner_id' => $partner->id,
+                'label' => PartnerApplicationDocument::DOC_TYPES[$docType] ?? $docType,
+                'doc_type' => $docType,
+                'file_path' => $path,
+                'mime' => $file->getClientMimeType(),
+                'size_bytes' => $file->getSize(),
+            ]);
+        }
     }
 
     /** @param array<string, mixed> $data */
@@ -181,7 +218,13 @@ class VendorController extends ResourceController
 
     protected function transform(array $data, ?Model $existing = null): array
     {
-        unset($data['vendor_number']);
+        unset(
+            $data['vendor_number'],
+            $data['doc_brela'],
+            $data['doc_tin_certificate'],
+            $data['doc_business_licence'],
+            $data['doc_other'],
+        );
 
         if (! $existing instanceof Vendor) {
             $data['vendor_number'] = app(PartnerCodeService::class)->generate((string) ($data['category'] ?? 'supplier'));

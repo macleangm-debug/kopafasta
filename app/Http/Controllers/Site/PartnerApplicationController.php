@@ -80,7 +80,7 @@ class PartnerApplicationController extends Controller
 
         $data = $request->validate([
             'partner_category' => ['required', 'string', Rule::in($allowed)],
-            'applicant_category' => ['required', 'in:individual,company,institution'],
+            'applicant_category' => ['required', 'in:individual,company'],
             'full_name' => ['required', 'string', 'max:150'],
             'email' => ['required', 'email', 'max:150'],
             'phone' => ['required', 'string', 'max:30'],

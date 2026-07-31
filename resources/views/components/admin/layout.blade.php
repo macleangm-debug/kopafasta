@@ -24,7 +24,7 @@
         dialog::backdrop{background:rgba(0,0,0,.4)}
     </style>
 </head>
-<body class="h-full bg-gray-50 text-gray-900 antialiased">
+<body class="h-full bg-[#faf8f5] text-gray-900 antialiased">
 
 @php
     $sections = [
@@ -267,13 +267,13 @@
 <div class="min-h-screen flex flex-col">
 
     {{-- Top bar: brand + utilities --}}
-    <header class="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
+    <header class="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-brand/10 shadow-sm">
         <div class="flex h-14 items-center justify-between gap-4 px-4 lg:px-6">
             <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3 shrink-0">
                 <x-site.brand-mark size="sm" />
                 <div class="hidden sm:block">
                     <div class="text-sm font-semibold text-gray-900 leading-tight">{{ brand_name() }}</div>
-                    <div class="text-[11px] text-gray-500 leading-tight">Console</div>
+                    <div class="text-[11px] text-brand leading-tight font-semibold">Console</div>
                 </div>
             </a>
 
@@ -337,23 +337,23 @@
         </div>
 
         {{-- Horizontal main navigation --}}
-        <nav class="admin-menu bg-gray-900 border-t border-white/5" aria-label="Main navigation">
+        <nav class="admin-menu bg-brand border-t border-white/10" aria-label="Main navigation">
             <div class="flex flex-wrap items-stretch gap-0.5 px-2 lg:px-4">
                 @foreach ($visibleSections as $section)
                     @if (count($section['items']) === 1)
                         <a href="{{ route($section['targetRoute']) }}"
                            class="shrink-0 inline-flex items-center px-3 py-2.5 text-sm font-medium whitespace-nowrap rounded-t-lg transition
                                   {{ $section['isActive']
-                                       ? 'bg-gray-50 text-gray-900'
-                                       : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
+                                       ? 'bg-brand-gold text-brand font-bold'
+                                       : 'text-white/85 hover:text-white hover:bg-white/10' }}">
                             {{ $section['label'] }}
                         </a>
                     @else
                         <details class="relative shrink-0">
                             <summary class="inline-flex items-center gap-1 px-3 py-2.5 text-sm font-medium whitespace-nowrap rounded-t-lg transition
                                            {{ $section['isActive']
-                                                ? 'bg-gray-50 text-gray-900'
-                                                : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
+                                                ? 'bg-brand-gold text-brand font-bold'
+                                                : 'text-white/85 hover:text-white hover:bg-white/10' }}">
                                 {{ $section['label'] }}
                                 <svg class="size-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>

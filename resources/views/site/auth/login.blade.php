@@ -59,7 +59,7 @@
                     <input type="hidden" name="auth_method" id="login-auth-method" value="{{ $authMethod }}">
 
                     <div data-method-panel="pin" @class(['hidden' => $authMethod !== 'pin'])>
-                        <x-site.phone-input name="phone" label="{{ __('site.feedback.phone') }}" :value="old('phone')" variant="rounded" :required="$authMethod === 'pin'" />
+                        <x-site.phone-input name="phone" label="{{ __('site.feedback.phone') }}" :value="old('phone')" variant="rounded" :required="$authMethod === 'pin'" required-when="pin" />
                         <div class="mt-4">
                             <div class="flex items-center justify-between mb-1.5">
                                 <label class="block text-sm font-medium text-gray-700">4-digit PIN</label>
@@ -159,6 +159,11 @@
                 requiredFields.forEach((field) => {
                     field.required = field.dataset.requiredWhen === method;
                 });
+
+                const phoneLocal = root.querySelector('[data-method-panel="pin"] [data-phone-local]');
+                if (phoneLocal) {
+                    phoneLocal.required = method === 'pin';
+                }
             }
 
             tabs.forEach((tab) => {

@@ -89,8 +89,8 @@
                             </button>
                             <label class="inline-flex items-center rounded-full bg-white ring-1 ring-amber-200 px-2.5 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-50 cursor-pointer">
                                 {{ __('borrower.profile.replace_photo') }}
+                                {{-- No name on picker — host carries named File clones (avoids Chrome accept popup). --}}
                                 <input type="file"
-                                       name="{{ $name }}[{{ $slot['index'] }}]"
                                        accept="image/jpeg,image/png,image/webp,image/jpg,.jpg,.jpeg,.png,.webp"
                                        class="sr-only"
                                        data-slot-file
@@ -109,7 +109,6 @@
                         <span class="text-lg leading-none text-gray-400">＋</span>
                         <span class="text-[11px] font-semibold text-gray-600">{{ __('borrower.marketplace.add_photo_slot') }}</span>
                         <input type="file"
-                               name="{{ $name }}[{{ $slot['index'] }}]"
                                accept="image/jpeg,image/png,image/webp,image/jpg,.jpg,.jpeg,.png,.webp"
                                class="sr-only"
                                data-slot-file
@@ -251,6 +250,9 @@
                             pendingBySlot[slot] = file;
                             clearPickerName(picker);
                             syncHostFiles();
+                            // Clear accept-constrained picker so Chrome does not block submit
+                            // with "Please select an item in the list" on empty MIME files.
+                            picker.value = '';
 
                             const preview = root.querySelector('[data-slot-preview="' + slot + '"]');
                             const label = root.querySelector('[data-new-cover-label="' + slot + '"]');
@@ -291,8 +293,9 @@
                                 if (picker.files && picker.files[0] && isImageFile(picker.files[0])) {
                                     const slot = picker.getAttribute('data-slot-index') || '0';
                                     pendingBySlot[slot] = normalizeImageFile(picker.files[0]);
-                                    clearPickerName(picker);
                                 }
+                                clearPickerName(picker);
+                                picker.value = '';
                             });
                             syncHostFiles();
                         });

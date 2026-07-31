@@ -213,6 +213,25 @@
                 const form = root.closest('form');
                 if (form && ! form.dataset.submitGuard) {
                     form.dataset.submitGuard = '1';
+
+                    // When native validation fails on a clipped step, jump to that step
+                    // instead of showing a floating "Select an item in the list" bubble.
+                    form.addEventListener('invalid', function (event) {
+                        const target = event.target;
+                        if (! (target instanceof HTMLElement)) {
+                            return;
+                        }
+                        const owner = target.closest('[data-step]');
+                        if (! owner || ! stepEls.includes(owner)) {
+                            return;
+                        }
+                        const index = stepEls.indexOf(owner);
+                        if (index >= 0 && index !== step) {
+                            step = index;
+                            render();
+                        }
+                    }, true);
+
                     form.addEventListener('submit', function () {
                         // Ensure every step (and its file inputs) is fully visible for serialize.
                         stepEls.forEach(function (el) {

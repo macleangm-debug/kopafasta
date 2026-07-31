@@ -105,4 +105,32 @@
             <x-admin.input name="recovery_markup_percent" label="Company markup (%)" type="number" step="0.01" :value="$r?->recovery_markup_percent" />
         </x-admin.step>
     </div>
+
+    <x-admin.step title="Business documents">
+        <p class="md:col-span-2 text-xs text-gray-500">Same document set as public partner enrollment (BRELA, TIN certificate, business licence). PDF or image, max 5MB each.</p>
+        @foreach ([
+            'doc_brela' => 'BRELA / company registration',
+            'doc_tin_certificate' => 'TIN certificate',
+            'doc_business_licence' => 'Business licence',
+            'doc_other' => 'Other supporting document',
+        ] as $input => $label)
+            <div class="md:col-span-2">
+                <label class="block text-xs font-semibold text-gray-700 mb-1">{{ $label }}</label>
+                <input type="file" name="{{ $input }}" accept=".jpg,.jpeg,.png,.pdf"
+                       class="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-amber-500 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-gray-900">
+            </div>
+        @endforeach
+        @if ($r)
+            @php $docs = $r->documents()->whereNotNull('doc_type')->latest()->get(); @endphp
+            @if ($docs->isNotEmpty())
+                <div class="md:col-span-2 space-y-2">
+                    <p class="text-xs font-semibold text-gray-700">Uploaded documents</p>
+                    @foreach ($docs as $doc)
+                        <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($doc->file_path) }}" target="_blank"
+                           class="block text-sm text-amber-700 hover:underline">{{ $doc->label ?: ($doc->doc_type.' · '.$doc->file_path) }}</a>
+                    @endforeach
+                </div>
+            @endif
+        @endif
+    </x-admin.step>
 </div>

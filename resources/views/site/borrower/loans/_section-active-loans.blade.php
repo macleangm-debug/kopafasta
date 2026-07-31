@@ -21,8 +21,8 @@
                 <div class="bg-white rounded-2xl border border-gray-200 p-5">
                     <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
                         <div>
-                            <p class="font-semibold text-gray-900">{{ $loan->product->name ?? __('borrower.apply.product_type.general') }}</p>
-                            <p class="font-mono text-xs text-gray-500 mt-0.5">{{ $loan->loan_number }}</p>
+                            <p class="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">{{ $loan->product?->localizedName() ?? $loan->product->name ?? __('borrower.apply.product_type.general') }}</p>
+                            <p class="font-mono text-xs text-gray-500 mt-1">{{ $loan->loan_number }}</p>
                         </div>
                         <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $statusBadge }}">{{ ucfirst($loan->status) }}</span>
                     </div>
