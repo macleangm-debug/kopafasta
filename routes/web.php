@@ -164,8 +164,10 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         Route::post('/borrower/setup-pin', [\App\Http\Controllers\Site\AuthController::class, 'storeSetupPin'])->name('borrower.setup-pin.post');
 
         Route::middleware('borrower.pin')->group(function () {
+            // Browse products without membership; pay / renew when starting apply.
+            Route::get('/borrower/loan-products', [\App\Http\Controllers\Site\BorrowerController::class, 'loanProducts'])->name('borrower.loan-products');
+
             Route::middleware('membership.active')->group(function () {
-                Route::get('/borrower/loan-products', [\App\Http\Controllers\Site\BorrowerController::class, 'loanProducts'])->name('borrower.loan-products');
                 Route::get('/borrower/apply',  [\App\Http\Controllers\Site\ApplyController::class, 'show'])->name('borrower.apply');
                 Route::get('/borrower/apply/product/{product}/readiness', [\App\Http\Controllers\Site\ApplyController::class, 'productReadiness'])->name('borrower.apply.product-readiness');
                 Route::post('/borrower/apply/guarantor-lookup', [\App\Http\Controllers\Site\ApplyController::class, 'lookupGuarantor'])->name('borrower.apply.guarantor-lookup');

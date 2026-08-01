@@ -26,7 +26,10 @@
                 <x-admin.input name="currency"          label="Currency (ISO 4217)" :value="$values['currency'] ?? 'TZS'" required />
                 <x-admin.input name="grace_period_days" label="Grace period (days)" type="number" :value="$values['grace_period_days'] ?? 14" required />
             </div>
-            <p class="mt-3 text-xs text-gray-500">During grace, members can still view dashboard & history but cannot apply for new loans.</p>
+            <p class="mt-3 text-xs text-gray-500">
+                Browse is open after login. Membership / registration fee is required when applying for a loan.
+                Grace period: after membership expires, members can still view dashboard & history for these days but cannot apply until they renew.
+            </p>
         </div>
 
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">

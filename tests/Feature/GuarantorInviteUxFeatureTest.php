@@ -103,7 +103,8 @@ class GuarantorInviteUxFeatureTest extends TestCase
         $this->get(route('site.guarantor.declined', 'gux-declined-token'))
             ->assertOk()
             ->assertSee('premium-gradient', false)
-            ->assertSee(__('borrower.guarantor_invite.declined_benefit_rewards'), false)
+            ->assertSee(__('borrower.guarantor_invite.declined_cta_member'), false)
+            ->assertSee(__('borrower.guarantor_invite.member_benefit'), false)
             ->assertSee(route('site.register.borrower'), false);
     }
 

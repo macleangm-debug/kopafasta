@@ -131,6 +131,8 @@ class ProfileValidationService
             ];
         }
         if ((bool) ($this->kycSettings()['require_nida'] ?? true)
+            && app(IdentityVerificationPolicyService::class)->requiredDuringProfileCreation()
+            && app(IdentityVerificationPolicyService::class)->nidaRequired()
             && ! app(NidaVerificationService::class)->isVerified($customer)) {
             $gaps[] = [
                 'key' => 'nida',
@@ -139,6 +141,7 @@ class ProfileValidationService
             ];
         }
         if (app(IdentityVerificationPolicyService::class)->requiredDuringProfileCreation()
+            && app(IdentityVerificationPolicyService::class)->nidaRequired()
             && ! app(ProfileRevisionService::class)->nidaStepComplete($customer)) {
             if (! $this->hasDocument($customer, 'national_id_front')) {
                 $gaps[] = [
@@ -156,8 +159,10 @@ class ProfileValidationService
             ];
         }
         $faceStatus = (string) ($customer->face_verification_status ?? 'incomplete');
-        if (! in_array($faceStatus, ['verified', 'pending'], true)
-            || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'face')) {
+        if (app(IdentityVerificationPolicyService::class)->requiredDuringProfileCreation()
+            && app(IdentityVerificationPolicyService::class)->facialRequired()
+            && (! in_array($faceStatus, ['verified', 'pending'], true)
+                || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'face'))) {
             $gaps[] = [
                 'key' => 'face',
                 'label' => __('borrower.profile.gaps.face'),
@@ -189,10 +194,11 @@ class ProfileValidationService
             return false;
         }
 
-        if ((bool) ($this->kycSettings()['require_nida'] ?? true)) {
-            if (! app(NidaVerificationService::class)->isVerified($customer)) {
-                return false;
-            }
+        if ((bool) ($this->kycSettings()['require_nida'] ?? true)
+            && app(IdentityVerificationPolicyService::class)->requiredDuringProfileCreation()
+            && app(IdentityVerificationPolicyService::class)->nidaRequired()
+            && ! app(NidaVerificationService::class)->isVerified($customer)) {
+            return false;
         }
 
         return true;

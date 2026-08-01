@@ -79,7 +79,7 @@
         </div>
         <div class="px-5 py-5 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div class="min-w-0">
-                <p class="text-sm font-semibold text-gray-900">{{ __('borrower.apply.submit_step.guarantor_pending_title') }}</p>
+                <p class="text-sm font-semibold text-gray-900" x-text="review.guarantorStatus || @js(__('borrower.apply.submit_step.guarantor_pending_title'))"></p>
                 <p class="text-sm text-gray-600 mt-1">{{ __('borrower.apply.submit_step.guarantor_pending_hint') }}</p>
             </div>
             <div class="flex flex-col gap-2 shrink-0 w-full sm:w-auto">

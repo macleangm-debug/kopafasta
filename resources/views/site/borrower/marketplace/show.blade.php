@@ -47,20 +47,22 @@
                     <p class="text-lg font-bold">{{ format_money($asset['weekly_installment']) }}</p>
                 </div>
                 @if (! empty($asset['max_tenure_months']))
-                    <div class="rounded-xl bg-gray-50 p-4">
-                        <p class="text-[10px] uppercase text-gray-400">{{ __('borrower.marketplace.max_tenure') }}</p>
-                        <p class="text-lg font-bold">{{ $asset['max_tenure_months'] }} {{ __('borrower.apply.quote.months') }}</p>
+                    <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 p-4 col-span-2">
+                        <p class="text-[10px] uppercase text-brand/60 font-semibold">{{ __('borrower.marketplace.max_tenure') }}</p>
+                        <p class="text-lg font-bold text-gray-900">{{ $asset['max_tenure_months'] }} {{ __('borrower.apply.quote.months') }}</p>
+                        <p class="text-xs text-gray-500 mt-1">{{ __('borrower.marketplace.tenure_adjust_hint') }}</p>
                     </div>
                 @endif
             </div>
 
-            <p class="mt-4 text-xs text-gray-500">{{ config('asset_marketplace.ownership_note') }}</p>
+    <p class="mt-4 text-xs text-gray-500">{{ config('asset_marketplace.ownership_note') }}</p>
+    <p class="mt-2 text-xs text-gray-600">{{ __('borrower.marketplace.deposit_first_hint') }}</p>
 
             <div class="mt-6 flex flex-wrap gap-3" id="apply">
                 <form method="POST" action="{{ route('site.borrower.marketplace.apply', $asset['id']) }}" x-data="{ submitting: false }" @submit="submitting = true">
                     @csrf
                     <button type="submit" :disabled="submitting"
-                            class="bg-amber-500 hover:bg-amber-400 disabled:opacity-70 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                            class="bg-brand-gold hover:brightness-95 disabled:opacity-70 text-brand font-semibold px-6 py-3 rounded-xl text-sm shadow-sm">
                         <span x-show="!submitting">{{ __('borrower.marketplace.apply_asset') }}</span>
                         <span x-show="submitting" x-cloak>{{ __('borrower.marketplace.apply_asset') }}…</span>
                     </button>

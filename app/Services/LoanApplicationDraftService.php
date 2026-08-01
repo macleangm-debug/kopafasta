@@ -51,7 +51,9 @@ class LoanApplicationDraftService
             ->values();
 
         $hasSignature = filled($payload['borrower_signature']['signature_data'] ?? null);
-        if ($hasSignature) {
+        // Prefer the saved step when present so locale reloads / draft restores
+        // do not skip guarantor → review just because a signature was already drawn.
+        if ($hasSignature && in_array($stepKey, [null, '', 'signature', 'submit'], true)) {
             $submitIndex = $wizardSteps->search(fn (array $step) => $step['key'] === 'submit');
             if ($submitIndex !== false) {
                 return [

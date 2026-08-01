@@ -1386,7 +1386,10 @@ class ApplyController extends Controller
                 ->with('show_profile_gate', true);
         }
 
-        if (! $faces->profileStepComplete($customer)) {
+        $identityPolicy = app(\App\Services\IdentityVerificationPolicyService::class);
+        if ($identityPolicy->requiredDuringProfileCreation()
+            && $identityPolicy->facialRequired()
+            && ! $faces->profileStepComplete($customer)) {
             return redirect()
                 ->route('site.borrower.apply', array_filter([
                     'product'      => (int) $loanProduct->id,
@@ -2024,7 +2027,11 @@ class ApplyController extends Controller
                 ->with('show_profile_gate', true);
         }
 
-        if (! $faces->profileStepComplete($customer) || ! $freshness->canApply($customer)) {
+        $identityPolicy = app(\App\Services\IdentityVerificationPolicyService::class);
+        if (($identityPolicy->requiredDuringProfileCreation()
+                && $identityPolicy->facialRequired()
+                && ! $faces->profileStepComplete($customer))
+            || ! $freshness->canApply($customer)) {
             return redirect()
                 ->to($returnUrl.(str_contains($returnUrl, '?') ? '&' : '?').'profile_gate=1')
                 ->with('error', __('borrower.apply.kyc_incomplete_submit'))

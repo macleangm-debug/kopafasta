@@ -2,12 +2,7 @@
     :title="brand_title(__('borrower.guarantor_invite.declined_thanks_title'))"
     :eyebrow="__('borrower.guarantor_invite.declined_thanks_title')"
     :heading="__('borrower.guarantor_invite.declined_cta_title')"
-    :lede="__('borrower.guarantor_invite.declined_upsell_lede')"
-    :aside-steps="[
-        [__('borrower.guarantor_invite.declined_benefit_fast'), __('borrower.guarantor_invite.declined_benefit_fast_hint')],
-        [__('borrower.guarantor_invite.declined_benefit_rewards'), __('borrower.guarantor_invite.declined_benefit_rewards_hint')],
-        [__('borrower.guarantor_invite.declined_benefit_referrals'), __('borrower.guarantor_invite.declined_benefit_referrals_hint')],
-    ]"
+    :lede="__('borrower.guarantor_invite.member_benefit')"
 >
     <div class="text-center mb-6">
         <div class="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-brand-muted text-2xl text-brand ring-1 ring-brand/20">✓</div>
@@ -15,28 +10,18 @@
         <p class="text-sm text-gray-600">{{ __('borrower.guarantor_invite.declined_thanks_message') }}</p>
     </div>
 
-    <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 px-5 py-6 text-sm text-brand text-left">
-        <p class="font-semibold text-base mb-1 text-brand">{{ __('borrower.guarantor_invite.declined_cta_title') }}</p>
-        <p class="text-brand/80 mb-4">{{ __('borrower.guarantor_invite.declined_upsell_body') }}</p>
-        <ul class="space-y-2.5 mb-6 text-brand">
-            <li class="flex gap-2"><span class="text-brand-gold font-bold">✓</span>{{ __('borrower.guarantor_invite.declined_benefit_fast') }}</li>
-            <li class="flex gap-2"><span class="text-brand-gold font-bold">✓</span>{{ __('borrower.guarantor_invite.declined_benefit_flexible') }}</li>
-            <li class="flex gap-2"><span class="text-brand-gold font-bold">✓</span>{{ __('borrower.guarantor_invite.declined_benefit_rewards') }}</li>
-            <li class="flex gap-2"><span class="text-brand-gold font-bold">✓</span>{{ __('borrower.guarantor_invite.declined_benefit_referrals') }}</li>
-        </ul>
-        <div class="flex flex-col gap-3">
-            <a href="{{ route('site.register.borrower') }}"
-               class="inline-flex justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-3 rounded-xl text-sm">
-                {{ __('borrower.guarantor_invite.declined_cta_member') }}
-            </a>
-            <a href="{{ route('site.products') }}"
-               class="inline-flex justify-center bg-white ring-1 ring-brand/25 hover:bg-brand-muted/40 text-brand font-semibold px-5 py-3 rounded-xl text-sm">
-                {{ __('borrower.guarantor_invite.declined_cta_apply') }}
-            </a>
-            <a href="{{ route('site.home') }}"
-               class="inline-flex justify-center text-sm font-semibold text-brand/70 hover:text-brand py-1">
-                {{ __('borrower.guarantor_invite.declined_cta_not_now') }}
-            </a>
-        </div>
+    <div class="flex flex-col gap-3">
+        <a href="{{ route('site.register.borrower') }}"
+           class="inline-flex justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-3 rounded-xl text-sm">
+            {{ __('borrower.guarantor_invite.declined_cta_member') }}
+        </a>
+        <a href="{{ route('site.products') }}"
+           class="inline-flex justify-center bg-white ring-1 ring-brand/25 hover:bg-brand-muted/40 text-brand font-semibold px-5 py-3 rounded-xl text-sm">
+            {{ __('borrower.guarantor_invite.declined_cta_apply') }}
+        </a>
+        <a href="{{ route('site.home') }}"
+           class="inline-flex justify-center text-sm font-semibold text-brand/70 hover:text-brand py-1">
+            {{ __('borrower.guarantor_invite.declined_cta_not_now') }}
+        </a>
     </div>
 </x-site.guarantor-invite-shell>

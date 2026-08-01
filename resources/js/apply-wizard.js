@@ -1279,7 +1279,11 @@ export function applyWizard(config) {
                     if (! p) return;
                     this.selectProduct(p, true);
                     this.form.requested_amount = this.assetApplication.remaining_loan;
-                    this.form.requested_tenure_months = this.assetApplication.max_tenure_months;
+                    const maxTenure = Number(this.assetApplication.max_tenure_months) || Number(this.current?.tenure_max) || 12;
+                    const minTenure = Number(this.assetApplication.min_tenure_months) || Number(this.current?.tenure_min) || 1;
+                    this.form.requested_tenure_months = maxTenure;
+                    this.assetTenureMin = minTenure;
+                    this.assetTenureMax = maxTenure;
                     this.form.purpose = this.assetApplication.purpose || 'asset_financing';
                     this.phase = 'application';
                     this.step = 0;

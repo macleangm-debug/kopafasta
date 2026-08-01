@@ -62,8 +62,6 @@
     <input type="hidden" name="{{ $name }}" data-phone-hidden value="{{ $split['full'] }}" :value="full()">
     @if ($help)
         <p class="mt-1.5 text-xs text-gray-500">{{ $help }}</p>
-    @else
-        <p class="mt-1.5 text-xs text-gray-500">Enter your number without the leading zero — we add the country code automatically.</p>
     @endif
     @error($name)
         <p class="mt-1 text-xs text-red-600">{{ $message }}</p>

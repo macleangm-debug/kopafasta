@@ -159,7 +159,11 @@ class LoanProductReadinessService
                     : __('borrower.apply.readiness.requirements.membership.renew'),
                 'action_url' => $membershipActive ? null : route('site.membership.renew'),
             ],
-            [
+        ];
+
+        $identityPolicy = app(IdentityVerificationPolicyService::class);
+        if ($identityPolicy->requiredDuringProfileCreation() && $identityPolicy->nidaRequired()) {
+            $checks[] = [
                 'key'        => 'nida',
                 'label'      => __('borrower.apply.readiness.requirements.nida.label'),
                 'complete'   => $nida->isVerified($customer),
@@ -167,8 +171,10 @@ class LoanProductReadinessService
                     ? __('borrower.apply.readiness.requirements.nida.confirmed')
                     : __('borrower.apply.readiness.requirements.nida.pending'),
                 'action_url' => $nida->isVerified($customer) ? null : route('site.borrower.profile', ['section' => 'personal']),
-            ],
-            [
+            ];
+        }
+        if ($identityPolicy->requiredDuringProfileCreation() && $identityPolicy->facialRequired()) {
+            $checks[] = [
                 'key'        => 'face',
                 'label'      => __('borrower.apply.readiness.requirements.face.label'),
                 'complete'   => $face->canApply($customer),
@@ -179,7 +185,10 @@ class LoanProductReadinessService
                     default    => __('borrower.apply.readiness.requirements.face.incomplete'),
                 },
                 'action_url' => $face->canApply($customer) ? null : route('site.borrower.face-verification'),
-            ],
+            ];
+        }
+
+        $checks = array_merge($checks, [
             [
                 'key'        => 'kin',
                 'label'      => __('borrower.apply.readiness.requirements.kin.label'),
@@ -200,7 +209,7 @@ class LoanProductReadinessService
                     : __('borrower.apply.readiness.requirements.income.upload'),
                 'action_url' => $incomeComplete ? null : route('site.borrower.profile', ['section' => 'kyc']),
             ],
-        ];
+        ]);
 
         if ($profileValidation->requiresResidenceLetter()) {
             $hasLetter = $profileValidation->hasResidenceLetter($customer);

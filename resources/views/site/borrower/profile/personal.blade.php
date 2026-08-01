@@ -304,8 +304,8 @@
                     </x-slot:form>
                 </x-site.profile-section-card>
 
-                {{-- Face capture — always inline-edit like signature so Complete still shows previews + Edit --}}
-                @if ($requireIdentityDuringProfile || app(\App\Services\IdentityVerificationPolicyService::class)->facialRequired())
+                {{-- Face capture — only required during profile stage; otherwise show if already started --}}
+                @if ($requireIdentityDuringProfile || $faceHasPhotos || in_array($faceKey, ['verified', 'pending', 'rejected', 'revision_required'], true))
                 <x-site.profile-section-card
                     section-id="profile-face"
                     icon="📷"

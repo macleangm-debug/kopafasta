@@ -1,5 +1,5 @@
 {{-- Premium step navigation. Expects Alpine parent: steps, step, furthestStep, goto(i) --}}
-<div class="sticky top-0 z-20 -mx-4 px-4 py-3 mb-6 bg-[#faf8f5]/95 backdrop-blur-md border-b border-gray-200/70">
+<div class="sticky top-0 z-10 -mx-4 px-4 py-3 mb-6 bg-white/95 backdrop-blur-md border-b border-brand/10">
     <div class="glass-card p-4 ring-1 ring-brand/10">
         <div class="flex items-center justify-between gap-3 mb-3">
             <p class="text-[11px] font-semibold uppercase tracking-widest text-gray-500">

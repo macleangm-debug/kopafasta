@@ -11,8 +11,7 @@
     :lede="__('borrower.guarantor_invite.intro')"
 >
     <div class="text-center mb-6">
-        <div class="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-gradient-to-br from-brand to-brand-light text-2xl text-white shadow-sm">✓</div>
-        <h1 class="text-2xl font-bold tracking-tight mb-2">{{ __('borrower.guarantor_invite.heading') }}</h1>
+        <h1 class="text-2xl font-bold tracking-tight mb-1">{{ __('borrower.guarantor_invite.heading') }}</h1>
         <p class="text-sm text-gray-600">{{ __('borrower.guarantor_invite.request_explanation') }}</p>
     </div>
 
@@ -45,14 +44,7 @@
         @endif
     </dl>
 
-    <div class="rounded-2xl bg-gradient-to-br from-sky-50 to-white ring-1 ring-sky-200 px-4 py-4 text-sm text-sky-900 mb-6">
-        <p class="font-semibold mb-1">{{ __('borrower.guarantor_invite.role_heading') }}</p>
-        <p>{{ __('borrower.guarantor_invite.role_body') }}</p>
-    </div>
-
-    @if ($invitation->type === 'external')
-        <p class="text-sm text-gray-600 mb-6">{{ __('borrower.guarantor_invite.external_profile_note') }}</p>
-    @endif
+    <p class="text-sm text-gray-600 mb-6 text-center">{{ __('borrower.guarantor_invite.member_benefit') }}</p>
 
     <div class="flex flex-col sm:flex-row gap-3 mb-6">
         <form method="POST" action="{{ route('site.guarantor.accept', $invitation->token) }}" class="flex-1"
