@@ -1,10 +1,10 @@
 <x-site.affiliate-layout :title="brand_title(__('site.affiliate_portal.profile_title'))" active="profile">
 
-    <div class="mb-6">
-        <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('site.affiliate_portal.nav_profile') }}</p>
-        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">{{ __('site.affiliate_portal.profile_title') }}</h1>
-        <p class="text-sm text-gray-500 mt-1">{{ __('site.affiliate_portal.profile_subtitle') }}</p>
-    </div>
+    <x-site.borrower-page-header
+        :eyebrow="__('site.affiliate_portal.title')"
+        :title="__('site.affiliate_portal.profile_title')"
+        :subtitle="__('site.affiliate_portal.profile_subtitle')"
+    />
 
     @include('site.affiliate._kyc_overview', ['vendor' => $vendor])
 
@@ -12,8 +12,8 @@
         @csrf
         @method('PUT')
 
-        <div id="section-contact" class="glass-card p-6 space-y-4 scroll-mt-24">
-            <h2 class="text-sm font-bold uppercase tracking-widest text-gray-500">{{ __('site.affiliate_portal.contact_details') }}</h2>
+        <div id="section-contact" class="glass-card p-6 space-y-4 scroll-mt-24 ring-1 ring-brand/10">
+            <h2 class="text-[10px] font-bold uppercase tracking-widest text-brand">{{ __('site.affiliate_portal.contact_details') }}</h2>
             <div class="grid sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.full_name') }}</label>

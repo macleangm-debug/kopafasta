@@ -4,21 +4,21 @@
     <p class="text-sm text-gray-500 mb-5">Invoices auto-generate when you complete a paid task.</p>
 
     <div class="grid sm:grid-cols-3 gap-3 mb-6">
-        <div class="rounded-2xl border border-gray-200 bg-white p-5">
+        <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
             <p class="text-xs text-gray-500 uppercase">Total earned</p>
             <p class="text-2xl font-extrabold text-emerald-700 mt-1">{{ $fmt($totals['paid']) }}</p>
         </div>
-        <div class="rounded-2xl border border-gray-200 bg-white p-5">
+        <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
             <p class="text-xs text-gray-500 uppercase">Pending settlement</p>
             <p class="text-2xl font-extrabold text-amber-700 mt-1">{{ $fmt($totals['pending']) }}</p>
         </div>
-        <div class="rounded-2xl border border-gray-200 bg-white p-5">
+        <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
             <p class="text-xs text-gray-500 uppercase">Total invoices</p>
             <p class="text-2xl font-extrabold mt-1">{{ $totals['count'] }}</p>
         </div>
     </div>
 
-    <div class="rounded-2xl border border-gray-200 bg-white overflow-hidden">
+    <div class="glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">
         <table class="min-w-full text-sm">
             <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
                 <tr>
@@ -39,7 +39,7 @@
                         <td class="px-4 py-3 font-semibold">{{ $fmt($p->amount) }}</td>
                         <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-{{ $pc }}-100 text-{{ $pc }}-700">{{ $p->status }}</span></td>
                         <td class="px-4 py-3 text-gray-600">{{ $p->paid_at?->format('d M Y') ?? '—' }}</td>
-                        <td class="px-4 py-3 text-right"><a href="{{ route('site.partner.invoice', $p) }}" class="text-indigo-600 hover:underline text-sm font-semibold">Invoice</a></td>
+                        <td class="px-4 py-3 text-right"><a href="{{ route('site.partner.invoice', $p) }}" class="text-brand hover:underline text-sm font-semibold">Invoice</a></td>
                     </tr>
                 @empty
                     <tr><td colspan="6" class="px-4 py-10 text-center text-gray-500 text-sm">No invoices yet.</td></tr>

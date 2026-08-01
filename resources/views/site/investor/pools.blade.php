@@ -1,8 +1,8 @@
 <x-site.investor-layout title="Funding pools — Investor" active="pools">
     <div class="mb-6">
-        <p class="text-xs uppercase tracking-widest text-emerald-700 font-semibold mb-1">Capital deployment</p>
+        <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-1">Capital deployment</p>
         <h1 class="text-2xl lg:text-3xl font-bold tracking-tight">Funding pools</h1>
-        <p class="text-slate-500 text-sm mt-1">Pick a pool that matches your risk appetite and target return.</p>
+        <p class="text-gray-500 text-sm mt-1">Pick a pool that matches your risk appetite and target return.</p>
     </div>
 
     @php
@@ -20,7 +20,7 @@
                 @endif
             </button>
             @if ($activeFilters > 0)
-                <a href="{{ route('site.investor.pools') }}" class="text-sm text-slate-500 hover:text-emerald-700 font-medium">Clear</a>
+                <a href="{{ route('site.investor.pools') }}" class="text-sm text-gray-500 hover:text-brand font-medium">Clear</a>
             @endif
         </div>
 

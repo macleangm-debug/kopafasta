@@ -2,7 +2,7 @@
     @php
         $badge = match ($task->status) {
             'assigned'    => 'bg-amber-100 text-amber-700',
-            'in_progress' => 'bg-indigo-100 text-indigo-700',
+            'in_progress' => 'bg-indigo-100 text-brand',
             'completed'   => 'bg-emerald-100 text-emerald-700',
             'rejected'    => 'bg-red-100 text-red-700',
             'cancelled'   => 'bg-gray-100 text-gray-600',
@@ -12,7 +12,7 @@
         $priorityBadge = match ($priority['tone']) {
             'red'    => 'bg-red-100 text-red-700',
             'amber'  => 'bg-amber-100 text-amber-700',
-            'indigo' => 'bg-indigo-100 text-indigo-700',
+            'indigo' => 'bg-indigo-100 text-brand',
             default  => 'bg-gray-100 text-gray-600',
         };
         $loan = $task->loan;
@@ -21,7 +21,7 @@
     @endphp
 
     <div class="mb-5">
-        <a href="{{ route('site.partner.tasks') }}" class="text-sm text-indigo-600 hover:underline">← Back to tasks</a>
+        <a href="{{ route('site.partner.tasks') }}" class="text-sm text-brand hover:underline">← Back to tasks</a>
     </div>
 
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
@@ -38,7 +38,7 @@
     <div class="grid lg:grid-cols-3 gap-6">
         {{-- Left: details --}}
         <div class="lg:col-span-2 space-y-4">
-            <div class="rounded-2xl border border-gray-200 bg-white p-5">
+            <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                 <h2 class="font-bold mb-3">Task overview</h2>
                 <dl class="grid grid-cols-2 gap-3 text-sm">
                     <div><dt class="text-gray-500 text-xs">Task type</dt><dd class="font-medium">{{ ucfirst(str_replace('_', ' ', $task->task_type)) }}</dd></div>
@@ -51,7 +51,7 @@
             </div>
 
             @if ($loan || $application)
-                <div class="rounded-2xl border border-gray-200 bg-white p-5">
+                <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                     <h2 class="font-bold mb-3">Related loan information</h2>
                     <dl class="grid grid-cols-2 gap-3 text-sm">
                         @if ($loan)
@@ -76,7 +76,7 @@
                 </div>
             @endif
 
-            <div class="rounded-2xl border border-gray-200 bg-white p-5">
+            <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                 <h2 class="font-bold mb-3">Customer & location</h2>
                 <dl class="grid grid-cols-2 gap-3 text-sm">
                     <div><dt class="text-gray-500 text-xs">Customer</dt><dd class="font-medium">{{ $task->customer_name ?: '—' }}</dd></div>
@@ -105,7 +105,7 @@
                             @foreach ($task->documents as $d)
                                 <li class="flex items-center justify-between gap-2">
                                     <span>{{ $d->label }}</span>
-                                    <x-site.document-view-button :url="asset('storage/'.$d->file_path)" label="View" class="text-indigo-600 hover:underline text-xs" />
+                                    <x-site.document-view-button :url="asset('storage/'.$d->file_path)" label="View" class="text-brand hover:underline text-xs" />
                                 </li>
                             @endforeach
                         </ul>
@@ -115,7 +115,7 @@
 
             {{-- Upload proof --}}
             @if ($task->status !== 'completed' && $task->status !== 'cancelled')
-                <div class="rounded-2xl border border-gray-200 bg-white p-5">
+                <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                     <h2 class="font-bold mb-3">{{ $task->task_type === 'asset_valuation' ? 'Upload inspection photos' : 'Upload proof' }}</h2>
                     <form method="POST" action="{{ route('site.partner.task.proof', $task) }}" enctype="multipart/form-data" class="space-y-3">
                         @csrf
@@ -123,14 +123,14 @@
                             <label class="block text-xs text-gray-500 mb-1">
                                 {{ $task->task_type === 'asset_valuation' ? 'Photo label (e.g. Front view, Engine, Interior)' : 'What is it? (e.g. Installation photo)' }}
                             </label>
-                            <input name="label" required class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                            <input name="label" required class="w-full rounded-lg border-gray-300 focus:border-brand/500 focus:ring-brand/500 text-sm"
                                    placeholder="{{ $task->task_type === 'asset_valuation' ? 'Asset photo' : 'Proof label' }}">
                         </div>
                         <div>
                             <label class="block text-xs text-gray-500 mb-1">File (image or PDF, max 5MB)</label>
                             <input type="file" name="file" required accept=".jpg,.jpeg,.png,.pdf" class="w-full text-sm">
                         </div>
-                        <button class="rounded-lg bg-indigo-600 text-white text-sm font-semibold px-4 py-2 hover:bg-indigo-700">Upload</button>
+                        <button class="rounded-lg bg-brand text-white text-sm font-semibold px-4 py-2 hover:bg-brand-light">Upload</button>
                     </form>
 
                     @if ($task->documents->isNotEmpty())
@@ -138,7 +138,7 @@
                             @foreach ($task->documents as $d)
                                 <li class="py-2 flex items-center justify-between text-sm">
                                     <span class="truncate">{{ $d->label }}</span>
-                                    <x-site.document-view-button :url="asset('storage/'.$d->file_path)" label="View" class="text-indigo-600 hover:underline text-xs" />
+                                    <x-site.document-view-button :url="asset('storage/'.$d->file_path)" label="View" class="text-brand hover:underline text-xs" />
                                 </li>
                             @endforeach
                         </ul>
@@ -146,7 +146,7 @@
                 </div>
 
                 {{-- Complete task --}}
-                <div class="rounded-2xl border border-gray-200 bg-white p-5">
+                <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                     <h2 class="font-bold mb-3">{{ $task->task_type === 'asset_valuation' ? 'Submit valuation report' : 'Mark complete' }}</h2>
                     @if ($task->task_type === 'asset_valuation')
                         <p class="text-xs text-gray-500 mb-4">Upload photos above, then enter market and forced sale values from your physical inspection.</p>
@@ -178,13 +178,13 @@
                 </div>
             @else
                 @if ($task->documents->isNotEmpty())
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5">
+                    <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                         <h2 class="font-bold mb-3">Uploaded proof</h2>
                         <ul class="divide-y divide-gray-100">
                             @foreach ($task->documents as $d)
                                 <li class="py-2 flex items-center justify-between text-sm">
                                     <span class="truncate">{{ $d->label }}</span>
-                                    <x-site.document-view-button :url="asset('storage/'.$d->file_path)" label="View" class="text-indigo-600 hover:underline text-xs" />
+                                    <x-site.document-view-button :url="asset('storage/'.$d->file_path)" label="View" class="text-brand hover:underline text-xs" />
                                 </li>
                             @endforeach
                         </ul>
@@ -195,13 +195,13 @@
 
         {{-- Right: actions --}}
         <div class="space-y-4">
-            <div class="rounded-2xl border border-gray-200 bg-white p-5">
+            <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                 <h3 class="font-bold mb-3">Actions</h3>
                 <div class="space-y-2">
                     @if ($task->status === 'assigned')
                         <form method="POST" action="{{ route('site.partner.task.accept', $task) }}">
                             @csrf
-                            <button class="w-full rounded-lg bg-indigo-600 text-white text-sm font-semibold py-2 hover:bg-indigo-700">Accept task</button>
+                            <button class="w-full rounded-lg bg-brand text-white text-sm font-semibold py-2 hover:bg-brand-light">Accept task</button>
                         </form>
                     @endif
                     @if (in_array($task->status, ['assigned', 'in_progress']))
@@ -219,13 +219,13 @@
             </div>
 
             @if ($task->payment)
-                <div class="rounded-2xl border border-gray-200 bg-white p-5">
+                <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                     <h3 class="font-bold mb-3">Payment</h3>
                     <p class="text-sm"><span class="text-gray-500">Invoice:</span> <span class="font-mono">{{ $task->payment->invoice_number }}</span></p>
                     <p class="text-sm"><span class="text-gray-500">Amount:</span> {{ format_money($task->payment->amount) }}</p>
                     @php $pc = $task->payment->status === 'paid' ? 'emerald' : 'amber'; @endphp
                     <p class="mt-1"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-{{ $pc }}-100 text-{{ $pc }}-700">{{ $task->payment->status }}</span></p>
-                    <a href="{{ route('site.partner.invoice', $task->payment) }}" class="block mt-3 text-sm text-indigo-600 hover:underline">View invoice →</a>
+                    <a href="{{ route('site.partner.invoice', $task->payment) }}" class="block mt-3 text-sm text-brand hover:underline">View invoice →</a>
                 </div>
             @endif
         </div>

@@ -1,5 +1,5 @@
 @php
-    $badge = $t->status === 'assigned' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700';
+    $badge = $t->status === 'assigned' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-brand';
 @endphp
 <a href="{{ route('site.partner.task', $t) }}" class="flex items-center justify-between py-3 hover:bg-gray-50 -mx-2 px-2 rounded-lg">
     <div class="min-w-0">

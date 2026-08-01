@@ -44,7 +44,7 @@
         <div class="rounded-2xl border border-dashed border-gray-300 p-10 text-center text-gray-500">No tasks here.</div>
     @else
         {{-- Table on desktop, cards on mobile --}}
-        <div class="hidden lg:block rounded-2xl border border-gray-200 bg-white overflow-hidden">
+        <div class="hidden lg:block glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">
             <table class="min-w-full text-sm">
                 <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
                     <tr>
@@ -64,7 +64,7 @@
                             $priorityBadge = match ($priority['tone']) {
                                 'red'    => 'bg-red-100 text-red-700',
                                 'amber'  => 'bg-amber-100 text-amber-700',
-                                'indigo' => 'bg-indigo-100 text-indigo-700',
+                                'indigo' => 'bg-indigo-100 text-brand',
                                 default  => 'bg-gray-100 text-gray-600',
                             };
                         @endphp
@@ -85,7 +85,7 @@
                             </td>
                             <td class="px-4 py-3 text-gray-600">{{ $t->due_at ? $t->due_at->format('d M Y H:i') : '—' }}</td>
                             <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold {{ $badge($t->status) }}">{{ str_replace('_',' ', $t->status) }}</span></td>
-                            <td class="px-4 py-3 text-right"><a href="{{ route('site.partner.task', $t) }}" class="text-indigo-600 hover:underline text-sm font-semibold">Open</a></td>
+                            <td class="px-4 py-3 text-right"><a href="{{ route('site.partner.task', $t) }}" class="text-brand hover:underline text-sm font-semibold">Open</a></td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -99,11 +99,11 @@
                     $priorityBadge = match ($priority['tone']) {
                         'red'    => 'bg-red-100 text-red-700',
                         'amber'  => 'bg-amber-100 text-amber-700',
-                        'indigo' => 'bg-indigo-100 text-indigo-700',
+                        'indigo' => 'bg-indigo-100 text-brand',
                         default  => 'bg-gray-100 text-gray-600',
                     };
                 @endphp
-                <a href="{{ route('site.partner.task', $t) }}" class="block rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-sm">
+                <a href="{{ route('site.partner.task', $t) }}" class="block glass-card rounded-2xl ring-1 ring-brand/10 p-4 hover:shadow-sm">
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0">
                             <p class="font-semibold text-sm">{{ ucfirst(str_replace('_',' ', $t->task_type)) }}</p>

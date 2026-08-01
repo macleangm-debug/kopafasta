@@ -6,17 +6,17 @@
     ];
 @endphp
 
-<x-site.vendor-layout :title="__('site.partner_account.documents_title')" active="documents">
+<x-site.vendor-layout :title="__('site.partner_account.settings_title')" active="profile">
     <x-site.borrower-page-header
         :eyebrow="ucfirst(str_replace('_', ' ', $vendor->category ?? 'partner'))"
-        :title="__('site.partner_account.documents_title')"
-        :subtitle="__('site.partner_account.documents_subtitle')"
+        :title="__('site.partner_account.settings_title')"
+        :subtitle="__('site.partner_account.settings_subtitle')"
     />
 
-    <x-site.partner-account-tabs active="documents" :tabs="$accountTabs" />
+    <x-site.partner-account-tabs active="settings" :tabs="$accountTabs" />
 
-    @include('site.partner-account._documents', [
-        'documents' => $documents,
-        'uploadRoute' => route('site.partner.documents.store'),
+    @include('site.partner-account._settings', [
+        'partner' => $vendor,
+        'supportRoute' => route('site.partner.support'),
     ])
 </x-site.vendor-layout>

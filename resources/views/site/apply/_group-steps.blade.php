@@ -150,22 +150,50 @@
                                 </span>
                             </template>
                         </div>
-                        <div x-show="member.share?.short_url || member.share?.whatsapp_url" x-cloak class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 p-3 space-y-2">
-                            <p class="text-xs font-semibold text-brand">{{ __('borrower.apply.guarantor_fields.share_via') }}</p>
-                            <div class="flex flex-wrap gap-2">
-                                <a :href="member.share?.whatsapp_url || '#'" target="_blank" rel="noopener"
-                                   class="inline-flex bg-emerald-500 hover:bg-emerald-400 text-white font-semibold px-3 py-1.5 rounded-lg text-xs">
-                                    {{ __('borrower.apply.guarantor_fields.share_whatsapp') }}
-                                </a>
-                                <button type="button"
-                                        @click="navigator.clipboard.writeText(member.share?.short_url || member.share?.invitation_url || '')"
-                                        class="inline-flex bg-white ring-1 ring-brand/20 text-brand font-semibold px-3 py-1.5 rounded-lg text-xs">
-                                    {{ __('borrower.apply.guarantor_fields.share_copy') }}
-                                </button>
+
+                        <div x-show="member.role !== 'leader' && (member.share?.short_url || member.share?.invitation_url || member.share?.whatsapp_url)"
+                             x-cloak x-data="{ inviteOpen: false, copied: false }" class="space-y-3">
+                            <button type="button" @click="inviteOpen = !inviteOpen"
+                                    class="inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                                {{ __('borrower.apply.group_members.invite_again') }}
+                                <svg class="w-3.5 h-3.5 transition" :class="inviteOpen && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                            </button>
+                            <div x-show="inviteOpen" x-cloak
+                                 class="rounded-2xl bg-gradient-to-br from-brand via-brand to-brand-light text-white px-5 py-5 space-y-4 shadow-sm">
+                                <div>
+                                    <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.apply.guarantor_fields.share_via') }}</p>
+                                    <p class="text-sm text-white/90 mt-1">{{ __('borrower.apply.guarantor_fields.share_ready') }}</p>
+                                </div>
+                                <p class="text-xs font-mono text-brand bg-brand-gold/90 rounded-xl px-3 py-2.5 break-all"
+                                   x-text="member.share?.short_url || member.share?.invitation_url"></p>
+                                <div class="flex flex-wrap gap-2">
+                                    <a :href="member.share?.whatsapp_url || '#'" :class="!member.share?.whatsapp_url && 'pointer-events-none opacity-50'" target="_blank" rel="noopener"
+                                       class="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                                        {{ __('borrower.apply.guarantor_fields.share_whatsapp') }}
+                                    </a>
+                                    <a :href="member.share?.sms_url || '#'" :class="!member.share?.sms_url && 'pointer-events-none opacity-50'"
+                                       class="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 ring-1 ring-white/30 text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                                        {{ __('borrower.apply.guarantor_fields.share_sms') }}
+                                    </a>
+                                    <a :href="member.share?.email_url || '#'" :class="!member.share?.email_url && 'pointer-events-none opacity-50'"
+                                       class="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 ring-1 ring-white/30 text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                                        {{ __('borrower.apply.guarantor_fields.share_email') }}
+                                    </a>
+                                    <button type="button"
+                                            @click="navigator.clipboard.writeText(member.share?.short_url || member.share?.invitation_url || ''); copied = true; setTimeout(() => copied = false, 2000)"
+                                            class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm">
+                                        <span x-text="copied ? @js(__('borrower.apply.guarantor_fields.link_copied')) : @js(__('borrower.apply.guarantor_fields.share_copy'))"></span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                        <button type="button" x-show="member.role !== 'leader'" @click="removeGroupMember(index)"
-                                class="text-xs text-red-700 font-medium hover:underline">{{ __('borrower.apply.group_members.remove') }}</button>
+
+                        <div x-show="member.role !== 'leader'" class="pt-1">
+                            <button type="button" @click="removeGroupMember(index)"
+                                    class="inline-flex items-center gap-2 bg-white ring-1 ring-red-200 hover:bg-red-50 text-red-700 font-semibold px-4 py-2.5 rounded-xl text-sm">
+                                {{ __('borrower.apply.group_members.remove') }}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </template>

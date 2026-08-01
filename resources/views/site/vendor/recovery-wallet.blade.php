@@ -5,22 +5,22 @@
     <p class="text-sm text-gray-500 mb-5">Recovery commissions accrue when you complete a case. Dispute any incorrect entry before payout.</p>
 
     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <div class="rounded-2xl border border-gray-200 bg-white p-5">
+        <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
             <p class="text-xs text-gray-500 uppercase">Pending</p>
             <p class="text-2xl font-extrabold text-amber-700 mt-1">{{ format_money($summary['pending'] ?? 0) }}</p>
             <p class="text-xs text-gray-500 mt-1">{{ $summary['counts']['pending'] ?? 0 }} payment(s)</p>
         </div>
-        <div class="rounded-2xl border border-gray-200 bg-white p-5">
+        <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
             <p class="text-xs text-gray-500 uppercase">Approved</p>
             <p class="text-2xl font-extrabold text-blue-700 mt-1">{{ format_money($summary['approved'] ?? 0) }}</p>
             <p class="text-xs text-gray-500 mt-1">{{ $summary['counts']['approved'] ?? 0 }} payment(s)</p>
         </div>
-        <div class="rounded-2xl border border-gray-200 bg-white p-5">
+        <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
             <p class="text-xs text-gray-500 uppercase">Paid</p>
             <p class="text-2xl font-extrabold text-emerald-700 mt-1">{{ format_money($summary['paid'] ?? 0) }}</p>
             <p class="text-xs text-gray-500 mt-1">{{ $summary['counts']['paid'] ?? 0 }} payment(s)</p>
         </div>
-        <div class="rounded-2xl border border-gray-200 bg-white p-5">
+        <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
             <p class="text-xs text-gray-500 uppercase">Disputed</p>
             <p class="text-2xl font-extrabold text-red-700 mt-1">{{ format_money($summary['disputed'] ?? 0) }}</p>
             <p class="text-xs text-gray-500 mt-1">{{ $summary['counts']['disputed'] ?? 0 }} payment(s)</p>
@@ -29,7 +29,7 @@
 
     </div>
 
-    <form method="POST" action="{{ route('site.partner.recovery-wallet.payout-request') }}" class="mb-6 rounded-2xl border border-gray-200 bg-white p-5 grid sm:grid-cols-3 gap-3 items-end">
+    <form method="POST" action="{{ route('site.partner.recovery-wallet.payout-request') }}" class="mb-6 glass-card rounded-2xl ring-1 ring-brand/10 p-5 grid sm:grid-cols-3 gap-3 items-end">
         @csrf
         <div>
             <label class="block text-xs text-gray-600 mb-1">Request payout (TZS)</label>
@@ -43,7 +43,7 @@
         <button type="submit" class="sm:col-span-3 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm w-full sm:w-auto">Submit payout request</button>
     </form>
 
-    <div class="rounded-2xl border border-gray-200 bg-white overflow-hidden">
+    <div class="glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">
         <table class="min-w-full text-sm">
             <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
                 <tr>

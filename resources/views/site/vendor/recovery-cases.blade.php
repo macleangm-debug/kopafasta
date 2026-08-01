@@ -12,7 +12,7 @@
         $current = $status ?: 'all';
         $badge = fn ($s) => match ($s) {
             'assigned'    => 'bg-amber-100 text-amber-700',
-            'in_progress' => 'bg-indigo-100 text-indigo-700',
+            'in_progress' => 'bg-indigo-100 text-brand',
             'completed'   => 'bg-emerald-100 text-emerald-700',
             'escalated'   => 'bg-red-100 text-red-700',
             default       => 'bg-gray-100 text-gray-600',
@@ -26,7 +26,7 @@
         @foreach ($tabs as $k => $label)
             <a href="{{ route('site.partner.recovery-cases', $k === 'all' ? [] : ['status' => $k]) }}"
                class="px-3 py-1.5 rounded-full text-xs font-semibold border
-                      {{ $current === $k ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50' }}">
+                      {{ $current === $k ? 'bg-brand text-white border-brand/600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50' }}">
                 {{ $label }}
             </a>
         @endforeach
@@ -43,7 +43,7 @@
                     $name = trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
                     $slaBreached = $assignment->sla_due_at && $assignment->sla_due_at->isPast() && in_array($assignment->status, ['assigned', 'in_progress'], true);
                 @endphp
-                <div class="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5">
+                <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-4 sm:p-5">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <p class="text-xs text-gray-500 uppercase tracking-wide">Case #{{ $assignment->arrear_case_id }}</p>
@@ -83,7 +83,7 @@
 
                     <div class="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
                         <a href="{{ route('site.partner.recovery-case', $assignment) }}"
-                           class="inline-flex items-center rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700">
+                           class="inline-flex items-center rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white hover:bg-brand-light">
                             Open case
                         </a>
                         @if ($assignment->vendorTask)

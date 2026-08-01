@@ -1,10 +1,10 @@
 <x-site.affiliate-layout :title="brand_title(__('site.affiliate_portal.wallet_title'))" active="wallet">
 
-    <div class="mb-6">
-        <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('site.affiliate_portal.nav_wallet') }}</p>
-        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">{{ __('site.affiliate_portal.wallet_title') }}</h1>
-        <p class="text-sm text-gray-500 mt-1">{{ __('site.affiliate_portal.wallet_subtitle') }}</p>
-    </div>
+    <x-site.borrower-page-header
+        :eyebrow="__('site.affiliate_portal.nav_wallet')"
+        :title="__('site.affiliate_portal.wallet_title')"
+        :subtitle="__('site.affiliate_portal.wallet_subtitle')"
+    />
 
     <section class="mb-6 bg-brand text-white rounded-2xl p-6 sm:p-8 shadow-lg relative overflow-hidden">
         <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>

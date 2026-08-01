@@ -6,11 +6,20 @@
         $regLink = $links['registration_link'] ?? '#';
     @endphp
 
-    <div class="mb-6">
-        <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('site.affiliate_portal.welcome') }}</p>
-        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">{{ $vendor->name }}</h1>
-        <p class="text-sm text-gray-500 mt-1">{{ __('site.affiliate_portal.partner_code', ['code' => $vendor->partner_number ?? '—']) }}</p>
-    </div>
+    <x-site.borrower-page-header
+        :eyebrow="__('site.affiliate_portal.welcome')"
+        :title="$vendor->name"
+        :subtitle="__('site.affiliate_portal.partner_code', ['code' => $vendor->partner_number ?? '—'])"
+    >
+        @if ($kycApproved && $code)
+            <x-slot:actions>
+                <a href="{{ route('site.affiliate.verify', $code) }}" target="_blank" rel="noopener"
+                   class="inline-flex items-center gap-2 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 text-emerald-800 font-semibold px-4 py-2.5 text-sm">
+                    ✓ {{ __('site.affiliate_portal.verified_badge') }}
+                </a>
+            </x-slot:actions>
+        @endif
+    </x-site.borrower-page-header>
 
     @unless ($kycApproved)
         <div class="mb-6 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

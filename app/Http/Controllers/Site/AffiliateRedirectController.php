@@ -13,8 +13,18 @@ class AffiliateRedirectController extends Controller
     {
         $affiliate = $affiliates->findByCode($code);
         if (! $affiliate) {
+            // Distinguish unknown vs unverified so we do not silently credit scammers.
+            $raw = \App\Models\Vendor::query()
+                ->where('category', 'affiliate')
+                ->where('affiliate_code', strtoupper(trim($code)))
+                ->first();
+
+            $message = $raw && ! app(\App\Services\AffiliateLifecycleService::class)->canSharePublicly($raw)
+                ? __('site.affiliate_portal.link_not_verified')
+                : __('site.affiliate_portal.link_not_recognized');
+
             return redirect()->route('site.register.borrower')
-                ->with('warning', 'Affiliate link not recognized. You can still register normally.');
+                ->with('warning', $message);
         }
 
         $affiliates->trackClick($affiliate, $request);
@@ -22,6 +32,6 @@ class AffiliateRedirectController extends Controller
 
         return redirect()
             ->route('site.register.borrower', ['aff' => $affiliate->affiliate_code])
-            ->with('status', 'Welcome! Complete registration to continue with your affiliate offer.');
+            ->with('status', __('site.affiliate_portal.link_welcome'));
     }
 }

@@ -549,6 +549,13 @@ class VendorController extends Controller
         return view('site.vendor.profile', compact('vendor'));
     }
 
+    public function settings()
+    {
+        $vendor = $this->vendor();
+
+        return view('site.vendor.settings', compact('vendor'));
+    }
+
     public function updateProfile(Request $request)
     {
         $vendor = $this->vendor();

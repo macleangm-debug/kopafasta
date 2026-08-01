@@ -4,7 +4,7 @@
         $borrowerName = trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
         $statusBadge = match ($assignment->status) {
             'assigned'    => 'bg-amber-100 text-amber-700',
-            'in_progress' => 'bg-indigo-100 text-indigo-700',
+            'in_progress' => 'bg-indigo-100 text-brand',
             'completed'   => 'bg-emerald-100 text-emerald-700',
             'escalated'   => 'bg-red-100 text-red-700',
             default       => 'bg-gray-100 text-gray-600',
@@ -14,7 +14,7 @@
     @endphp
 
     <div class="mb-5">
-        <a href="{{ route('site.partner.recovery-cases') }}" class="text-sm text-indigo-600 hover:underline">← Back to recovery cases</a>
+        <a href="{{ route('site.partner.recovery-cases') }}" class="text-sm text-brand hover:underline">← Back to recovery cases</a>
     </div>
 
     @if (session('status'))
@@ -54,7 +54,7 @@
 
     <div class="grid lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-4">
-            <div class="rounded-2xl border border-gray-200 bg-white p-5">
+            <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                 <h2 class="font-bold mb-3">Case summary</h2>
                 <dl class="grid sm:grid-cols-2 gap-3 text-sm">
                     <div>
@@ -108,7 +108,7 @@
             </div>
 
             @if ($isOpen)
-                <div class="rounded-2xl border border-gray-200 bg-white p-5">
+                <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                     <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
                         <h2 class="font-bold">Record action</h2>
                         @if ($assignment->status === 'assigned')
@@ -143,7 +143,7 @@
                                         @endif
                                     </div>
                                     <button type="submit"
-                                            class="rounded-lg px-3 py-2 text-xs font-semibold {{ $isResolve ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-indigo-600 hover:bg-indigo-700 text-white' }}">
+                                            class="rounded-lg px-3 py-2 text-xs font-semibold {{ $isResolve ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-brand hover:bg-brand-light text-white' }}">
                                         Submit
                                     </button>
                                 </div>
@@ -172,7 +172,7 @@
                 </div>
             @endif
 
-            <div class="rounded-2xl border border-gray-200 bg-white p-5">
+            <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                 <h2 class="font-bold mb-3">Activity log</h2>
                 @if (($activity ?? collect())->isEmpty())
                     <p class="text-sm text-gray-500">No actions logged yet.</p>
@@ -199,11 +199,11 @@
 
         <div class="space-y-4">
             @if ($assignment->vendorTask)
-                <div class="rounded-2xl border border-gray-200 bg-white p-5">
+                <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                     <h2 class="font-bold mb-3">Linked task</h2>
                     <p class="text-sm text-gray-600 mb-3">{{ ucfirst(str_replace('_', ' ', $assignment->vendorTask->task_type)) }}</p>
                     <a href="{{ route('site.partner.task', $assignment->vendorTask) }}"
-                       class="inline-flex rounded-lg bg-indigo-600 text-white text-xs font-semibold px-3 py-2 hover:bg-indigo-700">
+                       class="inline-flex rounded-lg bg-brand text-white text-xs font-semibold px-3 py-2 hover:bg-brand-light">
                         Open task
                     </a>
 
@@ -212,7 +212,7 @@
                             @foreach ($assignment->vendorTask->documents as $document)
                                 <li class="py-2 flex items-center justify-between gap-2">
                                     <span class="truncate">{{ $document->label }}</span>
-                                    <x-site.document-view-button :url="asset('storage/'.$document->file_path)" label="View" class="text-indigo-600 text-xs hover:underline" />
+                                    <x-site.document-view-button :url="asset('storage/'.$document->file_path)" label="View" class="text-brand text-xs hover:underline" />
                                 </li>
                             @endforeach
                         </ul>
@@ -220,7 +220,7 @@
                 </div>
             @endif
 
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 text-sm text-gray-600">
+            <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5 text-sm text-gray-600">
                 <p class="font-semibold text-gray-900 mb-2">Reminder</p>
                 <p>Commission is calculated from the original outstanding at assignment — not compounded across partners.</p>
             </div>

@@ -322,10 +322,13 @@ document.addEventListener('alpine:init', () => {
     window.confirmForm = (form, detail = {}) => {
         const tone = detail.tone
             || (String(detail.confirmClass || '').includes('red') ? 'warning' : 'confirm');
+        // form may be null when detail.onConfirm is provided (Alpine actions).
         window.dispatchEvent(new CustomEvent('open-confirm-default', {
-            detail: { form, tone, ...detail },
+            detail: { form: form || null, tone, ...detail },
         }));
     };
+
+    window.confirmAction = (detail = {}) => window.confirmForm(null, detail);
 
     window.showBorrowerFeedback = (detail = {}) => {
         window.dispatchEvent(new CustomEvent('open-feedback-default', {

@@ -1,58 +1,57 @@
 <x-site.investor-layout title="Documents — Investor" active="documents">
-    <h1 class="text-2xl lg:text-3xl font-bold tracking-tight mb-1">Documents & statements</h1>
-    <p class="text-slate-500 text-sm mb-6">Contracts, monthly statements and tax reports.</p>
+    <x-site.borrower-page-header
+        eyebrow="Capital partner"
+        title="Documents & statements"
+        subtitle="Contracts, monthly statements and tax reports."
+    />
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div class="rounded-2xl border border-slate-200 bg-white p-5">
-            <p class="text-xs uppercase text-slate-500 font-semibold">Investor agreement</p>
-            <p class="font-semibold mt-1">Master capital partner agreement</p>
-            <button class="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold hover:bg-slate-50">Download agreement</button>
-        </div>
-        <div class="rounded-2xl border border-slate-200 bg-white p-5">
-            <p class="text-xs uppercase text-slate-500 font-semibold">Year-to-date</p>
-            <p class="font-semibold mt-1">{{ now()->year }} statement</p>
-            <button class="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold hover:bg-slate-50">Download statement</button>
-        </div>
-        <div class="rounded-2xl border border-slate-200 bg-white p-5">
-            <p class="text-xs uppercase text-slate-500 font-semibold">Tax report</p>
-            <p class="font-semibold mt-1">{{ now()->subYear()->year }} tax summary</p>
-            <button class="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold hover:bg-slate-50">Download report</button>
-        </div>
+        @foreach ([
+            ['Investor agreement', 'Master capital partner agreement', 'Download agreement'],
+            ['Year-to-date', now()->year.' statement', 'Download statement'],
+            ['Tax report', now()->subYear()->year.' tax summary', 'Download report'],
+        ] as [$eyebrow, $title, $cta])
+            <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $eyebrow }}</p>
+                <p class="font-semibold text-gray-900 mt-1">{{ $title }}</p>
+                <button type="button" class="mt-3 inline-flex items-center gap-2 rounded-xl bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand px-3 py-1.5 text-sm font-semibold">{{ $cta }}</button>
+            </div>
+        @endforeach
     </div>
 
-    <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-200">
-            <h2 class="font-bold">Statement history</h2>
+    <div class="glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">
+        <div class="px-6 py-4 border-b border-brand/10 bg-brand-muted/20">
+            <h2 class="font-bold text-gray-900">Statement history</h2>
         </div>
         @if ($statements->isEmpty())
-            <div class="p-10 text-center text-slate-500 text-sm">No statements generated yet. Statements appear monthly.</div>
+            <div class="p-10 text-center text-gray-500 text-sm">No statements generated yet. Statements appear monthly.</div>
         @else
             <table class="w-full text-sm">
-                <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+                <thead class="bg-brand-muted/30 text-xs uppercase tracking-widest text-brand">
                     <tr>
-                        <th class="text-left px-4 py-3">Period</th>
-                        <th class="text-right px-4 py-3">Opening</th>
-                        <th class="text-right px-4 py-3">Investments</th>
-                        <th class="text-right px-4 py-3">Returns</th>
-                        <th class="text-right px-4 py-3">Withdrawals</th>
-                        <th class="text-right px-4 py-3">Closing</th>
+                        <th class="text-left px-4 py-3 font-semibold">Period</th>
+                        <th class="text-right px-4 py-3 font-semibold">Opening</th>
+                        <th class="text-right px-4 py-3 font-semibold">Investments</th>
+                        <th class="text-right px-4 py-3 font-semibold">Returns</th>
+                        <th class="text-right px-4 py-3 font-semibold">Withdrawals</th>
+                        <th class="text-right px-4 py-3 font-semibold">Closing</th>
                         <th></th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100">
+                <tbody class="divide-y divide-gray-100 bg-white">
                     @foreach ($statements as $s)
                         <tr>
                             <td class="px-4 py-3 font-semibold">{{ $s->period_start->format('d M') }} – {{ $s->period_end->format('d M Y') }}</td>
-                            <td class="px-4 py-3 text-right">TZS {{ $fmt($s->opening_balance) }}</td>
-                            <td class="px-4 py-3 text-right">TZS {{ $fmt($s->investments_total) }}</td>
-                            <td class="px-4 py-3 text-right text-emerald-700">TZS {{ $fmt($s->returns_total) }}</td>
-                            <td class="px-4 py-3 text-right">TZS {{ $fmt($s->withdrawals_total) }}</td>
-                            <td class="px-4 py-3 text-right font-bold">TZS {{ $fmt($s->closing_balance) }}</td>
+                            <td class="px-4 py-3 text-right tabular-nums">TZS {{ $fmt($s->opening_balance) }}</td>
+                            <td class="px-4 py-3 text-right tabular-nums">TZS {{ $fmt($s->investments_total) }}</td>
+                            <td class="px-4 py-3 text-right tabular-nums text-brand">TZS {{ $fmt($s->returns_total) }}</td>
+                            <td class="px-4 py-3 text-right tabular-nums">TZS {{ $fmt($s->withdrawals_total) }}</td>
+                            <td class="px-4 py-3 text-right tabular-nums font-bold">TZS {{ $fmt($s->closing_balance) }}</td>
                             <td class="px-4 py-3 text-right">
                                 @if ($s->file_path)
-                                    <a href="{{ asset('storage/'.$s->file_path) }}" class="text-emerald-700 hover:underline text-xs font-semibold">Download</a>
+                                    <a href="{{ asset('storage/'.$s->file_path) }}" class="text-brand hover:underline text-xs font-semibold">Download</a>
                                 @else
-                                    <span class="text-slate-400 text-xs">—</span>
+                                    <span class="text-gray-400 text-xs">—</span>
                                 @endif
                             </td>
                         </tr>

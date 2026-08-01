@@ -1,11 +1,11 @@
 <x-site.vendor-layout title="Invoice" active="payments">
 
     <div class="mb-5 flex items-center justify-between">
-        <a href="{{ route('site.partner.payments') }}" class="text-sm text-indigo-600 hover:underline">← Back to payments</a>
+        <a href="{{ route('site.partner.payments') }}" class="text-sm text-brand hover:underline">← Back to payments</a>
         <button onclick="window.print()" class="text-sm rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50">Print / Save PDF</button>
     </div>
 
-    <div class="max-w-3xl mx-auto rounded-2xl border border-gray-200 bg-white p-8 print:border-0 print:p-0">
+    <div class="max-w-3xl mx-auto glass-card rounded-2xl ring-1 ring-brand/10 p-8 print:border-0 print:p-0">
         <div class="flex items-start justify-between mb-8">
             <div>
                 <p class="text-xs text-gray-500 uppercase">Invoice</p>

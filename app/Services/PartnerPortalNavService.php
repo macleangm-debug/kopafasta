@@ -73,13 +73,13 @@ class PartnerPortalNavService
     public function supplierNav(): array
     {
         return [
-            ['key' => 'dashboard', 'label' => 'Dashboard', 'route' => 'site.supplier.dashboard', 'icon' => 'home'],
-            ['key' => 'assets', 'label' => 'Assets', 'route' => 'site.supplier.assets', 'icon' => 'folder'],
-            ['key' => 'applications', 'label' => 'Expected payouts', 'route' => 'site.supplier.applications', 'icon' => 'clipboard'],
-            ['key' => 'reservations', 'label' => 'Reservations', 'route' => 'site.supplier.reservations', 'icon' => 'calendar'],
-            ['key' => 'requests', 'label' => 'Asset requests', 'route' => 'site.supplier.requests', 'icon' => 'bell'],
-            ['key' => 'settlements', 'label' => 'Settlements', 'route' => 'site.supplier.settlements', 'icon' => 'wallet'],
-            ['key' => 'profile', 'label' => 'Profile', 'route' => 'site.supplier.profile', 'icon' => 'user'],
+            ['key' => 'dashboard', 'label' => __('site.supplier_portal.nav_dashboard'), 'route' => 'site.supplier.dashboard', 'icon' => 'home'],
+            ['key' => 'assets', 'label' => __('site.supplier_portal.nav_assets'), 'route' => 'site.supplier.assets', 'icon' => 'folder'],
+            ['key' => 'applications', 'label' => __('site.supplier_portal.nav_applications'), 'route' => 'site.supplier.applications', 'icon' => 'clipboard'],
+            ['key' => 'reservations', 'label' => __('site.supplier_portal.nav_reservations'), 'route' => 'site.supplier.reservations', 'icon' => 'calendar'],
+            ['key' => 'requests', 'label' => __('site.supplier_portal.nav_requests'), 'route' => 'site.supplier.requests', 'icon' => 'bell'],
+            ['key' => 'settlements', 'label' => __('site.supplier_portal.nav_settlements'), 'route' => 'site.supplier.settlements', 'icon' => 'wallet'],
+            ['key' => 'profile', 'label' => __('site.supplier_portal.nav_profile'), 'route' => 'site.supplier.profile', 'icon' => 'user'],
         ];
     }
 

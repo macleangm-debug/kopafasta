@@ -20,7 +20,11 @@
     :display-name="$displayName"
     :subtitle="$vendor?->partner_number ?? auth()->user()?->email"
     :banner="$navService->roleBanner($vendor)"
-    :profile-links="[['label' => 'Profile', 'route' => 'site.partner.profile'], ['label' => 'Documents', 'route' => 'site.partner.documents']]"
+    :profile-links="[
+        ['label' => __('site.partner_portal.nav_profile'), 'route' => 'site.partner.profile'],
+        ['label' => __('site.partner_portal.nav_documents'), 'route' => 'site.partner.documents'],
+        ['label' => __('site.partner_portal.nav_settings'), 'route' => 'site.partner.settings'],
+    ]"
 >
     {{ $slot }}
 </x-site.partner-shell>

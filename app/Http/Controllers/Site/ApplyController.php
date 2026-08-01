@@ -433,6 +433,7 @@ class ApplyController extends Controller
             ->with('groupMemberLimits', app(GroupApplyService::class)->memberLimits())
             ->with('groupMemberLookupUrl', route('site.borrower.apply.group-member-lookup'))
             ->with('groupMemberInviteUrl', route('site.borrower.apply.group-member-invite'))
+            ->with('groupMemberExpireUrl', route('site.borrower.apply.group-member-expire'))
             ->with('groupMemberStatusesUrl', route('site.borrower.apply.group-member-statuses'))
             ->with('previousGroupMembersUrl', route('site.borrower.apply.previous-group-members'))
             ->with('selectPreviousGroupMemberUrl', route('site.borrower.apply.previous-group-member'))
@@ -659,6 +660,22 @@ class ApplyController extends Controller
         ]);
     }
 
+    public function expireGroupMemberInvitation(
+        Request $request,
+        GroupMemberInvitationService $invitations,
+    ): \Illuminate\Http\JsonResponse {
+        $leader = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($leader, 403);
+
+        $data = $request->validate([
+            'invitation_id' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $ok = $invitations->cancelInvitationForLeader($leader, (int) $data['invitation_id']);
+
+        return response()->json(['ok' => $ok]);
+    }
+
     public function refreshGroupMemberStatuses(Request $request): \Illuminate\Http\JsonResponse
     {
         $leader = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
@@ -671,7 +688,8 @@ class ApplyController extends Controller
         ]);
 
         $progress = app(GroupMemberProgressService::class);
-        $members = collect($data['members'])->map(function (array $row) use ($progress, $leader) {
+        $invitations = app(GroupMemberInvitationService::class);
+        $members = collect($data['members'])->map(function (array $row) use ($progress, $leader, $invitations) {
             $invitationId = (int) ($row['invitation_id'] ?? 0);
             if ($invitationId > 0) {
                 $invitation = \App\Models\GroupMemberInvitation::query()
@@ -684,6 +702,9 @@ class ApplyController extends Controller
                     $row['status_label'] = $status['label'];
                     if ($invitation->customer_id) {
                         $row['customer_id'] = $invitation->customer_id;
+                    }
+                    if (in_array($invitation->status, ['pending', 'accepted'], true)) {
+                        $row['share'] = $invitations->sharePayload($invitation);
                     }
                 }
             } elseif (filled($row['customer_id'] ?? null)) {

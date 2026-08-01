@@ -4,7 +4,7 @@
 
     @php
         $row = function ($t) {
-            $badge = $t->status === 'assigned' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700';
+            $badge = $t->status === 'assigned' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-brand';
             return view('site.vendor._calrow', ['t' => $t, 'badge' => $badge])->render();
         };
     @endphp
@@ -27,7 +27,7 @@
     @endif
 
     <div class="grid md:grid-cols-2 gap-5">
-        <div class="rounded-2xl border border-gray-200 bg-white p-5">
+        <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
             <h2 class="font-bold mb-3">Today</h2>
             @if ($today->isEmpty())
                 <p class="text-sm text-gray-500">Nothing scheduled today.</p>
@@ -39,7 +39,7 @@
                 </div>
             @endif
         </div>
-        <div class="rounded-2xl border border-gray-200 bg-white p-5">
+        <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
             <h2 class="font-bold mb-3">Upcoming (next 3 weeks)</h2>
             @if ($upcoming->isEmpty())
                 <p class="text-sm text-gray-500">Nothing upcoming.</p>

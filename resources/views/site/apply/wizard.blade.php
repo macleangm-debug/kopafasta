@@ -65,6 +65,7 @@
                   guarantorLookupUrl: @js(route('site.borrower.apply.guarantor-lookup')),
                   groupMemberLookupUrl: @js($groupMemberLookupUrl ?? route('site.borrower.apply.group-member-lookup')),
                   groupMemberInviteUrl: @js($groupMemberInviteUrl ?? route('site.borrower.apply.group-member-invite')),
+                  groupMemberExpireUrl: @js($groupMemberExpireUrl ?? route('site.borrower.apply.group-member-expire')),
                   groupMemberStatusesUrl: @js($groupMemberStatusesUrl ?? route('site.borrower.apply.group-member-statuses')),
                   previousGroupMembersUrl: @js($previousGroupMembersUrl ?? route('site.borrower.apply.previous-group-members')),
                   selectPreviousGroupMemberUrl: @js($selectPreviousGroupMemberUrl ?? route('site.borrower.apply.previous-group-member')),
@@ -202,6 +203,10 @@
                           'membersRequired' => __('borrower.apply.group.members_required'),
                           'lookupInvalidPhone' => __('borrower.apply.group.lookup_invalid_phone'),
                           'membersNotVerified' => __('borrower.apply.group.members_not_verified'),
+                          'removeTitle' => __('borrower.apply.group_members.remove_title'),
+                          'removeMessage' => __('borrower.apply.group_members.remove_message'),
+                          'removeConfirm' => __('borrower.apply.group_members.remove'),
+                          'addReplacementHint' => __('borrower.apply.group_members.add_replacement_hint'),
                       ],
                       'groupMembers' => [
                           'duplicate' => __('borrower.apply.group_members.duplicate'),

@@ -24,7 +24,7 @@
                     <p class="mt-3 font-mono text-sm font-semibold text-amber-800">{{ $affiliateLinks['affiliate_code'] ?? $vendor->affiliate_code }}</p>
                     <p class="text-xs text-gray-500 mt-1">KYC: {{ ucfirst($vendor->affiliate_kyc_status ?? 'pending') }}</p>
                 </div>
-                <a href="{{ route('site.partner.profile') }}" class="text-sm font-semibold text-indigo-600 hover:underline shrink-0">Manage profile & KYC →</a>
+                <a href="{{ route('site.partner.profile') }}" class="text-sm font-semibold text-brand hover:underline shrink-0">Manage profile & KYC →</a>
             </div>
 
             @if (! $affiliateKycSubmitted)
@@ -62,8 +62,8 @@
                                 class="mt-2 text-xs font-semibold text-amber-700 hover:underline">Copy message</button>
                     </div>
                     <div class="flex flex-wrap gap-3 text-sm">
-                        <a href="{{ $affiliateLinks['registration_link'] }}" class="font-semibold text-indigo-600 hover:underline" target="_blank" rel="noopener">Registration link</a>
-                        <a href="{{ $affiliateLinks['verify_link'] }}" class="font-semibold text-indigo-600 hover:underline" target="_blank" rel="noopener">Verification page</a>
+                        <a href="{{ $affiliateLinks['registration_link'] }}" class="font-semibold text-brand hover:underline" target="_blank" rel="noopener">Registration link</a>
+                        <a href="{{ $affiliateLinks['verify_link'] }}" class="font-semibold text-brand hover:underline" target="_blank" rel="noopener">Verification page</a>
                     </div>
                 </div>
             @endif
@@ -79,7 +79,7 @@
             <h1 class="text-2xl font-extrabold tracking-tight">Hi, {{ $vendor->name }}</h1>
             <p class="text-sm text-gray-500">{{ $catLabels[$vendor->category] ?? ucfirst($vendor->category) }} · <span class="font-mono">{{ $vendor->vendor_number }}</span></p>
         </div>
-        <a href="{{ route('site.partner.tasks') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 text-white font-semibold px-5 py-3 hover:bg-indigo-700">
+        <a href="{{ route('site.partner.tasks') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand text-white font-semibold px-5 py-3 hover:bg-brand-light">
             View tasks
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
         </a>
@@ -88,12 +88,12 @@
     <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
         @foreach ([
             ['Assigned',        $stats['assigned'],            'text-amber-700'],
-            ['In Progress',     $stats['in_progress'],         'text-indigo-700'],
+            ['In Progress',     $stats['in_progress'],         'text-brand'],
             ['Done this month', $stats['completed_mo'],        'text-emerald-700'],
             ['Pending Pay',     $fmt($stats['payments_pend']), 'text-orange-700'],
             ['Total Earnings',  $fmt($stats['earnings']),      'text-sky-700'],
         ] as [$label, $value, $color])
-            <div class="rounded-2xl border border-gray-200 bg-white p-4">
+            <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-4">
                 <p class="text-xs uppercase tracking-wide text-gray-500">{{ $label }}</p>
                 <p class="text-xl font-extrabold {{ $color }} mt-1">{{ $value }}</p>
             </div>
@@ -101,10 +101,10 @@
     </div>
 
     <div class="grid lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 rounded-2xl border border-gray-200 bg-white p-5">
+        <div class="lg:col-span-2 glass-card rounded-2xl ring-1 ring-brand/10 p-5">
             <div class="flex items-center justify-between mb-3">
                 <h2 class="font-bold">Upcoming tasks</h2>
-                <a href="{{ route('site.partner.tasks') }}" class="text-sm text-indigo-600 hover:underline">All</a>
+                <a href="{{ route('site.partner.tasks') }}" class="text-sm text-brand hover:underline">All</a>
             </div>
             @if ($upcoming->isEmpty())
                 <p class="text-sm text-gray-500">No assigned or in-progress tasks right now.</p>
@@ -114,7 +114,7 @@
                         @php
                             $badge = $t->status === 'assigned'
                                 ? 'bg-amber-100 text-amber-700'
-                                : ($t->status === 'in_progress' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-700');
+                                : ($t->status === 'in_progress' ? 'bg-indigo-100 text-brand' : 'bg-gray-100 text-gray-700');
                         @endphp
                         <a href="{{ route('site.partner.task', $t) }}" class="flex items-center justify-between py-3 hover:bg-gray-50 -mx-2 px-2 rounded-lg">
                             <div class="min-w-0">
@@ -128,10 +128,10 @@
             @endif
         </div>
 
-        <div class="rounded-2xl border border-gray-200 bg-white p-5">
+        <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
             <div class="flex items-center justify-between mb-3">
                 <h2 class="font-bold">Notifications</h2>
-                <a href="{{ route('site.partner.notifications') }}" class="text-sm text-indigo-600 hover:underline">All</a>
+                <a href="{{ route('site.partner.notifications') }}" class="text-sm text-brand hover:underline">All</a>
             </div>
             @if ($notifications->isEmpty())
                 <p class="text-sm text-gray-500">No notifications yet.</p>

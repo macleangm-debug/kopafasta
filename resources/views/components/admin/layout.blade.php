@@ -87,6 +87,7 @@
             ['Settlements',           'admin.settlements.index',           'finance.operations'],
             ['Partner payments',      'admin.partner-payments.index',        'finance.operations'],
             ['Partner settlements',   'admin.partner-settlements.index',     'finance.operations'],
+            ['Partner payouts',       'admin.partner-payout-requests.index', 'finance.operations'],
             ['Borrower refunds',      'admin.borrower-refunds.index',        'finance.operations'],
             ['Reconciliations',       'admin.reconciliations.index',       'finance.operations'],
             ['Journal Entries',       'admin.journal-entries.index',       'finance.operations'],
@@ -371,9 +372,10 @@
         const tone = detail.tone
             || (String(detail.confirmClass || '').includes('red') ? 'warning' : 'confirm');
         window.dispatchEvent(new CustomEvent('open-confirm-admin', {
-            detail: { form, tone, ...detail },
+            detail: { form: form || null, tone, ...detail },
         }));
     };
+    window.confirmAction = (detail = {}) => window.confirmForm(null, detail);
     document.addEventListener('DOMContentLoaded', () => {
         @if (session('status'))
             window.showAdminFeedback({

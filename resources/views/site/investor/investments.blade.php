@@ -2,26 +2,26 @@
     <div class="flex items-center justify-between mb-6">
         <div>
             <h1 class="text-2xl lg:text-3xl font-bold tracking-tight">My investments</h1>
-            <p class="text-slate-500 text-sm mt-1">All your capital placements across pools and direct loans.</p>
+            <p class="text-gray-500 text-sm mt-1">All your capital placements across pools and direct loans.</p>
         </div>
     </div>
 
     <div class="flex flex-wrap gap-2 mb-4">
         @foreach (['' => 'All', 'active' => 'Active', 'matured' => 'Matured', 'closed' => 'Closed', 'defaulted' => 'Defaulted', 'pending' => 'Pending'] as $k => $label)
             <a href="?status={{ $k }}" class="rounded-full px-3 py-1.5 text-xs font-semibold border
-                {{ $status === $k ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50' }}">{{ $label }}</a>
+                {{ $status === $k ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-gray-200 hover:bg-brand-muted/30' }}">{{ $label }}</a>
         @endforeach
     </div>
 
-    <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+    <div class="glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">
         @if ($investments->isEmpty())
-            <div class="p-10 text-center text-slate-500 text-sm">
+            <div class="p-10 text-center text-gray-500 text-sm">
                 You haven't made any investments yet.
-                <a href="{{ route('site.investor.pools') }}" class="text-emerald-700 font-semibold hover:underline">Browse pools</a>
+                <a href="{{ route('site.investor.pools') }}" class="text-brand font-semibold hover:underline">Browse pools</a>
             </div>
         @else
             <table class="w-full text-sm">
-                <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+                <thead class="bg-brand-muted/30 text-xs uppercase text-gray-500">
                     <tr>
                         <th class="text-left px-4 py-3">Reference</th>
                         <th class="text-left px-4 py-3">Pool</th>
@@ -34,16 +34,16 @@
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     @foreach ($investments as $inv)
-                        <tr class="hover:bg-slate-50">
-                            <td class="px-4 py-3 font-mono text-xs"><a href="{{ route('site.investor.investment', $inv) }}" class="text-emerald-700 hover:underline">{{ $inv->reference }}</a></td>
+                        <tr class="hover:bg-brand-muted/30">
+                            <td class="px-4 py-3 font-mono text-xs"><a href="{{ route('site.investor.investment', $inv) }}" class="text-brand hover:underline">{{ $inv->reference }}</a></td>
                             <td class="px-4 py-3">{{ $inv->pool?->name ?? '—' }}</td>
                             <td class="px-4 py-3 text-right font-semibold">TZS {{ $fmt($inv->principal) }}</td>
-                            <td class="px-4 py-3 text-right text-emerald-700 font-semibold">{{ rtrim(rtrim(format_number($inv->return_rate, 2),'0'),'.') }}%</td>
+                            <td class="px-4 py-3 text-right text-brand font-semibold">{{ rtrim(rtrim(format_number($inv->return_rate, 2),'0'),'.') }}%</td>
                             <td class="px-4 py-3 text-slate-600">{{ optional($inv->invested_at)->format('d M Y') }}</td>
                             <td class="px-4 py-3 text-slate-600">{{ optional($inv->matures_at)->format('d M Y') ?: '—' }}</td>
                             <td class="px-4 py-3">
                                 <span class="text-[11px] font-semibold uppercase rounded px-2 py-0.5
-                                    {{ $inv->status === 'active' ? 'bg-emerald-100 text-emerald-700' :
+                                    {{ $inv->status === 'active' ? 'bg-emerald-100 text-brand' :
                                        ($inv->status === 'defaulted' ? 'bg-red-100 text-red-700' :
                                        ($inv->status === 'matured' ? 'bg-sky-100 text-sky-700' : 'bg-slate-100 text-slate-700')) }}">{{ $inv->status }}</span>
                             </td>

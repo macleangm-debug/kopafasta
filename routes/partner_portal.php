@@ -32,6 +32,7 @@ return function (string $prefix, string $namePrefix, bool $registerDashboard = t
         Route::get('/notifications', [VendorController::class, 'notifications'])->name('notifications');
         Route::get('/profile', [VendorController::class, 'profile'])->name('profile');
         Route::put('/profile', [VendorController::class, 'updateProfile'])->name('profile.update');
+        Route::get('/settings', [VendorController::class, 'settings'])->name('settings');
         Route::get('/support', [VendorController::class, 'support'])->name('support');
     });
 };

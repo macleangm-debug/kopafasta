@@ -224,9 +224,10 @@
                 const tone = detail.tone
                     || (String(detail.confirmClass || '').includes('red') ? 'warning' : 'confirm');
                 window.dispatchEvent(new CustomEvent('open-confirm-default', {
-                    detail: { form, tone, ...detail },
+                    detail: { form: form || null, tone, ...detail },
                 }));
             };
+            window.confirmAction = (detail = {}) => window.confirmForm(null, detail);
 
             window.showBorrowerFeedback = (detail = {}) => {
                 window.dispatchEvent(new CustomEvent('open-feedback-default', {

@@ -17,9 +17,14 @@
     home-route="site.investor.dashboard"
     portal-label="Capital partner portal"
     :display-name="$displayName"
-    :subtitle="$lender?->name ?? auth()->user()?->email"
+    :subtitle="$lender?->code ?? auth()->user()?->email"
     banner="Capital workspace — deploy funds, track pools, and monitor returns."
-    :profile-links="[['label' => 'Profile', 'route' => 'site.investor.profile'], ['label' => 'Wallet', 'route' => 'site.investor.wallet']]"
+    :profile-links="[
+        ['label' => 'Dashboard', 'route' => 'site.investor.dashboard'],
+        ['label' => 'Profile', 'route' => 'site.investor.profile'],
+        ['label' => 'Documents', 'route' => 'site.investor.documents'],
+        ['label' => 'Wallet', 'route' => 'site.investor.wallet'],
+    ]"
 >
     {{ $slot }}
 </x-site.partner-shell>

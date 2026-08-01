@@ -130,6 +130,8 @@ class PartnerDemoAccountsSeeder extends Seeder
         if ($row['category'] === 'affiliate') {
             $vendor->update([
                 'affiliate_code' => $row['affiliate_code'] ?? 'TESTAFF01',
+                'affiliate_kyc_status' => 'verified',
+                'affiliate_lifecycle_status' => 'active',
             ]);
             app(AffiliateService::class)->ensureCode($vendor->fresh());
         }

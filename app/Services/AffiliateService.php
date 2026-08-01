@@ -32,6 +32,12 @@ class AffiliateService
             return null;
         }
 
+        // When KYC is required for public verification, unsigned codes must not attribute referrals.
+        if (app(AffiliateSettingsService::class)->requireKycForVerification()
+            && ! app(AffiliateLifecycleService::class)->canSharePublicly($affiliate)) {
+            return null;
+        }
+
         return $affiliate;
     }
 

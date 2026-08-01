@@ -15,11 +15,16 @@
     :content-width="$contentWidth"
     :nav="$nav"
     home-route="site.supplier.dashboard"
-    portal-label="Supplier portal"
+    :portal-label="__('site.supplier_portal.title')"
     :display-name="$displayName"
     :subtitle="$vendor?->partner_number ?? auth()->user()?->email"
-    banner="Supplier workspace — manage assets, applications, and settlements."
-    :profile-links="[['label' => 'Dashboard', 'route' => 'site.supplier.dashboard'], ['label' => 'Assets', 'route' => 'site.supplier.assets'], ['label' => 'Profile', 'route' => 'site.supplier.profile']]"
+    :banner="__('site.supplier_portal.banner')"
+    :profile-links="[
+        ['label' => __('site.supplier_portal.nav_dashboard'), 'route' => 'site.supplier.dashboard'],
+        ['label' => __('site.supplier_portal.nav_profile'), 'route' => 'site.supplier.profile'],
+        ['label' => __('site.supplier_portal.nav_documents'), 'route' => 'site.supplier.documents'],
+        ['label' => __('site.supplier_portal.nav_settings'), 'route' => 'site.supplier.settings'],
+    ]"
 >
     {{ $slot }}
 </x-site.partner-shell>

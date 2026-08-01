@@ -18,8 +18,15 @@
     $needsReview = ($groups['uploaded'] ?? collect());
     $awaiting = ($groups['pending'] ?? collect());
     $closed = ($groups['completed'] ?? collect())->merge($groups['rejected'] ?? collect());
+    $docSectionOpen = $needsReview->isNotEmpty() || $awaiting->isNotEmpty();
 @endphp
-<x-admin.review-section id="review-document-requests" title="Document requests" subtitle="Review uploads first, then request anything still missing — arranged by status">
+<x-admin.review-section
+    id="review-document-requests"
+    title="Document requests"
+    subtitle="Review uploads first, then request anything still missing — arranged by status"
+    collapsible
+    :open="$docSectionOpen"
+>
 
     {{-- 1. Ready for review (with thumbnails) --}}
     @if ($needsReview->isNotEmpty())

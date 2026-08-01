@@ -1,31 +1,31 @@
 <x-site.investor-layout title="Portfolio analytics — Investor" active="analytics">
     <h1 class="text-2xl lg:text-3xl font-bold tracking-tight mb-1">Portfolio analytics</h1>
-    <p class="text-slate-500 text-sm mb-6">Diversification, exposure and performance at a glance.</p>
+    <p class="text-gray-500 text-sm mb-6">Diversification, exposure and performance at a glance.</p>
 
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div class="rounded-xl border border-slate-200 bg-white p-4">
-            <p class="text-xs uppercase text-slate-500 font-semibold">Active capital</p>
+        <div class="glass-card rounded-xl ring-1 ring-brand/10 p-4">
+            <p class="text-xs uppercase text-gray-500 font-semibold">Active capital</p>
             <p class="text-2xl font-bold mt-1">TZS {{ $fmt($stats['active']) }}</p>
         </div>
-        <div class="rounded-xl border border-slate-200 bg-white p-4">
-            <p class="text-xs uppercase text-slate-500 font-semibold">Portfolio yield</p>
-            <p class="text-2xl font-bold text-emerald-700 mt-1">{{ $stats['portfolioPerf'] }}%</p>
+        <div class="glass-card rounded-xl ring-1 ring-brand/10 p-4">
+            <p class="text-xs uppercase text-gray-500 font-semibold">Portfolio yield</p>
+            <p class="text-2xl font-bold text-brand mt-1">{{ $stats['portfolioPerf'] }}%</p>
         </div>
-        <div class="rounded-xl border border-slate-200 bg-white p-4">
-            <p class="text-xs uppercase text-slate-500 font-semibold">Default rate</p>
-            <p class="text-2xl font-bold {{ $stats['defaultRate'] > 5 ? 'text-red-600' : 'text-emerald-700' }} mt-1">{{ $stats['defaultRate'] }}%</p>
+        <div class="glass-card rounded-xl ring-1 ring-brand/10 p-4">
+            <p class="text-xs uppercase text-gray-500 font-semibold">Default rate</p>
+            <p class="text-2xl font-bold {{ $stats['defaultRate'] > 5 ? 'text-red-600' : 'text-brand' }} mt-1">{{ $stats['defaultRate'] }}%</p>
         </div>
-        <div class="rounded-xl border border-slate-200 bg-white p-4">
-            <p class="text-xs uppercase text-slate-500 font-semibold">Active loans</p>
+        <div class="glass-card rounded-xl ring-1 ring-brand/10 p-4">
+            <p class="text-xs uppercase text-gray-500 font-semibold">Active loans</p>
             <p class="text-2xl font-bold mt-1">{{ $stats['activeLoans'] }}</p>
         </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="rounded-2xl border border-slate-200 bg-white p-6">
+        <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-6">
             <h2 class="font-bold mb-4">Diversification by loan type</h2>
             @if ($diversificationPct->isEmpty())
-                <p class="text-sm text-slate-500">No active investments yet.</p>
+                <p class="text-sm text-gray-500">No active investments yet.</p>
             @else
                 @php $colors = ['salary' => 'sky', 'business' => 'emerald', 'car' => 'amber', 'emergency' => 'red', 'other' => 'slate']; @endphp
                 <div class="space-y-3">
@@ -44,10 +44,10 @@
             @endif
         </div>
 
-        <div class="rounded-2xl border border-slate-200 bg-white p-6">
+        <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-6">
             <h2 class="font-bold mb-4">Risk exposure</h2>
             @if ($riskExposurePct->isEmpty())
-                <p class="text-sm text-slate-500">No active investments yet.</p>
+                <p class="text-sm text-gray-500">No active investments yet.</p>
             @else
                 @php $rc = ['low' => 'emerald', 'medium' => 'amber', 'high' => 'red']; @endphp
                 <div class="space-y-3">

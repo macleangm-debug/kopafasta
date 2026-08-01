@@ -6,17 +6,17 @@
     ];
 @endphp
 
-<x-site.supplier-layout :title="__('site.supplier_portal.profile_title')" active="profile">
+<x-site.supplier-layout :title="__('site.supplier_portal.settings_title')" active="profile">
     <x-site.borrower-page-header
         :eyebrow="__('site.supplier_portal.title')"
-        :title="__('site.supplier_portal.profile_title')"
-        :subtitle="__('site.supplier_portal.profile_subtitle')"
+        :title="__('site.supplier_portal.settings_title')"
+        :subtitle="__('site.supplier_portal.settings_subtitle')"
     />
 
-    <x-site.partner-account-tabs active="profile" :tabs="$accountTabs" />
+    <x-site.partner-account-tabs active="settings" :tabs="$accountTabs" />
 
-    @include('site.partner-account._profile', [
+    @include('site.partner-account._settings', [
         'partner' => $vendor,
-        'updateRoute' => route('site.supplier.profile.update'),
+        'supportRoute' => null,
     ])
 </x-site.supplier-layout>

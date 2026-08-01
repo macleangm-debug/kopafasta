@@ -64,4 +64,71 @@ class PartnerPayoutRequestService
             'notes'        => filled($notes) ? trim($notes) : null,
         ]);
     }
+
+    public function approve(PartnerPayoutRequest $request, ?\App\Models\User $actor = null): PartnerPayoutRequest
+    {
+        abort_unless($request->status === 'pending', 422, 'Only pending payout requests can be approved.');
+
+        $request->update([
+            'status'      => 'approved',
+            'reviewed_by' => $actor?->id,
+            'reviewed_at' => now(),
+        ]);
+
+        return $request->fresh();
+    }
+
+    public function reject(PartnerPayoutRequest $request, ?\App\Models\User $actor = null, ?string $reason = null): PartnerPayoutRequest
+    {
+        abort_unless($request->status === 'pending', 422, 'Only pending payout requests can be rejected.');
+
+        $request->update([
+            'status'      => 'rejected',
+            'reviewed_by' => $actor?->id,
+            'reviewed_at' => now(),
+            'notes'       => trim(($request->notes ? $request->notes."\n" : '').($reason ? 'Rejected: '.$reason : 'Rejected')),
+        ]);
+
+        return $request->fresh();
+    }
+
+    public function markPaid(PartnerPayoutRequest $request, ?\App\Models\User $actor = null): PartnerPayoutRequest
+    {
+        abort_unless(in_array($request->status, ['pending', 'approved'], true), 422, 'Request cannot be marked paid.');
+
+        $payload = [
+            'status'      => 'paid',
+            'reviewed_by' => $actor?->id ?? $request->reviewed_by,
+            'reviewed_at' => now(),
+        ];
+        if (Schema::hasColumn('partner_payout_requests', 'paid_at')) {
+            $payload['paid_at'] = now();
+        }
+
+        $request->update($payload);
+
+        // Mark matching approved commission lines as paid up to the request amount.
+        $sourceType = $request->source_type ?? $request->wallet_type ?? null;
+        if ($sourceType) {
+            $remaining = (float) $request->amount;
+            PartnerPayment::query()
+                ->where('partner_id', $request->partner_id)
+                ->where('source_type', $sourceType)
+                ->where('status', 'approved')
+                ->orderBy('id')
+                ->get()
+                ->each(function (PartnerPayment $payment) use (&$remaining): void {
+                    if ($remaining <= 0) {
+                        return;
+                    }
+                    $payment->update(array_filter([
+                        'status'  => 'paid',
+                        'paid_at' => Schema::hasColumn($payment->getTable(), 'paid_at') ? now() : null,
+                    ]));
+                    $remaining -= (float) $payment->amount;
+                });
+        }
+
+        return $request->fresh();
+    }
 }

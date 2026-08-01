@@ -378,6 +378,26 @@ class GroupMemberInvitationService
             ->first();
     }
 
+    public function cancelInvitationForLeader(Customer $leader, int $invitationId): bool
+    {
+        $invitation = GroupMemberInvitation::query()
+            ->where('id', $invitationId)
+            ->where('leader_customer_id', $leader->id)
+            ->whereIn('status', ['pending', 'accepted'])
+            ->first();
+
+        if (! $invitation) {
+            return false;
+        }
+
+        $invitation->update([
+            'status'     => 'cancelled',
+            'expires_at' => now(),
+        ]);
+
+        return true;
+    }
+
     public function attachSignaturesToApplication(LoanApplication $application, array $memberRows): void
     {
         $signatures = app(GroupMemberSignatureService::class);

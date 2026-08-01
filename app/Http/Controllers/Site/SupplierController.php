@@ -7,6 +7,7 @@ use App\Models\AssetRequest;
 use App\Models\AssetReservation;
 use App\Models\MarketplaceAsset;
 use App\Models\Vendor;
+use App\Models\VendorDocument;
 use App\Models\VendorPayment;
 use App\Services\AssetReservationService;
 use App\Services\MarketplaceAssetService;
@@ -253,6 +254,46 @@ class SupplierController extends Controller
         return view('site.supplier.profile', compact('vendor'));
     }
 
+    public function documents(): View
+    {
+        $vendor = $this->supplier();
+        $documents = VendorDocument::query()
+            ->where('partner_id', $vendor->id)
+            ->with('task')
+            ->latest()
+            ->paginate(20);
+
+        return view('site.supplier.documents', compact('vendor', 'documents'));
+    }
+
+    public function uploadDocument(Request $request): RedirectResponse
+    {
+        $vendor = $this->supplier();
+        $data = $request->validate([
+            'label' => ['required', 'string', 'max:80'],
+            'file'  => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+        ]);
+
+        $path = $request->file('file')->store("vendor/{$vendor->id}/documents", 'public');
+
+        VendorDocument::create([
+            'vendor_id'  => $vendor->id,
+            'label'      => $data['label'],
+            'file_path'  => $path,
+            'mime'       => $request->file('file')->getMimeType(),
+            'size_bytes' => $request->file('file')->getSize(),
+        ]);
+
+        return back()->with('status', __('site.partner_account.upload').' ✓');
+    }
+
+    public function settings(): View
+    {
+        $vendor = $this->supplier();
+
+        return view('site.supplier.settings', compact('vendor'));
+    }
+
     public function updateProfile(Request $request): RedirectResponse
     {
         $vendor = $this->supplier();
@@ -265,6 +306,6 @@ class SupplierController extends Controller
 
         $vendor->update($data);
 
-        return back()->with('status', 'Profile updated.');
+        return back()->with('status', __('site.partner_account.save_profile').' ✓');
     }
 }

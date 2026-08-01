@@ -5,7 +5,7 @@
     @if ($tasks->isEmpty())
         <div class="rounded-2xl border border-dashed border-gray-300 p-10 text-center text-gray-500">No completed jobs yet.</div>
     @else
-        <div class="rounded-2xl border border-gray-200 bg-white overflow-hidden">
+        <div class="glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">
             <table class="min-w-full text-sm">
                 <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
                     <tr>
@@ -26,7 +26,7 @@
                             <td class="px-4 py-3 text-gray-600">{{ $t->completed_at?->format('d M Y H:i') }}</td>
                             <td class="px-4 py-3">{{ format_money($t->fee_amount) }}</td>
                             <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-{{ $pc }}-100 text-{{ $pc }}-700">{{ $t->payment_status }}</span></td>
-                            <td class="px-4 py-3 text-right"><a href="{{ route('site.partner.task', $t) }}" class="text-indigo-600 hover:underline text-sm font-semibold">Open</a></td>
+                            <td class="px-4 py-3 text-right"><a href="{{ route('site.partner.task', $t) }}" class="text-brand hover:underline text-sm font-semibold">Open</a></td>
                         </tr>
                     @endforeach
                 </tbody>

@@ -38,6 +38,8 @@ class DemoAffiliateSeeder extends Seeder
                 'phone'          => $phone,
                 'email'          => $email,
                 'affiliate_code' => 'DEMOWAKALA',
+                'affiliate_kyc_status' => 'verified',
+                'affiliate_lifecycle_status' => 'active',
                 'activated_at'   => now(),
                 'address'        => 'Dar es Salaam, Tanzania',
             ]

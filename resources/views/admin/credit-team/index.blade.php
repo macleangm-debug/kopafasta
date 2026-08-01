@@ -1,11 +1,17 @@
-<x-admin.layout title="Credit team" heading="Credit team" subheading="Underwriting analysts and credit committee members">
+<x-admin.layout title="Credit team" heading="Credit team" subheading="Underwriting analysts and credit committee members — same accounts as Settings → Users">
 
     <div class="mb-6 rounded-xl bg-gradient-to-r from-brand/5 to-white ring-1 ring-brand/10 px-5 py-4 text-sm text-gray-700">
         <p class="font-semibold text-gray-900">How the dual-approval flow works</p>
         <ol class="mt-2 list-decimal ml-5 space-y-1 text-gray-600">
-            <li><span class="font-medium text-gray-800">Credit analysts</span> (Underwriting) review applications and submit a recommendation.</li>
-            <li><span class="font-medium text-gray-800">Credit committee</span> members review the recommendation and pre-approve, counter-offer, or reject.</li>
+            <li><span class="font-medium text-gray-800">Credit analysts</span> (Underwriting) review applications and submit a <strong>recommendation</strong> (approve / counter / recommend decline) with reasons.</li>
+            <li><span class="font-medium text-gray-800">Credit committee</span> members see that recommendation on the credit file, then make the <strong>final decision</strong> (approve, issue offer, or reject).</li>
         </ol>
+        <p class="mt-3 text-xs text-gray-500">
+            Team members are real admin users with roles <code class="text-[11px]">credit_analyst</code> or <code class="text-[11px]">credit_committee</code>.
+            Add or edit them in
+            <a href="{{ route('admin.users.index') }}" class="font-semibold text-brand hover:underline">Settings → Users</a>
+            so permissions stay consistent.
+        </p>
     </div>
 
     <div class="grid lg:grid-cols-2 gap-6">
@@ -34,11 +40,16 @@
                     <li class="px-5 py-8 text-sm text-gray-500 text-center">No credit analysts yet.</li>
                 @endforelse
             </ul>
-            @include('admin.credit-team._add-member-form', [
-                'team' => 'analyst',
-                'title' => 'Add credit analyst',
-                'branches' => $branches,
-            ])
+            <div class="border-t border-gray-100 px-5 py-4 bg-gray-50/70 flex flex-wrap gap-3">
+                <a href="{{ route('admin.users.create', ['role' => 'credit_analyst']) }}"
+                   class="inline-flex items-center gap-2 text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-lg">
+                    + Add credit analyst in Users
+                </a>
+                <a href="{{ route('admin.users.index', ['role' => 'credit_analyst']) }}"
+                   class="inline-flex items-center text-xs font-semibold text-gray-600 hover:text-gray-900">
+                    Manage users →
+                </a>
+            </div>
         </section>
 
         <section class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
@@ -66,11 +77,16 @@
                     <li class="px-5 py-8 text-sm text-gray-500 text-center">No committee members yet.</li>
                 @endforelse
             </ul>
-            @include('admin.credit-team._add-member-form', [
-                'team' => 'committee',
-                'title' => 'Add committee member',
-                'branches' => $branches,
-            ])
+            <div class="border-t border-gray-100 px-5 py-4 bg-gray-50/70 flex flex-wrap gap-3">
+                <a href="{{ route('admin.users.create', ['role' => 'credit_committee']) }}"
+                   class="inline-flex items-center gap-2 text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-lg">
+                    + Add committee member in Users
+                </a>
+                <a href="{{ route('admin.users.index', ['role' => 'credit_committee']) }}"
+                   class="inline-flex items-center text-xs font-semibold text-gray-600 hover:text-gray-900">
+                    Manage users →
+                </a>
+            </div>
         </section>
     </div>
 

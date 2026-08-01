@@ -179,6 +179,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::get('/borrower/apply/previous-group-members', [\App\Http\Controllers\Site\ApplyController::class, 'previousGroupMembers'])->name('borrower.apply.previous-group-members');
                 Route::post('/borrower/apply/previous-group-member', [\App\Http\Controllers\Site\ApplyController::class, 'selectPreviousGroupMember'])->name('borrower.apply.previous-group-member');
                 Route::post('/borrower/apply/group-member-invite', [\App\Http\Controllers\Site\ApplyController::class, 'prepareGroupMemberInvite'])->name('borrower.apply.group-member-invite');
+                Route::post('/borrower/apply/group-member-expire', [\App\Http\Controllers\Site\ApplyController::class, 'expireGroupMemberInvitation'])->name('borrower.apply.group-member-expire');
                 Route::post('/borrower/apply/group-member-statuses', [\App\Http\Controllers\Site\ApplyController::class, 'refreshGroupMemberStatuses'])->name('borrower.apply.group-member-statuses');
                 Route::get('/borrower/apply/previous-guarantors', [\App\Http\Controllers\Site\ApplyController::class, 'previousGuarantors'])->name('borrower.apply.previous-guarantors');
                 Route::post('/borrower/apply/previous-guarantor', [\App\Http\Controllers\Site\ApplyController::class, 'selectPreviousGuarantor'])->name('borrower.apply.previous-guarantor');
@@ -349,6 +350,9 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::get('/settlements', [\App\Http\Controllers\Site\SupplierController::class, 'settlements'])->name('settlements');
                 Route::get('/profile', [\App\Http\Controllers\Site\SupplierController::class, 'profile'])->name('profile');
                 Route::put('/profile', [\App\Http\Controllers\Site\SupplierController::class, 'updateProfile'])->name('profile.update');
+                Route::get('/documents', [\App\Http\Controllers\Site\SupplierController::class, 'documents'])->name('documents');
+                Route::post('/documents', [\App\Http\Controllers\Site\SupplierController::class, 'uploadDocument'])->name('documents.store');
+                Route::get('/settings', [\App\Http\Controllers\Site\SupplierController::class, 'settings'])->name('settings');
             });
 
             Route::redirect('/supplier', '/partner/supplier');
@@ -392,6 +396,9 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/settlements', [\App\Http\Controllers\Site\SupplierController::class, 'settlements'])->name('settlements');
             Route::get('/profile', [\App\Http\Controllers\Site\SupplierController::class, 'profile'])->name('profile');
             Route::put('/profile', [\App\Http\Controllers\Site\SupplierController::class, 'updateProfile'])->name('profile.update');
+            Route::get('/documents', [\App\Http\Controllers\Site\SupplierController::class, 'documents'])->name('documents');
+            Route::post('/documents', [\App\Http\Controllers\Site\SupplierController::class, 'uploadDocument'])->name('documents.store');
+            Route::get('/settings', [\App\Http\Controllers\Site\SupplierController::class, 'settings'])->name('settings');
         });
 
         // ---- Investor / Capital Lender portal ----
@@ -682,6 +689,11 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             Route::get('partner-settlements/{partnerSettlement}', [PartnerSettlementController::class, 'show'])->name('partner-settlements.show');
             Route::post('partner-settlements/{partnerSettlement}/approve', [PartnerSettlementController::class, 'approve'])->name('partner-settlements.approve');
             Route::post('partner-settlements/{partnerSettlement}/mark-paid', [PartnerSettlementController::class, 'markPaid'])->name('partner-settlements.mark-paid');
+
+            Route::get('partner-payout-requests', [\App\Http\Controllers\Admin\PartnerPayoutRequestController::class, 'index'])->name('partner-payout-requests.index');
+            Route::post('partner-payout-requests/{partnerPayoutRequest}/approve', [\App\Http\Controllers\Admin\PartnerPayoutRequestController::class, 'approve'])->name('partner-payout-requests.approve');
+            Route::post('partner-payout-requests/{partnerPayoutRequest}/reject', [\App\Http\Controllers\Admin\PartnerPayoutRequestController::class, 'reject'])->name('partner-payout-requests.reject');
+            Route::post('partner-payout-requests/{partnerPayoutRequest}/mark-paid', [\App\Http\Controllers\Admin\PartnerPayoutRequestController::class, 'markPaid'])->name('partner-payout-requests.mark-paid');
             Route::get('borrower-refunds', [\App\Http\Controllers\Admin\BorrowerRefundController::class, 'index'])->name('borrower-refunds.index');
             Route::get('borrower-refunds/{borrowerRefund}', [\App\Http\Controllers\Admin\BorrowerRefundController::class, 'show'])->name('borrower-refunds.show');
             Route::post('borrower-refunds/{borrowerRefund}/pay', [\App\Http\Controllers\Admin\BorrowerRefundController::class, 'markPaid'])->name('borrower-refunds.pay');

@@ -7,6 +7,7 @@
     $navService = app(\App\Services\PartnerPortalNavService::class);
     $nav = $navService->affiliateNav();
     $displayName = $vendor?->name ?? auth()->user()?->name ?? 'Partner';
+    $kycOk = in_array($vendor?->affiliate_kyc_status, ['verified', 'approved'], true);
 @endphp
 
 <x-site.partner-shell
@@ -18,9 +19,13 @@
     :portal-label="__('site.affiliate_portal.title')"
     :display-name="$displayName"
     :subtitle="$vendor?->partner_number ?? auth()->user()?->email"
+    :banner="$kycOk
+        ? __('site.affiliate_portal.banner_verified')
+        : __('site.affiliate_portal.banner_pending')"
     :profile-links="[
-        ['label' => __('site.affiliate_portal.nav_profile'), 'route' => 'site.affiliate.profile'],
+        ['label' => __('site.affiliate_portal.nav_dashboard'), 'route' => 'site.affiliate.dashboard'],
         ['label' => __('site.affiliate_portal.nav_wallet'), 'route' => 'site.affiliate.wallet'],
+        ['label' => __('site.affiliate_portal.nav_profile'), 'route' => 'site.affiliate.profile'],
     ]"
 >
     {{ $slot }}

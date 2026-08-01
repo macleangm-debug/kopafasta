@@ -25,9 +25,11 @@
             tone: @js($tone),
         },
         onCancel: null,
+        onConfirm: null,
         cancel() {
             this.open = false;
             this.form = null;
+            this.onConfirm = null;
             if (typeof this.onCancel === 'function') this.onCancel();
             this.onCancel = null;
         },
@@ -66,6 +68,7 @@
         confirmClass = $event.detail?.confirmClass ?? defaults.confirmClass;
         tone = $event.detail?.tone ?? defaults.tone;
         onCancel = $event.detail?.onCancel ?? null;
+        onConfirm = $event.detail?.onConfirm ?? null;
     "
     x-on:keydown.escape.window="if (open) cancel()"
     x-show="open"
@@ -111,16 +114,20 @@
                 </button>
                 <button type="button"
                         @click="
+                            const confirmCb = onConfirm;
                             if (form) {
                                 form.dispatchEvent(new CustomEvent('sync-before-submit', { bubbles: true }));
                                 form.querySelectorAll('button[type=submit], input[type=submit]').forEach(function (btn) { btn.disabled = true; });
                                 form.submit();
+                            } else if (typeof confirmCb === 'function') {
+                                confirmCb();
                             }
                             open = false;
                             form = null;
+                            onConfirm = null;
                             onCancel = null;
                         "
-                        :disabled="!form"
+                        :disabled="!form && typeof onConfirm !== 'function'"
                         class="inline-flex justify-center px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm disabled:opacity-50"
                         :class="confirmClass"
                         x-text="confirmLabel"></button>

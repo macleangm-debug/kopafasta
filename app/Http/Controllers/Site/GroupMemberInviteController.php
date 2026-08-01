@@ -71,6 +71,16 @@ class GroupMemberInviteController extends Controller
             'leader_customer_id' => $invitation->leader_customer_id,
         ]);
 
+        $leader = $invitation->leader;
+        if ($leader) {
+            app(\App\Services\NotificationService::class)->notifyInApp(
+                $leader,
+                __('borrower.apply.group.member_accepted_notice', ['name' => $invitation->displayName()]),
+                'group_loan',
+                'group_member_accepted',
+            );
+        }
+
         if (! auth()->check()) {
             return redirect()
                 ->route('site.register.borrower')

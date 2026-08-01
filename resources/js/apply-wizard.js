@@ -57,6 +57,7 @@ export function applyWizard(config) {
                 guarantorLookupUrl: config.guarantorLookupUrl || '',
                 groupMemberLookupUrl: config.groupMemberLookupUrl || '',
                 groupMemberInviteUrl: config.groupMemberInviteUrl || '',
+                groupMemberExpireUrl: config.groupMemberExpireUrl || '',
                 groupMemberStatusesUrl: config.groupMemberStatusesUrl || '',
                 previousGroupMembersUrl: config.previousGroupMembersUrl || '',
                 selectPreviousGroupMemberUrl: config.selectPreviousGroupMemberUrl || '',
@@ -1373,8 +1374,59 @@ export function applyWizard(config) {
                 removeGroupMember(index) {
                     const member = this.group.members[index];
                     if (! member || member.role === 'leader') return;
-                    this.group.members.splice(index, 1);
-                    this.updateGroupTotal();
+
+                    const name = member.name || 'this member';
+                    const run = async () => {
+                        const invitationId = Number(member.invitation_id || member.share?.invitation_id || 0);
+                        if (invitationId > 0 && this.groupMemberExpireUrl) {
+                            try {
+                                await fetch(this.groupMemberExpireUrl, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Accept': 'application/json',
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                    },
+                                    credentials: 'same-origin',
+                                    body: JSON.stringify({ invitation_id: invitationId }),
+                                });
+                            } catch (e) {
+                                // Still remove locally if revoke fails — draft persist is source of truth for wizard.
+                            }
+                        }
+
+                        this.group.members.splice(index, 1);
+                        this.updateGroupTotal();
+                        this.groupProgressSummary = null;
+                        await this.persistDraft(true);
+
+                        if (this.group.members.length < this.groupTargetCount()) {
+                            this.openAddMemberPanel();
+                            if (typeof window.showBorrowerFeedback === 'function') {
+                                window.showBorrowerFeedback({
+                                    title: this.i18n.group?.removeTitle || 'Member removed',
+                                    message: (this.i18n.group?.addReplacementHint || 'Add another member to complete the group of :target.')
+                                        .replace(':target', this.groupTargetCount()),
+                                    tone: 'info',
+                                });
+                            }
+                        }
+                    };
+
+                    if (typeof window.confirmAction === 'function') {
+                        window.confirmAction({
+                            title: (this.i18n.group?.removeTitle || 'Remove :name?').replace(':name', name),
+                            message: this.i18n.group?.removeMessage || 'They will be removed from this application. You can invite someone else.',
+                            confirmLabel: this.i18n.group?.removeConfirm || 'Remove',
+                            confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                            tone: 'warning',
+                            onConfirm: () => { run(); },
+                        });
+                        return;
+                    }
+
+                    run();
                 },
 
                 beginReservationApplication() {

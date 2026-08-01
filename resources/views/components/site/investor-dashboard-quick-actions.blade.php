@@ -30,7 +30,7 @@
 <div class="mb-6 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
     @foreach ($actions as $action)
         <a href="{{ $action['url'] }}"
-           class="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
+           class="group relative overflow-hidden rounded-2xl border ring-1 ring-brand/10 glass-card p-4 sm:p-5 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
             <div class="absolute -right-4 -top-4 size-20 rounded-full bg-gradient-to-br {{ $action['accent'] }} opacity-10 group-hover:opacity-20 transition-opacity"></div>
             <div class="relative flex flex-col gap-3">
                 <span class="size-10 rounded-xl bg-gradient-to-br {{ $action['accent'] }} text-white grid place-items-center shadow-sm">
@@ -44,7 +44,7 @@
                         <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12A9 9 0 1 1 12 3v9h9z"/></svg>
                     @endif
                 </span>
-                <span class="text-sm font-bold text-slate-900 leading-tight">{{ $action['label'] }}</span>
+                <span class="text-sm font-bold text-gray-900 leading-tight">{{ $action['label'] }}</span>
             </div>
         </a>
     @endforeach
