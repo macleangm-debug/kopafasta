@@ -75,9 +75,8 @@ class PartnerPortalNavService
         return [
             ['key' => 'dashboard', 'label' => 'Dashboard', 'route' => 'site.supplier.dashboard', 'icon' => 'home'],
             ['key' => 'assets', 'label' => 'Assets', 'route' => 'site.supplier.assets', 'icon' => 'folder'],
-            ['key' => 'applications', 'label' => 'Applications', 'route' => 'site.supplier.applications', 'icon' => 'clipboard'],
+            ['key' => 'applications', 'label' => 'Expected payouts', 'route' => 'site.supplier.applications', 'icon' => 'clipboard'],
             ['key' => 'reservations', 'label' => 'Reservations', 'route' => 'site.supplier.reservations', 'icon' => 'calendar'],
-            ['key' => 'delivered', 'label' => 'Delivered', 'route' => 'site.supplier.delivered', 'icon' => 'check'],
             ['key' => 'requests', 'label' => 'Asset requests', 'route' => 'site.supplier.requests', 'icon' => 'bell'],
             ['key' => 'settlements', 'label' => 'Settlements', 'route' => 'site.supplier.settlements', 'icon' => 'wallet'],
             ['key' => 'profile', 'label' => 'Profile', 'route' => 'site.supplier.profile', 'icon' => 'user'],

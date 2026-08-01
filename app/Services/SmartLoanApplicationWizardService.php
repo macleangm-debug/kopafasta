@@ -154,9 +154,7 @@ class SmartLoanApplicationWizardService
         }
 
         // Profile/KYC/income are completed in Profile — never duplicated in the apply wizard.
-
-        // Application fee immediately after quote (same gateway as registration fee).
-        $steps[] = ['key' => 'application_fee', 'label' => __('borrower.apply.steps.application_fee'), 'skippable' => false, 'skipped' => false];
+        // Application fee is a payment gate (not a numbered step) — enforced in the wizard JS.
 
         if ($requiresGuarantor) {
             $steps[] = ['key' => 'guarantor', 'label' => __('borrower.apply.steps.guarantor'), 'skippable' => false, 'skipped' => false];

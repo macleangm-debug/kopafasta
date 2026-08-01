@@ -509,6 +509,7 @@ class ApplyController extends Controller
             'phone'             => ['required', 'string', 'max:20'],
             'name'              => ['nullable', 'string', 'max:120'],
             'loan_product_id'   => ['required', 'integer', 'exists:loan_products,id'],
+            'validate_only'     => ['nullable', 'boolean'],
         ]);
 
         $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
@@ -529,6 +530,17 @@ class ApplyController extends Controller
         }
 
         $member = Customer::findOrFail((int) $result['customer_id']);
+
+        if (! empty($data['validate_only'])) {
+            return response()->json([
+                'ok'          => true,
+                'customer_id' => $member->id,
+                'name'        => $result['label'] ?? $member->full_name,
+                'phone'       => $member->phone,
+                'label'       => $result['label'],
+                'status_key'  => 'profile_incomplete',
+            ]);
+        }
 
         try {
             $share = app(GroupMemberInvitationService::class)->prepareInternalInvitation($leader, $product, $member);

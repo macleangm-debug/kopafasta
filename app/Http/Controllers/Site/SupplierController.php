@@ -36,7 +36,7 @@ class SupplierController extends Controller
                 'assets'       => MarketplaceAsset::where('partner_id', $vendor->id)->count(),
                 'reservations' => AssetReservation::whereHas('asset', fn ($q) => $q->where('partner_id', $vendor->id))->whereNotIn('status', ['released', 'cancelled'])->count(),
                 'requests'     => Schema::hasColumn('asset_requests', 'partner_id')
-                    ? AssetRequest::where('partner_id', $vendor->id)->where('status', '!=', 'closed')->count()
+                    ? AssetRequest::where('partner_id', $vendor->id)->whereIn('status', ['reviewing', 'matched'])->count()
                     : 0,
                 'pending_pay'  => (int) VendorPayment::where('partner_id', $vendor->id)->where('status', 'pending')->sum('amount'),
             ],
@@ -131,7 +131,12 @@ class SupplierController extends Controller
     public function requests(): View
     {
         $vendor = $this->supplier();
-        $requests = AssetRequest::query()->where('partner_id', $vendor->id)->latest()->paginate(20);
+        // Only admin-released requests (assigned + reviewing/matched) appear here.
+        $requests = AssetRequest::query()
+            ->where('partner_id', $vendor->id)
+            ->whereIn('status', ['reviewing', 'matched'])
+            ->latest()
+            ->paginate(20);
 
         return view('site.supplier.requests', compact('vendor', 'requests'));
     }
@@ -226,7 +231,7 @@ class SupplierController extends Controller
 
         if ($data['action'] === 'accept') {
             $assetRequest->update([
-                'status'      => 'reviewing',
+                'status'      => 'matched',
                 'admin_notes' => trim(($assetRequest->admin_notes ?? '')."\nSupplier accepted: ".($data['vendor_notes'] ?? '')),
             ]);
 

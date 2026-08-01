@@ -388,6 +388,7 @@ class SettingsController extends Controller
             'qualification_membership_inactive_factor'=> ['nullable', 'numeric', 'min:0', 'max:1'],
             'qualification_kyc_incomplete_factor'   => ['nullable', 'numeric', 'min:0', 'max:1'],
             'qualification_min_profile_percent'     => ['nullable', 'integer', 'min:0', 'max:100'],
+            'qualification_new_member_floor'        => ['nullable', 'integer', 'min:0'],
             'max_active_applications_per_product'   => ['nullable', 'integer', 'min:1', 'max:10'],
             'max_active_loans'                        => ['nullable', 'integer', 'min:1', 'max:5'],
             'max_active_guarantees'                 => ['nullable', 'integer', 'min:1', 'max:20'],
@@ -420,6 +421,7 @@ class SettingsController extends Controller
         $data['qualification_membership_inactive_factor'] = (float) ($data['qualification_membership_inactive_factor'] ?? 0);
         $data['qualification_kyc_incomplete_factor'] = (float) ($data['qualification_kyc_incomplete_factor'] ?? 0.5);
         $data['qualification_min_profile_percent'] = (int) ($data['qualification_min_profile_percent'] ?? 60);
+        $data['qualification_new_member_floor'] = (int) ($data['qualification_new_member_floor'] ?? 0);
 
         $groupMin = (int) ($data['group_min_members'] ?? 3);
         $groupMax = (int) ($data['group_max_members'] ?? 10);

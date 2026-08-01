@@ -16,7 +16,7 @@
     $hasRewardsCta = $loyaltyPoints > 0 || $referralPoints > 0;
 @endphp
 
-<div x-show="stepKey === 'application_fee'" class="p-6 sm:p-8">
+<div x-show="stepKey === 'application_fee' || feeGateOpen" class="p-6 sm:p-8">
     <x-site.wizard-step-header
         :eyebrow="__('borrower.apply.application_fee.eyebrow')"
         :title="__('borrower.apply.application_fee.title')"

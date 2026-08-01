@@ -1,10 +1,13 @@
-<x-admin.layout title="Asset Requests" heading="Asset Requests" subheading="Borrower requests for assets not yet listed in the marketplace">
+<x-admin.layout title="Asset Requests" heading="Asset Requests" subheading="Borrower requests arrive here first — approve by assigning a supplier before they appear in the supplier portal">
     @if (session('status'))
         <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
     @endif
+    @if ($errors->any())
+        <div class="mb-4 rounded-lg bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">{{ $errors->first() }}</div>
+    @endif
 
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p class="text-sm text-gray-600">Review requests, assign a supplier, then create a marketplace listing when matched.</p>
+        <p class="text-sm text-gray-600">1) Review request · 2) Assign supplier (releases to their portal) · 3) Create listing when matched.</p>
         <a href="{{ route('admin.marketplace-assets.create') }}" class="text-sm font-semibold text-brand hover:underline">New marketplace asset →</a>
     </div>
 
@@ -30,6 +33,7 @@
                                 'matched'   => 'bg-emerald-100 text-emerald-800',
                                 'reviewing' => 'bg-sky-100 text-sky-800',
                                 'closed'    => 'bg-gray-100 text-gray-700',
+                                'sourcing'  => 'bg-amber-100 text-amber-800',
                                 default     => 'bg-amber-100 text-amber-800',
                             };
                         @endphp
@@ -51,27 +55,32 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3">
-                                <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $statusBadge }}">{{ ucfirst($requestRow->status) }}</span>
+                                <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $statusBadge }}">{{ $statuses[$requestRow->status] ?? ucfirst($requestRow->status) }}</span>
                             </td>
                             <td class="px-4 py-3">{{ $requestRow->vendor?->name ?? '—' }}</td>
                             <td class="px-4 py-3 min-w-[16rem]">
                                 <form method="POST" action="{{ route('admin.asset-requests.update', $requestRow) }}" class="space-y-2">
                                     @csrf @method('PUT')
                                     <select name="status" class="w-full rounded border-gray-300 text-xs">
-                                        @foreach (['pending','reviewing','matched','closed'] as $status)
-                                            <option value="{{ $status }}" @selected($requestRow->status === $status)>{{ ucfirst($status) }}</option>
+                                        @foreach (['sourcing','reviewing','matched','closed'] as $status)
+                                            <option value="{{ $status }}" @selected($requestRow->status === $status)>{{ $statuses[$status] ?? ucfirst($status) }}</option>
                                         @endforeach
                                     </select>
                                     <select name="vendor_id" class="w-full rounded border-gray-300 text-xs">
-                                        <option value="">Assign supplier</option>
+                                        <option value="">{{ $requestRow->status === 'closed' || $requestRow->status === 'sourcing' ? 'Assign supplier…' : 'Assign supplier (required to release)' }}</option>
                                         @foreach ($suppliers as $id => $name)
                                             <option value="{{ $id }}" @selected($requestRow->vendor_id == $id)>{{ $name }}</option>
                                         @endforeach
                                     </select>
                                     <input type="text" name="admin_notes" value="{{ $requestRow->admin_notes }}" placeholder="Admin notes" class="w-full rounded border-gray-300 text-xs">
                                     <div class="flex flex-wrap gap-2 items-center">
-                                        <button class="text-xs font-semibold text-amber-700">Save</button>
-                                        <a href="{{ route('admin.marketplace-assets.create', ['title' => $requestRow->asset_name, 'asset_value' => $requestRow->budget, 'max_tenure_months' => $requestRow->preferred_tenure_months]) }}"
+                                        <button class="text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-1.5 rounded-lg">Approve / save</button>
+                                        <a href="{{ route('admin.marketplace-assets.create', [
+                                                'title' => $requestRow->asset_name,
+                                                'asset_value' => $requestRow->budget,
+                                                'max_tenure_months' => $requestRow->preferred_tenure_months,
+                                                'vendor_id' => $requestRow->vendor_id,
+                                            ]) }}"
                                            class="text-xs font-semibold text-sky-700 hover:underline">Create listing</a>
                                     </div>
                                 </form>

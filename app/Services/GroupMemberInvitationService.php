@@ -134,6 +134,7 @@ class GroupMemberInvitationService
 
         $message = __('borrower.apply.group.invite_message', [
             'leader'    => $invitation->leader?->full_name ?? brand_name(),
+            'group'     => $invitation->group_name ?: ($invitation->draft_reference ?: __('borrower.apply.group.loan_label')),
             'reference' => $invitation->draft_reference ?: __('borrower.apply.group.loan_label'),
             'amount'    => $invitation->amount_per_member ? format_money((float) $invitation->amount_per_member) : '—',
             'tenure'    => $invitation->requested_tenure_months ?: '—',

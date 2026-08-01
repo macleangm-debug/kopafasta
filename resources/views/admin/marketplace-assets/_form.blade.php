@@ -11,7 +11,7 @@
 <x-admin.step title="Asset details">
     <div class="md:col-span-2 flex flex-col sm:flex-row sm:items-end gap-3">
         <div class="flex-1">
-            <x-admin.select name="vendor_id" label="Supplier" :options="$suppliers" :value="$r?->vendor_id" placeholder="— select supplier —" required />
+            <x-admin.select name="vendor_id" label="Supplier" :options="$suppliers" :value="$r?->vendor_id ?? ($prefill['vendor_id'] ?? null)" placeholder="— select supplier —" required />
         </div>
         <a href="{{ route('admin.partners.create', ['category' => 'supplier']) }}"
            class="inline-flex items-center justify-center rounded-lg bg-white ring-1 ring-amber-300 text-amber-800 font-semibold px-4 py-2 text-sm hover:bg-amber-50 whitespace-nowrap">

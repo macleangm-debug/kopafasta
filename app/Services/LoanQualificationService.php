@@ -19,6 +19,7 @@ class LoanQualificationService
             'good_history_cap'           => (int) ($loan['qualification_good_history_cap'] ?? 7_500_000),
             'membership_inactive_factor' => (float) ($loan['qualification_membership_inactive_factor'] ?? 0),
             'kyc_incomplete_factor'      => (float) ($loan['qualification_kyc_incomplete_factor'] ?? 0.5),
+            'new_member_floor'           => (int) ($loan['qualification_new_member_floor'] ?? 0),
         ];
     }
 
@@ -35,7 +36,14 @@ class LoanQualificationService
             $factors[] = ['label' => 'Declared income', 'detail' => format_money($income).'/month'];
         }
 
+        $hasIncomeData = $income > 0 || (bool) $customer->income_range;
         $base = (int) min(max($income * $cfg['income_multiplier'], 0), $cfg['max_cap']);
+
+        if (! $hasIncomeData && ($cfg['new_member_floor'] ?? 0) > 0) {
+            $base = (int) min($cfg['new_member_floor'], $cfg['max_cap']);
+            $factors[] = ['label' => 'New member floor', 'detail' => format_money($base).' (settings)'];
+            $hasIncomeData = true;
+        }
 
         $hasGoodHistory = Loan::where('customer_id', $customer->id)->where('status', 'closed')->exists();
         if ($hasGoodHistory) {
@@ -89,7 +97,7 @@ class LoanQualificationService
 
         return [
             'amount'    => max(0, $base),
-            'has_data'  => $income > 0 || $customer->income_range,
+            'has_data'  => $hasIncomeData,
             'factors'   => $factors,
             'summary'   => __('borrower.dashboard.eligibility_summary'),
             'boosts'    => $boosts,

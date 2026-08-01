@@ -68,6 +68,8 @@ export function applyWizard(config) {
                 groupMemberMode: 'internal',
                 addMemberOpen: false,
                 addGuarantorOpen: false,
+                feeGateOpen: false,
+                groupMemberLookup: { ok: false, label: '', error: '', data: null },
                 groupExternal: { first_name: '', last_name: '', phone: '' },
                 groupExternalInvite: null,
                 groupInviteLoading: false,
@@ -387,23 +389,44 @@ export function applyWizard(config) {
                         || ['paid', 'waived', 'pending'].includes(this.applicationFeeState?.status || '');
                 },
 
+                /** Fee is a gate between setup steps and guarantor/review — not a numbered wizard step. */
+                needsFeeGateBefore(nextKey) {
+                    if (this.supplementMode || this.feeGateSatisfied()) return false;
+                    if (this.effectiveFeeAmount() <= 0) return false;
+                    return ['guarantor', 'product_questions', 'review', 'signature', 'submit'].includes(nextKey);
+                },
+
                 feeGateRequiredForStep(targetStepKey) {
-                    const feeIdx = this.steps.findIndex(s => s.key === 'application_fee');
-                    const targetIdx = this.steps.findIndex(s => s.key === targetStepKey);
-                    return feeIdx >= 0 && targetIdx > feeIdx && this.effectiveFeeAmount() > 0;
+                    return this.needsFeeGateBefore(targetStepKey);
                 },
 
                 enforceStepRequirements(onResume = false) {
                     if (this.supplementMode) return;
-                    const feeIdx = this.steps.findIndex(s => s.key === 'application_fee');
-                    if (feeIdx < 0 || this.effectiveFeeAmount() <= 0 || this.feeGateSatisfied()) return;
-                    const currentIdx = this.steps.findIndex(s => s.key === this.stepKey);
-                    if (currentIdx <= feeIdx) return;
-                    if (onResume && this.applicationFeeState?.status) return;
-                    if (currentIdx > feeIdx) {
-                        this.step = feeIdx;
-                        this.syncStepKey();
+                    if (this.effectiveFeeAmount() <= 0 || this.feeGateSatisfied()) {
+                        this.feeGateOpen = false;
+                        return;
                     }
+                    if (onResume && this.applicationFeeState?.status) return;
+                    if (this.needsFeeGateBefore(this.stepKey)) {
+                        this.feeGateOpen = true;
+                        this.enterApplicationFeeStep();
+                    }
+                },
+
+                openAddMemberPanel() {
+                    this.addMemberOpen = true;
+                    this.groupLookupError = '';
+                    this.groupMemberLookup = { ok: false, label: '', error: '', data: null };
+                    this.groupExternalInvite = null;
+                    if (! this.groupMemberMode) this.groupMemberMode = 'internal';
+                },
+
+                closeAddMemberPanel() {
+                    this.addMemberOpen = false;
+                    this.groupLookupError = '';
+                    this.groupMemberLookup = { ok: false, label: '', error: '', data: null };
+                    this.groupExternalInvite = null;
+                    this.groupExternal = { first_name: '', last_name: '', phone: '' };
                 },
 
                 syncQuoteFormFromDom() {
@@ -718,19 +741,12 @@ export function applyWizard(config) {
                         this.syncFeePaidState();
                         this.syncValuationFeePaidState();
                         await this.persistDraft(true);
-                        // Drop the fee step from the rail once paid, then advance.
-                        const nextKey = this.steps.find(s => s.key === 'guarantor')?.key
-                            || this.steps.find(s => s.key === 'product_questions')?.key
-                            || this.steps.find(s => s.key === 'review')?.key
-                            || 'review';
-                        this.rebuildSteps(nextKey);
-                        this.step = this.resolveStepIndex(nextKey, this.step);
-                        this.syncStepKey();
+                        this.feeGateOpen = false;
+                        this.rebuildSteps();
                         this.feeNotice = {
                             tone: 'success',
                             message: data.message || this.i18n.applicationFee.paid,
                         };
-                        // Auto-advance without interrupting with alert().
                         this.feePaying = false;
                         try {
                             await this.next();
@@ -1140,11 +1156,13 @@ export function applyWizard(config) {
                             role: 'member',
                             requested_amount: this.group.amount_per_member,
                             status_key: 'invitation_sent',
+                            share: data.share || null,
+                            _open: true,
                         });
                         this.groupExternal = { first_name: '', last_name: '', phone: '' };
                         this.syncGroupAmounts();
                         this.groupProgressSummary = null;
-                        // Keep modal open so the share link remains visible.
+                        // Keep panel open so share via WhatsApp / copy is visible (guarantor-style).
                         await this.persistDraft(true);
                     } catch (e) {
                         this.groupLookupError = this.i18n.group.lookupNotFound;
@@ -1225,9 +1243,10 @@ export function applyWizard(config) {
                     }
                 },
 
-                async lookupGroupMember() {
+                async validateGroupMember() {
                     if (! this.groupMemberLookupUrl) return;
                     this.groupLookupError = '';
+                    this.groupMemberLookup = { ok: false, label: '', error: '', data: null };
                     const memberNo = (this.groupLookupMemberNo || '').trim();
                     const phone = (this.groupLookupPhone || '').trim();
                     if (! memberNo) {
@@ -1256,36 +1275,98 @@ export function applyWizard(config) {
                                 member_no: memberNo,
                                 phone,
                                 loan_product_id: this.current?.id,
+                                validate_only: true,
                             }),
                         });
                         const data = await res.json();
                         if (! res.ok || ! data.ok) {
+                            this.groupMemberLookup = {
+                                ok: false,
+                                label: '',
+                                error: data.message || this.i18n.group.lookupNotFound,
+                                data: null,
+                            };
                             this.groupLookupError = data.message || this.i18n.group.lookupNotFound;
                             return;
                         }
                         if (this.group.members.some(m => Number(m.customer_id) === Number(data.customer_id))) {
                             this.groupLookupError = this.i18n.groupMembers.duplicate;
+                            this.groupMemberLookup.error = this.i18n.groupMembers.duplicate;
+                            return;
+                        }
+                        this.groupMemberLookup = {
+                            ok: true,
+                            label: data.name || data.label || '',
+                            error: '',
+                            data,
+                        };
+                        this.groupLookupError = '';
+                    } catch (e) {
+                        this.groupLookupError = this.i18n.group.lookupNotFound;
+                        this.groupMemberLookup.error = this.i18n.group.lookupNotFound;
+                    } finally {
+                        this.groupLookupLoading = false;
+                    }
+                },
+
+                async confirmAddValidatedGroupMember() {
+                    const data = this.groupMemberLookup?.data;
+                    if (! data?.customer_id || ! this.groupMemberLookupUrl) return;
+                    if (this.group.members.some(m => Number(m.customer_id) === Number(data.customer_id))) {
+                        this.groupLookupError = this.i18n.groupMembers.duplicate;
+                        return;
+                    }
+                    this.groupLookupLoading = true;
+                    try {
+                        const res = await fetch(this.groupMemberLookupUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({
+                                member_no: (this.groupLookupMemberNo || '').trim(),
+                                phone: (this.groupLookupPhone || '').trim(),
+                                loan_product_id: this.current?.id,
+                            }),
+                        });
+                        const confirmed = await res.json();
+                        if (! res.ok || ! confirmed.ok) {
+                            this.groupLookupError = confirmed.message || this.i18n.group.lookupNotFound;
                             return;
                         }
                         this.group.members.push({
-                            customer_id: data.customer_id,
-                            invitation_id: data.invitation_id,
-                            name: data.name,
-                            phone: data.phone,
+                            customer_id: confirmed.customer_id,
+                            invitation_id: confirmed.invitation_id,
+                            name: confirmed.name,
+                            phone: confirmed.phone,
                             role: 'member',
                             requested_amount: this.group.amount_per_member,
-                            status_key: data.status_key || 'profile_incomplete',
+                            status_key: confirmed.status_key || 'profile_incomplete',
+                            share: confirmed.share || null,
+                            _open: false,
                         });
                         this.groupLookupMemberNo = '';
                         this.groupLookupPhone = '';
                         this.groupProgressSummary = null;
-                        this.addMemberOpen = false;
+                        this.groupMemberLookup = { ok: false, label: '', error: '', data: null };
+                        this.closeAddMemberPanel();
                         this.updateGroupTotal();
                         await this.persistDraft(true);
                     } catch (e) {
                         this.groupLookupError = this.i18n.group.lookupNotFound;
                     } finally {
                         this.groupLookupLoading = false;
+                    }
+                },
+
+                async lookupGroupMember() {
+                    await this.validateGroupMember();
+                    if (this.groupMemberLookup.ok) {
+                        await this.confirmAddValidatedGroupMember();
                     }
                 },
 
@@ -1430,7 +1511,6 @@ export function applyWizard(config) {
                         } else {
                             steps.push({ key: 'asset_tenure', label: stepLabels.asset_tenure || stepLabels.quote });
                         }
-                        steps.push({ key: 'application_fee', label: this.i18n.steps.application_fee });
                         if (this.requiresGuarantor()) {
                             steps.push({ key: 'guarantor', label: this.i18n.steps.guarantor });
                         }
@@ -1442,16 +1522,11 @@ export function applyWizard(config) {
                         this.steps = steps.map(s => this.withStepIcon(s));
                     }
 
-                    // Once the application fee is paid/waived (or zero), drop it from the step rail.
+                    // Application fee is never a numbered step — drop if present from older drafts/plans.
                     this.syncFeePaidState();
-                    if (this.feeGateSatisfied() || this.effectiveFeeAmount() <= 0) {
-                        const feeIdx = this.steps.findIndex(s => s.key === 'application_fee');
-                        if (feeIdx >= 0) {
-                            this.steps = this.steps.filter(s => s.key !== 'application_fee');
-                        }
-                    }
+                    this.steps = this.steps.filter(s => s.key !== 'application_fee');
 
-                    this.step = this.resolveStepIndex(prevKey === 'application_fee' && ! this.steps.some(s => s.key === 'application_fee')
+                    this.step = this.resolveStepIndex(prevKey === 'application_fee'
                         ? (this.steps[0]?.key || '')
                         : prevKey, this.step);
                     this.syncStepKey();
@@ -2371,21 +2446,17 @@ export function applyWizard(config) {
                             await this.autoWaiveApplicationFeeIfNeeded();
                         }
                     }
-                    if (! this.supplementMode && ! this.feeGateSatisfied() && this.feeGateRequiredForStep(this.stepKey)) {
-                        this.enforceStepRequirements();
-                        this.feeNotice = {
-                            tone: 'error',
-                            message: this.i18n.applicationFee.requiredBeforeContinue,
-                        };
-                        return false;
-                    }
-                    const nextKey = this.steps[this.step + 1]?.key;
-                    if (! this.supplementMode && nextKey && this.feeGateRequiredForStep(nextKey) && ! this.feeGateSatisfied()) {
-                        this.feeNotice = {
-                            tone: 'error',
-                            message: this.i18n.applicationFee.requiredBeforeContinue,
-                        };
-                        return false;
+                    if (this.feeGateOpen) {
+                        await this.refreshApplicationFeeQuote();
+                        if (! this.feeGateSatisfied()) {
+                            this.feeNotice = {
+                                tone: 'error',
+                                message: this.i18n.applicationFee.requiredBeforeContinue,
+                            };
+                            return false;
+                        }
+                        this.feeGateOpen = false;
+                        return true;
                     }
                     return true;
                 },
@@ -2486,13 +2557,17 @@ export function applyWizard(config) {
                             this.returnTo = null;
                             return;
                         }
+                        const nextKey = this.steps[this.step + 1]?.key;
+                        if (! this.supplementMode && nextKey && this.needsFeeGateBefore(nextKey)) {
+                            this.feeGateOpen = true;
+                            this.enterApplicationFeeStep();
+                            this.scrollWizardIntoView();
+                            return;
+                        }
                         this.step++;
                         this.bumpFurthest(this.step);
                         this.syncStepKey();
                         this.enforceStepRequirements();
-                        if (this.stepKey === 'application_fee') {
-                            this.enterApplicationFeeStep();
-                        }
                         if (this.stepKey === 'review') {
                             this.reviewPage = 1;
                             this.refreshReview(this.formRoot());

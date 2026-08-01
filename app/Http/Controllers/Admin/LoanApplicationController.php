@@ -326,6 +326,8 @@ class LoanApplicationController extends ResourceController
             'alternative_product_id'   => ['nullable', 'integer', 'exists:loan_products,id'],
             'funding_source'           => ['nullable', 'in:internal,external'],
             'preferred_lender_id'      => ['nullable', 'integer', 'exists:lenders,id'],
+            'document_presets'         => ['nullable', 'array'],
+            'document_presets.*'       => ['string', 'max:120'],
         ]);
 
         if ($data['action'] === 'approve' && application_needs_funding_choice($loan_application->product)) {
@@ -417,6 +419,15 @@ class LoanApplicationController extends ResourceController
                     $data['rejection_reason_code'] ?? null,
                     $data['rejection_internal_notes'] ?? null,
                 );
+
+                if ($data['action'] === 'return_for_documents' && ! empty($data['document_presets'])) {
+                    app(\App\Services\ApplicationDocumentRequestService::class)->createMany(
+                        $loan_application->fresh(),
+                        auth()->user(),
+                        $data['document_presets'],
+                        $data['remarks'] ?? null,
+                    );
+                }
             }
         } catch (\Illuminate\Validation\ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();

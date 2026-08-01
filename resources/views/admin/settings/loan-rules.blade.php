@@ -79,6 +79,7 @@
                 <x-admin.input name="qualification_good_history_multiplier" label="Repaid-loan bonus multiplier" type="number" step="0.1" :value="$values['qualification_good_history_multiplier'] ?? '1.5'" />
                 <x-admin.input name="qualification_good_history_cap" label="Bonus cap (TZS)" type="number" :value="$values['qualification_good_history_cap'] ?? '7500000'" />
                 <x-admin.input name="qualification_kyc_incomplete_factor" label="Incomplete profile factor (0–1)" type="number" step="0.05" :value="$values['qualification_kyc_incomplete_factor'] ?? '0.5'" />
+                <x-admin.input name="qualification_new_member_floor" label="New member eligibility floor (TZS)" type="number" :value="$values['qualification_new_member_floor'] ?? '0'" help="Shown when the borrower has no income yet. Use 0 to hide until income is on file. Example: 1000000." />
             </div>
         </div>
 

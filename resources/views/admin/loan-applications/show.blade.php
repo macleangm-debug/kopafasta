@@ -43,10 +43,12 @@
                             Analyst: {{ $record->assignedAnalyst->name }}
                         </span>
                     @endif
+                    @if (! in_array(auth()->user()?->role, ['credit_analyst'], true) && auth()->user()?->hasPermission('applications.edit'))
                     <a href="{{ route('admin.loan-applications.edit', $record) }}"
                        class="inline-flex items-center gap-1.5 text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-1.5 rounded-lg">
                         Edit application
                     </a>
+                    @endif
                 </div>
             </div>
             @if ($record->status === 'pending_documents')
@@ -100,7 +102,7 @@
                 if ($groupReview ?? null) {
                     $reviewTabs[] = ['group', 'Group loan'];
                 }
-                $reviewTabs[] = ['decision', 'Decision'];
+                // Decision merged into Step 2 committee panel — no separate Decision tab.
             @endphp
             @foreach ($reviewTabs as [$key, $label])
                 <button type="button"
@@ -138,12 +140,6 @@
                 @include('admin.loan-applications.review._group')
             </div>
         @endif
-
-        <div id="decision-panel" x-show="tab === 'decision'" x-cloak class="space-y-6 scroll-mt-24">
-            @include('admin.loan-applications._workflow')
-            @include('admin.loan-applications._loan-link')
-            @include('admin.loan-applications.review._contract')
-        </div>
     </div>
 
 </x-admin.layout>

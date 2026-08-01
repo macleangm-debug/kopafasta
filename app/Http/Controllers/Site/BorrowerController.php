@@ -241,12 +241,14 @@ class BorrowerController extends Controller
         $groupFeedback = app(\App\Services\GroupLoanMemberReviewService::class)->leaderFeedbackSummary($application);
         $groupContract = app(\App\Services\GroupMemberReplacementService::class)->leaderDashboard($application, $customer);
         $groupPayout = null;
+        $groupProgress = null;
         $application->loadMissing('loanGroup');
         if ($application->loanGroup) {
             $groupPayout = app(\App\Services\GroupPayoutService::class)->queueForGroup($application->loanGroup);
+            $groupProgress = app(\App\Services\GroupMemberProgressService::class)->forLoanApplication($application);
         }
 
-        return view('site.borrower.loan-profile', compact('customer', 'profile', 'groupFeedback', 'groupContract', 'groupPayout'));
+        return view('site.borrower.loan-profile', compact('customer', 'profile', 'groupFeedback', 'groupContract', 'groupPayout', 'groupProgress'));
     }
 
     public function withdrawApplication(Request $request, LoanApplication $application): RedirectResponse

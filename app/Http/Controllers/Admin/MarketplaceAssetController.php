@@ -42,6 +42,7 @@ class MarketplaceAssetController extends ResourceController
                 'title'               => request()->query('title'),
                 'asset_value'         => request()->query('asset_value'),
                 'max_tenure_months'   => request()->query('max_tenure_months'),
+                'vendor_id'           => request()->query('vendor_id'),
             ],
         ];
     }

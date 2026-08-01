@@ -156,6 +156,8 @@
 
     @include('site.borrower.loan-profile._guarantor_progress', ['profile' => $profile])
 
+    @include('site.borrower.loan-profile._group_member_progress', ['groupProgress' => $groupProgress ?? null])
+
     @if ($missingRequirements->isNotEmpty())
         <div id="requested-actions" class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15">
             <div class="bg-gradient-to-r from-brand-muted/50 to-white px-5 py-4 border-b border-brand/10">

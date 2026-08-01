@@ -56,20 +56,17 @@
 
     <div x-show="!isGuarantorLocked()" class="mb-5">
         <button type="button"
+                x-show="!addGuarantorOpen"
                 @click="addGuarantorOpen = true; if (!form.guarantor_mode || form.guarantor_mode === 'none') form.guarantor_mode = previousGuarantors.length ? 'previous' : 'internal'"
                 class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3.5 text-sm shadow-sm">
             <span class="text-lg leading-none">+</span>
             {{ __('borrower.apply.guarantor_fields.add_cta') }}
         </button>
-        <p class="text-xs text-gray-500 mt-2">{{ __('borrower.apply.guarantor_fields.add_hint') }}</p>
+        <p x-show="!addGuarantorOpen" class="text-xs text-gray-500 mt-2">{{ __('borrower.apply.guarantor_fields.add_hint') }}</p>
     </div>
 
-    <template x-teleport="body">
     <div x-show="addGuarantorOpen && !isGuarantorLocked()" x-cloak
-         class="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4"
-         @keydown.escape.window="if (addGuarantorOpen) addGuarantorOpen = false">
-        <div class="absolute inset-0 bg-black/50" @click="addGuarantorOpen = false"></div>
-        <div class="relative w-full sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white shadow-2xl ring-1 ring-brand/10 p-5 sm:p-6 space-y-5">
+         class="glass-card rounded-2xl ring-1 ring-brand/15 p-5 sm:p-6 space-y-5 mb-5">
             <div class="flex items-start justify-between gap-3">
                 <div>
                     <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.guarantor') }}</p>
@@ -331,7 +328,5 @@
                     <p class="text-sm text-gray-700 mt-1">{{ __('borrower.apply.guarantor_fields.share_generate') }}</p>
                 </div>
             </div>
-        </div>
     </div>
-    </template>
 </div>

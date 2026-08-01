@@ -234,4 +234,39 @@ class GroupMemberProgressService
             'complete' => $complete || $key === 'kyc_complete',
         ];
     }
+
+    /**
+     * Leader view of member progress on a submitted group application.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function forLoanApplication(\App\Models\LoanApplication $application): ?array
+    {
+        $application->loadMissing(['loanGroup.members.customer', 'loanGroup.members.groupMemberInvitation']);
+        $group = $application->loanGroup;
+        if (! $group) {
+            return null;
+        }
+
+        $members = [];
+        foreach ($group->members as $member) {
+            $inviteName = trim(collect([
+                $member->groupMemberInvitation?->invitee_first_name,
+                $member->groupMemberInvitation?->invitee_last_name,
+            ])->filter()->implode(' '));
+
+            $members[] = [
+                'customer_id'      => $member->customer_id,
+                'invitation_id'    => $member->group_member_invitation_id,
+                'name'             => $member->customer?->full_name ?: ($inviteName !== '' ? $inviteName : 'Member'),
+                'phone'            => $member->customer?->phone ?? $member->groupMemberInvitation?->invitee_phone,
+                'role'             => $member->role,
+                'requested_amount' => $member->requested_amount ?? $member->loan_amount,
+            ];
+        }
+
+        $target = (int) ($group->target_member_count ?? $group->member_count ?? count($members));
+
+        return $this->summarize($members, max($target, count($members)));
+    }
 }

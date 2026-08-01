@@ -52,15 +52,26 @@
                             {{ $action['label'] }}
                         </button>
                         <dialog id="return-docs-{{ $record->id }}"
-                                class="rounded-xl shadow-xl ring-1 ring-gray-200 w-full max-w-md p-0 backdrop:bg-black/40 open:flex open:flex-col">
-                            <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="p-6 space-y-4">
+                                class="rounded-xl shadow-xl ring-1 ring-gray-200 w-full max-w-lg p-0 backdrop:bg-black/40 open:flex open:flex-col">
+                            <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
                                 @csrf
                                 <input type="hidden" name="action" value="return_for_documents">
                                 <h4 class="font-semibold text-gray-900">Return for documents</h4>
-                                <p class="text-sm text-gray-600">The borrower will be notified to upload or update documents. You can also create specific document requests below.</p>
+                                <p class="text-sm text-gray-600">Select the same document requests used on the Documents tab — the borrower is notified and can re-upload only those items.</p>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-2">Request documents</label>
+                                    <div class="grid sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                                        @foreach (\App\Services\ApplicationDocumentRequestService::PRESET_LABELS as $preset)
+                                            <label class="flex items-start gap-2 text-xs text-gray-700 bg-gray-50 rounded-lg px-2.5 py-2 ring-1 ring-gray-100">
+                                                <input type="checkbox" name="document_presets[]" value="{{ $preset }}" class="mt-0.5 rounded border-gray-300 text-brand">
+                                                <span>{{ $preset }}</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1">Instructions for borrower</label>
-                                    <textarea name="remarks" rows="4" maxlength="1000" required placeholder="e.g. Upload a bank statement covering the last 6 months."
+                                    <textarea name="remarks" rows="3" maxlength="1000" required placeholder="e.g. Upload a clearer salary slip for the latest month."
                                               class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand"></textarea>
                                 </div>
                                 <div class="flex justify-end gap-2 pt-1">
