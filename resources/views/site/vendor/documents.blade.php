@@ -33,7 +33,7 @@
                                     @if ($d->task)Task #{{ $d->task->id }} · @endif{{ $d->created_at->diffForHumans() }}
                                 </p>
                             </div>
-                            <a href="{{ asset('storage/'.$d->file_path) }}" target="_blank" class="text-indigo-600 hover:underline text-xs font-semibold shrink-0 ml-3">View</a>
+                            <x-site.document-view-button :url="asset('storage/'.$d->file_path)" label="View" class="text-indigo-600 hover:underline text-xs font-semibold shrink-0 ml-3" />
                         </li>
                     @endforeach
                 </ul>

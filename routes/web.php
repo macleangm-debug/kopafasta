@@ -547,6 +547,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('face-verifications/{customer}', [FaceVerificationController::class, 'show'])->name('face-verifications.show');
         Route::post('face-verifications/{customer}/approve', [FaceVerificationController::class, 'approve'])->name('face-verifications.approve');
         Route::post('face-verifications/{customer}/reject', [FaceVerificationController::class, 'reject'])->name('face-verifications.reject');
+        Route::post('face-verifications/{customer}/request-retake', [FaceVerificationController::class, 'requestRetake'])->name('face-verifications.request-retake');
         $registerResource('guarantors',    'guarantor',     GuarantorController::class);
 
         // Loans

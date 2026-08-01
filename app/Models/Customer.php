@@ -28,6 +28,7 @@ class Customer extends Model
             'last_renewal_at' => 'date',
             'nida_verified_at' => 'datetime',
             'identity_locked' => 'boolean',
+            'no_physical_nida_card' => 'boolean',
             'face_verified_at' => 'datetime',
             'kyc_reconfirmed_at' => 'datetime',
             'profile_section_confirmed_at' => 'array',

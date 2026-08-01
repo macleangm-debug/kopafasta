@@ -80,11 +80,18 @@ class LoanQualificationService
             $factors[] = ['label' => 'Face verification', 'detail' => 'Approved'];
         }
 
+        if ($customer->no_physical_nida_card) {
+            $factors[] = [
+                'label'  => __('borrower.nida.no_card_factor_label'),
+                'detail' => __('borrower.nida.no_card_factor_detail'),
+            ];
+        }
+
         return [
             'amount'    => max(0, $base),
             'has_data'  => $income > 0 || $customer->income_range,
             'factors'   => $factors,
-            'summary'   => 'Calculated based on your profile, KYC verification, income category, and repayment history.',
+            'summary'   => __('borrower.dashboard.eligibility_summary'),
             'boosts'    => $boosts,
         ];
     }

@@ -105,7 +105,7 @@
                             @foreach ($task->documents as $d)
                                 <li class="flex items-center justify-between gap-2">
                                     <span>{{ $d->label }}</span>
-                                    <a href="{{ asset('storage/'.$d->file_path) }}" target="_blank" class="text-indigo-600 hover:underline text-xs">View</a>
+                                    <x-site.document-view-button :url="asset('storage/'.$d->file_path)" label="View" class="text-indigo-600 hover:underline text-xs" />
                                 </li>
                             @endforeach
                         </ul>
@@ -138,7 +138,7 @@
                             @foreach ($task->documents as $d)
                                 <li class="py-2 flex items-center justify-between text-sm">
                                     <span class="truncate">{{ $d->label }}</span>
-                                    <a href="{{ asset('storage/'.$d->file_path) }}" target="_blank" class="text-indigo-600 hover:underline text-xs">View</a>
+                                    <x-site.document-view-button :url="asset('storage/'.$d->file_path)" label="View" class="text-indigo-600 hover:underline text-xs" />
                                 </li>
                             @endforeach
                         </ul>
@@ -184,7 +184,7 @@
                             @foreach ($task->documents as $d)
                                 <li class="py-2 flex items-center justify-between text-sm">
                                     <span class="truncate">{{ $d->label }}</span>
-                                    <a href="{{ asset('storage/'.$d->file_path) }}" target="_blank" class="text-indigo-600 hover:underline text-xs">View</a>
+                                    <x-site.document-view-button :url="asset('storage/'.$d->file_path)" label="View" class="text-indigo-600 hover:underline text-xs" />
                                 </li>
                             @endforeach
                         </ul>

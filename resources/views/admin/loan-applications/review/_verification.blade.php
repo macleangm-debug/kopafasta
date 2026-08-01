@@ -96,28 +96,48 @@
         @endforeach
     </div>
 
-    @if (($customer->face_verification_status ?? '') === 'pending')
+    @if (in_array($customer->face_verification_status ?? '', ['pending', 'verified', 'rejected', 'incomplete', 'revision_required'], true))
         <div class="mt-5 flex flex-wrap gap-2">
-            <form method="POST" action="{{ route('admin.face-verifications.approve', $customer) }}">
-                @csrf
-                <button type="submit" class="text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg">
-                    Approve face verification
-                </button>
-            </form>
-            <button type="button"
-                    data-open-dialog="reject-face-{{ $customer->id }}"
-                    class="text-sm font-semibold text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg">
-                Reject face verification
-            </button>
-            <dialog id="reject-face-{{ $customer->id }}" class="rounded-xl shadow-xl ring-1 ring-gray-200 w-full max-w-md p-0 backdrop:bg-black/40 open:flex open:flex-col">
-                <form method="POST" action="{{ route('admin.face-verifications.reject', $customer) }}" class="p-6 space-y-4">
+            @if (($customer->face_verification_status ?? '') === 'pending')
+                <form method="POST" action="{{ route('admin.face-verifications.approve', $customer) }}">
                     @csrf
-                    <h4 class="font-semibold text-gray-900">Reject face verification</h4>
-                    <textarea name="notes" required rows="3" maxlength="500" placeholder="Reason shown to borrower"
+                    <button type="submit" class="text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg">
+                        Approve face photos
+                    </button>
+                </form>
+                <button type="button"
+                        data-open-dialog="reject-face-{{ $customer->id }}"
+                        class="text-sm font-semibold text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg">
+                    Reject face photos
+                </button>
+                <dialog id="reject-face-{{ $customer->id }}" class="rounded-xl shadow-xl ring-1 ring-gray-200 w-full max-w-md p-0 backdrop:bg-black/40 open:flex open:flex-col">
+                    <form method="POST" action="{{ route('admin.face-verifications.reject', $customer) }}" class="p-6 space-y-4">
+                        @csrf
+                        <h4 class="font-semibold text-gray-900">Reject face photos</h4>
+                        <textarea name="notes" required rows="3" maxlength="500" placeholder="Reason shown to borrower"
+                                  class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200"></textarea>
+                        <div class="flex justify-end gap-2">
+                            <button type="button" data-close-dialog="reject-face-{{ $customer->id }}" class="px-4 py-2 text-sm text-gray-600">Cancel</button>
+                            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-4 py-2 rounded-lg">Confirm reject</button>
+                        </div>
+                    </form>
+                </dialog>
+            @endif
+            <button type="button"
+                    data-open-dialog="retake-face-{{ $customer->id }}"
+                    class="text-sm font-semibold text-amber-900 bg-amber-100 hover:bg-amber-200 px-4 py-2 rounded-lg">
+                Request clearer photos
+            </button>
+            <dialog id="retake-face-{{ $customer->id }}" class="rounded-xl shadow-xl ring-1 ring-gray-200 w-full max-w-md p-0 backdrop:bg-black/40 open:flex open:flex-col">
+                <form method="POST" action="{{ route('admin.face-verifications.request-retake', $customer) }}" class="p-6 space-y-4">
+                    @csrf
+                    <h4 class="font-semibold text-gray-900">Request clearer face photos</h4>
+                    <p class="text-xs text-gray-500">Unlocks retake for the borrower without a hard reject. Use when images are blurry or incomplete.</p>
+                    <textarea name="notes" rows="3" maxlength="500" placeholder="Optional guidance for the borrower"
                               class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200"></textarea>
                     <div class="flex justify-end gap-2">
-                        <button type="button" data-close-dialog="reject-face-{{ $customer->id }}" class="px-4 py-2 text-sm text-gray-600">Cancel</button>
-                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-4 py-2 rounded-lg">Confirm reject</button>
+                        <button type="button" data-close-dialog="retake-face-{{ $customer->id }}" class="px-4 py-2 text-sm text-gray-600">Cancel</button>
+                        <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold text-sm px-4 py-2 rounded-lg">Send request</button>
                     </div>
                 </form>
             </dialog>

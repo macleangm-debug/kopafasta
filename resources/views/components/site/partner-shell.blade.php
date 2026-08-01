@@ -234,6 +234,7 @@
 <x-site.confirm-modal name="default" />
 <x-site.feedback-modal name="default" />
 <x-site.celebration-confetti />
+<x-site.document-lightbox />
 
 @stack('scripts')
 <script>

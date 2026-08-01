@@ -17,16 +17,36 @@
             'rejected' => 'Rejected',
             'all' => 'All',
         ] as $key => $label)
-            <a href="{{ route('admin.payments.index', ['status' => $key]) }}"
+            <a href="{{ route('admin.payments.index', array_filter(['status' => $key, 'type' => $type ?: null])) }}"
                class="px-3 py-1.5 rounded-lg text-sm font-medium {{ $status === $key ? 'bg-amber-500 text-gray-900' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
                 {{ $label }}
             </a>
         @endforeach
+        <a href="{{ route('admin.membership-payments.index') }}"
+           class="px-3 py-1.5 rounded-lg text-sm font-medium bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50">
+            Membership queue →
+        </a>
         <a href="{{ route('admin.settings.payment-accounts') }}"
            class="ml-auto text-sm font-semibold text-amber-700 hover:text-amber-800 self-center">
             Payment account settings
         </a>
     </div>
+
+    <form method="GET" action="{{ route('admin.payments.index') }}" class="mb-4 flex flex-wrap items-end gap-3">
+        <input type="hidden" name="status" value="{{ $status }}">
+        <div>
+            <label class="block text-[11px] font-medium text-gray-500 mb-1">Payment type</label>
+            <select name="type" class="rounded-lg border-gray-300 text-sm min-w-[12rem]" onchange="this.form.submit()">
+                <option value="">All types</option>
+                @foreach ($types as $key => $meta)
+                    <option value="{{ $key }}" @selected(($type ?? '') === $key)>{{ $meta['label'] ?? $key }}</option>
+                @endforeach
+            </select>
+        </div>
+        @if ($type)
+            <a href="{{ route('admin.payments.index', ['status' => $status]) }}" class="text-sm text-gray-500 hover:underline pb-2">Clear type</a>
+        @endif
+    </form>
 
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
         <div class="overflow-x-auto">

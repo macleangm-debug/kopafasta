@@ -48,10 +48,11 @@
                     @foreach ($snapshot['uploaded_documents'] as $doc)
                         <li>
                             @if (! empty($doc['url']))
-                                <a href="{{ $doc['url'] }}" target="_blank" rel="noopener"
-                                   class="inline-flex text-xs font-semibold text-amber-700 bg-amber-50 ring-1 ring-amber-200 px-3 py-1.5 rounded-lg hover:bg-amber-100">
-                                    {{ $doc['label'] ?? __('borrower.loan_profile.document_fallback') }} ↗
-                                </a>
+                                <x-site.document-view-button
+                                    :url="$doc['url']"
+                                    :label="$doc['label'] ?? __('borrower.loan_profile.document_fallback')"
+                                    class="inline-flex text-xs font-semibold text-amber-700 bg-amber-50 ring-1 ring-amber-200 px-3 py-1.5 rounded-lg hover:bg-amber-100"
+                                />
                             @else
                                 <span class="inline-flex text-xs text-gray-500 bg-gray-50 ring-1 ring-gray-200 px-3 py-1.5 rounded-lg">{{ $doc['label'] ?? __('borrower.loan_profile.document_fallback') }}</span>
                             @endif

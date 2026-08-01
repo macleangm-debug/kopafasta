@@ -36,11 +36,13 @@
             <input name="address" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2 text-sm">
 
             <label class="block text-xs text-gray-600 mb-1 mt-3">{{ __('borrower.profile.fields.relationship') }}</label>
-            <select name="relationship" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2 text-sm">
-                @foreach (__('borrower.profile.guarantor_relationship_options') as $value => $label)
-                    <option value="{{ $value }}">{{ $label }}</option>
-                @endforeach
-            </select>
+            <x-site.profile-select
+                name="relationship"
+                :options="__('borrower.profile.guarantor_relationship_options')"
+                :value="old('relationship')"
+                :required="true"
+                :placeholder="__('borrower.profile.select')"
+            />
 
             <button class="mt-5 w-full bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.guarantors_page.send_request') }}</button>
         </form>

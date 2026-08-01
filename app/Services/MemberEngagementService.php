@@ -47,7 +47,7 @@ class MemberEngagementService
             ],
             'profile_completion' => [
                 'label' => __('borrower.engagement.trust.profile_completion'),
-                'score' => (int) ($this->profileCompletion->calculate($customer)['percent'] ?? 0),
+                'score' => $this->profileCompletionTrustScore($customer),
                 'max'   => 100,
             ],
             'referrals' => [
@@ -203,6 +203,18 @@ class MemberEngagementService
             'title'   => (string) ($active['title'] ?? ''),
             'rewards' => $active['rewards'] ?? [],
         ];
+    }
+
+    private function profileCompletionTrustScore(Customer $customer): int
+    {
+        $percent = (int) ($this->profileCompletion->calculate($customer)['percent'] ?? 0);
+
+        // Missing physical NIDA photos reduces trust until underwriting collects them.
+        if ($customer->no_physical_nida_card) {
+            $percent = max(0, $percent - 15);
+        }
+
+        return $percent;
     }
 
     private function onTimePaymentScore(Customer $customer): int

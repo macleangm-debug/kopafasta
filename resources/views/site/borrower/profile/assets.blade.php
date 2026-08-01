@@ -434,7 +434,11 @@
                                     @if ($ownershipDoc)
                                         <div class="flex flex-wrap items-center gap-3">
                                             @if (str_ends_with(strtolower($ownershipDoc), '.pdf'))
-                                                <a href="{{ asset('storage/'.$ownershipDoc) }}" target="_blank" class="inline-flex items-center gap-2 text-sm text-brand font-semibold">📄 {{ __('borrower.profile.view_document') }}</a>
+                                                <x-site.document-view-button
+                                                    :url="asset('storage/'.$ownershipDoc)"
+                                                    type="pdf"
+                                                    class="inline-flex items-center gap-2 text-sm text-brand font-semibold"
+                                                >📄 {{ __('borrower.profile.view_document') }}</x-site.document-view-button>
                                             @else
                                                 <button type="button" @click="lightbox = @js(asset('storage/'.$ownershipDoc))"
                                                         class="block h-28 w-28 rounded-xl overflow-hidden ring-1 ring-gray-200 cursor-zoom-in">
@@ -462,7 +466,11 @@
                                         @if ($insuranceDoc)
                                             <div class="flex flex-wrap items-center gap-3 mb-3">
                                                 @if (str_ends_with(strtolower($insuranceDoc), '.pdf'))
-                                                    <a href="{{ asset('storage/'.$insuranceDoc) }}" target="_blank" class="inline-flex items-center gap-2 text-sm text-brand font-semibold">📄 {{ __('borrower.profile.view_document') }}</a>
+                                                    <x-site.document-view-button
+                                                        :url="asset('storage/'.$insuranceDoc)"
+                                                        type="pdf"
+                                                        class="inline-flex items-center gap-2 text-sm text-brand font-semibold"
+                                                    >📄 {{ __('borrower.profile.view_document') }}</x-site.document-view-button>
                                                 @else
                                                     <button type="button" @click="lightbox = @js(asset('storage/'.$insuranceDoc))"
                                                             class="block h-28 w-28 rounded-xl overflow-hidden ring-1 ring-gray-200 cursor-zoom-in">

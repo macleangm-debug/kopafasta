@@ -131,6 +131,45 @@ class MemberEngagementRewardService
         } catch (\Throwable $e) {
             report($e);
         }
+
+        $this->notifyCreditLimitGrowth($customer->fresh());
+    }
+
+    private function notifyCreditLimitGrowth(Customer $customer): void
+    {
+        $user = $customer->user;
+        $prefs = $user?->preferences['notifications'] ?? [];
+        $wantsLoan = ! array_key_exists('loan_updates', $prefs) || ! empty($prefs['loan_updates']);
+        $wantsLimit = ! array_key_exists('credit_limit_updates', $prefs) || ! empty($prefs['credit_limit_updates']);
+
+        if (! $wantsLoan && ! $wantsLimit) {
+            return;
+        }
+
+        try {
+            $eligibility = app(LoanQualificationService::class)->calculate($customer);
+            $amount = (int) ($eligibility['amount'] ?? 0);
+            if ($amount <= 0) {
+                return;
+            }
+
+            app(NotificationService::class)->notifyInApp(
+                $customer,
+                __('borrower.rewards.credit_limit_body', ['amount' => format_money($amount)]),
+                'loan_updates',
+                'credit_limit_growth',
+                __('borrower.rewards.credit_limit_title'),
+                route('site.borrower.dashboard'),
+                __('borrower.rewards.credit_limit_cta'),
+                [
+                    'title_key' => 'borrower.rewards.credit_limit_title',
+                    'body_key'  => 'borrower.rewards.credit_limit_body',
+                    'params'    => ['amount' => format_money($amount)],
+                ],
+            );
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     public function afterLateFeeAccrued(Customer $customer, LoanFee $fee): void

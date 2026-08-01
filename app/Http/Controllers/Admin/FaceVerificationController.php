@@ -87,4 +87,42 @@ class FaceVerificationController extends Controller
             ->route('admin.face-verifications.index')
             ->with('status', 'Face verification rejected. The borrower can re-upload photos.');
     }
+
+    public function requestRetake(Request $request, Customer $customer, FaceVerificationService $faces, NotificationService $notify): RedirectResponse
+    {
+        $data = $request->validate([
+            'notes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $notes = trim((string) ($data['notes'] ?? '')) ?: 'Please retake clearer face photos.';
+
+        $faces->beginRetake($customer, true);
+        $customer->update(['face_rejection_notes' => $notes]);
+
+        $notify->notifyInApp(
+            $customer,
+            $notes,
+            'loan_updates',
+            'face_retake_requested',
+            __('borrower.nida.face_retake_requested_title'),
+            route('site.borrower.face-verification'),
+            __('borrower.nida.face_retake_requested_cta'),
+            [
+                'title_key' => 'borrower.nida.face_retake_requested_title',
+                'body_key'  => 'borrower.nida.face_retake_requested_body',
+                'params'    => ['notes' => $notes],
+            ],
+        );
+
+        if ($customer->phone) {
+            $notify->sendSms(
+                $customer->phone,
+                'Please retake your face photos on Kopafasta. '.$notes,
+                $customer,
+                'face_retake_requested',
+            );
+        }
+
+        return back()->with('status', 'Borrower asked to retake face photos.');
+    }
 }

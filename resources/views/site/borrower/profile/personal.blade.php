@@ -36,6 +36,7 @@
             $nidaFront = $nidaDocs->get('national_id_front');
             $nidaBack = $nidaDocs->get('national_id_back');
             $uploadsComplete = app(\App\Services\ProfileValidationService::class)->nationalIdUploadsComplete($customer);
+            $noPhysicalCard = (bool) old('no_physical_nida_card', $customer->no_physical_nida_card);
             $hasIdentity = $nidaSaved && (
                 ! $requireIdentityDuringProfile || $uploadsComplete
             );
@@ -108,6 +109,12 @@
                                 </div>
                             </div>
                             <dl class="mt-4 grid sm:grid-cols-2 gap-3 text-sm" x-data="{ expandedUrl: null }">
+                                @if ($customer->no_physical_nida_card)
+                                    <div class="sm:col-span-2 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-3">
+                                        <p class="text-sm font-semibold text-amber-900">{{ __('borrower.nida.no_card_saved_title') }}</p>
+                                        <p class="text-xs text-amber-800 mt-1">{{ __('borrower.nida.no_card_saved_hint') }}</p>
+                                    </div>
+                                @else
                                 <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
                                     <dt class="text-xs text-gray-500">{{ __('borrower.profile.nida_front') }}</dt>
                                     <dd class="mt-2">
@@ -138,6 +145,7 @@
                                         @endif
                                     </dd>
                                 </div>
+                                @endif
                                 <div x-show="expandedUrl" x-cloak x-transition
                                      class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"
                                      @keydown.escape.window="expandedUrl = null"
@@ -168,17 +176,31 @@
                             @if (! empty($returnUrl))
                                 <input type="hidden" name="return" value="{{ $returnUrl }}">
                             @endif
-                            <div class="space-y-4">
+                            <div class="space-y-4" x-data="{ noCard: @js($noPhysicalCard) }">
                                 <div>
                                     <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.nida.number') }}</label>
                                     <x-site.nida-input name="national_id" :value="old('national_id', $customer->national_id)" :required="! $nidaReadonly" @if($nidaReadonly) readonly @endif />
                                     <p class="text-[11px] text-gray-400 mt-1">{{ __('borrower.nida.format_hint') }}</p>
                                     @error('national_id')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                 </div>
-                                <x-site.profile-document-field :document="$nidaFront" field-name="national_id_front" mode="single" :label="__('borrower.profile.nida_front')" input-host-id="nida-front-upload" :required="! $nidaFront" />
-                                @error('national_id_front')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
-                                <x-site.profile-document-field :document="$nidaBack" field-name="national_id_back" mode="single" :label="__('borrower.profile.nida_back')" input-host-id="nida-back-upload" :required="! $nidaBack" />
-                                @error('national_id_back')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                                @unless ($locked)
+                                    <label class="flex items-start gap-3 rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3 cursor-pointer">
+                                        <input type="checkbox" name="no_physical_nida_card" value="1" x-model="noCard"
+                                               class="mt-0.5 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                                               @checked($noPhysicalCard)>
+                                        <span>
+                                            <span class="block text-sm font-semibold text-gray-900">{{ __('borrower.nida.no_card_label') }}</span>
+                                            <span class="block text-xs text-gray-500 mt-0.5">{{ __('borrower.nida.no_card_hint') }}</span>
+                                        </span>
+                                    </label>
+                                @endunless
+                                <div x-show="!noCard" x-cloak class="space-y-4">
+                                    <x-site.profile-document-field :document="$nidaFront" field-name="national_id_front" mode="single" :label="__('borrower.profile.nida_front')" input-host-id="nida-front-upload" :required="! $nidaFront && ! $noPhysicalCard" />
+                                    @error('national_id_front')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                                    <x-site.profile-document-field :document="$nidaBack" field-name="national_id_back" mode="single" :label="__('borrower.profile.nida_back')" input-host-id="nida-back-upload" :required="! $nidaBack && ! $noPhysicalCard" />
+                                    @error('national_id_back')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                                </div>
+                                <p x-show="noCard" x-cloak class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-xl px-3 py-2">{{ __('borrower.nida.no_card_uw_note') }}</p>
                             </div>
                             <button type="submit" class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
                                 {{ __('borrower.profile.save') }}

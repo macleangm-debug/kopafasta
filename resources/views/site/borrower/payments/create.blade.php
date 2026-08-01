@@ -67,14 +67,19 @@
                     </p>
                 </div>
                 <div>
-                    <label class="block text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{{ __('borrower.payments_page.create.loan_label') }}</label>
-                    <select name="loan_id" required class="w-full rounded-xl border-0 bg-white ring-1 ring-brand/15 focus:ring-2 focus:ring-brand px-4 py-3 text-sm">
-                        @foreach ($loans as $loan)
-                            <option value="{{ $loan->id }}" @selected(($selectedLoan?->id ?? null) === $loan->id)>
-                                {{ $loan->loan_number }} — {{ __('borrower.payments_page.create.outstanding_suffix', ['balance' => format_money($loan->outstanding_balance)]) }}
-                            </option>
-                        @endforeach
-                    </select>
+                    @php
+                        $loanPayOptions = $loans->mapWithKeys(fn ($loan) => [
+                            $loan->id => $loan->loan_number.' — '.__('borrower.payments_page.create.outstanding_suffix', ['balance' => format_money($loan->outstanding_balance)]),
+                        ])->all();
+                    @endphp
+                    <x-site.profile-select
+                        name="loan_id"
+                        :label="__('borrower.payments_page.create.loan_label')"
+                        :options="$loanPayOptions"
+                        :value="$selectedLoan?->id"
+                        :required="true"
+                        select-class="w-full rounded-xl border-0 bg-white ring-1 ring-brand/15 focus:ring-2 focus:ring-brand px-4 py-3 text-sm"
+                    />
                 </div>
 
                 <div>

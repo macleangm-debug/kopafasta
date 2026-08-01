@@ -21,9 +21,12 @@
             <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-sm">
                 <div>
                     <dt class="text-xs text-gray-500">NIDA status</dt>
-                    <dd class="mt-1">
+                    <dd class="mt-1 flex flex-wrap items-center gap-2">
                         <x-admin.badge :value="$customer->nida_verification_status ?? 'unverified'" group="nida_verification_status"
                             :map="['verified'=>'bg-emerald-100 text-emerald-800','name_mismatch'=>'bg-amber-100 text-amber-800','multihit'=>'bg-amber-100 text-amber-800','unverified'=>'bg-gray-100 text-gray-700']" />
+                        @if ($customer->no_physical_nida_card)
+                            <span class="inline-flex text-[10px] font-semibold rounded-full px-2 py-0.5 bg-amber-100 text-amber-900">No physical card photos</span>
+                        @endif
                     </dd>
                 </div>
                 <div>

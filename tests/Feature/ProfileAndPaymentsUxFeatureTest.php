@@ -151,7 +151,7 @@ class ProfileAndPaymentsUxFeatureTest extends TestCase
         $keys = collect($cards)->pluck('key')->all();
 
         $this->assertSame(
-            ['personal', 'activity', 'residence', 'kyc', 'security', 'payment', 'assets'],
+            ['personal', 'activity', 'residence', 'kyc', 'payment', 'assets'],
             $keys
         );
         $this->assertEmpty(

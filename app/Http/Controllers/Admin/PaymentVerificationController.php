@@ -16,6 +16,7 @@ class PaymentVerificationController extends Controller
     public function index(Request $request): View
     {
         $status = $request->query('status', 'pending');
+        $type = $request->query('type', '');
 
         $query = CustomerPayment::query()
             ->with(['customer', 'bankAccount', 'verifier', 'loan'])
@@ -27,6 +28,10 @@ class PaymentVerificationController extends Controller
             $query->where('status', $status);
         }
 
+        if ($type !== '') {
+            $query->where('payment_type', $type);
+        }
+
         $payments = $query->paginate(25)->withQueryString();
 
         $counts = [
@@ -35,7 +40,9 @@ class PaymentVerificationController extends Controller
             'rejected' => CustomerPayment::where('status', 'rejected')->count(),
         ];
 
-        return view('admin.payments.index', compact('payments', 'status', 'counts'));
+        $types = config('payment_types.types', []);
+
+        return view('admin.payments.index', compact('payments', 'status', 'counts', 'type', 'types'));
     }
 
     public function show(CustomerPayment $payment): View

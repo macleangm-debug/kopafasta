@@ -267,7 +267,7 @@
                             <div class="text-xs text-gray-500 mb-2">
                                 {{ __('borrower.application.last_uploaded', ['time' => \Carbon\Carbon::parse($latest->created_at)->diffForHumans()]) }}
                                 @if ($latest->file_path)
-                                    · <a href="{{ asset('storage/'.$latest->file_path) }}" target="_blank" class="text-amber-600 hover:underline">{{ __('borrower.application.view_file') }}</a>
+                                    · <x-site.document-view-button :url="asset('storage/'.$latest->file_path)" :label="__('borrower.application.view_file')" />
                                 @endif
                             </div>
                             @if ($isRejected && $latest->notes)

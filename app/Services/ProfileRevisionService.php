@@ -70,8 +70,17 @@ class ProfileRevisionService
             return false;
         }
 
-        return app(NidaVerificationService::class)->isVerified($customer)
-            && app(ProfileValidationService::class)->hasDocument($customer, 'national_id_front');
+        $nida = app(NidaVerificationService::class)->isVerified($customer);
+        if (! $nida) {
+            return false;
+        }
+
+        $validation = app(ProfileValidationService::class);
+        if ($customer->no_physical_nida_card) {
+            return true;
+        }
+
+        return $validation->hasDocument($customer, 'national_id_front');
     }
 
     public function faceStepComplete(Customer $customer): bool

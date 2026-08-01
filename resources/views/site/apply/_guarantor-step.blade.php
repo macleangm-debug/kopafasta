@@ -171,11 +171,42 @@
                            class="w-full rounded-lg border-gray-300 ring-1 px-3 py-2.5 text-sm" placeholder="{{ __('borrower.apply.guarantor_fields.last_name_placeholder') }}" autocomplete="off">
                     <p x-show="guarantorErrors.external_last_name" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.external_last_name"></p>
                 </div>
-                <div>
+                <div x-data="{
+                    pickerOpen: false,
+                    options: @js(trans('borrower.profile.guarantor_relationship_options')),
+                    labelFor(val) {
+                        if (!val) return @js(__('borrower.profile.select'));
+                        return this.options[val] || val;
+                    },
+                    pick(val) {
+                        form.external_relationship = val;
+                        delete guarantorErrors.external_relationship;
+                        invalidateExternalInvite();
+                        this.pickerOpen = false;
+                    }
+                }">
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.guarantor_fields.relationship') }} <span class="text-rose-500">*</span></label>
+                    <div class="lg:hidden">
+                        <button type="button" @click="pickerOpen = true"
+                                class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800"
+                                :class="guarantorErrors.external_relationship ? 'border-rose-400' : ''">
+                            <span class="flex-1 text-left truncate" x-text="labelFor(form.external_relationship)"></span>
+                            <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                        </button>
+                        <x-site.bottom-sheet :title="__('borrower.apply.guarantor_fields.relationship')" open="pickerOpen">
+                            <div class="space-y-1 max-h-[60vh] overflow-y-auto">
+                                <template x-for="(label, key) in options" :key="key">
+                                    <button type="button" @click="pick(key)"
+                                            class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50"
+                                            :class="form.external_relationship === key ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''"
+                                            x-text="label"></button>
+                                </template>
+                            </div>
+                        </x-site.bottom-sheet>
+                    </div>
                     <select name="external_relationship" x-model="form.external_relationship" @change="delete guarantorErrors.external_relationship; invalidateExternalInvite()"
                             :class="guarantorErrors.external_relationship ? 'ring-rose-400' : 'ring-gray-200'"
-                            class="w-full rounded-lg border-gray-300 ring-1 px-3 py-2.5 text-sm">
+                            class="w-full rounded-lg border-gray-300 ring-1 px-3 py-2.5 text-sm max-lg:absolute max-lg:opacity-0 max-lg:pointer-events-none max-lg:h-0 max-lg:overflow-hidden">
                         <option value="">{{ __('borrower.profile.select') }}</option>
                         @foreach (trans('borrower.profile.guarantor_relationship_options') as $value => $label)
                             <option value="{{ $value }}">{{ $label }}</option>
@@ -196,11 +227,39 @@
                     <input name="external_email" x-model="form.external_email" type="email" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" placeholder="{{ __('borrower.apply.guarantor_fields.email_placeholder') }}" autocomplete="off">
                 </div>
                 <div class="sm:col-span-2 grid sm:grid-cols-2 gap-4">
-                    <div>
+                    <div x-data="{
+                        pickerOpen: false,
+                        options: @js(array_keys(config('tanzania_locations'))),
+                        pick(val) {
+                            form.external_region = val;
+                            onExternalRegionChange();
+                            delete guarantorErrors.external_region;
+                            invalidateExternalInvite();
+                            this.pickerOpen = false;
+                        }
+                    }">
                         <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.region') }} <span class="text-rose-500">*</span></label>
+                        <div class="lg:hidden">
+                            <button type="button" @click="pickerOpen = true"
+                                    class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800"
+                                    :class="guarantorErrors.external_region ? 'border-rose-400' : ''">
+                                <span class="flex-1 text-left truncate" x-text="form.external_region || @js(__('borrower.profile.select_region'))"></span>
+                                <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                            </button>
+                            <x-site.bottom-sheet :title="__('borrower.profile.fields.region')" open="pickerOpen">
+                                <div class="space-y-1 max-h-[60vh] overflow-y-auto">
+                                    <template x-for="region in options" :key="region">
+                                        <button type="button" @click="pick(region)"
+                                                class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50"
+                                                :class="form.external_region === region ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''"
+                                                x-text="region"></button>
+                                    </template>
+                                </div>
+                            </x-site.bottom-sheet>
+                        </div>
                         <select name="external_region" x-model="form.external_region" @change="onExternalRegionChange(); delete guarantorErrors.external_region; invalidateExternalInvite()"
                                 :class="guarantorErrors.external_region ? 'ring-rose-400' : 'ring-gray-200'"
-                                class="w-full rounded-lg border-gray-300 ring-1 px-3 py-2.5 text-sm">
+                                class="w-full rounded-lg border-gray-300 ring-1 px-3 py-2.5 text-sm max-lg:absolute max-lg:opacity-0 max-lg:pointer-events-none max-lg:h-0 max-lg:overflow-hidden">
                             <option value="">{{ __('borrower.profile.select_region') }}</option>
                             @foreach (config('tanzania_locations') as $regionName => $districts)
                                 <option value="{{ $regionName }}">{{ $regionName }}</option>
@@ -208,11 +267,37 @@
                         </select>
                         <p x-show="guarantorErrors.external_region" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.external_region"></p>
                     </div>
-                    <div>
+                    <div x-data="{
+                        pickerOpen: false,
+                        pick(val) {
+                            form.external_district = val;
+                            delete guarantorErrors.external_district;
+                            invalidateExternalInvite();
+                            this.pickerOpen = false;
+                        }
+                    }">
                         <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.district') }} <span class="text-rose-500">*</span></label>
+                        <div class="lg:hidden">
+                            <button type="button" @click="pickerOpen = true"
+                                    class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800"
+                                    :class="guarantorErrors.external_district ? 'border-rose-400' : ''">
+                                <span class="flex-1 text-left truncate" x-text="form.external_district || @js(__('borrower.profile.select_district'))"></span>
+                                <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                            </button>
+                            <x-site.bottom-sheet :title="__('borrower.profile.fields.district')" open="pickerOpen">
+                                <div class="space-y-1 max-h-[60vh] overflow-y-auto">
+                                    <template x-for="d in districtsForRegion()" :key="d">
+                                        <button type="button" @click="pick(d)"
+                                                class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50"
+                                                :class="form.external_district === d ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''"
+                                                x-text="d"></button>
+                                    </template>
+                                </div>
+                            </x-site.bottom-sheet>
+                        </div>
                         <select name="external_district" x-model="form.external_district" @change="delete guarantorErrors.external_district; invalidateExternalInvite()"
                                 :class="guarantorErrors.external_district ? 'ring-rose-400' : 'ring-gray-200'"
-                                class="w-full rounded-lg border-gray-300 ring-1 px-3 py-2.5 text-sm">
+                                class="w-full rounded-lg border-gray-300 ring-1 px-3 py-2.5 text-sm max-lg:absolute max-lg:opacity-0 max-lg:pointer-events-none max-lg:h-0 max-lg:overflow-hidden">
                             <option value="">{{ __('borrower.profile.select_district') }}</option>
                             <template x-for="d in districtsForRegion()" :key="d">
                                 <option :value="d" x-text="d"></option>

@@ -95,15 +95,13 @@
             </div>
 
             <div x-show="customerAssets.length && selectedCustomerAssetIds().length" class="glass-card p-5 ring-1 ring-gray-200/80">
-                <label class="block text-sm font-semibold text-gray-700 mb-2">
-                    {{ __('borrower.apply.quote.purpose') }} <span class="text-rose-500">*</span>
-                </label>
-                <select x-model="form.purpose" required class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-4 py-3 text-sm">
-                    <option value="">{{ __('borrower.apply.quote.select_purpose') }}</option>
-                    @foreach ($loanPurposes as $key => $label)
-                        <option value="{{ $key }}">{{ $label }}</option>
-                    @endforeach
-                </select>
+                <x-site.sheet-select
+                    model="form.purpose"
+                    :label="__('borrower.apply.quote.purpose')"
+                    :options="$loanPurposes"
+                    :required="true"
+                    :placeholder="__('borrower.apply.quote.select_purpose')"
+                />
             </div>
         </div>
     </template>

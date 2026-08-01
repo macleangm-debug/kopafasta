@@ -1528,6 +1528,7 @@ class BorrowerController extends Controller
                 'nok_street'       => [$kinRequired ? 'required' : 'nullable', 'string', 'max:255'],
                 'national_id_front' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
                 'national_id_back' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                'no_physical_nida_card' => ['nullable', 'boolean'],
             ];
 
             $data = $request->validate($rules);
@@ -1550,6 +1551,10 @@ class BorrowerController extends Controller
                         ->withInput()
                         ->withErrors(['national_id' => __('borrower.nida.cannot_change')]);
                 }
+            }
+
+            if (in_array($focus, ['identity', 'all'], true) && ! $customer->identity_locked) {
+                $customer->no_physical_nida_card = $request->boolean('no_physical_nida_card');
             }
 
             if (in_array($focus, ['kin', 'all'], true)) {
@@ -1582,8 +1587,10 @@ class BorrowerController extends Controller
             }
 
             if (in_array($focus, ['identity', 'all'], true)) {
-                $this->persistProfileDocumentUpload($customer, 'national_id_front', $request->file('national_id_front'), []);
-                $this->persistProfileDocumentUpload($customer, 'national_id_back', $request->file('national_id_back'), []);
+                if (! $customer->no_physical_nida_card) {
+                    $this->persistProfileDocumentUpload($customer, 'national_id_front', $request->file('national_id_front'), []);
+                    $this->persistProfileDocumentUpload($customer, 'national_id_back', $request->file('national_id_back'), []);
+                }
 
                 if ($identityRequired && ! $validation->nationalIdUploadsComplete($customer->fresh())) {
                     return redirect()
@@ -2944,6 +2951,7 @@ class BorrowerController extends Controller
             'notifications.loan_updates' => ['nullable', 'boolean'],
             'notifications.payments'     => ['nullable', 'boolean'],
             'notifications.promotions'   => ['nullable', 'boolean'],
+            'notifications.credit_limit_updates' => ['nullable', 'boolean'],
             'notifications.push'         => ['nullable', 'boolean'],
         ]);
 
@@ -2952,6 +2960,7 @@ class BorrowerController extends Controller
             'loan_updates' => array_key_exists('loan_updates', $incoming),
             'payments'     => array_key_exists('payments', $incoming),
             'promotions'   => array_key_exists('promotions', $incoming),
+            'credit_limit_updates' => array_key_exists('credit_limit_updates', $incoming),
             'push'         => array_key_exists('push', $incoming),
         ];
 

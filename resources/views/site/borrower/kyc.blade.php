@@ -123,7 +123,7 @@
                             <div class="text-xs text-gray-500">
                                 {{ __('borrower.kyc_page.last_uploaded', ['time' => \Carbon\Carbon::parse($latest->created_at)->diffForHumans()]) }}
                                 @if ($latest->file_path)
-                                    · <a href="{{ asset('storage/'.$latest->file_path) }}" target="_blank" class="text-amber-600 hover:underline">{{ __('borrower.kyc_page.view_file') }}</a>
+                                    · <x-site.document-view-button :url="asset('storage/'.$latest->file_path)" :label="__('borrower.kyc_page.view_file')" />
                                 @endif
                             </div>
                             @if ($isRejected && $latest->notes)

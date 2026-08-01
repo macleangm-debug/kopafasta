@@ -48,13 +48,12 @@
                     <p class="mt-2 text-xs text-gray-500">{{ __('borrower.apply.group_setup.amount_per_member_hint') }}</p>
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">{{ __('borrower.apply.group_setup.purpose') }}</label>
-                    <select x-model="group.purpose" class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-4 py-3 text-sm focus:ring-brand">
-                        <option value="">{{ __('borrower.apply.quote.select_purpose') }}</option>
-                        @foreach ($loanPurposes as $key => $label)
-                            <option value="{{ $key }}">{{ $label }}</option>
-                        @endforeach
-                    </select>
+                    <x-site.sheet-select
+                        model="group.purpose"
+                        :label="__('borrower.apply.group_setup.purpose')"
+                        :options="$loanPurposes"
+                        :placeholder="__('borrower.apply.quote.select_purpose')"
+                    />
                 </div>
             </div>
 

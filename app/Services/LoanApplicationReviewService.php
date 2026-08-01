@@ -88,7 +88,7 @@ class LoanApplicationReviewService
             $affordability,
         );
 
-        $facePhotos = $this->face->latestByAngle($customer);
+        $facePhotos = $this->face->latestByAngle($customer, true);
         $faceProgress = $this->face->progress($customer);
         $nidaPhotoPath = $customer->kyc?->payload['nida_verification']['photo_path'] ?? null;
 

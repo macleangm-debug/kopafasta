@@ -48,7 +48,26 @@
         </label>
     @endif
     <div class="flex gap-2">
-        <select x-model="prefix" data-phone-prefix class="{{ $selectClass }}" @change="syncHidden()">
+        <div class="lg:hidden shrink-0" x-data="{ pickerOpen: false }">
+            <button type="button" @click="pickerOpen = true"
+                    class="{{ $selectClass }} inline-flex items-center justify-between gap-1 text-left">
+                <span class="truncate" x-text="(@js(collect($countries)->mapWithKeys(fn ($c) => [$c['prefix'] => ($c['emoji'] ?? '').' '.$c['prefix']])->all()))[prefix] || prefix"></span>
+                <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+            </button>
+            <x-site.bottom-sheet :title="$label ?: 'Country'" open="pickerOpen">
+                <div class="space-y-1 max-h-[60vh] overflow-y-auto">
+                    @foreach ($countries as $country)
+                        <button type="button"
+                                @click="prefix = @js($country['prefix']); syncHidden(); pickerOpen = false"
+                                class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50"
+                                :class="prefix === @js($country['prefix']) ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''">
+                            {{ $country['emoji'] ?? '' }} {{ $country['prefix'] }}
+                        </button>
+                    @endforeach
+                </div>
+            </x-site.bottom-sheet>
+        </div>
+        <select x-model="prefix" data-phone-prefix class="{{ $selectClass }} max-lg:absolute max-lg:opacity-0 max-lg:pointer-events-none max-lg:h-0 max-lg:overflow-hidden" @change="syncHidden()">
             @foreach ($countries as $country)
                 <option value="{{ $country['prefix'] }}">{{ $country['emoji'] }} {{ $country['prefix'] }}</option>
             @endforeach

@@ -1,12 +1,8 @@
-{{-- Partner tabs partial. --}}
+{{-- Partner tabs partial. Prefer role chips on the hub; keep for legacy includes. --}}
 <x-admin.tabs :items="[
     ['label' => 'Partners hub',         'route' => 'admin.partners.index'],
-    ['label' => 'All Partners',         'route' => 'admin.partners.all'],
+    ['label' => 'Enrollment apps',      'route' => 'admin.partner-applications.index'],
     ['label' => 'Partner Applications', 'route' => 'admin.partners.applications'],
-    ['label' => 'GPS Installers',      'route' => 'admin.partners.gps-installers'],
-    ['label' => 'Insurance Providers', 'route' => 'admin.partners.insurance-providers'],
-    ['label' => 'Valuers',             'route' => 'admin.partners.valuers'],
-    ['label' => 'Suppliers',           'route' => 'admin.partners.suppliers'],
-    ['label' => 'Affiliates',          'route' => 'admin.partners.affiliates'],
     ['label' => 'Partner Tasks',        'route' => 'admin.partners.tasks'],
+    ['label' => 'Recovery partners',    'route' => 'admin.recovery.partners.index'],
 ]" />

@@ -212,7 +212,7 @@
                             @foreach ($assignment->vendorTask->documents as $document)
                                 <li class="py-2 flex items-center justify-between gap-2">
                                     <span class="truncate">{{ $document->label }}</span>
-                                    <a href="{{ asset('storage/'.$document->file_path) }}" target="_blank" class="text-indigo-600 text-xs hover:underline">View</a>
+                                    <x-site.document-view-button :url="asset('storage/'.$document->file_path)" label="View" class="text-indigo-600 text-xs hover:underline" />
                                 </li>
                             @endforeach
                         </ul>

@@ -91,9 +91,10 @@
                 </x-slot:form>
             </x-site.profile-section-card>
 
-            <x-site.profile-section-card :title="__('borrower.security_tab.notifications_title')" :complete="true">
+            <x-site.profile-section-card section-id="notifications" :title="__('borrower.security_tab.notifications_title')" :complete="true">
                 <x-slot:view>
                     <p class="text-sm text-gray-600">{{ __('borrower.security_tab.notifications_hint') }}</p>
+                    <p class="text-xs text-gray-500 mt-2">{{ __('borrower.security_tab.notif_credit_limit_hint') }}</p>
                 </x-slot:view>
                 <x-slot:form>
                     <form method="POST" action="{{ route('site.borrower.profile.notifications.update') }}" class="space-y-4">
@@ -101,6 +102,7 @@
                         @foreach ([
                             'loan_updates' => __('borrower.security_tab.notif_loan_updates'),
                             'payments'     => __('borrower.security_tab.notif_payments'),
+                            'credit_limit_updates' => __('borrower.security_tab.notif_credit_limit'),
                             'promotions'   => __('borrower.security_tab.notif_promotions'),
                             'push'         => __('borrower.security_tab.notif_push'),
                         ] as $key => $label)

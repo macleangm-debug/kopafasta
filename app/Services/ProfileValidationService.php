@@ -64,6 +64,10 @@ class ProfileValidationService
 
     public function nationalIdUploadsComplete(Customer $customer): bool
     {
+        if ($customer->no_physical_nida_card) {
+            return true;
+        }
+
         return $this->hasDocument($customer, 'national_id_front')
             && $this->hasDocument($customer, 'national_id_back');
     }

@@ -73,7 +73,25 @@
         <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.phone') }} @if($required)<span class="text-red-500">*</span>@endif</label>
             <div class="flex gap-2">
-                <select x-model="country" @change="onCountryChange()" class="w-28 shrink-0 rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-2 py-2 text-sm">
+                <div class="lg:hidden shrink-0">
+                    <button type="button" @click="pickerOpen = true"
+                            class="w-28 inline-flex items-center justify-between gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2 text-sm font-medium text-gray-800">
+                        <span x-text="(countries.find(c => c.code === country) || countries[0]).label + ' ' + dialCode"></span>
+                        <svg class="w-3.5 h-3.5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                    </button>
+                    <x-site.bottom-sheet :title="__('borrower.profile.fields.phone')" open="pickerOpen">
+                        <div class="space-y-1">
+                            <template x-for="item in countries" :key="item.code">
+                                <button type="button"
+                                        @click="country = item.code; onCountryChange(); pickerOpen = false"
+                                        class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50"
+                                        :class="country === item.code ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''"
+                                        x-text="item.label + ' ' + item.prefix"></button>
+                            </template>
+                        </div>
+                    </x-site.bottom-sheet>
+                </div>
+                <select x-model="country" @change="onCountryChange()" class="hidden lg:block w-28 shrink-0 rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-2 py-2 text-sm">
                     <template x-for="item in countries" :key="item.code">
                         <option :value="item.code" x-text="item.label + ' ' + item.prefix"></option>
                     </template>
@@ -101,6 +119,7 @@
                 ],
                 country: initialCountry || 'TZ',
                 localPhone: initialLocal || '',
+                pickerOpen: false,
                 get dialCode() {
                     return (this.countries.find(c => c.code === this.country) || this.countries[0]).prefix;
                 },

@@ -24,12 +24,13 @@
                         <div class="{{ ($field['type'] ?? 'text') === 'textarea' ? 'sm:col-span-2' : '' }}">
                             <label class="block text-sm font-semibold text-gray-700 mb-1.5">{{ $field['label'] }}</label>
                             @if (($field['type'] ?? 'text') === 'select')
-                                <select name="product_question[{{ $field['key'] }}]" class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-4 py-3 text-sm focus:ring-brand">
-                                    <option value="">{{ __('borrower.profile.select') }}</option>
-                                    @foreach ($field['options'] ?? [] as $value => $label)
-                                        <option value="{{ $value }}">{{ $label }}</option>
-                                    @endforeach
-                                </select>
+                                <x-site.profile-select
+                                    :name="'product_question['.$field['key'].']'"
+                                    :options="$field['options'] ?? []"
+                                    :required="$field['required'] ?? false"
+                                    :placeholder="__('borrower.profile.select')"
+                                    select-class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-4 py-3 text-sm focus:ring-brand"
+                                />
                             @elseif (($field['type'] ?? 'text') === 'textarea')
                                 <textarea name="product_question[{{ $field['key'] }}]" rows="3" placeholder="{{ $field['placeholder'] ?? '' }}"
                                           class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-4 py-3 text-sm focus:ring-brand"></textarea>

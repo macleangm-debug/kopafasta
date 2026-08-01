@@ -23,6 +23,18 @@ class FaceVerificationService
         return array_keys($this->angles());
     }
 
+    /** @return list<string> */
+    public function requiredAngleKeysFor(Customer $customer): array
+    {
+        $keys = $this->requiredAngleKeys();
+
+        if ($customer->no_physical_nida_card) {
+            return array_values(array_filter($keys, fn (string $key) => $key !== 'holding_nida'));
+        }
+
+        return $keys;
+    }
+
     public function isVerified(Customer $customer): bool
     {
         return $customer->face_verification_status === 'verified';
@@ -31,17 +43,20 @@ class FaceVerificationService
     /**
      * Unlock face capture so the borrower can retake photos (same idea as replacing NIDA images).
      * Pending review stays locked until staff acts; verified / revision can start a new capture.
+     * Pass $force=true from underwriting when photos are unclear and a retake is required.
      */
-    public function beginRetake(Customer $customer): void
+    public function beginRetake(Customer $customer, bool $force = false): void
     {
-        if ($customer->face_verification_status === 'pending') {
+        if (! $force && $customer->face_verification_status === 'pending') {
             throw new \InvalidArgumentException(__('borrower.nida.face_retake_pending_blocked'));
         }
 
         $customer->update([
             'face_verification_status' => 'incomplete',
             'face_verified_at'         => null,
-            'face_rejection_notes'     => null,
+            'face_rejection_notes'     => $force
+                ? ($customer->face_rejection_notes ?: 'Clearer photos requested by underwriting.')
+                : null,
         ]);
     }
 
@@ -55,11 +70,15 @@ class FaceVerificationService
         return $this->isVerified($customer);
     }
 
-    public function latestByAngle(Customer $customer): Collection
+    public function latestByAngle(Customer $customer, bool $allConfigured = false): Collection
     {
+        $angles = $allConfigured
+            ? $this->requiredAngleKeys()
+            : $this->requiredAngleKeysFor($customer);
+
         return FaceVerification::query()
             ->where('customer_id', $customer->id)
-            ->whereIn('angle', $this->requiredAngleKeys())
+            ->whereIn('angle', $angles)
             ->latest()
             ->get()
             ->unique('angle')
@@ -69,7 +88,7 @@ class FaceVerificationService
     public function progress(Customer $customer): array
     {
         $latest = $this->latestByAngle($customer);
-        $required = count($this->requiredAngleKeys());
+        $required = count($this->requiredAngleKeysFor($customer));
         $uploaded = $latest->count();
 
         return [
@@ -82,7 +101,7 @@ class FaceVerificationService
 
     public function upload(Customer $customer, string $angle, UploadedFile $file): FaceVerification
     {
-        if (! in_array($angle, $this->requiredAngleKeys(), true)) {
+        if (! in_array($angle, $this->requiredAngleKeysFor($customer), true)) {
             throw new \InvalidArgumentException('Invalid face capture angle.');
         }
 
@@ -154,7 +173,7 @@ class FaceVerificationService
 
     public function remove(Customer $customer, string $angle): void
     {
-        if (! in_array($angle, $this->requiredAngleKeys(), true)) {
+        if (! in_array($angle, $this->requiredAngleKeysFor($customer), true)) {
             throw new \InvalidArgumentException('Invalid face capture angle.');
         }
 

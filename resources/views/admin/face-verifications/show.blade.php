@@ -55,31 +55,52 @@
         @endforeach
     </div>
 
-    @if ($customer->face_verification_status === 'pending')
-        <div class="flex flex-wrap gap-3" x-data="{ rejectOpen: false }">
-            <form method="POST" action="{{ route('admin.face-verifications.approve', $customer) }}">
-                @csrf
-                <button class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm px-5 py-2.5 rounded-lg">Approve face verification</button>
-            </form>
+    @if (in_array($customer->face_verification_status, ['pending', 'verified', 'rejected', 'incomplete', 'revision_required'], true))
+        <div class="flex flex-wrap gap-3" x-data="{ rejectOpen: false, retakeOpen: false }">
+            @if ($customer->face_verification_status === 'pending')
+                <form method="POST" action="{{ route('admin.face-verifications.approve', $customer) }}">
+                    @csrf
+                    <button class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm px-5 py-2.5 rounded-lg">Approve face photos</button>
+                </form>
 
-            <button type="button" @click="rejectOpen = true" class="bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-5 py-2.5 rounded-lg">
-                Reject face verification
+                <button type="button" @click="rejectOpen = true" class="bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-5 py-2.5 rounded-lg">
+                    Reject face photos
+                </button>
+
+                <div x-show="rejectOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div class="absolute inset-0 bg-black/40" @click="rejectOpen = false"></div>
+                    <div class="relative bg-white rounded-xl shadow-xl ring-1 ring-gray-200 w-full max-w-md p-6">
+                        <h3 class="text-lg font-semibold text-gray-900">Reject face photos</h3>
+                        <p class="text-sm text-gray-600 mt-1">The borrower will receive your reason by SMS.</p>
+                        <form method="POST" action="{{ route('admin.face-verifications.reject', $customer) }}" class="mt-4 space-y-4">
+                            @csrf
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">Rejection reason</label>
+                                <textarea name="notes" required maxlength="500" rows="4" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm" placeholder="e.g. NIDA not visible in holding photo"></textarea>
+                            </div>
+                            <div class="flex justify-end gap-2">
+                                <button type="button" @click="rejectOpen = false" class="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-900">Cancel</button>
+                                <button class="bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-5 py-2.5 rounded-lg">Confirm rejection</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            @endif
+
+            <button type="button" @click="retakeOpen = true" class="bg-amber-100 hover:bg-amber-200 text-amber-900 font-semibold text-sm px-5 py-2.5 rounded-lg">
+                Request clearer photos
             </button>
-
-            <div x-show="rejectOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-                <div class="absolute inset-0 bg-black/40" @click="rejectOpen = false"></div>
+            <div x-show="retakeOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-black/40" @click="retakeOpen = false"></div>
                 <div class="relative bg-white rounded-xl shadow-xl ring-1 ring-gray-200 w-full max-w-md p-6">
-                    <h3 class="text-lg font-semibold text-gray-900">Reject face verification</h3>
-                    <p class="text-sm text-gray-600 mt-1">The borrower will receive your reason by SMS.</p>
-                    <form method="POST" action="{{ route('admin.face-verifications.reject', $customer) }}" class="mt-4 space-y-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Request clearer photos</h3>
+                    <p class="text-sm text-gray-600 mt-1">Unlocks retake without a hard reject.</p>
+                    <form method="POST" action="{{ route('admin.face-verifications.request-retake', $customer) }}" class="mt-4 space-y-4">
                         @csrf
-                        <div>
-                            <label class="block text-xs text-gray-600 mb-1">Rejection reason</label>
-                            <textarea name="notes" required maxlength="500" rows="4" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm" placeholder="e.g. NIDA not visible in holding photo"></textarea>
-                        </div>
+                        <textarea name="notes" maxlength="500" rows="3" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm" placeholder="Optional guidance"></textarea>
                         <div class="flex justify-end gap-2">
-                            <button type="button" @click="rejectOpen = false" class="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-900">Cancel</button>
-                            <button class="bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-5 py-2.5 rounded-lg">Confirm rejection</button>
+                            <button type="button" @click="retakeOpen = false" class="px-4 py-2 text-sm font-semibold text-gray-600">Cancel</button>
+                            <button class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold text-sm px-5 py-2.5 rounded-lg">Send request</button>
                         </div>
                     </form>
                 </div>
