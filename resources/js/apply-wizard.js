@@ -66,6 +66,7 @@ export function applyWizard(config) {
                 leaderPhone: config.leaderPhone || '',
                 group: config.savedDraft?.group || { name: '', purpose: '', target_member_count: null, amount_per_member: 0, members: [] },
                 groupMemberMode: 'internal',
+                addMemberOpen: false,
                 groupExternal: { first_name: '', last_name: '', phone: '' },
                 groupExternalInvite: null,
                 groupInviteLoading: false,
@@ -1276,6 +1277,7 @@ export function applyWizard(config) {
                         this.groupLookupMemberNo = '';
                         this.groupLookupPhone = '';
                         this.groupProgressSummary = null;
+                        this.addMemberOpen = false;
                         this.updateGroupTotal();
                         await this.persistDraft(true);
                     } catch (e) {

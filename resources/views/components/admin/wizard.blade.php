@@ -81,12 +81,45 @@
                 return 'size-5 grid place-items-center rounded-full text-[11px] bg-gray-100 text-gray-600';
             }
 
+            function clearStepClip(el) {
+                el.hidden = false;
+                el.classList.remove('hidden', 'wizard-step-inactive');
+                el.removeAttribute('aria-hidden');
+                el.style.cssText = '';
+            }
+
+            function visibleSteps(root) {
+                return Array.from(root.querySelectorAll('[data-step]')).filter(function (el) {
+                    const gate = el.closest('[data-step-gate]');
+                    if (! gate) {
+                        return true;
+                    }
+                    return window.getComputedStyle(gate).display !== 'none';
+                });
+            }
+
+            function destroyWizard(root) {
+                if (typeof root._wizardCleanup === 'function') {
+                    root._wizardCleanup();
+                    root._wizardCleanup = null;
+                }
+                const nav = root.querySelector('[data-wizard-nav]');
+                if (nav) {
+                    nav.innerHTML = '';
+                    nav.classList.add('hidden');
+                    nav.classList.remove('flex');
+                }
+                root.querySelectorAll('[data-step]').forEach(clearStepClip);
+                root.dataset.ready = '0';
+            }
+
             function initWizard(root) {
                 if (root.dataset.ready === '1') {
                     return;
                 }
 
-                const stepEls = Array.from(root.querySelectorAll('[data-step]'));
+                const allSteps = Array.from(root.querySelectorAll('[data-step]'));
+                const stepEls = visibleSteps(root);
                 const nav = root.querySelector('[data-wizard-nav]');
                 const backBtn = root.querySelector('[data-wizard-back]');
                 const nextBtn = root.querySelector('[data-wizard-next]');
@@ -95,13 +128,20 @@
                 let step = 0;
                 const navButtons = [];
 
+                // Gated-away steps stay under Alpine x-show; clear wizard clips on them.
+                allSteps.forEach(function (el) {
+                    if (! stepEls.includes(el)) {
+                        clearStepClip(el);
+                    }
+                });
+
                 if (total <= 1) {
-                    stepEls.forEach(function (el) {
-                        el.hidden = false;
-                        el.classList.remove('hidden');
-                    });
+                    stepEls.forEach(clearStepClip);
                     if (nextBtn) {
                         nextBtn.hidden = true;
+                    }
+                    if (backBtn) {
+                        backBtn.hidden = true;
                     }
                     if (submitBtn) {
                         submitBtn.hidden = false;
@@ -129,7 +169,7 @@
                         render();
                     });
                     wrap.appendChild(btn);
-                    navButtons.push({ btn: btn, badge: btn.firstElementChild, label: label, index: index });
+                    navButtons.push({ btn: btn, label: label, index: index });
 
                     if (index < total - 1) {
                         const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -148,14 +188,12 @@
                 const firstInvalid = stepsHost.querySelector('[aria-invalid="true"], .has-error, [data-has-error="true"]');
                 if (firstInvalid) {
                     const owner = firstInvalid.closest('[data-step]');
-                    if (owner) {
+                    if (owner && stepEls.includes(owner)) {
                         step = Math.max(0, stepEls.indexOf(owner));
                     }
                 }
 
                 function render() {
-                    // Use inert off-screen hiding (not display:none / hidden) so file
-                    // inputs in inactive steps still participate in form submit.
                     stepEls.forEach(function (el, index) {
                         const show = index === step;
                         el.hidden = false;
@@ -193,79 +231,95 @@
                     });
                 }
 
-                nextBtn.addEventListener('click', function () {
+                function onNext() {
                     if (step < total - 1) {
                         step++;
                         render();
                     }
-                });
+                }
 
-                backBtn.addEventListener('click', function () {
+                function onBack() {
                     if (step > 0) {
                         step--;
                         render();
                     }
-                });
+                }
+
+                nextBtn.addEventListener('click', onNext);
+                backBtn.addEventListener('click', onBack);
+
+                function onInvalid(event) {
+                    const target = event.target;
+                    if (! (target instanceof HTMLElement)) {
+                        return;
+                    }
+                    const owner = target.closest('[data-step]');
+                    if (! owner || ! stepEls.includes(owner)) {
+                        return;
+                    }
+                    const index = stepEls.indexOf(owner);
+                    if (index >= 0 && index !== step) {
+                        step = index;
+                        render();
+                    }
+                }
+
+                function onSubmit() {
+                    stepEls.forEach(clearStepClip);
+                    const activeSubmit = root.querySelector('[data-wizard-submit]');
+                    [activeSubmit, nextBtn, backBtn].forEach(function (button) {
+                        if (! button) {
+                            return;
+                        }
+                        button.disabled = true;
+                        button.hidden = button !== activeSubmit;
+                        if (button === activeSubmit) {
+                            activeSubmit.hidden = false;
+                            const label = activeSubmit.dataset.submitLabel || 'Save';
+                            activeSubmit.innerHTML =
+                                '<svg class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+                                '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>' +
+                                '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>' +
+                                '</svg>' +
+                                '<span>' + label + '…</span>';
+                        }
+                    });
+                }
+
+                const form = root.closest('form');
+                if (form) {
+                    form.addEventListener('invalid', onInvalid, true);
+                    form.addEventListener('submit', onSubmit);
+                }
+
+                root._wizardCleanup = function () {
+                    nextBtn.removeEventListener('click', onNext);
+                    backBtn.removeEventListener('click', onBack);
+                    if (form) {
+                        form.removeEventListener('invalid', onInvalid, true);
+                        form.removeEventListener('submit', onSubmit);
+                    }
+                };
 
                 render();
                 root.dataset.ready = '1';
-
-                const form = root.closest('form');
-                if (form && ! form.dataset.submitGuard) {
-                    form.dataset.submitGuard = '1';
-
-                    // When native validation fails on a clipped step, jump to that step
-                    // instead of showing a floating "Select an item in the list" bubble.
-                    form.addEventListener('invalid', function (event) {
-                        const target = event.target;
-                        if (! (target instanceof HTMLElement)) {
-                            return;
-                        }
-                        const owner = target.closest('[data-step]');
-                        if (! owner || ! stepEls.includes(owner)) {
-                            return;
-                        }
-                        const index = stepEls.indexOf(owner);
-                        if (index >= 0 && index !== step) {
-                            step = index;
-                            render();
-                        }
-                    }, true);
-
-                    form.addEventListener('submit', function () {
-                        // Ensure every step (and its file inputs) is fully visible for serialize.
-                        stepEls.forEach(function (el) {
-                            el.hidden = false;
-                            el.classList.remove('hidden', 'wizard-step-inactive');
-                            el.removeAttribute('aria-hidden');
-                            el.style.cssText = '';
-                        });
-
-                        const activeSubmit = root.querySelector('[data-wizard-submit]');
-                        [activeSubmit, nextBtn, backBtn].forEach(function (button) {
-                            if (! button) {
-                                return;
-                            }
-                            button.disabled = true;
-                            button.hidden = button !== activeSubmit;
-                            if (button === activeSubmit) {
-                                activeSubmit.hidden = false;
-                                const label = activeSubmit.dataset.submitLabel || 'Save';
-                                activeSubmit.innerHTML =
-                                    '<svg class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
-                                    '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>' +
-                                    '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>' +
-                                    '</svg>' +
-                                    '<span>' + label + '…</span>';
-                            }
-                        });
-                    });
-                }
             }
 
             function boot() {
                 document.querySelectorAll('.admin-wizard').forEach(initWizard);
             }
+
+            function rebuildAll() {
+                document.querySelectorAll('.admin-wizard').forEach(function (root) {
+                    destroyWizard(root);
+                    initWizard(root);
+                });
+            }
+
+            window.addEventListener('admin-wizard-rebuild', function () {
+                // Wait a tick so Alpine x-show display styles are applied.
+                setTimeout(rebuildAll, 0);
+            });
 
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', boot);

@@ -855,6 +855,8 @@ return [
       'add_more_title' => 'Ongeza mwanachama',
       'add_more_hint' => 'Unahitaji :remaining zaidi kufikia :target.',
       'team_full' => 'Kikundi kimejaa — wanachama :target.',
+      'add_cta' => 'Ongeza wanachama',
+      'steps_legend' => 'Wasifu · Nyaraka · Uthibitisho',
       'lookup_membership' => 'Nambari ya uanachama',
       'lookup_phone' => 'Nambari ya simu',
       'lookup_hint' => 'Tafuta mwanachama wa KopaFasta kwa nambari au simu.',

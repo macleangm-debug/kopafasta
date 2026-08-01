@@ -28,6 +28,11 @@
         get isIndividual() { return this.allowsPerson && this.applicantCategory === 'individual'; },
         get isCompany() { return ! this.allowsPerson || this.applicantCategory === 'company'; },
     }"
+    x-init="
+        $watch('category', () => { $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild'))); });
+        $watch('applicantCategory', () => { $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild'))); });
+        $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild')));
+    "
     class="space-y-0"
 >
     <x-admin.step title="Partner type">
@@ -80,7 +85,7 @@
         <x-admin.select name="status" label="Status" :options="$statuses" :value="$r?->status ?? 'active'" required />
     </x-admin.step>
 
-    <div x-show="needsCoverage" x-cloak>
+    <div data-step-gate x-show="needsCoverage" x-cloak>
         <x-admin.step title="Coverage regions">
             <div class="md:col-span-2 space-y-3">
                 <p class="text-xs text-gray-500">Select regions, or mark the partner as nationwide for all regions.</p>
@@ -115,7 +120,7 @@
         </div>
     </x-admin.step>
 
-    <div x-show="isCompany" x-cloak>
+    <div data-step-gate x-show="isCompany" x-cloak>
         <x-admin.step title="Business documents">
             <p class="md:col-span-2 text-xs text-gray-500">BRELA, TIN certificate, business licence. PDF or image, max 5MB each.</p>
             @foreach ([
@@ -133,7 +138,7 @@
         </x-admin.step>
     </div>
 
-    <div x-show="isIndividual || isCompany" x-cloak>
+    <div data-step-gate x-show="isIndividual || isCompany" x-cloak>
         <x-admin.step title="Identity documents">
             <p class="md:col-span-2 text-xs text-gray-500" x-show="isIndividual">National ID for the individual partner.</p>
             <p class="md:col-span-2 text-xs text-gray-500" x-show="isCompany">Optional registrant National ID.</p>
@@ -162,7 +167,7 @@
         </x-admin.step>
     </div>
 
-    <div x-show="isValuer || isServiceRates" x-cloak>
+    <div data-step-gate x-show="isValuer || isServiceRates" x-cloak>
         <x-admin.step title="Rates">
             <div class="md:col-span-2 rounded-xl bg-brand-muted/60 ring-1 ring-brand/15 px-4 py-3 text-sm text-brand space-y-2">
                 <p class="font-semibold">Default rates come from Settings</p>
@@ -193,7 +198,7 @@
         </x-admin.step>
     </div>
 
-    <div x-show="isSupplier" x-cloak>
+    <div data-step-gate x-show="isSupplier" x-cloak>
         <x-admin.step title="Supplier settings">
             <p class="md:col-span-2 text-xs text-gray-500 mb-2">Deposit markup is controlled under Settings → Asset lending.</p>
             <x-admin.select name="supplier_type" label="Supplier payment mode" :options="config('asset_lending.supplier_types')" :value="$r?->supplier_type ?? config('asset_lending.default_supplier_type')" />
@@ -204,7 +209,7 @@
         </x-admin.step>
     </div>
 
-    <div x-show="isAffiliate" x-cloak>
+    <div data-step-gate x-show="isAffiliate" x-cloak>
         <x-admin.step title="Affiliate program">
             <div class="md:col-span-2 rounded-xl bg-brand-muted/60 ring-1 ring-brand/15 px-4 py-3 text-sm text-brand mb-2">
                 Defaults from Settings → Affiliates. Overrides below are optional.

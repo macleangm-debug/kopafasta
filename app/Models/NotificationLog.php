@@ -58,7 +58,10 @@ class NotificationLog extends Model
                 ? (string) __($meta['body_key'], $params)
                 : '';
 
-            if ($title !== '' || $body !== '') {
+            $unresolved = static fn (string $text): bool => (bool) preg_match('/:\w+/', $text);
+
+            // Keys without params leave raw :placeholders — prefer stored message when that happens.
+            if (($title !== '' || $body !== '') && ! $unresolved($title) && ! $unresolved($body)) {
                 return [
                     $title !== '' ? $title : __('borrower.notifications.fallback_title'),
                     $body,

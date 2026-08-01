@@ -311,6 +311,8 @@ return [
             'add_more_title' => 'Add a member',
             'add_more_hint' => 'Need :remaining more to reach :target.',
             'team_full' => 'Group is full — :target members.',
+            'add_cta' => 'Add members',
+            'steps_legend' => 'Ticks · Documents · Verification',
             'lookup_membership' => 'Membership number',
             'lookup_phone' => 'Phone number',
             'lookup_hint' => 'Find a KopaFasta member by number or phone.',
