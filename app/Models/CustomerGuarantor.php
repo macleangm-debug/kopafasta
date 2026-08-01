@@ -35,6 +35,12 @@ class CustomerGuarantor extends Model
         return $this->belongsTo(LoanApplication::class, 'loan_application_id');
     }
 
+    /** Alias used by eager-loads / older call sites. */
+    public function loanApplication(): BelongsTo
+    {
+        return $this->application();
+    }
+
     public function invitation(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
         return $this->hasOne(GuarantorInvitation::class);

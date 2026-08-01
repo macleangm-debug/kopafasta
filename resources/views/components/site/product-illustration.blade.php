@@ -1,11 +1,13 @@
 @props([
     'code' => 'default',
     'size' => 'md',
+    'imagePath' => null,
 ])
 
 @php
     $theme = config('loan_product_themes.'.strtoupper($code), config('loan_product_themes.default'));
     $illustration = $theme['illustration'] ?? 'wallet';
+    $customImage = filled($imagePath) ? asset('storage/'.$imagePath) : null;
     $palette = match ($theme['theme'] ?? 'slate') {
         'indigo'  => ['from-indigo-500', 'to-indigo-700', 'ring-indigo-200/50', 'bg-indigo-100/40'],
         'violet'  => ['from-violet-500', 'to-violet-700', 'ring-violet-200/50', 'bg-violet-100/40'],
@@ -29,17 +31,24 @@
     };
 @endphp
 
-<div {{ $attributes->merge(['class' => "relative overflow-hidden rounded-3xl bg-gradient-to-br {$gradFrom} {$gradTo} {$sizes['box']} ring-1 {$ringColor} shadow-[0_20px_60px_rgba(0,77,64,0.15)]"]) }}>
-    <div class="absolute -right-8 -top-8 size-32 rounded-full {{ $blobColor }} blur-2xl"></div>
-    <div class="absolute -left-6 -bottom-10 size-28 rounded-full bg-white/10 blur-xl"></div>
-    <svg class="absolute inset-0 w-full h-full opacity-15" viewBox="0 0 200 200" fill="none" aria-hidden="true">
-        <circle cx="160" cy="40" r="28" stroke="white" stroke-width="1.5" stroke-dasharray="4 6"/>
-        <path d="M30 90 Q100 30 170 110" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-    </svg>
-    <div class="relative h-full flex flex-col items-center justify-center {{ $sizes['pad'] }} text-center gap-3">
-        @include('components.site.illustrations.product', ['type' => $illustration])
-        @if ($sizes['showLabel'])
-            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-white/85">{{ $theme['label'] ?? strtoupper($code) }}</p>
-        @endif
+@if ($customImage)
+    <div {{ $attributes->merge(['class' => "relative overflow-hidden rounded-3xl {$sizes['box']} ring-1 {$ringColor} shadow-[0_20px_60px_rgba(0,77,64,0.15)] bg-gray-100"]) }}>
+        <img src="{{ $customImage }}" alt="" class="absolute inset-0 h-full w-full object-cover">
+        <div class="absolute inset-0 bg-gradient-to-t from-black/35 to-transparent"></div>
     </div>
-</div>
+@else
+    <div {{ $attributes->merge(['class' => "relative overflow-hidden rounded-3xl bg-gradient-to-br {$gradFrom} {$gradTo} {$sizes['box']} ring-1 {$ringColor} shadow-[0_20px_60px_rgba(0,77,64,0.15)]"]) }}>
+        <div class="absolute -right-8 -top-8 size-32 rounded-full {{ $blobColor }} blur-2xl"></div>
+        <div class="absolute -left-6 -bottom-10 size-28 rounded-full bg-white/10 blur-xl"></div>
+        <svg class="absolute inset-0 w-full h-full opacity-15" viewBox="0 0 200 200" fill="none" aria-hidden="true">
+            <circle cx="160" cy="40" r="28" stroke="white" stroke-width="1.5" stroke-dasharray="4 6"/>
+            <path d="M30 90 Q100 30 170 110" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <div class="relative h-full flex flex-col items-center justify-center {{ $sizes['pad'] }} text-center gap-3">
+            @include('components.site.illustrations.product', ['type' => $illustration])
+            @if ($sizes['showLabel'])
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-white/85">{{ $theme['label'] ?? strtoupper($code) }}</p>
+            @endif
+        </div>
+    </div>
+@endif

@@ -175,16 +175,21 @@ class ProfileCompletionService
     /** @return array{percent: int, sections: list<array{key: string, label: string, complete: bool, weight: int}>, threshold: int} */
     public function calculate(Customer $customer): array
     {
-        $requirements = collect(app(ApplicationProgressService::class)->requirements($customer, null, null))
-            ->reject(fn (array $item) => str_starts_with((string) ($item['key'] ?? ''), 'wizard_'))
-            ->values();
-
-        $sections = $requirements->map(fn (array $item) => [
-            'key'      => (string) ($item['key'] ?? ''),
-            'label'    => (string) ($item['label'] ?? ''),
-            'complete' => (bool) ($item['complete'] ?? false),
-            'weight'   => 1,
-        ])->all();
+        // Layman % = required profile hub sections only (not collateral / security / deferred ID).
+        $tabs = $this->tabStatuses($customer);
+        $sections = [];
+        foreach (['personal', 'activity', 'residence', 'kyc', 'payment'] as $key) {
+            $tab = $tabs[$key] ?? null;
+            if (! $tab || empty($tab['required'])) {
+                continue;
+            }
+            $sections[] = [
+                'key'      => $key,
+                'label'    => (string) ($tab['label'] ?? $key),
+                'complete' => (bool) ($tab['complete'] ?? false),
+                'weight'   => 1,
+            ];
+        }
 
         $totalWeight = max(1, count($sections));
         $earned = collect($sections)->where('complete', true)->count();
@@ -254,12 +259,6 @@ class ProfileCompletionService
                 'required' => true,
                 'label'    => __('borrower.profile.kyc'),
                 'url'      => route('site.borrower.profile', ['section' => 'kyc']),
-            ],
-            'security' => [
-                'complete' => filled(auth()->user()?->pin_hash),
-                'required' => false,
-                'label'    => __('borrower.profile.security'),
-                'url'      => route('site.borrower.profile', ['section' => 'security']),
             ],
             'payment' => [
                 'complete' => app(CustomerDisbursementDetailsService::class)->isComplete($customer),

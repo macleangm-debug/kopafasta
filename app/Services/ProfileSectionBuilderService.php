@@ -64,7 +64,6 @@ class ProfileSectionBuilderService
             'activity'  => ['icon' => '💼', 'action' => 'add_section'],
             'residence' => ['icon' => '🏠', 'action' => 'add_section'],
             'kyc'       => ['icon' => '📄', 'action' => 'upload'],
-            'security'  => ['icon' => '🔐', 'action' => 'view_edit'],
             'payment'   => ['icon' => '💳', 'action' => 'add'],
             'assets'    => ['icon' => '🚗', 'action' => 'manage'],
         ];

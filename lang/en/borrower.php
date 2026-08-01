@@ -31,6 +31,20 @@ return [
         'guarantor_notifications' => 'Guarantor inbox',
         'support'       => 'Support',
         'profile'       => 'Profile',
+        'settings'      => 'Settings',
+    ],
+
+    'settings' => [
+        'title' => 'Account settings',
+        'subtitle' => 'PIN, devices, notifications and personal preferences.',
+        'personalisation_title' => 'Coming soon — personalise your account',
+        'personalisation_hint' => 'We will group these under Settings so Profile stays focused on loan readiness.',
+        'personalisation_items' => [
+            'language' => 'Preferred language (also available in the header today)',
+            'display_name' => 'How we greet you on the dashboard',
+            'preferred_channel' => 'Preferred contact channel (SMS, WhatsApp, or in-app)',
+            'quiet_hours' => 'Quiet hours for promotional messages',
+        ],
     ],
 
     'guarantor_notifications' => [
@@ -1501,6 +1515,7 @@ return [
             'security_hint' => 'PIN, password and trusted devices.',
             'payment_hint' => 'Mobile money or bank accounts for disbursement.',
             'assets_hint' => 'Vehicles, property and other assets you own.',
+            'optional_for_apply' => 'Optional for most loans — required only when you apply for an asset-backed product.',
             'view_edit' => 'View or edit',
             'complete_section' => 'Complete section',
             'add' => 'Add',
@@ -1760,6 +1775,8 @@ return [
         'face_submitting' => 'Submitting…',
         'face_retake' => 'Retake',
         'face_remove' => 'Remove',
+        'face_retake_started' => 'You can retake your face photos now. Capture all angles, then submit again.',
+        'face_retake_pending_blocked' => 'Your photos are under review. Wait for the result before retaking.',
         'face_replace' => 'Replace photos',
         'face_replace_hint' => 'Upload again to replace this photo.',
         'face_manage' => 'Manage face photos',

@@ -133,10 +133,14 @@
                 {{ __('borrower.nida.face_replace') }}
             </a>
         @elseif ($statusKey === 'verified')
-            <a href="{{ route('site.borrower.face-verification') }}"
-               class="inline-flex items-center justify-center font-semibold px-4 py-2 rounded-full text-sm bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand">
-                {{ __('borrower.nida.face_manage') }}
-            </a>
+            <form method="POST" action="{{ route('site.borrower.face-verification.retake') }}"
+                  @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.nida.face_replace')), message: @js(__('borrower.nida.face_replace_hint')), confirmLabel: @js(__('borrower.nida.face_retake')), confirmClass: 'bg-brand-gold hover:bg-yellow-400 text-brand' })">
+                @csrf
+                <button type="submit"
+                        class="inline-flex items-center justify-center font-semibold px-4 py-2 rounded-full text-sm bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand">
+                    {{ __('borrower.nida.face_replace') }}
+                </button>
+            </form>
         @endif
     </div>
 

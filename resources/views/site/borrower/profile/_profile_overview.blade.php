@@ -72,6 +72,9 @@
                         @endforeach
                     </ul>
                 @endif
+                @if (($section['key'] ?? '') === 'assets' || empty($section['required']))
+                    <p class="mt-3 text-xs text-gray-500">{{ __('borrower.profile.hub.optional_for_apply') }}</p>
+                @endif
                 <p class="mt-4 text-xs font-semibold text-brand">{{ $section['action_label'] ?? __('borrower.profile.hub.view_edit') }} →</p>
             </a>
         @endforeach

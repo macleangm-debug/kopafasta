@@ -28,6 +28,23 @@ class FaceVerificationService
         return $customer->face_verification_status === 'verified';
     }
 
+    /**
+     * Unlock face capture so the borrower can retake photos (same idea as replacing NIDA images).
+     * Pending review stays locked until staff acts; verified / revision can start a new capture.
+     */
+    public function beginRetake(Customer $customer): void
+    {
+        if ($customer->face_verification_status === 'pending') {
+            throw new \InvalidArgumentException(__('borrower.nida.face_retake_pending_blocked'));
+        }
+
+        $customer->update([
+            'face_verification_status' => 'incomplete',
+            'face_verified_at'         => null,
+            'face_rejection_notes'     => null,
+        ]);
+    }
+
     public function profileStepComplete(Customer $customer): bool
     {
         return in_array($customer->face_verification_status ?? '', ['pending', 'verified'], true);

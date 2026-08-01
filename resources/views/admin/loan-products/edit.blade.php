@@ -5,6 +5,7 @@
     :action="route('admin.loan-products.update', $record)"
     :destroyAction="route('admin.loan-products.destroy', $record)"
     :cancelUrl="route('admin.loan-products.show', $record)"
-    submitLabel="Save changes">
+    submitLabel="Save changes"
+    enctype="multipart/form-data">
     @include('admin.loan-products._form')
 </x-admin.edit-page>

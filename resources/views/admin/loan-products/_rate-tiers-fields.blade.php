@@ -39,19 +39,23 @@
         </template>
         <button type="button" class="mt-3 text-xs font-semibold text-amber-700" onclick="addRateTierRow()">+ Add tier</button>
         @if (! empty($record))
-            <form method="POST" action="{{ route('admin.loan-products.regenerate-rate-tiers', $record) }}" class="mt-3"
-                  onsubmit="return confirm('Replace all tiers with the default amount-band template for this product?');">
-                @csrf
-                <button type="submit" class="text-xs font-semibold text-gray-700 hover:text-amber-800 underline">
-                    Regenerate default tiers
-                </button>
-            </form>
+            <button type="button" class="mt-3 ml-3 text-xs font-semibold text-gray-700 hover:text-amber-800 underline"
+                    form="regenerate-rate-tiers-{{ $record->id }}"
+                    onclick="return confirm('Replace all tiers with the default amount-band template for this product?');">
+                Regenerate default tiers
+            </button>
         @endif
         <p class="mt-3 text-xs text-amber-800/90 rounded-lg bg-amber-50 ring-1 ring-amber-100 p-3" id="tier-rate-preview">
             Borrower rate range: <strong id="tier-rate-preview-value">—</strong>
         </p>
     </div>
 </x-admin.step>
+
+@if (! empty($record))
+    <form id="regenerate-rate-tiers-{{ $record->id }}" method="POST" action="{{ route('admin.loan-products.regenerate-rate-tiers', $record) }}" class="hidden">
+        @csrf
+    </form>
+@endif
 
 @once
     @push('scripts')

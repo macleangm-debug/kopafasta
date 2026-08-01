@@ -867,11 +867,8 @@ export function applyWizard(config) {
                         const savedKey = draft.step_key || '';
                         const savedStep = this.resolveStepIndex(savedKey, draft.step ?? resumeStep ?? 0);
                         let furthest = Math.max(viewStep, savedStep, Number(draft.step) || 0);
-                        if (draft.borrower_signature?.signature_data) {
-                            const sigIdx = this.steps.findIndex(s => s.key === 'signature');
-                            const submitIdx = this.steps.findIndex(s => s.key === 'submit');
-                            furthest = Math.max(furthest, sigIdx, submitIdx);
-                        }
+                        // Do not unlock Review/Submit just because a signature exists —
+                        // that makes locale reloads feel like a jump off Guarantor.
                         this.furthestStep = furthest;
                         this.step = viewStep;
                         this.updateQuote();

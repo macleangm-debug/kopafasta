@@ -27,7 +27,7 @@
 
 <div class="snap-start shrink-0 w-[min(85vw,320px)] glass-card overflow-hidden flex flex-col hover:shadow-[0_16px_48px_rgba(0,77,64,0.12)] transition-shadow {{ ! $isAvailable ? 'opacity-90' : '' }}">
     <div class="relative">
-        <x-site.product-illustration :code="$product->code" size="sm" class="!rounded-none !size-auto w-full !aspect-[16/9] !max-w-none" />
+        <x-site.product-illustration :code="$product->code" :image-path="$product->image_path" size="sm" class="!rounded-none !size-auto w-full !aspect-[16/9] !max-w-none" />
         <div class="absolute top-3 left-3">
             <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1 ring-1 {{ $statusBadge['class'] }}">
                 {{ $statusBadge['label'] }}

@@ -45,6 +45,10 @@ class LoanProductController extends ResourceController
                 ->orderBy('name')
                 ->get(['id', 'name', 'code']),
             'postApprovalFeeCatalog' => app(FeeCatalogService::class)->postApprovalFees(),
+            'cloneSources' => LoanProduct::query()
+                ->when($record, fn ($q) => $q->whereKeyNot($record->id))
+                ->orderBy('name')
+                ->get(['id', 'code', 'name']),
         ];
     }
 
@@ -56,6 +60,8 @@ class LoanProductController extends ResourceController
             'name_sw'             => ['nullable', 'string', 'max:150'],
             'category'            => ['nullable', 'string', 'max:50'],
             'description'         => ['nullable', 'string', 'max:1000'],
+            'image'               => ['nullable', 'image', 'max:4096'],
+            'clone_from_id'       => ['nullable', 'integer', 'exists:loan_products,id'],
             'interest_rate'       => ['nullable', 'numeric', 'min:0', 'max:1'],
             'application_fee_amount' => ['nullable', 'numeric', 'min:0'],
             'offer_letter_template_id' => ['nullable', 'integer', 'exists:document_templates,id'],
@@ -152,9 +158,52 @@ class LoanProductController extends ResourceController
         $requirements = $validated['requirements'] ?? [];
         $postApprovalFees = $validated['post_approval_fees'] ?? [];
         $rateTiers = $validated['rate_tiers'] ?? [];
-        unset($validated['requirements'], $validated['post_approval_fees'], $validated['rate_tiers']);
+        $cloneFromId = $validated['clone_from_id'] ?? null;
+        unset($validated['requirements'], $validated['post_approval_fees'], $validated['rate_tiers'], $validated['clone_from_id'], $validated['image']);
 
-        $record = LoanProduct::create($this->transform($validated));
+        $source = $cloneFromId ? LoanProduct::with(['requirements', 'rateTiers', 'postApprovalFees'])->find($cloneFromId) : null;
+        if ($source) {
+            $validated = $this->mergeCloneDefaults($validated, $source);
+            if ($requirements === []) {
+                $requirements = $source->requirements->map(fn ($r) => [
+                    'name' => $r->name,
+                    'description' => $r->description,
+                    'is_required' => $r->is_required,
+                ])->all();
+            }
+            if ($postApprovalFees === []) {
+                $postApprovalFees = $source->postApprovalFees->map(fn ($f) => [
+                    'charges_fee_id' => $f->charges_fee_id,
+                    'code' => $f->code,
+                    'name' => $f->name,
+                    'fee_type' => $f->fee_type,
+                    'amount' => $f->amount,
+                    'is_active' => $f->is_active,
+                ])->all();
+            }
+            if ($rateTiers === []) {
+                $rateTiers = $source->rateTiers->map(fn ($t) => [
+                    'min_amount' => $t->min_amount,
+                    'max_amount' => $t->max_amount,
+                    'bot_regulated_rate' => $t->bot_regulated_rate,
+                    'processing_fee_rate' => $t->processing_fee_rate,
+                    'service_fee_rate' => $t->service_fee_rate,
+                    'administration_fee_rate' => $t->administration_fee_rate,
+                    'monthly_rate' => $t->monthly_rate,
+                ])->all();
+            }
+            $validated['clone_source_id'] = $source->id;
+            if (blank($validated['image_path'] ?? null) && filled($source->image_path)) {
+                $validated['image_path'] = $source->image_path;
+            }
+        }
+
+        $payload = $this->transform($validated);
+        if ($request->hasFile('image')) {
+            $payload['image_path'] = $request->file('image')->store('loan-products', 'public');
+        }
+
+        $record = LoanProduct::create($payload);
         $this->syncRequirements($record, $requirements);
         $this->syncPostApprovalFees($record, $postApprovalFees);
         $this->syncRateTiers($record, $rateTiers, applyDefaultsIfEmpty: true);
@@ -175,9 +224,14 @@ class LoanProductController extends ResourceController
         $requirements = $validated['requirements'] ?? [];
         $postApprovalFees = $validated['post_approval_fees'] ?? [];
         $rateTiers = $validated['rate_tiers'] ?? [];
-        unset($validated['requirements'], $validated['post_approval_fees'], $validated['rate_tiers']);
+        unset($validated['requirements'], $validated['post_approval_fees'], $validated['rate_tiers'], $validated['clone_from_id'], $validated['image']);
 
-        $record->update($this->transform($validated, $record));
+        $payload = $this->transform($validated, $record);
+        if ($request->hasFile('image')) {
+            $payload['image_path'] = $request->file('image')->store('loan-products', 'public');
+        }
+
+        $record->update($payload);
         $this->syncRequirements($record, $requirements);
         $this->syncPostApprovalFees($record, $postApprovalFees);
         $this->syncRateTiers($record, $rateTiers, applyDefaultsIfEmpty: true);
@@ -194,6 +248,25 @@ class LoanProductController extends ResourceController
         return redirect()
             ->route("{$this->routePrefix}.show", $record)
             ->with('status', $message);
+    }
+
+    /** @param array<string, mixed> $validated */
+    protected function mergeCloneDefaults(array $validated, LoanProduct $source): array
+    {
+        foreach ([
+            'category', 'description', 'interest_rate', 'application_fee_amount',
+            'offer_letter_template_id', 'loan_contract_template_id',
+            'guarantor_agreement_template_id', 'asset_lending_agreement_template_id',
+            'tenure_min_months', 'tenure_max_months', 'repayment_cadence',
+            'min_amount', 'max_amount', 'default_grace_days', 'penalty_rate_percent',
+            'penalty_basis', 'requires_collateral', 'requires_guarantor', 'uses_capital_partner',
+        ] as $key) {
+            if (! array_key_exists($key, $validated) || blank($validated[$key])) {
+                $validated[$key] = $source->{$key};
+            }
+        }
+
+        return $validated;
     }
 
     public function regenerateRateTiers(LoanProduct $loanProduct): RedirectResponse

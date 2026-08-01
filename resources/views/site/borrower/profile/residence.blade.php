@@ -57,12 +57,21 @@
                     @endforeach
                 </dl>
                 @if ($requiresLetter)
-                    <p class="mt-4 text-xs text-gray-500">
-                        {{ __('borrower.profile.residence_letter') }}:
-                        <span class="font-semibold {{ ($residenceLetter ?? null) ? 'text-emerald-700' : 'text-amber-700' }}">
-                            {{ ($residenceLetter ?? null) ? __('borrower.profile.uploaded') : __('borrower.profile.missing') }}
-                        </span>
-                    </p>
+                    <div class="mt-5 pt-5 border-t border-gray-100">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">{{ __('borrower.profile.residence_letter') }}</p>
+                        @if ($residenceLetter ?? null)
+                            <x-site.profile-document-field
+                                :document="$residenceLetter"
+                                field-name="residence_letter"
+                                mode="multi"
+                                :label="__('borrower.profile.residence_letter')"
+                                input-host-id="residence-letter-view"
+                            />
+                        @else
+                            <p class="text-sm font-semibold text-amber-700">{{ __('borrower.profile.missing') }}</p>
+                            <button type="button" @click="open = true" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
+                        @endif
+                    </div>
                 @endif
             </x-slot:view>
             <x-slot:form>

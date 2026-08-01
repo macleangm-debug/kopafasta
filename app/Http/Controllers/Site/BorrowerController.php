@@ -1307,10 +1307,25 @@ class BorrowerController extends Controller
         return redirect()->to($url);
     }
 
+    public function settings(Request $request): View
+    {
+        $customer = $this->customer();
+        $trustedDevices = TrustedDevice::where('user_id', auth()->id())
+            ->where('expires_at', '>', now())
+            ->latest('last_used_at')
+            ->get();
+
+        return view('site.borrower.settings', compact('customer', 'trustedDevices'));
+    }
+
     public function profile(Request $request, ?string $section = null): View|RedirectResponse
     {
         $customer = $this->customer();
         $section = $section ?? 'hub';
+
+        if ($section === 'security') {
+            return redirect()->route('site.borrower.settings');
+        }
 
         if ($section === 'hub') {
             return view('site.borrower.profile.hub', compact('customer'));
@@ -1971,6 +1986,25 @@ class BorrowerController extends Controller
         ))->with('wizardKey', 'face');
     }
 
+    public function retakeFaceVerification(Request $request, FaceVerificationService $faces): RedirectResponse
+    {
+        $customer = $this->customer();
+
+        try {
+            $faces->beginRetake($customer);
+        } catch (\InvalidArgumentException $e) {
+            return redirect()
+                ->route('site.borrower.face-verification')
+                ->with('error', $e->getMessage());
+        }
+
+        $this->auditBorrower('face_verification.retake_started', $customer);
+
+        return redirect()
+            ->route('site.borrower.face-verification')
+            ->with('status', __('borrower.nida.face_retake_started'));
+    }
+
     public function uploadFaceVerification(Request $request, string $angle, FaceVerificationService $faces): RedirectResponse|JsonResponse
     {
         $customer = $this->customer();
@@ -2623,7 +2657,7 @@ class BorrowerController extends Controller
 
         $this->auditBorrower('pin.updated', $user);
 
-        return redirect()->route('site.borrower.profile', ['section' => 'security'])
+        return redirect()->route('site.borrower.settings')
             ->with('status', 'PIN updated successfully.');
     }
 
@@ -2635,7 +2669,7 @@ class BorrowerController extends Controller
         ]);
         $trustedDevice->delete();
 
-        return redirect()->route('site.borrower.profile', ['section' => 'security'])
+        return redirect()->route('site.borrower.settings')
             ->with('status', 'Trusted device removed.');
     }
 
@@ -2897,7 +2931,7 @@ class BorrowerController extends Controller
         $user->update(['preferences' => $prefs]);
 
         return redirect()
-            ->route('site.borrower.profile', ['section' => 'security'])
+            ->route('site.borrower.settings')
             ->with('status', __('borrower.security_tab.notifications_saved'));
     }
 

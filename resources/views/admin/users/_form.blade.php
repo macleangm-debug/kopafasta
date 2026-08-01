@@ -1,5 +1,14 @@
 {{-- Shared User form. Expects $record, $branches, $roles, $departments --}}
-@php($r = $record ?? null)
+@php
+    $r = $record ?? null;
+    $selectedTeamIds = old('department_ids');
+    if ($selectedTeamIds === null) {
+        $selectedTeamIds = $r?->departments
+            ? $r->departments->pluck('id')->all()
+            : array_values(array_filter([(int) ($r?->department_id ?? 0)]));
+    }
+    $selectedTeamIds = array_values(array_map('intval', (array) $selectedTeamIds));
+@endphp
 
 <div class="grid sm:grid-cols-2 gap-4">
     <x-admin.input  name="name"            label="Full name"      :value="$r?->name"  required />
@@ -15,10 +24,6 @@
         <label class="block text-sm font-medium text-gray-700 mb-1">Teams <span class="text-gray-400 font-normal">(multi-team)</span></label>
         <p class="text-xs text-gray-500 mb-2">Assign every team this person works in. Nav access is the union of all selected teams. Marketing (MKT) unlocks promotions &amp; offers.</p>
         <div class="grid sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto rounded-xl ring-1 ring-gray-200 p-3 bg-white">
-            @php
-                $selectedTeamIds = old('department_ids', $r?->departments?->pluck('id')->all() ?? array_filter([(int) ($r?->department_id)]));
-                $selectedTeamIds = array_map('intval', (array) $selectedTeamIds);
-            @endphp
             @foreach ($departments as $deptId => $deptName)
                 <label class="inline-flex items-center gap-2 text-sm text-gray-800">
                     <input type="checkbox" name="department_ids[]" value="{{ $deptId }}"

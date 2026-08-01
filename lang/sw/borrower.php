@@ -25,9 +25,24 @@ return [
     'guarantor_notifications' => 'Arifa za mdhamini',
     'support' => 'Msaada',
     'profile' => 'Wasifu',
+    'settings' => 'Mipangilio',
     'refunds' => 'Rudisho',
 ],
-  'guarantor_notifications' => 
+  'settings' =>
+[
+    'title' => 'Mipangilio ya akaunti',
+    'subtitle' => 'PIN, vifaa, arifa na mapendeleo yako.',
+    'personalisation_title' => 'Inakuja — binafsisha akaunti yako',
+    'personalisation_hint' => 'Tutaziweka hizi chini ya Mipangilio ili Wasifu ubaki kwa uandalizi wa mkopo.',
+    'personalisation_items' =>
+  [
+    'language' => 'Lugha unayopendelea (inapatikana pia kwenye kichwa cha ukurasa)',
+    'display_name' => 'Jinsi tunavyokusalimu kwenye dashibodi',
+    'preferred_channel' => 'Njia unayopendelea ya mawasiliano (SMS, WhatsApp, au programu)',
+    'quiet_hours' => 'Saa za utulivu kwa ujumbe wa matangazo',
+  ],
+],
+  'guarantor_notifications' =>
 [
     'title' => 'Arifa za mdhamini',
     'subtitle' => 'Maombi na taarifa unapodhamini mkopo wa mtu mwingine.',
@@ -1501,6 +1516,7 @@ return [
       'security_hint' => 'PIN, nenosiri na vifaa vinavyoaminika.',
       'payment_hint' => 'Akaunti za pesa kwa simu au benki kwa utoaji.',
       'assets_hint' => 'Magari, mali na dhamana nyingine.',
+      'optional_for_apply' => 'Si lazima kwa mikopo mingi — inahitajika tu unapoombа mkopo wenye dhamana ya mali.',
       'view_edit' => 'Angalia / Hariri',
       'complete_section' => 'Kamilisha sehemu',
       'add' => 'Ongeza',
@@ -1896,6 +1912,8 @@ return [
     'face_submit_step' => 'Wasilisha uthibitisho',
     'face_submitting' => 'Inawasilisha…',
     'face_retake' => 'Piga tena',
+    'face_retake_started' => 'Sasa unaweza kupiga picha za uso tena. Piga pembe zote, kisha wasilisha tena.',
+    'face_retake_pending_blocked' => 'Picha zako zinakaguliwa. Subiri matokeo kabla ya kupiga tena.',
     'face_remove' => 'Ondoa',
     'face_replace' => 'Badilisha picha',
     'face_replace_hint' => 'Pakia tena ili kubadilisha picha hii.',

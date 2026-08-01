@@ -1,5 +1,36 @@
 <x-site.borrower-layout :title="brand_title(__('borrower.apply.success.submitted_title'))" active="loans" content-width="wide">
-    <div class="text-center py-6">
+    <div class="text-center py-6" x-data x-init="
+        (() => {
+            const colors = ['#0B3D32','#FBBF24','#34D399','#F59E0B','#A7F3D0'];
+            const root = document.createElement('div');
+            root.className = 'pointer-events-none fixed inset-0 z-[80] overflow-hidden';
+            document.body.appendChild(root);
+            for (let i = 0; i < 80; i++) {
+                const conf = document.createElement('span');
+                const size = 6 + Math.random() * 8;
+                conf.style.cssText = [
+                    'position:absolute',
+                    'top:-12px',
+                    'left:' + (Math.random() * 100) + '%',
+                    'width:' + size + 'px',
+                    'height:' + (size * 0.6) + 'px',
+                    'background:' + colors[i % colors.length],
+                    'border-radius:' + (Math.random() > 0.5 ? '2px' : '50%'),
+                    'opacity:0.95',
+                    'transform:rotate(' + (Math.random() * 360) + 'deg)',
+                    'animation:kf-confetti-fall ' + (2.2 + Math.random() * 2.4) + 's linear ' + (Math.random() * 0.8) + 's forwards',
+                ].join(';');
+                root.appendChild(conf);
+            }
+            setTimeout(() => root.remove(), 5200);
+        })()
+    ">
+        <style>
+            @keyframes kf-confetti-fall {
+                0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+                100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+            }
+        </style>
         <div class="relative mx-auto mb-5 size-20">
             <div class="absolute inset-0 rounded-full bg-brand-gold/30 animate-ping"></div>
             <div class="relative size-20 rounded-full bg-gradient-to-br from-brand to-brand-light text-white grid place-items-center shadow-lg">
