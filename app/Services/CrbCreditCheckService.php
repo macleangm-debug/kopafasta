@@ -122,8 +122,19 @@ class CrbCreditCheckService
         }
     }
 
-    public function refreshCreditReport(Customer $customer, array $auditContext = []): ?CreditHistory
+    /**
+     * Paid CRB pull. Never call when a fresh credit report already exists unless $force is true.
+     * Freshness window comes from Settings → KYC → crb_freshness_days (default 90).
+     */
+    public function refreshCreditReport(Customer $customer, array $auditContext = [], bool $force = false): ?CreditHistory
     {
+        if (! $force) {
+            $latest = $this->latest($customer);
+            if ($latest && $this->freshness->isFresh($latest) && $this->hasCreditSection($latest)) {
+                return $latest;
+            }
+        }
+
         if (! filled($customer->national_id)) {
             return null;
         }

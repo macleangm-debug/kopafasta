@@ -47,9 +47,12 @@
                             @endif
                         </div>
                         @if ($upload?->file_path)
-                            <x-admin.document-preview
-                                :url="asset('storage/'.$upload->file_path)"
-                                label="Preview file" />
+                            <div class="flex items-start gap-3 shrink-0">
+                                <x-admin.document-preview
+                                    :url="asset('storage/'.$upload->file_path)"
+                                    label="View"
+                                    variant="thumbnail" />
+                            </div>
                         @endif
                     </div>
 
@@ -127,51 +130,54 @@
                     $docGuidance = app(\App\Services\ApplicationDocumentReviewService::class)->guidanceForDocument($doc);
                 @endphp
                 <div class="rounded-xl ring-1 ring-gray-200 overflow-hidden bg-gray-50/50">
-                    <div class="p-4 flex items-start justify-between gap-3">
-                        <div class="min-w-0">
-                            <p class="font-semibold text-sm text-gray-900">{{ $doc->documentType?->name ?? 'Supporting document' }}</p>
-                            <p class="text-xs text-gray-500 mt-0.5 capitalize">{{ $doc->documentType?->category ?? 'kyc' }} · {{ $doc->created_at?->format('d M Y, H:i') }}</p>
-                            @if ($doc->notes)
-                                <p class="text-xs text-gray-600 mt-1">{{ $doc->notes }}</p>
-                            @endif
-                        </div>
-                        <x-admin.badge :value="$doc->status ?? 'pending'" group="document_status"
-                            :map="[
-                                'verified' => 'bg-emerald-100 text-emerald-800',
-                                'approved' => 'bg-emerald-100 text-emerald-800',
-                                'pending_review' => 'bg-amber-100 text-amber-800',
-                                'pending' => 'bg-amber-100 text-amber-800',
-                                'rejected' => 'bg-red-100 text-red-800',
-                            ]" />
-                    </div>
-                    @if (! empty($docGuidance['items']))
-                        <div class="px-4 pb-3">
-                            <ul class="text-[11px] text-gray-600 space-y-0.5">
-                                @foreach (array_slice($docGuidance['items'], 0, 3) as $item)
-                                    <li>· {{ $item }}</li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    @endif
-                    <div class="px-4 pb-4 flex flex-wrap gap-2">
+                    <div class="p-4 flex items-start gap-3">
                         @if ($doc->file_path)
                             <x-admin.document-preview
                                 :url="asset('storage/'.$doc->file_path)"
-                                label="Preview file" />
+                                label="View"
+                                variant="thumbnail" />
                         @endif
-                        @if (! in_array($doc->status, ['verified', 'approved'], true))
-                            <form method="POST" action="{{ route('admin.loan-applications.documents.verify', [$record, $doc]) }}" class="inline">
-                                @csrf
-                                <button type="submit" class="text-xs font-semibold text-emerald-800 bg-emerald-50 ring-1 ring-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-100">Verify</button>
-                            </form>
-                        @endif
-                        @if ($doc->status !== 'rejected')
-                            <form method="POST" action="{{ route('admin.loan-applications.documents.reject', [$record, $doc]) }}" class="inline"
-                                  onsubmit="return confirm('Reject this document?');">
-                                @csrf
-                                <button type="submit" class="text-xs font-semibold text-red-700 bg-red-50 ring-1 ring-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100">Reject</button>
-                            </form>
-                        @endif
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="min-w-0">
+                                    <p class="font-semibold text-sm text-gray-900">{{ $doc->documentType?->name ?? 'Supporting document' }}</p>
+                                    <p class="text-xs text-gray-500 mt-0.5 capitalize">{{ $doc->documentType?->category ?? 'kyc' }} · {{ $doc->created_at?->format('d M Y, H:i') }}</p>
+                                    @if ($doc->notes)
+                                        <p class="text-xs text-gray-600 mt-1">{{ $doc->notes }}</p>
+                                    @endif
+                                </div>
+                                <x-admin.badge :value="$doc->status ?? 'pending'" group="document_status"
+                                    :map="[
+                                        'verified' => 'bg-emerald-100 text-emerald-800',
+                                        'approved' => 'bg-emerald-100 text-emerald-800',
+                                        'pending_review' => 'bg-amber-100 text-amber-800',
+                                        'pending' => 'bg-amber-100 text-amber-800',
+                                        'rejected' => 'bg-red-100 text-red-800',
+                                    ]" />
+                            </div>
+                            @if (! empty($docGuidance['items']))
+                                <ul class="text-[11px] text-gray-600 space-y-0.5 mt-2">
+                                    @foreach (array_slice($docGuidance['items'], 0, 3) as $item)
+                                        <li>· {{ $item }}</li>
+                                    @endforeach
+                                </ul>
+                            @endif
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                @if (! in_array($doc->status, ['verified', 'approved'], true))
+                                    <form method="POST" action="{{ route('admin.loan-applications.documents.verify', [$record, $doc]) }}" class="inline">
+                                        @csrf
+                                        <button type="submit" class="text-xs font-semibold text-emerald-800 bg-emerald-50 ring-1 ring-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-100">Verify</button>
+                                    </form>
+                                @endif
+                                @if ($doc->status !== 'rejected')
+                                    <form method="POST" action="{{ route('admin.loan-applications.documents.reject', [$record, $doc]) }}" class="inline"
+                                          onsubmit="return confirm('Reject this document?');">
+                                        @csrf
+                                        <button type="submit" class="text-xs font-semibold text-red-700 bg-red-50 ring-1 ring-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100">Reject</button>
+                                    </form>
+                                @endif
+                            </div>
+                        </div>
                     </div>
                 </div>
             @endforeach

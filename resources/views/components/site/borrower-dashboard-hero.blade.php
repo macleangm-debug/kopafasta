@@ -17,6 +17,7 @@
         default => 'individual',
     };
     $lightText = ! in_array($variant, ['under_review', 'guarantor_request'], true);
+    $cleanHome = in_array($variant, ['no_loan', 'applications'], true);
 @endphp
 
 <section class="mb-6 rounded-2xl ring-1 p-5 sm:p-6 relative overflow-hidden {{ $shell }}">
@@ -32,18 +33,30 @@
 
     <div class="relative max-w-xl space-y-4">
         @if (! empty($hero['greeting']))
-            <p class="text-sm {{ $lightText ? 'text-white/90' : 'opacity-90' }}">{{ $hero['greeting'] }}</p>
+            <div>
+                <p @class([
+                    'text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight',
+                    $lightText ? 'text-white' : 'text-gray-900',
+                ])>{{ $hero['greeting'] }}</p>
+                @if (! empty($hero['membership_no']))
+                    <p class="text-sm font-mono mt-1 {{ $lightText ? 'text-white/75' : 'opacity-80' }}">{{ $hero['membership_no'] }}</p>
+                @endif
+            </div>
         @endif
 
-        <div>
-            <p class="text-xs uppercase tracking-widest font-semibold {{ $lightText ? 'text-white/80' : 'opacity-80' }}">{{ $hero['title'] ?? '' }}</p>
-            @if (! empty($hero['subtitle']))
-                <p class="text-sm mt-1 {{ $lightText ? 'text-white/90' : 'opacity-90' }}">{{ $hero['subtitle'] }}</p>
-            @endif
-            @if (! empty($hero['meta']))
-                <p class="text-xs mt-1 font-mono {{ $lightText ? 'text-white/70' : 'opacity-80' }}">{{ $hero['meta'] }}</p>
-            @endif
-        </div>
+        @if (! $cleanHome)
+            <div>
+                @if (! empty($hero['title']))
+                    <p class="text-xs uppercase tracking-widest font-semibold {{ $lightText ? 'text-white/80' : 'opacity-80' }}">{{ $hero['title'] }}</p>
+                @endif
+                @if (! empty($hero['subtitle']))
+                    <p class="text-sm mt-1 {{ $lightText ? 'text-white/90' : 'opacity-90' }}">{{ $hero['subtitle'] }}</p>
+                @endif
+                @if (! empty($hero['meta']))
+                    <p class="text-xs mt-1 font-mono {{ $lightText ? 'text-white/70' : 'opacity-80' }}">{{ $hero['meta'] }}</p>
+                @endif
+            </div>
+        @endif
 
         @if (! empty($hero['eligibility_amount']))
             <div @class([
@@ -71,7 +84,7 @@
                    ])>
                     {{ $hero['cta_label'] }}
                 </a>
-                @if (! empty($hero['secondary_cta_url']) && ! empty($hero['secondary_cta_label']))
+                @if (! $cleanHome && ! empty($hero['secondary_cta_url']) && ! empty($hero['secondary_cta_label']))
                     <a href="{{ $hero['secondary_cta_url'] }}"
                        class="inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-white/15 text-white ring-1 ring-white/30 hover:bg-white/25">
                         {{ $hero['secondary_cta_label'] }}

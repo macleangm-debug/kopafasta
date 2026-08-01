@@ -2,16 +2,24 @@
 
     @php
         $hero = $dashboardHero ?? [];
-        $firstName = $customer->first_name ?? explode(' ', (string) (Auth::user()->name ?? ''))[0];
-        $hero['greeting'] = __('borrower.welcome').', '.$firstName;
+        $fullName = trim((string) ($customer->full_name ?? Auth::user()->name ?? ''));
+        $hero['greeting'] = $fullName !== '' ? $fullName : (__('borrower.welcome').', '.(explode(' ', (string) (Auth::user()->name ?? ''))[0] ?? ''));
+        $hero['membership_no'] = $customer->member_no ?? null;
         if (! empty($eligibility) && ($eligibility['has_data'] ?? false)) {
             $hero['eligibility_amount'] = format_money($eligibility['amount'] ?? 0);
             $hero['eligibility_hint'] = __('borrower.dashboard.eligibility_growth_hint_short');
+        } elseif (! empty($eligibility) && ! ($eligibility['has_data'] ?? false)) {
+            $hero['eligibility_hint'] = __('borrower.dashboard.eligibility_no_data_hint');
         }
-        // Shorten long "application in progress" copy
-        if (($hero['variant'] ?? '') === 'applications') {
-            $hero['title'] = __('borrower.dashboard.hero.active_applications_title_short');
-            $hero['subtitle'] = __('borrower.dashboard.hero.active_applications_subtitle_short');
+        // Clean home card: no "application in progress / continue / start another"
+        if (in_array($hero['variant'] ?? '', ['applications', 'no_loan'], true)) {
+            $hero['title'] = null;
+            $hero['subtitle'] = null;
+            $hero['secondary_cta_label'] = null;
+            $hero['secondary_cta_url'] = null;
+            if (($hero['variant'] ?? '') === 'applications') {
+                $hero['cta_label'] = __('borrower.dashboard.hero.view_application');
+            }
         }
     @endphp
 
@@ -51,32 +59,6 @@
                class="inline-flex justify-center bg-orange-600 hover:bg-orange-700 text-white font-semibold px-5 py-2.5 rounded-xl text-sm shrink-0">
                 {{ __('borrower.dashboard.kyc_reconfirm_cta') }}
             </a>
-        </div>
-    @endif
-
-    @if (($openDocumentRequests ?? collect())->isNotEmpty())
-        @php
-            $firstDocRequest = $openDocumentRequests->first();
-            $docRequestSvc = app(\App\Services\ApplicationDocumentRequestService::class);
-            $firstGuided = $firstDocRequest ? $docRequestSvc->borrowerGuidedAction($firstDocRequest) : null;
-        @endphp
-        <div class="mb-6 rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-                <p class="text-sm font-semibold text-sky-900">{{ __('borrower.dashboard.document_requests_title') }}</p>
-                <p class="text-xs text-sky-800 mt-1">{{ __('borrower.dashboard.document_requests_body', ['count' => $openDocumentRequests->count()]) }}</p>
-                @if ($firstGuided)
-                    <p class="text-xs text-sky-900/80 mt-1 font-medium">{{ $firstGuided['label'] }}</p>
-                @endif
-            </div>
-            @if ($firstGuided)
-                <a href="{{ $firstGuided['url'] }}"
-                   class="inline-flex items-center justify-center shrink-0 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm">
-                    {{ $firstGuided['cta_label'] }}
-                </a>
-            @elseif ($firstDocRequest?->application)
-                <a href="{{ route('site.borrower.application', $firstDocRequest->application) }}"
-                   class="text-sm font-semibold text-sky-900 hover:underline shrink-0">{{ __('borrower.dashboard.document_requests_cta') }}</a>
-            @endif
         </div>
     @endif
 

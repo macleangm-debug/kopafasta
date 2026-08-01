@@ -181,9 +181,10 @@
     <div x-show="group.members.length >= groupTargetCount()" class="rounded-2xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900 mb-5"
          x-text="@js(__('borrower.apply.group_members.team_full')).replace(':target', groupTargetCount())"></div>
 
-    {{-- Add member modal --}}
+    {{-- Teleport escapes glass-card backdrop-filter stacking so member cards cannot paint over the modal --}}
+    <template x-teleport="body">
     <div x-show="addMemberOpen" x-cloak
-         class="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4"
+         class="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4"
          @keydown.escape.window="if (addMemberOpen) addMemberOpen = false">
         <div class="absolute inset-0 bg-black/50" @click="addMemberOpen = false"></div>
         <div class="relative w-full sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white shadow-2xl ring-1 ring-brand/10 p-5 sm:p-6 space-y-5">
@@ -269,4 +270,5 @@
             <p x-show="groupLookupError" x-cloak class="text-sm text-red-700" x-text="groupLookupError"></p>
         </div>
     </div>
+    </template>
 </div>

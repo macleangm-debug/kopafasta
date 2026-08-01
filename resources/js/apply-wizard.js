@@ -67,6 +67,7 @@ export function applyWizard(config) {
                 group: config.savedDraft?.group || { name: '', purpose: '', target_member_count: null, amount_per_member: 0, members: [] },
                 groupMemberMode: 'internal',
                 addMemberOpen: false,
+                addGuarantorOpen: false,
                 groupExternal: { first_name: '', last_name: '', phone: '' },
                 groupExternalInvite: null,
                 groupInviteLoading: false,
@@ -1143,6 +1144,7 @@ export function applyWizard(config) {
                         this.groupExternal = { first_name: '', last_name: '', phone: '' };
                         this.syncGroupAmounts();
                         this.groupProgressSummary = null;
+                        // Keep modal open so the share link remains visible.
                         await this.persistDraft(true);
                     } catch (e) {
                         this.groupLookupError = this.i18n.group.lookupNotFound;
@@ -1609,6 +1611,7 @@ export function applyWizard(config) {
                         if (data.lookup?.name) {
                             this.form.internal_guarantor_name = data.lookup.name;
                         }
+                        this.addGuarantorOpen = false;
                     } finally {
                         this.guarantorLookup.loading = false;
                     }
@@ -1725,6 +1728,7 @@ export function applyWizard(config) {
                         this.form.external_region = '';
                         this.form.external_district = '';
                         this.form.guarantor_mode = this.requiresGuarantor() ? '' : 'none';
+                        this.addGuarantorOpen = true;
                         this.scheduleDraftSave();
                     } catch {
                         this.guarantorLookup = {
@@ -2219,6 +2223,7 @@ export function applyWizard(config) {
                             _fingerprint: this.externalGuarantorFingerprint(),
                         };
                         this.guarantorInviteError = '';
+                        this.addGuarantorOpen = false;
                         this.scheduleDraftSave();
                         return true;
                     } catch {
@@ -2445,6 +2450,7 @@ export function applyWizard(config) {
                             phone,
                             name,
                         };
+                        this.addGuarantorOpen = false;
                     } catch {
                         this.guarantorLookup.error = this.i18n.alerts.guarantor_lookup_failed;
                     } finally {
