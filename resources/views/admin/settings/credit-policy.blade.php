@@ -17,7 +17,7 @@
                 <x-admin.input name="kyc_freshness_days" label="KYC freshness (days)" type="number" :value="$country['kyc_freshness_days'] ?? 90" required />
                 <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2 md:col-span-2">
                     <input type="hidden" name="guarantor_required" value="0">
-                    <input type="checkbox" name="guarantor_required" value="1" @checked($country['guarantor_required'] ?? true) class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                    <input type="checkbox" name="guarantor_required" value="1" @checked($country['guarantor_required'] ?? true) class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
                     <span class="text-gray-800">Guarantor required (country default)</span>
                 </label>
             </div>
@@ -38,7 +38,7 @@
                                 <label class="flex items-start gap-2 text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2 ring-1 ring-gray-100">
                                     <input type="checkbox" name="enabled_reasons[]" value="{{ $reason['code'] }}"
                                            @checked(in_array($reason['code'], $enabledCodes, true))
-                                           class="mt-0.5 rounded border-gray-300 text-amber-600">
+                                           class="mt-0.5 rounded border-gray-300 text-brand">
                                     <span>{{ $reason['label'] }}</span>
                                 </label>
                             @endforeach
@@ -49,7 +49,7 @@
         </div>
 
         <div class="flex justify-end">
-            <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-2.5 rounded-lg">
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold px-6 py-2.5 rounded-lg">
                 Save credit policy
             </button>
         </div>

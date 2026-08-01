@@ -23,7 +23,7 @@
         @if ($asset)
             @php $supplierType = $asset->vendor ? app(\App\Services\AssetLendingService::class)->supplierType($asset->vendor) : null; @endphp
             @if ($supplierType === 'upfront_settlement')
-                <p class="text-xs text-indigo-700 bg-indigo-50 rounded-lg px-3 py-2 mb-4">Upfront settlement supplier — company pays net asset value (after customer deposit) on loan approval.</p>
+                <p class="text-xs text-brand bg-brand-muted rounded-lg px-3 py-2 mb-4">Upfront settlement supplier — company pays net asset value (after customer deposit) on loan approval.</p>
             @endif
             <form method="POST" action="{{ route('admin.loan-applications.asset-identifiers', $application) }}" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 border-t border-gray-100 pt-4">
                 @csrf
@@ -33,7 +33,7 @@
                 <x-admin.input name="engine_number" label="Engine no." :value="old('engine_number', $asset->engine_number)" />
                 <x-admin.input name="insurance_policy_number" label="Insurance policy" :value="old('insurance_policy_number', $asset->insurance_policy_number)" />
                 <div class="sm:col-span-2 lg:col-span-4">
-                    <button type="submit" class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-sm">Save asset identifiers</button>
+                    <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2 rounded-lg text-sm">Save asset identifiers</button>
                 </div>
             </form>
         @endif
@@ -73,7 +73,7 @@
                 <form method="POST" action="{{ route('admin.loan-applications.reservation-advance', $application) }}">
                     @csrf
                     <input type="hidden" name="action" value="insurance_active">
-                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2 rounded-lg text-sm">Mark insurance active</button>
+                    <button type="submit" class="bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2 rounded-lg text-sm">Mark insurance active</button>
                 </form>
             @endif
             @if ($disbursementReadiness->canMarkAssetHandover($application) && $reservation->status !== 'released')
@@ -110,7 +110,7 @@
             <x-admin.input name="partner_cost" label="Partner cost" type="number" step="1" min="0" required />
             <x-admin.input name="markup_percent" label="Markup %" type="number" step="0.1" min="0" value="10" required />
             <div class="sm:col-span-4">
-                <button type="submit" class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-sm">Add fee request</button>
+                <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2 rounded-lg text-sm">Add fee request</button>
             </div>
         </form>
     </div>

@@ -46,7 +46,7 @@
             </div>
         </div>
 
-        <button class="rounded-lg bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 text-sm">Save settings</button>
+        <button class="rounded-lg bg-brand-gold hover:brightness-95 text-brand font-semibold px-5 py-2.5 text-sm">Save settings</button>
     </form>
 
     <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6">

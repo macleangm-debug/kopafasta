@@ -16,12 +16,12 @@
 
         <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
             <input type="hidden" name="auto_report_to_fiu" value="0">
-            <input type="checkbox" name="auto_report_to_fiu" value="1" @checked(!empty($values['auto_report_to_fiu'])) class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+            <input type="checkbox" name="auto_report_to_fiu" value="1" @checked(!empty($values['auto_report_to_fiu'])) class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
             <span class="text-gray-800">Auto-report critical STRs to FIU</span>
         </label>
 
         <div class="flex justify-end">
-            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">Save AML settings</button>
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">Save AML settings</button>
         </div>
     </form>
 </x-admin.layout>

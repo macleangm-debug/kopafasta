@@ -35,7 +35,7 @@
         </dl>
         <div class="flex flex-wrap gap-3">
             <a href="{{ route('admin.loans.show', $linkedLoan) }}"
-               class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-4 py-2 rounded-lg">
+               class="inline-flex items-center gap-2 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-lg">
                 Open loan →
             </a>
             @if ($linkedLoan->status === 'pending')
@@ -50,7 +50,7 @@
         <form method="POST" action="{{ route('admin.loan-applications.create-loan', $record) }}">
             @csrf
             <button type="submit"
-                    class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-5 py-2.5 rounded-lg shadow-sm">
+                    class="inline-flex items-center gap-2 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-5 py-2.5 rounded-lg shadow-sm">
                 Create loan from application
             </button>
         </form>

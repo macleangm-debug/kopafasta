@@ -48,22 +48,22 @@
                 <div>
                     <label class="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-1.5">Email</label>
                     <input type="email" name="email" value="{{ old('email') }}" required autofocus
-                           class="block w-full rounded-xl border-0 ring-1 ring-gray-200 focus:ring-2 focus:ring-amber-400 text-sm px-3.5 py-2.5 bg-white">
+                           class="block w-full rounded-xl border-0 ring-1 ring-gray-200 focus:ring-2 focus:ring-brand text-sm px-3.5 py-2.5 bg-white">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-1.5">Password</label>
                     <input type="password" name="password" required
-                           class="block w-full rounded-xl border-0 ring-1 ring-gray-200 focus:ring-2 focus:ring-amber-400 text-sm px-3.5 py-2.5 bg-white">
+                           class="block w-full rounded-xl border-0 ring-1 ring-gray-200 focus:ring-2 focus:ring-brand text-sm px-3.5 py-2.5 bg-white">
                 </div>
 
                 <label class="flex items-center gap-2 text-sm text-gray-600">
-                    <input type="checkbox" name="remember" class="rounded border-gray-300 text-[#0B3D32] focus:ring-amber-400">
+                    <input type="checkbox" name="remember" class="rounded border-gray-300 text-brand focus:ring-brand">
                     Remember me
                 </label>
 
                 <button type="submit"
-                        class="w-full bg-[#0B3D32] hover:bg-[#0E4F41] text-white font-semibold rounded-xl py-3 transition shadow-sm">
+                        class="w-full bg-brand hover:bg-brand-light text-white font-semibold rounded-xl py-3 transition shadow-sm">
                     Sign in
                 </button>
             </form>

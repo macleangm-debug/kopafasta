@@ -39,7 +39,7 @@
         </template>
         <button type="button" class="mt-3 text-xs font-semibold text-amber-700" onclick="addRateTierRow()">+ Add tier</button>
         @if (! empty($record))
-            <button type="button" class="mt-3 ml-3 text-xs font-semibold text-gray-700 hover:text-amber-800 underline"
+            <button type="button" class="mt-3 ml-3 text-xs font-semibold text-gray-700 hover:text-brand-light underline"
                     form="regenerate-rate-tiers-{{ $record->id }}"
                     onclick="return confirm('Replace all tiers with the default amount-band template for this product?');">
                 Regenerate default tiers

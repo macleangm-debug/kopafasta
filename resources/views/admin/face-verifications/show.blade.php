@@ -4,7 +4,7 @@
 @endphp
 <x-admin.layout :title="'Face review — '.$name" :heading="$name" subheading="Face verification review">
     <div class="mb-4">
-        <a href="{{ route('admin.face-verifications.index') }}" class="text-sm text-amber-700 hover:underline">← Back to queue</a>
+        <a href="{{ route('admin.face-verifications.index') }}" class="text-sm text-brand hover:underline">← Back to queue</a>
     </div>
 
     @if (session('error'))
@@ -100,7 +100,7 @@
                         <textarea name="notes" maxlength="500" rows="3" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm" placeholder="Optional guidance"></textarea>
                         <div class="flex justify-end gap-2">
                             <button type="button" @click="retakeOpen = false" class="px-4 py-2 text-sm font-semibold text-gray-600">Cancel</button>
-                            <button class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold text-sm px-5 py-2.5 rounded-lg">Send request</button>
+                            <button class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2.5 rounded-lg">Send request</button>
                         </div>
                     </form>
                 </div>

@@ -17,6 +17,6 @@
             <x-admin.input name="amount" label="Amount (TZS)" required money />
             <x-admin.textarea name="notes" label="Notes" rows="3" />
         </div>
-        <button type="submit" class="text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-5 py-2.5 rounded-lg">Save</button>
+        <button type="submit" class="text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-5 py-2.5 rounded-lg">Save</button>
     </form>
 </x-admin.layout>

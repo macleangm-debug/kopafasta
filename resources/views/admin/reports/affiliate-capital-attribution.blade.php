@@ -9,7 +9,7 @@
             <label class="block text-xs font-medium text-gray-600 mb-1">To</label>
             <input type="date" name="to" value="{{ $to->toDateString() }}" class="rounded-lg border-gray-300 text-sm">
         </div>
-        <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">Apply</button>
+        <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand text-sm font-semibold px-4 py-2 rounded-lg">Apply</button>
     </form>
 
     <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">

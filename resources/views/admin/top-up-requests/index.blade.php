@@ -19,7 +19,7 @@
             'all' => 'All',
         ] as $key => $label)
             <a href="{{ route('admin.top-up-requests.index', ['status' => $key]) }}"
-               class="px-3 py-1.5 rounded-lg text-sm font-medium {{ $status === $key ? 'bg-amber-500 text-gray-900' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
+               class="px-3 py-1.5 rounded-lg text-sm font-medium {{ $status === $key ? 'bg-brand-gold text-brand' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
                 {{ $label }}
             </a>
         @endforeach
@@ -47,7 +47,7 @@
                         @endphp
                         <tr class="hover:bg-gray-50 align-top">
                             <td class="px-5 py-3 font-mono text-xs font-semibold">
-                                <a href="{{ route('admin.top-up-requests.show', $request) }}" class="text-indigo-600 hover:text-indigo-700">
+                                <a href="{{ route('admin.top-up-requests.show', $request) }}" class="text-brand hover:text-brand-light">
                                     {{ $loan?->loan_number ?? '—' }}
                                 </a>
                             </td>
@@ -64,7 +64,7 @@
                             </td>
                             <td class="px-5 py-3 text-xs text-gray-500">{{ $request->created_at?->format('d M Y H:i') }}</td>
                             <td class="px-5 py-3 text-right">
-                                <a href="{{ route('admin.top-up-requests.show', $request) }}" class="text-indigo-600 font-semibold text-xs hover:underline">Review</a>
+                                <a href="{{ route('admin.top-up-requests.show', $request) }}" class="text-brand font-semibold text-xs hover:underline">Review</a>
                             </td>
                         </tr>
                     @empty

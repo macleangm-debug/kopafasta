@@ -3,8 +3,8 @@
 
 <div class="mb-4 rounded-lg bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-sm text-slate-800">
     <strong>Loans come from applications.</strong>
-    Review and approve under <a href="{{ route('admin.loan-applications.index') }}" class="font-semibold text-amber-700 hover:text-amber-800">Applications</a>,
-    then disburse approved records from the <a href="{{ route('admin.loans.disbursement') }}" class="font-semibold text-amber-700 hover:text-amber-800">Disbursement queue</a>.
+    Review and approve under <a href="{{ route('admin.loan-applications.index') }}" class="font-semibold text-brand hover:text-brand-light">Applications</a>,
+    then disburse approved records from the <a href="{{ route('admin.loans.disbursement') }}" class="font-semibold text-brand hover:text-brand-light">Disbursement queue</a>.
 </div>
 
 <div class="flex flex-wrap items-center justify-end gap-2 mb-4">

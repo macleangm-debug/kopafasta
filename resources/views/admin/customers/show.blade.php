@@ -35,7 +35,7 @@
     {{-- Hero --}}
     <div class="mb-6 rounded-2xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white shadow-lg overflow-hidden">
         <div class="p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center gap-6">
-            <div class="size-20 rounded-2xl bg-amber-500 text-gray-900 font-bold text-2xl grid place-items-center shadow-lg shrink-0">
+            <div class="size-20 rounded-2xl bg-brand-gold text-brand font-bold text-2xl grid place-items-center shadow-lg shrink-0">
                 {{ $initials }}
             </div>
             <div class="flex-1 min-w-0">
@@ -53,7 +53,7 @@
             </div>
             <div class="flex flex-wrap gap-2 lg:flex-col lg:items-end">
                 <a href="{{ route('admin.loan-applications.create') }}?customer={{ $customer->id }}"
-                   class="inline-flex items-center gap-2 text-sm font-semibold bg-amber-500 hover:bg-amber-400 text-gray-900 px-4 py-2 rounded-lg">
+                   class="inline-flex items-center gap-2 text-sm font-semibold bg-brand-gold hover:brightness-95 text-brand px-4 py-2 rounded-lg">
                     New application
                 </a>
                 @if ($customer->face_verification_status === 'pending')

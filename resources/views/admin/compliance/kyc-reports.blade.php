@@ -3,7 +3,7 @@
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         @php
             $cards = [
-                ['Total customers', $stats['total_customers'], 'bg-indigo-50 text-indigo-700'],
+                ['Total customers', $stats['total_customers'], 'bg-brand-muted text-brand'],
                 ['KYC verified',    $stats['verified'],       'bg-emerald-50 text-emerald-700'],
                 ['KYC pending',     $stats['pending'],        'bg-amber-50 text-amber-700'],
                 ['KYC rejected',    $stats['rejected'],       'bg-rose-50 text-rose-700'],

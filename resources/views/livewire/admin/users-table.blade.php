@@ -35,7 +35,7 @@
                 <td class="px-5 py-3 text-gray-500">{{ $r->created_at?->format('Y-m-d') }}</td>
                 <td class="px-5 py-3 text-right">
                     @perm('users.view')
-                        <a href="{{ route('admin.users.show', $r) }}" class="text-xs font-medium text-amber-600 hover:text-amber-700">View →</a>
+                        <a href="{{ route('admin.users.show', $r) }}" class="text-xs font-medium text-brand hover:text-brand-light">View →</a>
                     @endperm
                 </td>
             </tr>

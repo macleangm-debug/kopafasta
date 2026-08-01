@@ -76,7 +76,7 @@
                         <ul class="space-y-2 text-sm">
                             @foreach ($restructureRequests as $request)
                                 <li class="flex items-center justify-between gap-2">
-                                    <a href="{{ route('admin.restructure-requests.show', $request) }}" class="text-amber-700 hover:text-amber-800 font-semibold">
+                                    <a href="{{ route('admin.restructure-requests.show', $request) }}" class="text-brand hover:text-brand-light font-semibold">
                                         #{{ $request->id }}
                                     </a>
                                     <span class="text-xs capitalize text-gray-600">{{ $request->status }}</span>
@@ -91,7 +91,7 @@
                         <ul class="space-y-2 text-sm">
                             @foreach ($topUpRequests as $request)
                                 <li class="flex items-center justify-between gap-2">
-                                    <a href="{{ route('admin.top-up-requests.show', $request) }}" class="text-amber-700 hover:text-amber-800 font-semibold">
+                                    <a href="{{ route('admin.top-up-requests.show', $request) }}" class="text-brand hover:text-brand-light font-semibold">
                                         #{{ $request->id }}
                                     </a>
                                     <span class="text-xs capitalize text-gray-600">{{ $request->status }}</span>
@@ -140,7 +140,7 @@
                                       placeholder="Summary of the follow-up"></textarea>
                         </div>
                         <button type="submit"
-                                class="inline-flex items-center text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 px-3 py-2 rounded-lg">
+                                class="inline-flex items-center text-xs font-semibold text-white bg-brand hover:bg-brand-light px-3 py-2 rounded-lg">
                             Save action
                         </button>
                     </form>
@@ -193,7 +193,7 @@
                             @foreach ($recentRepayments as $repayment)
                                 <tr>
                                     <td class="py-2 pr-4">
-                                        <a href="{{ route('admin.repayments.show', $repayment) }}" class="font-mono text-xs text-amber-700 hover:text-amber-800">
+                                        <a href="{{ route('admin.repayments.show', $repayment) }}" class="font-mono text-xs text-brand hover:text-brand-light">
                                             {{ $repayment->reference }}
                                         </a>
                                     </td>

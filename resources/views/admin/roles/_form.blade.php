@@ -27,7 +27,7 @@
                             <label class="flex items-start gap-2 text-sm text-gray-700">
                                 <input type="checkbox" name="permissions[]" value="{{ $perm['key'] }}"
                                        @checked(in_array($perm['key'], $selected, true))
-                                       class="mt-0.5 rounded border-gray-300 text-amber-600 focus:ring-amber-500">
+                                       class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand">
                                 <span>{{ $perm['label'] }}<span class="block text-[10px] font-mono text-gray-400">{{ $perm['key'] }}</span></span>
                             </label>
                         @endforeach

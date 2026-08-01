@@ -7,7 +7,7 @@
         <a href="{{ route('admin.loan-applications.incomplete') }}" class="text-sm text-gray-500 hover:text-gray-700">← {{ __('admin.application_drafts.title') }}</a>
         @if ($draft->customer)
             <a href="{{ route('admin.customers.show', $draft->customer) }}"
-               class="text-sm font-semibold text-amber-700 hover:underline">{{ __('admin.application_drafts.view_customer_profile') }} →</a>
+               class="text-sm font-semibold text-brand hover:underline">{{ __('admin.application_drafts.view_customer_profile') }} →</a>
         @endif
     </div>
 
@@ -104,7 +104,7 @@
                                     <span>{{ is_array($doc) ? ($doc['label'] ?? 'Document') : $doc }}</span>
                                 </span>
                                 @if (is_array($doc) && ! empty($doc['url']))
-                                    <a href="{{ $doc['url'] }}" target="_blank" class="text-xs font-semibold text-amber-700 hover:underline">View</a>
+                                    <a href="{{ $doc['url'] }}" target="_blank" class="text-xs font-semibold text-brand hover:underline">View</a>
                                 @endif
                             </li>
                         @endforeach

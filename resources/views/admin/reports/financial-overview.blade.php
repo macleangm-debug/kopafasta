@@ -7,7 +7,7 @@
         </div>
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <div class="text-xs text-gray-500 uppercase tracking-wide">Disbursed YTD</div>
-            <div class="mt-2 text-2xl font-bold text-indigo-600 font-mono">{{ format_number($disbursedYtd, 2) }}</div>
+            <div class="mt-2 text-2xl font-bold text-brand font-mono">{{ format_number($disbursedYtd, 2) }}</div>
             <div class="text-xs text-gray-500 mt-1">This month: {{ format_number($disbursedMonth, 2) }}</div>
         </div>
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">

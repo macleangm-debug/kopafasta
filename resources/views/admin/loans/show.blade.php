@@ -185,7 +185,7 @@
             @endif
             @if (! $loan->isServicingLocked())
             <a href="{{ route('admin.loans.edit', $loan) }}"
-               class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-4 py-2 rounded-lg shadow-sm transition">
+               class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-lg shadow-sm transition">
                 <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                 </svg>
@@ -240,7 +240,7 @@
                     <dt class="text-xs text-gray-500">Linked application</dt>
                     <dd class="text-gray-900">
                         @if ($loan->application)
-                            <a href="{{ route('admin.loan-applications.show', $loan->application) }}" class="font-mono text-amber-700 hover:text-amber-800">
+                            <a href="{{ route('admin.loan-applications.show', $loan->application) }}" class="font-mono text-brand hover:text-brand-light">
                                 {{ $loan->application->application_number }}
                             </a>
                         @else

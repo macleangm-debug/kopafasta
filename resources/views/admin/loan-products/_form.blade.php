@@ -13,7 +13,7 @@
             <div class="md:col-span-2 rounded-xl bg-amber-50 ring-1 ring-amber-100 p-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Same as (copy an existing product)</label>
                 <select name="clone_from_id" x-model="cloneFrom"
-                        class="w-full rounded-lg border-gray-300 text-sm focus:border-amber-500 focus:ring-amber-500">
+                        class="w-full rounded-lg border-gray-300 text-sm focus:border-brand focus:ring-brand">
                     @foreach ($cloneOptions as $id => $label)
                         <option value="{{ $id }}">{{ $label }}</option>
                     @endforeach

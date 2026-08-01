@@ -13,7 +13,7 @@
         @forelse ($rows as $r)
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3 font-mono text-xs">{{ $r->code }}</td>
-                <td class="px-5 py-3 font-medium"><a href="{{ route('admin.charges-fees.show', $r) }}" class="hover:text-indigo-600">{{ $r->name }}</a></td>
+                <td class="px-5 py-3 font-medium"><a href="{{ route('admin.charges-fees.show', $r) }}" class="hover:text-brand">{{ $r->name }}</a></td>
                 <td class="px-5 py-3">{{ display_label($r->type, 'charge_type') }}</td>
                 <td class="px-5 py-3">{{ display_label($r->basis, 'charge_basis') }}</td>
                 <td class="px-5 py-3 text-right font-mono text-xs">{{ format_number($r->amount, 4) }}</td>

@@ -27,14 +27,14 @@
         </label>
     @endif
     <div class="flex gap-2">
-        <select x-model="prefix" class="w-28 shrink-0 rounded-lg border-gray-300 text-sm focus:border-amber-500 focus:ring-amber-500">
+        <select x-model="prefix" class="w-28 shrink-0 rounded-lg border-gray-300 text-sm focus:border-brand focus:ring-brand">
             @foreach ($countries as $country)
                 <option value="{{ $country['prefix'] }}">{{ $country['emoji'] }} {{ $country['prefix'] }}</option>
             @endforeach
         </select>
         <input type="tel" inputmode="numeric" x-model="local" placeholder="712 345 678"
                @if ($required) required @endif
-               class="flex-1 rounded-lg border-gray-300 text-sm focus:border-amber-500 focus:ring-amber-500 @error($name) border-red-400 @enderror">
+               class="flex-1 rounded-lg border-gray-300 text-sm focus:border-brand focus:ring-brand @error($name) border-red-400 @enderror">
     </div>
     <input type="hidden" name="{{ $name }}" :value="full()">
     @if ($help)

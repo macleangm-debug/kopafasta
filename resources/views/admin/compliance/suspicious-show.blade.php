@@ -67,7 +67,7 @@
                 <label class="block text-xs uppercase text-gray-500 mb-1">Investigator notes</label>
                 <textarea name="investigator_notes" rows="6"
                           class="w-full rounded-lg border-gray-300 text-sm">{{ old('investigator_notes', $activity->investigator_notes) }}</textarea>
-                <button class="mt-3 w-full inline-flex justify-center items-center gap-1.5 text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 px-4 py-2 rounded-lg">
+                <button class="mt-3 w-full inline-flex justify-center items-center gap-1.5 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-lg">
                     Save
                 </button>
             </form>

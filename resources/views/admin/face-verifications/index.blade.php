@@ -19,7 +19,7 @@
                             <p class="font-medium">{{ trim($customer->first_name.' '.$customer->last_name) }}</p>
                             <p class="text-xs text-gray-500">{{ $customer->phone ?? $customer->email ?? '—' }} · NIDA {{ $customer->national_id ?? '—' }}</p>
                         </div>
-                        <a href="{{ route('admin.face-verifications.show', $customer) }}" class="text-sm font-semibold text-amber-700 hover:text-amber-800">Review →</a>
+                        <a href="{{ route('admin.face-verifications.show', $customer) }}" class="text-sm font-semibold text-brand hover:text-brand-light">Review →</a>
                     </div>
                 @empty
                     <p class="px-5 py-8 text-sm text-gray-500 text-center">No face verifications awaiting review.</p>

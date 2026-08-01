@@ -23,7 +23,7 @@
                             <td class="py-3 text-right font-semibold">{{ format_money((float) $loan->outstanding_balance) }}</td>
                             <td class="py-3">{{ display_label($loan->status, 'loan_status') }}</td>
                             <td class="py-3 text-right">
-                                <a href="{{ route('admin.loans.show', $loan) }}" class="text-xs font-semibold text-amber-700 hover:text-amber-800">Open →</a>
+                                <a href="{{ route('admin.loans.show', $loan) }}" class="text-xs font-semibold text-brand hover:text-brand-light">Open →</a>
                             </td>
                         </tr>
                     @endforeach

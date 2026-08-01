@@ -5,7 +5,7 @@
 <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6">
     <div class="flex items-center justify-between gap-3 mb-4">
         <h2 class="text-sm font-semibold text-gray-900">Recovery partners</h2>
-        <a href="{{ route('admin.recovery.partners.index') }}" class="text-xs font-semibold text-amber-700 hover:underline">Manage partners</a>
+        <a href="{{ route('admin.recovery.partners.index') }}" class="text-xs font-semibold text-brand hover:underline">Manage partners</a>
     </div>
 
     @if (! empty($recoveryAssignments) && $recoveryAssignments->isNotEmpty())
@@ -51,7 +51,7 @@
         <p class="text-[11px] text-gray-500">
             Commission is calculated from original outstanding at assignment — not compounded across partners.
         </p>
-        <button type="submit" class="w-full text-sm font-semibold text-white bg-indigo-700 hover:bg-indigo-800 px-3 py-2 rounded-lg">
+        <button type="submit" class="w-full text-sm font-semibold text-white bg-brand hover:bg-brand-light px-3 py-2 rounded-lg">
             Assign recovery partner
         </button>
     </form>

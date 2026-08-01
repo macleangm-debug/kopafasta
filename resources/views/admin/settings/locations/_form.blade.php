@@ -22,7 +22,7 @@
 
     <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2 self-end">
         <input type="hidden" name="is_active" value="0">
-        <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $r?->is_active ?? true)) class="rounded border-gray-300 text-amber-600">
+        <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $r?->is_active ?? true)) class="rounded border-gray-300 text-brand">
         <span>Active (shown in borrower address forms)</span>
     </label>
 </div>

@@ -18,7 +18,7 @@
             'all' => 'All',
         ] as $key => $label)
             <a href="{{ route('admin.payments.index', array_filter(['status' => $key, 'type' => $type ?: null])) }}"
-               class="px-3 py-1.5 rounded-lg text-sm font-medium {{ $status === $key ? 'bg-amber-500 text-gray-900' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
+               class="px-3 py-1.5 rounded-lg text-sm font-medium {{ $status === $key ? 'bg-brand-gold text-brand' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
                 {{ $label }}
             </a>
         @endforeach
@@ -27,7 +27,7 @@
             Membership queue →
         </a>
         <a href="{{ route('admin.settings.payment-accounts') }}"
-           class="ml-auto text-sm font-semibold text-amber-700 hover:text-amber-800 self-center">
+           class="ml-auto text-sm font-semibold text-brand hover:text-brand-light self-center">
             Payment account settings
         </a>
     </div>
@@ -72,7 +72,7 @@
                         @endphp
                         <tr class="hover:bg-gray-50 align-top">
                             <td class="px-5 py-3 font-mono text-xs font-semibold">
-                                <a href="{{ route('admin.payments.show', $payment) }}" class="text-indigo-600 hover:text-indigo-700">
+                                <a href="{{ route('admin.payments.show', $payment) }}" class="text-brand hover:text-brand-light">
                                     {{ $payment->reference }}
                                 </a>
                             </td>
@@ -82,7 +82,7 @@
                             </td>
                             <td class="px-5 py-3 font-mono text-xs">
                                 @if ($payment->loan)
-                                    <a href="{{ route('admin.loans.show', $payment->loan) }}" class="text-amber-700 hover:text-amber-800">
+                                    <a href="{{ route('admin.loans.show', $payment->loan) }}" class="text-brand hover:text-brand-light">
                                         {{ $payment->loan->loan_number ?? $payment->loan->id }}
                                     </a>
                                 @else
@@ -110,7 +110,7 @@
                             </td>
                             <td class="px-5 py-3 text-right">
                                 <a href="{{ route('admin.payments.show', $payment) }}"
-                                   class="text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+                                   class="text-xs font-semibold text-brand hover:text-brand-light">
                                     Review →
                                 </a>
                             </td>

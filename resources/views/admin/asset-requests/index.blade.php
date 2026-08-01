@@ -5,7 +5,7 @@
 
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p class="text-sm text-gray-600">Review requests, assign a supplier, then create a marketplace listing when matched.</p>
-        <a href="{{ route('admin.marketplace-assets.create') }}" class="text-sm font-semibold text-amber-700 hover:underline">New marketplace asset →</a>
+        <a href="{{ route('admin.marketplace-assets.create') }}" class="text-sm font-semibold text-brand hover:underline">New marketplace asset →</a>
     </div>
 
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
@@ -40,7 +40,7 @@
                                     <p class="text-xs text-gray-500 mt-1 max-w-xs">{{ $requestRow->description }}</p>
                                 @endif
                                 @if ($requestRow->photo_path)
-                                    <a href="{{ asset('storage/'.$requestRow->photo_path) }}" target="_blank" class="text-xs font-semibold text-amber-700 hover:underline mt-1 inline-block">View photo</a>
+                                    <a href="{{ asset('storage/'.$requestRow->photo_path) }}" target="_blank" class="text-xs font-semibold text-brand hover:underline mt-1 inline-block">View photo</a>
                                 @endif
                             </td>
                             <td class="px-4 py-3">{{ $requestRow->customer?->full_name ?? '—' }}</td>

@@ -8,7 +8,7 @@
             @endif
         </div>
         <div class="h-2 w-48 max-w-full bg-gray-100 rounded-full overflow-hidden">
-            <div class="h-full bg-amber-500 transition-all" style="width: {{ $review['document_progress'] }}%"></div>
+            <div class="h-full bg-brand-gold transition-all" style="width: {{ $review['document_progress'] }}%"></div>
         </div>
     </div>
 

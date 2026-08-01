@@ -18,7 +18,7 @@
             <x-admin.select name="nok_region" label="Region" :options="collect($regions)->mapWithKeys(fn ($r) => [$r => $r])->all()" :value="$customer->nok_region" placeholder="— Select —" />
             <x-admin.input name="nok_district" label="District" :value="$customer->nok_district" />
             <div class="md:col-span-2 flex justify-end">
-                <button type="submit" class="inline-flex text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-5 py-2 rounded-lg">Save next of kin</button>
+                <button type="submit" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-5 py-2 rounded-lg">Save next of kin</button>
             </div>
         </form>
     </x-slot:edit>

@@ -23,7 +23,7 @@
     </div>
     <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-2 mb-1">
-            <span class="text-[10px] uppercase tracking-widest font-semibold text-gray-500">{{ $center->categoryLabel($displayCategory) }}</span>
+            <span class="text-[10px] uppercase tracking-widest font-semibold text-brand">{{ $center->categoryLabel($displayCategory) }}</span>
             @unless ($n->read_at)
                 <span class="text-[10px] font-semibold rounded-full px-2 py-0.5 bg-brand-gold/30 text-brand">{{ __('borrower.notifications.unread') }}</span>
             @endunless

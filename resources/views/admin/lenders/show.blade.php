@@ -7,7 +7,7 @@
         <a href="{{ route('admin.capital-funding.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-800">← {{ __('admin.capital_funding.title') }}</a>
         <a href="{{ route('admin.lenders.index') }}" class="text-sm font-medium text-gray-500 hover:text-gray-700">All partners</a>
         <a href="{{ route('admin.lenders.adjust-capital', $record) }}" class="text-sm font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg ring-1 ring-amber-200">{{ __('admin.capital_partner.adjust_capital') }}</a>
-        <a href="{{ route('admin.lenders.edit', $record) }}" class="ml-auto text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-4 py-2 rounded-lg">Edit</a>
+        <a href="{{ route('admin.lenders.edit', $record) }}" class="ml-auto text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-lg">Edit</a>
     </div>
 
     @if (session('status'))
@@ -156,7 +156,7 @@
                                 <tr>
                                     <td class="py-2">
                                         @if ($a->loan)
-                                            <a href="{{ route('admin.loans.show', $a->loan) }}" class="font-mono text-xs text-amber-700 hover:underline">{{ $a->loan->loan_number }}</a>
+                                            <a href="{{ route('admin.loans.show', $a->loan) }}" class="font-mono text-xs text-brand hover:underline">{{ $a->loan->loan_number }}</a>
                                         @else
                                             —
                                         @endif

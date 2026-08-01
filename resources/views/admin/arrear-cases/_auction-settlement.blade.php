@@ -3,7 +3,7 @@
         $balanceBreakdown = app(\App\Services\LoanBalanceService::class)->breakdown($loan);
     @endphp
     <div class="bg-white rounded-xl ring-1 ring-indigo-200 p-6">
-        <h2 class="text-sm font-semibold text-indigo-900 mb-1">Asset auction settlement</h2>
+        <h2 class="text-sm font-semibold text-brand mb-1">Asset auction settlement</h2>
         <p class="text-xs text-gray-500 mb-4">Apply proceeds: outstanding → recovery costs → surplus returned to borrower. Shortfall keeps the loan active.</p>
 
         <dl class="grid grid-cols-2 gap-3 text-sm mb-4">
@@ -29,7 +29,7 @@
                 <label class="block text-xs font-medium text-gray-600 mb-1">Notes</label>
                 <textarea name="notes" rows="2" maxlength="2000" class="w-full rounded-lg border-gray-300 text-sm">{{ old('notes') }}</textarea>
             </div>
-            <button type="submit" class="w-full text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-2 rounded-lg"
+            <button type="submit" class="w-full text-sm font-semibold text-white bg-brand hover:bg-brand-light px-3 py-2 rounded-lg"
                     onclick="return confirm('Record this auction settlement? This posts repayments and updates the loan balance.')">
                 Record auction settlement
             </button>

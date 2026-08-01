@@ -19,10 +19,11 @@ class PartnersTable extends Component
 
     public function mount(?string $category = null, bool $lockCategory = false): void
     {
-        if (filled($category)) {
-            $this->category = $category;
-            $this->role = $category;
-            $this->lockCategory = $lockCategory;
+        $this->category = (string) ($category ?? '');
+        $this->lockCategory = $lockCategory;
+
+        if ($this->lockCategory && filled($this->category)) {
+            $this->role = $this->category;
         }
     }
 

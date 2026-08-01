@@ -41,7 +41,7 @@
             @if ($partnerSettlement->status === 'pending')
                 <form method="post" action="{{ route('admin.partner-settlements.approve', $partnerSettlement) }}" class="bg-white rounded-xl ring-1 ring-gray-200 p-5">
                     @csrf
-                    <button type="submit" class="w-full rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700">Approve batch</button>
+                    <button type="submit" class="w-full rounded-lg bg-brand-gold px-4 py-2 text-sm font-semibold text-brand hover:brightness-95">Approve batch</button>
                 </form>
             @endif
 

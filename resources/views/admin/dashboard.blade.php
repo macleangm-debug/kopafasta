@@ -179,7 +179,7 @@
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-sm font-semibold text-gray-900">Applications by stage</h2>
-                <a href="{{ route('admin.loan-applications.index') }}" class="text-xs font-medium text-amber-600 hover:text-amber-700">Pipeline →</a>
+                <a href="{{ route('admin.loan-applications.index') }}" class="text-xs font-medium text-brand hover:text-brand-light">Pipeline →</a>
             </div>
             <div class="space-y-3">
                 @foreach ($stageLabels as $key => $label)
@@ -190,7 +190,7 @@
                     @endphp
                     <a href="{{ $href }}" class="block group">
                         <div class="flex items-center justify-between text-xs mb-1">
-                            <span class="font-medium text-gray-700 group-hover:text-amber-800">{{ $label }}</span>
+                            <span class="font-medium text-gray-700 group-hover:text-brand-light">{{ $label }}</span>
                             <span class="font-bold tabular-nums text-gray-900">{{ format_number($count) }}</span>
                         </div>
                         <div class="h-2.5 rounded-full bg-gray-100 overflow-hidden">
@@ -204,7 +204,7 @@
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-sm font-semibold text-gray-900">Capital KPIs</h2>
-                <a href="{{ route('admin.capital-funding.index') }}" class="text-xs font-medium text-amber-600 hover:text-amber-700">Funding →</a>
+                <a href="{{ route('admin.capital-funding.index') }}" class="text-xs font-medium text-brand hover:text-brand-light">Funding →</a>
             </div>
             <div class="grid grid-cols-2 gap-4 mb-5">
                 <div>
@@ -239,7 +239,7 @@
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden mb-6">
         <div class="px-5 py-3 border-b border-gray-200 flex items-center justify-between">
             <h2 class="text-sm font-semibold text-gray-900">Recent applications</h2>
-            <a href="{{ route('admin.loan-applications.index') }}" class="text-xs font-medium text-amber-600 hover:text-amber-700">View all →</a>
+            <a href="{{ route('admin.loan-applications.index') }}" class="text-xs font-medium text-brand hover:text-brand-light">View all →</a>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
@@ -258,7 +258,7 @@
                     @forelse ($recentApplications as $app)
                         <tr class="hover:bg-gray-50">
                             <td class="px-5 py-3 font-mono text-xs">
-                                <a href="{{ route('admin.loan-applications.show', $app) }}" class="text-amber-700 hover:underline font-semibold">
+                                <a href="{{ route('admin.loan-applications.show', $app) }}" class="text-brand hover:underline font-semibold">
                                     {{ $app->application_number ?? $app->id }}
                                 </a>
                             </td>
@@ -286,7 +286,7 @@
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5">
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-sm font-semibold text-gray-900">Capital under management</h2>
-            <a href="{{ route('admin.capital-funding.index') }}" class="text-xs font-medium text-amber-600 hover:text-amber-700">Capital funding →</a>
+            <a href="{{ route('admin.capital-funding.index') }}" class="text-xs font-medium text-brand hover:text-brand-light">Capital funding →</a>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 text-sm">
             @foreach ([

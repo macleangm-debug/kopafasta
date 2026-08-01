@@ -12,7 +12,7 @@
         @forelse ($rows as $r)
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3 font-mono text-xs">{{ $r->code }}</td>
-                <td class="px-5 py-3 font-medium"><a href="{{ route('admin.disbursement-methods.show', $r) }}" class="hover:text-indigo-600">{{ $r->name }}</a></td>
+                <td class="px-5 py-3 font-medium"><a href="{{ route('admin.disbursement-methods.show', $r) }}" class="hover:text-brand">{{ $r->name }}</a></td>
                 <td class="px-5 py-3">{{ display_label($r->channel, 'channel') }}</td>
                 <td class="px-5 py-3 text-right font-mono text-xs">{{ format_number($r->fixed_fee, 2) }}</td>
                 <td class="px-5 py-3 text-right font-mono text-xs">{{ format_number($r->percentage_fee * 100, 2) }}%</td>

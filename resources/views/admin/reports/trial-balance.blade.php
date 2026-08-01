@@ -4,7 +4,7 @@
             <label class="block text-xs font-medium text-gray-600 mb-1">As at date</label>
             <input type="date" name="as_of" value="{{ ($asOf ?? now())->format('Y-m-d') }}" class="rounded-lg border-gray-300 text-sm">
         </div>
-        <button type="submit" class="bg-gray-900 text-white text-sm font-semibold px-4 py-2 rounded-lg">Update</button>
+        <button type="submit" class="bg-brand-gold text-brand text-sm font-semibold px-4 py-2 rounded-lg">Update</button>
     </form>
 
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">

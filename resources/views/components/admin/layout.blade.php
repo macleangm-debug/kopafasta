@@ -239,7 +239,7 @@
                             <a href="{{ $alert['url'] }}" class="block px-4 py-3 hover:bg-brand-muted/30 border-b border-gray-50">
                                 <p class="text-[11px] font-bold uppercase tracking-widest text-brand">{{ $alert['group'] ?? 'Queue' }}</p>
                                 <p class="text-sm text-gray-800 mt-0.5">{{ $alert['label'] }}</p>
-                                <p class="text-xs text-amber-700 font-semibold mt-0.5">{{ $alert['count'] }} pending</p>
+                                <p class="text-xs text-brand font-semibold mt-0.5">{{ $alert['count'] }} pending</p>
                             </a>
                         @empty
                             <p class="px-4 py-8 text-sm text-gray-500 text-center">No pending alerts.</p>
@@ -248,11 +248,11 @@
                 </details>
 
                 <details class="relative">
-                    <summary class="flex items-center gap-2 rounded-full pl-2 pr-1.5 py-1 border border-transparent hover:border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition">
+                    <summary class="flex items-center gap-2 rounded-full pl-2 pr-1.5 py-1 border border-transparent hover:border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand/30 transition">
                         <span class="text-sm font-medium text-gray-700 hidden md:block max-w-[8rem] truncate">
                             {{ auth()->user()?->name }}
                         </span>
-                        <div class="size-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 grid place-items-center text-white text-sm font-semibold shadow-sm ring-2 ring-white">
+                        <div class="size-8 rounded-full bg-gradient-to-br from-brand-gold to-brand grid place-items-center text-white text-sm font-semibold shadow-sm ring-2 ring-white">
                             {{ strtoupper(substr(auth()->user()?->name ?? 'U', 0, 1)) }}
                         </div>
                         <svg class="size-4 text-gray-400 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -264,7 +264,7 @@
                             <div class="text-sm font-semibold text-gray-900 truncate">{{ auth()->user()?->name }}</div>
                             <div class="text-xs text-gray-500 truncate">{{ auth()->user()?->email }}</div>
                             <div class="mt-1.5">
-                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide bg-amber-100 text-amber-800">
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide bg-brand-muted text-brand">
                                     {{ auth()->user()?->roleLabel() }}
                                 </span>
                             </div>
@@ -319,7 +319,7 @@
                                         <a href="{{ route($item[1]) }}"
                                            class="block px-4 py-2 text-sm transition
                                                   {{ $itemActive
-                                                       ? 'bg-amber-50 text-amber-800 font-semibold'
+                                                       ? 'bg-brand-muted text-brand font-semibold'
                                                        : 'text-gray-700 hover:bg-gray-50' }}">
                                             {{ $item[0] }}
                                         </a>
@@ -346,9 +346,9 @@
                 </a>
             @endif
             @if ($heading !== '')
-                <h1 class="text-xl font-semibold text-gray-900">{{ $heading ?? ($title ?? 'Dashboard') }}</h1>
+                <h1 class="text-xl font-semibold text-brand">{{ $heading ?? ($title ?? 'Dashboard') }}</h1>
                 @isset($subheading)
-                    <p class="text-sm text-gray-500 mt-0.5">{{ $subheading }}</p>
+                    <p class="text-sm text-gray-600 mt-0.5">{{ $subheading }}</p>
                 @endisset
             @endif
         </div>
@@ -411,7 +411,7 @@
             </div>
             <div class="flex items-center gap-2 shrink-0">
                 <a id="kf-doc-drawer-open-tab" href="#" target="_blank" rel="noopener"
-                   class="text-xs font-semibold text-amber-700 hover:text-amber-800 px-3 py-1.5 rounded-lg ring-1 ring-gray-200 bg-white">
+                   class="text-xs font-semibold text-brand hover:text-brand-light px-3 py-1.5 rounded-lg ring-1 ring-brand/15 bg-white">
                     Open in tab
                 </a>
                 <button type="button" onclick="window.kfCloseDocumentPreview()"

@@ -24,7 +24,7 @@
                 @csrf
                 <label class="block text-sm font-semibold text-gray-900">Staff reply</label>
                 <textarea name="body" rows="4" required class="w-full rounded-lg border-gray-300 text-sm"></textarea>
-                <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-5 py-2 rounded-lg">Send reply</button>
+                <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg">Send reply</button>
             </form>
         </div>
 
@@ -46,10 +46,10 @@
                         <option value="{{ $agent->id }}" @selected($supportConversation->assigned_to === $agent->id)>{{ $agent->name }}</option>
                     @endforeach
                 </select>
-                <button type="submit" class="w-full bg-gray-900 hover:bg-gray-800 text-white font-semibold text-sm px-4 py-2 rounded-lg">Update assignment</button>
+                <button type="submit" class="w-full bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-4 py-2 rounded-lg">Update assignment</button>
             </form>
 
-            <a href="{{ route('admin.support-chats.index') }}" class="inline-block text-sm font-semibold text-amber-700 hover:underline">← All chats</a>
+            <a href="{{ route('admin.support-chats.index') }}" class="inline-block text-sm font-semibold text-brand hover:underline">← All chats</a>
         </div>
     </div>
 </x-admin.layout>

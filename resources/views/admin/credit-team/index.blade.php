@@ -19,7 +19,7 @@
                     @endif
                 </div>
                 <a href="{{ route('admin.loan-applications.pipeline.under-review') }}"
-                   class="text-xs font-semibold text-amber-700 hover:underline shrink-0">Open queue →</a>
+                   class="text-xs font-semibold text-brand hover:underline shrink-0">Open queue →</a>
             </div>
             <ul class="divide-y divide-gray-100">
                 @forelse ($analysts as $user)
@@ -51,7 +51,7 @@
                     @endif
                 </div>
                 <a href="{{ route('admin.loan-applications.pre-approvals') }}"
-                   class="text-xs font-semibold text-amber-700 hover:underline shrink-0">Open queue →</a>
+                   class="text-xs font-semibold text-brand hover:underline shrink-0">Open queue →</a>
             </div>
             <ul class="divide-y divide-gray-100">
                 @forelse ($committeeMembers as $user)

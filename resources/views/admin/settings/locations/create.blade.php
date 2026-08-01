@@ -5,7 +5,7 @@
         @csrf
         @include('admin.settings.locations._form')
         <div class="flex gap-3 pt-2">
-            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-5 py-2 rounded-lg">Save ward</button>
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg">Save ward</button>
             <a href="{{ route('admin.settings.locations.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900 py-2">Cancel</a>
         </div>
     </form>

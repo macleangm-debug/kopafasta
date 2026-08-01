@@ -13,7 +13,7 @@
     @endif
 
     <div class="mb-4">
-        <a href="{{ route('admin.recovery.assignments.index') }}" class="text-sm font-semibold text-amber-700 hover:text-amber-800">← Recovery assignments</a>
+        <a href="{{ route('admin.recovery.assignments.index') }}" class="text-sm font-semibold text-brand hover:text-brand-light">← Recovery assignments</a>
     </div>
 
     <div class="grid lg:grid-cols-3 gap-6">
@@ -90,7 +90,7 @@
                     @if ($assignment->status === 'assigned')
                         <form method="POST" action="{{ route('admin.recovery.assignments.start', $assignment) }}">
                             @csrf
-                            <button type="submit" class="w-full text-sm font-semibold text-white bg-slate-800 hover:bg-slate-900 px-3 py-2 rounded-lg">Mark in progress</button>
+                            <button type="submit" class="w-full text-sm font-semibold text-white bg-brand hover:bg-brand-light px-3 py-2 rounded-lg">Mark in progress</button>
                         </form>
                     @endif
                     <form method="POST" action="{{ route('admin.recovery.assignments.complete', $assignment) }}" class="space-y-2">

@@ -17,7 +17,7 @@
     @endif
 
     <div class="mb-4">
-        <a href="{{ route('admin.top-up-requests.index') }}" class="text-sm font-semibold text-amber-700 hover:text-amber-800">← Back to top-up requests</a>
+        <a href="{{ route('admin.top-up-requests.index') }}" class="text-sm font-semibold text-brand hover:text-brand-light">← Back to top-up requests</a>
     </div>
 
     <div class="grid lg:grid-cols-3 gap-6">
@@ -29,7 +29,7 @@
                         <dt class="text-xs text-gray-500 uppercase">Loan</dt>
                         <dd class="font-mono font-semibold">
                             @if ($loan)
-                                <a href="{{ route('admin.loans.show', $loan) }}" class="text-indigo-600 hover:text-indigo-700">{{ $loan->loan_number }}</a>
+                                <a href="{{ route('admin.loans.show', $loan) }}" class="text-brand hover:text-brand-light">{{ $loan->loan_number }}</a>
                             @else
                                 —
                             @endif

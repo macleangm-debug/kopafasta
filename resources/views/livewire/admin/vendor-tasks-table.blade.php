@@ -13,7 +13,7 @@
                 <td class="px-5 py-3 font-medium">{{ display_label((string) $r->task_type, 'vendor_task_type') }}</td>
                 <td class="px-5 py-3 text-gray-600">
                     @if ($r->vendor)
-                        <a href="{{ route('admin.partners.show', $r->vendor) }}" class="text-amber-700 hover:underline">{{ $r->vendor->name }}</a>
+                        <a href="{{ route('admin.partners.show', $r->vendor) }}" class="text-brand hover:underline">{{ $r->vendor->name }}</a>
                     @else
                         —
                     @endif

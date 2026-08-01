@@ -13,7 +13,7 @@
                 <a href="{{ route('admin.loans.show', $loan) }}"
                    class="text-sm font-medium text-gray-600 hover:text-gray-800 px-4 py-2">Cancel</a>
                 <button type="submit"
-                        class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-5 py-2 rounded-lg shadow-sm transition">
+                        class="inline-flex items-center gap-2 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-5 py-2 rounded-lg shadow-sm transition">
                     Save changes
                 </button>
             </div>

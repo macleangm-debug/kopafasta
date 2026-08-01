@@ -15,7 +15,7 @@
             <input type="date" name="to" value="{{ $to->format('Y-m-d') }}" class="w-full rounded-lg border-gray-300">
         </div>
         <div class="flex items-end">
-            <button class="w-full inline-flex justify-center items-center gap-1.5 text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 px-4 py-2 rounded-lg">
+            <button class="w-full inline-flex justify-center items-center gap-1.5 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-lg">
                 Filter
             </button>
         </div>

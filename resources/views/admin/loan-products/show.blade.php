@@ -79,7 +79,7 @@
                 <p class="text-xs text-gray-500 mt-0.5">Shown to borrowers before and during application.</p>
             </div>
             <a href="{{ route('admin.loan-products.edit', $record) }}"
-               class="text-xs font-semibold text-amber-700 hover:text-amber-800">Edit requirements →</a>
+               class="text-xs font-semibold text-brand hover:text-brand-light">Edit requirements →</a>
         </div>
 
         @if ($record->requirements->isNotEmpty())
@@ -103,7 +103,7 @@
         @else
             <p class="text-sm text-gray-500">
                 No document requirements configured.
-                <a href="{{ route('admin.loan-products.edit', $record) }}" class="text-amber-700 font-medium hover:text-amber-800">Add some on the edit page</a>.
+                <a href="{{ route('admin.loan-products.edit', $record) }}" class="text-amber-700 font-medium hover:text-brand-light">Add some on the edit page</a>.
             </p>
         @endif
     </div>

@@ -44,7 +44,7 @@
             </div>
             <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2.5">
                 <input type="hidden" name="apply_to_all_mappings" value="0">
-                <input type="checkbox" name="apply_to_all_mappings" value="1" class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                <input type="checkbox" name="apply_to_all_mappings" value="1" class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
                 <span class="text-gray-800">Apply to all mobile money mappings</span>
             </label>
         </div>
@@ -160,7 +160,7 @@
         </div>
 
         <div class="px-5 py-4 border-t border-gray-100 bg-gray-50">
-            <button type="submit" class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-sm">
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2 rounded-lg text-sm">
                 Save default mappings
             </button>
         </div>
@@ -246,7 +246,7 @@
                     @endforeach
                 </select>
             </div>
-            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold px-4 py-2 rounded-lg text-sm">
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2 rounded-lg text-sm">
                 Add product override
             </button>
         </form>

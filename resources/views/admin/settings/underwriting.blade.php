@@ -19,14 +19,14 @@
                     <input type="hidden" name="hold_applications_until_guarantor_approved" value="0">
                     <input type="checkbox" name="hold_applications_until_guarantor_approved" value="1"
                            @checked(! isset($values['hold_applications_until_guarantor_approved']) || ! empty($values['hold_applications_until_guarantor_approved']))
-                           class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                           class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
                     <span class="text-gray-800">Hold new applications in “awaiting guarantor” until guarantor approves (guarantor lockout)</span>
                 </label>
                 <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2 md:col-span-2">
                     <input type="hidden" name="block_acknowledge_without_guarantor" value="0">
                     <input type="checkbox" name="block_acknowledge_without_guarantor" value="1"
                            @checked(! isset($values['block_acknowledge_without_guarantor']) || ! empty($values['block_acknowledge_without_guarantor']))
-                           class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                           class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
                     <span class="text-gray-800">Block underwriting acknowledgement while guarantor is incomplete</span>
                 </label>
             </div>
@@ -65,28 +65,28 @@
                     <input type="hidden" name="enable_counter_offers" value="0">
                     <input type="checkbox" name="enable_counter_offers" value="1"
                            @checked(! empty($values['enable_counter_offers']))
-                           class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                           class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
                     <span class="text-gray-800">Enable counter-offers (underwriter can recommend reduced amount)</span>
                 </label>
                 <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
                     <input type="hidden" name="enable_asset_backed_alternative" value="0">
                     <input type="checkbox" name="enable_asset_backed_alternative" value="1"
                            @checked(! empty($values['enable_asset_backed_alternative']))
-                           class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                           class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
                     <span class="text-gray-800">Enable asset-backed alternative (continuation on same application)</span>
                 </label>
                 <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
                     <input type="hidden" name="enable_automatic_rejection" value="0">
                     <input type="checkbox" name="enable_automatic_rejection" value="1"
                            @checked(! isset($values['enable_automatic_rejection']) || ! empty($values['enable_automatic_rejection']))
-                           class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                           class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
                     <span class="text-gray-800">Enable automatic rejection guidance when affordability fails</span>
                 </label>
             </div>
         </div>
 
         <div class="flex justify-end">
-            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">
                 Save underwriting settings
             </button>
         </div>

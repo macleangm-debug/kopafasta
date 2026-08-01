@@ -14,7 +14,7 @@
     @endif
 
     <div class="mb-4 flex flex-wrap gap-3">
-        <a href="{{ route('admin.arrear-cases.index') }}" class="text-sm font-semibold text-amber-700 hover:text-amber-800">← All collection cases</a>
+        <a href="{{ route('admin.arrear-cases.index') }}" class="text-sm font-semibold text-brand hover:text-brand-light">← All collection cases</a>
         @if ($loan)
             <a href="{{ route('admin.loans.show', $loan) }}" class="text-sm font-semibold text-gray-600 hover:text-gray-800">Loan profile</a>
         @endif
@@ -125,7 +125,7 @@
                             @endforeach
                         </select>
                     </div>
-                    <button type="submit" class="w-full text-sm font-semibold text-white bg-slate-800 hover:bg-slate-900 px-3 py-2 rounded-lg">
+                    <button type="submit" class="w-full text-sm font-semibold text-white bg-brand hover:bg-brand-light px-3 py-2 rounded-lg">
                         Save changes
                     </button>
                 </form>
@@ -161,7 +161,7 @@
                         <label class="block text-xs font-medium text-gray-600 mb-1">Notes</label>
                         <textarea name="notes" rows="3" maxlength="2000" class="w-full rounded-lg border-gray-300 text-sm"></textarea>
                     </div>
-                    <button type="submit" class="w-full text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-3 py-2 rounded-lg">
+                    <button type="submit" class="w-full text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-2 rounded-lg">
                         Log action
                     </button>
                 </form>

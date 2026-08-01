@@ -16,7 +16,7 @@
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3 font-mono text-xs">{{ $r->code ?? '—' }}</td>
                 <td class="px-5 py-3">
-                    <a href="{{ route('admin.lenders.show', $r) }}" class="font-medium text-amber-800 hover:text-amber-900">{{ $r->name }}</a>
+                    <a href="{{ route('admin.lenders.show', $r) }}" class="font-medium text-brand hover:text-brand-light">{{ $r->name }}</a>
                     <div class="text-xs text-gray-500">{{ $r->email }}</div>
                 </td>
                 <td class="px-5 py-3 text-xs uppercase">{{ $r->type ?? '—' }}</td>
@@ -31,7 +31,7 @@
                     ]" />
                 </td>
                 <td class="px-5 py-3 text-right">
-                    <a href="{{ route('admin.lenders.show', $r) }}" class="text-xs font-semibold text-amber-700 hover:underline">View →</a>
+                    <a href="{{ route('admin.lenders.show', $r) }}" class="text-xs font-semibold text-brand hover:underline">View →</a>
                 </td>
             </tr>
         @empty

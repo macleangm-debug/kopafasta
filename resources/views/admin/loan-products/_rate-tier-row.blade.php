@@ -30,25 +30,25 @@
                     <label class="block text-xs font-medium text-gray-600 mb-1">BOT rate</label>
                     <input type="text" inputmode="decimal" name="rate_tiers[{{ $index }}][bot_regulated_rate]" data-tier-component data-tier-bot
                            value="{{ RatePercent::forInput($row['bot_regulated_rate'] ?? 3.5) }}" placeholder="3.5"
-                           class="w-full text-sm rounded-lg border-gray-300 px-3 py-2 focus:border-amber-500 focus:ring-amber-500/20">
+                           class="w-full text-sm rounded-lg border-gray-300 px-3 py-2 focus:border-brand focus:ring-brand/20">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Processing rate</label>
                     <input type="text" inputmode="decimal" name="rate_tiers[{{ $index }}][processing_fee_rate]" data-tier-component data-tier-processing
                            value="{{ RatePercent::forInput($row['processing_fee_rate'] ?? null) }}" placeholder="5"
-                           class="w-full text-sm rounded-lg border-gray-300 px-3 py-2 focus:border-amber-500 focus:ring-amber-500/20">
+                           class="w-full text-sm rounded-lg border-gray-300 px-3 py-2 focus:border-brand focus:ring-brand/20">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Risk rate</label>
                     <input type="text" inputmode="decimal" name="rate_tiers[{{ $index }}][service_fee_rate]" data-tier-component data-tier-risk
                            value="{{ RatePercent::forInput($row['service_fee_rate'] ?? null) }}" placeholder="3.5"
-                           class="w-full text-sm rounded-lg border-gray-300 px-3 py-2 focus:border-amber-500 focus:ring-amber-500/20">
+                           class="w-full text-sm rounded-lg border-gray-300 px-3 py-2 focus:border-brand focus:ring-brand/20">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Insurance rate</label>
                     <input type="text" inputmode="decimal" name="rate_tiers[{{ $index }}][administration_fee_rate]" data-tier-component data-tier-insurance
                            value="{{ RatePercent::forInput($row['administration_fee_rate'] ?? null) }}" placeholder="0"
-                           class="w-full text-sm rounded-lg border-gray-300 px-3 py-2 focus:border-amber-500 focus:ring-amber-500/20">
+                           class="w-full text-sm rounded-lg border-gray-300 px-3 py-2 focus:border-brand focus:ring-brand/20">
                 </div>
             </div>
         </div>

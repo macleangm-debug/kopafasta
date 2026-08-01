@@ -5,7 +5,7 @@
             Affiliate partners receive unique codes and links. Track clicks, registrations, and application conversions from each partner profile.
         </p>
         <a href="{{ route('admin.partners.create', ['category' => 'affiliate']) }}"
-           class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2 rounded-lg text-sm">
+           class="inline-flex bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2 rounded-lg text-sm">
             + New affiliate partner
         </a>
     </div>
@@ -32,7 +32,7 @@
                             <tr>
                                 <td class="py-2 pr-4 font-bold">#{{ $row->affiliate_leaderboard_rank }}</td>
                                 <td class="py-2 pr-4">
-                                    <a href="{{ route('admin.partners.show', $row) }}" class="text-amber-700 hover:underline">{{ $row->name }}</a>
+                                    <a href="{{ route('admin.partners.show', $row) }}" class="text-brand hover:underline">{{ $row->name }}</a>
                                 </td>
                                 <td class="py-2 pr-4">{{ number_format((float) ($snap['kpi_score'] ?? 0), 1) }}</td>
                                 <td class="py-2 pr-4">{{ number_format((float) ($snap['risk_score'] ?? 0), 1) }}</td>

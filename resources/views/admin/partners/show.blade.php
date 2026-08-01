@@ -72,7 +72,7 @@
                 <input type="text" name="reason" maxlength="500" class="w-full rounded-lg border-gray-300 text-sm" placeholder="Policy breach, manual review, reinstatement…">
             </div>
             <div class="sm:col-span-3">
-                <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">Update lifecycle</button>
+                <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand text-sm font-semibold px-4 py-2 rounded-lg">Update lifecycle</button>
             </div>
         </form>
     </div>
@@ -96,7 +96,7 @@
         <div class="flex flex-wrap gap-3 items-end">
             <form method="POST" action="{{ route('admin.partners.affiliate-fraud.scan', $record) }}">
                 @csrf
-                <button type="submit" class="bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold px-4 py-2 rounded-lg">Run fraud scan</button>
+                <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand text-sm font-semibold px-4 py-2 rounded-lg">Run fraud scan</button>
             </form>
             <form method="POST" action="{{ route('admin.partners.affiliate-risk-flag.update', $record) }}" class="flex flex-wrap gap-2 items-end">
                 @csrf
@@ -108,7 +108,7 @@
                         @endforeach
                     </select>
                 </div>
-                <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">Save flag</button>
+                <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand text-sm font-semibold px-4 py-2 rounded-lg">Save flag</button>
             </form>
         </div>
     </div>
@@ -162,7 +162,7 @@
                 <div class="rounded-lg bg-gray-50 p-3">
                     <p class="text-xs text-gray-500 mb-2">{{ $label }}</p>
                     @if ($path)
-                        <a href="{{ asset('storage/'.$path) }}" target="_blank" class="text-amber-700 hover:underline text-xs">View file</a>
+                        <a href="{{ asset('storage/'.$path) }}" target="_blank" class="text-brand hover:underline text-xs">View file</a>
                     @else
                         <p class="text-xs text-gray-400">Not uploaded</p>
                     @endif
@@ -170,7 +170,7 @@
             @endforeach
         </div>
         @if ($record->affiliate_code)
-            <p class="text-xs text-gray-500 mb-4">Public verification: <a href="{{ route('site.affiliate.verify', $record->affiliate_code) }}" class="text-amber-700 hover:underline" target="_blank">{{ route('site.affiliate.verify', $record->affiliate_code) }}</a></p>
+            <p class="text-xs text-gray-500 mb-4">Public verification: <a href="{{ route('site.affiliate.verify', $record->affiliate_code) }}" class="text-brand hover:underline" target="_blank">{{ route('site.affiliate.verify', $record->affiliate_code) }}</a></p>
         @endif
         @if (in_array($record->affiliate_kyc_status, ['submitted', 'pending', 'rejected'], true) || filled($record->affiliate_selfie_path))
             <div class="flex flex-wrap gap-3">

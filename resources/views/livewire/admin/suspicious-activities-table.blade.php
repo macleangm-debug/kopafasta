@@ -11,10 +11,10 @@
     <x-slot:rows>
         @forelse ($rows as $r)
             @php($sc = ['low'=>'bg-emerald-50 text-emerald-700','medium'=>'bg-amber-50 text-amber-700','high'=>'bg-rose-50 text-rose-700','critical'=>'bg-rose-100 text-rose-800'][$r->severity] ?? 'bg-gray-100')
-            @php($stc = ['open'=>'bg-amber-50 text-amber-700','investigating'=>'bg-indigo-50 text-indigo-700','cleared'=>'bg-emerald-50 text-emerald-700','reported'=>'bg-rose-50 text-rose-700','closed'=>'bg-gray-100 text-gray-600'][$r->status] ?? 'bg-gray-100')
+            @php($stc = ['open'=>'bg-amber-50 text-amber-700','investigating'=>'bg-brand-muted text-brand','cleared'=>'bg-emerald-50 text-emerald-700','reported'=>'bg-rose-50 text-rose-700','closed'=>'bg-gray-100 text-gray-600'][$r->status] ?? 'bg-gray-100')
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3 text-gray-500 text-xs">{{ optional($r->detected_at)->format('Y-m-d H:i') }}</td>
-                <td class="px-5 py-3"><a href="{{ route('admin.suspicious-activities.show', $r) }}" class="hover:text-indigo-600 font-medium">{{ $r->activity_type }}</a></td>
+                <td class="px-5 py-3"><a href="{{ route('admin.suspicious-activities.show', $r) }}" class="hover:text-brand font-medium">{{ $r->activity_type }}</a></td>
                 <td class="px-5 py-3">{{ $r->customer ? trim(($r->customer->first_name ?? '').' '.($r->customer->last_name ?? '')) : '—' }}</td>
                 <td class="px-5 py-3"><span class="inline-flex items-center rounded px-2 py-0.5 text-xs {{ $sc }}">{{ ucfirst($r->severity) }}</span></td>
                 <td class="px-5 py-3"><span class="inline-flex items-center rounded px-2 py-0.5 text-xs {{ $stc }}">{{ ucfirst($r->status) }}</span></td>

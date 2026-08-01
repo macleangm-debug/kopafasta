@@ -20,7 +20,7 @@
             <input type="hidden" name="requirements[{{ $idx }}][is_required]" value="0">
             <input type="checkbox" name="requirements[{{ $idx }}][is_required]" value="1"
                    @checked($row['is_required'] ?? true)
-                   class="rounded border-gray-300 text-amber-600 focus:ring-amber-500">
+                   class="rounded border-gray-300 text-brand focus:ring-brand">
             Required
         </label>
     </div>

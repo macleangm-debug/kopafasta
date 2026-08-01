@@ -6,7 +6,7 @@
     <div class="mb-4 flex flex-wrap gap-2">
         @foreach (['awaiting_payout' => 'Awaiting payout', 'pending' => 'Needs details', 'paid' => 'Paid', 'all' => 'All'] as $key => $label)
             <a href="{{ route('admin.borrower-refunds.index', $key === 'all' ? [] : ['status' => $key]) }}"
-               class="px-3 py-1.5 rounded-md text-sm font-medium {{ $status === $key ? 'bg-amber-500 text-gray-900' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
+               class="px-3 py-1.5 rounded-md text-sm font-medium {{ $status === $key ? 'bg-brand-gold text-brand' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
                 {{ $label }}
                 @if ($key !== 'all' && isset($counts[$key]))
                     <span class="ml-1 text-xs opacity-70">({{ $counts[$key] }})</span>

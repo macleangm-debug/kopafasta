@@ -58,7 +58,7 @@
 
     @if ($dossier['applications']->isEmpty())
         <p class="text-sm text-gray-500">No applications yet.
-            <a href="{{ route('admin.loan-applications.create') }}?customer={{ $dossier['customer']->id }}" class="text-amber-700 font-semibold hover:text-amber-800">Create one →</a>
+            <a href="{{ route('admin.loan-applications.create') }}?customer={{ $dossier['customer']->id }}" class="text-amber-700 font-semibold hover:text-brand-light">Create one →</a>
         </p>
     @else
         <div class="overflow-x-auto -mx-6 px-6">
@@ -82,7 +82,7 @@
                             <td class="py-3">{{ display_label($app->current_stage ?? 'submitted', 'application_stage') }}</td>
                             <td class="py-3">{{ display_label($app->status, 'application_status') }}</td>
                             <td class="py-3 text-right">
-                                <a href="{{ route('admin.loan-applications.show', $app) }}" class="text-xs font-semibold text-amber-700 hover:text-amber-800">Open →</a>
+                                <a href="{{ route('admin.loan-applications.show', $app) }}" class="text-xs font-semibold text-brand hover:text-brand-light">Open →</a>
                             </td>
                         </tr>
                     @endforeach

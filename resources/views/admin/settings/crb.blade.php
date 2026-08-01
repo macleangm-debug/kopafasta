@@ -28,12 +28,12 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
                 <input type="hidden" name="crb_check_required" value="0">
-                <input type="checkbox" name="crb_check_required" value="1" @checked(!empty($values['crb_check_required'])) class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                <input type="checkbox" name="crb_check_required" value="1" @checked(!empty($values['crb_check_required'])) class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
                 <span class="text-gray-800">Pull CRB credit report on loan submission (underwriting)</span>
             </label>
             <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
                 <input type="hidden" name="crb_sandbox" value="0">
-                <input type="checkbox" name="crb_sandbox" value="1" @checked(!empty($values['crb_sandbox'])) class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                <input type="checkbox" name="crb_sandbox" value="1" @checked(!empty($values['crb_sandbox'])) class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
                 <span class="text-gray-800">CRB sandbox / stub mode (no live bureau calls)</span>
             </label>
         </div>
@@ -47,7 +47,7 @@
         </div>
 
         <div class="flex flex-wrap justify-end gap-3">
-            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">Save CRB settings</button>
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">Save CRB settings</button>
         </div>
     </form>
 
@@ -72,7 +72,7 @@
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 mb-6 overflow-hidden">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h3 class="text-sm font-semibold text-gray-900">Monthly usage (last 6 months)</h3>
-            <a href="{{ route('admin.compliance.crb-audit') }}" class="text-sm font-semibold text-amber-700 hover:text-amber-800">Full audit &amp; billing report →</a>
+            <a href="{{ route('admin.compliance.crb-audit') }}" class="text-sm font-semibold text-brand hover:text-brand-light">Full audit &amp; billing report →</a>
         </div>
         <table class="min-w-full text-sm">
             <thead class="text-left text-xs uppercase tracking-wider text-gray-500 border-b border-gray-100">
@@ -109,7 +109,7 @@
         </dl>
         <form method="POST" action="{{ route('admin.settings.crb.test') }}">
             @csrf
-            <button type="submit" class="bg-gray-900 hover:bg-gray-800 text-white font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">Run CRB test lookup</button>
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">Run CRB test lookup</button>
         </form>
     </div>
 </x-admin.layout>

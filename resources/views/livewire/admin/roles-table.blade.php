@@ -10,7 +10,7 @@
         @forelse ($rows as $r)
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3 font-mono text-xs">{{ $r->code }}</td>
-                <td class="px-5 py-3 font-medium"><a href="{{ route('admin.roles.show', $r) }}" class="hover:text-indigo-600">{{ $r->name }}</a></td>
+                <td class="px-5 py-3 font-medium"><a href="{{ route('admin.roles.show', $r) }}" class="hover:text-brand">{{ $r->name }}</a></td>
                 <td class="px-5 py-3 text-gray-500">{{ is_array($r->permissions) ? count($r->permissions).' perms' : '—' }}</td>
                 <td class="px-5 py-3">{{ $r->is_system ? 'Yes' : 'No' }}</td>
             </tr>

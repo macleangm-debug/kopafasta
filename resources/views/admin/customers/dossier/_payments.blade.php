@@ -18,7 +18,7 @@
                 @forelse ($dossier['payments'] as $payment)
                     <tr>
                         <td class="px-5 py-3 font-mono text-xs">
-                            <a href="{{ route('admin.payments.show', $payment) }}" class="text-amber-700 hover:text-amber-800">{{ $payment->reference }}</a>
+                            <a href="{{ route('admin.payments.show', $payment) }}" class="text-brand hover:text-brand-light">{{ $payment->reference }}</a>
                         </td>
                         <td class="px-5 py-3">{{ $payment->typeLabel() }}</td>
                         <td class="px-5 py-3 font-medium">{{ format_money($payment->amount) }}</td>

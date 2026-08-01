@@ -22,7 +22,7 @@
                     <tr class="hover:bg-gray-50">
                         <td class="px-5 py-3 font-mono text-xs">{{ $p->code }}</td>
                         <td class="px-5 py-3 font-medium text-gray-900">
-                            <a href="{{ route('admin.loan-products.show', $p) }}" class="hover:text-amber-700">{{ $p->name }}</a>
+                            <a href="{{ route('admin.loan-products.show', $p) }}" class="hover:text-brand">{{ $p->name }}</a>
                         </td>
                         <td class="px-5 py-3 text-right font-semibold">{{ $rateService->formatBorrowerRateRange($p) }}</td>
                         <td class="px-5 py-3 text-right">{{ format_money((float) $p->min_amount) }}</td>

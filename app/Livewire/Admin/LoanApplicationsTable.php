@@ -123,7 +123,19 @@ class LoanApplicationsTable extends Component
             }
         }
 
-        $statuses = ['pending', 'under_review', 'approved', 'rejected', 'cancelled'];
+        $statuses = [
+            'draft',
+            'submitted',
+            'awaiting_guarantor',
+            'pending_documents',
+            'pending',
+            'under_review',
+            'approved',
+            'disbursed',
+            'rejected',
+            'withdrawn',
+            'cancelled',
+        ];
         $stages = LoanApplication::STAGES;
 
         return view('livewire.admin.loan-applications-table', compact('rows', 'statuses', 'stages', 'pipelineStages'));

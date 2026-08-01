@@ -23,10 +23,10 @@
 
         <p class="text-xs text-gray-500 rounded-lg bg-gray-50 ring-1 ring-gray-200 px-4 py-3">
             Contract signatory, company stamp, and legal clauses are managed under
-            <a href="{{ route('admin.settings.legal') }}" class="font-semibold text-amber-700 hover:underline">Legal settings</a>.
+            <a href="{{ route('admin.settings.legal') }}" class="font-semibold text-brand hover:underline">Legal settings</a>.
         </p>
         <div class="flex justify-end">
-            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">Save company profile</button>
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">Save company profile</button>
         </div>
     </form>
 </x-admin.layout>

@@ -16,7 +16,7 @@
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1">Rejection reason</label>
                                     <select name="rejection_reason_code" required
-                                            class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500">
+                                            class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand">
                                         <option value="">Select reason…</option>
                                         @foreach (($rejectionReasons ?? []) as $category => $reasons)
                                             <optgroup label="{{ $category }}">
@@ -30,7 +30,7 @@
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1">Internal notes (optional)</label>
                                     <textarea name="rejection_internal_notes" rows="3" maxlength="2000" placeholder="Notes for internal use only"
-                                              class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500"></textarea>
+                                              class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand"></textarea>
                                 </div>
                                 <div class="flex justify-end gap-2 pt-1">
                                     <button type="button"
@@ -61,7 +61,7 @@
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1">Instructions for borrower</label>
                                     <textarea name="remarks" rows="4" maxlength="1000" required placeholder="e.g. Upload a bank statement covering the last 6 months."
-                                              class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500"></textarea>
+                                              class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand"></textarea>
                                 </div>
                                 <div class="flex justify-end gap-2 pt-1">
                                     <button type="button" data-close-dialog="return-docs-{{ $record->id }}"
@@ -82,7 +82,7 @@
                         @endphp
                         <button type="button"
                                 data-open-dialog="recommend-{{ $record->id }}"
-                                class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-5 py-2.5 rounded-lg shadow-sm ring-1 ring-amber-700/20 transition">
+                                class="inline-flex items-center gap-2 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-5 py-2.5 rounded-lg shadow-sm ring-1 ring-brand/20 transition">
                             {{ $action['label'] }}
                         </button>
                         <dialog id="recommend-{{ $record->id }}"
@@ -104,10 +104,10 @@
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1">Recommendation</label>
                                     <select name="recommendation_type" required
-                                            class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500">
+                                            class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand">
                                         <option value="">Select…</option>
                                         @if ($affordPass)
-                                            <option value="approve">Approve at requested amount ({{ format_money((float) $record->requested_amount) }})</option>
+                                            <option value="approve">Recommend approval at requested amount ({{ format_money((float) $record->requested_amount) }})</option>
                                         @endif
                                         @if ($counterEnabled && $maxCounter > 0)
                                             <option value="counter">Counter-offer (max {{ format_money($maxCounter) }})</option>
@@ -119,17 +119,17 @@
                                     <input type="number" name="recommended_amount" min="0" step="1000"
                                            value="{{ $maxCounter > 0 ? (int) $maxCounter : '' }}"
                                            placeholder="{{ $maxCounter > 0 ? (int) $maxCounter : 'Amount' }}"
-                                           class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500">
+                                           class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1">Notes for committee</label>
                                     <textarea name="remarks" rows="3" maxlength="1000" placeholder="Optional rationale"
-                                              class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500"></textarea>
+                                              class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand"></textarea>
                                 </div>
                                 <div class="flex justify-end gap-2 pt-1">
                                     <button type="button" data-close-dialog="recommend-{{ $record->id }}"
                                             class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">Cancel</button>
-                                    <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-4 py-2 rounded-lg">
+                                    <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-4 py-2 rounded-lg">
                                         Submit recommendation
                                     </button>
                                 </div>
@@ -138,7 +138,7 @@
                     @elseif ($action['key'] === 'issue_offer')
                         <button type="button"
                                 data-open-dialog="issue-offer-{{ $record->id }}"
-                                class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-5 py-2.5 rounded-lg shadow-sm ring-1 ring-amber-700/20 transition">
+                                class="inline-flex items-center gap-2 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-5 py-2.5 rounded-lg shadow-sm ring-1 ring-brand/20 transition">
                             {{ $action['label'] }}
                         </button>
                         <dialog id="issue-offer-{{ $record->id }}"
@@ -156,24 +156,24 @@
                                         <label class="block text-xs font-semibold text-gray-600 mb-1">Offer amount</label>
                                         <input type="number" name="offered_amount" required min="0" step="1000"
                                                value="{{ (int) ($record->recommended_amount ?? $counterOffer['amount'] ?? 0) }}"
-                                               class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500">
+                                               class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-semibold text-gray-600 mb-1">Tenure (months)</label>
                                         <input type="number" name="offered_tenure_months" required min="1" max="120"
                                                value="{{ $record->requested_tenure_months }}"
-                                               class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500">
+                                               class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand">
                                     </div>
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1">Message to borrower (optional)</label>
                                     <textarea name="remarks" rows="2" maxlength="1000"
-                                              class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500"></textarea>
+                                              class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand"></textarea>
                                 </div>
                                 <div class="flex justify-end gap-2 pt-1">
                                     <button type="button" data-close-dialog="issue-offer-{{ $record->id }}"
                                             class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">Cancel</button>
-                                    <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-4 py-2 rounded-lg">
+                                    <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-4 py-2 rounded-lg">
                                         Send offer
                                     </button>
                                 </div>
@@ -201,7 +201,7 @@
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1">Message to borrower</label>
                                     <textarea name="remarks" rows="3" maxlength="1000" placeholder="Explain why asset-backed may be a better fit"
-                                              class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-amber-500 focus:border-amber-500"></textarea>
+                                              class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand"></textarea>
                                 </div>
                                 <div class="flex justify-end gap-2 pt-1">
                                     <button type="button" data-close-dialog="asset-alt-{{ $record->id }}"
@@ -216,7 +216,7 @@
                     @elseif ($action['key'] === 'approve' && application_needs_funding_choice($record->product))
                         <button type="button"
                                 data-open-dialog="approve-application-{{ $record->id }}"
-                                class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-5 py-2.5 rounded-lg shadow-sm ring-1 ring-amber-700/20 transition">
+                                class="inline-flex items-center gap-2 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-5 py-2.5 rounded-lg shadow-sm ring-1 ring-brand/20 transition">
                             {{ $action['label'] }}
                         </button>
                         <dialog id="approve-application-{{ $record->id }}"
@@ -246,7 +246,7 @@
                                 <div class="flex justify-end gap-2 pt-1">
                                     <button type="button" data-close-dialog="approve-application-{{ $record->id }}"
                                             class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">Cancel</button>
-                                    <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-4 py-2 rounded-lg">
+                                    <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-4 py-2 rounded-lg">
                                         Approve application
                                     </button>
                                 </div>
@@ -257,7 +257,7 @@
                             @csrf
                             <input type="hidden" name="action" value="{{ $action['key'] }}">
                             <button type="submit"
-                                    class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-5 py-2.5 rounded-lg shadow-sm ring-1 ring-amber-700/20 transition">
+                                    class="inline-flex items-center gap-2 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-5 py-2.5 rounded-lg shadow-sm ring-1 ring-brand/20 transition">
                                 {{ $action['label'] }}
                                 <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>

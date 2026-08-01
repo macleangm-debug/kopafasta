@@ -68,7 +68,7 @@
                 <label class="inline-flex items-center gap-2 text-sm text-gray-800 mt-2">
                     <input type="checkbox" name="write_off_approval_required" value="1"
                            @checked(array_key_exists('write_off_approval_required', $values) ? ! empty($values['write_off_approval_required']) : true)
-                           class="rounded border-gray-300 text-amber-600">
+                           class="rounded border-gray-300 text-brand">
                     Require manager and finance approval before write-off
                 </label>
             </div>
@@ -78,7 +78,7 @@
                 <label class="inline-flex items-center gap-2 text-sm text-gray-800 mt-2">
                     <input type="checkbox" name="repayment_approval_required" value="1"
                            @checked(! empty($values['repayment_approval_required']))
-                           class="rounded border-gray-300 text-amber-600">
+                           class="rounded border-gray-300 text-brand">
                     Require supervisor approval before admin-recorded repayments post to ledger
                 </label>
                 <p class="text-xs text-gray-500 mt-1">When enabled, the recorder and approver must be different users.</p>
@@ -89,7 +89,7 @@
                 <label class="inline-flex items-center gap-2 text-sm text-gray-800 mt-2">
                     <input type="checkbox" name="collections_gateway_only" value="1"
                            @checked(! empty($values['collections_gateway_only']))
-                           class="rounded border-gray-300 text-amber-600">
+                           class="rounded border-gray-300 text-brand">
                     Gateway-only repayments (disable manual admin recording)
                 </label>
                 <p class="text-xs text-gray-500 mt-1">When enabled, repayments must arrive via borrower/gateway channels — staff cannot type cash payments into the ledger.</p>
@@ -114,10 +114,10 @@
         </div>
 
         <div class="pt-4 border-t border-gray-100">
-            <button type="submit" class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-sm">
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2 rounded-lg text-sm">
                 Save finance defaults
             </button>
-            <a href="{{ route('admin.chart-of-accounts.index') }}" class="ml-3 text-sm text-amber-700 hover:underline">Manage chart of accounts →</a>
+            <a href="{{ route('admin.chart-of-accounts.index') }}" class="ml-3 text-sm text-brand hover:underline">Manage chart of accounts →</a>
         </div>
     </form>
 </x-admin.layout>

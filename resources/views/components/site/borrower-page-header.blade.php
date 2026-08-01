@@ -9,7 +9,7 @@
         @if ($eyebrow)
             <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-1">{{ $eyebrow }}</p>
         @endif
-        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">{{ $title }}</h1>
+        <h1 class="text-2xl sm:text-3xl font-bold text-brand tracking-tight">{{ $title }}</h1>
         @if ($subtitle)
             <p class="text-sm text-gray-500 mt-1">{{ $subtitle }}</p>
         @endif

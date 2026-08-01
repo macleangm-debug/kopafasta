@@ -3,7 +3,7 @@
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         @php
             $cards = [
-                ['Total outstanding', format_number($portfolio['total_outstanding'], 0), 'bg-indigo-50 text-indigo-700'],
+                ['Total outstanding', format_number($portfolio['total_outstanding'], 0), 'bg-brand-muted text-brand'],
                 ['Disbursed YTD',     format_number($portfolio['total_disbursed_ytd'], 0), 'bg-emerald-50 text-emerald-700'],
                 ['Active loans',      format_number($portfolio['active_loans']), 'bg-sky-50 text-sky-700'],
                 ['Closed YTD',        format_number($portfolio['closed_loans_ytd']), 'bg-gray-50 text-gray-700'],

@@ -13,7 +13,7 @@
             @endif
             <label class="block text-xs font-medium text-gray-600">{{ __('borrower.guarantor_supplement.admin_notes') }}</label>
             <textarea name="notes" rows="2" class="w-full rounded-lg border-gray-300 text-sm" placeholder="Optional note"></textarea>
-            <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold px-4 py-2">
+            <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-brand-gold hover:brightness-95 text-brand text-sm font-semibold px-4 py-2">
                 {{ __('borrower.guarantor_supplement.admin_button') }}
             </button>
         </form>

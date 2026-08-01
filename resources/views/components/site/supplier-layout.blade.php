@@ -19,7 +19,7 @@
     :display-name="$displayName"
     :subtitle="$vendor?->partner_number ?? auth()->user()?->email"
     banner="Supplier workspace — manage assets, applications, and settlements."
-    :profile-links="[['label' => 'Dashboard', 'route' => 'site.supplier.dashboard'], ['label' => 'Assets', 'route' => 'site.supplier.assets']]"
+    :profile-links="[['label' => 'Dashboard', 'route' => 'site.supplier.dashboard'], ['label' => 'Assets', 'route' => 'site.supplier.assets'], ['label' => 'Profile', 'route' => 'site.supplier.profile']]"
 >
     {{ $slot }}
 </x-site.partner-shell>

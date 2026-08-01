@@ -29,7 +29,7 @@
     </div>
 
     <button type="button" id="add-requirement-row"
-            class="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 hover:text-amber-800">
+            class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:text-brand-light">
         <span class="text-lg leading-none">+</span> Add document requirement
     </button>
 

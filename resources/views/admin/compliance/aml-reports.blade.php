@@ -2,7 +2,7 @@
 
     <div class="flex flex-wrap items-center gap-2 mb-4">
         <a href="{{ route('admin.compliance.large-transactions') }}"
-           class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 px-3 py-1.5 rounded-lg">
+           class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-1.5 rounded-lg">
             Large transactions
         </a>
         <a href="{{ route('admin.compliance.bot-portfolio-export') }}"
@@ -15,7 +15,7 @@
         @php
             $cards = [
                 ['Open',           $stats['open'],          'bg-amber-50 text-amber-700'],
-                ['Investigating',  $stats['investigating'], 'bg-indigo-50 text-indigo-700'],
+                ['Investigating',  $stats['investigating'], 'bg-brand-muted text-brand'],
                 ['Reported (FIU)', $stats['reported'],      'bg-rose-50 text-rose-700'],
                 ['Closed',         $stats['closed'],        'bg-gray-50 text-gray-700'],
             ];
@@ -51,7 +51,7 @@
                         @forelse ($recent as $r)
                             <tr class="hover:bg-gray-50">
                                 <td class="px-2 py-2 text-xs text-gray-500">{{ optional($r->detected_at)->format('Y-m-d H:i') }}</td>
-                                <td class="px-2 py-2"><a href="{{ route('admin.compliance.suspicious.show', $r) }}" class="hover:text-indigo-600">{{ $r->activity_type }}</a></td>
+                                <td class="px-2 py-2"><a href="{{ route('admin.compliance.suspicious.show', $r) }}" class="hover:text-brand">{{ $r->activity_type }}</a></td>
                                 <td class="px-2 py-2">{{ $r->customer ? trim(($r->customer->first_name ?? '').' '.($r->customer->last_name ?? '')) : '—' }}</td>
                                 <td class="px-2 py-2 capitalize">{{ $r->severity }}</td>
                                 <td class="px-2 py-2 capitalize">{{ $r->status }}</td>

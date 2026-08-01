@@ -376,7 +376,7 @@ class LoanApplicationWorkflowService
             'screening'           => 'Screening',
             'credit_appraisal'    => 'Credit review',
             'pre_approval'        => 'Pre-approval',
-            'approval'            => 'Final approval',
+            'approval'            => 'Committee approval',
             'disbursement'        => 'Disbursement',
             'awaiting_guarantor'  => 'Awaiting guarantor',
             'awaiting_disbursement_details' => 'Awaiting disbursement details',

@@ -16,7 +16,7 @@
             <x-admin.input name="ward" label="Ward" :value="$customer->ward" />
             <x-admin.input name="street" label="Street / plot / house no." :value="$customer->street" />
             <div class="md:col-span-2 flex justify-end">
-                <button type="submit" class="inline-flex text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-5 py-2 rounded-lg">Save residence</button>
+                <button type="submit" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-5 py-2 rounded-lg">Save residence</button>
             </div>
         </form>
     </x-slot:edit>

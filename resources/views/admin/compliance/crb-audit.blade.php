@@ -9,7 +9,7 @@
                 <label class="block text-xs font-medium text-gray-600 mb-1">To</label>
                 <input type="date" name="to" value="{{ $to }}" class="rounded-lg border-gray-300 text-sm">
             </div>
-            <button type="submit" class="bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold px-4 py-2 rounded-lg">Filter</button>
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand text-sm font-semibold px-4 py-2 rounded-lg">Filter</button>
         </form>
         <a href="{{ route('admin.compliance.crb-audit.export', ['from' => $from, 'to' => $to]) }}"
            class="inline-flex bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">

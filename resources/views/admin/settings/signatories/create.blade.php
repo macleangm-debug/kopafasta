@@ -7,7 +7,7 @@
         @include('admin.settings.signatories._form')
         <div class="flex justify-end gap-3">
             <a href="{{ route('admin.settings.signatories.index') }}" class="text-sm text-gray-600 hover:text-gray-900 px-4 py-2">Cancel</a>
-            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-5 py-2 rounded-lg">Save signatory</button>
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg">Save signatory</button>
         </div>
     </form>
 </x-admin.layout>

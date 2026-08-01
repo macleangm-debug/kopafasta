@@ -80,6 +80,7 @@ class PartnerPortalNavService
             ['key' => 'delivered', 'label' => 'Delivered', 'route' => 'site.supplier.delivered', 'icon' => 'check'],
             ['key' => 'requests', 'label' => 'Asset requests', 'route' => 'site.supplier.requests', 'icon' => 'bell'],
             ['key' => 'settlements', 'label' => 'Settlements', 'route' => 'site.supplier.settlements', 'icon' => 'wallet'],
+            ['key' => 'profile', 'label' => 'Profile', 'route' => 'site.supplier.profile', 'icon' => 'user'],
         ];
     }
 

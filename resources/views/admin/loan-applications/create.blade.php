@@ -122,8 +122,8 @@
                     <a href="{{ route('admin.loan-applications.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-800">Cancel</a>
                     <div class="flex items-center gap-2">
                         <button type="button" data-wizard-back hidden class="text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 ring-1 ring-gray-300 px-4 py-2 rounded-lg">Back</button>
-                        <button type="button" data-wizard-next class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-5 py-2 rounded-lg">Continue</button>
-                        <button type="submit" data-wizard-submit hidden class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 px-5 py-2 rounded-lg">Create application</button>
+                        <button type="button" data-wizard-next class="inline-flex items-center gap-2 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-5 py-2 rounded-lg">Continue</button>
+                        <button type="submit" data-wizard-submit hidden class="inline-flex items-center gap-2 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-5 py-2 rounded-lg">Create application</button>
                     </div>
                 </div>
             </form>

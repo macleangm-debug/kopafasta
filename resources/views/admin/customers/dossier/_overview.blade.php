@@ -30,10 +30,10 @@
             <h3 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Loan officer actions</h3>
             <ul class="space-y-2 text-sm">
                 <li>
-                    <a href="#customer-documents" class="font-semibold text-amber-700 hover:text-amber-800">Upload or verify documents →</a>
+                    <a href="#customer-documents" class="font-semibold text-brand hover:text-brand-light">Upload or verify documents →</a>
                 </li>
                 <li>
-                    <a href="{{ route('admin.loan-applications.create') }}?customer={{ $customer->id }}" class="font-semibold text-amber-700 hover:text-amber-800">Start loan application →</a>
+                    <a href="{{ route('admin.loan-applications.create') }}?customer={{ $customer->id }}" class="font-semibold text-brand hover:text-brand-light">Start loan application →</a>
                 </li>
                 @if ($dossier['applications']->where('current_stage', 'disbursement')->isNotEmpty())
                     <li>

@@ -40,7 +40,7 @@
                                 <td class="py-2 px-4 text-right font-mono text-sky-800">{{ format_money($row['company_profit_share']) }}</td>
                                 <td class="py-2 px-4 capitalize text-xs">{{ display_label($row['status'], 'loan_status') }}</td>
                                 <td class="py-2 px-4 text-right">
-                                    <a href="{{ route('admin.loans.show', $row['id']) }}" class="text-xs font-semibold text-amber-700 hover:underline">View →</a>
+                                    <a href="{{ route('admin.loans.show', $row['id']) }}" class="text-xs font-semibold text-brand hover:underline">View →</a>
                                 </td>
                             </tr>
                         @endforeach

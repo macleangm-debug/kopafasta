@@ -2,28 +2,20 @@
 
     @php
         $hero = $dashboardHero ?? [];
-        $hero['greeting'] = __('borrower.welcome').', '.($customer->first_name ?? Auth::user()->name);
-        if (empty($hero['meta']) && filled($customer->customer_number ?? null)) {
-            $hero['meta'] = $customer->customer_number;
+        $firstName = $customer->first_name ?? explode(' ', (string) (Auth::user()->name ?? ''))[0];
+        $hero['greeting'] = __('borrower.welcome').', '.$firstName;
+        if (! empty($eligibility) && ($eligibility['has_data'] ?? false)) {
+            $hero['eligibility_amount'] = format_money($eligibility['amount'] ?? 0);
+            $hero['eligibility_hint'] = __('borrower.dashboard.eligibility_growth_hint_short');
+        }
+        // Shorten long "application in progress" copy
+        if (($hero['variant'] ?? '') === 'applications') {
+            $hero['title'] = __('borrower.dashboard.hero.active_applications_title_short');
+            $hero['subtitle'] = __('borrower.dashboard.hero.active_applications_subtitle_short');
         }
     @endphp
 
     <x-site.borrower-dashboard-hero :hero="$hero" />
-
-    @if (! empty($eligibility) && ($eligibility['has_data'] ?? false))
-        <section class="mb-6 rounded-2xl bg-white ring-1 ring-gray-200 p-5 sm:p-6">
-            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                <div>
-                    <p class="text-xs uppercase tracking-widest font-semibold text-gray-500">{{ __('borrower.dashboard.eligibility_title') }}</p>
-                    <p class="mt-1 text-2xl font-bold text-gray-900">{{ format_money($eligibility['amount'] ?? 0) }}</p>
-                    <p class="mt-1 text-sm text-gray-600">{{ $eligibility['summary'] ?? __('borrower.dashboard.eligibility_summary') }}</p>
-                    <p class="mt-2 text-xs text-gray-500">{{ __('borrower.dashboard.eligibility_growth_hint') }}</p>
-                </div>
-                <a href="{{ route('site.borrower.settings') }}#notifications"
-                   class="text-sm font-semibold text-amber-700 hover:text-amber-800 shrink-0">{{ __('borrower.dashboard.eligibility_notify_cta') }}</a>
-            </div>
-        </section>
-    @endif
 
     @if (! empty($financialHealth))
         <x-site.borrower-financial-health :health="$financialHealth" />

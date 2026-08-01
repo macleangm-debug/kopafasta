@@ -13,7 +13,7 @@
             @php($sc = ['low'=>'bg-emerald-50 text-emerald-700','medium'=>'bg-amber-50 text-amber-700','high'=>'bg-rose-50 text-rose-700','critical'=>'bg-rose-100 text-rose-800'][$r->severity] ?? 'bg-gray-100')
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3 font-mono text-xs">{{ $r->code }}</td>
-                <td class="px-5 py-3 font-medium"><a href="{{ route('admin.aml-rules.show', $r) }}" class="hover:text-indigo-600">{{ $r->name }}</a></td>
+                <td class="px-5 py-3 font-medium"><a href="{{ route('admin.aml-rules.show', $r) }}" class="hover:text-brand">{{ $r->name }}</a></td>
                 <td class="px-5 py-3">{{ display_label($r->rule_type, 'aml_rule_type') }}</td>
                 <td class="px-5 py-3 capitalize">{{ $r->action }}</td>
                 <td class="px-5 py-3"><span class="inline-flex items-center rounded px-2 py-0.5 text-xs {{ $sc }}">{{ ucfirst($r->severity) }}</span></td>

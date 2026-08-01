@@ -14,7 +14,7 @@
             Borrowers who pay by bank transfer appear here until an admin verifies the transfer.
         </p>
         <a href="{{ route('admin.settings.membership') }}"
-           class="text-sm font-semibold text-amber-700 hover:text-amber-800">
+           class="text-sm font-semibold text-brand hover:text-brand-light">
             Membership settings
         </a>
     </div>
@@ -60,7 +60,7 @@
                                 </div>
                                 @if ($customer)
                                     <a href="{{ route('admin.customers.show', $customer) }}"
-                                       class="text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+                                       class="text-xs font-semibold text-brand hover:text-brand-light">
                                         View customer
                                     </a>
                                 @endif

@@ -20,7 +20,7 @@
 <nav class="mb-6 flex flex-wrap gap-2">
     @foreach ($links as $key => [$label, $route])
         <a href="{{ route($route) }}"
-           class="px-3 py-1.5 rounded-md text-sm font-medium transition {{ $active === $key ? 'bg-amber-500 text-gray-900' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
+           class="px-3 py-1.5 rounded-md text-sm font-medium transition {{ $active === $key ? 'bg-brand-gold text-brand' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
             {{ $label }}
         </a>
     @endforeach

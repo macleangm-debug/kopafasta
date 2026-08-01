@@ -11,7 +11,7 @@
     <x-slot:rows>
         @forelse ($rows as $r)
             <tr class="hover:bg-gray-50">
-                <td class="px-5 py-3 font-medium"><a href="{{ route('admin.risk-scoring-rules.show', $r) }}" class="hover:text-indigo-600">{{ $r->factor }}</a></td>
+                <td class="px-5 py-3 font-medium"><a href="{{ route('admin.risk-scoring-rules.show', $r) }}" class="hover:text-brand">{{ $r->factor }}</a></td>
                 <td class="px-5 py-3 font-mono text-xs">{{ $r->operator }}</td>
                 <td class="px-5 py-3">{{ $r->value }}</td>
                 <td class="px-5 py-3 text-right">{{ $r->weight }}</td>

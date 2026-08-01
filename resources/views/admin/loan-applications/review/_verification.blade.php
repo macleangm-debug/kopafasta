@@ -9,7 +9,7 @@
     <x-slot:actions>
         @if (($customer->face_verification_status ?? '') === 'pending')
             <a href="{{ route('admin.face-verifications.show', $customer) }}"
-               class="inline-flex items-center text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 px-3 py-1.5 rounded-lg">
+               class="inline-flex items-center text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-1.5 rounded-lg">
                 Open face review queue
             </a>
         @endif
@@ -137,7 +137,7 @@
                               class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200"></textarea>
                     <div class="flex justify-end gap-2">
                         <button type="button" data-close-dialog="retake-face-{{ $customer->id }}" class="px-4 py-2 text-sm text-gray-600">Cancel</button>
-                        <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold text-sm px-4 py-2 rounded-lg">Send request</button>
+                        <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-4 py-2 rounded-lg">Send request</button>
                     </div>
                 </form>
             </dialog>

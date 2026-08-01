@@ -33,7 +33,7 @@
             @endforeach
         </div>
         <div class="flex justify-end">
-            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-5 py-2 rounded-lg">Save</button>
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg">Save</button>
         </div>
     </form>
 </x-admin.layout>

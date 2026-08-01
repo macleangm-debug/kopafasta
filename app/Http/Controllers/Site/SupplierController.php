@@ -240,4 +240,26 @@ class SupplierController extends Controller
 
         return back()->with('status', 'Request declined.');
     }
+
+    public function profile(): View
+    {
+        $vendor = $this->supplier();
+
+        return view('site.supplier.profile', compact('vendor'));
+    }
+
+    public function updateProfile(Request $request): RedirectResponse
+    {
+        $vendor = $this->supplier();
+        $data = $request->validate([
+            'name'    => ['required', 'string', 'max:120'],
+            'phone'   => ['nullable', 'string', 'max:30'],
+            'email'   => ['nullable', 'email', 'max:120'],
+            'address' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $vendor->update($data);
+
+        return back()->with('status', 'Profile updated.');
+    }
 }

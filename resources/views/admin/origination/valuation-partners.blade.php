@@ -2,7 +2,7 @@
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <p class="text-sm text-gray-600 max-w-3xl">Assign valuers after the borrower pays the valuation fee. Valuers enter market and forced-sale values in their portal.</p>
         <a href="{{ route('admin.partners.create', ['category' => 'valuer']) }}"
-           class="inline-flex bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2 rounded-lg text-sm">
+           class="inline-flex bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2 rounded-lg text-sm">
             + New partner
         </a>
     </div>

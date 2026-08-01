@@ -53,11 +53,11 @@
                 <input type="search" name="q" value="{{ $search }}" placeholder="Ward name…"
                        class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-44">
             </div>
-            <button type="submit" class="bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold px-4 py-2 rounded-lg">Filter</button>
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand text-sm font-semibold px-4 py-2 rounded-lg">Filter</button>
         </form>
 
         <a href="{{ route('admin.settings.locations.create') }}"
-           class="inline-flex bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-4 py-2 rounded-lg">
+           class="inline-flex bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-4 py-2 rounded-lg">
             + Add ward
         </a>
     </div>
@@ -87,7 +87,7 @@
                             </span>
                         </td>
                         <td class="px-5 py-3 text-right space-x-2">
-                            <a href="{{ route('admin.settings.locations.edit', $ward) }}" class="text-amber-700 hover:underline text-xs">Edit</a>
+                            <a href="{{ route('admin.settings.locations.edit', $ward) }}" class="text-brand hover:underline text-xs">Edit</a>
                             <form method="POST" action="{{ route('admin.settings.locations.destroy', $ward) }}" class="inline"
                                   onsubmit="return confirm('Remove this ward?');">
                                 @csrf @method('DELETE')

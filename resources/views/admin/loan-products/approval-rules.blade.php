@@ -17,7 +17,7 @@
                 @forelse ($products as $p)
                     <tr class="hover:bg-gray-50">
                         <td class="px-5 py-3">
-                            <a href="{{ route('admin.loan-products.show', $p) }}" class="font-medium text-gray-900 hover:text-amber-700">{{ $p->name }}</a>
+                            <a href="{{ route('admin.loan-products.show', $p) }}" class="font-medium text-gray-900 hover:text-brand">{{ $p->name }}</a>
                             <div class="text-xs text-gray-500 font-mono">{{ $p->code }}</div>
                         </td>
                         <td class="px-5 py-3 text-right">{{ format_money((float) $p->max_amount) }}</td>

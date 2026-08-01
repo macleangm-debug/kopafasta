@@ -7,7 +7,7 @@
 
     <div class="mb-4 flex justify-end">
         <a href="{{ route('admin.settings.signatories.create') }}"
-           class="inline-flex bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-4 py-2 rounded-lg">
+           class="inline-flex bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-4 py-2 rounded-lg">
             + Add signatory
         </a>
     </div>
@@ -45,7 +45,7 @@
                             </span>
                         </td>
                         <td class="px-5 py-3 text-right space-x-2">
-                            <a href="{{ route('admin.settings.signatories.edit', $signatory) }}" class="text-amber-700 hover:underline text-xs">Edit</a>
+                            <a href="{{ route('admin.settings.signatories.edit', $signatory) }}" class="text-brand hover:underline text-xs">Edit</a>
                             <form method="POST" action="{{ route('admin.settings.signatories.destroy', $signatory) }}" class="inline"
                                   onsubmit="return confirm('Remove this signatory?');">
                                 @csrf @method('DELETE')

@@ -1,6 +1,6 @@
 <x-admin.layout title="Partner settlements" heading="Partner settlement batches" subheading="Weekly payout batches for suppliers, GPS installers, and affiliates">
     <div class="mb-4 flex flex-wrap gap-2">
-        <a href="{{ route('admin.partner-payments.index') }}" class="text-sm font-medium text-amber-700 hover:text-amber-900">Review pending payments →</a>
+        <a href="{{ route('admin.partner-payments.index') }}" class="text-sm font-medium text-brand hover:text-brand-light">Review pending payments →</a>
     </div>
 
     <div class="bg-white rounded-xl ring-1 ring-gray-200 overflow-hidden">
@@ -26,7 +26,7 @@
                         <td class="px-4 py-3">{{ format_money($settlement->total_amount) }}</td>
                         <td class="px-4 py-3">{{ ucfirst($settlement->status) }}</td>
                         <td class="px-4 py-3 text-right">
-                            <a href="{{ route('admin.partner-settlements.show', $settlement) }}" class="text-amber-700 hover:text-amber-900">View</a>
+                            <a href="{{ route('admin.partner-settlements.show', $settlement) }}" class="text-brand hover:text-brand-light">View</a>
                         </td>
                     </tr>
                 @empty

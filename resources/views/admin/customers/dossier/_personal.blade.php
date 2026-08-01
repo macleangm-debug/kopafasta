@@ -32,7 +32,7 @@
                 </p>
             @endif
             <div class="md:col-span-2 flex justify-end">
-                <button type="submit" class="inline-flex text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-5 py-2 rounded-lg">Save personal details</button>
+                <button type="submit" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-5 py-2 rounded-lg">Save personal details</button>
             </div>
         </form>
     </x-slot:edit>

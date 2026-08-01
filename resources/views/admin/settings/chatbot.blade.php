@@ -16,7 +16,7 @@
                     <div class="flex items-center justify-between gap-3">
                         <p class="text-sm font-semibold text-gray-900" x-text="'Entry ' + (index + 1)"></p>
                         <label class="inline-flex items-center gap-2 text-xs text-gray-600">
-                            <input type="checkbox" :name="'entries[' + index + '][active]'" value="1" :checked="entry.active !== false" class="rounded border-gray-300 text-amber-600">
+                            <input type="checkbox" :name="'entries[' + index + '][active]'" value="1" :checked="entry.active !== false" class="rounded border-gray-300 text-brand">
                             Active
                         </label>
                     </div>
@@ -53,11 +53,11 @@
             </template>
 
             <button type="button" @click="rows.push({ key: 'entry_' + (rows.length + 1), sort: rows.length + 1, active: true, keywords: '', question_en: '', question_sw: '', answer_en: '', answer_sw: '' })"
-                    class="text-sm font-semibold text-amber-700 hover:underline">+ Add entry</button>
+                    class="text-sm font-semibold text-brand hover:underline">+ Add entry</button>
         </div>
 
         <div class="flex justify-end">
-            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">Save chatbot content</button>
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">Save chatbot content</button>
         </div>
     </form>
 </x-admin.layout>

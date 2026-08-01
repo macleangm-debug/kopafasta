@@ -16,6 +16,7 @@
         'settled' => 'wallet',
         default => 'individual',
     };
+    $lightText = ! in_array($variant, ['under_review', 'guarantor_request'], true);
 @endphp
 
 <section class="mb-6 rounded-2xl ring-1 p-5 sm:p-6 relative overflow-hidden {{ $shell }}">
@@ -25,27 +26,42 @@
             <path d="M20 80 Q100 20 180 90" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         </svg>
     </div>
-    <div class="absolute right-4 top-1/2 -translate-y-1/2 hidden sm:block opacity-20 pointer-events-none" aria-hidden="true">
+    <div class="absolute right-4 top-1/2 -translate-y-1/2 hidden lg:block opacity-20 pointer-events-none" aria-hidden="true">
         @include('components.site.illustrations.product', ['type' => $decor])
     </div>
-    <div class="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pr-0 sm:pr-28">
+
+    <div class="relative max-w-xl space-y-4">
+        @if (! empty($hero['greeting']))
+            <p class="text-sm {{ $lightText ? 'text-white/90' : 'opacity-90' }}">{{ $hero['greeting'] }}</p>
+        @endif
+
         <div>
-            @if (! empty($hero['greeting']))
-                <p class="text-sm opacity-90 mb-1">{{ $hero['greeting'] }}</p>
-            @endif
-            <p class="text-xs uppercase tracking-widest opacity-80 font-semibold">{{ $hero['title'] ?? '' }}</p>
-            @if (! empty($hero['amount']))
-                <p class="text-3xl font-bold mt-1 tabular-nums">{{ $hero['amount'] }}</p>
-            @endif
+            <p class="text-xs uppercase tracking-widest font-semibold {{ $lightText ? 'text-white/80' : 'opacity-80' }}">{{ $hero['title'] ?? '' }}</p>
             @if (! empty($hero['subtitle']))
-                <p class="text-sm mt-2 opacity-90">{{ $hero['subtitle'] }}</p>
+                <p class="text-sm mt-1 {{ $lightText ? 'text-white/90' : 'opacity-90' }}">{{ $hero['subtitle'] }}</p>
             @endif
             @if (! empty($hero['meta']))
-                <p class="text-xs mt-2 opacity-80 font-mono">{{ $hero['meta'] }}</p>
+                <p class="text-xs mt-1 font-mono {{ $lightText ? 'text-white/70' : 'opacity-80' }}">{{ $hero['meta'] }}</p>
             @endif
         </div>
+
+        @if (! empty($hero['eligibility_amount']))
+            <div @class([
+                'rounded-2xl px-4 py-3 ring-1',
+                $lightText ? 'bg-white/15 ring-white/25' : 'bg-white/70 ring-black/5',
+            ])>
+                <p class="text-[10px] uppercase tracking-widest font-semibold {{ $lightText ? 'text-white/80' : 'text-brand' }}">{{ __('borrower.dashboard.eligibility_title') }}</p>
+                <p class="text-3xl sm:text-4xl font-extrabold tabular-nums mt-0.5 {{ $lightText ? 'text-white' : 'text-gray-900' }}">{{ $hero['eligibility_amount'] }}</p>
+                @if (! empty($hero['eligibility_hint']))
+                    <p class="text-xs mt-1 {{ $lightText ? 'text-white/85' : 'text-gray-600' }}">{{ $hero['eligibility_hint'] }}</p>
+                @endif
+            </div>
+        @elseif (! empty($hero['amount']))
+            <p class="text-3xl font-bold tabular-nums">{{ $hero['amount'] }}</p>
+        @endif
+
         @if (! empty($hero['cta_url']) && ! empty($hero['cta_label']))
-            <div class="flex flex-col sm:flex-row gap-2 shrink-0">
+            <div class="flex flex-wrap gap-2">
                 <a href="{{ $hero['cta_url'] }}"
                    @class([
                        'inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition',

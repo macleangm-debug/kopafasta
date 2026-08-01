@@ -4,7 +4,7 @@
     @endif
 
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <a href="{{ route('admin.partners.index') }}" class="text-sm font-semibold text-amber-700 hover:underline">← Partners hub</a>
+        <a href="{{ route('admin.partners.index') }}" class="text-sm font-semibold text-brand hover:underline">← Partners hub</a>
         <div class="flex flex-wrap gap-2 text-xs">
             @foreach ([
                 '' => 'All',
@@ -77,7 +77,7 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-right">
-                                <a href="{{ route('admin.partner-applications.show', $application) }}" class="text-xs font-semibold text-amber-700 hover:underline">Review</a>
+                                <a href="{{ route('admin.partner-applications.show', $application) }}" class="text-xs font-semibold text-brand hover:underline">Review</a>
                             </td>
                         </tr>
                     @endforeach

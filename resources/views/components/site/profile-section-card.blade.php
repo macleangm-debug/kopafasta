@@ -17,23 +17,43 @@
 @php
     $hasForm = isset($form);
     $useInline = $inlineEdit && ($hasForm || $editing) && ! $editUrl;
-    $startOpen = $editing || $defaultOpen;
-    // Collapse completed sections by default to keep long pages short.
-    $startExpanded = $defaultOpen || $empty || $complete !== true;
+    // Start collapsed; only open when editing or defaultOpen (e.g. deep-link focus).
+    $startOpen = (bool) $editing;
+    $startExpanded = (bool) $defaultOpen;
+    $accordionId = $sectionId ?: ('section-'.substr(md5($title), 0, 8));
 @endphp
 
 <div
     @if ($sectionId) id="{{ $sectionId }}" @endif
     class="glass-card scroll-mt-24 {{ ($allowOverflow ?? false) ? 'overflow-visible' : 'overflow-hidden' }}"
-    x-data="{ open: @js($startOpen), expanded: @js($startExpanded) }"
-    @if ($sectionId)
-        x-init="if (window.location.hash === '#{{ $sectionId }}') { open = true; expanded = true }"
-    @endif
+    x-data="{
+        open: @js($startOpen),
+        expanded: @js($startExpanded),
+        id: @js($accordionId),
+        toggleExpand() {
+            if (this.open) return;
+            this.expanded = !this.expanded;
+            if (this.expanded) {
+                window.dispatchEvent(new CustomEvent('profile-accordion', { detail: this.id }));
+            }
+        },
+        openEdit() {
+            this.open = true;
+            this.expanded = true;
+            window.dispatchEvent(new CustomEvent('profile-accordion', { detail: this.id }));
+        }
+    }"
+    x-init="
+        if (window.location.hash === '#{{ $sectionId }}') { open = true; expanded = true; }
+        window.addEventListener('profile-accordion', (e) => {
+            if (e.detail !== id) { expanded = false; open = false; }
+        });
+    "
 >
     <div class="flex items-start justify-between gap-3 px-5 sm:px-6 py-4 border-b border-gray-100/80">
         <button type="button"
                 @if ($collapsible)
-                    @click="if (!open) expanded = !expanded"
+                    @click="toggleExpand()"
                 @endif
                 class="flex items-start gap-3 min-w-0 text-left flex-1">
             @if ($icon)
@@ -57,7 +77,7 @@
         </button>
         @if ($useInline)
             <button type="button"
-                    @click="open = !open; if (open) expanded = true"
+                    @click="open ? (open = false) : openEdit()"
                     class="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full ring-1 transition"
                     :class="open ? 'text-gray-700 ring-gray-200 bg-gray-50' : 'text-amber-700 ring-amber-200 bg-amber-50 hover:text-amber-800'">
                 <span x-show="!open">{{ $empty ? ($addLabel ?? __('borrower.profile.add_details')) : __('borrower.profile.edit_section') }}</span>
@@ -72,11 +92,11 @@
     </div>
 
     @if ($useInline)
-        <div x-show="!open && expanded" class="p-5 sm:p-6">
+        <div x-show="!open && expanded" x-cloak class="p-5 sm:p-6">
             @if ($empty && $addUrl)
                 <div class="rounded-xl border border-dashed border-gray-200 bg-gray-50/80 px-5 py-8 text-center">
                     <p class="text-sm text-gray-600">{{ __('borrower.profile.section_empty') }}</p>
-                    <button type="button" @click="open = true"
+                    <button type="button" @click="openEdit()"
                             class="inline-flex mt-4 items-center justify-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
                         {{ $addLabel ?? __('borrower.profile.add_details') }}
                     </button>
@@ -85,8 +105,8 @@
                 {{ $view ?? $slot }}
             @endif
         </div>
-        <div x-show="!open && !expanded" x-cloak class="px-5 sm:px-6 py-3">
-            <button type="button" @click="expanded = true" class="text-xs font-semibold text-brand hover:underline">
+        <div x-show="!open && !expanded" class="px-5 sm:px-6 py-3">
+            <button type="button" @click="toggleExpand()" class="text-xs font-semibold text-brand hover:underline">
                 {{ __('borrower.profile.hub.view_edit') }} →
             </button>
         </div>

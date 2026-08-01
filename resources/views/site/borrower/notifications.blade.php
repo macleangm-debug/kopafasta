@@ -55,7 +55,7 @@
             @foreach ($groups as $groupKey => $items)
                 @continue($items->isEmpty())
                 <section>
-                    <h2 class="text-xs uppercase tracking-widest text-gray-500 font-bold mb-3">{{ $groupLabels[$groupKey] ?? $groupKey }}</h2>
+                    <h2 class="text-xs uppercase tracking-widest text-brand font-bold mb-3">{{ $groupLabels[$groupKey] ?? $groupKey }}</h2>
                     <div class="space-y-3">
                         @foreach ($items as $n)
                             @include('site.borrower._notification_item', ['n' => $n, 'center' => $center])

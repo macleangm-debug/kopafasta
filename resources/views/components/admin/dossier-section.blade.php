@@ -12,7 +12,7 @@
             <button type="button"
                     @click="editing = !editing"
                     class="inline-flex text-xs font-semibold px-3 py-1.5 rounded-lg ring-1 transition-colors"
-                    :class="editing ? 'text-gray-700 bg-gray-100 ring-gray-200 hover:bg-gray-200' : 'text-amber-800 bg-amber-50 ring-amber-200 hover:bg-amber-100'"
+                    :class="editing ? 'text-gray-700 bg-gray-100 ring-gray-200 hover:bg-gray-200' : 'text-brand bg-brand-muted ring-brand/20 hover:bg-brand-muted/80'"
                     x-text="editing ? @js($cancelLabel) : @js($editLabel)">
             </button>
         </x-slot:actions>

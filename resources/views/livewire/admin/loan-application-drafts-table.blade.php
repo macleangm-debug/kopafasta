@@ -2,7 +2,7 @@
     <div class="flex flex-wrap items-center gap-3">
         <div class="relative">
             <select wire:model.live="phase"
-                    class="appearance-none text-sm bg-white border border-gray-300 rounded-lg shadow-sm pl-3.5 pr-9 py-2 font-medium text-gray-700 cursor-pointer hover:border-gray-400 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition">
+                    class="appearance-none text-sm bg-white border border-gray-300 rounded-lg shadow-sm pl-3.5 pr-9 py-2 font-medium text-gray-700 cursor-pointer hover:border-gray-400 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 transition">
                 <option value="">{{ __('admin.application_drafts.all_phases') }}</option>
                 @foreach ($phases as $value => $label)
                     <option value="{{ $value }}">{{ $label }}</option>
@@ -68,7 +68,7 @@
                     <td class="px-5 py-3 text-right">
                         @if ($r->customer)
                             <a href="{{ route('admin.loan-applications.incomplete.show', $r) }}"
-                               class="text-xs font-medium text-amber-600 hover:text-amber-700">{{ __('admin.application_drafts.view_application') }} →</a>
+                               class="text-xs font-medium text-brand hover:text-brand-light">{{ __('admin.application_drafts.view_application') }} →</a>
                         @endif
                     </td>
                 </tr>

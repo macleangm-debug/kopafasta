@@ -20,7 +20,7 @@
                     <input type="hidden" name="require_2fa_admin" value="0">
                     <input type="checkbox" name="require_2fa_admin" value="1"
                            @checked(! empty($values['require_2fa_admin']))
-                           class="mt-0.5 size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                           class="mt-0.5 size-4 rounded border-gray-300 text-brand focus:ring-brand">
                     <span>
                         <span class="font-medium text-gray-900">Admin console</span>
                         <span class="block text-gray-500 text-xs mt-0.5">Applies to <code class="text-xs">/admin/login</code> and full back-office users (officer, manager, admin).</span>
@@ -31,7 +31,7 @@
                     <input type="hidden" name="require_2fa_staff" value="0">
                     <input type="checkbox" name="require_2fa_staff" value="1"
                            @checked(! empty($values['require_2fa_staff']))
-                           class="mt-0.5 size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                           class="mt-0.5 size-4 rounded border-gray-300 text-brand focus:ring-brand">
                     <span>
                         <span class="font-medium text-gray-900">Staff workspace</span>
                         <span class="block text-gray-500 text-xs mt-0.5">Applies to <code class="text-xs">/staff/login</code> and limited-permission staff deep-linking into admin routes.</span>
@@ -42,7 +42,7 @@
                     <input type="hidden" name="require_2fa_partner" value="0">
                     <input type="checkbox" name="require_2fa_partner" value="1"
                            @checked(! empty($values['require_2fa_partner']))
-                           class="mt-0.5 size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                           class="mt-0.5 size-4 rounded border-gray-300 text-brand focus:ring-brand">
                     <span>
                         <span class="font-medium text-gray-900">Partner portal</span>
                         <span class="block text-gray-500 text-xs mt-0.5">Applies to partner email/password sign-in at <code class="text-xs">/login</code> and authenticated partner routes.</span>
@@ -63,7 +63,7 @@
         </div>
 
         <div class="flex justify-end">
-            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">
                 Save authentication settings
             </button>
         </div>

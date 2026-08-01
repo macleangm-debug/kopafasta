@@ -17,7 +17,7 @@
         <div class="flex items-center gap-2 pt-6">
             <input type="checkbox" name="is_active" value="1" id="is_active"
                    @checked(old('is_active', $signatory?->is_active ?? true))
-                   class="rounded border-gray-300 text-amber-600">
+                   class="rounded border-gray-300 text-brand">
             <label for="is_active" class="text-sm text-gray-700">Active</label>
         </div>
     </div>
@@ -30,7 +30,7 @@
             <div class="space-y-3" x-show="! replaceSignature && ! removeSignature">
                 <img src="{{ $signatory->signaturePublicUrl() }}" alt="Current signature" class="h-20 object-contain border rounded-lg p-2 bg-white">
                 <div class="flex flex-wrap gap-3">
-                    <button type="button" @click="replaceSignature = true" class="text-sm font-semibold text-amber-700 hover:text-amber-900">Replace signature</button>
+                    <button type="button" @click="replaceSignature = true" class="text-sm font-semibold text-brand hover:text-brand-light">Replace signature</button>
                     <button type="button" @click="removeSignature = true; replaceSignature = false" class="text-sm font-semibold text-red-700 hover:text-red-900">Remove signature</button>
                 </div>
             </div>

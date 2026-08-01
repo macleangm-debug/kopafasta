@@ -347,6 +347,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::post('/reservations/{reservation}', [\App\Http\Controllers\Site\SupplierController::class, 'updateReservation'])->name('reservations.update');
                 Route::post('/requests/{assetRequest}', [\App\Http\Controllers\Site\SupplierController::class, 'updateRequest'])->name('requests.update');
                 Route::get('/settlements', [\App\Http\Controllers\Site\SupplierController::class, 'settlements'])->name('settlements');
+                Route::get('/profile', [\App\Http\Controllers\Site\SupplierController::class, 'profile'])->name('profile');
+                Route::put('/profile', [\App\Http\Controllers\Site\SupplierController::class, 'updateProfile'])->name('profile.update');
             });
 
             Route::redirect('/supplier', '/partner/supplier');
@@ -388,6 +390,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/reservations/{reservation}', [\App\Http\Controllers\Site\SupplierController::class, 'updateReservation'])->name('reservations.update');
             Route::post('/requests/{assetRequest}', [\App\Http\Controllers\Site\SupplierController::class, 'updateRequest'])->name('requests.update');
             Route::get('/settlements', [\App\Http\Controllers\Site\SupplierController::class, 'settlements'])->name('settlements');
+            Route::get('/profile', [\App\Http\Controllers\Site\SupplierController::class, 'profile'])->name('profile');
+            Route::put('/profile', [\App\Http\Controllers\Site\SupplierController::class, 'updateProfile'])->name('profile.update');
         });
 
         // ---- Investor / Capital Lender portal ----

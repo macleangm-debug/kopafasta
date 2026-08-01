@@ -24,7 +24,7 @@
                             {{ optional($row->ends_at)->format('d M Y') ?? '—' }}
                         </td>
                         <td class="px-5 py-3 text-right">
-                            <a href="{{ route('admin.promotions.show', $row) }}" class="text-amber-700 hover:underline">View</a>
+                            <a href="{{ route('admin.promotions.show', $row) }}" class="text-brand hover:underline">View</a>
                         </td>
                     </tr>
                 @empty

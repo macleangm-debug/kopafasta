@@ -12,7 +12,7 @@
     @endif
 
     <div class="mb-4">
-        <a href="{{ route('admin.borrower-refunds.index') }}" class="text-sm font-semibold text-amber-700 hover:underline">← All refunds</a>
+        <a href="{{ route('admin.borrower-refunds.index') }}" class="text-sm font-semibold text-brand hover:underline">← All refunds</a>
     </div>
 
     <div class="grid lg:grid-cols-3 gap-6">
@@ -47,14 +47,14 @@
                         @if ($borrowerRefund->accrualJournalEntry)
                             <li>
                                 Accrual
-                                <a href="{{ route('admin.journal-entries.show', $borrowerRefund->accrualJournalEntry) }}" class="font-mono text-amber-700 hover:underline">{{ $borrowerRefund->accrualJournalEntry->entry_number }}</a>
+                                <a href="{{ route('admin.journal-entries.show', $borrowerRefund->accrualJournalEntry) }}" class="font-mono text-brand hover:underline">{{ $borrowerRefund->accrualJournalEntry->entry_number }}</a>
                                 · {{ $borrowerRefund->accrual_posted_at?->format('d M Y') }}
                             </li>
                         @endif
                         @if ($borrowerRefund->payoutJournalEntry)
                             <li>
                                 Payout
-                                <a href="{{ route('admin.journal-entries.show', $borrowerRefund->payoutJournalEntry) }}" class="font-mono text-amber-700 hover:underline">{{ $borrowerRefund->payoutJournalEntry->entry_number }}</a>
+                                <a href="{{ route('admin.journal-entries.show', $borrowerRefund->payoutJournalEntry) }}" class="font-mono text-brand hover:underline">{{ $borrowerRefund->payoutJournalEntry->entry_number }}</a>
                                 · {{ $borrowerRefund->payout_posted_at?->format('d M Y') }}
                             </li>
                         @endif
@@ -80,7 +80,7 @@
                     @if ($borrowerRefund->payout_channel === 'mobile_money')
                         <label class="flex items-start gap-2 text-sm bg-amber-50 ring-1 ring-amber-100 rounded-lg px-3 py-2.5">
                             <input type="hidden" name="auto_disburse" value="0">
-                            <input type="checkbox" name="auto_disburse" value="1" class="mt-0.5 rounded border-gray-300 text-amber-600" @checked(old('auto_disburse'))>
+                            <input type="checkbox" name="auto_disburse" value="1" class="mt-0.5 rounded border-gray-300 text-brand" @checked(old('auto_disburse'))>
                             <span>
                                 <span class="font-semibold text-gray-900">Send via mobile money</span>
                                 <span class="block text-xs text-gray-600 mt-0.5">

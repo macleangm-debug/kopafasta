@@ -22,8 +22,8 @@
     </div>
 
     <div class="mb-4 flex flex-wrap gap-2 text-xs">
-        <a href="{{ route('admin.capital-funding.funded-loans') }}" class="font-semibold text-amber-700 hover:underline">{{ __('admin.capital_funding.funded_loans') }} →</a>
-        <a href="{{ route('admin.capital-funding.withdrawals') }}" class="font-semibold text-amber-700 hover:underline">
+        <a href="{{ route('admin.capital-funding.funded-loans') }}" class="font-semibold text-brand hover:underline">{{ __('admin.capital_funding.funded_loans') }} →</a>
+        <a href="{{ route('admin.capital-funding.withdrawals') }}" class="font-semibold text-brand hover:underline">
             {{ __('admin.capital_funding.withdrawals') }}
             @if (($summary['pending_withdrawals'] ?? 0) > 0)
                 <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-amber-200 text-amber-900">{{ $summary['pending_withdrawals'] }}</span>
@@ -78,9 +78,9 @@
             <h3 class="text-sm font-semibold text-gray-800 mb-2">{{ __('admin.capital_funding.allocation_method') }}</h3>
             <p class="text-sm text-gray-600">{{ __('admin.capital_funding.proportional_note') }}</p>
             <div class="mt-4 flex flex-wrap gap-2">
-                <a href="{{ route('admin.lenders.index') }}" class="text-xs font-semibold text-amber-700 hover:underline">{{ __('admin.capital_funding.manage_partners') }} →</a>
-                <a href="{{ route('admin.funding-pools.index') }}" class="text-xs font-semibold text-amber-700 hover:underline">{{ __('admin.capital_funding.manage_pools') }} →</a>
-                <a href="{{ route('admin.loan-products.index') }}" class="text-xs font-semibold text-amber-700 hover:underline">{{ __('admin.capital_funding.loan_products') }} →</a>
+                <a href="{{ route('admin.lenders.index') }}" class="text-xs font-semibold text-brand hover:underline">{{ __('admin.capital_funding.manage_partners') }} →</a>
+                <a href="{{ route('admin.funding-pools.index') }}" class="text-xs font-semibold text-brand hover:underline">{{ __('admin.capital_funding.manage_pools') }} →</a>
+                <a href="{{ route('admin.loan-products.index') }}" class="text-xs font-semibold text-brand hover:underline">{{ __('admin.capital_funding.loan_products') }} →</a>
             </div>
         </div>
     </div>
@@ -88,7 +88,7 @@
     <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6 mb-6">
         <div class="flex items-center justify-between mb-4">
             <h3 class="text-sm font-semibold text-gray-800">{{ __('admin.capital_funding.partners_table') }}</h3>
-            <a href="{{ route('admin.lenders.create') }}" class="text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 px-3 py-1.5 rounded-lg">+ {{ __('admin.capital_funding.new_partner') }}</a>
+            <a href="{{ route('admin.lenders.create') }}" class="text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-1.5 rounded-lg">+ {{ __('admin.capital_funding.new_partner') }}</a>
         </div>
         @if ($partners === [])
             <p class="text-sm text-gray-500">{{ __('admin.capital_funding.no_partners') }}</p>
@@ -122,7 +122,7 @@
                                 <td class="py-2 pr-4 text-right font-mono text-emerald-800">{{ format_money($p['interest_earned_partner']) }}</td>
                                 <td class="py-2 pr-4 text-right font-mono text-sky-800">{{ format_money($p['interest_earned_company']) }}</td>
                                 <td class="py-2 text-right">
-                                    <a href="{{ route('admin.lenders.show', $p['id']) }}" class="text-xs font-semibold text-amber-700 hover:underline">{{ __('admin.capital_funding.view') }} →</a>
+                                    <a href="{{ route('admin.lenders.show', $p['id']) }}" class="text-xs font-semibold text-brand hover:underline">{{ __('admin.capital_funding.view') }} →</a>
                                 </td>
                             </tr>
                         @endforeach
@@ -161,7 +161,7 @@
                                 <td class="py-2 pr-4 text-right font-mono">{{ format_money($row->outstanding_exposure) }}</td>
                                 <td class="py-2 text-right">
                                     @if ($row->loan)
-                                        <a href="{{ route('admin.loans.show', $row->loan) }}" class="text-xs font-semibold text-amber-700 hover:underline">{{ __('admin.capital_funding.view_loan') }} →</a>
+                                        <a href="{{ route('admin.loans.show', $row->loan) }}" class="text-xs font-semibold text-brand hover:underline">{{ __('admin.capital_funding.view_loan') }} →</a>
                                     @endif
                                 </td>
                             </tr>

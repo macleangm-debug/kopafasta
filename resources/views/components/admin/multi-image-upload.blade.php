@@ -60,12 +60,12 @@
                         @if ($slot['required']) <span class="text-red-500">*</span> @endif
                     </label>
                     @if ($slot['path'])
-                        <label class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-800 cursor-pointer">
+                        <label class="inline-flex items-center gap-1 text-[10px] font-semibold text-brand cursor-pointer">
                             <input type="radio"
                                    name="{{ $coverName }}"
                                    value="{{ $slot['path'] }}"
                                    x-model="cover"
-                                   class="text-amber-500 focus:ring-amber-500 size-3.5">
+                                   class="text-brand focus:ring-brand size-3.5">
                             {{ __('borrower.marketplace.set_as_cover') }}
                         </label>
                     @endif
@@ -79,7 +79,7 @@
                             <img src="{{ $slot['url'] }}" alt="" class="w-full h-full object-cover" loading="lazy" referrerpolicy="no-referrer">
                         </button>
                         <span x-show="cover === @js($slot['path'])"
-                              class="absolute top-2 left-2 rounded-full bg-amber-500 text-gray-900 text-[10px] font-semibold px-2 py-0.5">
+                              class="absolute top-2 left-2 rounded-full bg-brand-gold text-brand text-[10px] font-semibold px-2 py-0.5">
                             {{ __('borrower.marketplace.cover_badge') }}
                         </span>
                         <div class="mt-2 flex flex-wrap gap-1.5">
@@ -87,7 +87,7 @@
                                     class="inline-flex items-center rounded-full bg-white ring-1 ring-gray-200 px-2.5 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-50">
                                 {{ __('borrower.profile.view_document') }}
                             </button>
-                            <label class="inline-flex items-center rounded-full bg-white ring-1 ring-amber-200 px-2.5 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-50 cursor-pointer">
+                            <label class="inline-flex items-center rounded-full bg-white ring-1 ring-brand/20 px-2.5 py-1 text-[11px] font-semibold text-brand hover:bg-brand-muted cursor-pointer">
                                 {{ __('borrower.profile.replace_photo') }}
                                 {{-- No name on picker — host carries named File clones (avoids Chrome accept popup). --}}
                                 <input type="file"
@@ -105,7 +105,7 @@
                         </div>
                     </div>
                 @else
-                    <label class="flex flex-col items-center justify-center gap-2 aspect-[4/3] rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-amber-50 hover:border-amber-300 cursor-pointer transition text-center px-2">
+                    <label class="flex flex-col items-center justify-center gap-2 aspect-[4/3] rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-brand-muted hover:border-brand/40 cursor-pointer transition text-center px-2">
                         <span class="text-lg leading-none text-gray-400">＋</span>
                         <span class="text-[11px] font-semibold text-gray-600">{{ __('borrower.marketplace.add_photo_slot') }}</span>
                         <input type="file"
@@ -116,13 +116,13 @@
                                @if ($slot['required']) data-required-slot="1" @endif>
                         <img data-slot-preview="{{ $slot['index'] }}" alt="" class="hidden absolute inset-0 w-full h-full object-cover rounded-lg">
                     </label>
-                    <label class="mt-2 hidden items-center gap-1 text-[10px] font-semibold text-amber-800 cursor-pointer"
+                    <label class="mt-2 hidden items-center gap-1 text-[10px] font-semibold text-brand cursor-pointer"
                            data-new-cover-label="{{ $slot['index'] }}">
                         <input type="radio"
                                name="{{ $coverName }}"
                                value="__new_{{ $slot['index'] }}"
                                x-model="cover"
-                               class="text-amber-500 focus:ring-amber-500 size-3.5">
+                               class="text-brand focus:ring-brand size-3.5">
                         {{ __('borrower.marketplace.set_as_cover') }}
                     </label>
                 @endif
@@ -262,7 +262,7 @@
                                 preview.classList.add('block');
                                 const wrap = preview.closest('label');
                                 if (wrap) {
-                                    wrap.classList.add('relative', 'overflow-hidden', 'border-solid', 'border-amber-300', 'bg-black');
+                                    wrap.classList.add('relative', 'overflow-hidden', 'border-solid', 'border-brand/40', 'bg-black');
                                     wrap.querySelectorAll('span').forEach(function (el) { el.classList.add('hidden'); });
                                 }
                             }

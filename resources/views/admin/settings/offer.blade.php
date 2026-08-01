@@ -18,14 +18,14 @@
                     <input type="hidden" name="require_offer_acceptance_code" value="0">
                     <input type="checkbox" name="require_offer_acceptance_code" value="1"
                            @checked(! empty($values['require_offer_acceptance_code']))
-                           class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                           class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
                     <span class="text-gray-800">Require offer acceptance code (SMS OTP)</span>
                 </label>
                 <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
                     <input type="hidden" name="require_contract_acceptance_code" value="0">
                     <input type="checkbox" name="require_contract_acceptance_code" value="1"
                            @checked(! empty($values['require_contract_acceptance_code']))
-                           class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                           class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
                     <span class="text-gray-800">Require contract acceptance code (SMS OTP)</span>
                 </label>
             </div>
@@ -44,7 +44,7 @@
         </div>
 
         <div class="flex justify-end">
-            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">
                 Save offer settings
             </button>
         </div>

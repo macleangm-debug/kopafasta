@@ -8,12 +8,12 @@
             </svg>
             <input type="text" wire:model.live.debounce.300ms="search"
                    placeholder="Search loan number, customer, phone…"
-                   class="w-full pl-9 pr-3 py-2 text-sm bg-white border border-gray-300 rounded-lg shadow-sm placeholder:text-gray-400 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition">
+                   class="w-full pl-9 pr-3 py-2 text-sm bg-white border border-gray-300 rounded-lg shadow-sm placeholder:text-gray-400 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 transition">
         </div>
 
         <div class="relative">
             <select wire:model.live="status" @if($lockStatus) disabled @endif
-                    class="appearance-none text-sm bg-white border border-gray-300 rounded-lg shadow-sm pl-3.5 pr-9 py-2 font-medium text-gray-700 cursor-pointer hover:border-gray-400 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition disabled:bg-gray-100 disabled:cursor-not-allowed">
+                    class="appearance-none text-sm bg-white border border-gray-300 rounded-lg shadow-sm pl-3.5 pr-9 py-2 font-medium text-gray-700 cursor-pointer hover:border-gray-400 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 transition disabled:bg-gray-100 disabled:cursor-not-allowed">
                 <option value="">All statuses</option>
                 @foreach ($statuses as $s)
                     <option value="{{ $s }}">{{ display_label($s, 'loan_status') }}</option>
@@ -53,7 +53,7 @@
                             <span class="inline-flex items-center gap-1">
                                 {{ $label }}
                                 @if ($sort === $col)
-                                    <span class="text-amber-600">{{ $direction === 'asc' ? '▲' : '▼' }}</span>
+                                    <span class="text-brand">{{ $direction === 'asc' ? '▲' : '▼' }}</span>
                                 @endif
                             </span>
                         </th>
@@ -98,7 +98,7 @@
                             <div class="inline-flex items-center gap-1">
                                 <a href="{{ route('admin.loans.show', $loan) }}"
                                    title="View"
-                                   class="inline-flex items-center justify-center size-8 rounded-lg text-gray-500 hover:text-amber-600 hover:bg-amber-50 transition">
+                                   class="inline-flex items-center justify-center size-8 rounded-lg text-gray-500 hover:text-brand hover:bg-brand-muted transition">
                                     <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
@@ -107,7 +107,7 @@
                                 @unless ($loan->isServicingLocked())
                                 <a href="{{ route('admin.loans.edit', $loan) }}"
                                    title="Edit"
-                                   class="inline-flex items-center justify-center size-8 rounded-lg text-gray-500 hover:text-amber-600 hover:bg-amber-50 transition">
+                                   class="inline-flex items-center justify-center size-8 rounded-lg text-gray-500 hover:text-brand hover:bg-brand-muted transition">
                                     <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                     </svg>
@@ -133,7 +133,7 @@
                         <td colspan="{{ $status === 'pending' ? 8 : 7 }}" class="px-5 py-12 text-center text-gray-500">
                             <p>No loans found.</p>
                             <p class="text-sm mt-2">Loans are created from approved applications — start at
-                                <a href="{{ route('admin.loan-applications.index') }}" class="text-amber-700 font-medium hover:text-amber-800">Applications</a>.
+                                <a href="{{ route('admin.loan-applications.index') }}" class="text-amber-700 font-medium hover:text-brand-light">Applications</a>.
                             </p>
                         </td>
                     </tr>

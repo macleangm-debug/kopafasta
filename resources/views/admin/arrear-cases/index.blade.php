@@ -21,7 +21,7 @@
             <p class="text-2xl font-bold text-gray-900">{{ format_money($totals['penalties']) }}</p>
         </div>
         <div class="rounded-xl bg-white ring-1 ring-gray-200 p-4 flex items-end">
-            <a href="{{ route('admin.loans.arrears') }}" class="text-sm font-semibold text-amber-700 hover:text-amber-800">View loans in arrears →</a>
+            <a href="{{ route('admin.loans.arrears') }}" class="text-sm font-semibold text-brand hover:text-brand-light">View loans in arrears →</a>
         </div>
     </div>
 
@@ -33,7 +33,7 @@
             'all' => 'All',
         ] as $key => $label)
             <a href="{{ route('admin.arrear-cases.index', ['status' => $key]) }}"
-               class="px-3 py-1.5 rounded-lg text-sm font-medium {{ $status === $key ? 'bg-amber-500 text-gray-900' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
+               class="px-3 py-1.5 rounded-lg text-sm font-medium {{ $status === $key ? 'bg-brand-gold text-brand' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
                 {{ $label }}
             </a>
         @endforeach
@@ -64,7 +64,7 @@
                         <tr class="hover:bg-gray-50 align-top">
                             <td class="px-5 py-3 font-mono text-xs font-semibold">
                                 @if ($loan)
-                                    <a href="{{ route('admin.loans.show', $loan) }}" class="text-amber-700 hover:text-amber-800">{{ $loan->loan_number }}</a>
+                                    <a href="{{ route('admin.loans.show', $loan) }}" class="text-brand hover:text-brand-light">{{ $loan->loan_number }}</a>
                                 @else
                                     —
                                 @endif

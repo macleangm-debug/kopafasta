@@ -18,7 +18,7 @@
     @endif
 
     <div class="mb-4 flex flex-wrap gap-3">
-        <a href="{{ route('admin.write-off-requests.index') }}" class="text-sm font-semibold text-amber-700 hover:text-amber-800">← All write-off requests</a>
+        <a href="{{ route('admin.write-off-requests.index') }}" class="text-sm font-semibold text-brand hover:text-brand-light">← All write-off requests</a>
         @if ($loan)
             <a href="{{ route('admin.loans.show', $loan) }}" class="text-sm font-semibold text-gray-600 hover:text-gray-800">Loan profile</a>
         @endif
@@ -147,7 +147,7 @@
                     <h3 class="text-sm font-semibold text-amber-900">Manager approval</h3>
                     <textarea name="manager_notes" rows="3" placeholder="Optional notes"
                               class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 px-3 py-2">{{ old('manager_notes') }}</textarea>
-                    <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold px-4 py-2.5 rounded-lg text-sm">Approve for finance</button>
+                    <button type="submit" class="w-full bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2.5 rounded-lg text-sm">Approve for finance</button>
                 </form>
             @endif
 

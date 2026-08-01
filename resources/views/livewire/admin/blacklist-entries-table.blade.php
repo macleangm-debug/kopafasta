@@ -12,7 +12,7 @@
         @forelse ($rows as $r)
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3 capitalize"><span class="rounded bg-rose-50 text-rose-700 px-2 py-0.5 text-xs">{{ $r->identifier_type }}</span></td>
-                <td class="px-5 py-3 font-mono text-xs"><a href="{{ route('admin.blacklist-entries.show', $r) }}" class="hover:text-indigo-600">{{ $r->identifier_value }}</a></td>
+                <td class="px-5 py-3 font-mono text-xs"><a href="{{ route('admin.blacklist-entries.show', $r) }}" class="hover:text-brand">{{ $r->identifier_value }}</a></td>
                 <td class="px-5 py-3">{{ $r->reason }}</td>
                 <td class="px-5 py-3 capitalize">{{ $r->source }}</td>
                 <td class="px-5 py-3 text-gray-500">{{ optional($r->expires_on)->format('Y-m-d') ?? '—' }}</td>

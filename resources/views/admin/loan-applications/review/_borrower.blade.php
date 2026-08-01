@@ -45,7 +45,7 @@
                     <dd class="font-medium mt-0.5">{{ $customer->isMembershipActive() ? 'Active' : 'Inactive / expired' }}</dd>
                 </div>
             </dl>
-            <a href="{{ route('admin.customers.show', $customer) }}" class="inline-flex mt-4 text-xs font-semibold text-amber-700 hover:text-amber-800">
+            <a href="{{ route('admin.customers.show', $customer) }}" class="inline-flex mt-4 text-xs font-semibold text-brand hover:text-brand-light">
                 Open full customer record →
             </a>
         </div>

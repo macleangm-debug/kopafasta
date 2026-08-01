@@ -73,7 +73,7 @@
                 products.forEach(function (p) {
                     var btn = document.createElement('button');
                     btn.type = 'button';
-                    btn.className = 'snap-start shrink-0 w-64 text-left rounded-xl border-2 border-gray-200 p-4 hover:border-amber-300 transition';
+                    btn.className = 'snap-start shrink-0 w-64 text-left rounded-xl border-2 border-gray-200 p-4 hover:border-brand/40 transition';
                     btn.innerHTML =
                         '<span class="text-[10px] font-mono font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">' + (p.code || '') + '</span>' +
                         '<div class="mt-2 font-semibold text-sm text-gray-900">' + p.name + '</div>' +
@@ -156,7 +156,7 @@
                     eligibilityList.innerHTML = (data.items || []).map(function (item) {
                         var icon = item.complete
                             ? '<span class="text-emerald-600">✓</span>'
-                            : '<span class="text-amber-600">□</span>';
+                            : '<span class="text-brand">□</span>';
                         return '<li class="flex gap-2 items-start">' + icon + '<span><strong>' + item.label + '</strong><br><span class="text-xs text-gray-500">' + item.detail + '</span></span></li>';
                     }).join('');
                 }
@@ -287,7 +287,7 @@
                 navButtons.forEach(function (item) {
                     var state = item.index < step ? 'done' : (item.index === step ? 'active' : 'upcoming');
                     item.btn.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border transition ' +
-                        (state === 'active' ? 'bg-amber-600 text-white border-amber-600' :
+                        (state === 'active' ? 'bg-brand-gold text-brand border-amber-600' :
                             (state === 'done' ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-white text-gray-600 border-gray-300'));
                 });
 

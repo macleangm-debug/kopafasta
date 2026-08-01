@@ -21,7 +21,7 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <div class="text-xs text-gray-500 uppercase tracking-wide">PEP flagged</div>
-            <div class="mt-2 text-2xl font-bold text-amber-600 font-mono">{{ format_number($pep) }}</div>
+            <div class="mt-2 text-2xl font-bold text-brand font-mono">{{ format_number($pep) }}</div>
         </div>
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <div class="text-xs text-gray-500 uppercase tracking-wide">Blacklisted</div>
@@ -56,7 +56,7 @@
                         <tr>
                             <td class="px-6 py-3 text-gray-500">{{ $i + 1 }}</td>
                             <td class="px-6 py-3">
-                                <a href="{{ route('admin.customers.show', $c) }}" class="text-indigo-600 hover:underline">
+                                <a href="{{ route('admin.customers.show', $c) }}" class="text-brand hover:underline">
                                     {{ trim($c->first_name.' '.$c->last_name) }}
                                 </a>
                             </td>

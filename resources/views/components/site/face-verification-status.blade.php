@@ -34,17 +34,24 @@
 {{-- Mirror NIDA card + collateral lightbox: no overflow trap, teleport escape glass-card backdrop-filter --}}
 <div
     x-data="{
-        lightbox: null,
-        lightboxLabel: null,
+        photos: @js($captured->values()->all()),
+        index: 0,
+        lightbox: false,
+        swipeStartX: null,
         openPreview(url, label) {
             if (!url) return;
-            this.lightbox = url;
-            this.lightboxLabel = label || '';
+            const i = this.photos.findIndex(p => p.url === url);
+            this.index = i >= 0 ? i : 0;
+            if (i < 0 && url) {
+                this.photos = [{ url, label: label || '' }, ...this.photos];
+                this.index = 0;
+            }
+            this.lightbox = true;
         },
-        closePreview() {
-            this.lightbox = null;
-            this.lightboxLabel = null;
-        },
+        closePreview() { this.lightbox = false; },
+        next() { if (this.photos.length) this.index = (this.index + 1) % this.photos.length; },
+        prev() { if (this.photos.length) this.index = (this.index - 1 + this.photos.length) % this.photos.length; },
+        current() { return this.photos[this.index] || null; },
     }"
     @class([
         'rounded-3xl ring-1 ring-brand/15 bg-white' => ! $compact,
@@ -127,41 +134,67 @@
                 {{ __('borrower.nida.face_view') }}
             </button>
         @endif
-        @if ($canReplaceFace)
-            <a href="{{ route('site.borrower.face-verification') }}"
-               class="inline-flex items-center justify-center font-semibold px-4 py-2 rounded-full text-sm bg-brand-gold hover:bg-yellow-400 text-brand">
-                {{ __('borrower.nida.face_replace') }}
-            </a>
-        @elseif ($statusKey === 'verified')
-            <form method="POST" action="{{ route('site.borrower.face-verification.retake') }}"
-                  @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.nida.face_replace')), message: @js(__('borrower.nida.face_replace_hint')), confirmLabel: @js(__('borrower.nida.face_retake')), confirmClass: 'bg-brand-gold hover:bg-yellow-400 text-brand' })">
-                @csrf
-                <button type="submit"
-                        class="inline-flex items-center justify-center font-semibold px-4 py-2 rounded-full text-sm bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand">
+        @if ($canReplaceFace || $statusKey === 'verified')
+            @if ($statusKey === 'verified')
+                <form method="POST" action="{{ route('site.borrower.face-verification.retake') }}"
+                      @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.nida.face_replace')), message: @js(__('borrower.nida.face_replace_hint')), confirmLabel: @js(__('borrower.nida.face_retake')), confirmClass: 'bg-brand-gold hover:bg-yellow-400 text-brand' })">
+                    @csrf
+                    <button type="submit"
+                            class="inline-flex items-center justify-center font-semibold px-4 py-2 rounded-full text-sm bg-brand-gold hover:bg-yellow-400 text-brand">
+                        {{ __('borrower.nida.face_replace') }}
+                    </button>
+                </form>
+            @else
+                <a href="{{ route('site.borrower.face-verification') }}"
+                   class="inline-flex items-center justify-center font-semibold px-4 py-2 rounded-full text-sm bg-brand-gold hover:bg-yellow-400 text-brand">
                     {{ __('borrower.nida.face_replace') }}
-                </button>
-            </form>
+                </a>
+            @endif
+        @elseif ($statusKey === 'pending')
+            <p class="text-xs text-gray-500 self-center">{{ __('borrower.nida.face_retake_pending_blocked') }}</p>
         @endif
     </div>
 
-    {{-- Collateral / NIDA enlarge: teleport out of glass-card backdrop-filter + overflow --}}
     <template x-teleport="body">
         <div x-show="lightbox" x-cloak x-transition
              class="fixed inset-0 z-[90] bg-black/80 flex items-center justify-center p-4"
              @keydown.escape.window="closePreview()"
+             @keydown.arrow-right.window="if (lightbox) next()"
+             @keydown.arrow-left.window="if (lightbox) prev()"
              @click.self="closePreview()">
             <button type="button" class="absolute top-4 right-4 text-white/90 text-2xl font-semibold" @click="closePreview()"
                     aria-label="{{ __('borrower.profile.cancel') }}">×</button>
+            <button type="button" x-show="photos.length > 1" @click.stop="prev()"
+                    class="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 rounded-full bg-white/15 hover:bg-white/25 text-white w-10 h-10 text-xl font-bold">‹</button>
+            <button type="button" x-show="photos.length > 1" @click.stop="next()"
+                    class="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 rounded-full bg-white/15 hover:bg-white/25 text-white w-10 h-10 text-xl font-bold">›</button>
             <div class="relative max-h-[90vh] max-w-[95vw]">
                 <p class="absolute -top-8 left-0 right-0 text-center text-sm font-semibold text-white/90 truncate px-8"
-                   x-text="lightboxLabel || @js(__('borrower.nida.face_preview'))"></p>
-                <img :src="lightbox" alt="" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
+                   x-text="(current()?.label || '') + (photos.length > 1 ? (' · ' + (index + 1) + '/' + photos.length) : '')"></p>
+                <img :src="current()?.url" alt="" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl"
+                     @touchstart.passive="swipeStartX = $event.changedTouches[0].clientX"
+                     @touchend.passive="
+                        const dx = $event.changedTouches[0].clientX - (swipeStartX || 0);
+                        if (Math.abs(dx) > 40) { dx < 0 ? next() : prev(); }
+                     ">
             </div>
-            @if ($canReplaceFace)
-                <a href="{{ route('site.borrower.face-verification') }}"
-                   class="absolute bottom-6 left-1/2 -translate-x-1/2 inline-flex items-center justify-center font-semibold px-5 py-2.5 rounded-full text-sm bg-brand-gold hover:bg-yellow-400 text-brand shadow-lg">
-                    {{ __('borrower.nida.face_replace') }}
-                </a>
+            @if ($canReplaceFace || $statusKey === 'verified')
+                <div class="absolute bottom-6 left-1/2 -translate-x-1/2">
+                    @if ($statusKey === 'verified')
+                        <form method="POST" action="{{ route('site.borrower.face-verification.retake') }}"
+                              @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.nida.face_replace')), message: @js(__('borrower.nida.face_replace_hint')), confirmLabel: @js(__('borrower.nida.face_retake')), confirmClass: 'bg-brand-gold hover:bg-yellow-400 text-brand' })">
+                            @csrf
+                            <button type="submit" class="inline-flex font-semibold px-5 py-2.5 rounded-full text-sm bg-brand-gold hover:bg-yellow-400 text-brand shadow-lg">
+                                {{ __('borrower.nida.face_replace') }}
+                            </button>
+                        </form>
+                    @else
+                        <a href="{{ route('site.borrower.face-verification') }}"
+                           class="inline-flex font-semibold px-5 py-2.5 rounded-full text-sm bg-brand-gold hover:bg-yellow-400 text-brand shadow-lg">
+                            {{ __('borrower.nida.face_replace') }}
+                        </a>
+                    @endif
+                </div>
             @endif
         </div>
     </template>

@@ -8,7 +8,7 @@
     <div class="mb-6 flex flex-wrap gap-2">
         @foreach ($countries as $row)
             <a href="{{ route('admin.settings.countries', ['country' => $row['code']]) }}"
-               class="px-3 py-1.5 rounded-md text-sm font-medium transition {{ ($selected['code'] ?? '') === $row['code'] ? 'bg-amber-500 text-gray-900' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
+               class="px-3 py-1.5 rounded-md text-sm font-medium transition {{ ($selected['code'] ?? '') === $row['code'] ? 'bg-brand-gold text-brand' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
                 {{ $row['emoji'] }} {{ $row['name'] }}
             </a>
         @endforeach
@@ -22,7 +22,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2 md:col-span-3">
                     <input type="hidden" name="active" value="0">
-                    <input type="checkbox" name="active" value="1" @checked($selected['active']) class="rounded border-gray-300 text-amber-600">
+                    <input type="checkbox" name="active" value="1" @checked($selected['active']) class="rounded border-gray-300 text-brand">
                     <span>Operational (borrowers can register)</span>
                 </label>
                 <div>
@@ -57,7 +57,7 @@
                 </div>
                 <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2 md:col-span-2">
                     <input type="hidden" name="guarantor_required" value="0">
-                    <input type="checkbox" name="guarantor_required" value="1" @checked($selected['guarantor_required']) class="rounded border-gray-300 text-amber-600">
+                    <input type="checkbox" name="guarantor_required" value="1" @checked($selected['guarantor_required']) class="rounded border-gray-300 text-brand">
                     <span>Guarantor required by default</span>
                 </label>
             </div>
@@ -80,7 +80,7 @@
         </div>
 
         <div class="flex justify-end">
-            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">
                 Save {{ $selected['name'] }} settings
             </button>
         </div>

@@ -40,7 +40,7 @@
             'all' => 'All',
         ] as $key => $label)
             <a href="{{ route('admin.write-off-requests.index', ['status' => $key]) }}"
-               class="px-3 py-1.5 rounded-lg text-sm font-medium {{ $status === $key ? 'bg-amber-500 text-gray-900' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
+               class="px-3 py-1.5 rounded-lg text-sm font-medium {{ $status === $key ? 'bg-brand-gold text-brand' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
                 {{ $label }}
             </a>
         @endforeach
@@ -90,7 +90,7 @@
                                 <div>{{ optional($request->recommended_at)->format('d M Y') }}</div>
                             </td>
                             <td class="px-5 py-3 text-right">
-                                <a href="{{ route('admin.write-off-requests.show', $request) }}" class="text-sm font-semibold text-amber-700 hover:text-amber-800">Review</a>
+                                <a href="{{ route('admin.write-off-requests.show', $request) }}" class="text-sm font-semibold text-brand hover:text-brand-light">Review</a>
                             </td>
                         </tr>
                     @empty

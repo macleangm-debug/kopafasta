@@ -39,7 +39,7 @@
                     <span @class([
                         'inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-3 py-1.5 whitespace-nowrap border',
                         'bg-emerald-50 text-emerald-800 border-emerald-200' => $done,
-                        'bg-amber-50 text-amber-900 border-amber-300 ring-2 ring-amber-200' => $active,
+                        'bg-amber-50 text-amber-900 border-brand/40 ring-2 ring-amber-200' => $active,
                         'bg-gray-50 text-gray-600 border-gray-200' => ! $done && ! $active,
                     ])>
                         @if ($done)
@@ -49,7 +49,7 @@
                         @else
                             <span @class([
                                 'size-4 shrink-0 rounded-full grid place-items-center text-[10px] font-bold',
-                                'bg-amber-600 text-white' => $active,
+                                'bg-brand-gold text-brand' => $active,
                                 'bg-gray-200 text-gray-600' => ! $active,
                             ])>{{ $index + 1 }}</span>
                         @endif
@@ -85,7 +85,7 @@
         </div>
     @elseif ($availableActions->isNotEmpty() && $actionsEmbeddedInRecommendation)
         <p class="text-sm text-gray-500 border-t border-gray-100 pt-4">
-            Workflow actions for this stage are in the <a href="#review-recommendation" class="font-semibold text-amber-700 hover:underline">Credit recommendation</a> panel above.
+            Workflow actions for this stage are in the <a href="#review-recommendation" class="font-semibold text-brand hover:underline">Credit recommendation</a> panel above.
         </p>
     @elseif ($currentStage !== 'rejected' && $currentStage !== 'disbursement')
         <p class="text-sm text-gray-500 border-t border-gray-100 pt-4">No workflow actions available for your role at this stage.</p>
@@ -101,7 +101,7 @@
             <ul class="space-y-4">
                 @foreach ($stageHistory as $entry)
                     <li class="flex gap-3">
-                        <div class="mt-1 size-2 rounded-full bg-amber-500 shrink-0"></div>
+                        <div class="mt-1 size-2 rounded-full bg-brand-gold shrink-0"></div>
                         <div class="min-w-0">
                             <p class="text-sm font-medium text-gray-900">
                                 {{ $workflow->stageLabel($entry->from_stage ?? 'start') }}

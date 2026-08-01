@@ -22,7 +22,7 @@
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3 font-mono text-xs text-gray-500">{{ $r->vendor_number }}</td>
                 <td class="px-5 py-3 font-medium">
-                    <a href="{{ route('admin.partners.show', $r) }}" class="text-amber-700 hover:underline">{{ $r->name }}</a>
+                    <a href="{{ route('admin.partners.show', $r) }}" class="text-brand hover:underline">{{ $r->name }}</a>
                 </td>
                 @if ($affiliateMode ?? false)
                     <td class="px-5 py-3 font-mono text-xs">{{ $r->affiliate_code ?: '—' }}</td>
@@ -53,7 +53,7 @@
                     ]" />
                 </td>
                 <td class="px-5 py-3 text-right text-sm">
-                    <a href="{{ route('admin.partners.edit', $r) }}" class="text-gray-600 hover:text-amber-700">Edit</a>
+                    <a href="{{ route('admin.partners.edit', $r) }}" class="text-gray-600 hover:text-brand">Edit</a>
                 </td>
             </tr>
         @empty

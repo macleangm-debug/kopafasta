@@ -11,7 +11,7 @@
     @endif
 
     <div class="mb-4">
-        <a href="{{ route('admin.payments.index') }}" class="text-sm font-semibold text-amber-700 hover:text-amber-800">← Back to payments</a>
+        <a href="{{ route('admin.payments.index') }}" class="text-sm font-semibold text-brand hover:text-brand-light">← Back to payments</a>
     </div>
 
     <div class="grid lg:grid-cols-3 gap-6">
@@ -38,7 +38,7 @@
                         <dt class="text-xs text-gray-500 uppercase">Related loan</dt>
                         <dd>
                             @if ($payment->loan)
-                                <a href="{{ route('admin.loans.show', $payment->loan) }}" class="text-amber-700 hover:text-amber-800 font-mono text-xs">{{ $payment->loan->loan_number ?? $payment->loan->id }}</a>
+                                <a href="{{ route('admin.loans.show', $payment->loan) }}" class="text-brand hover:text-brand-light font-mono text-xs">{{ $payment->loan->loan_number ?? $payment->loan->id }}</a>
                             @else
                                 —
                             @endif
@@ -79,7 +79,7 @@
                         <div class="col-span-2">
                             <dt class="text-xs text-gray-500 uppercase">Journal entry</dt>
                             <dd>
-                                <a href="{{ route('admin.journal-entries.show', $payment->journalEntry) }}" class="text-indigo-600 hover:text-indigo-700 font-mono text-xs">
+                                <a href="{{ route('admin.journal-entries.show', $payment->journalEntry) }}" class="text-brand hover:text-brand-light font-mono text-xs">
                                     {{ $payment->journalEntry->entry_number }}
                                 </a>
                             </dd>
@@ -97,7 +97,7 @@
                 @if ($payment->hasProof())
                     <p class="text-sm text-gray-600 mb-3">{{ $payment->proof_original_name ?? 'Uploaded document' }}</p>
                     <a href="{{ route('admin.payments.proof', $payment) }}"
-                       class="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+                       class="inline-flex items-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-light">
                         View proof
                     </a>
                 @else

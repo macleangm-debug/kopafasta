@@ -20,11 +20,11 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">Calculate recovery fees from</label>
                     <div class="flex flex-wrap gap-4 text-sm">
                         <label class="inline-flex items-center gap-2">
-                            <input type="radio" name="fee_base" value="principal" @checked(($values['fee_base'] ?? 'principal') === 'principal') class="text-amber-600">
+                            <input type="radio" name="fee_base" value="principal" @checked(($values['fee_base'] ?? 'principal') === 'principal') class="text-brand">
                             Principal only
                         </label>
                         <label class="inline-flex items-center gap-2">
-                            <input type="radio" name="fee_base" value="outstanding" @checked(($values['fee_base'] ?? '') === 'outstanding') class="text-amber-600">
+                            <input type="radio" name="fee_base" value="outstanding" @checked(($values['fee_base'] ?? '') === 'outstanding') class="text-brand">
                             Outstanding balance
                         </label>
                     </div>
@@ -33,14 +33,14 @@
                     <input type="hidden" name="auto_assign_call_center" value="0">
                     <input type="checkbox" name="auto_assign_call_center" value="1" id="auto_assign_call_center"
                            @checked((bool) ($values['auto_assign_call_center'] ?? true))
-                           class="rounded border-gray-300 text-amber-600">
+                           class="rounded border-gray-300 text-brand">
                     <label for="auto_assign_call_center" class="text-sm text-gray-700">Auto-assign call center when grace threshold is reached</label>
                 </div>
                 <div class="flex items-center gap-2 pt-6">
                     <input type="hidden" name="auto_escalate" value="0">
                     <input type="checkbox" name="auto_escalate" value="1" id="auto_escalate"
                            @checked((bool) ($values['auto_escalate'] ?? true))
-                           class="rounded border-gray-300 text-amber-600">
+                           class="rounded border-gray-300 text-brand">
                     <label for="auto_escalate" class="text-sm text-gray-700">Auto escalate when partner SLA expires</label>
                 </div>
             </div>
@@ -67,7 +67,7 @@
                             <input type="hidden" name="repossession_manual_{{ $type }}" value="0">
                             <input type="checkbox" name="repossession_manual_{{ $type }}" value="1"
                                    @checked((bool) ($values['repossession_charges'][$type]['manual_quote'] ?? $row['manual_quote'] ?? false))
-                                   class="rounded border-gray-300 text-amber-600">
+                                   class="rounded border-gray-300 text-brand">
                             Manual quote
                         </label>
                     </div>
@@ -146,7 +146,7 @@
                                     <input type="hidden" name="auto_escalate_type_{{ $type }}" value="0">
                                     <input type="checkbox" name="auto_escalate_type_{{ $type }}" value="1"
                                            @checked((bool) ($values['auto_escalate_type'][$type] ?? true))
-                                           class="rounded border-gray-300 text-amber-600">
+                                           class="rounded border-gray-300 text-brand">
                                 </td>
                             </tr>
                         @endforeach
@@ -156,7 +156,7 @@
         </div>
 
         <div class="flex justify-end">
-            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">
                 Save recovery policy
             </button>
         </div>

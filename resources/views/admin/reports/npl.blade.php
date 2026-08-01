@@ -10,7 +10,7 @@
         </div>
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <div class="text-xs text-gray-500 uppercase tracking-wide">NPL ratio</div>
-            <div class="mt-2 text-2xl font-bold {{ $nplRatio > 5 ? 'text-rose-600' : 'text-amber-600' }} font-mono">{{ format_number($nplRatio, 2) }}%</div>
+            <div class="mt-2 text-2xl font-bold {{ $nplRatio > 5 ? 'text-rose-600' : 'text-brand' }} font-mono">{{ format_number($nplRatio, 2) }}%</div>
         </div>
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <div class="text-xs text-gray-500 uppercase tracking-wide">Written off (cumulative)</div>

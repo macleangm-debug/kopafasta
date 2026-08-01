@@ -13,14 +13,14 @@
                         <div class="font-semibold text-gray-900">{{ $p->name }}</div>
                         <div class="text-xs text-gray-500 font-mono">{{ $p->code }}</div>
                     </div>
-                    <a href="{{ route('admin.loan-products.edit', $p) }}" class="text-xs font-medium text-amber-600 hover:text-amber-700">Edit requirements →</a>
+                    <a href="{{ route('admin.loan-products.edit', $p) }}" class="text-xs font-medium text-brand hover:text-brand-light">Edit requirements →</a>
                 </div>
 
                 @if ($p->requirements->isNotEmpty())
                     <ul class="text-sm space-y-1">
                         @foreach ($p->requirements as $req)
                             <li class="flex items-center gap-2">
-                                <span class="inline-block size-1.5 rounded-full {{ $req->is_required ? 'bg-amber-500' : 'bg-gray-300' }}"></span>
+                                <span class="inline-block size-1.5 rounded-full {{ $req->is_required ? 'bg-brand-gold' : 'bg-gray-300' }}"></span>
                                 <span>{{ $req->name }}</span>
                                 @if ($req->description)
                                     <span class="text-xs text-gray-400">— {{ $req->description }}</span>
@@ -48,7 +48,7 @@
         @empty
             <div class="bg-white rounded-xl ring-1 ring-gray-200 px-5 py-12 text-center text-gray-500">
                 No loan products configured.
-                <a href="{{ route('admin.loan-products.create') }}" class="block mt-2 text-amber-700 font-medium hover:text-amber-800">Create a product</a>
+                <a href="{{ route('admin.loan-products.create') }}" class="block mt-2 text-amber-700 font-medium hover:text-brand-light">Create a product</a>
             </div>
         @endforelse
     </div>

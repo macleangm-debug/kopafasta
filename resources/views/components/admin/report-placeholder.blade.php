@@ -2,7 +2,7 @@
 <x-admin.layout :title="$title" :heading="$heading">
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-8">
         <div class="max-w-2xl">
-            <div class="size-12 rounded-lg bg-amber-100 text-amber-700 grid place-items-center mb-4">
+            <div class="size-12 rounded-lg bg-brand-muted text-brand grid place-items-center mb-4">
                 <svg class="size-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
                     <path stroke-linecap="round" stroke-linejoin="round"
                           d="M3 13l4 4L17 7M19 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h6"/>
@@ -23,7 +23,7 @@
                 </div>
                 <div class="rounded-lg ring-1 ring-gray-200 p-4">
                     <div class="text-xs text-gray-500">Status</div>
-                    <div class="text-base font-semibold text-amber-700">Coming soon</div>
+                    <div class="text-base font-semibold text-brand">Coming soon</div>
                 </div>
             </div>
         </div>

@@ -31,7 +31,7 @@
                             <a href="{{ route('admin.loan-applications.show', $app) }}" class="text-xs font-semibold text-gray-600 hover:text-gray-900">Application</a>
                             <form method="POST" action="{{ route('admin.loan-applications.create-loan', $app) }}">
                                 @csrf
-                                <button type="submit" class="text-xs font-semibold text-amber-700 hover:text-amber-800">Create loan →</button>
+                                <button type="submit" class="text-xs font-semibold text-brand hover:text-brand-light">Create loan →</button>
                             </form>
                         </div>
                     </li>

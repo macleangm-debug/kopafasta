@@ -29,11 +29,11 @@
         <p class="text-xs font-semibold text-gray-700 mb-2">Insurance available <span class="text-red-500">*</span></p>
         <div class="flex gap-4 mb-3">
             <label class="inline-flex items-center gap-2 text-sm">
-                <input type="radio" name="insurance_available" value="1" @checked($insuranceAvailable === '1') x-model="insurance" class="text-amber-600 focus:ring-amber-500">
+                <input type="radio" name="insurance_available" value="1" @checked($insuranceAvailable === '1') x-model="insurance" class="text-brand focus:ring-brand">
                 Yes
             </label>
             <label class="inline-flex items-center gap-2 text-sm">
-                <input type="radio" name="insurance_available" value="0" @checked($insuranceAvailable === '0') x-model="insurance" class="text-amber-600 focus:ring-amber-500">
+                <input type="radio" name="insurance_available" value="0" @checked($insuranceAvailable === '0') x-model="insurance" class="text-brand focus:ring-brand">
                 No
             </label>
         </div>

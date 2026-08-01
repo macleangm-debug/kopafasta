@@ -27,7 +27,7 @@
                     <label class="inline-flex items-center gap-2">
                         <input type="radio" name="commission_mode" value="{{ $mode }}"
                                @checked(($values['commission_mode'] ?? 'percentage') === $mode)
-                               class="text-amber-600">
+                               class="text-brand">
                         {{ $label }}
                     </label>
                 @endforeach
@@ -82,13 +82,13 @@
                 <label class="inline-flex items-center gap-2">
                     <input type="radio" name="commission_calculation_base" value="discounted_amount"
                            @checked(($values['commission_calculation_base'] ?? 'discounted_amount') === 'discounted_amount')
-                           class="text-amber-600">
+                           class="text-brand">
                     Discounted amount (recommended)
                 </label>
                 <label class="inline-flex items-center gap-2">
                     <input type="radio" name="commission_calculation_base" value="original_amount"
                            @checked(($values['commission_calculation_base'] ?? '') === 'original_amount')
-                           class="text-amber-600">
+                           class="text-brand">
                     Original amount
                 </label>
             </div>
@@ -113,7 +113,7 @@
                         <input type="hidden" name="applies_to[{{ $key }}]" value="0">
                         <input type="checkbox" name="applies_to[{{ $key }}]" value="1"
                                @checked((bool) ($values['applies_to'][$key] ?? false))
-                               class="rounded border-gray-300 text-amber-600">
+                               class="rounded border-gray-300 text-brand">
                         {{ $label }}
                     </label>
                 @endforeach
@@ -143,7 +143,7 @@
                 <input type="hidden" name="eval_auto_apply_actions" value="0">
                 <input type="checkbox" name="eval_auto_apply_actions" value="1"
                        @checked((bool) ($eval['auto_apply_actions'] ?? true))
-                       class="rounded border-gray-300 text-amber-600">
+                       class="rounded border-gray-300 text-brand">
                 Automatically apply watchlist / suspension recommendations
             </label>
             <div class="grid md:grid-cols-3 gap-4">
@@ -193,13 +193,13 @@
                 <input type="hidden" name="require_kyc_for_verification" value="0">
                 <input type="checkbox" name="require_kyc_for_verification" value="1"
                        @checked((bool) ($values['require_kyc_for_verification'] ?? true))
-                       class="rounded border-gray-300 text-amber-600">
+                       class="rounded border-gray-300 text-brand">
                 Require approved KYC before public affiliate verification badge
             </label>
         </div>
 
         <div class="flex justify-end">
-            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">
                 Save affiliate settings
             </button>
         </div>

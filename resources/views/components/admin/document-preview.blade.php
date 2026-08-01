@@ -11,13 +11,13 @@
 @if ($variant === 'link')
     <button type="button"
             onclick="window.kfOpenDocumentPreview(@js($url), @js($label), @js($isPdf ? 'pdf' : 'image'))"
-            class="text-xs font-semibold text-amber-700 hover:text-amber-800 hover:underline">
+            class="text-xs font-semibold text-brand hover:text-brand-light hover:underline">
         {{ $label }}
     </button>
 @else
     <button type="button"
             onclick="window.kfOpenDocumentPreview(@js($url), @js($label), @js($isPdf ? 'pdf' : 'image'))"
-            class="text-xs font-semibold text-amber-700 hover:text-amber-800 bg-white ring-1 ring-gray-200 px-3 py-1.5 rounded-lg shrink-0">
+            class="text-xs font-semibold text-brand hover:text-brand-light bg-white ring-1 ring-brand/15 px-3 py-1.5 rounded-lg shrink-0">
         {{ $label }}
     </button>
 @endif

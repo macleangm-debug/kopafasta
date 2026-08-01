@@ -32,7 +32,7 @@
                 @if (! empty($values['stamp_path']))
                     <img src="{{ asset('storage/'.$values['stamp_path']) }}" alt="Company stamp" class="h-24 mb-3 object-contain">
                     <label class="flex items-center gap-2 text-sm text-gray-600 mb-3">
-                        <input type="checkbox" name="remove_stamp" value="1" class="rounded border-gray-300 text-amber-600">
+                        <input type="checkbox" name="remove_stamp" value="1" class="rounded border-gray-300 text-brand">
                         Remove current stamp
                     </label>
                 @endif
@@ -54,14 +54,14 @@
             <h3 class="text-sm font-semibold text-gray-900 mb-1">Contract sections</h3>
             <p class="text-xs text-gray-500 mb-4">
                 Enable or disable sections included in loan contract PDFs. Manage signatories under
-                <a href="{{ route('admin.settings.signatories.index') }}" class="text-amber-700 hover:underline">Signatories</a>.
+                <a href="{{ route('admin.settings.signatories.index') }}" class="text-brand hover:underline">Signatories</a>.
             </p>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 @foreach ($sectionLabels as $key => $label)
                     <label class="flex items-center gap-2 text-sm text-gray-700">
                         <input type="checkbox" name="contract_sections[{{ $key }}]" value="1"
                                @checked($contractSections[$key] ?? true)
-                               class="rounded border-gray-300 text-amber-600">
+                               class="rounded border-gray-300 text-brand">
                         {{ $label }}
                     </label>
                 @endforeach
@@ -72,7 +72,7 @@
             <h3 class="text-sm font-semibold text-gray-900 mb-1">Contract clauses</h3>
             <p class="text-xs text-gray-500 mb-4">
                 Penalty rate, grace period, and cap are taken from
-                <a href="{{ route('admin.settings.loan-rules') }}" class="text-amber-700 hover:underline">Loan Rules</a>.
+                <a href="{{ route('admin.settings.loan-rules') }}" class="text-brand hover:underline">Loan Rules</a>.
                 Configure display text for fees and recovery below — all contract PDFs pull these dynamically.
             </p>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -117,7 +117,7 @@
         </div>
 
         <div class="flex justify-end">
-            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">
                 Save legal settings
             </button>
         </div>

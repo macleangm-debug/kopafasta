@@ -72,7 +72,7 @@
                         <label class="block text-xs font-medium text-gray-600 mb-1">Notes</label>
                         <input type="text" name="uw_notes" value="{{ $row->uw_notes }}" class="w-full rounded-lg border-gray-300 text-sm" placeholder="Reason if declined…">
                     </div>
-                    <button type="submit" class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-sm">Save</button>
+                    <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2 rounded-lg text-sm">Save</button>
                 </form>
             </div>
         @empty
@@ -142,12 +142,12 @@
                         <label class="block text-xs font-medium text-gray-600 mb-1">Notes</label>
                         <input type="text" name="notes" class="w-full rounded-lg border-gray-300 text-sm" placeholder="Optional inspection notes">
                     </div>
-                    <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2 rounded-lg text-sm">Assign</button>
+                    <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2 rounded-lg text-sm">Assign</button>
                 </form>
                 <form method="POST" action="{{ route('admin.loan-applications.assign-valuer', $application) }}">
                     @csrf
                     <input type="hidden" name="auto" value="1">
-                    <button type="submit" class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-sm">Auto-assign nearest</button>
+                    <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2 rounded-lg text-sm">Auto-assign nearest</button>
                 </form>
             </div>
         @elseif ($openAssignment)
@@ -163,7 +163,7 @@
             <x-admin.input name="partner_cost" label="Partner cost" type="number" step="1" min="0" required />
             <x-admin.input name="markup_percent" label="Markup %" type="number" step="0.1" min="0" value="10" required />
             <div class="sm:col-span-4">
-                <button type="submit" class="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-sm">Add fee request</button>
+                <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2 rounded-lg text-sm">Add fee request</button>
             </div>
         </form>
     </div>

@@ -38,7 +38,7 @@
                 @php $selected = $values['reminder_channels'] ?? ['sms','email']; @endphp
                 @foreach (['sms' => 'SMS', 'email' => 'Email', 'push' => 'Push', 'whatsapp' => 'WhatsApp'] as $key => $label)
                     <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">
-                        <input type="checkbox" name="reminder_channels[]" value="{{ $key }}" @checked(in_array($key, $selected)) class="size-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500">
+                        <input type="checkbox" name="reminder_channels[]" value="{{ $key }}" @checked(in_array($key, $selected)) class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
                         <span class="text-gray-800">{{ $label }}</span>
                     </label>
                 @endforeach
@@ -47,7 +47,7 @@
         </div>
 
         <div class="flex justify-end">
-            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">Save membership settings</button>
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">Save membership settings</button>
         </div>
     </form>
 </x-admin.layout>

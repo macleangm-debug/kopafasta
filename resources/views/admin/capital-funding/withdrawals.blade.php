@@ -25,7 +25,7 @@
                         @foreach ($requests as $req)
                             <tr class="hover:bg-gray-50">
                                 <td class="py-2 px-4">
-                                    <a href="{{ route('admin.lenders.show', $req->lender) }}" class="font-medium text-amber-700 hover:underline">{{ $req->lender?->name }}</a>
+                                    <a href="{{ route('admin.lenders.show', $req->lender) }}" class="font-medium text-brand hover:underline">{{ $req->lender?->name }}</a>
                                 </td>
                                 <td class="py-2 px-4 text-right font-mono">{{ format_money($req->amount) }}</td>
                                 <td class="py-2 px-4 capitalize text-xs">{{ $req->status }}</td>
