@@ -10,7 +10,7 @@
                    class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-8 py-4 rounded-xl shadow-lg transition">
                     {{ __('site.affiliate.cta_apply') }}
                 </a>
-                <a href="{{ route('site.login', ['portal' => 'partner']) }}"
+                <a href="{{ route('site.login.partner') }}"
                    class="inline-flex items-center gap-2 glass-card-dark font-semibold px-6 py-4 rounded-xl transition hover:bg-white/10">
                     {{ __('site.affiliate.portal_title') }} →
                 </a>
@@ -63,7 +63,7 @@
                 <h2 class="text-xl font-bold text-gray-900">{{ __('site.affiliate.commission_title') }}</h2>
                 <p class="mt-3 text-sm text-gray-600 leading-relaxed">{{ __('site.affiliate.commission_body') }}</p>
                 <ul class="mt-6 space-y-3 text-sm">
-                    @foreach ([__('site.affiliate.type_individual'), __('site.affiliate.type_company'), __('site.affiliate.type_institution')] as $type)
+                    @foreach ([__('site.affiliate.type_individual'), __('site.affiliate.type_company')] as $type)
                         <li class="flex items-center gap-2 text-gray-700">
                             <span class="size-6 rounded-full bg-brand-muted text-brand grid place-items-center text-xs">●</span>
                             {{ $type }}

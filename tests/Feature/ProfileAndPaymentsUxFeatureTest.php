@@ -154,7 +154,11 @@ class ProfileAndPaymentsUxFeatureTest extends TestCase
             ['personal', 'activity', 'residence', 'kyc', 'security', 'payment', 'assets'],
             $keys
         );
-        $this->assertEmpty(collect($cards)->pluck('description')->filter()->all());
+        $this->assertEmpty(
+            collect($cards)->where('key', '!=', 'personal')->pluck('description')->filter()->all()
+        );
+        $personal = collect($cards)->firstWhere('key', 'personal');
+        $this->assertNotNull($personal['description']);
     }
 
     public function test_payments_create_accepts_loan_query_and_uses_brand_ui(): void

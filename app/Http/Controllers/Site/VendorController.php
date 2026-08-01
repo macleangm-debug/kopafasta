@@ -9,7 +9,6 @@ use App\Models\Vendor;
 use App\Models\VendorDocument;
 use App\Models\VendorPayment;
 use App\Models\VendorTask;
-use App\Services\PartnerCodeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -26,18 +25,13 @@ class VendorController extends Controller
     protected function vendor(): Vendor
     {
         $user = Auth::user();
+        abort_unless($user && $user->role === 'vendor', 403);
+
         $vendor = Vendor::where('user_id', $user->id)->first();
         if (! $vendor) {
-            $vendor = Vendor::create([
-                'vendor_number' => app(PartnerCodeService::class)->generate('gps_installer'),
-                'name'          => $user->name,
-                'category'      => 'gps_installer',
-                'phone'         => $user->phone,
-                'email'         => $user->email,
-                'status'        => 'active',
-                'user_id'       => $user->id,
-            ]);
+            abort(403, 'Partner profile not found. Contact support or activate your account.');
         }
+
         return $vendor;
     }
 

@@ -14,10 +14,16 @@ class PartnerHomeController extends Controller
     public function __invoke(Request $request): RedirectResponse|View
     {
         if (! Auth::check()) {
-            return redirect()->route('site.partner.start');
+            return redirect()->route('site.login.partner');
         }
 
-        $vendor = Vendor::where('user_id', Auth::id())->first();
+        $user = Auth::user();
+        if ($user->role !== 'vendor') {
+            return redirect()->route('site.login.partner')
+                ->with('warning', __('site.auth.use_partner_login'));
+        }
+
+        $vendor = Vendor::where('user_id', $user->id)->first();
         if ($vendor?->isAffiliate()) {
             return redirect()->route('site.affiliate.dashboard');
         }
@@ -26,6 +32,6 @@ class PartnerHomeController extends Controller
             return redirect()->route('site.supplier.dashboard');
         }
 
-        return app(VendorController::class)->dashboard($request);
+        return app(VendorController::class)->dashboard();
     }
 }

@@ -8,7 +8,7 @@
     <form method="POST" action="{{ route('admin.settings.chatbot.save') }}" class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-6">
         @csrf @method('PUT')
 
-        <p class="text-sm text-gray-600">Keywords are comma-separated. The assistant matches user messages against keywords and responds with a short delay to feel natural. Inactive entries are hidden from matching.</p>
+        <p class="text-sm text-gray-600">Keywords are comma-separated. The assistant matches user messages against keywords and responds with a short delay to feel natural. Inactive entries are hidden from matching. Suggested questions in the chat come from active English/Swahili question fields (sorted by order).</p>
 
         <div class="space-y-4" x-data="{ rows: @js($entries) }">
             <template x-for="(entry, index) in rows" :key="index">

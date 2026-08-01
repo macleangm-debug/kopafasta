@@ -12,7 +12,7 @@
                 <a href="{{ route('site.partners.apply.tracking') }}" class="inline-flex items-center gap-2 glass-card-dark font-semibold px-6 py-3 rounded-xl transition hover:bg-white/10">
                     {{ __('site.partner_apply.track_title') }}
                 </a>
-                <a href="{{ route('site.login', ['portal' => 'partner']) }}" class="inline-flex items-center gap-2 glass-card-dark font-semibold px-6 py-3 rounded-xl transition hover:bg-white/10">
+                <a href="{{ route('site.login.partner') }}" class="inline-flex items-center gap-2 glass-card-dark font-semibold px-6 py-3 rounded-xl transition hover:bg-white/10">
                     {{ __('site.partners.cta_login') }}
                 </a>
             </div>
@@ -143,7 +143,7 @@
                 <p class="mt-2 text-sm text-gray-600">{{ __('site.partners.login_hint') }}</p>
                 <div class="mt-4 flex flex-wrap justify-center gap-3">
                     <a href="{{ route('site.partner.start') }}" class="inline-flex bg-brand text-white font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-brand-light transition">{{ __('site.auth.activate_account') }}</a>
-                    <a href="{{ route('site.login', ['portal' => 'partner']) }}" class="inline-flex ring-1 ring-brand/30 text-brand font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-brand-muted transition">{{ __('site.partners.cta_login') }}</a>
+                    <a href="{{ route('site.login.partner') }}" class="inline-flex ring-1 ring-brand/30 text-brand font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-brand-muted transition">{{ __('site.partners.cta_login') }}</a>
                 </div>
             </div>
         </div>

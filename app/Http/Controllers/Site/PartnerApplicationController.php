@@ -21,7 +21,7 @@ class PartnerApplicationController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'applicant_category' => ['required', 'in:individual,company,institution'],
+            'applicant_category' => ['required', 'in:individual,company'],
             'full_name' => ['required', 'string', 'max:150'],
             'email' => ['required', 'email', 'max:150'],
             'phone' => ['required', 'string', 'max:30'],
@@ -39,7 +39,7 @@ class PartnerApplicationController extends Controller
             'doc_other' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
-        if (in_array($data['applicant_category'], ['company', 'institution'], true) && blank($data['business_name'] ?? null)) {
+        if ($data['applicant_category'] === 'company' && blank($data['business_name'] ?? null)) {
             return back()->withErrors(['business_name' => __('site.affiliate_apply.business_required')])->withInput();
         }
 

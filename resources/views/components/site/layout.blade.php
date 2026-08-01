@@ -70,7 +70,6 @@
 
                 <a href="{{ route('site.marketplace') }}" class="px-3 py-2 rounded-lg hover:bg-brand-muted hover:text-brand transition">{{ __('site.nav.marketplace') }}</a>
                 <a href="{{ route('site.affiliate') }}" class="px-3 py-2 rounded-lg hover:bg-brand-muted hover:text-brand transition">{{ __('site.nav.affiliate') }}</a>
-                <a href="{{ route('site.feedback') }}" class="px-3 py-2 rounded-lg hover:bg-brand-muted hover:text-brand transition">{{ __('site.footer.feedback') }}</a>
             </nav>
 
             <div class="hidden lg:flex items-center justify-end gap-2">
@@ -157,7 +156,7 @@
                     <li><a href="{{ route('site.partners') }}" class="hover:text-brand-gold transition">{{ __('site.footer.service_partners') }}</a></li>
                     <li><a href="{{ route('site.partners.apply', 'debt_collector') }}" class="hover:text-brand-gold transition">{{ __('site.footer.enroll_partner') }}</a></li>
                     <li><a href="{{ route('site.affiliate') }}" class="hover:text-brand-gold transition">{{ __('site.footer.become_affiliate') }}</a></li>
-                    <li><a href="{{ route('site.login', ['portal' => 'partner']) }}" class="hover:text-brand-gold transition">{{ __('site.auth.partner_portal') }}</a></li>
+                    <li><a href="{{ route('site.login.partner') }}" class="hover:text-brand-gold transition">{{ __('site.auth.partner_portal') }}</a></li>
                 </ul>
             </div>
             <div>

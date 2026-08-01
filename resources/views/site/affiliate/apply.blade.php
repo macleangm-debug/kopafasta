@@ -26,8 +26,8 @@
             @csrf
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-2">{{ __('site.affiliate.type_hint') }}</label>
-                <div class="grid sm:grid-cols-3 gap-2">
-                    @foreach (['individual' => __('site.affiliate.type_individual'), 'company' => __('site.affiliate.type_company'), 'institution' => __('site.affiliate.type_institution')] as $value => $label)
+                <div class="grid sm:grid-cols-2 gap-2">
+                    @foreach (['individual' => __('site.affiliate.type_individual'), 'company' => __('site.affiliate.type_company')] as $value => $label)
                         <label class="cursor-pointer">
                             <input type="radio" name="applicant_category" value="{{ $value }}" class="peer sr-only" x-model="applicant" @checked(old('applicant_category', 'individual') === $value) required>
                             <span class="block rounded-xl ring-1 ring-gray-200 px-3 py-3 text-center text-sm font-semibold peer-checked:ring-brand peer-checked:bg-brand-muted/50 transition">{{ $label }}</span>
@@ -54,7 +54,7 @@
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.business_name') }}</label>
                     <input name="business_name" value="{{ old('business_name') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"
-                           :required="['company','institution'].includes(applicant)">
+                           :required="applicant === 'company'">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.region') }}</label>
@@ -71,7 +71,7 @@
                 <textarea name="message" rows="4" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" placeholder="{{ __('site.affiliate_apply.message_placeholder') }}">{{ old('message') }}</textarea>
             </div>
 
-            <div class="space-y-3 rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 p-4" x-show="['company','institution'].includes(applicant)" x-cloak>
+            <div class="space-y-3 rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 p-4" x-show="applicant === 'company'" x-cloak>
                 <p class="text-xs font-semibold uppercase tracking-wide text-brand">{{ __('site.partner_apply.business_section') }}</p>
                 <div class="grid sm:grid-cols-2 gap-4">
                     <div>
@@ -95,7 +95,7 @@
                 ] as $input => $label)
                     <div>
                         <label class="block text-xs font-medium text-gray-600 mb-1">{{ $label }} <span class="text-red-500">*</span></label>
-                        <input type="file" name="{{ $input }}" accept=".jpg,.jpeg,.png,.pdf" class="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white">
+                        <x-site.single-image-document-upload :name="$input" facing="environment" :input-host-id="$input.'-host'" />
                     </div>
                 @endforeach
             </div>
@@ -109,7 +109,7 @@
                 ] as $input => $label)
                     <div>
                         <label class="block text-xs font-medium text-gray-600 mb-1">{{ $label }} <span class="text-red-500">*</span></label>
-                        <input type="file" name="{{ $input }}" accept=".jpg,.jpeg,.png,.pdf" class="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white">
+                        <x-site.single-image-document-upload :name="$input" facing="environment" :input-host-id="$input.'-host'" />
                     </div>
                 @endforeach
             </div>

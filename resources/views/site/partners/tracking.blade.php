@@ -115,7 +115,7 @@
                                         </div>
                                     @endif
                                     @if ($resultPayload['activated'])
-                                        <a href="{{ route('site.login', ['portal' => 'partner']) }}"
+                                        <a href="{{ route('site.login.partner') }}"
                                            class="inline-flex w-full justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
                                             {{ __('site.partner_apply.track_login_cta') }}
                                         </a>

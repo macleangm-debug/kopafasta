@@ -146,12 +146,16 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         Route::get('/partner/start', [\App\Http\Controllers\Site\PartnerPortalController::class, 'start'])->name('partner.start');
         Route::post('/partner/start', [\App\Http\Controllers\Site\PartnerPortalController::class, 'lookup'])->name('partner.start.lookup');
 
-        Route::redirect('/partner/login', '/login?portal=partner');
-        Route::redirect('/partners/login', '/login?portal=partner');
+        Route::redirect('/partner/login', '/login/partner');
+        Route::redirect('/partners/login', '/login/partner');
         Route::get('/staff-login', [\App\Http\Controllers\Site\AuthController::class, 'staffHint'])->name('staff-login');
         Route::get('/register/partner', fn () => redirect()->route('site.register.vendor'))->name('register.partner');
         Route::redirect('/partner/register', '/register/partner');
     });
+
+    // Partner login switch — works even if a borrower session is still open.
+    Route::get('/login/partner', [\App\Http\Controllers\Site\AuthController::class, 'switchToPartnerLogin'])
+        ->name('login.partner');
 
     Route::get('/partner', [\App\Http\Controllers\Site\PartnerHomeController::class, '__invoke'])
         ->name('partner.dashboard');

@@ -71,7 +71,7 @@ class ProfileSectionBuilderService
 
         return collect($tabStatuses)
             ->only(array_keys($meta))
-            ->map(function (array $tab, string $key) use ($meta) {
+            ->map(function (array $tab, string $key) use ($meta, $customer) {
                 $status = (string) ($tab['status'] ?? 'not_started');
                 $sectionMeta = $meta[$key] ?? ['icon' => '📋', 'action' => 'view_edit'];
 

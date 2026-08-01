@@ -46,7 +46,7 @@
 
                 <div class="mt-6 pt-6 border-t border-gray-100 text-center text-sm text-gray-500">
                     {{ __('site.auth.already_activated') }}
-                    <a href="{{ route('site.login', ['portal' => 'partner']) }}" class="text-brand font-semibold hover:underline">{{ __('site.auth.sign_in') }}</a>
+                    <a href="{{ route('site.login.partner') }}" class="text-brand font-semibold hover:underline">{{ __('site.auth.sign_in') }}</a>
                 </div>
             </div>
         </div>

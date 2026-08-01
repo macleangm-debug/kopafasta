@@ -117,7 +117,7 @@
                 @else
                     <div class="mt-6 pt-6 border-t border-gray-100 text-center text-sm text-gray-500">
                         {{ __('site.auth.use_partner_login') }}
-                        <a href="{{ route('site.login', ['portal' => 'partner']) }}" class="text-brand font-semibold hover:underline">{{ __('site.auth.partner_login_link') }}</a>
+                        <a href="{{ route('site.login.partner') }}" class="text-brand font-semibold hover:underline">{{ __('site.auth.partner_login_link') }}</a>
                     </div>
                 @endif
 

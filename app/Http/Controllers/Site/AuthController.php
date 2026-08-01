@@ -64,6 +64,20 @@ class AuthController extends Controller
         ]);
     }
 
+    /** End any borrower (or other) web session, then open the partner login screen. */
+    public function switchToPartnerLogin(Request $request): RedirectResponse
+    {
+        if (Auth::guard('web')->check()) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
+
+        $request->session()->put('login_portal', 'partner');
+
+        return redirect()->route('site.login', ['portal' => 'partner']);
+    }
+
     public function login(Request $request): RedirectResponse
     {
         $method = $request->input('auth_method', 'pin');

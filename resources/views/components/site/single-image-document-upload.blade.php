@@ -2,10 +2,12 @@
     'name' => 'document',
     'inputHostId' => null,
     'labels' => [],
+    'facing' => 'user', // user = selfie, environment = document / rear camera
 ])
 
 @php
     $hostId = $inputHostId ?? ('single-image-'.md5($name));
+    $facingMode = in_array($facing, ['user', 'environment'], true) ? $facing : 'user';
     $labelDefaults = [
         'uploadImage' => __('borrower.profile.upload_image'),
         'captureImage' => __('borrower.profile.capture_image'),
@@ -17,7 +19,7 @@
     $mergedLabels = array_merge($labelDefaults, $labels);
 @endphp
 
-<div x-data="singleImageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId))">
+<div x-data="singleImageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), @js($facingMode))">
     <div class="flex flex-wrap gap-2">
         <label class="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold px-4 py-2.5 rounded-xl text-sm cursor-pointer">
             <span x-text="labels.uploadImage"></span>
@@ -44,7 +46,9 @@
     <p x-show="cameraNotice" x-cloak class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2 mt-3" x-text="cameraNotice"></p>
 
     <div x-show="cameraOpen" x-cloak class="rounded-2xl overflow-hidden ring-1 ring-gray-200 bg-black mt-3">
-        <video x-ref="camVideo" autoplay playsinline webkit-playsinline muted class="w-full max-h-72 object-cover mirror"></video>
+        <video x-ref="camVideo" autoplay playsinline webkit-playsinline muted
+               class="w-full max-h-72 object-cover"
+               :class="facingMode === 'user' ? 'mirror' : ''"></video>
         <div class="p-3 flex gap-2 bg-white">
             <button type="button" @click="captureImage()" class="flex-1 bg-gray-900 text-white font-semibold px-4 py-2 rounded-xl text-sm" x-text="labels.captureImage"></button>
             <button type="button" @click="closeCamera()" class="px-4 py-2 rounded-xl text-sm ring-1 ring-gray-200" x-text="labels.close"></button>
@@ -68,11 +72,12 @@
     @endpush
     @push('scripts')
     <script>
-        function singleImageDocumentUpload(labels, fieldName, hostId) {
+        function singleImageDocumentUpload(labels, fieldName, hostId, facingMode = 'user') {
             return {
                 labels: labels || {},
                 fieldName,
                 hostId,
+                facingMode: facingMode || 'user',
                 cameraOpen: false,
                 cameraNotice: null,
                 stream: null,
@@ -94,7 +99,7 @@
                         await this.$nextTick();
                         await this.$nextTick();
                         this.stream = await navigator.mediaDevices.getUserMedia({
-                            video: { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+                            video: { facingMode: { ideal: this.facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
                             audio: false,
                         });
                         const video = this.$refs.camVideo;
@@ -127,8 +132,10 @@
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
                     const ctx = canvas.getContext('2d');
-                    ctx.translate(canvas.width, 0);
-                    ctx.scale(-1, 1);
+                    if (this.facingMode === 'user') {
+                        ctx.translate(canvas.width, 0);
+                        ctx.scale(-1, 1);
+                    }
                     ctx.drawImage(video, 0, 0);
                     canvas.toBlob(blob => {
                         if (!blob) return;
@@ -171,7 +178,6 @@
                     const input = document.createElement('input');
                     input.type = 'file';
                     input.name = this.fieldName;
-                    // Do not set accept — Chrome rejects empty MIME that we normalize via extension.
                     input.className = 'sr-only';
                     const dt = new DataTransfer();
                     dt.items.add(file);
