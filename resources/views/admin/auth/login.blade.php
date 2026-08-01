@@ -12,12 +12,11 @@
         <div class="absolute inset-0 opacity-40" style="background-image: radial-gradient(circle at 20% 20%, rgba(251,191,36,0.35), transparent 42%), radial-gradient(circle at 90% 80%, rgba(255,255,255,0.12), transparent 40%);"></div>
         <div class="relative">
             <div class="inline-flex items-center gap-3">
-                <div class="size-12 rounded-2xl bg-amber-400 text-[#0B3D32] grid place-items-center font-extrabold text-xl shadow-lg shadow-amber-500/20">K</div>
-                <div>
-                    <p class="text-lg font-bold tracking-tight">kopafasta</p>
-                    <p class="text-xs uppercase tracking-[0.2em] text-white/60">Staff console</p>
-                </div>
+                <img src="{{ asset(brand('logo_url_light') ?: brand('logo_url') ?: 'images/brand/kopafasta-logo-light.svg') }}"
+                     alt="{{ brand_name() }}"
+                     class="h-10 w-auto object-contain">
             </div>
+            <p class="mt-3 text-xs uppercase tracking-[0.2em] text-white/60">Staff console</p>
             <h1 class="mt-16 text-4xl font-bold leading-tight max-w-md">Operate loans, partners, and recoveries from one calm workspace.</h1>
             <p class="mt-4 text-sm text-white/70 max-w-sm">Secure access for admin, credit, collections, and operations teams.</p>
         </div>
@@ -28,9 +27,10 @@
         <div class="absolute inset-0 opacity-60" style="background-image: linear-gradient(180deg, rgba(11,61,50,0.04), transparent 40%), radial-gradient(circle at 80% 10%, rgba(251,191,36,0.12), transparent 35%);"></div>
         <div class="relative w-full max-w-md rounded-3xl bg-white/95 p-8 shadow-[0_24px_80px_rgba(11,61,50,0.12)] ring-1 ring-[#0B3D32]/10">
             <div class="mb-8">
-                <div class="lg:hidden inline-flex items-center gap-3 mb-6">
-                    <div class="size-10 rounded-xl bg-amber-400 text-[#0B3D32] grid place-items-center font-extrabold">K</div>
-                    <span class="font-bold text-[#0B3D32]">Kopafasta Console</span>
+                <div class="lg:hidden mb-6">
+                    <img src="{{ asset(brand('logo_url') ?: 'images/brand/kopafasta-logo.svg') }}"
+                         alt="{{ brand_name() }}"
+                         class="h-9 w-auto object-contain">
                 </div>
                 <h2 class="text-2xl font-bold tracking-tight text-gray-900">Welcome back</h2>
                 <p class="mt-1 text-sm text-gray-500">Sign in with your staff account to continue</p>

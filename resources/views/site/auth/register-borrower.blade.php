@@ -257,14 +257,15 @@
                                 </div>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Gender <span class="text-red-500">*</span></label>
-                                        <select name="gender" required
-                                                class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
-                                            <option value="">Select gender</option>
-                                            @foreach (['male' => 'Male', 'female' => 'Female'] as $value => $label)
-                                                <option value="{{ $value }}" @selected(old('gender') === $value)>{{ $label }}</option>
-                                            @endforeach
-                                        </select>
+                                        <x-site.profile-select
+                                            name="gender"
+                                            label="Gender"
+                                            :options="['male' => 'Male', 'female' => 'Female']"
+                                            :value="old('gender')"
+                                            :required="true"
+                                            placeholder="Select gender"
+                                            select-class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition"
+                                        />
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Date of birth <span class="text-red-500">*</span></label>

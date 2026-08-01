@@ -32,8 +32,26 @@ return [
 [
     'title' => 'Mipangilio ya akaunti',
     'subtitle' => 'PIN, vifaa, arifa na mapendeleo yako.',
-    'personalisation_title' => 'Inakuja — binafsisha akaunti yako',
-    'personalisation_hint' => 'Tutaziweka hizi chini ya Mipangilio ili Wasifu ubaki kwa uandalizi wa mkopo.',
+    'personalisation_title' => 'Binafsisha akaunti yako',
+    'personalisation_hint' => 'Jinsi tunavyokusalimu na wakati wa kukuwasiliana.',
+    'trusted_devices_advice' => 'Vifaa ulivyoviamini huruka PIN kwa muda. Ondoa usivyovitumia tena.',
+    'trusted_devices_count' => 'Vifaa :count vilivyoaminika',
+    'preferences_saved' => 'Mapendeleo yamehifadhiwa.',
+    'quiet_hours_hint' => 'Katika saa za utulivu, tunaacha ujumbe wa matangazo. Arifa za mkopo na malipo bado zinakuja.',
+    'fields' =>
+  [
+    'display_name' => 'Jina la kuonyesha',
+    'language' => 'Lugha unayopendelea',
+    'preferred_channel' => 'Njia unayopendelea ya mawasiliano',
+    'quiet_start' => 'Mwanzo wa saa za utulivu',
+    'quiet_end' => 'Mwisho wa saa za utulivu',
+  ],
+    'channels' =>
+  [
+    'in_app' => 'Arifa ndani ya programu',
+    'sms' => 'SMS',
+    'whatsapp' => 'WhatsApp',
+  ],
     'personalisation_items' =>
   [
     'language' => 'Lugha unayopendelea (inapatikana pia kwenye kichwa cha ukurasa)',

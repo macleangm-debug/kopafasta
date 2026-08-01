@@ -197,7 +197,7 @@
                       :class="faceVisible ? (poseOk ? 'bg-white animate-pulse' : 'bg-gray-900 animate-pulse') : 'bg-red-400 animate-pulse'"></span>
                 <span x-text="detectionLabel"></span>
             </span>
-            <span x-show="phase === 'scanning' && holdProgress > 0" x-cloak
+            <span x-show="false" x-cloak
                   class="text-xs font-mono text-white/80 bg-black/40 px-3 py-1 rounded-full"
                   x-text="Math.round(holdProgress) + '%'"></span>
         </div>
@@ -379,12 +379,11 @@
                     get detectionLabel() {
                         void this.uiTick;
                         if (this.phase === 'saving') return 'Saving photo…';
-                        if (this.isDesktop || this.simpleMode) return 'Tap Capture when you are ready';
-                        if (!this.detectorActive && !this.landmarkerActive) return 'Browser mode — hold your face in the oval';
-                        if (!this.faceVisible) return 'No face detected — sit closer to the camera';
-                        if (this.poseOk) return '✓ Perfect — hold still';
-                        if (this.holdProgress > 0) return 'Almost there — keep holding';
-                        return 'Face detected — adjust your head';
+                        if (!this.faceVisible && (this.detectorActive || this.landmarkerActive)) {
+                            return 'Align your face in the oval, then tap Capture';
+                        }
+                        if (this.poseOk) return 'Looking good — tap Capture when ready';
+                        return 'Align your face in the oval, then tap Capture';
                     },
 
                     get currentStep() {
@@ -395,23 +394,12 @@
                         if (this.phase === 'saving') return 'Saving…';
                         const step = this.currentStep;
                         if (!step) return '';
-                        if (this.holdProgress > 0 && this.poseOk) return 'Hold still…';
                         return step.instruction;
                     },
 
                     get statusSubtitle() {
                         if (this.phase === 'saving') return 'Uploading photo securely';
-                        const step = this.currentStep;
-                        if (!step) return '';
-                        if (this.isDesktop || this.simpleMode) return 'Follow the step instruction, then tap Capture when ready.';
-                        if (!this.faceVisible) return 'Fill the oval with your face — sit closer to the webcam';
-                        if (step.key === 'holding_nida') {
-                            return this.poseOk ? 'Keep NIDA and face visible' : 'Hold your NIDA card beside your face';
-                        }
-                        if (this.poseOk) return 'Perfect — keep this pose';
-                        if (step.pose === 'left') return 'Slowly turn your head to the left';
-                        if (step.pose === 'right') return 'Slowly turn your head to the right';
-                        return 'Look straight at the camera';
+                        return 'Place your face inside the oval, then tap Capture yourself — photos are never taken automatically.';
                     },
 
                     startUiTimer() {
@@ -794,25 +782,19 @@
                             this.lastTick = now;
 
                             if (this.poseOk) {
+                                // Pose feedback only — capture is always manual (user taps Capture).
                                 this.holdProgress = Math.min(100, this.holdProgress + (dt / 12));
-                            } else if (this.faceVisible && step.key === 'holding_nida') {
-                                this.holdProgress = Math.min(100, this.holdProgress + (dt / 16));
-                            } else if (this.faceVisible && !this.detectorActive && !this.landmarkerActive) {
-                                this.holdProgress = Math.min(100, this.holdProgress + (dt / 18));
-                            } else if (this.faceVisible && this.scanStartedAt && (now - this.scanStartedAt) > 5000) {
-                                this.holdProgress = Math.min(100, this.holdProgress + (dt / 20));
+                            } else if (this.faceVisible) {
+                                this.holdProgress = Math.max(0, this.holdProgress - (dt / 8));
                             } else {
-                                this.holdProgress = Math.max(0, this.holdProgress - (dt / 6));
+                                this.holdProgress = Math.max(0, this.holdProgress - (dt / 4));
                             }
 
-                            if (this.holdProgress >= 100 && !this.isUploading && this.phase === 'scanning') {
-                                this.captureForPreview();
-                                return;
-                            }
-
+                            // Never auto-capture — borrower taps Capture when ready.
                             if (bbox && overlay) {
                                 this.drawBox(overlay, video, bbox, this.poseOk);
                             }
+                            this.drawFaceGuide(overlay, video);
                         };
 
                         this.detectLoopId = requestAnimationFrame(tick);
@@ -837,6 +819,28 @@
                         ctx.strokeRect(x, y, box.width, box.height);
                         ctx.fillStyle = ok ? 'rgba(52,211,153,0.15)' : 'rgba(251,191,36,0.12)';
                         ctx.fillRect(x, y, box.width, box.height);
+                    },
+
+                    drawFaceGuide(overlay, video) {
+                        if (!overlay || !video?.videoWidth) return;
+                        if (overlay.width !== video.videoWidth) {
+                            overlay.width = video.videoWidth;
+                            overlay.height = video.videoHeight;
+                        }
+                        const ctx = overlay.getContext('2d');
+                        const cx = overlay.width / 2;
+                        const cy = overlay.height * 0.42;
+                        const rx = overlay.width * 0.28;
+                        const ry = overlay.height * 0.34;
+                        ctx.save();
+                        ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+                        ctx.lineWidth = Math.max(3, overlay.width / 200);
+                        ctx.setLineDash([10, 8]);
+                        ctx.beginPath();
+                        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                        ctx.restore();
                     },
 
                     poseFromBBox(box, video, step) {

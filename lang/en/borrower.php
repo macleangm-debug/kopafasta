@@ -37,8 +37,24 @@ return [
     'settings' => [
         'title' => 'Account settings',
         'subtitle' => 'PIN, devices, notifications and personal preferences.',
-        'personalisation_title' => 'Coming soon — personalise your account',
-        'personalisation_hint' => 'We will group these under Settings so Profile stays focused on loan readiness.',
+        'personalisation_title' => 'Personalise your account',
+        'personalisation_hint' => 'How we greet you and when we should message you.',
+        'trusted_devices_advice' => 'Devices you marked as trusted skip PIN for a while. Remove any you no longer use.',
+        'trusted_devices_count' => ':count trusted device(s)',
+        'preferences_saved' => 'Preferences saved.',
+        'quiet_hours_hint' => 'During quiet hours we pause promotional messages. Loan and payment alerts still come through.',
+        'fields' => [
+            'display_name' => 'Display name',
+            'language' => 'Preferred language',
+            'preferred_channel' => 'Preferred contact channel',
+            'quiet_start' => 'Quiet hours start',
+            'quiet_end' => 'Quiet hours end',
+        ],
+        'channels' => [
+            'in_app' => 'In-app notifications',
+            'sms' => 'SMS',
+            'whatsapp' => 'WhatsApp',
+        ],
         'personalisation_items' => [
             'language' => 'Preferred language (also available in the header today)',
             'display_name' => 'How we greet you on the dashboard',

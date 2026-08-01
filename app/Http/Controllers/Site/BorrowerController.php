@@ -1318,6 +1318,35 @@ class BorrowerController extends Controller
         return view('site.borrower.settings', compact('customer', 'trustedDevices'));
     }
 
+    public function updateSettingsPreferences(Request $request): RedirectResponse
+    {
+        $user = auth()->user();
+        abort_unless($user, 403);
+
+        $data = $request->validate([
+            'display_name'       => ['nullable', 'string', 'max:80'],
+            'preferred_locale'   => ['required', 'in:en,sw'],
+            'preferred_channel'  => ['required', 'in:in_app,sms,whatsapp'],
+            'quiet_hours_start'  => ['nullable', 'date_format:H:i'],
+            'quiet_hours_end'    => ['nullable', 'date_format:H:i'],
+        ]);
+
+        $prefs = $user->preferences ?? [];
+        $prefs['display_name'] = trim((string) ($data['display_name'] ?? '')) ?: null;
+        $prefs['preferred_locale'] = $data['preferred_locale'];
+        $prefs['preferred_channel'] = $data['preferred_channel'];
+        $prefs['quiet_hours_start'] = $data['quiet_hours_start'] ?: null;
+        $prefs['quiet_hours_end'] = $data['quiet_hours_end'] ?: null;
+        $user->update(['preferences' => $prefs]);
+
+        session(['locale' => $data['preferred_locale']]);
+        app()->setLocale($data['preferred_locale']);
+
+        return redirect()
+            ->route('site.borrower.settings')
+            ->with('status', __('borrower.settings.preferences_saved'));
+    }
+
     public function profile(Request $request, ?string $section = null): View|RedirectResponse
     {
         $customer = $this->customer();

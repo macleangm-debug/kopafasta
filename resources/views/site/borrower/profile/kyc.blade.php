@@ -31,7 +31,7 @@
             :empty="! $documentsComplete"
             :default-open="($wizardMode ?? false) || ($editing ?? false)">
             <x-slot:view>
-                <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+                <dl class="grid sm:grid-cols-2 gap-4 text-sm mb-5">
                     <div>
                         <dt class="text-gray-500">{{ __('borrower.profile.income_range') }}</dt>
                         @if ($incomeLabel)
@@ -45,12 +45,30 @@
                         <dd class="font-medium mt-0.5">{{ $documentsComplete ? __('borrower.profile.section_complete') : __('borrower.profile.section_incomplete') }}</dd>
                     </div>
                 </dl>
-                @unless ($documentsComplete)
+                @php
+                    $viewDocs = collect($incomeProofChecklist ?? [])->filter(fn ($item) => ! empty($item['document']));
+                @endphp
+                @if ($viewDocs->isNotEmpty())
+                    <div class="space-y-4 pt-4 border-t border-gray-100">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ __('borrower.profile.proof_of_income_title') }}</p>
+                        @foreach ($viewDocs as $item)
+                            <x-site.profile-document-field
+                                :document="$item['document']"
+                                :field-name="$item['key'] ?? 'income_proof'"
+                                :document-code="$item['document_code'] ?? ($item['key'] ?? null)"
+                                mode="multi"
+                                :label="$item['label']"
+                                :input-host-id="'income-view-'.($item['key'] ?? $loop->index)"
+                                :read-only="true"
+                            />
+                        @endforeach
+                    </div>
+                @elseif (! $documentsComplete)
                     <button type="button" @click="open = true"
-                            class="mt-4 text-sm font-semibold text-amber-700 hover:text-amber-800">
+                            class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">
                         {{ __('borrower.profile.add_details') }}
                     </button>
-                @endunless
+                @endif
             </x-slot:view>
             <x-slot:form>
                 <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'kyc']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"

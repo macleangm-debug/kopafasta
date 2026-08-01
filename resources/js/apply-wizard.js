@@ -187,6 +187,18 @@ export function applyWizard(config) {
 
                 syncStepKey() {
                     this.stepKey = this.steps[this.step]?.key ?? '';
+                    this.syncUrlStep();
+                },
+
+                syncUrlStep() {
+                    try {
+                        const url = new URL(window.location.href);
+                        if (this.phase === 'application' && this.stepKey) {
+                            url.searchParams.set('resume', '1');
+                            url.searchParams.set('step_key', this.stepKey);
+                            window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+                        }
+                    } catch (e) { /* ignore */ }
                 },
 
                 bumpFurthest(index = this.step) {
@@ -218,8 +230,9 @@ export function applyWizard(config) {
                     });
                     this.$watch('step', () => {
                         this.bumpFurthest(this.step);
-                        this.scheduleDraftSave();
                         this.syncStepKey();
+                        // Persist immediately so language switches keep the visible step.
+                        this.persistDraft(true);
                     });
                     this.$watch('stepKey', (key) => {
                         if (key === 'application_fee') {
@@ -703,6 +716,14 @@ export function applyWizard(config) {
                         this.syncFeePaidState();
                         this.syncValuationFeePaidState();
                         await this.persistDraft(true);
+                        // Drop the fee step from the rail once paid, then advance.
+                        const nextKey = this.steps.find(s => s.key === 'guarantor')?.key
+                            || this.steps.find(s => s.key === 'product_questions')?.key
+                            || this.steps.find(s => s.key === 'review')?.key
+                            || 'review';
+                        this.rebuildSteps(nextKey);
+                        this.step = this.resolveStepIndex(nextKey, this.step);
+                        this.syncStepKey();
                         this.feeNotice = {
                             tone: 'success',
                             message: data.message || this.i18n.applicationFee.paid,
@@ -1416,7 +1437,19 @@ export function applyWizard(config) {
                         steps.push({ key: 'submit', label: this.i18n.steps.submit });
                         this.steps = steps.map(s => this.withStepIcon(s));
                     }
-                    this.step = this.resolveStepIndex(prevKey, this.step);
+
+                    // Once the application fee is paid/waived (or zero), drop it from the step rail.
+                    this.syncFeePaidState();
+                    if (this.feeGateSatisfied() || this.effectiveFeeAmount() <= 0) {
+                        const feeIdx = this.steps.findIndex(s => s.key === 'application_fee');
+                        if (feeIdx >= 0) {
+                            this.steps = this.steps.filter(s => s.key !== 'application_fee');
+                        }
+                    }
+
+                    this.step = this.resolveStepIndex(prevKey === 'application_fee' && ! this.steps.some(s => s.key === 'application_fee')
+                        ? (this.steps[0]?.key || '')
+                        : prevKey, this.step);
                     this.syncStepKey();
                 },
 

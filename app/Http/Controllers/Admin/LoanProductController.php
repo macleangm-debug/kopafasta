@@ -154,7 +154,8 @@ class LoanProductController extends ResourceController
     public function store(Request $request): RedirectResponse
     {
         $this->normalizeMoneyRequest($request);
-        $validated = $request->validate($this->rules());
+        $cloning = $request->filled('clone_from_id');
+        $validated = $request->validate($cloning ? $this->cloneRules() : $this->rules());
         $requirements = $validated['requirements'] ?? [];
         $postApprovalFees = $validated['post_approval_fees'] ?? [];
         $rateTiers = $validated['rate_tiers'] ?? [];
@@ -193,6 +194,12 @@ class LoanProductController extends ResourceController
                 ])->all();
             }
             $validated['clone_source_id'] = $source->id;
+            if (blank($validated['code'] ?? null)) {
+                $validated['code'] = $this->uniqueProductCode($source->code, $validated['name'] ?? $source->name);
+            }
+            if (blank($validated['status'] ?? null)) {
+                $validated['status'] = 'inactive';
+            }
             if (blank($validated['image_path'] ?? null) && filled($source->image_path)) {
                 $validated['image_path'] = $source->image_path;
             }
@@ -210,9 +217,40 @@ class LoanProductController extends ResourceController
         $this->syncInterestRateFromTiers($record);
         $this->auditAdminCreated($record);
 
+        $message = ucfirst($this->singular).' created.';
+        if ($source) {
+            $message .= ' Copied settings from '.$source->name.'. Adjust tiers or fees below if needed.';
+        }
+
         return redirect()
-            ->route("{$this->routePrefix}.show", $record)
-            ->with('status', ucfirst($this->singular).' created.');
+            ->route($source ? "{$this->routePrefix}.edit" : "{$this->routePrefix}.show", $record)
+            ->with('status', $message);
+    }
+
+    /** @return array<string, mixed> */
+    protected function cloneRules(): array
+    {
+        return [
+            'clone_from_id' => ['required', 'integer', 'exists:loan_products,id'],
+            'name'          => ['required', 'string', 'max:150'],
+            'name_sw'       => ['nullable', 'string', 'max:150'],
+            'image'         => ['nullable', 'image', 'max:4096'],
+            'code'          => ['nullable', 'string', 'max:30'],
+        ];
+    }
+
+    protected function uniqueProductCode(string $sourceCode, string $name): string
+    {
+        $base = strtoupper(preg_replace('/[^A-Za-z0-9]+/', '', substr($name, 0, 8)) ?: $sourceCode);
+        $base = substr($base, 0, 10) ?: 'NEW';
+        $candidate = $base;
+        $i = 2;
+        while (LoanProduct::query()->where('code', $candidate)->exists()) {
+            $candidate = substr($base, 0, 8).$i;
+            $i++;
+        }
+
+        return $candidate;
     }
 
     public function update(Request $request, $id): RedirectResponse

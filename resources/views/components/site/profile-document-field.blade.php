@@ -9,6 +9,7 @@
     'labels' => [],
     'removeUrl' => null,
     'documentCode' => null,
+    'readOnly' => false,
 ])
 
 @php
@@ -37,13 +38,14 @@
                             <img src="{{ $previewUrl }}" alt="" class="h-full w-full object-cover object-center">
                         </button>
                     @elseif ($isPdf)
-                        <a href="{{ $previewUrl }}" target="_blank" rel="noopener"
-                           class="h-24 w-24 rounded-lg ring-1 ring-emerald-200 bg-white flex flex-col items-center justify-center text-emerald-800">
+                        <button type="button" @click="expandedUrl = @js($previewUrl)"
+                                class="h-24 w-24 rounded-lg ring-1 ring-emerald-200 bg-white flex flex-col items-center justify-center text-emerald-800 cursor-zoom-in"
+                                title="{{ __('borrower.profile.view_document') }}">
                             <svg class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                             </svg>
                             <span class="text-[10px] font-bold mt-1">PDF</span>
-                        </a>
+                        </button>
                     @else
                         <div class="h-24 w-24 rounded-lg ring-1 ring-emerald-200 bg-white flex items-center justify-center text-emerald-800 text-xs font-semibold">
                             {{ strtoupper(pathinfo($document->file_path, PATHINFO_EXTENSION) ?: 'FILE') }}
@@ -72,32 +74,35 @@
                                     class="inline-flex items-center rounded-full bg-white ring-1 ring-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100">
                                 {{ __('borrower.profile.view_document') }}
                             </button>
-                        @else
-                            <a href="{{ $previewUrl }}" target="_blank" rel="noopener"
-                               class="inline-flex items-center rounded-full bg-white ring-1 ring-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100">
+                        @elseif ($previewUrl)
+                            <button type="button" @click="expandedUrl = @js($previewUrl)"
+                                    class="inline-flex items-center rounded-full bg-white ring-1 ring-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100">
                                 {{ __('borrower.profile.view_document') }}
-                            </a>
+                            </button>
                         @endif
-                        <button type="button" @click="replaceMode = true"
-                                class="inline-flex items-center rounded-full bg-white ring-1 ring-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-50">
-                            {{ __('borrower.profile.replace_document') }}
-                        </button>
-                        @if ($removeUrl ?? null)
-                            <form method="POST" action="{{ $removeUrl }}" onsubmit="return confirm(@js(__('borrower.profile.remove_document_confirm')))">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit"
-                                        class="inline-flex items-center rounded-full bg-white ring-1 ring-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50">
-                                    {{ __('borrower.profile.remove_document') }}
-                                </button>
-                            </form>
-                        @endif
+                        @unless ($readOnly)
+                            <button type="button" @click="replaceMode = true"
+                                    class="inline-flex items-center rounded-full bg-white ring-1 ring-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-50">
+                                {{ __('borrower.profile.replace_document') }}
+                            </button>
+                            @if ($removeUrl ?? null)
+                                <form method="POST" action="{{ $removeUrl }}" onsubmit="return confirm(@js(__('borrower.profile.remove_document_confirm')))">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit"
+                                            class="inline-flex items-center rounded-full bg-white ring-1 ring-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50">
+                                        {{ __('borrower.profile.remove_document') }}
+                                    </button>
+                                </form>
+                            @endif
+                        @endunless
                     </div>
                 @endif
             </div>
         </div>
     @endif
 
+    @unless ($readOnly)
     <div @if($document) x-show="replaceMode" x-cloak @endif>
         @if ($mode === 'single')
             <x-site.single-image-document-upload
@@ -121,13 +126,19 @@
             </button>
         @endif
     </div>
+    @endunless
 
     <div x-show="expandedUrl" x-cloak x-transition
          class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"
          @keydown.escape.window="expandedUrl = null"
          @click.self="expandedUrl = null">
         <button type="button" class="absolute top-4 right-4 text-white/90 text-sm font-semibold" @click="expandedUrl = null">{{ __('borrower.profile.cancel') }}</button>
-        <img :src="expandedUrl" alt="" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
+        <template x-if="expandedUrl && String(expandedUrl).toLowerCase().includes('.pdf')">
+            <iframe :src="expandedUrl" class="h-[85vh] w-[95vw] max-w-4xl rounded-xl bg-white shadow-2xl" title="Document"></iframe>
+        </template>
+        <template x-if="expandedUrl && !String(expandedUrl).toLowerCase().includes('.pdf')">
+            <img :src="expandedUrl" alt="" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
+        </template>
     </div>
 
     @error($fieldName)<p class="text-xs text-red-600">{{ $message }}</p>@enderror
