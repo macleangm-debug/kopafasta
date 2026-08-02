@@ -17,7 +17,11 @@
     ];
 @endphp
 
-<x-admin.review-section id="review-verification" title="Face & identity verification" subtitle="Match live captures to the NIDA card (or alternate ID) after application submission">
+<x-admin.review-section id="review-verification" title="Face & identity verification" subtitle="Compare the live face photos with the identification card picture">
+    <div class="mb-5 rounded-lg bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
+        <p class="text-sm font-semibold text-amber-950">Primary check</p>
+        <p class="text-xs text-amber-900/90 mt-1">Match the borrower’s live face captures to the <strong>identification card photo</strong> (NIDA card front, or the alternate ID they uploaded). Use the bureau NIDA photo only as a backup if the card image is missing.</p>
+    </div>
     <div class="mb-5 rounded-lg bg-sky-50/80 ring-1 ring-sky-100 px-4 py-3">
         <p class="text-[10px] uppercase tracking-widest font-semibold text-sky-800 mb-2">What to verify</p>
         <div class="grid md:grid-cols-2 gap-4">
@@ -35,7 +39,7 @@
                     @foreach (config('underwriting_document_guidance.face_verification.items', []) as $item)
                         <li class="text-xs text-sky-900 flex items-start gap-2"><span class="text-sky-600 shrink-0">✓</span><span>{{ $item }}</span></li>
                     @endforeach
-                    <li class="text-xs text-sky-900 flex items-start gap-2"><span class="text-sky-600 shrink-0">✓</span><span>Match live face to NIDA card front (preferred) or bureau photo / alternate ID.</span></li>
+                    <li class="text-xs text-sky-900 flex items-start gap-2"><span class="text-sky-600 shrink-0">✓</span><span>Same person on live photos and on the ID card picture.</span></li>
                 </ul>
             </div>
         </div>
@@ -56,7 +60,8 @@
             @endif
         </div>
         <div class="rounded-lg ring-1 ring-gray-200 p-4">
-            <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest">NIDA card / ID photo</p>
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest">Identification card</p>
+            <p class="text-[11px] text-gray-500 mt-1">Compare live faces to this card picture</p>
             @if ($nidaFront)
                 <button type="button"
                         onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$nidaFront->file_path)), 'NIDA card front', 'image')"

@@ -42,6 +42,8 @@ class NotificationTemplateController extends ResourceController
                 'all' => 'All channels',
             ],
             'personalization' => TemplatePersonalization::grouped(),
+            'lifecycles' => \App\Services\Messaging\MessagingCatalog::LIFECYCLES,
+            'eventsGrouped' => \App\Services\Messaging\MessagingCatalog::eventsGroupedByLifecycle(),
         ];
     }
 

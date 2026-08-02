@@ -1,15 +1,36 @@
+@php
+    $life = \App\Services\Messaging\MessagingCatalog::lifecycleMeta((string) $record->code);
+    $event = \App\Services\Messaging\MessagingCatalog::eventsByCode()[$record->code] ?? null;
+    $sibling = \App\Models\NotificationTemplate::query()
+        ->where('code', $record->code)
+        ->where('locale', ($record->locale ?? 'en') === 'sw' ? 'en' : 'sw')
+        ->first();
+@endphp
 <x-admin.show-page
     :title="$record->name" :heading="$record->name" :subheading="$record->code"
     :backUrl="route('admin.notification-templates.index')"
     :editUrl="route('admin.notification-templates.edit', $record)"
     :fields="[
-        'Code'     => $record->code,
-        'Name'     => $record->name,
+        'When it sends' => $life['label'],
+        'Event' => $event['name'] ?? $record->name,
+        'Code' => $record->code,
         'Language' => strtoupper((string) ($record->locale ?? 'en')),
-        'Channel'  => display_label($record->channel, 'channel') ?: strtoupper((string) $record->channel),
-        'Subject'  => $record->subject ?? '—',
-        'Status'   => $record->is_active ? 'Active' : 'Inactive',
+        'Channel' => display_label($record->channel, 'channel') ?: strtoupper((string) $record->channel),
+        'Subject' => $record->subject ?? '—',
+        'Status' => $record->is_active ? 'Active' : 'Inactive',
     ]">
+    @if ($event['description'] ?? null)
+        <div class="mt-4 rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-sm text-sky-900">
+            {{ $event['description'] }}
+        </div>
+    @endif
+    @if ($sibling)
+        <div class="mt-4">
+            <a href="{{ route('admin.notification-templates.show', $sibling) }}" class="text-sm font-semibold text-brand hover:underline">
+                View {{ strtoupper($sibling->locale) }} version →
+            </a>
+        </div>
+    @endif
     <div class="mt-6 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-brand/10">
         <div class="px-6 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between gap-3">
             <h2 class="text-sm font-semibold text-gray-800">Message content</h2>

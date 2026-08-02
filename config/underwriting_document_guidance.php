@@ -81,7 +81,7 @@ return [
     'face_verification' => [
         'title' => 'Face verification',
         'items' => [
-            'Compare NIDA photo with selfie and holding-ID photo',
+            'Compare live face photos with the identification card picture (NIDA card front or alternate ID)',
             'Same person visible across all capture angles',
             'No signs of mask, screen replay, or photo-of-photo',
         ],

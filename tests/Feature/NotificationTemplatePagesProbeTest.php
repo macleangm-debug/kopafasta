@@ -30,7 +30,7 @@ class NotificationTemplatePagesProbeTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get(route('admin.notification-templates.create'))
             ->assertOk()
-            ->assertSee('Click to insert personalization', false)
+            ->assertSee('Where should this send', false)
             ->assertSee('{{ name }}', false);
 
         $this->actingAs($admin, 'admin')
@@ -42,7 +42,31 @@ class NotificationTemplatePagesProbeTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get(route('admin.notification-templates.edit', $t))
             ->assertOk()
-            ->assertSee('payment_received', false);
+            ->assertSee('When this sends', false)
+            ->assertSee('payment_received', false)
+            ->assertSee('Repayments', false);
+    }
+
+    public function test_templates_index_groups_by_lifecycle_stage(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        NotificationTemplate::create([
+            'name' => 'Overdue',
+            'code' => 'repayment_overdue',
+            'locale' => 'en',
+            'channel' => 'sms',
+            'subject' => null,
+            'body' => 'Overdue notice',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.notification-templates.index'))
+            ->assertOk()
+            ->assertSee('Late payments', false)
+            ->assertSee('Browse by when the message is sent', false)
+            ->assertSee('repayment_overdue', false);
     }
 
     public function test_messaging_page_links_to_templates(): void

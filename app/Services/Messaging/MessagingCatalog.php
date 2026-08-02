@@ -19,6 +19,55 @@ class MessagingCatalog
         'staff' => 'Staff alerts',
     ];
 
+    /**
+     * Human lifecycle stages for browsing / editing notification templates.
+     * Finer than GROUPS so staff pick “when this sends” easily.
+     *
+     * @var array<string, array{label: string, hint: string}>
+     */
+    public const LIFECYCLES = [
+        'registration' => [
+            'label' => 'Registration & security',
+            'hint' => 'PIN reset, partner activation, account security',
+        ],
+        'membership' => [
+            'label' => 'Membership',
+            'hint' => 'Issued, renewals, expiry reminders',
+        ],
+        'application' => [
+            'label' => 'Application & underwriting',
+            'hint' => 'Document requests, approvals, rejections',
+        ],
+        'borrowing' => [
+            'label' => 'Agreement & disbursement',
+            'hint' => 'Signing OTP, signed confirmation, funds released',
+        ],
+        'repayment' => [
+            'label' => 'Repayments',
+            'hint' => 'Due soon, due today, payment received, loan closed',
+        ],
+        'late_payment' => [
+            'label' => 'Late payments & collections',
+            'hint' => 'Overdue, penalties, arrears escalation',
+        ],
+        'group' => [
+            'label' => 'Group lending',
+            'hint' => 'Consent, group contract signatures',
+        ],
+        'marketplace' => [
+            'label' => 'Marketplace',
+            'hint' => 'Viewing appointments and asset messages',
+        ],
+        'staff' => [
+            'label' => 'Staff alerts',
+            'hint' => 'Internal SMS/email for officers',
+        ],
+        'other' => [
+            'label' => 'Other / custom',
+            'hint' => 'Templates not mapped to a standard event',
+        ],
+    ];
+
     public const CHANNELS = [
         'sms' => 'SMS',
         'email' => 'Email',
@@ -26,6 +75,82 @@ class MessagingCatalog
         'whatsapp' => 'WhatsApp (API-ready stub)',
         'push' => 'Push (future)',
     ];
+
+    /** Lifecycle stage key for a template / event code. */
+    public static function lifecycleForCode(string $code): string
+    {
+        return match ($code) {
+            'pin_reset_otp', 'partner_activation' => 'registration',
+            'membership_issued', 'membership_expiry_30', 'membership_expiry_14',
+            'membership_expiry_7', 'membership_expiry_1', 'membership_renewed' => 'membership',
+            'application_document_request', 'application_approved', 'application_rejected',
+            'group_member_replacement_requested', 'group_member_review_feedback',
+            'group_application_review_feedback' => 'application',
+            'agreement_otp', 'agreement_signed', 'loan_disbursed',
+            'group_contract_sign_required', 'group_contract_member_signed',
+            'group_contract_member_declined', 'group_member_consent_required' => 'borrowing',
+            'repayment_due_soon', 'repayment_due_today', 'payment_received', 'loan_closed' => 'repayment',
+            'repayment_overdue', 'penalty_accrued', 'loan_arrears' => 'late_payment',
+            'marketplace_viewing_scheduled' => 'marketplace',
+            'staff_restructure_request', 'staff_top_up_request' => 'staff',
+            default => str_starts_with($code, 'group_') ? 'group' : 'other',
+        };
+    }
+
+    /** @return array{key: string, label: string, hint: string} */
+    public static function lifecycleMeta(string $code): array
+    {
+        $key = self::lifecycleForCode($code);
+        $meta = self::LIFECYCLES[$key] ?? self::LIFECYCLES['other'];
+
+        return [
+            'key' => $key,
+            'label' => $meta['label'],
+            'hint' => $meta['hint'],
+        ];
+    }
+
+    /**
+     * Events for a lifecycle, for optgroup pickers.
+     *
+     * @return list<array{code: string, name: string, description: string}>
+     */
+    public static function eventsForLifecycle(string $lifecycle): array
+    {
+        $out = [];
+        foreach (self::events() as $event) {
+            if (self::lifecycleForCode($event['code']) === $lifecycle) {
+                $out[] = [
+                    'code' => $event['code'],
+                    'name' => $event['name'],
+                    'description' => $event['description'],
+                ];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Events grouped by lifecycle for template editors.
+     *
+     * @return array<string, list<array{code: string, name: string, description: string}>>
+     */
+    public static function eventsGroupedByLifecycle(): array
+    {
+        $grouped = [];
+        foreach (array_keys(self::LIFECYCLES) as $key) {
+            if ($key === 'other') {
+                continue;
+            }
+            $events = self::eventsForLifecycle($key);
+            if ($events !== []) {
+                $grouped[$key] = $events;
+            }
+        }
+
+        return $grouped;
+    }
 
     /**
      * @return list<array{
