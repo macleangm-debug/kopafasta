@@ -25,8 +25,16 @@
             @endif
 
             @if ($verified && $affiliate)
+                @php $photoUrl = app(\App\Services\PartnerProfileService::class)->frontPhotoUrl($affiliate); @endphp
                 <div class="glass-card rounded-2xl ring-1 ring-emerald-200/80 p-8 text-center bg-white/90">
-                    <div class="mx-auto mb-4 size-16 rounded-full bg-emerald-100 text-emerald-700 grid place-items-center text-2xl font-bold ring-1 ring-emerald-200">✓</div>
+                    @if ($photoUrl)
+                        <div class="mx-auto mb-4 relative w-20 h-20">
+                            <img src="{{ $photoUrl }}" alt="{{ $affiliate->name }}" class="size-20 rounded-full object-cover ring-2 ring-emerald-300">
+                            <span class="absolute -bottom-1 -right-1 size-6 rounded-full bg-emerald-500 text-white grid place-items-center text-xs font-bold ring-2 ring-white">✓</span>
+                        </div>
+                    @else
+                        <div class="mx-auto mb-4 size-16 rounded-full bg-emerald-100 text-emerald-700 grid place-items-center text-2xl font-bold ring-1 ring-emerald-200">✓</div>
+                    @endif
                     <p class="text-[10px] uppercase tracking-widest text-emerald-700 font-semibold">{{ __('site.affiliate_portal.verified_badge') }}</p>
                     <h2 class="text-xl font-bold text-gray-900 mt-2">{{ $affiliate->name }}</h2>
                     <p class="mt-2 font-mono text-sm text-brand font-semibold">{{ $affiliate->affiliate_code ?? $code }}</p>
@@ -45,7 +53,11 @@
                     @endif
                 </div>
             @elseif ($affiliate)
+                @php $photoUrl = app(\App\Services\PartnerProfileService::class)->frontPhotoUrl($affiliate); @endphp
                 <div class="glass-card rounded-2xl ring-1 ring-amber-200/80 p-8 text-center bg-white/90">
+                    @if ($photoUrl)
+                        <img src="{{ $photoUrl }}" alt="{{ $affiliate->name }}" class="mx-auto mb-4 size-16 rounded-full object-cover ring-2 ring-amber-300">
+                    @endif
                     <p class="text-[10px] uppercase tracking-widest text-amber-700 font-semibold">{{ __('site.affiliate_portal.kyc_pending') }}</p>
                     <h2 class="text-xl font-bold text-gray-900 mt-2">{{ $affiliate->name }}</h2>
                     <p class="mt-2 font-mono text-sm">{{ $affiliate->affiliate_code ?? $code }}</p>

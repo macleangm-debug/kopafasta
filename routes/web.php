@@ -350,8 +350,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::post('/reservations/{reservation}', [\App\Http\Controllers\Site\SupplierController::class, 'updateReservation'])->name('reservations.update');
                 Route::post('/requests/{assetRequest}', [\App\Http\Controllers\Site\SupplierController::class, 'updateRequest'])->name('requests.update');
                 Route::get('/settlements', [\App\Http\Controllers\Site\SupplierController::class, 'settlements'])->name('settlements');
-                Route::get('/profile', [\App\Http\Controllers\Site\SupplierController::class, 'profile'])->name('profile');
-                Route::put('/profile', [\App\Http\Controllers\Site\SupplierController::class, 'updateProfile'])->name('profile.update');
+                Route::get('/profile/{section?}', [\App\Http\Controllers\Site\SupplierController::class, 'profile'])->name('profile')->where('section', 'hub|personal|face|residence|activity|payment');
+                Route::put('/profile/{section}', [\App\Http\Controllers\Site\SupplierController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|face|residence|activity|payment');
                 Route::get('/documents', [\App\Http\Controllers\Site\SupplierController::class, 'documents'])->name('documents');
                 Route::post('/documents', [\App\Http\Controllers\Site\SupplierController::class, 'uploadDocument'])->name('documents.store');
                 Route::get('/settings', [\App\Http\Controllers\Site\SupplierController::class, 'settings'])->name('settings');
@@ -366,8 +366,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::get('/wallet', [\App\Http\Controllers\Site\AffiliateController::class, 'wallet'])->name('wallet');
                 Route::post('/wallet/{payment}/dispute', [\App\Http\Controllers\Site\AffiliateController::class, 'disputePayment'])->name('wallet.dispute');
             Route::post('/wallet/payout-request', [\App\Http\Controllers\Site\AffiliateController::class, 'requestPayout'])->name('wallet.payout-request');
-                Route::get('/profile', [\App\Http\Controllers\Site\AffiliateController::class, 'profile'])->name('profile');
-                Route::put('/profile', [\App\Http\Controllers\Site\AffiliateController::class, 'updateProfile'])->name('profile.update');
+                Route::get('/profile/{section?}', [\App\Http\Controllers\Site\AffiliateController::class, 'profile'])->name('profile')->where('section', 'hub|personal|face|residence|activity|payment');
+                Route::put('/profile/{section}', [\App\Http\Controllers\Site\AffiliateController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|face|residence|activity|payment');
                 Route::get('/documents', [\App\Http\Controllers\Site\AffiliateController::class, 'documents'])->name('documents');
                 Route::put('/documents', [\App\Http\Controllers\Site\AffiliateController::class, 'updateDocuments'])->name('documents.update');
                 Route::get('/settings', [\App\Http\Controllers\Site\AffiliateController::class, 'settings'])->name('settings');
@@ -384,8 +384,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/wallet/{payment}/dispute', [\App\Http\Controllers\Site\AffiliateController::class, 'disputePayment'])->name('wallet.dispute');
             Route::post('/wallet/payout-request', [\App\Http\Controllers\Site\AffiliateController::class, 'requestPayout'])->name('wallet.payout-request');
             Route::get('/notifications', [\App\Http\Controllers\Site\AffiliateController::class, 'notifications'])->name('notifications');
-            Route::get('/profile', [\App\Http\Controllers\Site\AffiliateController::class, 'profile'])->name('profile');
-            Route::put('/profile', [\App\Http\Controllers\Site\AffiliateController::class, 'updateProfile'])->name('profile.update');
+            Route::get('/profile/{section?}', [\App\Http\Controllers\Site\AffiliateController::class, 'profile'])->name('profile')->where('section', 'hub|personal|face|residence|activity|payment');
+            Route::put('/profile/{section}', [\App\Http\Controllers\Site\AffiliateController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|face|residence|activity|payment');
             Route::get('/documents', [\App\Http\Controllers\Site\AffiliateController::class, 'documents'])->name('documents');
             Route::put('/documents', [\App\Http\Controllers\Site\AffiliateController::class, 'updateDocuments'])->name('documents.update');
             Route::get('/settings', [\App\Http\Controllers\Site\AffiliateController::class, 'settings'])->name('settings');
@@ -410,8 +410,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/requests/{assetRequest}', [\App\Http\Controllers\Site\SupplierController::class, 'updateRequest'])->name('requests.update');
             Route::get('/settlements', [\App\Http\Controllers\Site\SupplierController::class, 'settlements'])->name('settlements');
             Route::get('/notifications', [\App\Http\Controllers\Site\SupplierController::class, 'notifications'])->name('notifications');
-            Route::get('/profile', [\App\Http\Controllers\Site\SupplierController::class, 'profile'])->name('profile');
-            Route::put('/profile', [\App\Http\Controllers\Site\SupplierController::class, 'updateProfile'])->name('profile.update');
+            Route::get('/profile/{section?}', [\App\Http\Controllers\Site\SupplierController::class, 'profile'])->name('profile')->where('section', 'hub|personal|face|residence|activity|payment');
+            Route::put('/profile/{section}', [\App\Http\Controllers\Site\SupplierController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|face|residence|activity|payment');
             Route::get('/documents', [\App\Http\Controllers\Site\SupplierController::class, 'documents'])->name('documents');
             Route::post('/documents', [\App\Http\Controllers\Site\SupplierController::class, 'uploadDocument'])->name('documents.store');
             Route::get('/settings', [\App\Http\Controllers\Site\SupplierController::class, 'settings'])->name('settings');
@@ -434,8 +434,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         Route::post('/investor/wallet/withdraw',                [\App\Http\Controllers\Site\InvestorController::class, 'withdraw'])     ->name('investor.wallet.withdraw');
         Route::get('/investor/documents',                       [\App\Http\Controllers\Site\InvestorController::class, 'documents'])    ->name('investor.documents');
         Route::get('/investor/notifications',                   [\App\Http\Controllers\Site\InvestorController::class, 'notifications'])->name('investor.notifications');
-        Route::get('/investor/profile',                         [\App\Http\Controllers\Site\InvestorController::class, 'profile'])      ->name('investor.profile');
-        Route::put('/investor/profile',                         [\App\Http\Controllers\Site\InvestorController::class, 'updateProfile'])->name('investor.profile.update');
+        Route::get('/investor/profile/{section?}',               [\App\Http\Controllers\Site\InvestorController::class, 'profile'])      ->name('investor.profile')->where('section', 'hub|personal|face|residence|activity|payment');
+        Route::put('/investor/profile/{section}',                [\App\Http\Controllers\Site\InvestorController::class, 'updateProfile'])->name('investor.profile.update')->where('section', 'personal|face|residence|activity|payment');
         Route::get('/investor/settings',                        [\App\Http\Controllers\Site\InvestorController::class, 'settings'])     ->name('investor.settings');
         Route::put('/investor/settings/pin',                    [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePin'])->name('investor.settings.pin');
         Route::get('/investor/support',                         [\App\Http\Controllers\Site\InvestorController::class, 'support'])      ->name('investor.support');

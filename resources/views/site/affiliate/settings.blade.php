@@ -1,7 +1,6 @@
 @php
     $accountTabs = [
         ['key' => 'profile', 'label' => __('site.partner_account.tab_profile'), 'url' => route('site.affiliate.profile')],
-        ['key' => 'documents', 'label' => __('site.partner_account.tab_documents'), 'url' => route('site.affiliate.documents')],
         ['key' => 'settings', 'label' => __('site.partner_account.tab_settings'), 'url' => route('site.affiliate.settings')],
     ];
     $membership = $membership ?? app(\App\Services\AffiliateMembershipService::class)->summary($vendor);

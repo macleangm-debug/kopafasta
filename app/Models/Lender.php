@@ -17,6 +17,7 @@ class Lender extends Model
             'auto_invest'          => 'boolean',
             'revenue_share_percent'=> 'decimal:2',
             'kyc_verified_at'      => 'datetime',
+            'metadata'             => 'array',
         ];
     }
 

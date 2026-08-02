@@ -9,6 +9,7 @@ use App\Models\LenderInvestment;
 use App\Models\LenderStatement;
 use App\Models\LenderTransaction;
 use App\Models\NotificationLog;
+use App\Services\PartnerProfileService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -434,10 +435,40 @@ class InvestorController extends Controller
     /* Profile & risk preferences                                          */
     /* ------------------------------------------------------------------ */
 
-    public function profile()
+    public function profile(Request $request, ?string $section = null)
     {
         $lender = $this->lender();
-        return view('site.investor.profile', compact('lender'));
+
+        $section = $section ?: 'hub';
+
+        if (! in_array($section, array_merge(['hub'], PartnerProfileService::SECTIONS), true)) {
+            return redirect()->route('site.investor.profile');
+        }
+
+        $common = [
+            'partner'         => $lender,
+            'portal'          => 'investor',
+            'profileRoute'    => 'site.investor.profile',
+            'updateRoute'     => 'site.investor.profile.update',
+            'layoutComponent' => 'site.investor-layout',
+            'eyebrow'         => 'Capital partner',
+            'accountTabs'     => [
+                ['key' => 'profile', 'label' => __('site.partner_account.tab_profile'), 'url' => route('site.investor.profile')],
+                ['key' => 'documents', 'label' => __('site.partner_account.tab_documents'), 'url' => route('site.investor.documents')],
+                ['key' => 'settings', 'label' => __('site.partner_account.tab_settings'), 'url' => route('site.investor.settings')],
+            ],
+        ];
+
+        if ($section === 'hub') {
+            return view('site.partner-account.hub', $common + [
+                'title'    => __('site.partner_account.hub_title'),
+                'subtitle' => __('site.partner_account.hub_subtitle'),
+            ]);
+        }
+
+        return view('site.partner-account.'.$section, $common + [
+            'title' => __('site.partner_account.'.$section.'_section'),
+        ]);
     }
 
     public function settings()
@@ -447,34 +478,25 @@ class InvestorController extends Controller
         return view('site.investor.settings', compact('lender'));
     }
 
-    public function updateProfile(Request $request)
+    public function updateProfile(Request $request, string $section = 'personal')
     {
         $lender = $this->lender();
 
-        $data = $request->validate([
-            'name'            => ['required', 'string', 'max:120'],
-            'phone'           => ['nullable', 'string', 'max:20'],
-            'email'           => ['required', 'email', 'max:120'],
-            'address'         => ['nullable', 'string', 'max:255'],
-            'risk_preference' => ['required', 'in:low,medium,high'],
-            'auto_invest'     => ['nullable', 'boolean'],
-        ]);
+        if (! in_array($section, PartnerProfileService::SECTIONS, true)) {
+            abort(404);
+        }
 
-        $lender->update([
-            'name'            => $data['name'],
-            'phone'           => $data['phone'] ?? null,
-            'email'           => $data['email'],
-            'address'         => $data['address'] ?? null,
-            'risk_preference' => $data['risk_preference'],
-            'auto_invest'     => $request->boolean('auto_invest'),
-        ]);
+        app(PartnerProfileService::class)->updateSection($lender, $section, $request);
 
-        $user = Auth::user();
-        $user->update([
-            'name'  => $data['name'],
-            'phone' => $data['phone'] ?? $user->phone,
-            'email' => $data['email'],
-        ]);
+        // Keep the underlying user account in sync when contact details change.
+        if ($section === 'personal' && in_array($request->input('focus', 'contact'), ['contact', null], true)) {
+            $user = Auth::user();
+            $user->update(array_filter([
+                'name'  => $request->filled('name') ? $request->input('name') : null,
+                'phone' => $request->filled('phone') ? $request->input('phone') : null,
+                'email' => $request->filled('email') ? $request->input('email') : null,
+            ], fn ($value) => $value !== null));
+        }
 
         return back()->with('status', 'Profile updated.');
     }

@@ -11,6 +11,7 @@ use App\Models\VendorDocument;
 use App\Models\VendorPayment;
 use App\Services\AssetReservationService;
 use App\Services\MarketplaceAssetService;
+use App\Services\PartnerProfileService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -247,11 +248,40 @@ class SupplierController extends Controller
         return back()->with('status', 'Request declined.');
     }
 
-    public function profile(): View
+    public function profile(Request $request, ?string $section = null): View|RedirectResponse
     {
         $vendor = $this->supplier();
 
-        return view('site.supplier.profile', compact('vendor'));
+        $section = $section ?: 'hub';
+
+        if (! in_array($section, array_merge(['hub'], PartnerProfileService::SECTIONS), true)) {
+            return redirect()->route('site.supplier.profile');
+        }
+
+        $common = [
+            'partner'         => $vendor,
+            'portal'          => 'supplier',
+            'profileRoute'    => 'site.supplier.profile',
+            'updateRoute'     => 'site.supplier.profile.update',
+            'layoutComponent' => 'site.supplier-layout',
+            'eyebrow'         => __('site.supplier_portal.title'),
+            'accountTabs'     => [
+                ['key' => 'profile', 'label' => __('site.partner_account.tab_profile'), 'url' => route('site.supplier.profile')],
+                ['key' => 'documents', 'label' => __('site.partner_account.tab_documents'), 'url' => route('site.supplier.documents')],
+                ['key' => 'settings', 'label' => __('site.partner_account.tab_settings'), 'url' => route('site.supplier.settings')],
+            ],
+        ];
+
+        if ($section === 'hub') {
+            return view('site.partner-account.hub', $common + [
+                'title'    => __('site.partner_account.hub_title'),
+                'subtitle' => __('site.partner_account.hub_subtitle'),
+            ]);
+        }
+
+        return view('site.partner-account.'.$section, $common + [
+            'title' => __('site.partner_account.'.$section.'_section'),
+        ]);
     }
 
     public function documents(): View
@@ -312,70 +342,15 @@ class SupplierController extends Controller
         return view('site.supplier.notifications', compact('vendor', 'notifications'));
     }
 
-    public function updateProfile(Request $request): RedirectResponse
+    public function updateProfile(Request $request, string $section = 'personal'): RedirectResponse
     {
         $vendor = $this->supplier();
-        $data = $request->validate([
-            'name'    => ['required', 'string', 'max:120'],
-            'phone'   => ['nullable', 'string', 'max:30'],
-            'email'   => ['nullable', 'email', 'max:120'],
-            'address' => ['nullable', 'string', 'max:255'],
-            'payout_type'    => ['nullable', 'in:mobile_money,bank'],
-            'payout_account_name' => ['nullable', 'string', 'max:120'],
-            'payout_mobile_provider' => ['nullable', 'string', 'max:40'],
-            'payout_mobile_number' => ['nullable', 'string', 'max:30'],
-            'payout_bank_name' => ['nullable', 'string', 'max:120'],
-            'payout_account_number' => ['nullable', 'string', 'max:60'],
-            'residence_region' => ['nullable', 'string', 'max:80'],
-            'residence_district' => ['nullable', 'string', 'max:80'],
-            'residence_street' => ['nullable', 'string', 'max:160'],
-            'activity_type' => ['nullable', 'string', 'max:80'],
-            'activity_details' => ['nullable', 'string', 'max:2000'],
-        ]);
 
-        $meta = $vendor->metadata ?? [];
-        if (filled($data['payout_type'] ?? null)) {
-            $meta['payout_account'] = array_filter([
-                'type' => $data['payout_type'],
-                'account_name' => $data['payout_account_name'] ?? null,
-                'mobile_provider' => $data['payout_mobile_provider'] ?? null,
-                'mobile_number' => $data['payout_mobile_number'] ?? null,
-                'bank_name' => $data['payout_bank_name'] ?? null,
-                'account_number' => $data['payout_account_number'] ?? null,
-            ]);
+        if (! in_array($section, PartnerProfileService::SECTIONS, true)) {
+            abort(404);
         }
 
-        if ($request->hasAny(['residence_region', 'residence_district', 'residence_street'])) {
-            $meta['residence'] = array_filter([
-                'region' => $data['residence_region'] ?? null,
-                'district' => $data['residence_district'] ?? null,
-                'street' => $data['residence_street'] ?? null,
-            ]);
-        }
-
-        if ($request->hasAny(['activity_type', 'activity_details'])) {
-            $meta['activity'] = array_filter([
-                'type' => $data['activity_type'] ?? null,
-                'details' => $data['activity_details'] ?? null,
-            ]);
-        }
-
-        unset(
-            $data['payout_type'],
-            $data['payout_account_name'],
-            $data['payout_mobile_provider'],
-            $data['payout_mobile_number'],
-            $data['payout_bank_name'],
-            $data['payout_account_number'],
-            $data['residence_region'],
-            $data['residence_district'],
-            $data['residence_street'],
-            $data['activity_type'],
-            $data['activity_details'],
-        );
-
-        $data['metadata'] = $meta;
-        $vendor->update($data);
+        app(PartnerProfileService::class)->updateSection($vendor, $section, $request);
 
         return back()->with('status', __('site.partner_account.save_profile').' ✓');
     }

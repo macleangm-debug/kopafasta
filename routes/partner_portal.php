@@ -30,8 +30,8 @@ return function (string $prefix, string $namePrefix, bool $registerDashboard = t
         Route::get('/payments/{payment}/invoice', [VendorController::class, 'invoice'])->name('invoice');
         Route::get('/calendar', [VendorController::class, 'calendar'])->name('calendar');
         Route::get('/notifications', [VendorController::class, 'notifications'])->name('notifications');
-        Route::get('/profile', [VendorController::class, 'profile'])->name('profile');
-        Route::put('/profile', [VendorController::class, 'updateProfile'])->name('profile.update');
+        Route::get('/profile/{section?}', [VendorController::class, 'profile'])->name('profile')->where('section', 'hub|personal|face|residence|activity|payment');
+        Route::put('/profile/{section}', [VendorController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|face|residence|activity|payment');
         Route::get('/settings', [VendorController::class, 'settings'])->name('settings');
         Route::put('/settings/pin', [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePin'])->name('settings.pin');
         Route::get('/support', [VendorController::class, 'support'])->name('support');
