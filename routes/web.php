@@ -353,6 +353,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::get('/documents', [\App\Http\Controllers\Site\SupplierController::class, 'documents'])->name('documents');
                 Route::post('/documents', [\App\Http\Controllers\Site\SupplierController::class, 'uploadDocument'])->name('documents.store');
                 Route::get('/settings', [\App\Http\Controllers\Site\SupplierController::class, 'settings'])->name('settings');
+                Route::put('/settings/pin', [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePin'])->name('settings.pin');
             });
 
             Route::redirect('/supplier', '/partner/supplier');
@@ -365,6 +366,10 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/wallet/payout-request', [\App\Http\Controllers\Site\AffiliateController::class, 'requestPayout'])->name('wallet.payout-request');
                 Route::get('/profile', [\App\Http\Controllers\Site\AffiliateController::class, 'profile'])->name('profile');
                 Route::put('/profile', [\App\Http\Controllers\Site\AffiliateController::class, 'updateProfile'])->name('profile.update');
+                Route::get('/documents', [\App\Http\Controllers\Site\AffiliateController::class, 'documents'])->name('documents');
+                Route::put('/documents', [\App\Http\Controllers\Site\AffiliateController::class, 'updateDocuments'])->name('documents.update');
+                Route::get('/settings', [\App\Http\Controllers\Site\AffiliateController::class, 'settings'])->name('settings');
+                Route::put('/settings/pin', [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePin'])->name('settings.pin');
             });
         });
 
@@ -376,6 +381,10 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/wallet/payout-request', [\App\Http\Controllers\Site\AffiliateController::class, 'requestPayout'])->name('wallet.payout-request');
             Route::get('/profile', [\App\Http\Controllers\Site\AffiliateController::class, 'profile'])->name('profile');
             Route::put('/profile', [\App\Http\Controllers\Site\AffiliateController::class, 'updateProfile'])->name('profile.update');
+            Route::get('/documents', [\App\Http\Controllers\Site\AffiliateController::class, 'documents'])->name('documents');
+            Route::put('/documents', [\App\Http\Controllers\Site\AffiliateController::class, 'updateDocuments'])->name('documents.update');
+            Route::get('/settings', [\App\Http\Controllers\Site\AffiliateController::class, 'settings'])->name('settings');
+            Route::put('/settings/pin', [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePin'])->name('settings.pin');
         });
 
         Route::redirect('/partner/affiliate-portal', '/partner/affiliate');
@@ -399,6 +408,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/documents', [\App\Http\Controllers\Site\SupplierController::class, 'documents'])->name('documents');
             Route::post('/documents', [\App\Http\Controllers\Site\SupplierController::class, 'uploadDocument'])->name('documents.store');
             Route::get('/settings', [\App\Http\Controllers\Site\SupplierController::class, 'settings'])->name('settings');
+            Route::put('/settings/pin', [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePin'])->name('settings.pin');
         });
 
         // ---- Investor / Capital Lender portal ----
@@ -419,6 +429,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         Route::get('/investor/notifications',                   [\App\Http\Controllers\Site\InvestorController::class, 'notifications'])->name('investor.notifications');
         Route::get('/investor/profile',                         [\App\Http\Controllers\Site\InvestorController::class, 'profile'])      ->name('investor.profile');
         Route::put('/investor/profile',                         [\App\Http\Controllers\Site\InvestorController::class, 'updateProfile'])->name('investor.profile.update');
+        Route::get('/investor/settings',                        [\App\Http\Controllers\Site\InvestorController::class, 'settings'])     ->name('investor.settings');
+        Route::put('/investor/settings/pin',                    [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePin'])->name('investor.settings.pin');
         Route::get('/investor/support',                         [\App\Http\Controllers\Site\InvestorController::class, 'support'])      ->name('investor.support');
         Route::get('/investor-portal', fn () => redirect()->route('site.investor.dashboard'));
     });

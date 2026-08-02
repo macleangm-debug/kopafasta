@@ -18,34 +18,40 @@
         </div>
     </div>
 
-    <div class="glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">
-        <table class="min-w-full text-sm">
-            <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-                <tr>
-                    <th class="text-left px-4 py-3">Invoice</th>
-                    <th class="text-left px-4 py-3">Task</th>
-                    <th class="text-left px-4 py-3">Amount</th>
-                    <th class="text-left px-4 py-3">Status</th>
-                    <th class="text-left px-4 py-3">Paid</th>
-                    <th class="px-4 py-3"></th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100">
-                @forelse ($payments as $p)
-                    @php $pc = $p->status === 'paid' ? 'emerald' : ($p->status === 'cancelled' ? 'gray' : 'amber'); @endphp
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-4 py-3 font-mono text-xs">{{ $p->invoice_number }}</td>
-                        <td class="px-4 py-3">{{ $p->task ? ucfirst(str_replace('_',' ', $p->task->task_type)) : '—' }}</td>
-                        <td class="px-4 py-3 font-semibold">{{ $fmt($p->amount) }}</td>
-                        <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-{{ $pc }}-100 text-{{ $pc }}-700">{{ $p->status }}</span></td>
-                        <td class="px-4 py-3 text-gray-600">{{ $p->paid_at?->format('d M Y') ?? '—' }}</td>
-                        <td class="px-4 py-3 text-right"><a href="{{ route('site.partner.invoice', $p) }}" class="text-brand hover:underline text-sm font-semibold">Invoice</a></td>
+    @if ($payments->isEmpty())
+        <x-site.empty-state
+            icon="💳"
+            title="No invoices yet"
+            description="Invoices appear here when you complete paid partner tasks."
+        />
+    @else
+        <div class="glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">
+            <table class="min-w-full text-sm">
+                <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+                    <tr>
+                        <th class="text-left px-4 py-3">Invoice</th>
+                        <th class="text-left px-4 py-3">Task</th>
+                        <th class="text-left px-4 py-3">Amount</th>
+                        <th class="text-left px-4 py-3">Status</th>
+                        <th class="text-left px-4 py-3">Paid</th>
+                        <th class="px-4 py-3"></th>
                     </tr>
-                @empty
-                    <tr><td colspan="6" class="px-4 py-10 text-center text-gray-500 text-sm">No invoices yet.</td></tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-    <div class="mt-6">{{ $payments->links() }}</div>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    @foreach ($payments as $p)
+                        @php $pc = $p->status === 'paid' ? 'emerald' : ($p->status === 'cancelled' ? 'gray' : 'amber'); @endphp
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3 font-mono text-xs">{{ $p->invoice_number }}</td>
+                            <td class="px-4 py-3">{{ $p->task ? ucfirst(str_replace('_',' ', $p->task->task_type)) : '—' }}</td>
+                            <td class="px-4 py-3 font-semibold">{{ $fmt($p->amount) }}</td>
+                            <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-{{ $pc }}-100 text-{{ $pc }}-700">{{ $p->status }}</span></td>
+                            <td class="px-4 py-3 text-gray-600">{{ $p->paid_at?->format('d M Y') ?? '—' }}</td>
+                            <td class="px-4 py-3 text-right"><a href="{{ route('site.partner.invoice', $p) }}" class="text-brand hover:underline text-sm font-semibold">Invoice</a></td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-6">{{ $payments->links() }}</div>
+    @endif
 </x-site.vendor-layout>

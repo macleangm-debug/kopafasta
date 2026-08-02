@@ -6,6 +6,7 @@
 
 @php
     $p = $partner;
+    $payout = $p->metadata['payout_account'] ?? [];
 @endphp
 
 @if (session('status'))
@@ -18,32 +19,122 @@
 
 <div class="grid lg:grid-cols-3 gap-6">
     <div class="lg:col-span-2 space-y-6">
-        <x-site.profile-section-card :title="__('site.partner_account.contact_details')" :collapsible="false" :default-open="true">
-            <form method="POST" action="{{ $updateRoute }}" class="space-y-4">
-                @csrf
-                @method('PUT')
-                <div>
-                    <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.display_name') }}</label>
-                    <input name="name" value="{{ old('name', $p->name) }}" required
-                           class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand focus:border-brand">
-                </div>
-                <div class="grid sm:grid-cols-2 gap-3">
-                    <x-site.phone-input name="phone" :label="__('site.partner_account.phone')" :value="old('phone', $p->phone)" variant="rounded" />
+        <x-site.profile-section-card
+            :title="__('site.partner_account.contact_details')"
+            :complete="filled($p->name) && filled($p->phone)"
+            :collapsible="true">
+            <x-slot:view>
+                <dl class="grid sm:grid-cols-2 gap-4 text-sm">
                     <div>
-                        <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.email') }}</label>
-                        <input name="email" type="email" value="{{ old('email', $p->email) }}"
+                        <dt class="text-xs text-gray-500">{{ __('site.partner_account.display_name') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5">{{ $p->name }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-gray-500">{{ __('site.partner_account.phone') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5">{{ $p->phone ?: '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-gray-500">{{ __('site.partner_account.email') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5">{{ $p->email ?: '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-gray-500">{{ __('site.partner_account.address') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5">{{ $p->address ?: '—' }}</dd>
+                    </div>
+                </dl>
+            </x-slot:view>
+            <x-slot:form>
+                <form method="POST" action="{{ $updateRoute }}" class="space-y-4">
+                    @csrf
+                    @method('PUT')
+                    <div>
+                        <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.display_name') }}</label>
+                        <input name="name" value="{{ old('name', $p->name) }}" required
                                class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand focus:border-brand">
                     </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.address') }}</label>
-                    <textarea name="address" rows="3"
-                              class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand focus:border-brand">{{ old('address', $p->address) }}</textarea>
-                </div>
-                <button type="submit" class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5">
-                    {{ __('site.partner_account.save_profile') }}
-                </button>
-            </form>
+                    <div class="grid sm:grid-cols-2 gap-3">
+                        <x-site.phone-input name="phone" :label="__('site.partner_account.phone')" :value="old('phone', $p->phone)" variant="rounded" />
+                        <div>
+                            <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.email') }}</label>
+                            <input name="email" type="email" value="{{ old('email', $p->email) }}"
+                                   class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand focus:border-brand">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.address') }}</label>
+                        <textarea name="address" rows="3"
+                                  class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand focus:border-brand">{{ old('address', $p->address) }}</textarea>
+                    </div>
+                    <button type="submit" class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5">
+                        {{ __('site.partner_account.save_profile') }}
+                    </button>
+                </form>
+            </x-slot:form>
+        </x-site.profile-section-card>
+
+        <x-site.profile-section-card
+            :title="__('site.partner_account.payment_section')"
+            :complete="! empty($payout)"
+            :collapsible="true">
+            <x-slot:view>
+                @if (empty($payout))
+                    <p class="text-sm text-gray-600">{{ __('site.partner_account.payment_empty') }}</p>
+                @else
+                    <p class="text-sm font-semibold text-gray-900 capitalize">{{ str_replace('_', ' ', $payout['type'] ?? '') }}</p>
+                    <p class="text-sm text-gray-600 mt-1">{{ $payout['account_name'] ?? '' }}</p>
+                    <p class="text-sm font-mono text-gray-800 mt-1">{{ $payout['mobile_number'] ?? $payout['account_number'] ?? '' }}</p>
+                @endif
+            </x-slot:view>
+            <x-slot:form>
+                <form method="POST" action="{{ $updateRoute }}" class="space-y-4" x-data="{ type: @js(old('payout_type', $payout['type'] ?? 'mobile_money')) }">
+                    @csrf
+                    @method('PUT')
+                    <input type="hidden" name="name" value="{{ $p->name }}">
+                    <p class="text-sm text-gray-600">{{ __('site.partner_account.payment_hint') }}</p>
+                    <div class="flex flex-wrap gap-3 text-sm">
+                        <label class="inline-flex items-center gap-2">
+                            <input type="radio" name="payout_type" value="mobile_money" x-model="type" class="text-brand">
+                            {{ __('borrower.payment_details.method_mobile') }}
+                        </label>
+                        <label class="inline-flex items-center gap-2">
+                            <input type="radio" name="payout_type" value="bank" x-model="type" class="text-brand">
+                            {{ __('borrower.payment_details.method_bank') }}
+                        </label>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.payment_details.account_name') }}</label>
+                        <input name="payout_account_name" value="{{ old('payout_account_name', $payout['account_name'] ?? $p->name) }}"
+                               class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                    </div>
+                    <div x-show="type === 'mobile_money'" class="grid sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.payment_details.provider') }}</label>
+                            <input name="payout_mobile_provider" value="{{ old('payout_mobile_provider', $payout['mobile_provider'] ?? '') }}"
+                                   class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm" placeholder="M-Pesa / Tigo Pesa / Airtel Money">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.payment_details.phone_number') }}</label>
+                            <input name="payout_mobile_number" value="{{ old('payout_mobile_number', $payout['mobile_number'] ?? $p->phone) }}"
+                                   class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                        </div>
+                    </div>
+                    <div x-show="type === 'bank'" class="grid sm:grid-cols-2 gap-4" x-cloak>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.payment_details.bank_name') }}</label>
+                            <input name="payout_bank_name" value="{{ old('payout_bank_name', $payout['bank_name'] ?? '') }}"
+                                   class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.payment_details.account_number') }}</label>
+                            <input name="payout_account_number" value="{{ old('payout_account_number', $payout['account_number'] ?? '') }}"
+                                   class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                        </div>
+                    </div>
+                    <button type="submit" class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5">
+                        {{ __('site.partner_account.save_profile') }}
+                    </button>
+                </form>
+            </x-slot:form>
         </x-site.profile-section-card>
     </div>
 

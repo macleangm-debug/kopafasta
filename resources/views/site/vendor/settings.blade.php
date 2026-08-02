@@ -18,5 +18,6 @@
     @include('site.partner-account._settings', [
         'partner' => $vendor,
         'supportRoute' => route('site.partner.support'),
+        'pinUpdateRoute' => route('site.partner.settings.pin'),
     ])
 </x-site.vendor-layout>

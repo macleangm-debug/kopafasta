@@ -125,15 +125,12 @@ class PublicGuarantorController extends Controller
         ]);
 
         if (! auth()->check()) {
-            return redirect()
-                ->route('site.register.borrower')
-                ->with('status', __('borrower.guarantor_invite.create_account_prompt'));
+            return redirect()->route('site.register.borrower');
         }
 
         $customer = auth()->user()->customer;
         if (! $customer) {
-            return redirect()->route('site.register.borrower')
-                ->with('status', __('borrower.guarantor_invite.create_account_prompt'));
+            return redirect()->route('site.register.borrower');
         }
 
         if ($redirect = $onboarding->redirectToContinue($request, $customer, $invitation->fresh())) {

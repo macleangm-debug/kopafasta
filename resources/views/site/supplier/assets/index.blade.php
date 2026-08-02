@@ -18,39 +18,48 @@
     @if (session('status'))
         <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
     @endif
-    <div class="glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">
-        <table class="min-w-full text-sm">
-            <thead class="bg-brand-muted/30 text-left text-xs uppercase tracking-widest text-brand">
-                <tr>
-                    <th class="px-4 py-3 font-semibold">Title</th>
-                    <th class="px-4 py-3 font-semibold">Deposit</th>
-                    <th class="px-4 py-3 font-semibold">Weekly</th>
-                    <th class="px-4 py-3 font-semibold">Status</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100 bg-white">
-                @forelse ($assets as $asset)
+
+    @if ($assets->isEmpty())
+        <x-site.empty-state
+            icon="📦"
+            title="No assets uploaded yet"
+            description="Add your first marketplace listing so borrowers can discover and reserve it."
+            action-label="Upload asset"
+            :action-url="route('site.supplier.assets.create')"
+        />
+    @else
+        <div class="glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">
+            <table class="min-w-full text-sm">
+                <thead class="bg-brand-muted/30 text-left text-xs uppercase tracking-widest text-brand">
                     <tr>
-                        <td class="px-4 py-3 font-medium text-gray-900">{{ $asset->title }}</td>
-                        <td class="px-4 py-3 tabular-nums">{{ format_money($asset->customer_deposit) }}</td>
-                        <td class="px-4 py-3 tabular-nums">{{ format_money($asset->weekly_installment) }}</td>
-                        <td class="px-4 py-3">
-                            <span @class([
-                                'inline-flex text-xs font-semibold rounded-full px-2.5 py-1',
-                                'bg-emerald-100 text-emerald-800' => $asset->is_active,
-                                'bg-gray-100 text-gray-600' => ! $asset->is_active,
-                            ])>{{ $asset->is_active ? 'Active' : 'Inactive' }}</span>
-                        </td>
-                        <td class="px-4 py-3 text-right">
-                            <a href="{{ route('site.supplier.assets.edit', $asset) }}" class="text-brand font-semibold hover:underline">Edit</a>
-                        </td>
+                        <th class="px-4 py-3 font-semibold">Title</th>
+                        <th class="px-4 py-3 font-semibold">Deposit</th>
+                        <th class="px-4 py-3 font-semibold">Weekly</th>
+                        <th class="px-4 py-3 font-semibold">Status</th>
+                        <th></th>
                     </tr>
-                @empty
-                    <tr><td colspan="5" class="px-4 py-10 text-center text-gray-500">No assets uploaded yet.</td></tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-    <div class="mt-4">{{ $assets->links() }}</div>
+                </thead>
+                <tbody class="divide-y divide-gray-100 bg-white">
+                    @foreach ($assets as $asset)
+                        <tr>
+                            <td class="px-4 py-3 font-medium text-gray-900">{{ $asset->title }}</td>
+                            <td class="px-4 py-3 tabular-nums">{{ format_money($asset->customer_deposit) }}</td>
+                            <td class="px-4 py-3 tabular-nums">{{ format_money($asset->weekly_installment) }}</td>
+                            <td class="px-4 py-3">
+                                <span @class([
+                                    'inline-flex text-xs font-semibold rounded-full px-2.5 py-1',
+                                    'bg-emerald-100 text-emerald-800' => $asset->is_active,
+                                    'bg-gray-100 text-gray-600' => ! $asset->is_active,
+                                ])>{{ $asset->is_active ? 'Active' : 'Inactive' }}</span>
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <a href="{{ route('site.supplier.assets.edit', $asset) }}" class="text-brand font-semibold hover:underline">Edit</a>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-4">{{ $assets->links() }}</div>
+    @endif
 </x-site.supplier-layout>

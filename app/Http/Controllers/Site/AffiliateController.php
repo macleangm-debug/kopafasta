@@ -71,8 +71,23 @@ class AffiliateController extends Controller
         app(AffiliateService::class)->ensureCode($vendor);
         $links = app(AffiliateService::class)->messageContext($vendor);
         $share = app(AffiliateService::class)->renderMessage($vendor, 'share_template');
+        $canChangeCode = app(AffiliateService::class)->canChangeCode($vendor);
 
-        return view('site.affiliate.profile', compact('vendor', 'links', 'share'));
+        return view('site.affiliate.profile', compact('vendor', 'links', 'share', 'canChangeCode'));
+    }
+
+    public function documents(): View
+    {
+        $vendor = $this->affiliate();
+
+        return view('site.affiliate.documents', compact('vendor'));
+    }
+
+    public function settings(): View
+    {
+        $vendor = $this->affiliate();
+
+        return view('site.affiliate.settings', compact('vendor'));
     }
 
     public function updateProfile(Request $request): RedirectResponse
@@ -85,9 +100,12 @@ class AffiliateController extends Controller
             'email'          => ['nullable', 'email', 'max:120'],
             'address'        => ['nullable', 'string', 'max:255'],
             'affiliate_code' => ['nullable', 'string', 'min:3', 'max:24', 'regex:/^[A-Za-z0-9_-]+$/'],
-            'affiliate_selfie' => ['nullable', 'image', 'max:5120'],
-            'affiliate_id'     => ['nullable', 'image', 'max:5120'],
-            'affiliate_photo'  => ['nullable', 'image', 'max:5120'],
+            'payout_type'    => ['nullable', 'in:mobile_money,bank'],
+            'payout_account_name' => ['nullable', 'string', 'max:120'],
+            'payout_mobile_provider' => ['nullable', 'string', 'max:40'],
+            'payout_mobile_number' => ['nullable', 'string', 'max:30'],
+            'payout_bank_name' => ['nullable', 'string', 'max:120'],
+            'payout_account_number' => ['nullable', 'string', 'max:60'],
         ]);
 
         if (filled($data['affiliate_code'] ?? null)) {
@@ -97,8 +115,46 @@ class AffiliateController extends Controller
                 return back()->withErrors(['affiliate_code' => $e->getMessage()])->withInput();
             }
         }
-        unset($data['affiliate_code'], $data['affiliate_selfie'], $data['affiliate_id'], $data['affiliate_photo']);
 
+        $meta = $vendor->metadata ?? [];
+        if (filled($data['payout_type'] ?? null)) {
+            $meta['payout_account'] = array_filter([
+                'type' => $data['payout_type'],
+                'account_name' => $data['payout_account_name'] ?? null,
+                'mobile_provider' => $data['payout_mobile_provider'] ?? null,
+                'mobile_number' => $data['payout_mobile_number'] ?? null,
+                'bank_name' => $data['payout_bank_name'] ?? null,
+                'account_number' => $data['payout_account_number'] ?? null,
+            ]);
+        }
+
+        unset(
+            $data['affiliate_code'],
+            $data['payout_type'],
+            $data['payout_account_name'],
+            $data['payout_mobile_provider'],
+            $data['payout_mobile_number'],
+            $data['payout_bank_name'],
+            $data['payout_account_number'],
+        );
+
+        $data['metadata'] = $meta;
+        $vendor->update($data);
+
+        return back()->with('status', __('site.affiliate_portal.profile_saved'));
+    }
+
+    public function updateDocuments(Request $request): RedirectResponse
+    {
+        $vendor = $this->affiliate();
+
+        $request->validate([
+            'affiliate_selfie' => ['nullable', 'image', 'max:5120'],
+            'affiliate_id'     => ['nullable', 'image', 'max:5120'],
+            'affiliate_photo'  => ['nullable', 'image', 'max:5120'],
+        ]);
+
+        $data = [];
         if ($request->hasFile('affiliate_selfie')) {
             $data['affiliate_selfie_path'] = $request->file('affiliate_selfie')->store("partners/{$vendor->id}/kyc", 'public');
         }
@@ -108,11 +164,16 @@ class AffiliateController extends Controller
         if ($request->hasFile('affiliate_photo')) {
             $data['affiliate_photo_path'] = $request->file('affiliate_photo')->store("partners/{$vendor->id}/kyc", 'public');
         }
-        if (! empty($data['affiliate_selfie_path']) && ! empty($data['affiliate_id_path'])) {
+
+        $selfie = $data['affiliate_selfie_path'] ?? $vendor->affiliate_selfie_path;
+        $idDoc = $data['affiliate_id_path'] ?? $vendor->affiliate_id_path;
+        if ($selfie && $idDoc) {
             $data['affiliate_kyc_status'] = 'submitted';
         }
 
-        $vendor->update($data);
+        if ($data !== []) {
+            $vendor->update($data);
+        }
 
         return back()->with('status', __('site.affiliate_portal.profile_saved'));
     }

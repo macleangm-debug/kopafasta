@@ -101,6 +101,7 @@ class PartnerPortalNavService
             ['key' => 'notifications', 'label' => 'Notifications', 'route' => 'site.investor.notifications', 'icon' => 'bell'],
             ['key' => 'support', 'label' => 'Support', 'route' => 'site.investor.support', 'icon' => 'help'],
             ['key' => 'profile', 'label' => 'Profile', 'route' => 'site.investor.profile', 'icon' => 'user'],
+            ['key' => 'settings', 'label' => 'Settings', 'route' => 'site.investor.settings', 'icon' => 'settings'],
         ];
     }
 

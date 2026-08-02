@@ -71,6 +71,7 @@
             ['Partner Applications',    'admin.partners.applications'],
             ['Partner Tasks',           'admin.partners.tasks'],
             ['Recovery partners',       'admin.recovery.partners.index'],
+            ['Partner payouts',         'admin.partner-payout-requests.index', 'finance.operations'],
         ], null],
         ['Money', 'M12 8c-1.66 0-3 .9-3 2s1.34 2 3 2 3 .9 3 2-1.34 2-3 2m0-8v8m0 0v2m-9-5a9 9 0 1018 0 9 9 0 00-18 0z', [
             ['— Capital —', '__group__'],

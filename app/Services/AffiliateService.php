@@ -258,13 +258,35 @@ class AffiliateService
         if (strlen($code) < 3) {
             throw new \InvalidArgumentException(__('site.affiliate_portal.code_too_short'));
         }
+
+        $current = strtoupper((string) ($affiliate->affiliate_code ?? ''));
+        if ($code === $current) {
+            return $code;
+        }
+
+        $meta = $affiliate->metadata ?? [];
+        if (! empty($meta['affiliate_code_changed_at'])) {
+            throw new \InvalidArgumentException(__('site.affiliate_portal.code_change_once'));
+        }
+
         if (! $this->codeIsUnique($code, $affiliate->id)) {
             throw new \InvalidArgumentException(__('site.affiliate_portal.code_taken'));
         }
 
-        $affiliate->update(['affiliate_code' => $code]);
+        $meta['affiliate_code_changed_at'] = now()->toIso8601String();
+        $affiliate->update([
+            'affiliate_code' => $code,
+            'metadata' => $meta,
+        ]);
 
         return $code;
+    }
+
+    public function canChangeCode(Vendor $affiliate): bool
+    {
+        $meta = $affiliate->metadata ?? [];
+
+        return empty($meta['affiliate_code_changed_at']);
     }
 
     /**

@@ -440,6 +440,13 @@ class InvestorController extends Controller
         return view('site.investor.profile', compact('lender'));
     }
 
+    public function settings()
+    {
+        $lender = $this->lender();
+
+        return view('site.investor.settings', compact('lender'));
+    }
+
     public function updateProfile(Request $request)
     {
         $lender = $this->lender();

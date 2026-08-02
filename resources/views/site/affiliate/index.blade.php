@@ -10,6 +10,10 @@
                    class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-8 py-4 rounded-xl shadow-lg transition">
                     {{ __('site.affiliate.cta_apply') }}
                 </a>
+                <a href="{{ route('site.partners.apply.tracking') }}"
+                   class="inline-flex items-center gap-2 glass-card-dark font-semibold px-6 py-4 rounded-xl transition hover:bg-white/10">
+                    {{ __('site.partner_apply.track_title') }}
+                </a>
                 <a href="{{ route('site.login.partner') }}"
                    class="inline-flex items-center gap-2 glass-card-dark font-semibold px-6 py-4 rounded-xl transition hover:bg-white/10">
                     {{ __('site.affiliate.portal_title') }} →
@@ -78,6 +82,16 @@
                     <h2 class="text-xl font-bold">{{ __('site.affiliate.portal_title') }}</h2>
                     <p class="mt-3 text-sm text-white/80 leading-relaxed">{{ __('site.affiliate.portal_body') }}</p>
                     <p class="mt-4 text-sm text-white/70">{{ __('site.affiliate.after_approval') }}</p>
+                    <div class="mt-6 flex flex-wrap gap-3">
+                        <a href="{{ route('site.partners.apply.tracking') }}"
+                           class="inline-flex bg-white/15 hover:bg-white/25 ring-1 ring-white/30 text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
+                            {{ __('site.partner_apply.track_title') }}
+                        </a>
+                        <a href="{{ route('site.partner.start') }}"
+                           class="inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-2.5 rounded-xl text-sm">
+                            {{ __('site.auth.activate_account') }}
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

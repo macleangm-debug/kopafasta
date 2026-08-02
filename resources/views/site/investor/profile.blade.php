@@ -1,9 +1,19 @@
+@php
+    $accountTabs = [
+        ['key' => 'profile', 'label' => __('site.partner_account.tab_profile'), 'url' => route('site.investor.profile')],
+        ['key' => 'documents', 'label' => __('site.partner_account.tab_documents'), 'url' => route('site.investor.documents')],
+        ['key' => 'settings', 'label' => __('site.partner_account.tab_settings'), 'url' => route('site.investor.settings')],
+    ];
+@endphp
+
 <x-site.investor-layout title="Profile — Investor" active="profile">
     <x-site.borrower-page-header
         eyebrow="Capital partner"
         title="Profile"
         subtitle="Manage your investor profile and risk preferences."
     />
+
+    <x-site.partner-account-tabs active="profile" :tabs="$accountTabs" />
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 glass-card rounded-2xl ring-1 ring-brand/10 p-5 sm:p-6">

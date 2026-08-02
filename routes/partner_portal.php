@@ -33,6 +33,7 @@ return function (string $prefix, string $namePrefix, bool $registerDashboard = t
         Route::get('/profile', [VendorController::class, 'profile'])->name('profile');
         Route::put('/profile', [VendorController::class, 'updateProfile'])->name('profile.update');
         Route::get('/settings', [VendorController::class, 'settings'])->name('settings');
+        Route::put('/settings/pin', [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePin'])->name('settings.pin');
         Route::get('/support', [VendorController::class, 'support'])->name('support');
     });
 };

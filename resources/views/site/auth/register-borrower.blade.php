@@ -87,7 +87,7 @@
                         </div>
                     @endif
                     @if (session('status'))
-                        <div class="mb-6 rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-sm text-sky-900">{{ session('status') }}</div>
+                        <div class="mb-6 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900">{{ session('status') }}</div>
                     @endif
                     @if ($errors->any())
                         <div class="mb-6 p-3.5 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">

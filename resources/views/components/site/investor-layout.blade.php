@@ -22,6 +22,7 @@
     :profile-links="[
         ['label' => 'Dashboard', 'route' => 'site.investor.dashboard'],
         ['label' => 'Profile', 'route' => 'site.investor.profile'],
+        ['label' => 'Settings', 'route' => 'site.investor.settings'],
         ['label' => 'Documents', 'route' => 'site.investor.documents'],
         ['label' => 'Wallet', 'route' => 'site.investor.wallet'],
     ]"

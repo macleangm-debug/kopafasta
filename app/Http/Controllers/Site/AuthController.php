@@ -145,20 +145,35 @@ class AuthController extends Controller
         }
 
         if (filled($data['partner_code'] ?? null)) {
-            $vendor = \App\Models\Vendor::query()
-                ->where('user_id', $user->id)
-                ->where('partner_number', strtoupper(trim($data['partner_code'])))
-                ->first();
+            $code = strtoupper(trim($data['partner_code']));
 
-            if (! $vendor) {
-                return back()
-                    ->withErrors(['partner_code' => 'Partner code does not match this account.'])
-                    ->withInput(['phone' => $phone, 'auth_method' => 'pin', 'partner_code' => $data['partner_code']]);
-            }
+            if ($user->role === 'investor') {
+                $lender = \App\Models\Lender::query()
+                    ->where('user_id', $user->id)
+                    ->where('code', $code)
+                    ->first();
 
-            if (! $vendor->activated_at) {
-                return redirect()->route('site.partner.start')
-                    ->with('warning', 'Complete partner activation before signing in.');
+                if (! $lender) {
+                    return back()
+                        ->withErrors(['partner_code' => 'Partner code does not match this account.'])
+                        ->withInput(['phone' => $phone, 'auth_method' => 'pin', 'partner_code' => $data['partner_code']]);
+                }
+            } else {
+                $vendor = \App\Models\Vendor::query()
+                    ->where('user_id', $user->id)
+                    ->where('partner_number', $code)
+                    ->first();
+
+                if (! $vendor) {
+                    return back()
+                        ->withErrors(['partner_code' => 'Partner code does not match this account.'])
+                        ->withInput(['phone' => $phone, 'auth_method' => 'pin', 'partner_code' => $data['partner_code']]);
+                }
+
+                if (! $vendor->activated_at) {
+                    return redirect()->route('site.partner.start')
+                        ->with('warning', 'Complete partner activation before signing in.');
+                }
             }
         } elseif ($user->role === 'vendor') {
             $vendor = \App\Models\Vendor::query()->where('user_id', $user->id)->first();

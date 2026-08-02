@@ -567,8 +567,35 @@ class VendorController extends Controller
             'affiliate_selfie' => ['nullable', 'image', 'max:5120'],
             'affiliate_id'     => ['nullable', 'image', 'max:5120'],
             'affiliate_photo'  => ['nullable', 'image', 'max:5120'],
+            'payout_type'    => ['nullable', 'in:mobile_money,bank'],
+            'payout_account_name' => ['nullable', 'string', 'max:120'],
+            'payout_mobile_provider' => ['nullable', 'string', 'max:40'],
+            'payout_mobile_number' => ['nullable', 'string', 'max:30'],
+            'payout_bank_name' => ['nullable', 'string', 'max:120'],
+            'payout_account_number' => ['nullable', 'string', 'max:60'],
         ]);
         unset($data['affiliate_selfie'], $data['affiliate_id'], $data['affiliate_photo']);
+
+        $meta = $vendor->metadata ?? [];
+        if (filled($data['payout_type'] ?? null)) {
+            $meta['payout_account'] = array_filter([
+                'type' => $data['payout_type'],
+                'account_name' => $data['payout_account_name'] ?? null,
+                'mobile_provider' => $data['payout_mobile_provider'] ?? null,
+                'mobile_number' => $data['payout_mobile_number'] ?? null,
+                'bank_name' => $data['payout_bank_name'] ?? null,
+                'account_number' => $data['payout_account_number'] ?? null,
+            ]);
+        }
+        unset(
+            $data['payout_type'],
+            $data['payout_account_name'],
+            $data['payout_mobile_provider'],
+            $data['payout_mobile_number'],
+            $data['payout_bank_name'],
+            $data['payout_account_number'],
+        );
+        $data['metadata'] = $meta;
 
         if ($vendor->isAffiliate()) {
             if ($request->hasFile('affiliate_selfie')) {

@@ -20,60 +20,110 @@
                            :value="$values['minimum_payout_amount'] ?? 50000" required />
         </div>
 
-        <div>
-            <h3 class="text-sm font-semibold text-gray-900 mb-3">Commission mode</h3>
-            <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm mb-4">
-                @foreach (['percentage' => 'Percentage', 'fixed' => 'Fixed amount', 'tiered' => 'Tiered by referrals', 'hybrid' => 'Hybrid (fixed + %)'] as $mode => $label)
-                    <label class="inline-flex items-center gap-2">
-                        <input type="radio" name="commission_mode" value="{{ $mode }}"
-                               @checked(($values['commission_mode'] ?? 'percentage') === $mode)
-                               class="text-brand">
-                        {{ $label }}
+        <div class="rounded-xl ring-1 ring-gray-200 p-5 space-y-4" x-data="{ mode: @js($values['commission_mode'] ?? 'percentage') }">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-900">How affiliates earn commission</h3>
+                <p class="text-xs text-gray-500 mt-1">Pick one mode. Only the fields for that mode are shown below.</p>
+            </div>
+
+            <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                @foreach ([
+                    'percentage' => ['Percentage', 'Simple % of the fee'],
+                    'fixed' => ['Fixed amount', 'Same TZS amount each time'],
+                    'tiered' => ['Tiered by volume', 'More referrals → higher pay'],
+                    'hybrid' => ['Hybrid', 'Fixed TZS + a %'],
+                ] as $mode => [$label, $hint])
+                    <label class="rounded-xl ring-1 px-3 py-3 cursor-pointer transition"
+                           :class="mode === '{{ $mode }}' ? 'ring-brand bg-brand-muted/40' : 'ring-gray-200 hover:bg-gray-50'">
+                        <input type="radio" name="commission_mode" value="{{ $mode }}" x-model="mode" class="sr-only">
+                        <span class="font-semibold text-gray-900 block">{{ $label }}</span>
+                        <span class="text-xs text-gray-500">{{ $hint }}</span>
                     </label>
                 @endforeach
             </div>
 
-            <div class="grid md:grid-cols-2 gap-4 mb-4">
-                <x-admin.input name="hybrid_fixed_amount" label="Hybrid fixed amount (TZS)" type="number" step="1" min="0"
-                               :value="$values['hybrid_fixed_amount'] ?? 0" />
-                <x-admin.input name="hybrid_percent" label="Hybrid percent (%)" type="number" step="0.1" min="0" max="100"
-                               :value="$values['hybrid_percent'] ?? 0" />
+            <div x-show="mode === 'percentage'" x-cloak class="rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                Uses <strong>Default commission (%)</strong> above. No extra fields needed.
             </div>
 
-            <h4 class="text-xs font-semibold text-gray-700 uppercase mb-2">Fixed commission amounts (TZS)</h4>
-            <div class="grid md:grid-cols-2 gap-4 mb-4">
-                <x-admin.input name="fixed_commission_default" label="Default" type="number" step="1" min="0"
-                               :value="$values['fixed_commission_amounts']['default'] ?? 0" />
-                <x-admin.input name="fixed_commission_registration_fee" label="Registration fee" type="number" step="1" min="0"
-                               :value="$values['fixed_commission_amounts']['registration_fee'] ?? 0" />
-                <x-admin.input name="fixed_commission_application_fee" label="Application fee" type="number" step="1" min="0"
-                               :value="$values['fixed_commission_amounts']['application_fee'] ?? 0" />
-                <x-admin.input name="fixed_commission_post_approval_fee" label="Post approval fee" type="number" step="1" min="0"
-                               :value="$values['fixed_commission_amounts']['post_approval_fee'] ?? 0" />
+            <div x-show="mode === 'hybrid'" x-cloak class="space-y-3">
+                <h4 class="text-xs font-semibold text-gray-700 uppercase">Hybrid amounts</h4>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <x-admin.input name="hybrid_fixed_amount" label="Fixed part (TZS)" type="number" step="1" min="0"
+                                   :value="$values['hybrid_fixed_amount'] ?? 0" />
+                    <x-admin.input name="hybrid_percent" label="Percent part (%)" type="number" step="0.1" min="0" max="100"
+                                   :value="$values['hybrid_percent'] ?? 0" />
+                </div>
             </div>
 
-            <h4 class="text-xs font-semibold text-gray-700 uppercase mb-2">Tiered commission (by registration/application count)</h4>
-            @php $tiers = $values['commission_tiers'] ?? []; @endphp
-            <div class="space-y-3">
-                @foreach (range(0, 2) as $i)
-                    @php $tier = $tiers[$i] ?? ['min_count' => '', 'max_count' => '', 'type' => 'fixed', 'amount' => '']; @endphp
-                    <div class="grid md:grid-cols-4 gap-3 items-end">
-                        <x-admin.input name="commission_tiers[{{ $i }}][min_count]" label="Min count" type="number" min="0"
-                                       :value="$tier['min_count'] ?? ''" />
-                        <x-admin.input name="commission_tiers[{{ $i }}][max_count]" label="Max count (blank = unlimited)" type="number" min="0"
-                                       :value="$tier['max_count'] ?? ''" />
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Type</label>
-                            <select name="commission_tiers[{{ $i }}][type]" class="w-full rounded-lg border-gray-300 text-sm">
-                                <option value="fixed" @selected(($tier['type'] ?? 'fixed') === 'fixed')>Fixed (TZS)</option>
-                                <option value="percentage" @selected(($tier['type'] ?? '') === 'percentage')>Percentage</option>
-                            </select>
+            <div x-show="mode === 'fixed'" x-cloak class="space-y-3">
+                <h4 class="text-xs font-semibold text-gray-700 uppercase">Fixed commission amounts (TZS)</h4>
+                <p class="text-xs text-gray-500">Paid per successful fee event of that type. “Default” is the fallback when a fee type has no amount.</p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <x-admin.input name="fixed_commission_default" label="Default" type="number" step="1" min="0"
+                                   :value="$values['fixed_commission_amounts']['default'] ?? 0" />
+                    <x-admin.input name="fixed_commission_registration_fee" label="Registration fee" type="number" step="1" min="0"
+                                   :value="$values['fixed_commission_amounts']['registration_fee'] ?? 0" />
+                    <x-admin.input name="fixed_commission_application_fee" label="Application fee" type="number" step="1" min="0"
+                                   :value="$values['fixed_commission_amounts']['application_fee'] ?? 0" />
+                    <x-admin.input name="fixed_commission_post_approval_fee" label="Post approval fee" type="number" step="1" min="0"
+                                   :value="$values['fixed_commission_amounts']['post_approval_fee'] ?? 0" />
+                </div>
+            </div>
+
+            <div x-show="mode === 'tiered'" x-cloak class="space-y-3">
+                <h4 class="text-xs font-semibold text-gray-700 uppercase">Volume tiers</h4>
+                <p class="text-xs text-gray-500">Based on how many registrations/applications the affiliate has driven. Tier 1 is beginners; leave Max blank for unlimited.</p>
+                @php $tiers = $values['commission_tiers'] ?? []; @endphp
+                <div class="space-y-3">
+                    @foreach (range(0, 2) as $i)
+                        @php $tier = $tiers[$i] ?? ['min_count' => '', 'max_count' => '', 'type' => 'fixed', 'amount' => '']; @endphp
+                        <div class="rounded-lg ring-1 ring-gray-200 p-3 grid md:grid-cols-4 gap-3 items-end">
+                            <x-admin.input name="commission_tiers[{{ $i }}][min_count]" label="From (count)" type="number" min="0"
+                                           :value="$tier['min_count'] ?? ''" />
+                            <x-admin.input name="commission_tiers[{{ $i }}][max_count]" label="To (blank = ∞)" type="number" min="0"
+                                           :value="$tier['max_count'] ?? ''" />
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Pay as</label>
+                                <select name="commission_tiers[{{ $i }}][type]" class="w-full rounded-lg border-gray-300 text-sm">
+                                    <option value="fixed" @selected(($tier['type'] ?? 'fixed') === 'fixed')>Fixed (TZS)</option>
+                                    <option value="percentage" @selected(($tier['type'] ?? '') === 'percentage')>Percentage</option>
+                                </select>
+                            </div>
+                            <x-admin.input name="commission_tiers[{{ $i }}][amount]" label="Amount" type="number" step="0.01" min="0"
+                                           :value="$tier['amount'] ?? ''" />
                         </div>
-                        <x-admin.input name="commission_tiers[{{ $i }}][amount]" label="Amount" type="number" step="0.01" min="0"
-                                       :value="$tier['amount'] ?? ''" />
-                    </div>
-                @endforeach
+                    @endforeach
+                </div>
             </div>
+
+            {{-- Keep unused mode fields in the form so saving another mode does not wipe stored values --}}
+            <template x-if="mode !== 'hybrid'">
+                <div class="hidden">
+                    <input type="hidden" name="hybrid_fixed_amount" value="{{ $values['hybrid_fixed_amount'] ?? 0 }}">
+                    <input type="hidden" name="hybrid_percent" value="{{ $values['hybrid_percent'] ?? 0 }}">
+                </div>
+            </template>
+            <template x-if="mode !== 'fixed'">
+                <div class="hidden">
+                    <input type="hidden" name="fixed_commission_default" value="{{ $values['fixed_commission_amounts']['default'] ?? 0 }}">
+                    <input type="hidden" name="fixed_commission_registration_fee" value="{{ $values['fixed_commission_amounts']['registration_fee'] ?? 0 }}">
+                    <input type="hidden" name="fixed_commission_application_fee" value="{{ $values['fixed_commission_amounts']['application_fee'] ?? 0 }}">
+                    <input type="hidden" name="fixed_commission_post_approval_fee" value="{{ $values['fixed_commission_amounts']['post_approval_fee'] ?? 0 }}">
+                </div>
+            </template>
+            <template x-if="mode !== 'tiered'">
+                <div class="hidden">
+                    @php $tiersHidden = $values['commission_tiers'] ?? []; @endphp
+                    @foreach (range(0, 2) as $i)
+                        @php $tier = $tiersHidden[$i] ?? ['min_count' => '', 'max_count' => '', 'type' => 'fixed', 'amount' => '']; @endphp
+                        <input type="hidden" name="commission_tiers[{{ $i }}][min_count]" value="{{ $tier['min_count'] ?? '' }}">
+                        <input type="hidden" name="commission_tiers[{{ $i }}][max_count]" value="{{ $tier['max_count'] ?? '' }}">
+                        <input type="hidden" name="commission_tiers[{{ $i }}][type]" value="{{ $tier['type'] ?? 'fixed' }}">
+                        <input type="hidden" name="commission_tiers[{{ $i }}][amount]" value="{{ $tier['amount'] ?? '' }}">
+                    @endforeach
+                </div>
+            </template>
         </div>
 
         <div>
