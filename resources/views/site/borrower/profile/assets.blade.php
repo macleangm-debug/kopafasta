@@ -115,9 +115,13 @@
                                                class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                                     </div>
                                     <div>
-                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.collateral_fields.insurance_expires_at') }} <span class="text-red-500">*</span></label>
-                                        <input type="date" name="details[insurance_expires_at]" value="{{ old('details.insurance_expires_at') }}" required
-                                               class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                        <x-site.date-input
+                                            name="details[insurance_expires_at]"
+                                            :label="__('borrower.profile.collateral_fields.insurance_expires_at')"
+                                            :value="old('details.insurance_expires_at')"
+                                            :required="true"
+                                            input-class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-base"
+                                        />
                                     </div>
                                 </div>
                                 <x-site.single-image-document-upload name="insurance_document" />
@@ -301,9 +305,13 @@
                                                    class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                                         </div>
                                         <div>
-                                            <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.collateral_fields.insurance_expires_at') }} <span class="text-red-500">*</span></label>
-                                            <input type="date" name="details[insurance_expires_at]" value="{{ old('details.insurance_expires_at', $asset->detail('insurance_expires_at')) }}" required
-                                                   class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                            <x-site.date-input
+                                                name="details[insurance_expires_at]"
+                                                :label="__('borrower.profile.collateral_fields.insurance_expires_at')"
+                                                :value="old('details.insurance_expires_at', $asset->detail('insurance_expires_at'))"
+                                                :required="true"
+                                                input-class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-base"
+                                            />
                                         </div>
                                     @endif
                                     <div class="sm:col-span-2">

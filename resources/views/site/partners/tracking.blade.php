@@ -131,6 +131,11 @@
                                     <p class="font-semibold">{{ __('site.partner_apply.track_rejected_title') }}</p>
                                     <p class="mt-1">{{ $resultPayload['notes'] ?: __('site.partner_apply.track_rejected_body') }}</p>
                                 </div>
+                            @elseif ($status === 'needs_info')
+                                <div class="rounded-2xl bg-amber-50 ring-1 ring-amber-200 p-4 text-amber-900">
+                                    <p class="font-semibold">{{ __('site.partner_apply.track_needs_info_title') }}</p>
+                                    <p class="mt-1">{{ $resultPayload['notes'] ?: __('site.partner_apply.track_needs_info_body') }}</p>
+                                </div>
                             @else
                                 <div class="rounded-2xl bg-brand-muted/40 ring-1 ring-brand/10 p-4 text-brand">
                                     {{ __('site.partner_apply.track_pending_body') }}

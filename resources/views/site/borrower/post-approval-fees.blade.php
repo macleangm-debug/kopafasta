@@ -118,10 +118,13 @@
                             <p class="text-xs text-gray-600 mt-1">{{ $account['account_name'] ?? '' }}</p>
                         </div>
                     @endforeach
-                    <label class="block">
-                        <span class="text-xs font-medium text-gray-600">{{ __('borrower.membership.payment_date') }}</span>
-                        <input type="date" name="payment_date" value="{{ old('payment_date', now()->toDateString()) }}" class="mt-1 w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm">
-                    </label>
+                    <x-site.date-input
+                        name="payment_date"
+                        :label="__('borrower.membership.payment_date')"
+                        :value="old('payment_date', now()->toDateString())"
+                        :max="now()->toDateString()"
+                        input-class="mt-1 w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-base"
+                    />
                     <label class="block">
                         <span class="text-xs font-medium text-gray-600">{{ __('borrower.membership.proof_optional') }}</span>
                         <input type="file" name="proof" accept=".jpg,.jpeg,.png,.pdf" class="mt-1 w-full text-sm">

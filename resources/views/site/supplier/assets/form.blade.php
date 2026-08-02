@@ -47,7 +47,14 @@
                 </div>
                 <div x-show="insurance" x-cloak class="grid sm:grid-cols-2 gap-4">
                     <div><label class="block text-xs font-medium text-gray-600 mb-1">Insurance policy</label><input name="insurance_policy_number" value="{{ old('insurance_policy_number', $asset?->insurance_policy_number) }}" class="w-full rounded-xl border-gray-300 text-sm"></div>
-                    <div><label class="block text-xs font-medium text-gray-600 mb-1">Insurance expiry</label><input type="date" name="insurance_expires_at" value="{{ old('insurance_expires_at', optional($asset?->insurance_expires_at)->format('Y-m-d')) }}" class="w-full rounded-xl border-gray-300 text-sm"></div>
+                    <div>
+                        <x-site.date-input
+                            name="insurance_expires_at"
+                            label="Insurance expiry"
+                            :value="old('insurance_expires_at', optional($asset?->insurance_expires_at)->format('Y-m-d'))"
+                            input-class="w-full rounded-xl border-gray-300 text-base px-3 py-2.5"
+                        />
+                    </div>
                 </div>
             </div>
 

@@ -17,10 +17,10 @@
                     {{ $label }}
                 </a>
             @endforeach
-            @foreach (['pending', 'approved', 'rejected'] as $status)
+            @foreach (['pending', 'needs_info', 'approved', 'rejected'] as $status)
                 <a href="{{ route('admin.partner-applications.index', array_filter(['type' => $filterType ?: null, 'status' => $status])) }}"
                    class="rounded-full px-3 py-1.5 font-semibold {{ ($filterStatus ?? '') === $status ? 'bg-brand text-white' : 'ring-1 ring-gray-200 text-gray-600 hover:bg-gray-50' }}">
-                    {{ ucfirst($status) }}
+                    {{ ucfirst(str_replace('_', ' ', $status)) }}
                 </a>
             @endforeach
         </div>
@@ -69,12 +69,13 @@
                             <td class="px-4 py-3">
                                 @php
                                     $badge = match ($application->status) {
-                                        'approved' => 'bg-emerald-100 text-emerald-800',
-                                        'rejected' => 'bg-red-100 text-red-800',
-                                        default    => 'bg-amber-100 text-amber-800',
+                                        'approved'   => 'bg-emerald-100 text-emerald-800',
+                                        'rejected'   => 'bg-red-100 text-red-800',
+                                        'needs_info' => 'bg-sky-100 text-sky-800',
+                                        default      => 'bg-amber-100 text-amber-800',
                                     };
                                 @endphp
-                                <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $badge }}">{{ ucfirst($application->status) }}</span>
+                                <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $badge }}">{{ ucfirst(str_replace('_', ' ', $application->status)) }}</span>
                                 @if ($application->partner_id)
                                     <p class="text-[11px] text-emerald-700 mt-1">Partner linked</p>
                                 @endif

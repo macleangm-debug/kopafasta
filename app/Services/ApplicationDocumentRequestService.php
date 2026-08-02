@@ -110,6 +110,9 @@ class ApplicationDocumentRequestService
         if (str_contains($label, 'collateral') || str_contains($label, 'add collateral')) {
             return route('site.borrower.profile', ['section' => 'assets', 'add' => 1]);
         }
+        if (str_contains($label, 'asset photo') || str_contains($label, 'ownership document')) {
+            return route('site.borrower.profile', ['section' => 'assets']);
+        }
 
         if ($application) {
             return route('site.borrower.application', $application).'#request-'.$request->id;
@@ -137,7 +140,8 @@ class ApplicationDocumentRequestService
         if (str_contains($label, 'national id') || str_contains($label, 'nida')) {
             return 'identity';
         }
-        if (str_contains($label, 'collateral') || str_contains($label, 'add collateral')) {
+        if (str_contains($label, 'collateral') || str_contains($label, 'add collateral')
+            || str_contains($label, 'asset photo') || str_contains($label, 'ownership document')) {
             return 'collateral';
         }
         if ($request->type === 'clarification') {

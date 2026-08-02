@@ -284,6 +284,15 @@ class LoanApplicationReviewService
             return null;
         }
 
+        $photos = collect($asset->photos ?? [])
+            ->filter()
+            ->values()
+            ->map(fn ($path, $index) => [
+                'url'   => marketplace_photo_url($path),
+                'label' => 'Photo '.($index + 1),
+            ])
+            ->all();
+
         return [
             'title'                => $asset->title,
             'category'             => $asset->category,
@@ -302,6 +311,7 @@ class LoanApplicationReviewService
             'insurance_expires_at'    => $asset->insurance_expires_at,
             'waiting_period_days'     => $asset->waiting_period_days,
             'insurance_status'        => app(\App\Services\AssetLendingService::class)->insuranceStatus($asset->insurance_expires_at),
+            'photos'                  => $photos,
         ];
     }
 

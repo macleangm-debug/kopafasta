@@ -258,10 +258,14 @@
                                         />
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Date of birth <span class="text-red-500">*</span></label>
-                                        <input type="date" name="date_of_birth" required max="{{ now()->subYears(18)->format('Y-m-d') }}"
-                                               value="{{ old('date_of_birth') }}"
-                                               class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
+                                        <x-site.date-input
+                                            name="date_of_birth"
+                                            label="Date of birth"
+                                            :value="old('date_of_birth')"
+                                            :required="true"
+                                            :max="now()->subYears(18)->format('Y-m-d')"
+                                            help="You must be at least 18 years old."
+                                        />
                                     </div>
                                 </div>
                                 <p x-show="isGuarantor" x-cloak class="text-xs text-gray-500">{{ __('borrower.guarantor_invite.register_nida_later') }}</p>

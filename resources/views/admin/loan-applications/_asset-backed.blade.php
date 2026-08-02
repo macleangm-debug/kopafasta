@@ -11,14 +11,42 @@
 
 @if ($isAb)
     <div class="bg-white rounded-xl ring-1 ring-gray-200 p-5 mb-6">
-        <h3 class="text-sm font-semibold text-gray-900 mb-3">Asset-backed collateral</h3>
-        <p class="text-xs text-gray-500 mb-4">Accept or decline each pledged asset. Vehicle comprehensive insurance must be on file and verified during underwriting. Formal offer issues only after valuation + CRB.</p>
+        <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-900">Asset-backed collateral</h3>
+                <p class="text-xs text-gray-500 mt-1">Accept or decline each pledged asset. Vehicle comprehensive insurance must be on file and verified during underwriting. Formal offer issues only after valuation + CRB.</p>
+            </div>
+            <button type="button"
+                    onclick="window.dispatchEvent(new CustomEvent('set-review-tab', { detail: 'borrower' })); setTimeout(() => document.getElementById('review-verification')?.scrollIntoView({behavior:'smooth'}), 50)"
+                    class="shrink-0 text-xs font-semibold text-brand hover:underline">
+                Need face photo retake? Open Borrower tab →
+            </button>
+        </div>
+
+        @perm('applications.request_documents')
+            @if ($assets->isNotEmpty())
+                <div class="mb-4">
+                    <form method="POST" action="{{ route('admin.loan-applications.document-requests.store', $application) }}">
+                        @csrf
+                        <input type="hidden" name="type" value="document">
+                        <input type="hidden" name="presets[]" value="New collateral photo">
+                        <input type="hidden" name="instructions" value="Please re-upload clear, recent photos of ALL your pledged collateral assets (front, back, sides).">
+                        <button type="submit" class="text-xs font-semibold rounded-lg px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 ring-1 ring-amber-200">
+                            ↻ Request all asset photos retaken
+                        </button>
+                    </form>
+                </div>
+            @endif
+        @endperm
 
         @forelse ($assets as $row)
             @php
                 $ca = $row->customerAsset;
                 $hasInsurance = $row->hasComprehensiveInsurance();
                 $isVehicle = in_array($row->asset_type, ['vehicle', 'motorcycle', 'saloon_car', 'suv', 'truck'], true);
+                $gallery = $ca?->galleryPaths() ?? [];
+                $ownershipDoc = $ca?->metadata['ownership_document_path'] ?? null;
+                $insuranceDoc = $ca?->metadata['insurance_document_path'] ?? null;
             @endphp
             <div class="rounded-xl ring-1 ring-gray-200 p-4 mb-4 {{ $row->uw_status === 'declined' ? 'opacity-70 bg-gray-50' : '' }}">
                 <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
@@ -42,21 +70,84 @@
                     @endif
                 </div>
 
+                {{-- Photo gallery --}}
+                <div class="mb-4">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">Photos</p>
+                    @if (! empty($gallery))
+                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                            @foreach ($gallery as $i => $path)
+                                @php $photoLabel = 'Photo '.($i + 1); @endphp
+                                <button type="button"
+                                        onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$path)), @js($photoLabel), 'image')"
+                                        class="block group text-left">
+                                    <img src="{{ asset('storage/'.$path) }}" alt="{{ $photoLabel }}"
+                                         class="w-full h-20 rounded-lg object-cover ring-1 ring-gray-200 group-hover:ring-amber-400 transition cursor-zoom-in">
+                                </button>
+                            @endforeach
+                        </div>
+                    @else
+                        <p class="text-xs text-gray-400">No photos on file yet.</p>
+                    @endif
+                </div>
+
                 <dl class="grid sm:grid-cols-2 gap-3 text-sm mb-4">
                     @if ($row->description)<div class="sm:col-span-2"><dt class="text-xs text-gray-500">Description</dt><dd>{{ $row->description }}</dd></div>@endif
                     @if ($row->market_value)<div><dt class="text-xs text-gray-500">Market value</dt><dd>{{ format_money($row->market_value) }}</dd></div>@endif
                     @if ($row->forced_sale_value)<div><dt class="text-xs text-gray-500">Forced sale value</dt><dd>{{ format_money($row->forced_sale_value) }}</dd></div>@endif
                     @if ($row->max_loan_amount)<div><dt class="text-xs text-gray-500">Max loan (LTV)</dt><dd class="font-semibold">{{ format_money($row->max_loan_amount) }} @ {{ $row->ltv_percent }}%</dd></div>@endif
-                    @if ($ca?->metadata['insurance_document_path'] ?? null)
+                    @if ($ownershipDoc)
+                        <div>
+                            <dt class="text-xs text-gray-500">Ownership document</dt>
+                            <dd>
+                                <button type="button" onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$ownershipDoc)), 'Ownership document', @js(str_ends_with(strtolower($ownershipDoc), '.pdf') ? 'pdf' : 'image'))"
+                                        class="text-brand font-semibold hover:underline">View</button>
+                            </dd>
+                        </div>
+                    @endif
+                    @if ($insuranceDoc)
                         <div>
                             <dt class="text-xs text-gray-500">Insurance document</dt>
-                            <dd><a href="{{ asset('storage/'.$ca->metadata['insurance_document_path']) }}" target="_blank" class="text-brand font-semibold hover:underline">View</a></dd>
+                            <dd>
+                                <button type="button" onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$insuranceDoc)), 'Insurance document', @js(str_ends_with(strtolower($insuranceDoc), '.pdf') ? 'pdf' : 'image'))"
+                                        class="text-brand font-semibold hover:underline">View</button>
+                            </dd>
                         </div>
                     @endif
                     @if ($row->uw_notes)
                         <div class="sm:col-span-2"><dt class="text-xs text-gray-500">UW notes</dt><dd>{{ $row->uw_notes }}</dd></div>
                     @endif
                 </dl>
+
+                @perm('applications.request_documents')
+                    <div class="flex flex-wrap gap-2 mb-4 border-t border-gray-100 pt-3">
+                        <form method="POST" action="{{ route('admin.loan-applications.document-requests.store', $application) }}">
+                            @csrf
+                            <input type="hidden" name="type" value="document">
+                            <input type="hidden" name="presets[]" value="New collateral photo">
+                            <button type="submit" class="text-xs font-semibold rounded-lg px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 ring-1 ring-gray-200">
+                                Request retake: {{ $ca?->label ?? 'this asset' }}
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ route('admin.loan-applications.document-requests.store', $application) }}">
+                            @csrf
+                            <input type="hidden" name="type" value="document">
+                            <input type="hidden" name="presets[]" value="Updated collateral ownership document">
+                            <button type="submit" class="text-xs font-semibold rounded-lg px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 ring-1 ring-gray-200">
+                                Request ownership document
+                            </button>
+                        </form>
+                        @if ($isVehicle)
+                            <form method="POST" action="{{ route('admin.loan-applications.document-requests.store', $application) }}">
+                                @csrf
+                                <input type="hidden" name="type" value="document">
+                                <input type="hidden" name="presets[]" value="Updated collateral insurance certificate">
+                                <button type="submit" class="text-xs font-semibold rounded-lg px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 ring-1 ring-gray-200">
+                                    Request insurance certificate
+                                </button>
+                            </form>
+                        @endif
+                    </div>
+                @endperm
 
                 <form method="POST" action="{{ route('admin.loan-applications.collateral.uw-status', [$application, $row]) }}" class="flex flex-wrap gap-2 items-end border-t border-gray-100 pt-3">
                     @csrf

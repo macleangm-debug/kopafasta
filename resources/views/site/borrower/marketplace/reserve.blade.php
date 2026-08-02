@@ -120,8 +120,13 @@
                     <form method="POST" action="{{ route('site.borrower.marketplace.reserve.post', $asset['id']) }}" class="grid sm:grid-cols-2 gap-3">
                         @csrf
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.viewing_date') }}</label>
-                            <input type="date" name="viewing_date" required min="{{ now()->addDay()->format('Y-m-d') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm">
+                            <x-site.date-input
+                                name="viewing_date"
+                                :label="__('borrower.marketplace.viewing_date')"
+                                :required="true"
+                                :min="now()->addDay()->format('Y-m-d')"
+                                input-class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-base"
+                            />
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.marketplace.viewing_time') }}</label>

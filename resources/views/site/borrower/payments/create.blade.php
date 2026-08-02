@@ -135,9 +135,12 @@
                     </div>
 
                     <div>
-                        <label class="block text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{{ __('borrower.payments_page.create.payment_date') }}</label>
-                        <input type="date" name="payment_date" max="{{ now()->toDateString() }}"
-                               class="w-full rounded-xl border-0 bg-white ring-1 ring-brand/15 focus:ring-2 focus:ring-brand px-4 py-3 text-sm">
+                        <x-site.date-input
+                            name="payment_date"
+                            :label="__('borrower.payments_page.create.payment_date')"
+                            :max="now()->toDateString()"
+                            input-class="w-full rounded-xl border-0 bg-white ring-1 ring-brand/15 focus:ring-2 focus:ring-brand px-4 py-3 text-base"
+                        />
                     </div>
 
                     <div>

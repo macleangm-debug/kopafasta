@@ -144,10 +144,13 @@ return [
         'track_login_cta'       => 'Go to partner login',
         'track_rejected_title'  => 'Application not approved',
         'track_rejected_body'   => 'This application was declined. You may re-apply with updated documents.',
+        'track_needs_info_title'=> 'More information needed',
+        'track_needs_info_body' => 'Our team needs more details or documents before we can continue reviewing your application.',
         'track_statuses' => [
             'pending' => 'Under review',
             'approved' => 'Approved',
             'rejected' => 'Declined',
+            'needs_info' => 'More info needed',
             'converted' => 'Activated',
         ],
         'types' => [

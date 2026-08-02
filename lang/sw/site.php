@@ -144,10 +144,13 @@ return [
         'track_login_cta'       => 'Nenda kwenye kuingia kwa mshirika',
         'track_rejected_title'  => 'Ombi halijaidhinishwa',
         'track_rejected_body'   => 'Ombi hili limekataliwa. Unaweza kuomba tena ukiwa na hati zilizosasishwa.',
+        'track_needs_info_title'=> 'Taarifa zaidi zinahitajika',
+        'track_needs_info_body' => 'Timu yetu inahitaji maelezo au hati zaidi kabla ya kuendelea kukagua ombi lako.',
         'track_statuses' => [
             'pending' => 'Inakaguliwa',
             'approved' => 'Imeidhinishwa',
             'rejected' => 'Imekataliwa',
+            'needs_info' => 'Taarifa zaidi zinahitajika',
             'converted' => 'Imewezeshwa',
         ],
         'types' => [

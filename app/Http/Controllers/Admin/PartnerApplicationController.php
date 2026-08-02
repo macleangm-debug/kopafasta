@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\PartnerApplication;
+use App\Services\PartnerApplicationReviewService;
 use App\Services\PartnerEnrollmentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -41,25 +42,33 @@ class PartnerApplicationController extends Controller
         ]);
     }
 
-    public function show(PartnerApplication $partnerApplication): View
+    public function show(PartnerApplication $partnerApplication, PartnerApplicationReviewService $reviewService): View
     {
         $partnerApplication->load(['documents', 'partner', 'reviewer']);
 
         return view('admin.partner-applications.show', [
             'application' => $partnerApplication,
+            'review'      => $reviewService->dossier($partnerApplication),
         ]);
     }
 
     public function update(Request $request, PartnerApplication $partnerApplication): RedirectResponse
     {
         $data = $request->validate([
-            'status' => ['required', 'in:pending,approved,rejected'],
+            'status' => ['required', 'in:pending,approved,rejected,needs_info'],
             'admin_notes' => ['nullable', 'string', 'max:2000'],
+            'rejection_reason' => ['nullable', 'string', 'max:60'],
         ]);
+
+        $notes = $data['admin_notes'] ?? $partnerApplication->admin_notes;
+        if ($data['status'] === 'rejected' && filled($data['rejection_reason'] ?? null)) {
+            $reasonLabel = PartnerApplicationReviewService::REJECTION_REASON_CODES[$data['rejection_reason']] ?? $data['rejection_reason'];
+            $notes = trim('['.$reasonLabel.'] '.($notes ?? ''));
+        }
 
         $partnerApplication->fill([
             'status' => $data['status'],
-            'admin_notes' => $data['admin_notes'] ?? $partnerApplication->admin_notes,
+            'admin_notes' => $notes,
         ]);
 
         if ($partnerApplication->isDirty('status')) {
@@ -79,11 +88,12 @@ class PartnerApplicationController extends Controller
 
         $message = $converted
             ? 'Partner approved. Partner code '.$converted->vendor_number.' is ready — they can activate via Track status / Activate account (no SMS).'
-            : ($partnerApplication->status === 'approved'
-                ? 'Partner application approved.'
-                : ($partnerApplication->status === 'rejected'
-                    ? 'Partner application rejected.'
-                    : 'Partner application updated.'));
+            : match ($partnerApplication->status) {
+                'approved'    => 'Partner application approved.',
+                'rejected'    => 'Partner application rejected.',
+                'needs_info'  => 'Applicant will see your notes on the tracking page and can resubmit.',
+                default       => 'Partner application updated.',
+            };
 
         return redirect()
             ->route('admin.partner-applications.show', $partnerApplication->fresh('partner'))

@@ -35,7 +35,7 @@
         @endif
 
         @perm('applications.request_documents')
-            <div class="mb-4 flex flex-wrap gap-2">
+            <div class="mb-4 flex flex-wrap gap-2 items-center">
                 @foreach ([
                     'New Asset Photo' => 'Request asset photo',
                     'New Ownership Document' => 'Request ownership doc',
@@ -50,8 +50,38 @@
                         </button>
                     </form>
                 @endforeach
+                <form method="POST" action="{{ route('admin.loan-applications.document-requests.store', $record) }}">
+                    @csrf
+                    <input type="hidden" name="type" value="document">
+                    <input type="hidden" name="presets[]" value="New Asset Photo">
+                    <input type="hidden" name="instructions" value="Please re-upload clear, recent photos of the asset from all angles.">
+                    <button type="submit" class="text-xs font-semibold rounded-lg px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 ring-1 ring-amber-200">
+                        ↻ Request all asset photos retaken
+                    </button>
+                </form>
+                <button type="button"
+                        onclick="window.dispatchEvent(new CustomEvent('set-review-tab', { detail: 'borrower' })); setTimeout(() => document.getElementById('review-verification')?.scrollIntoView({behavior:'smooth'}), 50)"
+                        class="text-xs font-semibold text-brand hover:underline ml-auto">
+                    Need face photo retake? Open Borrower tab →
+                </button>
             </div>
         @endperm
+
+        @if (! empty($asset['photos']))
+            <div class="mb-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                @foreach ($asset['photos'] as $photo)
+                    <button type="button"
+                            onclick="window.kfOpenDocumentPreview(@js($photo['url']), @js($photo['label']), 'image')"
+                            class="block group text-left">
+                        <img src="{{ $photo['url'] }}" alt="{{ $photo['label'] }}"
+                             class="w-full h-28 rounded-lg object-cover ring-1 ring-gray-200 group-hover:ring-amber-400 transition cursor-zoom-in">
+                        <span class="text-[11px] font-semibold text-gray-600 mt-1 inline-block">{{ $photo['label'] }}</span>
+                    </button>
+                @endforeach
+            </div>
+        @else
+            <p class="text-sm text-gray-500 mb-4">No asset photos on file yet.</p>
+        @endif
 
         <div class="rounded-xl ring-1 ring-gray-200 p-4 space-y-4">
             <div class="flex flex-wrap items-start justify-between gap-3">
