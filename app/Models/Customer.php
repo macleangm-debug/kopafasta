@@ -29,6 +29,7 @@ class Customer extends Model
             'nida_verified_at' => 'datetime',
             'identity_locked' => 'boolean',
             'no_physical_nida_card' => 'boolean',
+            'alternate_id_types' => 'array',
             'face_verified_at' => 'datetime',
             'kyc_reconfirmed_at' => 'datetime',
             'profile_section_confirmed_at' => 'array',

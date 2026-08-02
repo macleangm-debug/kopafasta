@@ -39,6 +39,9 @@ class TemplatePersonalization
             ['token' => 'contract_url', 'label' => 'Contract link', 'group' => 'Links', 'example' => 'https://…'],
             ['token' => 'onboarding_url', 'label' => 'Onboarding link', 'group' => 'Links', 'example' => 'https://…'],
             ['token' => 'instructions', 'label' => 'Instructions', 'group' => 'Links', 'example' => 'Upload a clearer selfie'],
+            ['token' => 'asset_title', 'label' => 'Asset title', 'group' => 'Asset', 'example' => 'Toyota Vitz 2018'],
+            ['token' => 'viewing_date', 'label' => 'Viewing date', 'group' => 'Asset', 'example' => '12 Aug 2026'],
+            ['token' => 'viewing_time', 'label' => 'Viewing time', 'group' => 'Asset', 'example' => '10:00'],
         ];
     }
 

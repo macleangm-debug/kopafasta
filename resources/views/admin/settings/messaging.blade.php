@@ -5,14 +5,25 @@
         <div class="mb-4 rounded-lg bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
     @endif
 
+    <div class="mb-6 rounded-xl bg-brand text-white px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-sm">
+        <div>
+            <p class="text-sm font-semibold">Edit message content</p>
+            <p class="text-xs text-white/80 mt-1">Subject and body for each transactional SMS/email live in Notification templates (English + Kiswahili). Use personalization chips like <code class="text-brand-gold">@{{ name }}</code>.</p>
+        </div>
+        <a href="{{ route('admin.notification-templates.index') }}"
+           class="inline-flex items-center justify-center rounded-xl bg-brand-gold text-brand text-sm font-semibold px-4 py-2.5 hover:brightness-95 shrink-0">
+            Open notification templates →
+        </a>
+    </div>
+
     <div class="mb-6 rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-sm text-sky-900 space-y-2">
         <p class="font-semibold">What you need for live delivery</p>
         <ul class="list-disc pl-5 space-y-1 text-sky-800">
-            <li><strong>SMS:</strong> Beem or Africa’s Talking credentials under Settings → SMS / Email (sender ID + API key/secret).</li>
-            <li><strong>Email:</strong> Configure Laravel mail in <code class="text-xs">.env</code> (or SMTP fields on the gateways page once wired to production).</li>
+            <li><strong>SMS:</strong> Unitxt credentials under Settings → SMS / Email (provider <code class="text-xs">unitxt</code>, Sender ID + API key).</li>
+            <li><strong>Email:</strong> Configure Laravel mail in <code class="text-xs">.env</code> (or SMTP fields on the gateways page).</li>
             <li><strong>OTP:</strong> Keep PIN reset and agreement OTP events enabled — they are marked critical.</li>
             <li><strong>WhatsApp:</strong> Optional. Leave off until you have a Business API URL + token; messages log only while provider is <code class="text-xs">log</code>.</li>
-            <li><strong>Templates:</strong> Edit message copy under Notification templates. Variables like <code class="text-xs">@{{ name }}</code>, <code class="text-xs">@{{ amount }}</code>, <code class="text-xs">@{{ balance }}</code>.</li>
+            <li><strong>Message copy:</strong> Use the button above — do not edit wording on this page.</li>
             <li><strong>Scheduler:</strong> Server cron must run <code class="text-xs">php artisan schedule:run</code> every minute for repayment/membership reminders.</li>
         </ul>
     </div>

@@ -92,6 +92,22 @@ class LoanApplicationReviewService
         $faceProgress = $this->face->progress($customer);
         $nidaPhotoPath = $customer->kyc?->payload['nida_verification']['photo_path'] ?? null;
 
+        $idDocs = CustomerDocument::query()
+            ->where('customer_id', $customer->id)
+            ->whereHas('documentType', fn ($q) => $q->whereIn('code', [
+                'national_id_front',
+                'national_id_back',
+                'passport',
+                'voter_id',
+                'driving_license',
+                'other_id',
+            ]))
+            ->with('documentType')
+            ->latest()
+            ->get()
+            ->unique(fn (CustomerDocument $doc) => $doc->documentType?->code ?: $doc->id)
+            ->keyBy(fn (CustomerDocument $doc) => $doc->documentType?->code ?: ('doc-'.$doc->id));
+
         $crb = $this->crbSummary($customer, $application);
 
         $guarantorRows = $this->guarantorRows($application);
@@ -150,6 +166,9 @@ class LoanApplicationReviewService
             'face_progress'      => $faceProgress,
             'face_angles'        => config('face_verification.angles', []),
             'nida_photo_path'    => $nidaPhotoPath,
+            'id_documents'       => $idDocs,
+            'alternate_id_types' => (array) ($customer->alternate_id_types ?? []),
+            'alternate_id_notes' => $customer->alternate_id_notes,
             'crb'                => $crb,
             'guarantors'         => $guarantorRows,
             'asset'              => $asset,

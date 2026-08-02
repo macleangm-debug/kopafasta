@@ -1415,7 +1415,14 @@ class BorrowerController extends Controller
             : collect();
 
         $nidaDocuments = app(\App\Services\ProfileDocumentService::class)
-            ->latestByCodes($customer, ['national_id_front', 'national_id_back']);
+            ->latestByCodes($customer, [
+                'national_id_front',
+                'national_id_back',
+                'passport',
+                'voter_id',
+                'driving_license',
+                'other_id',
+            ]);
 
         $employmentContract = app(\App\Services\ProfileDocumentService::class)
             ->latestByCodes($customer, ['employment_contract'])
@@ -1524,7 +1531,12 @@ class BorrowerController extends Controller
             $rules = [
                 'phone' => ['nullable', 'string', 'max:20'],
                 'email' => ['nullable', 'email', 'max:120'],
-                'national_id' => ['nullable', 'string', 'max:30', new \App\Rules\ValidNidaNumber],
+                'national_id' => [
+                    in_array($focus, ['identity', 'all'], true) && ! filled($customer->national_id) ? 'required' : 'nullable',
+                    'string',
+                    'max:30',
+                    new \App\Rules\ValidNidaNumber,
+                ],
                 'nok_first_name'   => [$kinRequired ? 'required' : 'nullable', 'string', 'max:80'],
                 'nok_middle_name'  => ['nullable', 'string', 'max:80'],
                 'nok_last_name'    => [$kinRequired ? 'required' : 'nullable', 'string', 'max:80'],
@@ -1537,9 +1549,25 @@ class BorrowerController extends Controller
                 'national_id_front' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
                 'national_id_back' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
                 'no_physical_nida_card' => ['nullable', 'boolean'],
+                'alternate_id_types' => ['nullable', 'array'],
+                'alternate_id_types.*' => ['in:passport,voter_id,driving_license,other_id'],
+                'alternate_id_notes' => ['nullable', 'string', 'max:255'],
+                'passport' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                'voter_id' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                'driving_license' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                'other_id' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             ];
 
             $data = $request->validate($rules);
+
+            if (in_array($focus, ['identity', 'all'], true)
+                && $request->boolean('no_physical_nida_card')
+                && empty($data['alternate_id_types'] ?? [])) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['alternate_id_types' => __('borrower.nida.alt_id_required')])
+                    ->withFragment('profile-identity');
+            }
 
             if (in_array($focus, ['contact', 'all'], true)) {
                 $customer->fill(array_filter([
@@ -1563,6 +1591,13 @@ class BorrowerController extends Controller
 
             if (in_array($focus, ['identity', 'all'], true) && ! $customer->identity_locked) {
                 $customer->no_physical_nida_card = $request->boolean('no_physical_nida_card');
+                if ($customer->no_physical_nida_card) {
+                    $customer->alternate_id_types = array_values(array_unique($data['alternate_id_types'] ?? []));
+                    $customer->alternate_id_notes = $data['alternate_id_notes'] ?? null;
+                } else {
+                    $customer->alternate_id_types = null;
+                    $customer->alternate_id_notes = null;
+                }
             }
 
             if (in_array($focus, ['kin', 'all'], true)) {
@@ -1598,6 +1633,12 @@ class BorrowerController extends Controller
                 if (! $customer->no_physical_nida_card) {
                     $this->persistProfileDocumentUpload($customer, 'national_id_front', $request->file('national_id_front'), []);
                     $this->persistProfileDocumentUpload($customer, 'national_id_back', $request->file('national_id_back'), []);
+                } else {
+                    foreach (['passport', 'voter_id', 'driving_license', 'other_id'] as $altCode) {
+                        if (in_array($altCode, $customer->alternate_id_types ?? [], true)) {
+                            $this->persistProfileDocumentUpload($customer, $altCode, $request->file($altCode), []);
+                        }
+                    }
                 }
 
                 if ($identityRequired && ! $validation->nationalIdUploadsComplete($customer->fresh())) {

@@ -35,6 +35,7 @@
             $nidaDocs = $nidaDocuments ?? collect();
             $nidaFront = $nidaDocs->get('national_id_front');
             $nidaBack = $nidaDocs->get('national_id_back');
+            $altDocs = $nidaDocs;
             $uploadsComplete = app(\App\Services\ProfileValidationService::class)->nationalIdUploadsComplete($customer);
             $noPhysicalCard = (bool) old('no_physical_nida_card', $customer->no_physical_nida_card);
             $hasIdentity = $nidaSaved && (
@@ -176,9 +177,12 @@
                             @if (! empty($returnUrl))
                                 <input type="hidden" name="return" value="{{ $returnUrl }}">
                             @endif
-                            <div class="space-y-4" x-data="{ noCard: @js($noPhysicalCard) }">
+                            <div class="space-y-4" x-data="{
+                                noCard: @js($noPhysicalCard),
+                                altTypes: @js(array_values(old('alternate_id_types', $customer->alternate_id_types ?? []))),
+                            }">
                                 <div>
-                                    <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.nida.number') }}</label>
+                                    <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.nida.number') }} <span class="text-red-500">*</span></label>
                                     <x-site.nida-input name="national_id" :value="old('national_id', $customer->national_id)" :required="! $nidaReadonly" @if($nidaReadonly) readonly @endif />
                                     <p class="text-[11px] text-gray-400 mt-1">{{ __('borrower.nida.format_hint') }}</p>
                                     @error('national_id')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
@@ -200,7 +204,45 @@
                                     <x-site.profile-document-field :document="$nidaBack" field-name="national_id_back" mode="single" :label="__('borrower.profile.nida_back')" input-host-id="nida-back-upload" :required="! $nidaBack && ! $noPhysicalCard" />
                                     @error('national_id_back')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                                 </div>
-                                <p x-show="noCard" x-cloak class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-xl px-3 py-2">{{ __('borrower.nida.no_card_uw_note') }}</p>
+                                <div x-show="noCard" x-cloak class="space-y-4 rounded-xl bg-amber-50/80 ring-1 ring-amber-200 p-4">
+                                    <div>
+                                        <p class="text-sm font-semibold text-amber-950">{{ __('borrower.nida.alt_id_title') }}</p>
+                                        <p class="text-xs text-amber-900/80 mt-1">{{ __('borrower.nida.alt_id_hint') }}</p>
+                                    </div>
+                                    <div class="grid sm:grid-cols-2 gap-2">
+                                        @foreach ([
+                                            'passport' => __('borrower.nida.alt_passport'),
+                                            'voter_id' => __('borrower.nida.alt_voter'),
+                                            'driving_license' => __('borrower.nida.alt_driving'),
+                                            'other_id' => __('borrower.nida.alt_other'),
+                                        ] as $type => $label)
+                                            <label class="flex items-center gap-2 rounded-lg bg-white ring-1 ring-amber-100 px-3 py-2 text-sm cursor-pointer">
+                                                <input type="checkbox" name="alternate_id_types[]" value="{{ $type }}"
+                                                       class="rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                                                       x-model="altTypes">
+                                                <span class="text-gray-900">{{ $label }}</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                    @error('alternate_id_types')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                                    <div>
+                                        <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.nida.alt_notes_label') }}</label>
+                                        <input type="text" name="alternate_id_notes" value="{{ old('alternate_id_notes', $customer->alternate_id_notes) }}"
+                                               class="w-full rounded-xl border-gray-300 text-sm" placeholder="{{ __('borrower.nida.alt_notes_placeholder') }}">
+                                    </div>
+                                    <div class="space-y-3" x-show="altTypes.includes('passport')">
+                                        <x-site.profile-document-field :document="$altDocs->get('passport')" field-name="passport" mode="single" :label="__('borrower.nida.alt_passport')" input-host-id="passport-upload" />
+                                    </div>
+                                    <div class="space-y-3" x-show="altTypes.includes('voter_id')">
+                                        <x-site.profile-document-field :document="$altDocs->get('voter_id')" field-name="voter_id" mode="single" :label="__('borrower.nida.alt_voter')" input-host-id="voter-upload" />
+                                    </div>
+                                    <div class="space-y-3" x-show="altTypes.includes('driving_license')">
+                                        <x-site.profile-document-field :document="$altDocs->get('driving_license')" field-name="driving_license" mode="single" :label="__('borrower.nida.alt_driving')" input-host-id="license-upload" />
+                                    </div>
+                                    <div class="space-y-3" x-show="altTypes.includes('other_id')">
+                                        <x-site.profile-document-field :document="$altDocs->get('other_id')" field-name="other_id" mode="single" :label="__('borrower.nida.alt_other')" input-host-id="other-id-upload" />
+                                    </div>
+                                </div>
                             </div>
                             <button type="submit" class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
                                 {{ __('borrower.profile.save') }}

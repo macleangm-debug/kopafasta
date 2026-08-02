@@ -44,7 +44,6 @@
             ['All Customers', 'admin.customers.index'],
             ['Membership Payments', 'admin.membership-payments.index'],
             ['KYC review', 'admin.customer-kycs.index'],
-            ['Face photos', 'admin.face-verifications.index'],
             ['— Loans —', '__group__'],
             ['All loans',           'admin.loans.index'],
             ['Disbursement queue',  'admin.loans.disbursement'],

@@ -21,29 +21,22 @@
             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
                 <div>
                     <h3 class="text-sm font-semibold text-gray-800">SMS gateway</h3>
-                    <p class="text-xs text-gray-500 mt-1">Enter your provider API key, secret, and approved Sender ID. Then test the connection.</p>
+                    <p class="text-xs text-gray-500 mt-1">Provider is Unitxt. Enter API key and Sender ID when Unitxt issues credentials, then test the connection.</p>
                 </div>
                 <a href="{{ route('admin.settings.gateways.health') }}"
-                   class="inline-flex items-center justify-center rounded-lg bg-brand text-white text-xs font-semibold px-3 py-2 hover:bg-brand-light shrink-0">
+                   class="inline-flex items-center justify-center rounded-xl bg-brand text-white text-xs font-semibold px-3.5 py-2.5 hover:bg-brand-light shrink-0">
                     Check SMS connection
                 </a>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Provider</label>
-                    <select name="sms_provider" class="w-full rounded-lg border-gray-300 text-sm">
-                        @foreach (['' => 'Log only (dev)', 'beem' => 'Beem Africa', 'africastalking' => "Africa's Talking"] as $val => $label)
-                            <option value="{{ $val }}" @selected(($values['sms_provider'] ?? '') === $val)>{{ $label }}</option>
-                        @endforeach
-                    </select>
-                </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <x-admin.input name="sms_provider" label="Provider" :value="$values['sms_provider'] ?? 'unitxt'" placeholder="unitxt" help="Use unitxt. Leave blank for log-only (development)." />
                 <x-admin.input name="sms_sender_id" label="Sender ID" :value="$values['sms_sender_id'] ?? ''" placeholder="KOPAFASTA" />
-                <x-admin.input name="sms_api_key" label="API key / username" :value="$values['sms_api_key'] ?? ''" placeholder="Your API key" />
-                <x-admin.input name="sms_api_secret" label="API secret / apiKey" :value="$values['sms_api_secret'] ?? ''" placeholder="Your API secret" />
+                <x-admin.input name="sms_api_key" label="API key" :value="$values['sms_api_key'] ?? ''" placeholder="Unitxt API key" />
+                <x-admin.input name="sms_api_secret" label="API secret (optional)" :value="$values['sms_api_secret'] ?? ''" placeholder="If Unitxt issues a secret" />
                 <div class="md:col-span-2">
-                    <x-admin.input name="sms_endpoint" label="Endpoint URL (optional override)" :value="$values['sms_endpoint'] ?? ''" placeholder="Leave blank for provider default" />
+                    <x-admin.input name="sms_endpoint" label="Endpoint URL (optional)" :value="$values['sms_endpoint'] ?? ''" placeholder="Leave blank until Unitxt share their API URL" />
                 </div>
-                <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2 md:col-span-2">
+                <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-xl px-3.5 py-2.5 md:col-span-2">
                     <input type="hidden" name="staff_sms_alerts" value="0">
                     <input type="checkbox" name="staff_sms_alerts" value="1" @checked(! isset($values['staff_sms_alerts']) || ! empty($values['staff_sms_alerts'])) class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
                     <span class="text-gray-800">Send SMS alerts to staff on new restructure and top-up requests</span>
@@ -55,8 +48,8 @@
         </div>
 
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
-            <h3 class="text-sm font-semibold text-gray-700 mb-4">Email gateway</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <h3 class="text-sm font-semibold text-gray-800 mb-4">Email gateway</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <x-admin.input name="email_provider"      label="Provider (smtp/ses/mailgun)"  :value="$values['email_provider'] ?? 'smtp'" />
                 <x-admin.input name="email_from_address"  label="From address" type="email" :value="$values['email_from_address'] ?? ''" />
                 <x-admin.input name="email_from_name"     label="From name"   :value="$values['email_from_name'] ?? ''" />
@@ -69,7 +62,7 @@
         </div>
 
         <div class="flex justify-end">
-            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">Save gateways</button>
+            <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2.5 rounded-xl shadow-sm">Save gateways</button>
         </div>
     </form>
 </x-admin.layout>

@@ -22,7 +22,7 @@ class NotificationTemplateController extends ResourceController
             'name' => ['required', 'string', 'max:150'],
             'code' => ['required', 'string', 'max:80'],
             'locale' => ['required', 'in:en,sw'],
-            'channel' => ['required', 'in:sms,email,push,in_app,whatsapp'],
+            'channel' => ['required', 'in:sms,email,push,in_app,whatsapp,all'],
             'subject' => ['nullable', 'string', 'max:255'],
             'body' => ['required', 'string'],
             'is_active' => ['nullable', 'boolean'],
@@ -39,6 +39,7 @@ class NotificationTemplateController extends ResourceController
                 'push' => 'Push',
                 'in_app' => 'In-app',
                 'whatsapp' => 'WhatsApp',
+                'all' => 'All channels',
             ],
             'personalization' => TemplatePersonalization::grouped(),
         ];

@@ -8,34 +8,32 @@ use App\Services\FaceVerificationService;
 use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
 class FaceVerificationController extends Controller
 {
-    public function index(): View
+    public function index(): RedirectResponse
     {
-        $pending = Customer::query()
-            ->where('face_verification_status', 'pending')
-            ->with('kyc')
-            ->latest('updated_at')
-            ->paginate(25);
-
-        $recent = Customer::query()
-            ->whereIn('face_verification_status', ['verified', 'rejected'])
-            ->latest('updated_at')
-            ->limit(10)
-            ->get();
-
-        return view('admin.face-verifications.index', compact('pending', 'recent'));
+        return redirect()
+            ->route('admin.loan-applications.index')
+            ->with('status', 'Face verification is reviewed inside each loan application (Borrower → Face & identity). The separate queue page has been removed.');
     }
 
-    public function show(Customer $customer, FaceVerificationService $faces): View
+    public function show(Customer $customer, FaceVerificationService $faces): RedirectResponse
     {
-        $photos = $faces->latestByAngle($customer);
-        $progress = $faces->progress($customer);
-        $nidaPhotoPath = $customer->kyc?->payload['nida_verification']['photo_path'] ?? null;
+        $application = $customer->applications()
+            ->latest('id')
+            ->first();
 
-        return view('admin.face-verifications.show', compact('customer', 'photos', 'progress', 'nidaPhotoPath'));
+        if ($application) {
+            return redirect()
+                ->route('admin.loan-applications.show', $application)
+                ->withFragment('review-verification')
+                ->with('status', 'Review face photos on this application.');
+        }
+
+        return redirect()
+            ->route('admin.customers.show', $customer)
+            ->with('status', 'No loan application yet — open an application to complete face review during credit analysis.');
     }
 
     public function approve(Customer $customer, FaceVerificationService $faces, NotificationService $notify): RedirectResponse
@@ -57,9 +55,7 @@ class FaceVerificationController extends Controller
 
         $name = trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
 
-        return redirect()
-            ->route('admin.face-verifications.index')
-            ->with('status', "Face verification approved for {$name}.");
+        return back()->with('status', "Face verification approved for {$name}.");
     }
 
     public function reject(Request $request, Customer $customer, FaceVerificationService $faces, NotificationService $notify): RedirectResponse
@@ -83,9 +79,7 @@ class FaceVerificationController extends Controller
             );
         }
 
-        return redirect()
-            ->route('admin.face-verifications.index')
-            ->with('status', 'Face verification rejected. The borrower can re-upload photos.');
+        return back()->with('status', 'Face verification rejected. The borrower can re-upload photos.');
     }
 
     public function requestRetake(Request $request, Customer $customer, FaceVerificationService $faces, NotificationService $notify): RedirectResponse

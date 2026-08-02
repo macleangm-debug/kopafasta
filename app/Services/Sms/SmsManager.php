@@ -25,19 +25,25 @@ class SmsManager
         }
 
         $this->driver = match ($provider) {
-            'beem'            => new BeemDriver(
-                apiKey:    (string) ($cfg['api_key'] ?? ''),
+            'unitxt' => new UnitxtDriver(
+                apiKey: (string) ($cfg['api_key'] ?? ''),
+                apiSecret: (string) ($cfg['api_secret'] ?? ''),
+                senderId: (string) ($cfg['sender_id'] ?? ''),
+                endpoint: (string) ($cfg['endpoint'] ?? ''),
+            ),
+            'beem' => new BeemDriver(
+                apiKey: (string) ($cfg['api_key'] ?? ''),
                 secretKey: (string) ($cfg['api_secret'] ?? ''),
-                senderId:  (string) ($cfg['sender_id'] ?? 'INFO'),
-                endpoint:  (string) ($cfg['endpoint'] ?? 'https://apisms.beem.africa/v1/send'),
+                senderId: (string) ($cfg['sender_id'] ?? 'INFO'),
+                endpoint: (string) ($cfg['endpoint'] ?? 'https://apisms.beem.africa/v1/send'),
             ),
             'africastalking', 'at' => new AfricasTalkingDriver(
                 username: (string) ($cfg['api_key'] ?? 'sandbox'),
-                apiKey:   (string) ($cfg['api_secret'] ?? ''),
+                apiKey: (string) ($cfg['api_secret'] ?? ''),
                 senderId: (string) ($cfg['sender_id'] ?? ''),
                 endpoint: (string) ($cfg['endpoint'] ?? 'https://api.africastalking.com/version1/messaging'),
             ),
-            default => new LogDriver(),
+            default => new LogDriver,
         };
 
         return $this->driver;

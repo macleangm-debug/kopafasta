@@ -3,18 +3,21 @@
     $photos = $review['face_photos'];
     $angles = $review['face_angles'];
     $nidaPhotoPath = $review['nida_photo_path'];
+    $idDocs = $review['id_documents'] ?? collect();
+    $nidaFront = $idDocs->get('national_id_front');
+    $nidaBack = $idDocs->get('national_id_back');
+    $altCodes = ['passport', 'voter_id', 'driving_license', 'other_id'];
+    $altDocs = collect($altCodes)->mapWithKeys(fn ($code) => [$code => $idDocs->get($code)])->filter();
+    $altTypes = collect($review['alternate_id_types'] ?? []);
+    $altLabels = [
+        'passport' => 'Passport',
+        'voter_id' => 'Voter ID',
+        'driving_license' => 'Driving licence',
+        'other_id' => 'Other government ID',
+    ];
 @endphp
 
-<x-admin.review-section id="review-verification" title="Face & identity verification" subtitle="Compare live captures with NIDA reference photo">
-    <x-slot:actions>
-        @if (($customer->face_verification_status ?? '') === 'pending')
-            <a href="{{ route('admin.face-verifications.show', $customer) }}"
-               class="inline-flex items-center text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-1.5 rounded-lg">
-                Open face review queue
-            </a>
-        @endif
-    </x-slot:actions>
-
+<x-admin.review-section id="review-verification" title="Face & identity verification" subtitle="Match live captures to the NIDA card (or alternate ID) after application submission">
     <div class="mb-5 rounded-lg bg-sky-50/80 ring-1 ring-sky-100 px-4 py-3">
         <p class="text-[10px] uppercase tracking-widest font-semibold text-sky-800 mb-2">What to verify</p>
         <div class="grid md:grid-cols-2 gap-4">
@@ -32,26 +35,60 @@
                     @foreach (config('underwriting_document_guidance.face_verification.items', []) as $item)
                         <li class="text-xs text-sky-900 flex items-start gap-2"><span class="text-sky-600 shrink-0">✓</span><span>{{ $item }}</span></li>
                     @endforeach
+                    <li class="text-xs text-sky-900 flex items-start gap-2"><span class="text-sky-600 shrink-0">✓</span><span>Match live face to NIDA card front (preferred) or bureau photo / alternate ID.</span></li>
                 </ul>
             </div>
         </div>
     </div>
 
-    <div class="mb-6 grid sm:grid-cols-2 gap-4">
+    <div class="mb-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div class="rounded-lg ring-1 ring-gray-200 p-4">
-            <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest">NIDA reference</p>
-            @if ($nidaPhotoPath)
-                <div class="mt-3">
-                    <button type="button"
-                            onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$nidaPhotoPath)), 'NIDA photo', 'image')"
-                            class="block w-full text-left group">
-                        <img src="{{ asset('storage/'.$nidaPhotoPath) }}" alt="NIDA photo"
-                             class="max-h-48 rounded-lg object-cover ring-1 ring-gray-200 group-hover:ring-amber-400 transition cursor-zoom-in">
-                        <span class="text-xs font-semibold text-amber-700 mt-2 inline-block">Preview NIDA photo</span>
-                    </button>
-                </div>
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest">NIDA number</p>
+            <p class="mt-2 font-mono text-sm font-semibold text-gray-900">{{ $customer->national_id ?: '—' }}</p>
+            @if ($customer->no_physical_nida_card)
+                <p class="mt-2 text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-2.5 py-1.5">No physical NIDA card — compare using alternate ID below.</p>
+                @if ($altTypes->isNotEmpty())
+                    <p class="mt-2 text-xs text-gray-600">Declared: {{ $altTypes->map(fn ($t) => $altLabels[$t] ?? $t)->implode(', ') }}</p>
+                @endif
+                @if (filled($review['alternate_id_notes'] ?? null))
+                    <p class="mt-1 text-xs text-gray-500">{{ $review['alternate_id_notes'] }}</p>
+                @endif
+            @endif
+        </div>
+        <div class="rounded-lg ring-1 ring-gray-200 p-4">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest">NIDA card / ID photo</p>
+            @if ($nidaFront)
+                <button type="button"
+                        onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$nidaFront->file_path)), 'NIDA card front', 'image')"
+                        class="mt-3 block w-full text-left group">
+                    <img src="{{ asset('storage/'.$nidaFront->file_path) }}" alt="NIDA card front"
+                         class="max-h-40 w-full rounded-lg object-cover ring-1 ring-gray-200 group-hover:ring-amber-400 transition cursor-zoom-in">
+                    <span class="text-xs font-semibold text-amber-700 mt-2 inline-block">Preview NIDA card front</span>
+                </button>
+            @elseif ($altDocs->isNotEmpty())
+                @php $firstAlt = $altDocs->first(); @endphp
+                <button type="button"
+                        onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$firstAlt->file_path)), @js($firstAlt->documentType?->name ?? 'Alternate ID'), 'image')"
+                        class="mt-3 block w-full text-left group">
+                    <img src="{{ asset('storage/'.$firstAlt->file_path) }}" alt="Alternate ID"
+                         class="max-h-40 w-full rounded-lg object-cover ring-1 ring-gray-200 group-hover:ring-amber-400 transition cursor-zoom-in">
+                    <span class="text-xs font-semibold text-amber-700 mt-2 inline-block">Preview {{ $firstAlt->documentType?->name ?? 'alternate ID' }}</span>
+                </button>
+            @elseif ($nidaPhotoPath)
+                <button type="button"
+                        onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$nidaPhotoPath)), 'NIDA bureau photo', 'image')"
+                        class="mt-3 block w-full text-left group">
+                    <img src="{{ asset('storage/'.$nidaPhotoPath) }}" alt="NIDA bureau photo"
+                         class="max-h-40 w-full rounded-lg object-cover ring-1 ring-gray-200 group-hover:ring-amber-400 transition cursor-zoom-in">
+                    <span class="text-xs font-semibold text-amber-700 mt-2 inline-block">Preview bureau NIDA photo</span>
+                </button>
             @else
-                <p class="text-sm text-gray-500 mt-3">NIDA database photo not stored yet.</p>
+                <p class="text-sm text-gray-500 mt-3">No NIDA card or alternate ID image on file yet.</p>
+            @endif
+            @if ($nidaBack)
+                <button type="button"
+                        onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$nidaBack->file_path)), 'NIDA card back', 'image')"
+                        class="mt-2 text-xs font-semibold text-brand hover:underline">Also view card back</button>
             @endif
         </div>
         <div class="rounded-lg ring-1 ring-gray-200 p-4">
@@ -64,6 +101,23 @@
             </p>
         </div>
     </div>
+
+    @if ($altDocs->count() > 1 || ($nidaFront && $altDocs->isNotEmpty()))
+        <div class="mb-6">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Alternate ID uploads</p>
+            <div class="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
+                @foreach ($altDocs as $code => $doc)
+                    <button type="button"
+                            onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$doc->file_path)), @js($doc->documentType?->name ?? $code), 'image')"
+                            class="rounded-lg ring-1 ring-gray-200 p-3 text-left hover:ring-amber-400 transition">
+                        <img src="{{ asset('storage/'.$doc->file_path) }}" alt="{{ $doc->documentType?->name }}"
+                             class="w-full max-h-28 rounded object-cover">
+                        <span class="mt-2 block text-xs font-semibold text-gray-800">{{ $doc->documentType?->name ?? $code }}</span>
+                    </button>
+                @endforeach
+            </div>
+        </div>
+    @endif
 
     <div class="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
         @foreach ($angles as $key => $meta)

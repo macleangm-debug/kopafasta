@@ -12,6 +12,10 @@ class KycDocumentTypeSeeder extends Seeder
         $types = [
             ['code' => 'national_id_front', 'name' => 'National ID — front'],
             ['code' => 'national_id_back',  'name' => 'National ID — back'],
+            ['code' => 'passport', 'name' => 'Passport'],
+            ['code' => 'voter_id', 'name' => 'Voter ID'],
+            ['code' => 'driving_license', 'name' => 'Driving licence'],
+            ['code' => 'other_id', 'name' => 'Other government ID'],
             ['code' => 'identity_verification_photo', 'name' => 'Identity verification photo'],
             ['code' => 'selfie',            'name' => 'Selfie with ID'],
             ['code' => 'residence_letter',  'name' => 'Residence verification letter (LGA)'],

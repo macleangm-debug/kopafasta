@@ -9,7 +9,7 @@
         insert(token) {
             const el = document.getElementById(this.target);
             if (! el) return;
-            const snippet = '{{ ' + token + ' }}';
+            const snippet = '{' + '{ ' + token + ' }' + '}';
             const start = el.selectionStart ?? el.value.length;
             const end = el.selectionEnd ?? start;
             el.value = el.value.substring(0, start) + snippet + el.value.substring(end);
@@ -30,7 +30,7 @@
             <p class="text-xs font-semibold text-sky-900 mb-1">Click to insert personalization</p>
             <p class="text-[11px] text-sky-800 mb-3">
                 Click Subject or Body first, then tap a chip.
-                Example: Hello <code>{{ '{{ name }}' }}</code>, balance <code>{{ '{{ balance }}' }}</code>.
+                Example: Hello <code>@{{ name }}</code>, balance <code>@{{ balance }}</code>.
             </p>
             <div class="flex gap-2 mb-3 text-[11px]">
                 <button type="button" @click="target = 'subject'" :class="target === 'subject' ? 'bg-brand text-white' : 'bg-white text-gray-700'" class="rounded-lg px-2.5 py-1 font-semibold ring-1 ring-sky-200">Insert into Subject</button>
@@ -46,7 +46,7 @@
                                     class="inline-flex items-center gap-1 rounded-full bg-white ring-1 ring-sky-200 hover:ring-brand/40 hover:bg-brand-muted/40 px-2.5 py-1 text-[11px] font-semibold text-gray-800"
                                     title="Example: {{ $field['example'] }}">
                                 {{ $field['label'] }}
-                                <span class="font-mono text-brand text-[10px]">{{ '{{'.$field['token'].'}}' }}</span>
+                                <span class="font-mono text-brand text-[10px]">{{ '{'.'{'.$field['token'].'}'.'}' }}</span>
                             </button>
                         @endforeach
                     </div>
