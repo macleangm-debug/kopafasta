@@ -148,6 +148,21 @@ class LateFeeAccrualService
             foreach ($created as $fee) {
                 $rewards->afterLateFeeAccrued($customer, $fee);
             }
+
+            try {
+                $penaltyTotal = collect($created)->sum(fn ($fee) => (float) ($fee->computed_amount ?? 0));
+                $name = trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: 'Customer';
+                app(NotificationService::class)->notifyCustomer($customer, 'penalty_accrued', [
+                    'name' => $name,
+                    'loan_number' => $loan->loan_number,
+                    'penalty_amount' => format_money($penaltyTotal),
+                    'amount' => format_money((float) $loan->fresh()->outstanding_balance),
+                    '_fallback_body' => "Hi {$name}, a late fee of ".format_money($penaltyTotal)." was applied to loan {$loan->loan_number}. — ".brand_name(),
+                    '_fallback_subject' => 'Late fee applied',
+                ]);
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
 
         return $out;

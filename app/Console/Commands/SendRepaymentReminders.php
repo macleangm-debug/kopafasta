@@ -19,8 +19,22 @@ class SendRepaymentReminders extends Command
 
     public function handle(NotificationService $notifier): int
     {
-        $days = collect(explode(',', (string) $this->option('days')))
-            ->map(fn ($d) => (int) trim($d))
+        $messaging = app(\App\Services\Messaging\TransactionalMessagingService::class);
+        $messaging->ensureDefaults();
+
+        if (! $messaging->isGloballyEnabled()) {
+            $this->warn('Transactional messaging is disabled — no reminders sent.');
+
+            return self::SUCCESS;
+        }
+
+        $optionDays = (string) $this->option('days');
+        $days = $optionDays !== '3,1,0'
+            ? collect(explode(',', $optionDays))
+            : collect($messaging->reminderOffsetsDays());
+
+        $days = $days
+            ->map(fn ($d) => (int) trim((string) $d))
             ->filter(fn ($d) => $d >= 0)
             ->unique()
             ->values();
@@ -36,21 +50,26 @@ class SendRepaymentReminders extends Command
                 ->get();
 
             foreach ($rows as $row) {
-                if ($this->notifyForRow($notifier, $row, $offset, false)) $sent++;
+                if ($this->notifyForRow($notifier, $row, $offset, false)) {
+                    $sent++;
+                }
             }
         }
 
-        if ($this->option('overdue')) {
+        if ($this->option('overdue') && $messaging->overdueRemindersEnabled()) {
             $rows = RepaymentSchedule::with(['loan.customer'])
                 ->where('status', 'overdue')
                 ->whereDate('due_date', $today->copy()->subDay()->toDateString())
                 ->get();
             foreach ($rows as $row) {
-                if ($this->notifyForRow($notifier, $row, -1, true)) $sent++;
+                if ($this->notifyForRow($notifier, $row, -1, true)) {
+                    $sent++;
+                }
             }
         }
 
         $this->info("Sent {$sent} reminder(s).");
+
         return self::SUCCESS;
     }
 

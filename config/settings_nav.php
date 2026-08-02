@@ -64,6 +64,7 @@ return [
     ],
     'Communications' => [
         ['SMS / Email', 'admin.settings.gateways', 'gateways'],
+        ['Transactional messaging', 'admin.settings.messaging', 'messaging'],
         ['Notification templates', 'admin.notification-templates.index', 'notification-templates'],
         ['Chatbot', 'admin.settings.chatbot', 'chatbot'],
     ],

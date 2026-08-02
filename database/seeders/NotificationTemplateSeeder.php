@@ -171,6 +171,41 @@ class NotificationTemplateSeeder extends Seeder
                 'subject' => 'Viewing scheduled — {{ asset_title }}',
                 'body'    => 'Hi {{ name }}, your viewing for {{ asset_title }} is set for {{ viewing_when }}. Details: {{ reserve_url }} — KopaFasta',
             ],
+            [
+                'code' => 'pin_reset_otp',
+                'name' => 'PIN Reset OTP',
+                'channel' => 'sms',
+                'subject' => 'PIN reset code',
+                'body'    => 'Your '.brand_name().' PIN reset code is {{ code }}. It expires in {{ minutes }} minutes. Do not share this code.',
+            ],
+            [
+                'code' => 'payment_received',
+                'name' => 'Payment Received',
+                'channel' => 'sms',
+                'subject' => 'Payment received',
+                'body'    => 'Hi {{ name }}, we received {{ amount }} for loan {{ loan_number }}. Remaining balance: {{ balance }}. Thank you. — '.brand_name(),
+            ],
+            [
+                'code' => 'penalty_accrued',
+                'name' => 'Penalty Accrued',
+                'channel' => 'sms',
+                'subject' => 'Late fee applied',
+                'body'    => 'Hi {{ name }}, a late fee of {{ penalty_amount }} was applied to loan {{ loan_number }}. Amount now due: {{ amount }}. Pay promptly to limit further charges. — '.brand_name(),
+            ],
+            [
+                'code' => 'loan_closed',
+                'name' => 'Loan Closed',
+                'channel' => 'sms',
+                'subject' => 'Loan settled',
+                'body'    => 'Congratulations {{ name }}! Loan {{ loan_number }} is fully repaid and closed. Thank you for banking with '.brand_name().'.',
+            ],
+            [
+                'code' => 'loan_arrears',
+                'name' => 'Loan in Arrears',
+                'channel' => 'sms',
+                'subject' => 'Loan arrears notice',
+                'body'    => 'Hi {{ name }}, loan {{ loan_number }} is in arrears. Amount overdue: {{ amount }}. Please pay today or contact us. — '.brand_name(),
+            ],
         ];
 
         foreach ($templates as $t) {
@@ -179,5 +214,7 @@ class NotificationTemplateSeeder extends Seeder
                 $t + ['is_active' => true]
             );
         }
+
+        app(\App\Services\Messaging\TransactionalMessagingService::class)->ensureDefaults();
     }
 }

@@ -136,9 +136,51 @@ class RepaymentPostingService
                 report($e);
             }
 
+            try {
+                $this->notifyBorrowerPayment($loan->fresh(['customer']), $repayment);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
             // 5) Post journal entry
             return $this->postJournal($repayment->fresh(), $loan);
         });
+    }
+
+    protected function notifyBorrowerPayment(Loan $loan, Repayment $repayment): void
+    {
+        $customer = $loan->customer;
+        if (! $customer) {
+            return;
+        }
+
+        $name = trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: 'Customer';
+        $amount = format_money((float) $repayment->amount);
+        $balance = format_money((float) $loan->outstanding_balance);
+
+        $notifier = app(NotificationService::class);
+
+        if ($loan->status === 'closed' || (float) $loan->outstanding_balance <= 0) {
+            $notifier->notifyCustomer($customer, 'loan_closed', [
+                'name' => $name,
+                'loan_number' => $loan->loan_number,
+                'amount' => $amount,
+                'balance' => $balance,
+                '_fallback_body' => "Congratulations {$name}! Loan {$loan->loan_number} is fully repaid and closed. — ".brand_name(),
+                '_fallback_subject' => 'Loan settled',
+            ]);
+
+            return;
+        }
+
+        $notifier->notifyCustomer($customer, 'payment_received', [
+            'name' => $name,
+            'loan_number' => $loan->loan_number,
+            'amount' => $amount,
+            'balance' => $balance,
+            '_fallback_body' => "Hi {$name}, we received {$amount} for loan {$loan->loan_number}. Remaining balance: {$balance}. — ".brand_name(),
+            '_fallback_subject' => 'Payment received',
+        ]);
     }
 
     /** Walk unpaid installments and apply interest + principal components in order. */

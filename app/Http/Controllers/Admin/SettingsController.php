@@ -161,7 +161,41 @@ class SettingsController extends Controller
         $data['staff_sms_alerts'] = (bool) ($data['staff_sms_alerts'] ?? false);
 
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["gateway.$k" => $v])->all());
+        \Illuminate\Support\Facades\Cache::forget('sms.settings.v1');
+
         return back()->with('status', 'Gateway settings saved.');
+    }
+
+    // ---------------- Transactional messaging ----------------
+    public function messaging(\App\Services\Messaging\TransactionalMessagingService $messaging)
+    {
+        return view('admin.settings.messaging', $messaging->formValues());
+    }
+
+    public function saveMessaging(Request $request, \App\Services\Messaging\TransactionalMessagingService $messaging)
+    {
+        $data = $request->validate([
+            'enabled' => ['nullable', 'boolean'],
+            'force_log_driver' => ['nullable', 'boolean'],
+            'overdue_reminders' => ['nullable', 'boolean'],
+            'reminder_offsets_days' => ['nullable', 'string', 'max:40'],
+            'channels' => ['nullable', 'array'],
+            'channels.*' => ['nullable'],
+            'events' => ['nullable', 'array'],
+            'whatsapp' => ['nullable', 'array'],
+            'whatsapp.provider' => ['nullable', 'string', 'max:40'],
+            'whatsapp.api_url' => ['nullable', 'string', 'max:255'],
+            'whatsapp.api_token' => ['nullable', 'string', 'max:255'],
+            'whatsapp.from_number' => ['nullable', 'string', 'max:40'],
+        ]);
+
+        $data['enabled'] = (bool) ($data['enabled'] ?? false);
+        $data['force_log_driver'] = (bool) ($data['force_log_driver'] ?? false);
+        $data['overdue_reminders'] = (bool) ($data['overdue_reminders'] ?? false);
+
+        $messaging->save($data);
+
+        return back()->with('status', 'Transactional messaging settings saved.');
     }
 
     // ---------------- KYC requirements ----------------

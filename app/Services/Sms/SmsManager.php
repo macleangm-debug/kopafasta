@@ -18,6 +18,12 @@ class SmsManager
         $cfg = $this->settings();
         $provider = strtolower(trim((string) ($cfg['provider'] ?? '')));
 
+        if (app(\App\Services\Messaging\TransactionalMessagingService::class)->forceLogDriver()) {
+            $this->driver = new LogDriver;
+
+            return $this->driver;
+        }
+
         $this->driver = match ($provider) {
             'beem'            => new BeemDriver(
                 apiKey:    (string) ($cfg['api_key'] ?? ''),
