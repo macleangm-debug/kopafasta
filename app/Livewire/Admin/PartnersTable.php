@@ -16,11 +16,22 @@ class PartnersTable extends Component
 
     public string $category = '';
     public bool $lockCategory = false;
+    public string $status = '';
+    public bool $lockStatus = false;
+    public bool $reviewOnly = false;
 
-    public function mount(?string $category = null, bool $lockCategory = false): void
-    {
+    public function mount(
+        ?string $category = null,
+        bool $lockCategory = false,
+        ?string $status = null,
+        bool $lockStatus = false,
+        bool $reviewOnly = false,
+    ): void {
         $this->category = (string) ($category ?? '');
         $this->lockCategory = $lockCategory;
+        $this->status = (string) ($status ?? '');
+        $this->lockStatus = $lockStatus;
+        $this->reviewOnly = $reviewOnly || ($lockStatus && $this->status === 'inactive');
 
         if ($this->lockCategory && filled($this->category)) {
             $this->role = $this->category;
@@ -43,15 +54,19 @@ class PartnersTable extends Component
             ? $this->category
             : ($this->role ?: null);
 
-        $rows = $partners->filteredQuery($role, $this->search ?: null)
-            ->orderByDesc('id')
-            ->paginate(15);
+        $query = $partners->filteredQuery($role, $this->search ?: null);
+        if (filled($this->status)) {
+            $query->where('status', $this->status);
+        }
+
+        $rows = $query->orderByDesc('id')->paginate(15);
 
         return view('livewire.admin.partners-table', [
             'rows'         => $rows,
             'roleOptions'  => $partners->roleOptions(),
             'lockCategory' => $this->lockCategory,
             'lockedRole'   => $this->category,
+            'reviewOnly'   => $this->reviewOnly,
         ]);
     }
 }

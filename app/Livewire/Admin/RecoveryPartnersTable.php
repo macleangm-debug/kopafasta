@@ -55,6 +55,7 @@ class RecoveryPartnersTable extends Component
             'stats'       => $stats,
             'partnerType' => $this->partnerType,
             'label'       => app(RecoveryPolicyService::class)->partnerTypeLabel($this->partnerType),
+            'category'    => app(RecoveryPolicyService::class)->vendorCategoryForType($this->partnerType),
             'statuses'    => ['active', 'inactive', 'suspended'],
         ]);
     }

@@ -185,6 +185,44 @@
             </div>
         @endif
     </div>
+
+    @if ($membership ?? null)
+        <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3">Affiliate membership</h3>
+            <div class="grid sm:grid-cols-3 gap-4 text-sm mb-4">
+                <div>
+                    <span class="text-gray-500">Status</span>
+                    <p class="text-lg font-bold {{ $membership['active'] ? 'text-emerald-700' : 'text-amber-700' }}">{{ $membership['label'] }}</p>
+                </div>
+                <div>
+                    <span class="text-gray-500">Annual fee</span>
+                    <p class="text-lg font-bold">{{ format_money($membership['fee']) }}</p>
+                </div>
+                <div>
+                    <span class="text-gray-500">Expires</span>
+                    <p class="text-lg font-bold">{{ $membership['expires_at']?->format('d M Y') ?? '—' }}</p>
+                </div>
+            </div>
+            @if ($membership['reference'])
+                <p class="text-xs text-gray-500 mb-2">Payment reference: <span class="font-mono">{{ $membership['reference'] }}</span></p>
+            @endif
+            @if ($membership['due_at'])
+                <p class="text-xs text-gray-500 mb-4">Pay-by window: {{ $membership['due_at']->format('d M Y H:i') }}</p>
+            @endif
+            @if ($membership['status'] === 'pending_payment')
+                <div class="flex flex-wrap gap-3">
+                    <form method="POST" action="{{ route('admin.partners.membership.approve', $record) }}">
+                        @csrf
+                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">Approve payment</button>
+                    </form>
+                    <form method="POST" action="{{ route('admin.partners.membership.reject', $record) }}">
+                        @csrf
+                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">Reject payment</button>
+                    </form>
+                </div>
+            @endif
+        </div>
+    @endif
 @endif
 
 @if ($recoveryStats ?? null)

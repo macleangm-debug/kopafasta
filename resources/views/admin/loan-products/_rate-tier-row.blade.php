@@ -14,8 +14,12 @@
         <span class="text-sm font-semibold text-gray-900">
             <span data-tier-summary-band>{{ format_money((float) ($row['min_amount'] ?? 0)) }} – {{ format_number((float) ($row['max_amount'] ?? 0)) }}</span>
         </span>
-        <span class="text-sm text-amber-800">
-            Monthly rate: <strong data-tier-summary-total>{{ RatePercent::formatOne($total) }}</strong>
+        <span class="flex items-center gap-3">
+            <span class="text-sm text-amber-800">
+                Monthly rate: <strong data-tier-summary-total>{{ RatePercent::formatOne($total) }}</strong>
+            </span>
+            <button type="button" data-remove-tier
+                    class="text-xs font-medium text-red-600 hover:text-red-700">Remove</button>
         </span>
     </summary>
     <div class="p-4 space-y-4 border-t border-gray-100">

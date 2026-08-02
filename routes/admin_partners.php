@@ -24,4 +24,6 @@ return function (): void {
     Route::post('partners/{vendor}/affiliate-lifecycle', [VendorController::class, 'updateAffiliateLifecycle'])->name('partners.affiliate-lifecycle.update');
     Route::post('partners/{vendor}/affiliate-fraud/scan', [VendorController::class, 'scanAffiliateFraud'])->name('partners.affiliate-fraud.scan');
     Route::post('partners/{vendor}/affiliate-risk-flag', [VendorController::class, 'updateAffiliateRiskFlag'])->name('partners.affiliate-risk-flag.update');
+    Route::post('partners/{vendor}/membership/approve', [VendorController::class, 'approveMembershipPayment'])->name('partners.membership.approve');
+    Route::post('partners/{vendor}/membership/reject', [VendorController::class, 'rejectMembershipPayment'])->name('partners.membership.reject');
 };

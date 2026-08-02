@@ -1,9 +1,9 @@
 <?php
 
 return [
-    'app_name'      => env('BRAND_APP_NAME', 'Kopafasta'),
+    'app_name'      => env('BRAND_APP_NAME', 'kopafasta'),
     'legal_name'    => env('BRAND_LEGAL_NAME', 'Kopafasta Microfinance Ltd'),
-    'platform_name' => env('BRAND_PLATFORM_NAME', 'Kopafasta'),
+    'platform_name' => env('BRAND_PLATFORM_NAME', 'kopafasta'),
     'tagline'       => env('BRAND_TAGLINE', 'Capital that moves at your pace'),
     'logo_letter'   => env('BRAND_LOGO_LETTER', 'K'),
     'logo_url'       => env('BRAND_LOGO_URL', '/images/brand/kopafasta-logo.svg'),

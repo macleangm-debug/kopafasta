@@ -84,6 +84,81 @@
             </x-slot:form>
         </x-site.profile-section-card>
 
+        @php
+            $residence = $vendor->metadata['residence'] ?? [];
+            $activity = $vendor->metadata['activity'] ?? [];
+        @endphp
+
+        <x-site.profile-section-card
+            :title="__('site.partner_account.residence_section')"
+            :complete="filled($residence['region'] ?? null) && filled($residence['district'] ?? null)"
+            :collapsible="true">
+            <x-slot:view>
+                <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <dt class="text-xs text-gray-500">{{ __('site.partner_account.region') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5">{{ $residence['region'] ?? '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-gray-500">{{ __('site.partner_account.district') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5">{{ $residence['district'] ?? '—' }}</dd>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <dt class="text-xs text-gray-500">{{ __('site.partner_account.street') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5">{{ $residence['street'] ?? '—' }}</dd>
+                    </div>
+                </dl>
+            </x-slot:view>
+            <x-slot:form>
+                <form method="POST" action="{{ route('site.affiliate.profile.update') }}" class="grid sm:grid-cols-2 gap-4">
+                    @csrf
+                    @method('PUT')
+                    <input type="hidden" name="name" value="{{ $vendor->name }}">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_account.region') }}</label>
+                        <input name="residence_region" value="{{ old('residence_region', $residence['region'] ?? '') }}" class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_account.district') }}</label>
+                        <input name="residence_district" value="{{ old('residence_district', $residence['district'] ?? '') }}" class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_account.street') }}</label>
+                        <input name="residence_street" value="{{ old('residence_street', $residence['street'] ?? '') }}" class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <button type="submit" class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm">{{ __('site.affiliate_portal.save_profile') }}</button>
+                    </div>
+                </form>
+            </x-slot:form>
+        </x-site.profile-section-card>
+
+        <x-site.profile-section-card
+            :title="__('site.partner_account.activity_section')"
+            :complete="filled($activity['type'] ?? null)"
+            :collapsible="true">
+            <x-slot:view>
+                <p class="text-sm font-semibold text-gray-900">{{ $activity['type'] ?? '—' }}</p>
+                <p class="text-sm text-gray-600 mt-2 whitespace-pre-wrap">{{ $activity['details'] ?? '—' }}</p>
+            </x-slot:view>
+            <x-slot:form>
+                <form method="POST" action="{{ route('site.affiliate.profile.update') }}" class="space-y-4">
+                    @csrf
+                    @method('PUT')
+                    <input type="hidden" name="name" value="{{ $vendor->name }}">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_account.activity_type') }}</label>
+                        <input name="activity_type" value="{{ old('activity_type', $activity['type'] ?? '') }}" class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_account.activity_details') }}</label>
+                        <textarea name="activity_details" rows="3" class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">{{ old('activity_details', $activity['details'] ?? '') }}</textarea>
+                    </div>
+                    <button type="submit" class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm">{{ __('site.affiliate_portal.save_profile') }}</button>
+                </form>
+            </x-slot:form>
+        </x-site.profile-section-card>
+
         <x-site.profile-section-card
             :title="__('site.affiliate_portal.personalize_code')"
             :complete="filled($vendor->affiliate_code)"

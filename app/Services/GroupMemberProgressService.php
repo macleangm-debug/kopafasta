@@ -16,9 +16,12 @@ class GroupMemberProgressService
             'link_opened'           => __('borrower.apply.group.status.link_opened'),
             'registration_started'  => __('borrower.apply.group.status.registration_started'),
             'registration_complete' => __('borrower.apply.group.status.registration_complete'),
+            'account_registered'    => __('borrower.apply.group.status.account_registered'),
             'profile_complete'      => __('borrower.apply.group.status.profile_complete'),
             'kyc_complete'          => __('borrower.apply.group.status.kyc_complete'),
             'profile_incomplete'    => __('borrower.apply.group.status.profile_incomplete'),
+            'declined'              => __('borrower.apply.group.status.declined'),
+            'expired'               => __('borrower.apply.group.status.expired'),
         ];
     }
 
@@ -89,6 +92,15 @@ class GroupMemberProgressService
             return $this->wrapStatus('registration_started');
         }
 
+        if (in_array($invitation->status, ['rejected', 'cancelled'], true)) {
+            return $this->wrapStatus('declined');
+        }
+
+        if ($invitation->status === 'expired'
+            || ($invitation->expires_at && $invitation->expires_at->isPast())) {
+            return $this->wrapStatus('expired');
+        }
+
         return $this->wrapStatus('pending_invitation');
     }
 
@@ -133,7 +145,8 @@ class GroupMemberProgressService
                 'status_complete' => $status['complete'],
                 'progress_steps'  => $this->stepsForMemberRow($member),
             ]);
-        })->values();
+        })->reject(fn (array $member) => in_array($member['status_key'] ?? '', ['declined', 'expired'], true))
+            ->values();
 
         $added = $rows->count();
         $verified = $rows->where('status_key', 'kyc_complete')->count();
@@ -233,6 +246,31 @@ class GroupMemberProgressService
             'label'    => $labels[$key] ?? ucfirst(str_replace('_', ' ', $key)),
             'complete' => $complete || $key === 'kyc_complete',
         ];
+    }
+
+    /**
+     * Leader view of member progress on a draft group application.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function forDraftPayload(?array $groupPayload): ?array
+    {
+        if (! is_array($groupPayload) || empty($groupPayload['members']) || ! is_array($groupPayload['members'])) {
+            return null;
+        }
+
+        $members = collect($groupPayload['members'])
+            ->filter(fn ($row) => is_array($row))
+            ->values()
+            ->all();
+
+        if ($members === []) {
+            return null;
+        }
+
+        $target = (int) ($groupPayload['target_member_count'] ?? count($members));
+
+        return $this->summarize($members, max(1, $target));
     }
 
     /**

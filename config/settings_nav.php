@@ -59,6 +59,7 @@ return [
         ['Partners hub', 'admin.partners.index', 'partners-hub'],
         ['Partner tasks', 'admin.partners.tasks', 'partner-tasks'],
         ['Enrollment applications', 'admin.partner-applications.index', 'partner-applications'],
+        ['Partner membership', 'admin.settings.partners', 'partners'],
         ['Recovery policy', 'admin.settings.recovery', 'recovery'],
     ],
     'Communications' => [

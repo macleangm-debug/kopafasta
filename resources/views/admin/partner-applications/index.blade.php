@@ -26,10 +26,13 @@
         </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
-        @if ($applications->isEmpty())
-            <p class="px-6 py-10 text-sm text-gray-500 text-center">No partner applications yet.</p>
-        @else
+    @if ($applications->isEmpty())
+        <x-site.empty-state
+            icon="📝"
+            title="No partner applications found"
+            description="No public enrollment applications match these filters yet." />
+    @else
+        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
             <table class="min-w-full text-sm">
                 <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                     <tr>
@@ -83,8 +86,7 @@
                     @endforeach
                 </tbody>
             </table>
-        @endif
-    </div>
-
-    <div class="mt-4">{{ $applications->links() }}</div>
+        </div>
+        <div class="mt-4">{{ $applications->links() }}</div>
+    @endif
 </x-admin.layout>

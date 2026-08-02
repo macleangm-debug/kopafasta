@@ -109,6 +109,20 @@
             row.querySelectorAll('[data-tier-band]').forEach((input) => {
                 input.addEventListener('input', () => updateTierRowSummary(row));
             });
+            row.querySelector('[data-remove-tier]')?.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const host = document.getElementById('rate-tier-rows');
+                if (host && host.querySelectorAll('.rate-tier-row').length <= 1) {
+                    alert('At least one rate tier is required. Add a replacement tier before removing this one.');
+                    return;
+                }
+                if (! confirm('Remove this rate tier? Borrowers in this amount band will use the next matching tier once saved.')) {
+                    return;
+                }
+                row.remove();
+                updateTierPreview();
+            });
             updateTierRowSummary(row);
         }
 

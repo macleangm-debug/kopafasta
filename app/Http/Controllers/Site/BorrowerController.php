@@ -225,8 +225,14 @@ class BorrowerController extends Controller
         abort_if($draft->customer_id !== $customer->id, 404);
 
         $profile = app(\App\Services\LoanApplicationProfileService::class)->forDraft($customer, $draft);
+        $groupProgress = null;
+        $product = $draft->product;
+        if ($product && is_group_loan_product($product)) {
+            $groupProgress = app(\App\Services\GroupMemberProgressService::class)
+                ->forDraftPayload(($draft->payload ?? [])['group'] ?? null);
+        }
 
-        return view('site.borrower.loan-profile', compact('customer', 'profile'));
+        return view('site.borrower.loan-profile', compact('customer', 'profile', 'groupProgress'));
     }
 
     /**

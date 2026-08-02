@@ -115,6 +115,9 @@ class GroupMemberInviteController extends Controller
 
         $leader = $invitation->leader;
         if ($leader) {
+            app(\App\Services\GroupMemberInvitationService::class)
+                ->removeInvitationFromLeaderDrafts($leader, (int) $invitation->id);
+
             app(\App\Services\NotificationService::class)->notifyInApp(
                 $leader,
                 __('borrower.apply.group.member_declined_notice', ['name' => $invitation->displayName()]),

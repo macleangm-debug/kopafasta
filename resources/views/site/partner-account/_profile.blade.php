@@ -72,6 +72,99 @@
             </x-slot:form>
         </x-site.profile-section-card>
 
+        @php
+            $residence = $p->metadata['residence'] ?? [];
+            $activity = $p->metadata['activity'] ?? [];
+        @endphp
+
+        <x-site.profile-section-card
+            :title="__('site.partner_account.residence_section')"
+            :complete="filled($residence['region'] ?? null) && filled($residence['district'] ?? null)"
+            :collapsible="true">
+            <x-slot:view>
+                <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <dt class="text-xs text-gray-500">{{ __('site.partner_account.region') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5">{{ $residence['region'] ?? '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-gray-500">{{ __('site.partner_account.district') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5">{{ $residence['district'] ?? '—' }}</dd>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <dt class="text-xs text-gray-500">{{ __('site.partner_account.street') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5">{{ $residence['street'] ?? '—' }}</dd>
+                    </div>
+                </dl>
+            </x-slot:view>
+            <x-slot:form>
+                <form method="POST" action="{{ $updateRoute }}" class="space-y-4">
+                    @csrf
+                    @method('PUT')
+                    <input type="hidden" name="name" value="{{ $p->name }}">
+                    <div class="grid sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.region') }}</label>
+                            <input name="residence_region" value="{{ old('residence_region', $residence['region'] ?? '') }}"
+                                   class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.district') }}</label>
+                            <input name="residence_district" value="{{ old('residence_district', $residence['district'] ?? '') }}"
+                                   class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.street') }}</label>
+                        <input name="residence_street" value="{{ old('residence_street', $residence['street'] ?? '') }}"
+                               class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                    </div>
+                    <button type="submit" class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5">
+                        {{ __('site.partner_account.save_profile') }}
+                    </button>
+                </form>
+            </x-slot:form>
+        </x-site.profile-section-card>
+
+        <x-site.profile-section-card
+            :title="__('site.partner_account.activity_section')"
+            :complete="filled($activity['type'] ?? null)"
+            :collapsible="true">
+            <x-slot:view>
+                <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <dt class="text-xs text-gray-500">{{ __('site.partner_account.activity_type') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5">{{ $activity['type'] ?? '—' }}</dd>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <dt class="text-xs text-gray-500">{{ __('site.partner_account.activity_details') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5 whitespace-pre-wrap">{{ $activity['details'] ?? '—' }}</dd>
+                    </div>
+                </dl>
+            </x-slot:view>
+            <x-slot:form>
+                <form method="POST" action="{{ $updateRoute }}" class="space-y-4">
+                    @csrf
+                    @method('PUT')
+                    <input type="hidden" name="name" value="{{ $p->name }}">
+                    <div>
+                        <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.activity_type') }}</label>
+                        <input name="activity_type" value="{{ old('activity_type', $activity['type'] ?? '') }}"
+                               class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm"
+                               placeholder="Trading · Services · Agriculture…">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.activity_details') }}</label>
+                        <textarea name="activity_details" rows="3"
+                                  class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">{{ old('activity_details', $activity['details'] ?? '') }}</textarea>
+                    </div>
+                    <button type="submit" class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5">
+                        {{ __('site.partner_account.save_profile') }}
+                    </button>
+                </form>
+            </x-slot:form>
+        </x-site.profile-section-card>
+
         <x-site.profile-section-card
             :title="__('site.partner_account.payment_section')"
             :complete="! empty($payout)"

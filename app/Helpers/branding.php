@@ -10,7 +10,7 @@ if (! function_exists('brand')) {
 if (! function_exists('brand_name')) {
     function brand_name(): string
     {
-        return (string) brand('app_name', 'Kopafasta');
+        return (string) brand('app_name', 'kopafasta');
     }
 }
 

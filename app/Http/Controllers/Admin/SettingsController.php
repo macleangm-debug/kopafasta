@@ -674,7 +674,16 @@ class SettingsController extends Controller
             'message_referral_sms'                => ['nullable', 'string', 'max:500'],
             'message_verification_notice'         => ['nullable', 'string', 'max:500'],
             'message_welcome_partner'             => ['nullable', 'string', 'max:500'],
+            'message_share_template_sw'           => ['nullable', 'string', 'max:500'],
+            'message_referral_sms_sw'             => ['nullable', 'string', 'max:500'],
+            'message_verification_notice_sw'      => ['nullable', 'string', 'max:500'],
+            'message_welcome_partner_sw'          => ['nullable', 'string', 'max:500'],
             'require_kyc_for_verification'        => ['nullable', 'boolean'],
+            'membership_enabled'                  => ['nullable', 'boolean'],
+            'membership_fee_amount'               => ['nullable', 'numeric', 'min:0'],
+            'membership_duration_days'            => ['nullable', 'integer', 'min:1', 'max:1095'],
+            'membership_grace_period_hours'       => ['nullable', 'integer', 'min:1', 'max:720'],
+            'membership_required_before_sharing'  => ['nullable', 'boolean'],
             'eval_auto_apply_actions'             => ['nullable', 'boolean'],
             'eval_period_days'                    => ['nullable', 'integer', 'min:1', 'max:365'],
             'eval_min_events_for_scoring'         => ['nullable', 'integer', 'min:1', 'max:1000'],
@@ -757,11 +766,74 @@ class SettingsController extends Controller
                 'verification_notice' => $data['message_verification_notice'] ?? '',
                 'welcome_partner'     => $data['message_welcome_partner'] ?? '',
             ],
+            'affiliates.messages_sw'                         => [
+                'share_template'      => $data['message_share_template_sw'] ?? '',
+                'referral_sms'        => $data['message_referral_sms_sw'] ?? '',
+                'verification_notice' => $data['message_verification_notice_sw'] ?? '',
+                'welcome_partner'     => $data['message_welcome_partner_sw'] ?? '',
+            ],
+            'affiliates.membership'                          => [
+                'enabled'                 => $request->boolean('membership_enabled'),
+                'fee_amount'              => (float) ($data['membership_fee_amount'] ?? 50000),
+                'duration_days'           => (int) ($data['membership_duration_days'] ?? 365),
+                'grace_period_hours'      => (int) ($data['membership_grace_period_hours'] ?? 48),
+                'required_before_sharing' => $request->boolean('membership_required_before_sharing'),
+            ],
             'affiliates.require_kyc_for_verification'        => $request->boolean('require_kyc_for_verification'),
             'affiliates.minimum_payout_amount'               => (float) ($data['minimum_payout_amount'] ?? config('affiliates.minimum_payout_amount', 50000)),
         ]);
 
         return back()->with('status', 'Affiliate settings saved.');
+    }
+
+    public function partners()
+    {
+        $cfg = \App\Services\PartnerMembershipService::config();
+        $roles = app(\App\Services\PartnerService::class)->roleOptions();
+        unset($roles['affiliate'], $roles['capital']);
+
+        return view('admin.settings.partners', [
+            'values' => $cfg,
+            'roles'  => $roles,
+        ]);
+    }
+
+    public function savePartners(Request $request)
+    {
+        $roles = array_keys(app(\App\Services\PartnerService::class)->roleOptions());
+        $roles = array_values(array_diff($roles, ['affiliate', 'capital']));
+
+        $data = $request->validate([
+            'membership_enabled'            => ['nullable', 'boolean'],
+            'default_fee_amount'            => ['nullable', 'numeric', 'min:0'],
+            'default_duration_days'         => ['nullable', 'integer', 'min:1', 'max:1095'],
+            'grace_period_days'             => ['nullable', 'integer', 'min:0', 'max:90'],
+            'notify_days_before_expiry'     => ['nullable', 'integer', 'min:1', 'max:90'],
+            'categories_requiring_payment'  => ['nullable', 'array'],
+            'category_fees'                 => ['nullable', 'array'],
+            'category_fees.*'               => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $requirePay = [];
+        $fees = [];
+        foreach ($roles as $role) {
+            $requirePay[$role] = $request->boolean("categories_requiring_payment.$role");
+            $fees[$role] = (float) ($data['category_fees'][$role] ?? $data['default_fee_amount'] ?? 0);
+        }
+
+        Setting::setMany([
+            'partners.membership' => [
+                'enabled' => $request->boolean('membership_enabled'),
+                'default_fee_amount' => (float) ($data['default_fee_amount'] ?? 0),
+                'default_duration_days' => (int) ($data['default_duration_days'] ?? 365),
+                'grace_period_days' => (int) ($data['grace_period_days'] ?? 14),
+                'notify_days_before_expiry' => (int) ($data['notify_days_before_expiry'] ?? 30),
+                'categories_requiring_payment' => $requirePay,
+                'category_fees' => $fees,
+            ],
+        ]);
+
+        return back()->with('status', 'Partner membership settings saved.');
     }
 
     public function countries(Request $request)

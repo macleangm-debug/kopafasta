@@ -50,7 +50,7 @@
                     async nativeShare() {
                         if (navigator.share) {
                             try {
-                                await navigator.share({ title: 'KopaFasta referral', text: shareText, url: link });
+                                await navigator.share({ title: @js(brand_name().' referral'), text: shareText, url: link });
                             } catch (e) {}
                         } else {
                             this.copyLink();

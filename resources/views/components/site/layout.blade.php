@@ -156,6 +156,7 @@
                     <li><a href="{{ route('site.partners') }}" class="hover:text-brand-gold transition">{{ __('site.footer.service_partners') }}</a></li>
                     <li><a href="{{ route('site.partners.apply', 'debt_collector') }}" class="hover:text-brand-gold transition">{{ __('site.footer.enroll_partner') }}</a></li>
                     <li><a href="{{ route('site.affiliate') }}" class="hover:text-brand-gold transition">{{ __('site.footer.become_affiliate') }}</a></li>
+                    <li><a href="{{ route('site.affiliate.verify.index') }}" class="hover:text-brand-gold transition">{{ __('site.footer.verify_affiliate') }}</a></li>
                     <li><a href="{{ route('site.login.partner') }}" class="hover:text-brand-gold transition">{{ __('site.auth.partner_portal') }}</a></li>
                 </ul>
             </div>

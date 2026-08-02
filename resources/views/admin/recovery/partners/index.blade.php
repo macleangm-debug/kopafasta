@@ -14,6 +14,31 @@
         </div>
     </div>
 
+    <div class="mb-6 rounded-xl bg-amber-50 ring-1 ring-amber-200 p-5">
+        <h2 class="text-sm font-semibold text-amber-900">How recovery ops fit together</h2>
+        <ul class="mt-3 grid sm:grid-cols-2 gap-3 text-sm text-amber-900/90">
+            <li class="flex gap-2">
+                <span class="font-semibold shrink-0">Recovery partners</span>
+                <span>— this directory, organized by partner type (call center, debt collector, auctioneer, legal, GPS).</span>
+            </li>
+            <li class="flex gap-2">
+                <span class="font-semibold shrink-0">Recovery assignments</span>
+                <span>— individual collection cases assigned to a partner, tracked against SLA deadlines.</span>
+            </li>
+            <li class="flex gap-2">
+                <span class="font-semibold shrink-0">Recovery policy</span>
+                <span>— escalation rules that decide when and to whom a case is escalated.</span>
+            </li>
+            <li class="flex gap-2">
+                <span class="font-semibold shrink-0">Escalation path</span>
+                <span>— GPS partners locate the asset first; debt collection partners escalate cases to them when tracking is needed.</span>
+            </li>
+        </ul>
+        <p class="mt-3 text-xs text-amber-800/80">
+            Roles aren't exclusive — a single partner can hold multiple roles at once (e.g. a debt collector can also be assigned the auctioneer role).
+        </p>
+    </div>
+
     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         @foreach ($summary as $row)
             <a href="{{ route('admin.recovery.partners.type', $row['type']) }}"

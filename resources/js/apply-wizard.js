@@ -1031,11 +1031,13 @@ export function applyWizard(config) {
                         return this.groupProgressSummary;
                     }
                     const target = this.groupTargetCount();
-                    const added = this.group.members.length;
-                    const verified = this.group.members.filter(m => (m.status_key || '') === 'kyc_complete').length;
-                    const profiles = this.group.members.filter(m => ['profile_complete', 'kyc_complete'].includes(m.status_key || '')).length;
-                    const invitationsPending = this.group.members.filter(m => [
-                        'invitation_sent', 'link_opened', 'registration_started', 'registration_complete', 'profile_incomplete',
+                    const active = this.group.members.filter(m => !['declined', 'expired'].includes(m.status_key || ''));
+                    const added = active.length;
+                    const verified = active.filter(m => (m.status_key || '') === 'kyc_complete').length;
+                    const profiles = active.filter(m => ['profile_complete', 'kyc_complete'].includes(m.status_key || '')).length;
+                    const invitationsPending = active.filter(m => [
+                        'invitation_sent', 'link_opened', 'registration_started', 'registration_complete',
+                        'account_registered', 'profile_incomplete', 'pending_invitation',
                     ].includes(m.status_key || (m.invitation_id ? 'invitation_sent' : ''))).length;
                     const tpl = this.i18n.groupProgress || {};
                     const fill = (text, vars) => Object.entries(vars).reduce((s, [k, v]) => s.replace(':' + k, String(v)), text || '');
@@ -1045,6 +1047,7 @@ export function applyWizard(config) {
                         verified,
                         profiles_complete: profiles,
                         invitations_pending: invitationsPending,
+                        pending: Math.max(0, target - added),
                         summary: [
                             fill(tpl.added, { added, target }),
                             fill(tpl.profiles, { done: profiles, target }),
@@ -1097,6 +1100,10 @@ export function applyWizard(config) {
                         });
                         const data = await res.json();
                         if (res.ok && data.ok) {
+                            const beforeCount = this.group.members.length;
+                            if (Array.isArray(data.members)) {
+                                this.group.members = data.members;
+                            }
                             if (data.summary) {
                                 this.groupProgressSummary = data.summary;
                             }
@@ -1106,8 +1113,12 @@ export function applyWizard(config) {
                             if (data.scoring) {
                                 this.groupScoring = data.scoring;
                             }
-                            if (Array.isArray(data.members)) {
-                                this.group.members = data.members;
+                            if (Array.isArray(data.members) && data.members.length < beforeCount) {
+                                this.updateGroupTotal();
+                                await this.persistDraft(true);
+                                if (this.group.members.length < this.groupTargetCount()) {
+                                    this.openAddMemberPanel();
+                                }
                             }
                         }
                     } catch (e) {

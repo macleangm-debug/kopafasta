@@ -15,7 +15,14 @@
 
     <div class="glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">
         @if ($transactions->isEmpty())
-            <div class="p-10 text-center text-gray-500 text-sm">No transactions yet.</div>
+            <x-site.empty-state
+                icon="💳"
+                title="No transactions yet"
+                description="Deposits, withdrawals, investments, and returns will show up here once your capital is moving."
+                action-label="Browse funding pools"
+                :action-url="route('site.investor.pools')"
+                class="!ring-0 !shadow-none rounded-none"
+            />
         @else
             <table class="w-full text-sm">
                 <thead class="bg-brand-muted/30 text-xs uppercase text-gray-500">

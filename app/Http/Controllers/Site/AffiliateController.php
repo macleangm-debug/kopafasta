@@ -86,8 +86,73 @@ class AffiliateController extends Controller
     public function settings(): View
     {
         $vendor = $this->affiliate();
+        $membership = app(\App\Services\AffiliateMembershipService::class)->summary($vendor);
 
-        return view('site.affiliate.settings', compact('vendor'));
+        return view('site.affiliate.settings', compact('vendor', 'membership'));
+    }
+
+    public function membershipPayForm(Request $request): View|RedirectResponse
+    {
+        $vendor = $this->affiliate();
+        $service = app(\App\Services\AffiliateMembershipService::class);
+        $cfg = \App\Services\AffiliateMembershipService::config();
+
+        if (! $cfg['enabled']) {
+            return redirect()->route('site.affiliate.settings');
+        }
+
+        if ($service->isActive($vendor) && ! ($vendor->membership_expires_at?->lte(now()->addDays(30)))) {
+            return redirect()->route('site.affiliate.settings')
+                ->with('status', __('site.affiliate_portal.membership_active'));
+        }
+
+        $vendor = $service->startPaymentWindow($vendor);
+        $paymentReference = $vendor->membership_payment_reference ?: $service->generatePaymentReference($vendor);
+        $request->session()->put('affiliate_membership_payment_ref', $paymentReference);
+
+        $accounts = app(\App\Services\PaymentAccountService::class);
+        $bankAccounts = $accounts->bankAccountsForDisplay('registration_fee', $paymentReference);
+        $mobileResolved = $accounts->resolve('registration_fee', 'mobile_money');
+        $mobileDetails = $accounts->mobileMoneyDetails($mobileResolved['mobile_money_account'] ?? null, $paymentReference);
+
+        return view('site.affiliate.membership-pay', [
+            'vendor' => $vendor,
+            'config' => $cfg,
+            'paymentReference' => $paymentReference,
+            'bankAccounts' => $bankAccounts,
+            'mobileDetails' => $mobileDetails,
+        ]);
+    }
+
+    public function membershipPay(Request $request): RedirectResponse
+    {
+        $vendor = $this->affiliate();
+        $service = app(\App\Services\AffiliateMembershipService::class);
+
+        $data = $request->validate([
+            'channel' => ['required', 'in:mobile_money,bank'],
+            'payment_phone' => ['nullable', 'string', 'max:30'],
+            'payment_reference' => ['nullable', 'string', 'max:64'],
+        ]);
+
+        $ref = $data['payment_reference']
+            ?: $request->session()->pull('affiliate_membership_payment_ref')
+            ?: $service->generatePaymentReference($vendor);
+
+        if ($data['channel'] === 'bank') {
+            $vendor->update([
+                'membership_status' => 'pending_payment',
+                'membership_payment_reference' => $ref,
+            ]);
+
+            return redirect()->route('site.affiliate.settings')
+                ->with('status', __('site.affiliate_portal.membership_pending').' · '.$ref);
+        }
+
+        $service->activate($vendor, $ref);
+
+        return redirect()->route('site.affiliate.settings')
+            ->with('status', __('site.affiliate_portal.membership_paid'));
     }
 
     public function updateProfile(Request $request): RedirectResponse
@@ -106,6 +171,11 @@ class AffiliateController extends Controller
             'payout_mobile_number' => ['nullable', 'string', 'max:30'],
             'payout_bank_name' => ['nullable', 'string', 'max:120'],
             'payout_account_number' => ['nullable', 'string', 'max:60'],
+            'residence_region' => ['nullable', 'string', 'max:80'],
+            'residence_district' => ['nullable', 'string', 'max:80'],
+            'residence_street' => ['nullable', 'string', 'max:160'],
+            'activity_type' => ['nullable', 'string', 'max:80'],
+            'activity_details' => ['nullable', 'string', 'max:2000'],
         ]);
 
         if (filled($data['affiliate_code'] ?? null)) {
@@ -128,6 +198,21 @@ class AffiliateController extends Controller
             ]);
         }
 
+        if ($request->hasAny(['residence_region', 'residence_district', 'residence_street'])) {
+            $meta['residence'] = array_filter([
+                'region' => $data['residence_region'] ?? null,
+                'district' => $data['residence_district'] ?? null,
+                'street' => $data['residence_street'] ?? null,
+            ]);
+        }
+
+        if ($request->hasAny(['activity_type', 'activity_details'])) {
+            $meta['activity'] = array_filter([
+                'type' => $data['activity_type'] ?? null,
+                'details' => $data['activity_details'] ?? null,
+            ]);
+        }
+
         unset(
             $data['affiliate_code'],
             $data['payout_type'],
@@ -136,6 +221,11 @@ class AffiliateController extends Controller
             $data['payout_mobile_number'],
             $data['payout_bank_name'],
             $data['payout_account_number'],
+            $data['residence_region'],
+            $data['residence_district'],
+            $data['residence_street'],
+            $data['activity_type'],
+            $data['activity_details'],
         );
 
         $data['metadata'] = $meta;
@@ -149,25 +239,49 @@ class AffiliateController extends Controller
         $vendor = $this->affiliate();
 
         $request->validate([
-            'affiliate_selfie' => ['nullable', 'image', 'max:5120'],
-            'affiliate_id'     => ['nullable', 'image', 'max:5120'],
-            'affiliate_photo'  => ['nullable', 'image', 'max:5120'],
+            'affiliate_id'      => ['nullable', 'image', 'max:5120'],
+            'face_front'        => ['nullable', 'image', 'max:5120'],
+            'face_left'         => ['nullable', 'image', 'max:5120'],
+            'face_right'        => ['nullable', 'image', 'max:5120'],
+            'face_holding_id'   => ['nullable', 'image', 'max:5120'],
         ]);
 
         $data = [];
-        if ($request->hasFile('affiliate_selfie')) {
-            $data['affiliate_selfie_path'] = $request->file('affiliate_selfie')->store("partners/{$vendor->id}/kyc", 'public');
+        $meta = $vendor->metadata ?? [];
+        $faces = is_array($meta['face_captures'] ?? null) ? $meta['face_captures'] : [];
+
+        foreach ([
+            'face_front' => 'front',
+            'face_left' => 'left',
+            'face_right' => 'right',
+            'face_holding_id' => 'holding_id',
+        ] as $field => $key) {
+            if ($request->hasFile($field)) {
+                $faces[$key] = $request->file($field)->store("partners/{$vendor->id}/kyc", 'public');
+            }
         }
+
+        if ($faces !== ($meta['face_captures'] ?? [])) {
+            $meta['face_captures'] = $faces;
+            $data['metadata'] = $meta;
+            // Keep legacy selfie path as the front-facing capture for admin review screens.
+            if (filled($faces['front'] ?? null)) {
+                $data['affiliate_selfie_path'] = $faces['front'];
+            }
+        }
+
         if ($request->hasFile('affiliate_id')) {
             $data['affiliate_id_path'] = $request->file('affiliate_id')->store("partners/{$vendor->id}/kyc", 'public');
         }
-        if ($request->hasFile('affiliate_photo')) {
-            $data['affiliate_photo_path'] = $request->file('affiliate_photo')->store("partners/{$vendor->id}/kyc", 'public');
-        }
 
-        $selfie = $data['affiliate_selfie_path'] ?? $vendor->affiliate_selfie_path;
+        $selfie = $data['affiliate_selfie_path'] ?? $faces['front'] ?? $vendor->affiliate_selfie_path;
         $idDoc = $data['affiliate_id_path'] ?? $vendor->affiliate_id_path;
-        if ($selfie && $idDoc) {
+        $facesReady = filled($faces['front'] ?? null)
+            && filled($faces['left'] ?? null)
+            && filled($faces['right'] ?? null)
+            && filled($faces['holding_id'] ?? null);
+
+        if (($selfie || $facesReady) && $idDoc) {
             $data['affiliate_kyc_status'] = 'submitted';
         }
 

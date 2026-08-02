@@ -697,6 +697,9 @@ class ApplyController extends Controller
                     ->where('leader_customer_id', $leader->id)
                     ->first();
                 if ($invitation) {
+                    if (in_array($invitation->status, ['rejected', 'cancelled', 'expired'], true)) {
+                        return null;
+                    }
                     $status = $progress->statusFromInvitation($invitation);
                     $row['status_key'] = $status['key'];
                     $row['status_label'] = $status['label'];
@@ -719,7 +722,7 @@ class ApplyController extends Controller
             $row['progress_steps'] = $progress->stepsForMemberRow($row);
 
             return $row;
-        })->values();
+        })->filter()->values();
 
         $target = (int) ($request->input('target_member_count') ?: $members->count());
         $summary = $progress->summarize($members->all(), max(1, $target));

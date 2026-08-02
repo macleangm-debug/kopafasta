@@ -123,7 +123,7 @@
             <p class="text-xs text-gray-500">{{ __('borrower.apply.group_members.steps_legend') }}</p>
         </div>
         <div class="space-y-2">
-            <template x-for="(member, index) in group.members" :key="member.customer_id || member.invitation_id || index">
+            <template x-for="(member, index) in group.members" :key="'gm-' + index + '-c' + (member.customer_id || 0) + '-i' + (member.invitation_id || 0)">
                 <div class="glass-card rounded-2xl ring-1 overflow-hidden"
                      :class="member.role === 'leader' ? 'ring-brand/30 bg-brand-muted/20' : 'ring-gray-200/80'">
                     <button type="button"

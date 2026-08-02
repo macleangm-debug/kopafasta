@@ -120,8 +120,15 @@ class BorrowerApplicationsDashboardService
     public function formatSubmitted(LoanApplication $application): array
     {
         $pipelineProgress = $this->submittedProgress($application);
-        $profileProgress = app(ApplicationProgressService::class)
-            ->profileProgress($application->customer, $application->product);
+        $profileCompletion = app(ProfileCompletionService::class)
+            ->calculate($application->customer);
+        $profileProgress = [
+            'percent' => (int) ($profileCompletion['percent'] ?? 0),
+            'steps'   => collect($profileCompletion['sections'] ?? [])->map(fn (array $section) => [
+                'label'    => (string) ($section['label'] ?? $section['key'] ?? ''),
+                'complete' => (bool) ($section['complete'] ?? false),
+            ])->values()->all(),
+        ];
         $borrowerStatus = $this->borrowerStatus->forApplication($application);
         $statusCode = $borrowerStatus['code'];
         $docService = app(ApplicationDocumentRequestService::class);
@@ -180,11 +187,17 @@ class BorrowerApplicationsDashboardService
      */
     public function draftProgress(Customer $customer, LoanApplicationDraft $draft, ?LoanProduct $product): array
     {
-        if (! $product) {
-            return ['percent' => 0, 'steps' => []];
-        }
+        // Match profile hub % (ProfileCompletionService), not the finer apply-gate checklist.
+        $completion = app(ProfileCompletionService::class)->calculate($customer);
 
-        return app(ApplicationProgressService::class)->draftProgress($customer, $draft, $product);
+        return [
+            'percent' => (int) ($completion['percent'] ?? 0),
+            'steps'   => collect($completion['sections'] ?? [])->map(fn (array $section) => [
+                'label'    => (string) ($section['label'] ?? $section['key'] ?? ''),
+                'complete' => (bool) ($section['complete'] ?? false),
+                'key'      => $section['key'] ?? null,
+            ])->values()->all(),
+        ];
     }
 
     /**

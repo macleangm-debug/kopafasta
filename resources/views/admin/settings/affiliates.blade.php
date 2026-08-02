@@ -170,26 +170,61 @@
             </div>
         </div>
 
-        <div>
-            <h3 class="text-sm font-semibold text-gray-900 mb-3">Partner messages</h3>
-            <p class="text-xs text-gray-500 mb-4">Placeholders: <span class="font-mono">{brand}</span>, <span class="font-mono">{affiliate_name}</span>, <span class="font-mono">{affiliate_code}</span>, <span class="font-mono">{affiliate_link}</span>, <span class="font-mono">{registration_link}</span>, <span class="font-mono">{verify_link}</span></p>
-            <div class="space-y-4">
-                <x-admin.textarea name="message_share_template" label="Share message (portal copy)" rows="2"
-                                  :value="$values['message_share_template'] ?? ''" />
-                <x-admin.textarea name="message_referral_sms" label="Referral SMS template" rows="2"
-                                  :value="$values['message_referral_sms'] ?? ''" />
-                <x-admin.textarea name="message_verification_notice" label="Public verification notice" rows="2"
-                                  :value="$values['message_verification_notice'] ?? ''" />
-                <x-admin.textarea name="message_welcome_partner" label="Welcome message (new affiliates)" rows="2"
-                                  :value="$values['message_welcome_partner'] ?? ''" />
+        <div class="rounded-xl ring-1 ring-gray-200 p-5 space-y-4">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-900">Affiliate membership</h3>
+                <p class="text-xs text-gray-500 mt-1">Annual fee paid through the standard payment gate before affiliates can share. Default {{ format_money(50000) }} / year with a {{ 48 }}-hour payment window.</p>
+            </div>
+            @php $membership = $values['membership'] ?? []; @endphp
+            <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                <input type="hidden" name="membership_enabled" value="0">
+                <input type="checkbox" name="membership_enabled" value="1"
+                       @checked((bool) ($membership['enabled'] ?? true))
+                       class="rounded border-gray-300 text-brand">
+                Require affiliate membership
+            </label>
+            <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                <input type="hidden" name="membership_required_before_sharing" value="0">
+                <input type="checkbox" name="membership_required_before_sharing" value="1"
+                       @checked((bool) ($membership['required_before_sharing'] ?? true))
+                       class="rounded border-gray-300 text-brand">
+                Block sharing until membership is paid
+            </label>
+            <div class="grid md:grid-cols-3 gap-4">
+                <x-admin.input name="membership_fee_amount" label="Annual fee (TZS)" type="number" step="1000" min="0"
+                               :value="$membership['fee_amount'] ?? 50000" />
+                <x-admin.input name="membership_duration_days" label="Duration (days)" type="number" min="1"
+                               :value="$membership['duration_days'] ?? 365" />
+                <x-admin.input name="membership_grace_period_hours" label="Pay-within window (hours)" type="number" min="1"
+                               :value="$membership['grace_period_hours'] ?? 48" />
             </div>
         </div>
 
-        <div>
-            <h3 class="text-sm font-semibold text-gray-900 mb-3">Monthly evaluation & automation</h3>
-            <p class="text-xs text-gray-500 mb-4">Used by <span class="font-mono">php artisan affiliate:evaluate</span> (scheduled 1st of each month). Auto-actions move affiliates to watchlist or suspended when thresholds are exceeded.</p>
+        <div class="rounded-xl ring-1 ring-gray-200 p-5 space-y-4">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-900">Partner messages</h3>
+                <p class="text-xs text-gray-500 mt-1">English and Swahili templates. Placeholders: <span class="font-mono">{brand}</span>, <span class="font-mono">{affiliate_name}</span>, <span class="font-mono">{affiliate_code}</span>, <span class="font-mono">{affiliate_link}</span>, <span class="font-mono">{registration_link}</span>, <span class="font-mono">{verify_link}</span></p>
+            </div>
+            @foreach ([
+                ['message_share_template', 'message_share_template_sw', 'Share message (portal copy)'],
+                ['message_referral_sms', 'message_referral_sms_sw', 'Referral SMS template'],
+                ['message_verification_notice', 'message_verification_notice_sw', 'Public verification notice'],
+                ['message_welcome_partner', 'message_welcome_partner_sw', 'Welcome message (new affiliates)'],
+            ] as [$en, $sw, $label])
+                <div class="grid md:grid-cols-2 gap-4">
+                    <x-admin.textarea :name="$en" :label="$label.' (English)'" rows="2"
+                                      :value="$values[$en] ?? ''" />
+                    <x-admin.textarea :name="$sw" :label="$label.' (Swahili)'" rows="2"
+                                      :value="$values[$sw] ?? ''" />
+                </div>
+            @endforeach
+        </div>
+
+        <div class="rounded-xl ring-1 ring-gray-200 p-5 space-y-4">
+            <h3 class="text-sm font-semibold text-gray-900 mb-1">Monthly evaluation & automation</h3>
+            <p class="text-xs text-gray-500">Used by <span class="font-mono">php artisan affiliate:evaluate</span> (scheduled 1st of each month). <strong>Watchlist</strong> flags risky affiliates for review; <strong>fraud score</strong> rises with shared phones/devices, duplicate IPs, and click farms (high clicks / low conversion). Auto-actions can move affiliates to watchlist or suspended when thresholds are exceeded.</p>
             @php $eval = $values['evaluation'] ?? []; @endphp
-            <label class="inline-flex items-center gap-2 text-sm text-gray-800 mb-4">
+            <label class="inline-flex items-center gap-2 text-sm text-gray-800 mb-2">
                 <input type="hidden" name="eval_auto_apply_actions" value="0">
                 <input type="checkbox" name="eval_auto_apply_actions" value="1"
                        @checked((bool) ($eval['auto_apply_actions'] ?? true))

@@ -28,7 +28,12 @@ class LoanApplicationProfileService
     {
         $product = $draft->product ?? LoanProduct::find($draft->loan_product_id);
         $resumeTarget = $this->drafts->resumeTarget($customer, $draft);
-        $profileSummary = $this->progress->profileProgress($customer, $product);
+        $profileCompletion = app(ProfileCompletionService::class)->calculate($customer);
+        $profileSummary = [
+            'percent'   => (int) ($profileCompletion['percent'] ?? 0),
+            'completed' => collect($profileCompletion['sections'] ?? [])->where('complete', true)->count(),
+            'missing'   => collect($profileCompletion['sections'] ?? [])->where('complete', false)->pluck('label')->values()->all(),
+        ];
         $applicationSummary = $this->progress->applicationDraftProgress($customer, $draft, $product);
         $profileUrl = route('site.borrower.loan-profile.draft', $draft);
         $missingRequirements = $this->missingProfileRequirements($customer, $product, $profileUrl);
@@ -71,6 +76,7 @@ class LoanApplicationProfileService
             'edit_quote_url'       => $editQuoteUrl,
             'edit_guarantor_url'   => $editGuarantorUrl,
             'snapshot'             => $this->drafts->adminSnapshot($draft),
+            'product_details'      => $this->productDetailsForDraft($draft, $product),
             'document_requests'    => [],
             'underwriting_actions' => [],
             'guarantor_invitations' => collect(),
@@ -125,7 +131,12 @@ class LoanApplicationProfileService
             ->latest('id')
             ->first();
 
-        $profileProgress = $this->progress->profileProgress($customer, $application->product);
+        $profileCompletion = app(ProfileCompletionService::class)->calculate($customer);
+        $profileProgress = [
+            'percent'   => (int) ($profileCompletion['percent'] ?? 0),
+            'completed' => collect($profileCompletion['sections'] ?? [])->where('complete', true)->count(),
+            'missing'   => collect($profileCompletion['sections'] ?? [])->where('complete', false)->pluck('label')->values()->all(),
+        ];
         $missingRequirements = $this->submittedMissingRequirements($customer, $application, $requirements, $uploads);
         $next = $this->nextAction->forApplication($customer, $application, $missingRequirements);
 
@@ -212,6 +223,192 @@ class LoanApplicationProfileService
                 ->snapshotForApplication($application),
             'disbursement_checklist' => $disbursementChecklist,
             'handover_milestones'    => app(AssetHandoverMilestoneService::class)->forApplication($application),
+            'product_details'        => $this->productDetailsForApplication($application),
+        ];
+    }
+
+    /**
+     * Type-specific summary for draft applications (group / asset-backed / asset lending).
+     *
+     * @return array<string, mixed>|null
+     */
+    private function productDetailsForDraft(LoanApplicationDraft $draft, ?LoanProduct $product): ?array
+    {
+        if (! $product) {
+            return null;
+        }
+
+        $payload = $draft->payload ?? [];
+        $form = is_array($payload['form'] ?? null) ? $payload['form'] : [];
+        $snapshot = $this->drafts->adminSnapshot($draft);
+
+        if (is_group_loan_product($product)) {
+            $group = is_array($payload['group'] ?? null) ? $payload['group'] : [];
+            $progress = app(GroupMemberProgressService::class)->forDraftPayload($group);
+
+            return [
+                'type'     => 'group',
+                'title'    => __('borrower.loan_profile.special.group_title'),
+                'group'    => [
+                    'name'                => $group['name'] ?? null,
+                    'purpose'             => $group['purpose'] ?? null,
+                    'amount_per_member'   => $group['amount_per_member'] ?? ($form['requested_amount'] ?? null),
+                    'target_member_count' => $group['target_member_count'] ?? ($progress['target'] ?? null),
+                ],
+                'progress' => $progress,
+            ];
+        }
+
+        if (is_asset_backed_loan_product($product->code ?? null)) {
+            return [
+                'type'                => 'asset_backed',
+                'title'               => __('borrower.loan_profile.special.asset_backed_title'),
+                'asset'               => [
+                    'description' => $form['asset_description'] ?? $form['collateral_description'] ?? ($payload['asset']['description'] ?? null),
+                    'type'        => $form['asset_type'] ?? ($payload['asset']['type'] ?? null),
+                    'value'       => $form['asset_value'] ?? $form['estimated_value'] ?? ($payload['asset']['value'] ?? null),
+                    'location'    => $form['asset_location'] ?? ($payload['asset']['location'] ?? null),
+                ],
+                'photos'              => $snapshot['asset_photos'] ?? [],
+                'ownership_documents' => $snapshot['ownership_documents'] ?? [],
+                'insurance_documents' => $snapshot['insurance_documents'] ?? [],
+                'steps'               => $this->assetBackedSteps($snapshot, $form),
+            ];
+        }
+
+        if (in_array((string) ($product->category ?? ''), ['asset_finance', 'asset_lending'], true)
+            || filled($draft->asset_reservation_id)) {
+            $reservation = null;
+            if ($draft->asset_reservation_id) {
+                $reservation = \App\Models\AssetReservation::query()
+                    ->with('asset')
+                    ->find($draft->asset_reservation_id);
+            }
+
+            return [
+                'type'                => 'asset_lending',
+                'title'               => __('borrower.loan_profile.special.asset_lending_title'),
+                'asset'               => [
+                    'name'      => $reservation?->asset?->name
+                        ?? $form['asset_name']
+                        ?? ($payload['asset']['name'] ?? null),
+                    'reference' => $reservation?->asset?->sku
+                        ?? $reservation?->asset?->reference
+                        ?? null,
+                    'price'     => $reservation?->asset?->price
+                        ?? $form['asset_price']
+                        ?? null,
+                    'remaining' => $form['remaining_loan'] ?? ($payload['asset_application']['remaining_loan'] ?? null),
+                ],
+                'photos'              => $snapshot['asset_photos'] ?? [],
+                'insurance_documents' => $snapshot['insurance_documents'] ?? [],
+                'steps'               => $this->assetLendingSteps($draft, $reservation),
+            ];
+        }
+
+        return null;
+    }
+
+    /** @return array<string, mixed>|null */
+    private function productDetailsForApplication(LoanApplication $application): ?array
+    {
+        $product = $application->product;
+        if (! $product) {
+            return null;
+        }
+
+        $meta = is_array($application->metadata ?? null) ? $application->metadata : [];
+
+        if (is_group_loan_product($product)) {
+            $progress = app(GroupMemberProgressService::class)->forLoanApplication($application);
+            $group = $application->loanGroup;
+
+            return [
+                'type'     => 'group',
+                'title'    => __('borrower.loan_profile.special.group_title'),
+                'group'    => [
+                    'name'                => $group?->name,
+                    'purpose'             => $group?->purpose,
+                    'amount_per_member'   => $group?->amount_per_member,
+                    'target_member_count' => $group?->target_member_count ?? ($progress['target'] ?? null),
+                ],
+                'progress' => $progress,
+            ];
+        }
+
+        if (is_asset_backed_loan_product($product->code ?? null)) {
+            return [
+                'type'  => 'asset_backed',
+                'title' => __('borrower.loan_profile.special.asset_backed_title'),
+                'asset' => [
+                    'description' => $meta['asset_description'] ?? $application->purpose,
+                    'type'        => $meta['asset_type'] ?? null,
+                    'value'       => $meta['asset_value'] ?? null,
+                    'location'    => $meta['asset_location'] ?? null,
+                ],
+                'steps' => [
+                    ['key' => 'details', 'label' => __('borrower.loan_profile.special.step_details'), 'complete' => filled($meta['asset_description'] ?? $application->purpose)],
+                    ['key' => 'valuation', 'label' => __('borrower.loan_profile.special.step_valuation'), 'complete' => ($meta['valuation_status'] ?? '') === 'complete'],
+                    ['key' => 'insurance', 'label' => __('borrower.loan_profile.special.step_insurance'), 'complete' => (bool) ($meta['insurance_complete'] ?? false)],
+                    ['key' => 'handover', 'label' => __('borrower.loan_profile.special.step_handover'), 'complete' => (bool) ($meta['handover_complete'] ?? false)],
+                ],
+            ];
+        }
+
+        if (in_array((string) ($product->category ?? ''), ['asset_finance', 'asset_lending'], true)) {
+            return [
+                'type'  => 'asset_lending',
+                'title' => __('borrower.loan_profile.special.asset_lending_title'),
+                'asset' => [
+                    'name'      => $meta['asset_name'] ?? null,
+                    'reference' => $meta['asset_reference'] ?? null,
+                    'price'     => $meta['asset_price'] ?? null,
+                ],
+                'steps' => [
+                    ['key' => 'reservation', 'label' => __('borrower.loan_profile.special.step_reservation'), 'complete' => true],
+                    ['key' => 'application', 'label' => __('borrower.loan_profile.special.step_application'), 'complete' => true],
+                    ['key' => 'gps', 'label' => __('borrower.loan_profile.special.step_gps'), 'complete' => (bool) ($meta['gps_installed'] ?? false)],
+                    ['key' => 'insurance', 'label' => __('borrower.loan_profile.special.step_insurance'), 'complete' => (bool) ($meta['insurance_complete'] ?? false)],
+                    ['key' => 'handover', 'label' => __('borrower.loan_profile.special.step_handover'), 'complete' => (bool) ($meta['handover_complete'] ?? false)],
+                ],
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     * @param  array<string, mixed>  $form
+     * @return list<array{key: string, label: string, complete: bool}>
+     */
+    private function assetBackedSteps(array $snapshot, array $form): array
+    {
+        $hasDetails = filled($form['asset_description'] ?? $form['collateral_description'] ?? null)
+            || filled($form['asset_type'] ?? null);
+        $hasPhotos = ! empty($snapshot['asset_photos']);
+        $hasOwnership = ! empty($snapshot['ownership_documents']);
+        $hasInsurance = ! empty($snapshot['insurance_documents']);
+
+        return [
+            ['key' => 'details', 'label' => __('borrower.loan_profile.special.step_details'), 'complete' => $hasDetails],
+            ['key' => 'photos', 'label' => __('borrower.loan_profile.special.step_photos'), 'complete' => $hasPhotos],
+            ['key' => 'ownership', 'label' => __('borrower.loan_profile.special.step_ownership'), 'complete' => $hasOwnership],
+            ['key' => 'insurance', 'label' => __('borrower.loan_profile.special.step_insurance'), 'complete' => $hasInsurance],
+        ];
+    }
+
+    /** @return list<array{key: string, label: string, complete: bool}> */
+    private function assetLendingSteps(LoanApplicationDraft $draft, mixed $reservation): array
+    {
+        $payload = $draft->payload ?? [];
+        $form = is_array($payload['form'] ?? null) ? $payload['form'] : [];
+
+        return [
+            ['key' => 'reservation', 'label' => __('borrower.loan_profile.special.step_reservation'), 'complete' => (bool) $reservation || filled($draft->asset_reservation_id)],
+            ['key' => 'amount', 'label' => __('borrower.loan_profile.special.step_amount'), 'complete' => (float) ($form['requested_amount'] ?? 0) > 0],
+            ['key' => 'tenure', 'label' => __('borrower.loan_profile.special.step_tenure'), 'complete' => (int) ($form['requested_tenure_months'] ?? 0) > 0],
+            ['key' => 'review', 'label' => __('borrower.loan_profile.special.step_review'), 'complete' => (string) ($draft->phase ?? '') === 'review' || (int) ($draft->step ?? 0) >= 3],
         ];
     }
 

@@ -4,6 +4,12 @@
         ['key' => 'documents', 'label' => __('site.partner_account.tab_documents'), 'url' => route('site.affiliate.documents')],
         ['key' => 'settings', 'label' => __('site.partner_account.tab_settings'), 'url' => route('site.affiliate.settings')],
     ];
+    $faces = $vendor->metadata['face_captures'] ?? [];
+    $faceComplete = filled($faces['front'] ?? null)
+        && filled($faces['left'] ?? null)
+        && filled($faces['right'] ?? null)
+        && filled($faces['holding_id'] ?? null);
+    $idComplete = filled($vendor->affiliate_id_path);
 @endphp
 
 <x-site.affiliate-layout :title="brand_title(__('site.partner_account.documents_title'))" active="profile">
@@ -27,17 +33,18 @@
         @method('PUT')
 
         <x-site.profile-section-card
-            :title="__('site.affiliate_portal.kyc_documents')"
-            :complete="filled($vendor->affiliate_selfie_path) && filled($vendor->affiliate_id_path)"
-            :collapsible="false"
+            :title="__('site.affiliate_portal.face_section')"
+            :complete="$faceComplete"
+            :collapsible="true"
             :default-open="true">
-            <p class="text-sm text-gray-600 mb-4">{{ __('site.affiliate_portal.kyc_status', ['status' => ucfirst($vendor->affiliate_kyc_status ?? 'pending')]) }}</p>
+            <p class="text-sm text-gray-600 mb-4">{{ __('site.affiliate_portal.face_hint') }}</p>
             <p class="text-xs text-gray-500 mb-4">{{ __('site.affiliate_portal.kyc_camera_hint') }}</p>
-            <div class="grid sm:grid-cols-3 gap-4">
+            <div class="grid sm:grid-cols-2 gap-4">
                 @foreach ([
-                    'affiliate_selfie' => ['label' => __('site.affiliate_portal.selfie'), 'path' => $vendor->affiliate_selfie_path, 'capture' => 'user'],
-                    'affiliate_id'     => ['label' => __('site.affiliate_portal.national_id'), 'path' => $vendor->affiliate_id_path, 'capture' => 'environment'],
-                    'affiliate_photo'  => ['label' => __('site.affiliate_portal.profile_photo'), 'path' => $vendor->affiliate_photo_path, 'capture' => 'user'],
+                    'face_front' => ['label' => __('site.affiliate_portal.face_front'), 'path' => $faces['front'] ?? null, 'capture' => 'user'],
+                    'face_left' => ['label' => __('site.affiliate_portal.face_left'), 'path' => $faces['left'] ?? null, 'capture' => 'user'],
+                    'face_right' => ['label' => __('site.affiliate_portal.face_right'), 'path' => $faces['right'] ?? null, 'capture' => 'user'],
+                    'face_holding_id' => ['label' => __('site.affiliate_portal.face_holding_id'), 'path' => $faces['holding_id'] ?? null, 'capture' => 'user'],
                 ] as $field => $meta)
                     <div class="rounded-xl ring-1 ring-gray-200 p-4 bg-white">
                         <label class="block text-xs font-semibold text-gray-700 mb-2">{{ $meta['label'] }}</label>
@@ -51,10 +58,28 @@
                     </div>
                 @endforeach
             </div>
-            <button type="submit" class="mt-6 bg-brand hover:bg-brand-light text-white font-semibold px-8 py-3 rounded-xl text-sm shadow-md">
-                {{ __('site.affiliate_portal.save_profile') }}
-            </button>
         </x-site.profile-section-card>
+
+        <x-site.profile-section-card
+            :title="__('site.affiliate_portal.national_id')"
+            :complete="$idComplete"
+            :collapsible="true"
+            :default-open="true">
+            <p class="text-sm text-gray-600 mb-4">{{ __('site.affiliate_portal.national_id_hint') }}</p>
+            <div class="rounded-xl ring-1 ring-gray-200 p-4 bg-white max-w-md">
+                @if ($vendor->affiliate_id_path)
+                    <img src="{{ asset('storage/'.$vendor->affiliate_id_path) }}" alt="" class="w-full h-36 object-cover rounded-lg mb-2 ring-1 ring-gray-100">
+                @else
+                    <div class="w-full h-36 rounded-lg bg-gray-50 ring-1 ring-gray-100 grid place-items-center text-gray-400 text-xs mb-2">{{ __('site.affiliate_portal.no_upload') }}</div>
+                @endif
+                <input type="file" name="affiliate_id" accept="image/*" capture="environment"
+                       class="w-full text-xs file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-brand-muted file:text-brand file:font-semibold">
+            </div>
+        </x-site.profile-section-card>
+
+        <button type="submit" class="bg-brand hover:bg-brand-light text-white font-semibold px-8 py-3 rounded-xl text-sm shadow-md">
+            {{ __('site.affiliate_portal.save_profile') }}
+        </button>
     </form>
 
 </x-site.affiliate-layout>

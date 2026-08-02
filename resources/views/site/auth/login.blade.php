@@ -54,7 +54,7 @@
                             class="login-method-tab flex-1 rounded-lg py-2.5 transition {{ $authMethod === 'password' ? 'bg-white text-brand shadow-sm font-semibold' : 'text-gray-600 hover:bg-white/50' }}">{{ __('site.auth.email_password') }}</button>
                 </div>
 
-                <form method="POST" action="{{ route('site.login.post') }}" class="mt-6 space-y-5">
+                <form method="POST" action="{{ route('site.login.post') }}" class="mt-6 space-y-5 form-scroll-lock">
                     @csrf
                     <input type="hidden" name="auth_method" id="login-auth-method" value="{{ $authMethod }}">
 
@@ -68,7 +68,7 @@
                             <input type="password" name="pin" inputmode="numeric" maxlength="4" pattern="\d{4}" autocomplete="one-time-code"
                                    data-required-when="pin"
                                    @required($authMethod === 'pin')
-                                   class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm tracking-[0.5em] font-mono text-center text-lg outline-none">
+                                   class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 tracking-[0.5em] font-mono text-center text-base outline-none">
                         </div>
                     </div>
 
@@ -78,14 +78,14 @@
                             <input type="text" name="login" value="{{ old('login') }}" autocomplete="username"
                                    data-required-when="password"
                                    @required($authMethod === 'password')
-                                   class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none">
+                                   class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-base outline-none">
                         </div>
                         <div class="mt-4">
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
                             <input type="password" name="password" autocomplete="current-password"
                                    data-required-when="password"
                                    @required($authMethod === 'password')
-                                   class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none">
+                                   class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-base outline-none">
                         </div>
                     </div>
 

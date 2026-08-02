@@ -31,7 +31,7 @@ class VendorTasksTable extends Component
     public function render()
     {
         $rows = VendorTask::query()
-            ->with('vendor')
+            ->with(['vendor', 'loanApplication:id,application_number', 'loan:id,loan_number'])
             ->when($this->search !== '', function ($q) {
                 $term = '%'.$this->search.'%';
                 $q->where(function ($qq) use ($term) {

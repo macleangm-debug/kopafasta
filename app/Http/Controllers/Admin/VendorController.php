@@ -292,9 +292,12 @@ class VendorController extends ResourceController
         $recoveryStats = $record->isRecoveryPartner()
             ? app(\App\Services\RecoveryPartnerService::class)->statsForVendor($record)
             : null;
+        $membership = $record->isAffiliate()
+            ? app(\App\Services\AffiliateMembershipService::class)->summary($record)
+            : null;
 
         return view("admin.{$this->viewFolder}.show", array_merge(
-            ['record' => $record, 'affiliateStats' => $affiliateStats, 'affiliateEvaluations' => $affiliateEvaluations, 'recoveryStats' => $recoveryStats],
+            ['record' => $record, 'affiliateStats' => $affiliateStats, 'affiliateEvaluations' => $affiliateEvaluations, 'recoveryStats' => $recoveryStats, 'membership' => $membership],
             $this->formData($record),
         ));
     }
@@ -350,6 +353,32 @@ class VendorController extends ResourceController
         return redirect()
             ->route("{$this->routePrefix}.show", $vendor)
             ->with('status', 'Affiliate risk flag updated.');
+    }
+
+    public function approveMembershipPayment(Vendor $vendor): \Illuminate\Http\RedirectResponse
+    {
+        abort_unless($vendor->isAffiliate(), 404);
+
+        app(\App\Services\AffiliateMembershipService::class)->approvePendingPayment($vendor);
+
+        $this->auditAdmin('vendor.membership.approved', $vendor);
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $vendor)
+            ->with('status', 'Affiliate membership payment approved. Membership is now active.');
+    }
+
+    public function rejectMembershipPayment(Vendor $vendor): \Illuminate\Http\RedirectResponse
+    {
+        abort_unless($vendor->isAffiliate(), 404);
+
+        app(\App\Services\AffiliateMembershipService::class)->rejectPendingPayment($vendor);
+
+        $this->auditAdmin('vendor.membership.rejected', $vendor);
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $vendor)
+            ->with('status', 'Affiliate membership payment rejected.');
     }
 
     public function edit($id)

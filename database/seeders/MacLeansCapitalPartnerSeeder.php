@@ -5,17 +5,38 @@ namespace Database\Seeders;
 use App\Models\FundingPool;
 use App\Models\Lender;
 use App\Models\LenderTransaction;
+use App\Models\User;
+use App\Services\PinService;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class MacLeansCapitalPartnerSeeder extends Seeder
 {
+    public const PASSWORD = 'Password@123';
+
+    public const PIN = '1234';
+
     public function run(): void
     {
         $capital = 50_000_000;
 
+        $user = User::query()->updateOrCreate(
+            ['email' => 'macleans@kopafasta.local'],
+            [
+                'name' => 'MacLeans Capital',
+                'phone' => '+255710000209',
+                'password' => Hash::make(self::PASSWORD),
+                'role' => 'investor',
+                'is_active' => true,
+            ]
+        );
+
+        app(PinService::class)->setPin($user, self::PIN);
+
         $lender = Lender::updateOrCreate(
             ['code' => 'MACLEANS'],
             [
+                'user_id'           => $user->id,
                 'name'              => 'MacLeans Group of Companies',
                 'type'              => 'institutional',
                 'status'            => 'active',

@@ -7,6 +7,23 @@
                 <p class="text-sm text-gray-500 mt-2">{{ __('site.affiliate_portal.verify_page_subtitle') }}</p>
             </div>
 
+            @if ($lookup ?? true)
+                <form method="POST" action="{{ route('site.affiliate.verify.lookup') }}" class="glass-card rounded-2xl ring-1 ring-brand/15 p-6 mb-6 space-y-4 form-scroll-lock bg-white/90">
+                    @csrf
+                    <p class="text-sm font-semibold text-gray-900">{{ __('site.affiliate_portal.verify_lookup_title') }}</p>
+                    <x-site.phone-input name="phone" :label="__('site.affiliate_portal.verify_by_phone')" :value="old('phone', $phone ?? '')" variant="rounded" />
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_portal.verify_by_code') }}</label>
+                        <input name="code" value="{{ old('code', $code ?? '') }}"
+                               class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm font-mono uppercase focus:border-brand focus:ring-brand/10 outline-none"
+                               placeholder="KPA-XXXX">
+                    </div>
+                    <button type="submit" class="w-full bg-brand hover:bg-brand-light text-white font-semibold px-5 py-3 rounded-xl text-sm">
+                        {{ __('site.affiliate_portal.verify_lookup_cta') }}
+                    </button>
+                </form>
+            @endif
+
             @if ($verified && $affiliate)
                 <div class="glass-card rounded-2xl ring-1 ring-emerald-200/80 p-8 text-center bg-white/90">
                     <div class="mx-auto mb-4 size-16 rounded-full bg-emerald-100 text-emerald-700 grid place-items-center text-2xl font-bold ring-1 ring-emerald-200">✓</div>
@@ -35,10 +52,10 @@
                     <p class="mt-4 text-sm text-amber-800">{{ __('site.affiliate_portal.verify_unverified_body') }}</p>
                     <p class="mt-2 text-xs text-gray-500">{{ __('site.affiliate_portal.kyc_status', ['status' => ucfirst($affiliate->affiliate_kyc_status ?? 'pending')]) }}</p>
                 </div>
-            @else
+            @elseif (filled($code) || filled($phone ?? null))
                 <div class="glass-card rounded-2xl ring-1 ring-gray-200 p-8 text-center bg-white/90">
                     <h2 class="text-xl font-bold text-gray-900">{{ __('site.affiliate_portal.verify_not_found') }}</h2>
-                    <p class="mt-2 text-sm text-gray-600">{{ __('site.affiliate_portal.verify_not_found_body', ['code' => $code]) }}</p>
+                    <p class="mt-2 text-sm text-gray-600">{{ __('site.affiliate_portal.verify_not_found_body', ['code' => $code ?: ($phone ?? '')]) }}</p>
                 </div>
             @endif
 

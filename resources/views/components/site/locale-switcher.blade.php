@@ -97,8 +97,8 @@
      x-data="{ countryOpen: false, localeOpen: false }"
      @keydown.escape.window="countryOpen = false; localeOpen = false">
 
-    {{-- Mobile bottom sheets --}}
-    <div class="{{ $isMobile || ! $isHeader ? 'w-full space-y-2' : 'lg:hidden flex flex-col gap-2 w-full' }}">
+    {{-- Mobile: compact triggers + bottom sheets (never stack full-width controls in the header) --}}
+    <div class="{{ $isMobile || ! $isHeader ? 'w-full space-y-2' : 'lg:hidden flex items-center gap-2 shrink-0' }}">
         @if ($isMobile || ! $isHeader)
             <button type="button" @click="countryOpen = true"
                     class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800">
@@ -114,14 +114,13 @@
             </button>
         @else
             <button type="button" @click="countryOpen = true"
-                    class="w-full inline-flex items-center gap-2 rounded-lg border border-gray-200/80 bg-white/80 px-3 py-2 text-xs font-medium text-gray-700 shadow-sm">
+                    class="inline-flex items-center gap-1 rounded-lg border border-gray-200/80 bg-white/80 px-2 py-1.5 text-xs font-semibold text-gray-700 shadow-sm">
                 <span>{{ $currentCountry['emoji'] ?: '🌍' }}</span>
-                <span class="truncate">{{ $currentCountry['name'] ?? $siteCountry }}</span>
             </button>
             <button type="button" @click="localeOpen = true"
-                    class="w-full inline-flex items-center gap-2 rounded-lg border border-gray-200/80 bg-white/80 px-3 py-2 text-xs font-medium text-gray-700 shadow-sm">
+                    class="inline-flex items-center gap-1 rounded-lg border border-gray-200/80 bg-white/80 px-2 py-1.5 text-xs font-semibold text-gray-700 shadow-sm">
                 <span>{{ $siteLocale === 'sw' ? '🇹🇿' : '🇬🇧' }}</span>
-                <span>{{ $siteLocale === 'sw' ? __('site.locale.swahili') : __('site.locale.english') }}</span>
+                <span class="uppercase">{{ $siteLocale }}</span>
             </button>
         @endif
 

@@ -99,7 +99,26 @@ class AffiliateSettingsService
             'message_welcome_partner'             => $messages['welcome_partner'],
             'require_kyc_for_verification'        => $this->requireKycForVerification(),
             'minimum_payout_amount'               => Setting::get('affiliates.minimum_payout_amount', config('affiliates.minimum_payout_amount', 50000)),
+            'membership'                          => AffiliateMembershipService::config(),
+            'message_share_template_sw'           => $this->localizedMessage('share_template', 'sw'),
+            'message_referral_sms_sw'             => $this->localizedMessage('referral_sms', 'sw'),
+            'message_verification_notice_sw'      => $this->localizedMessage('verification_notice', 'sw'),
+            'message_welcome_partner_sw'          => $this->localizedMessage('welcome_partner', 'sw'),
         ];
+    }
+
+    public function localizedMessage(string $key, string $locale): string
+    {
+        if ($locale === 'en') {
+            return $this->messages()[$key] ?? '';
+        }
+
+        $stored = Setting::get('affiliates.messages_'.$locale);
+        if (is_array($stored) && filled($stored[$key] ?? null)) {
+            return (string) $stored[$key];
+        }
+
+        return $this->messages()[$key] ?? '';
     }
 
     /** @return array<string, string> */

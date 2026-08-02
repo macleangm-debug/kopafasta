@@ -20,6 +20,9 @@ class Partner extends Model
             'regions'  => 'array',
             'affiliate_evaluation_snapshot' => 'array',
             'affiliate_fraud_snapshot' => 'array',
+            'membership_started_at' => 'datetime',
+            'membership_expires_at' => 'datetime',
+            'membership_payment_due_at' => 'datetime',
         ];
     }
 

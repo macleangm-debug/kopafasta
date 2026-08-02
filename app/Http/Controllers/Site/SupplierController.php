@@ -308,6 +308,11 @@ class SupplierController extends Controller
             'payout_mobile_number' => ['nullable', 'string', 'max:30'],
             'payout_bank_name' => ['nullable', 'string', 'max:120'],
             'payout_account_number' => ['nullable', 'string', 'max:60'],
+            'residence_region' => ['nullable', 'string', 'max:80'],
+            'residence_district' => ['nullable', 'string', 'max:80'],
+            'residence_street' => ['nullable', 'string', 'max:160'],
+            'activity_type' => ['nullable', 'string', 'max:80'],
+            'activity_details' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $meta = $vendor->metadata ?? [];
@@ -322,6 +327,21 @@ class SupplierController extends Controller
             ]);
         }
 
+        if ($request->hasAny(['residence_region', 'residence_district', 'residence_street'])) {
+            $meta['residence'] = array_filter([
+                'region' => $data['residence_region'] ?? null,
+                'district' => $data['residence_district'] ?? null,
+                'street' => $data['residence_street'] ?? null,
+            ]);
+        }
+
+        if ($request->hasAny(['activity_type', 'activity_details'])) {
+            $meta['activity'] = array_filter([
+                'type' => $data['activity_type'] ?? null,
+                'details' => $data['activity_details'] ?? null,
+            ]);
+        }
+
         unset(
             $data['payout_type'],
             $data['payout_account_name'],
@@ -329,6 +349,11 @@ class SupplierController extends Controller
             $data['payout_mobile_number'],
             $data['payout_bank_name'],
             $data['payout_account_number'],
+            $data['residence_region'],
+            $data['residence_district'],
+            $data['residence_street'],
+            $data['activity_type'],
+            $data['activity_details'],
         );
 
         $data['metadata'] = $meta;

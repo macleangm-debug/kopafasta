@@ -154,9 +154,15 @@
         </div>
     </div>
 
+    @include('site.borrower.loan-profile._product_details', ['profile' => $profile])
+
+    @if ($profile['is_draft'] ?? false)
+        @include('site.borrower.loan-profile._draft_sections', ['profile' => $profile])
+    @endif
+
     @include('site.borrower.loan-profile._guarantor_progress', ['profile' => $profile])
 
-    @include('site.borrower.loan-profile._group_member_progress', ['groupProgress' => $groupProgress ?? null])
+    @include('site.borrower.loan-profile._group_member_progress', ['groupProgress' => $groupProgress ?? ($profile['product_details']['progress'] ?? null)])
 
     @if ($missingRequirements->isNotEmpty())
         <div id="requested-actions" class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15">

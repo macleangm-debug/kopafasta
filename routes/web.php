@@ -104,6 +104,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
     Route::post('/marketplace/request', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'storePublicRequest'])->name('marketplace.request');
     Route::get('/marketplace/{assetId}', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'publicShow'])->name('marketplace.show');
     Route::get('/verify/member/{memberNo}', [\App\Http\Controllers\Site\MemberVerificationController::class, 'show'])->name('member.verify');
+    Route::get('/verify/affiliate', [\App\Http\Controllers\Site\AffiliateVerificationController::class, 'index'])->name('affiliate.verify.index');
+    Route::post('/verify/affiliate', [\App\Http\Controllers\Site\AffiliateVerificationController::class, 'lookup'])->name('affiliate.verify.lookup');
     Route::get('/verify/affiliate/{code}', [\App\Http\Controllers\Site\AffiliateVerificationController::class, 'show'])->name('affiliate.verify');
 
     // Public guarantor invitation (guest + logged-in users must both reach this page)
@@ -370,6 +372,8 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
                 Route::put('/documents', [\App\Http\Controllers\Site\AffiliateController::class, 'updateDocuments'])->name('documents.update');
                 Route::get('/settings', [\App\Http\Controllers\Site\AffiliateController::class, 'settings'])->name('settings');
                 Route::put('/settings/pin', [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePin'])->name('settings.pin');
+                Route::get('/membership/pay', [\App\Http\Controllers\Site\AffiliateController::class, 'membershipPayForm'])->name('membership.pay');
+                Route::post('/membership/pay', [\App\Http\Controllers\Site\AffiliateController::class, 'membershipPay'])->name('membership.pay.post');
             });
         });
 
@@ -385,8 +389,9 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::put('/documents', [\App\Http\Controllers\Site\AffiliateController::class, 'updateDocuments'])->name('documents.update');
             Route::get('/settings', [\App\Http\Controllers\Site\AffiliateController::class, 'settings'])->name('settings');
             Route::put('/settings/pin', [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePin'])->name('settings.pin');
+            Route::get('/membership/pay', [\App\Http\Controllers\Site\AffiliateController::class, 'membershipPayForm'])->name('membership.pay');
+            Route::post('/membership/pay', [\App\Http\Controllers\Site\AffiliateController::class, 'membershipPay'])->name('membership.pay.post');
         });
-
         Route::redirect('/partner/affiliate-portal', '/partner/affiliate');
 
         Route::prefix('supplier')->name('supplier.')->group(function () {
@@ -667,6 +672,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::delete('vendors/{vendor}', [VendorController::class, 'destroy'])->name('vendors.destroy');
         Route::post('vendors/{vendor}/affiliate-kyc/approve', [VendorController::class, 'approveAffiliateKyc'])->name('vendors.affiliate-kyc.approve');
         Route::post('vendors/{vendor}/affiliate-kyc/reject', [VendorController::class, 'rejectAffiliateKyc'])->name('vendors.affiliate-kyc.reject');
+        Route::post('vendors/{vendor}/membership/approve', [VendorController::class, 'approveMembershipPayment'])->name('vendors.membership.approve');
+        Route::post('vendors/{vendor}/membership/reject', [VendorController::class, 'rejectMembershipPayment'])->name('vendors.membership.reject');
 
         $registerAdminPartners = require base_path('routes/admin_partners.php');
         $registerAdminPartners();
@@ -883,6 +890,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/engagement/notifications', [EngagementSettingsController::class, 'saveNotifications'])->name('settings.engagement.notifications.save');
         Route::get('settings/affiliates',      [SettingsController::class, 'affiliates'])    ->name('settings.affiliates');
         Route::put('settings/affiliates',       [SettingsController::class, 'saveAffiliates'])->name('settings.affiliates.save');
+        Route::get('settings/partners',         [SettingsController::class, 'partners'])      ->name('settings.partners');
+        Route::put('settings/partners',         [SettingsController::class, 'savePartners'])  ->name('settings.partners.save');
         Route::get('settings/chatbot',          [SettingsController::class, 'chatbot'])       ->name('settings.chatbot');
         Route::put('settings/chatbot',          [SettingsController::class, 'saveChatbot'])   ->name('settings.chatbot.save');
         Route::get('settings/countries',        [SettingsController::class, 'countries'])     ->name('settings.countries');

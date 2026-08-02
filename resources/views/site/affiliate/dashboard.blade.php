@@ -4,37 +4,36 @@
         $kycApproved = in_array($vendor->affiliate_kyc_status, ['verified', 'approved'], true);
         $code = $links['affiliate_code'] ?? $vendor->affiliate_code;
         $regLink = $links['registration_link'] ?? '#';
+        $membershipOk = app(\App\Services\AffiliateMembershipService::class)->isSharingAllowed($vendor);
+        $sharingUnlocked = $kycApproved && $membershipOk;
+        $hero = [
+            'variant' => $sharingUnlocked ? 'applications' : 'guarantor_request',
+            'greeting' => $vendor->name,
+            'membership_no' => $vendor->partner_number ?? null,
+            'title' => __('site.affiliate_portal.welcome'),
+            'subtitle' => $sharingUnlocked
+                ? __('site.affiliate_portal.banner_verified')
+                : (! $membershipOk
+                    ? __('site.affiliate_portal.membership_subtitle')
+                    : __('site.affiliate_portal.banner_pending')),
+            'cta_label' => $sharingUnlocked
+                ? __('site.affiliate_portal.nav_referrals')
+                : (! $membershipOk
+                    ? __('site.affiliate_portal.membership_pay')
+                    : __('site.affiliate_portal.complete_kyc')),
+            'cta_url' => $sharingUnlocked
+                ? route('site.affiliate.referrals')
+                : (! $membershipOk
+                    ? route('site.affiliate.membership.pay')
+                    : route('site.affiliate.profile')),
+            'secondary_cta_label' => ($sharingUnlocked && $code) ? __('site.affiliate_portal.verified_badge') : null,
+            'secondary_cta_url' => ($sharingUnlocked && $code) ? route('site.affiliate.verify', $code) : null,
+        ];
     @endphp
 
-    <x-site.borrower-page-header
-        :eyebrow="__('site.affiliate_portal.welcome')"
-        :title="$vendor->name"
-        :subtitle="__('site.affiliate_portal.partner_code', ['code' => $vendor->partner_number ?? '—'])"
-    >
-        @if ($kycApproved && $code)
-            <x-slot:actions>
-                <a href="{{ route('site.affiliate.verify', $code) }}" target="_blank" rel="noopener"
-                   class="inline-flex items-center gap-2 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 text-emerald-800 font-semibold px-4 py-2.5 text-sm">
-                    ✓ {{ __('site.affiliate_portal.verified_badge') }}
-                </a>
-            </x-slot:actions>
-        @endif
-    </x-site.borrower-page-header>
+    <x-site.borrower-dashboard-hero :hero="$hero" />
 
-    @unless ($kycApproved)
-        <div class="mb-6 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-                <p class="text-sm font-semibold text-amber-900">{{ __('site.affiliate_portal.kyc_pending_title') }}</p>
-                <p class="text-xs text-amber-800 mt-1">{{ __('site.affiliate_portal.kyc_pending_body') }}</p>
-            </div>
-            <a href="{{ route('site.affiliate.profile') }}"
-               class="inline-flex justify-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm shrink-0">
-                {{ __('site.affiliate_portal.complete_kyc') }}
-            </a>
-        </div>
-    @endunless
-
-    @if ($kycApproved && $code)
+    @if ($sharingUnlocked && $code)
         <section class="mb-8 bg-brand text-white rounded-2xl p-6 sm:p-8 shadow-lg relative overflow-hidden">
             <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
             <div class="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
@@ -51,9 +50,9 @@
                     @if ($share)
                         <x-site.referral-share :link="$regLink" :code="$code" :message="$share" />
                     @endif
-                    <a href="{{ route('site.affiliate.referrals') }}"
+                    <a href="{{ route('site.affiliate.wallet') }}"
                        class="inline-flex justify-center items-center bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-xl text-sm ring-1 ring-white/20">
-                        {{ __('site.affiliate_portal.nav_referrals') }} →
+                        {{ __('site.affiliate_portal.view_wallet') }} →
                     </a>
                 </div>
             </div>
@@ -77,15 +76,16 @@
     <div class="grid lg:grid-cols-2 gap-6">
         <div class="glass-card p-6 space-y-4">
             <h2 class="text-sm font-bold uppercase tracking-widest text-gray-500">{{ __('site.affiliate_portal.share_message') }}</h2>
-            @if ($kycApproved && $share)
+            @if ($sharingUnlocked && $share)
                 <p class="text-sm text-gray-800 bg-gray-50 rounded-xl p-4 ring-1 ring-gray-100 whitespace-pre-line">{{ $share }}</p>
                 <a href="{{ $regLink }}" target="_blank" rel="noopener"
                    class="inline-flex text-sm font-semibold text-brand hover:underline">{{ __('site.affiliate_portal.registration_link') }} →</a>
             @else
-                <p class="text-sm text-gray-500">{{ __('site.affiliate_portal.kyc_pending_body') }}</p>
-                <a href="{{ route('site.affiliate.profile') }}" class="inline-flex text-sm font-semibold text-brand hover:underline">{{ __('site.affiliate_portal.complete_kyc') }} →</a>
+                <p class="text-sm text-gray-500">{{ ! $membershipOk ? __('site.affiliate_portal.membership_subtitle') : __('site.affiliate_portal.kyc_pending_body') }}</p>
+                <a href="{{ ! $membershipOk ? route('site.affiliate.membership.pay') : route('site.affiliate.profile') }}" class="inline-flex text-sm font-semibold text-brand hover:underline">
+                    {{ ! $membershipOk ? __('site.affiliate_portal.membership_pay') : __('site.affiliate_portal.complete_kyc') }} →
+                </a>
             @endif
-            <a href="{{ route('site.affiliate.profile') }}" class="inline-flex text-sm font-semibold text-brand hover:underline">{{ __('site.affiliate_portal.personalize_code') }} →</a>
         </div>
 
         <div class="glass-card p-6 space-y-4">

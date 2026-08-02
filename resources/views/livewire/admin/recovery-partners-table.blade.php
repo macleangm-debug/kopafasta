@@ -1,15 +1,17 @@
 <div>
 <x-admin.table-shell :records="$rows" :statuses="$statuses" searchPlaceholder="Search {{ strtolower($label) }} partners…">
     <x-slot:headers>
-        <x-admin.th :sort="$sort" :direction="$direction" col="vendor_number" label="Partner #" />
-        <x-admin.th :sort="$sort" :direction="$direction" col="name" label="Name" />
-        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Portal</th>
-        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Active cases</th>
-        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Commission %</th>
-        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Markup %</th>
-        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Earned</th>
-        <x-admin.th :sort="$sort" :direction="$direction" col="status" label="Status" />
-        <th class="px-5 py-3"></th>
+        @if ($rows->isNotEmpty())
+            <x-admin.th :sort="$sort" :direction="$direction" col="vendor_number" label="Partner #" />
+            <x-admin.th :sort="$sort" :direction="$direction" col="name" label="Name" />
+            <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Portal</th>
+            <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Active cases</th>
+            <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Commission %</th>
+            <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Markup %</th>
+            <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Earned</th>
+            <x-admin.th :sort="$sort" :direction="$direction" col="status" label="Status" />
+            <th class="px-5 py-3"></th>
+        @endif
     </x-slot:headers>
     <x-slot:rows>
         @forelse ($rows as $r)
@@ -42,7 +44,16 @@
                 </td>
             </tr>
         @empty
-            <tr><td colspan="9" class="px-5 py-12 text-center text-gray-500">No {{ strtolower($label) }} partners yet.</td></tr>
+            <tr>
+                <td colspan="9" class="px-5 py-2">
+                    <x-site.empty-state
+                        icon="🛡️"
+                        title="No {{ strtolower($label) }} partners yet"
+                        description="Add a recovery partner to start assigning collection cases."
+                        actionLabel="Add partner"
+                        :actionUrl="route('admin.partners.create', ['category' => $category])" />
+                </td>
+            </tr>
         @endforelse
     </x-slot:rows>
 </x-admin.table-shell>

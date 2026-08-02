@@ -395,7 +395,40 @@ class GroupMemberInvitationService
             'expires_at' => now(),
         ]);
 
+        $this->removeInvitationFromLeaderDrafts($leader, $invitationId);
+
         return true;
+    }
+
+    /**
+     * Drop a declined/cancelled invite from any open group draft so counts stay accurate.
+     */
+    public function removeInvitationFromLeaderDrafts(Customer $leader, int $invitationId): void
+    {
+        $drafts = LoanApplicationDraft::query()
+            ->where('customer_id', $leader->id)
+            ->get();
+
+        foreach ($drafts as $draft) {
+            $payload = $draft->payload ?? [];
+            $group = is_array($payload['group'] ?? null) ? $payload['group'] : null;
+            if (! is_array($group) || ! is_array($group['members'] ?? null)) {
+                continue;
+            }
+
+            $before = count($group['members']);
+            $group['members'] = array_values(array_filter(
+                $group['members'],
+                fn ($row) => ! is_array($row) || (int) ($row['invitation_id'] ?? 0) !== $invitationId
+            ));
+
+            if (count($group['members']) === $before) {
+                continue;
+            }
+
+            $payload['group'] = $group;
+            $draft->update(['payload' => $payload]);
+        }
     }
 
     public function attachSignaturesToApplication(LoanApplication $application, array $memberRows): void

@@ -83,4 +83,16 @@ return [
 
     /** Minimum commission balance (TZS) before an affiliate may request payout. */
     'minimum_payout_amount' => 50000,
+
+    /**
+     * Annual affiliate membership (anti-scam filter). Paid via the standard payment gate
+     * before sharing is unlocked when required_before_sharing is true.
+     */
+    'membership' => [
+        'enabled'                 => true,
+        'fee_amount'              => 50000,
+        'duration_days'           => 365,
+        'grace_period_hours'      => 48,
+        'required_before_sharing' => true,
+    ],
 ];
