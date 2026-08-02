@@ -15,117 +15,90 @@
         'driving_license' => 'Driving licence',
         'other_id' => 'Other government ID',
     ];
+    $frontFace = $photos['front'] ?? null;
+    $idCompareDoc = $nidaFront ?? $altDocs->first();
+    $idCompareLabel = $nidaFront ? 'NIDA card front' : ($idCompareDoc?->documentType?->name ?? 'Identification card');
+    $idComparePath = $idCompareDoc?->file_path ?? $nidaPhotoPath;
+    $idCompareIsBureau = ! $idCompareDoc && $nidaPhotoPath;
 @endphp
 
-<x-admin.review-section id="review-verification" title="Face & identity verification" subtitle="Compare the live face photos with the identification card picture">
+<x-admin.review-section id="review-verification" title="Face & identity verification" subtitle="Compare front face capture with the identification card picture">
     <div class="mb-5 rounded-lg bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
-        <p class="text-sm font-semibold text-amber-950">Primary check</p>
-        <p class="text-xs text-amber-900/90 mt-1">Match the borrower’s live face captures to the <strong>identification card photo</strong> (NIDA card front, or the alternate ID they uploaded). Use the bureau NIDA photo only as a backup if the card image is missing.</p>
+        <p class="text-sm font-semibold text-amber-950">Primary check — front face vs ID card</p>
+        <p class="text-xs text-amber-900/90 mt-1">Confirm the person in the <strong>front face capture</strong> is the same person on the <strong>identification card picture</strong>. Other angles are supporting evidence only.</p>
     </div>
-    <div class="mb-5 rounded-lg bg-sky-50/80 ring-1 ring-sky-100 px-4 py-3">
-        <p class="text-[10px] uppercase tracking-widest font-semibold text-sky-800 mb-2">What to verify</p>
-        <div class="grid md:grid-cols-2 gap-4">
-            <div>
-                <p class="text-xs font-semibold text-sky-900 mb-1">Signature check</p>
-                <ul class="space-y-1">
-                    @foreach (config('underwriting_document_guidance.signature_check.items', []) as $item)
-                        <li class="text-xs text-sky-900 flex items-start gap-2"><span class="text-sky-600 shrink-0">✓</span><span>{{ $item }}</span></li>
-                    @endforeach
-                </ul>
+
+    <div class="mb-6 rounded-2xl ring-2 ring-brand/20 bg-white overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-100 bg-brand-muted/30 flex flex-wrap items-center justify-between gap-2">
+            <p class="text-sm font-bold text-gray-900">Side-by-side comparison</p>
+            <p class="text-xs text-gray-500 font-mono">{{ $customer->national_id ?: 'NIDA number not on file' }}</p>
+        </div>
+        <div class="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+            <div class="p-4">
+                <p class="text-[10px] uppercase tracking-widest font-semibold text-brand mb-2">1. Front face capture</p>
+                @if ($frontFace)
+                    <button type="button"
+                            onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$frontFace->file_path)), 'Front face', 'image')"
+                            class="block w-full text-left group">
+                        <img src="{{ asset('storage/'.$frontFace->file_path) }}" alt="Front face"
+                             class="w-full max-h-72 object-cover rounded-xl ring-1 ring-gray-200 group-hover:ring-amber-400 transition cursor-zoom-in">
+                        <span class="text-xs font-semibold text-amber-700 mt-2 inline-block">Enlarge front face (popup)</span>
+                    </button>
+                @else
+                    <div class="h-48 grid place-items-center rounded-xl bg-gray-50 text-sm text-gray-400 ring-1 ring-gray-200">Front face not uploaded</div>
+                @endif
             </div>
-            <div>
-                <p class="text-xs font-semibold text-sky-900 mb-1">Face verification</p>
-                <ul class="space-y-1">
-                    @foreach (config('underwriting_document_guidance.face_verification.items', []) as $item)
-                        <li class="text-xs text-sky-900 flex items-start gap-2"><span class="text-sky-600 shrink-0">✓</span><span>{{ $item }}</span></li>
-                    @endforeach
-                    <li class="text-xs text-sky-900 flex items-start gap-2"><span class="text-sky-600 shrink-0">✓</span><span>Same person on live photos and on the ID card picture.</span></li>
-                </ul>
+            <div class="p-4">
+                <p class="text-[10px] uppercase tracking-widest font-semibold text-brand mb-2">2. Identification card</p>
+                @if ($idComparePath)
+                    <button type="button"
+                            onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$idComparePath)), @js($idCompareIsBureau ? 'NIDA bureau photo' : $idCompareLabel), 'image')"
+                            class="block w-full text-left group">
+                        <img src="{{ asset('storage/'.$idComparePath) }}" alt="{{ $idCompareLabel }}"
+                             class="w-full max-h-72 object-cover rounded-xl ring-1 ring-gray-200 group-hover:ring-amber-400 transition cursor-zoom-in">
+                        <span class="text-xs font-semibold text-amber-700 mt-2 inline-block">
+                            Enlarge {{ $idCompareIsBureau ? 'bureau photo (backup)' : $idCompareLabel }} (popup)
+                        </span>
+                    </button>
+                    @if ($idCompareIsBureau)
+                        <p class="mt-2 text-[11px] text-amber-800">No card image on file — showing bureau photo as backup.</p>
+                    @endif
+                @else
+                    <div class="h-48 grid place-items-center rounded-xl bg-gray-50 text-sm text-gray-400 ring-1 ring-gray-200">No ID card image on file</div>
+                @endif
+                @if ($nidaBack)
+                    <button type="button"
+                            onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$nidaBack->file_path)), 'NIDA card back', 'image')"
+                            class="mt-2 text-xs font-semibold text-brand hover:underline">Also view card back</button>
+                @endif
             </div>
         </div>
     </div>
 
-    <div class="mb-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div class="rounded-lg ring-1 ring-gray-200 p-4">
-            <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest">NIDA number</p>
-            <p class="mt-2 font-mono text-sm font-semibold text-gray-900">{{ $customer->national_id ?: '—' }}</p>
-            @if ($customer->no_physical_nida_card)
-                <p class="mt-2 text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-2.5 py-1.5">No physical NIDA card — compare using alternate ID below.</p>
-                @if ($altTypes->isNotEmpty())
-                    <p class="mt-2 text-xs text-gray-600">Declared: {{ $altTypes->map(fn ($t) => $altLabels[$t] ?? $t)->implode(', ') }}</p>
-                @endif
-                @if (filled($review['alternate_id_notes'] ?? null))
-                    <p class="mt-1 text-xs text-gray-500">{{ $review['alternate_id_notes'] }}</p>
-                @endif
-            @endif
-        </div>
-        <div class="rounded-lg ring-1 ring-gray-200 p-4">
-            <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest">Identification card</p>
-            <p class="text-[11px] text-gray-500 mt-1">Compare live faces to this card picture</p>
-            @if ($nidaFront)
-                <button type="button"
-                        onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$nidaFront->file_path)), 'NIDA card front', 'image')"
-                        class="mt-3 block w-full text-left group">
-                    <img src="{{ asset('storage/'.$nidaFront->file_path) }}" alt="NIDA card front"
-                         class="max-h-40 w-full rounded-lg object-cover ring-1 ring-gray-200 group-hover:ring-amber-400 transition cursor-zoom-in">
-                    <span class="text-xs font-semibold text-amber-700 mt-2 inline-block">Preview NIDA card front</span>
-                </button>
-            @elseif ($altDocs->isNotEmpty())
-                @php $firstAlt = $altDocs->first(); @endphp
-                <button type="button"
-                        onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$firstAlt->file_path)), @js($firstAlt->documentType?->name ?? 'Alternate ID'), 'image')"
-                        class="mt-3 block w-full text-left group">
-                    <img src="{{ asset('storage/'.$firstAlt->file_path) }}" alt="Alternate ID"
-                         class="max-h-40 w-full rounded-lg object-cover ring-1 ring-gray-200 group-hover:ring-amber-400 transition cursor-zoom-in">
-                    <span class="text-xs font-semibold text-amber-700 mt-2 inline-block">Preview {{ $firstAlt->documentType?->name ?? 'alternate ID' }}</span>
-                </button>
-            @elseif ($nidaPhotoPath)
-                <button type="button"
-                        onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$nidaPhotoPath)), 'NIDA bureau photo', 'image')"
-                        class="mt-3 block w-full text-left group">
-                    <img src="{{ asset('storage/'.$nidaPhotoPath) }}" alt="NIDA bureau photo"
-                         class="max-h-40 w-full rounded-lg object-cover ring-1 ring-gray-200 group-hover:ring-amber-400 transition cursor-zoom-in">
-                    <span class="text-xs font-semibold text-amber-700 mt-2 inline-block">Preview bureau NIDA photo</span>
-                </button>
-            @else
-                <p class="text-sm text-gray-500 mt-3">No NIDA card or alternate ID image on file yet.</p>
-            @endif
-            @if ($nidaBack)
-                <button type="button"
-                        onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$nidaBack->file_path)), 'NIDA card back', 'image')"
-                        class="mt-2 text-xs font-semibold text-brand hover:underline">Also view card back</button>
-            @endif
-        </div>
+    <div class="mb-5 grid sm:grid-cols-2 gap-4">
         <div class="rounded-lg ring-1 ring-gray-200 p-4">
             <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest">Capture progress</p>
             <p class="text-2xl font-bold text-gray-900 mt-2">{{ $review['face_progress']['uploaded'] }}/{{ $review['face_progress']['required'] }}</p>
-            <p class="text-sm text-gray-600 mt-1">angles uploaded</p>
-            <p class="text-xs text-gray-500 mt-3">
+            <p class="text-xs text-gray-500 mt-2">
                 Status:
                 <span class="font-semibold">{{ display_label($customer->face_verification_status, 'face_verification_status') ?: 'Not started' }}</span>
             </p>
         </div>
+        <div class="rounded-lg bg-sky-50/80 ring-1 ring-sky-100 p-4">
+            <p class="text-xs font-semibold text-sky-900 mb-1">Checklist</p>
+            <ul class="space-y-1">
+                <li class="text-xs text-sky-900 flex items-start gap-2"><span class="text-sky-600">✓</span><span>Same person on front face and ID card</span></li>
+                @foreach (config('underwriting_document_guidance.face_verification.items', []) as $item)
+                    <li class="text-xs text-sky-900 flex items-start gap-2"><span class="text-sky-600">✓</span><span>{{ $item }}</span></li>
+                @endforeach
+            </ul>
+        </div>
     </div>
 
-    @if ($altDocs->count() > 1 || ($nidaFront && $altDocs->isNotEmpty()))
-        <div class="mb-6">
-            <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Alternate ID uploads</p>
-            <div class="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
-                @foreach ($altDocs as $code => $doc)
-                    <button type="button"
-                            onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$doc->file_path)), @js($doc->documentType?->name ?? $code), 'image')"
-                            class="rounded-lg ring-1 ring-gray-200 p-3 text-left hover:ring-amber-400 transition">
-                        <img src="{{ asset('storage/'.$doc->file_path) }}" alt="{{ $doc->documentType?->name }}"
-                             class="w-full max-h-28 rounded object-cover">
-                        <span class="mt-2 block text-xs font-semibold text-gray-800">{{ $doc->documentType?->name ?? $code }}</span>
-                    </button>
-                @endforeach
-            </div>
-        </div>
-    @endif
-
-    <div class="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+    <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Other angles (supporting)</p>
+    <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
         @foreach ($angles as $key => $meta)
+            @continue($key === 'front')
             @php $photo = $photos[$key] ?? null; @endphp
             <div class="rounded-xl ring-1 ring-gray-200 overflow-hidden">
                 <div class="px-3 py-2 border-b border-gray-100 flex items-center justify-between gap-2">
@@ -138,15 +111,13 @@
                 </div>
                 <div class="p-3">
                     @if ($photo)
-                        <div>
-                            <button type="button"
-                                    onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$photo->file_path)), @js($meta['label']), 'image')"
-                                    class="block w-full text-left group">
-                                <img src="{{ asset('storage/'.$photo->file_path) }}" alt="{{ $meta['label'] }}"
-                                     class="w-full rounded-lg object-cover max-h-40 mt-1 ring-1 ring-gray-200 group-hover:ring-amber-400 transition cursor-zoom-in">
-                                <span class="text-xs font-semibold text-amber-700 mt-2 inline-block">Preview {{ $meta['label'] }}</span>
-                            </button>
-                        </div>
+                        <button type="button"
+                                onclick="window.kfOpenDocumentPreview(@js(asset('storage/'.$photo->file_path)), @js($meta['label']), 'image')"
+                                class="block w-full text-left group">
+                            <img src="{{ asset('storage/'.$photo->file_path) }}" alt="{{ $meta['label'] }}"
+                                 class="w-full rounded-lg object-cover max-h-40 mt-1 ring-1 ring-gray-200 group-hover:ring-amber-400 transition cursor-zoom-in">
+                            <span class="text-xs font-semibold text-amber-700 mt-2 inline-block">Preview {{ $meta['label'] }}</span>
+                        </button>
                     @else
                         <div class="h-32 grid place-items-center text-xs text-gray-400 bg-gray-50 rounded-lg">Not uploaded</div>
                     @endif

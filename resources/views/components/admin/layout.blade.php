@@ -402,33 +402,36 @@
     });
 </script>
 
-{{-- Embedded document preview drawer (underwriting) --}}
+{{-- Centered document preview popup (underwriting) --}}
 <div id="kf-doc-drawer" class="fixed inset-0 z-50 hidden" aria-hidden="true">
-    <div class="absolute inset-0 bg-black/40" onclick="window.kfCloseDocumentPreview()"></div>
-    <aside class="absolute top-0 right-0 h-full w-full max-w-3xl bg-white shadow-2xl flex flex-col">
-        <div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-200 bg-gray-50">
-            <div class="min-w-0">
-                <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">Document preview</p>
-                <p id="kf-doc-drawer-title" class="text-sm font-semibold text-gray-900 truncate"></p>
+    <div class="absolute inset-0 bg-black/50" onclick="window.kfCloseDocumentPreview()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4 sm:p-8 pointer-events-none">
+        <div class="pointer-events-auto w-full max-w-3xl max-h-[90vh] bg-white rounded-2xl shadow-2xl ring-1 ring-black/10 flex flex-col overflow-hidden"
+             role="dialog" aria-modal="true" aria-labelledby="kf-doc-drawer-title">
+            <div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-200 bg-gray-50 shrink-0">
+                <div class="min-w-0">
+                    <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">Document preview</p>
+                    <p id="kf-doc-drawer-title" class="text-sm font-semibold text-gray-900 truncate"></p>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <a id="kf-doc-drawer-open-tab" href="#" target="_blank" rel="noopener"
+                       class="text-xs font-semibold text-brand hover:text-brand-light px-3 py-1.5 rounded-lg ring-1 ring-brand/15 bg-white">
+                        Open in tab
+                    </a>
+                    <button type="button" onclick="window.kfCloseDocumentPreview()"
+                            class="text-gray-500 hover:text-gray-800 p-2 rounded-lg hover:bg-gray-100" aria-label="Close">
+                        <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
             </div>
-            <div class="flex items-center gap-2 shrink-0">
-                <a id="kf-doc-drawer-open-tab" href="#" target="_blank" rel="noopener"
-                   class="text-xs font-semibold text-brand hover:text-brand-light px-3 py-1.5 rounded-lg ring-1 ring-brand/15 bg-white">
-                    Open in tab
-                </a>
-                <button type="button" onclick="window.kfCloseDocumentPreview()"
-                        class="text-gray-500 hover:text-gray-800 p-2 rounded-lg hover:bg-gray-100" aria-label="Close">
-                    <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
+            <div class="flex-1 min-h-0 bg-gray-100 p-3 overflow-auto" style="min-height: 280px; max-height: calc(90vh - 4rem);">
+                <iframe id="kf-doc-drawer-frame" class="hidden w-full rounded-lg bg-white ring-1 ring-gray-200" style="height: min(70vh, 640px);" title="Document preview"></iframe>
+                <div id="kf-doc-drawer-image-wrap" class="hidden w-full flex items-center justify-center">
+                    <img id="kf-doc-drawer-image" alt="" class="max-w-full max-h-[70vh] rounded-lg shadow-sm ring-1 ring-gray-200 object-contain">
+                </div>
             </div>
         </div>
-        <div class="flex-1 min-h-0 bg-gray-100 p-2">
-            <iframe id="kf-doc-drawer-frame" class="hidden w-full h-full rounded-lg bg-white ring-1 ring-gray-200" title="Document preview"></iframe>
-            <div id="kf-doc-drawer-image-wrap" class="hidden h-full overflow-auto flex items-start justify-center p-2">
-                <img id="kf-doc-drawer-image" alt="" class="max-w-full rounded-lg shadow-sm ring-1 ring-gray-200">
-            </div>
-        </div>
-    </aside>
+    </div>
 </div>
 
 @livewireScripts

@@ -27,24 +27,59 @@ class NotificationTemplatePagesProbeTest extends TestCase
             'is_active' => true,
         ]);
 
+        NotificationTemplate::create([
+            'name' => 'Payment received',
+            'code' => 'payment_received',
+            'locale' => 'sw',
+            'channel' => 'all',
+            'subject' => 'Habari {{ name }}',
+            'body' => 'Habari {{ name }}, tumepokea {{ amount }}.',
+            'is_active' => true,
+        ]);
+
         $this->actingAs($admin, 'admin')
             ->get(route('admin.notification-templates.create'))
             ->assertOk()
-            ->assertSee('Where should this send', false)
-            ->assertSee('{{ name }}', false);
-
-        $this->actingAs($admin, 'admin')
-            ->get(route('admin.notification-templates.show', $t))
-            ->assertOk()
-            ->assertSee('Message content', false)
-            ->assertSee('Hello {{ name }}', false);
+            ->assertSee('Select event', false)
+            ->assertSee('payment_received', false)
+            ->assertSee('English', false)
+            ->assertSee('Kiswahili', false);
 
         $this->actingAs($admin, 'admin')
             ->get(route('admin.notification-templates.edit', $t))
             ->assertOk()
-            ->assertSee('When this sends', false)
-            ->assertSee('payment_received', false)
-            ->assertSee('Repayments', false);
+            ->assertSee('all languages', false)
+            ->assertSee('Hello {{ name }}', false)
+            ->assertSee('Habari {{ name }}', false);
+    }
+
+    public function test_bilingual_save_updates_en_and_sw(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.notification-templates.store'), [
+                'name' => 'Payment received',
+                'code' => 'payment_received',
+                'channel' => 'sms',
+                'is_active' => '1',
+                'translations' => [
+                    'en' => ['locale' => 'en', 'subject' => 'Paid', 'body' => 'EN body {{ amount }}'],
+                    'sw' => ['locale' => 'sw', 'subject' => 'Malipo', 'body' => 'SW body {{ amount }}'],
+                ],
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('notification_templates', [
+            'code' => 'payment_received',
+            'locale' => 'en',
+            'body' => 'EN body {{ amount }}',
+        ]);
+        $this->assertDatabaseHas('notification_templates', [
+            'code' => 'payment_received',
+            'locale' => 'sw',
+            'body' => 'SW body {{ amount }}',
+        ]);
     }
 
     public function test_templates_index_groups_by_lifecycle_stage(): void
@@ -65,7 +100,7 @@ class NotificationTemplatePagesProbeTest extends TestCase
             ->get(route('admin.notification-templates.index'))
             ->assertOk()
             ->assertSee('Late payments', false)
-            ->assertSee('Browse by when the message is sent', false)
+            ->assertSee('Edit EN + SW', false)
             ->assertSee('repayment_overdue', false);
     }
 

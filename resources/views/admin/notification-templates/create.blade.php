@@ -7,8 +7,8 @@
     <div class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-brand/10">
         <div class="bg-gradient-to-r from-brand via-brand to-brand-light px-6 py-5 text-white">
             <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ brand_name() }}</p>
-            <h1 class="text-xl font-bold tracking-tight mt-1">New message</h1>
-            <p class="text-sm text-white/75 mt-1">Pick the stage and event, then write the copy borrowers will receive.</p>
+            <h1 class="text-xl font-bold tracking-tight mt-1">New message — all languages</h1>
+            <p class="text-sm text-white/75 mt-1">Pick the event, then write English and Kiswahili side by side.</p>
         </div>
         <div class="p-6">
             <form method="POST" action="{{ route('admin.notification-templates.store') }}" class="space-y-6">
@@ -30,7 +30,7 @@
                 <div class="flex items-center justify-between gap-3 pt-4 border-t border-gray-100">
                     <a href="{{ route('admin.notification-templates.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-800 px-4 py-2">Cancel</a>
                     <button type="submit" class="inline-flex items-center gap-2 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-5 py-2.5 rounded-xl shadow-sm">
-                        Create template
+                        Create all languages
                     </button>
                 </div>
             </form>

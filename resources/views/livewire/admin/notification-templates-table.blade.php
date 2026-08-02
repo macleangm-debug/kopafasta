@@ -67,23 +67,23 @@
                             <p class="text-xs text-gray-600 mt-2 line-clamp-2 font-mono">{{ \Illuminate\Support\Str::limit($primary->body, 140) }}</p>
                         </div>
                         <div class="flex flex-wrap items-center gap-2 shrink-0">
-                            @foreach (['en' => $en, 'sw' => $sw] as $locale => $row)
-                                @if ($row)
-                                    <a href="{{ route('admin.notification-templates.edit', $row) }}"
-                                       class="inline-flex items-center gap-1.5 rounded-xl bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 px-3 py-2 text-xs font-semibold text-brand">
-                                        Edit {{ strtoupper($locale) }}
-                                    </a>
-                                    <a href="{{ route('admin.notification-templates.show', $row) }}"
-                                       class="inline-flex items-center rounded-xl px-2.5 py-2 text-xs font-semibold text-gray-600 hover:text-brand">
-                                        View
-                                    </a>
-                                @else
-                                    <a href="{{ route('admin.notification-templates.create', ['code' => $code, 'locale' => $locale]) }}"
-                                       class="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 ring-1 ring-amber-200 hover:bg-amber-100 px-3 py-2 text-xs font-semibold text-amber-900">
-                                        Add {{ strtoupper($locale) }}
-                                    </a>
-                                @endif
-                            @endforeach
+                            <a href="{{ route('admin.notification-templates.edit', $primary) }}"
+                               class="inline-flex items-center gap-1.5 rounded-xl bg-brand-gold text-brand px-3 py-2 text-xs font-semibold hover:brightness-95">
+                                Edit EN + SW
+                            </a>
+                            <a href="{{ route('admin.notification-templates.show', $primary) }}"
+                               class="inline-flex items-center rounded-xl px-2.5 py-2 text-xs font-semibold text-gray-600 hover:text-brand">
+                                View
+                            </a>
+                            <div class="flex gap-1 text-[10px] font-semibold uppercase tracking-wide">
+                                @foreach (config('notification_templates.locales', ['en' => 'English', 'sw' => 'Kiswahili']) as $locale => $label)
+                                    @if ($byLocale->has($locale))
+                                        <span class="rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 px-2 py-0.5">{{ $locale }}</span>
+                                    @else
+                                        <span class="rounded-full bg-amber-50 text-amber-800 ring-1 ring-amber-200 px-2 py-0.5">{{ $locale }} missing</span>
+                                    @endif
+                                @endforeach
+                            </div>
                         </div>
                     </div>
                 @endforeach
