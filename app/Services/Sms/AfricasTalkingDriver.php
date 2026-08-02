@@ -52,6 +52,49 @@ class AfricasTalkingDriver implements SmsDriver
         }
     }
 
+    public function healthCheck(): array
+    {
+        if ($this->username === '' || $this->apiKey === '') {
+            return [
+                'ok' => false,
+                'message' => "Africa's Talking username or API key is missing.",
+                'provider' => 'africastalking',
+            ];
+        }
+
+        try {
+            $response = Http::withHeaders(['apiKey' => $this->apiKey, 'Accept' => 'application/json'])
+                ->timeout(12)
+                ->get('https://api.africastalking.com/version1/user', [
+                    'username' => $this->username,
+                ]);
+
+            if ($response->successful()) {
+                $balance = $response->json('UserData.balance') ?? $response->json('balance');
+
+                return [
+                    'ok' => true,
+                    'message' => $balance
+                        ? "Africa's Talking connected. Balance: {$balance}"
+                        : "Africa's Talking connected. Sender ID: ".($this->senderId ?: '(default)'),
+                    'provider' => 'africastalking',
+                ];
+            }
+
+            return [
+                'ok' => false,
+                'message' => "Africa's Talking health check failed HTTP ".$response->status().': '.substr((string) $response->body(), 0, 180),
+                'provider' => 'africastalking',
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'ok' => false,
+                'message' => "Africa's Talking health check error: ".$e->getMessage(),
+                'provider' => 'africastalking',
+            ];
+        }
+    }
+
     private function normalize(string $phone): string
     {
         $p = preg_replace('/[^\d]/', '', $phone) ?? '';

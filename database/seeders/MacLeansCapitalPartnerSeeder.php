@@ -5,7 +5,9 @@ namespace Database\Seeders;
 use App\Models\FundingPool;
 use App\Models\Lender;
 use App\Models\LenderTransaction;
+use App\Models\LoanCapitalAllocation;
 use App\Models\User;
+use App\Services\CapitalPartnerMetricsService;
 use App\Services\PinService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -42,7 +44,7 @@ class MacLeansCapitalPartnerSeeder extends Seeder
 
         app(PinService::class)->setPin($user, self::PIN);
 
-        $lender = Lender::updateOrCreate(
+        $lender = Lender::query()->firstOrCreate(
             ['code' => 'MACLEANS'],
             [
                 'user_id'           => $user->id,
@@ -55,7 +57,17 @@ class MacLeansCapitalPartnerSeeder extends Seeder
             ]
         );
 
-        $pool = FundingPool::updateOrCreate(
+        // Refresh identity fields without wiping live balances / deployments.
+        $lender->forceFill([
+            'user_id' => $user->id,
+            'name' => 'MacLeans Group of Companies',
+            'type' => 'institutional',
+            'status' => 'active',
+            'credit_limit' => $capital,
+            'auto_invest' => true,
+        ])->save();
+
+        $pool = FundingPool::query()->firstOrCreate(
             ['lender_id' => $lender->id, 'name' => 'MacLeans Primary Pool'],
             [
                 'currency'          => 'TZS',
@@ -71,6 +83,27 @@ class MacLeansCapitalPartnerSeeder extends Seeder
             ]
         );
 
+        $pool->forceFill([
+            'currency' => 'TZS',
+            'amount_committed' => $capital,
+            'expected_yield' => 15.0,
+            'pool_type' => 'business',
+            'risk_level' => 'medium',
+            'status' => 'open',
+            'is_public' => false,
+            'description' => 'Primary capital pool for MacLeans Group of Companies — TZS 50,000,000.',
+        ])->save();
+
+        // Align amount_deployed with outstanding partner exposure (do not force zero).
+        $exposure = (float) LoanCapitalAllocation::query()
+            ->where('funding_pool_id', $pool->id)
+            ->sum('outstanding_exposure');
+        $pool->amount_deployed = $exposure;
+        $pool->save();
+
+        $lender->available_balance = max(0, $capital - $exposure);
+        $lender->save();
+
         LenderTransaction::firstOrCreate(
             ['reference' => 'TXN-MACLEANS-INITIAL'],
             [
@@ -85,5 +118,7 @@ class MacLeansCapitalPartnerSeeder extends Seeder
                 'processed_at'    => now(),
             ]
         );
+
+        app(CapitalPartnerMetricsService::class)->reconcileDeployedBalances($lender->fresh('pools'));
     }
 }

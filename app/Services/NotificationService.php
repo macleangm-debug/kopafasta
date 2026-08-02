@@ -116,7 +116,14 @@ class NotificationService
             return;
         }
 
-        $tpl = NotificationTemplate::where('code', $templateCode)->where('is_active', true)->first();
+        $tpl = NotificationTemplate::resolveActive(
+            $templateCode,
+            $vars['_locale']
+                ?? data_get($customer, 'preferred_locale')
+                ?? data_get($customer, 'locale')
+                ?? optional($customer->user)->locale
+                ?? app()->getLocale()
+        );
 
         $body = $tpl ? $this->render($tpl->body, $vars) : ($vars['_fallback_body'] ?? '');
         $subject = $tpl ? $this->render((string) $tpl->subject, $vars) : ($vars['_fallback_subject'] ?? brand_name());

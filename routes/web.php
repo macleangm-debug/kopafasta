@@ -845,6 +845,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/auth-portal',      [SettingsController::class, 'saveAuthPortal'])->name('settings.auth-portal.save');
         Route::get('settings/gateways',         [SettingsController::class, 'gateways'])      ->name('settings.gateways');
         Route::put('settings/gateways',         [SettingsController::class, 'saveGateways'])  ->name('settings.gateways.save');
+        Route::get('settings/gateways/health',  [SettingsController::class, 'smsHealth'])     ->name('settings.gateways.health');
         Route::get('settings/messaging',        [SettingsController::class, 'messaging'])     ->name('settings.messaging');
         Route::put('settings/messaging',        [SettingsController::class, 'saveMessaging'])->name('settings.messaging.save');
         Route::get('settings/kyc',              [SettingsController::class, 'kyc'])           ->name('settings.kyc');

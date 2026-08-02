@@ -15,4 +15,13 @@ class LogDriver implements SmsDriver
         Log::channel(config('logging.default'))->info('[SMS:log-driver] '.$to.' :: '.$message);
         return ['ok' => true, 'provider_id' => 'log-'.uniqid(), 'error' => null];
     }
+
+    public function healthCheck(): array
+    {
+        return [
+            'ok' => true,
+            'message' => 'Log driver active — messages are written to the application log (no live SMS API).',
+            'provider' => 'log',
+        ];
+    }
 }

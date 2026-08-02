@@ -95,6 +95,7 @@ class InvestorController extends Controller
     public function dashboard()
     {
         $lender = $this->lender();
+        app(\App\Services\CapitalPartnerMetricsService::class)->reconcileDeployedBalances($lender);
         $stats  = $this->stats($lender);
         $capitalMetrics = app(\App\Services\CapitalPartnerMetricsService::class)->forLender($lender);
 

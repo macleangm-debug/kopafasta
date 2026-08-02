@@ -17,7 +17,9 @@ class DashboardController extends Controller
 {
     public function __invoke()
     {
-        $capital = app(CapitalPartnerMetricsService::class)->platformSummary();
+        $capitalMetrics = app(CapitalPartnerMetricsService::class);
+        $capitalMetrics->reconcileDeployedBalances();
+        $capital = $capitalMetrics->platformSummary();
 
         $stageKeys = ['submitted', 'screening', 'credit_appraisal', 'pre_approval', 'approval', 'disbursement'];
         $stageCountsRaw = LoanApplication::query()

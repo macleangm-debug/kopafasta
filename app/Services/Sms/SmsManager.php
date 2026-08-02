@@ -50,6 +50,18 @@ class SmsManager
     }
 
     /**
+     * @return array{ok:bool, message:string, provider:?string}
+     */
+    public function healthCheck(): array
+    {
+        // Always rebuild so we pick up freshly saved credentials.
+        $this->driver = null;
+        Cache::forget('sms.settings.v1');
+
+        return $this->driver()->healthCheck();
+    }
+
+    /**
      * Read sms_* settings from system_settings table, with 60s cache.
      *
      * @return array{provider:?string, sender_id:?string, api_key:?string, api_secret:?string, endpoint:?string}

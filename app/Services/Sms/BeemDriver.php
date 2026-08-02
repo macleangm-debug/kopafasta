@@ -53,6 +53,51 @@ class BeemDriver implements SmsDriver
         }
     }
 
+    public function healthCheck(): array
+    {
+        if ($this->apiKey === '' || $this->secretKey === '') {
+            return [
+                'ok' => false,
+                'message' => 'Beem API key or secret is missing.',
+                'provider' => 'beem',
+            ];
+        }
+
+        try {
+            $response = Http::withBasicAuth($this->apiKey, $this->secretKey)
+                ->acceptJson()
+                ->timeout(12)
+                ->get('https://apisms.beem.africa/public/v1/vendors/balance');
+
+            if ($response->successful()) {
+                $balance = $response->json('data.credit_balance')
+                    ?? $response->json('credit_balance')
+                    ?? $response->json('data.balance')
+                    ?? null;
+
+                return [
+                    'ok' => true,
+                    'message' => $balance !== null
+                        ? 'Beem connected. Credit balance: '.$balance
+                        : 'Beem connected (credentials accepted). Sender ID: '.$this->senderId,
+                    'provider' => 'beem',
+                ];
+            }
+
+            return [
+                'ok' => false,
+                'message' => 'Beem health check failed HTTP '.$response->status().': '.substr((string) $response->body(), 0, 180),
+                'provider' => 'beem',
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'ok' => false,
+                'message' => 'Beem health check error: '.$e->getMessage(),
+                'provider' => 'beem',
+            ];
+        }
+    }
+
     private function normalize(string $phone): string
     {
         $p = preg_replace('/[^\d]/', '', $phone) ?? '';

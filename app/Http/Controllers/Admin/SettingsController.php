@@ -166,6 +166,16 @@ class SettingsController extends Controller
         return back()->with('status', 'Gateway settings saved.');
     }
 
+    public function smsHealth(\App\Services\Sms\SmsManager $sms)
+    {
+        $result = $sms->healthCheck();
+
+        return redirect()
+            ->route('admin.settings.gateways')
+            ->with('sms_health', $result)
+            ->with('status', ($result['ok'] ?? false) ? 'SMS connection check completed.' : 'SMS connection check failed.');
+    }
+
     // ---------------- Transactional messaging ----------------
     public function messaging(\App\Services\Messaging\TransactionalMessagingService $messaging)
     {

@@ -11,6 +11,8 @@ class CapitalPartnerFundingController extends Controller
 {
     public function index(CapitalPartnerMetricsService $metrics)
     {
+        $metrics->reconcileDeployedBalances();
+
         return view('admin.capital-funding.index', [
             'summary'           => $metrics->platformSummary(),
             'partners'          => $metrics->partnersOverview(),

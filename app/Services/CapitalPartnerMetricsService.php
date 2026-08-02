@@ -15,14 +15,19 @@ class CapitalPartnerMetricsService
     public function platformSummary(): array
     {
         $invested = (float) FundingPool::query()->sum('amount_committed');
-        $utilized = (float) FundingPool::query()->sum('amount_deployed');
+        $deployedColumn = (float) FundingPool::query()->sum('amount_deployed');
 
         $sums = LoanCapitalAllocation::query()
             ->selectRaw('COALESCE(SUM(outstanding_exposure), 0) as outstanding_exposure')
             ->selectRaw('COALESCE(SUM(interest_earned_partner), 0) as interest_earned_partner')
             ->selectRaw('COALESCE(SUM(interest_earned_company), 0) as interest_earned_company')
+            ->selectRaw('COALESCE(SUM(allocated_principal), 0) as allocated_principal')
             ->selectRaw('COUNT(DISTINCT CASE WHEN outstanding_exposure > 0 THEN loan_id END) as active_loans')
             ->first();
+
+        $exposure = (float) ($sums->outstanding_exposure ?? 0);
+        // Prefer live exposure when pool.amount_deployed drifted (e.g. seeder reset).
+        $utilized = max($deployedColumn, $exposure);
 
         $partnerInterest = (float) ($sums->interest_earned_partner ?? 0);
         $companyInterest = (float) ($sums->interest_earned_company ?? 0);
@@ -32,7 +37,7 @@ class CapitalPartnerMetricsService
             ->where('outstanding_exposure', '>', 0)
             ->whereHas('loan', fn ($q) => $q->whereIn('status', ['defaulted', 'written_off']))
             ->sum('outstanding_exposure');
-        $totalExposure = (float) ($sums->outstanding_exposure ?? 0);
+        $totalExposure = $exposure;
 
         return [
             'capital_invested'        => $invested,
@@ -100,7 +105,7 @@ class CapitalPartnerMetricsService
             $capitalInvested = (float) ($lender->credit_limit ?? 0);
         }
 
-        $capitalUtilized = (float) $lender->pools->sum('amount_deployed');
+        $deployedColumn = (float) $lender->pools->sum('amount_deployed');
 
         $sums = LoanCapitalAllocation::query()
             ->where('lender_id', $lender->id)
@@ -110,6 +115,8 @@ class CapitalPartnerMetricsService
             ->selectRaw('COUNT(DISTINCT CASE WHEN outstanding_exposure > 0 THEN loan_id END) as active_loans')
             ->first();
 
+        $exposure = (float) ($sums->outstanding_exposure ?? 0);
+        $capitalUtilized = max($deployedColumn, $exposure);
         $partnerInterest = (float) ($sums->interest_earned_partner ?? 0);
         $companyInterest = (float) ($sums->interest_earned_company ?? 0);
 
@@ -117,12 +124,51 @@ class CapitalPartnerMetricsService
             'capital_invested'        => $capitalInvested,
             'capital_utilized'        => $capitalUtilized,
             'capital_available'       => max(0, $capitalInvested - $capitalUtilized),
-            'outstanding_exposure'    => (float) ($sums->outstanding_exposure ?? 0),
+            'outstanding_exposure'    => $exposure,
             'interest_earned_total'   => $partnerInterest + $companyInterest,
             'interest_earned_partner' => $partnerInterest,
             'interest_earned_company' => $companyInterest,
             'active_loans'            => (int) ($sums->active_loans ?? 0),
         ];
+    }
+
+    /**
+     * Rebuild pool.amount_deployed and lender.available_balance from live allocations.
+     * Safe to run after seeds or historical drift.
+     */
+    public function reconcileDeployedBalances(?Lender $lender = null): int
+    {
+        $pools = FundingPool::query()
+            ->when($lender, fn ($q) => $q->where('lender_id', $lender->id))
+            ->get();
+
+        $fixed = 0;
+        foreach ($pools as $pool) {
+            $exposure = (float) LoanCapitalAllocation::query()
+                ->where('funding_pool_id', $pool->id)
+                ->sum('outstanding_exposure');
+
+            if (abs((float) $pool->amount_deployed - $exposure) > 0.01) {
+                $pool->amount_deployed = $exposure;
+                $pool->save();
+                $fixed++;
+            }
+
+            $owner = $lender ?? $pool->lender;
+            if ($owner) {
+                $owner->loadMissing('pools');
+                $committed = (float) $owner->pools->sum('amount_committed') ?: (float) ($owner->credit_limit ?? 0);
+                $deployed = (float) $owner->pools->sum('amount_deployed');
+                $target = max(0, $committed - $deployed);
+                if (abs((float) $owner->available_balance - $target) > 0.01) {
+                    $owner->available_balance = $target;
+                    $owner->save();
+                    $fixed++;
+                }
+            }
+        }
+
+        return $fixed;
     }
 
     /** @return list<array<string, mixed>> */
@@ -132,7 +178,10 @@ class CapitalPartnerMetricsService
 
         return $lender->pools->map(function (FundingPool $pool) use ($totalCommitted) {
             $committed = (float) $pool->amount_committed;
-            $deployed = (float) $pool->amount_deployed;
+            $exposure = (float) LoanCapitalAllocation::query()
+                ->where('funding_pool_id', $pool->id)
+                ->sum('outstanding_exposure');
+            $deployed = max((float) $pool->amount_deployed, $exposure);
 
             return [
                 'name'      => $pool->name,
