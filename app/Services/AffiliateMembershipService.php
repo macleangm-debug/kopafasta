@@ -54,6 +54,10 @@ class AffiliateMembershipService
         return false;
     }
 
+    /**
+     * Sharing (promo code, referral link, public verification badge) requires approved
+     * KYC plus an active/grace membership whenever required_before_sharing is enabled.
+     */
     public function isSharingAllowed(Vendor|Partner $partner): bool
     {
         $cfg = self::config();
@@ -61,7 +65,9 @@ class AffiliateMembershipService
             return true;
         }
 
-        return $this->isActive($partner);
+        $kycOk = in_array($partner->affiliate_kyc_status ?? null, ['verified', 'approved'], true);
+
+        return $kycOk && $this->isActive($partner);
     }
 
     public function startPaymentWindow(Vendor|Partner $partner): Vendor|Partner

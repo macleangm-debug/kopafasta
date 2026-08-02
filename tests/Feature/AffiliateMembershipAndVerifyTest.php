@@ -46,6 +46,53 @@ class AffiliateMembershipAndVerifyTest extends TestCase
         $this->assertSame('active', $vendor->membership_status);
     }
 
+    public function test_sharing_requires_kyc_even_when_membership_active(): void
+    {
+        $vendor = Vendor::query()->create([
+            'name' => 'Unverified Affiliate',
+            'partner_number' => 'PTR-AFF-TEST2',
+            'category' => 'affiliate',
+            'status' => 'active',
+            'phone' => '+255710000998',
+            'affiliate_code' => 'KPA-TEST98',
+            'affiliate_kyc_status' => 'submitted',
+        ]);
+
+        $service = app(AffiliateMembershipService::class);
+        $service->activate($vendor, 'AFF-TEST-REF-2');
+        $vendor->refresh();
+
+        $this->assertTrue($service->isActive($vendor));
+        $this->assertFalse($service->isSharingAllowed($vendor), 'Sharing must stay blocked until KYC is approved.');
+    }
+
+    public function test_admin_can_approve_pending_membership_payment(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $vendor = Vendor::query()->create([
+            'name' => 'Pending Payment Affiliate',
+            'partner_number' => 'PTR-AFF-TEST3',
+            'category' => 'affiliate',
+            'status' => 'active',
+            'phone' => '+255710000997',
+            'affiliate_code' => 'KPA-TEST97',
+            'affiliate_kyc_status' => 'verified',
+        ]);
+
+        app(AffiliateMembershipService::class)->startPaymentWindow($vendor);
+        $vendor->refresh();
+        $this->assertSame('pending_payment', $vendor->membership_status);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.partners.membership.approve', $vendor))
+            ->assertRedirect();
+
+        $vendor->refresh();
+        $this->assertSame('active', $vendor->membership_status);
+        $this->assertNotNull($vendor->membership_expires_at);
+    }
+
     public function test_public_verify_index_and_phone_lookup(): void
     {
         Vendor::query()->create([
