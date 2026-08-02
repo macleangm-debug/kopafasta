@@ -235,7 +235,7 @@
                     @endforeach
                 </nav>
                 <div class="p-4 border-t border-white/15">
-                    <x-site.locale-switcher :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
+                    <x-site.locale-switcher variant="mobile" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
                 </div>
             </div>
         </div>

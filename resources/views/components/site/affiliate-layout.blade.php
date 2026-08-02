@@ -16,6 +16,7 @@
     :content-width="$contentWidth"
     :nav="$nav"
     home-route="site.affiliate.dashboard"
+    notifications-route="site.affiliate.notifications"
     :portal-label="__('site.affiliate_portal.title')"
     :display-name="$displayName"
     :subtitle="$vendor?->partner_number ?? auth()->user()?->email"

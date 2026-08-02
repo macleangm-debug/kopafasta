@@ -41,10 +41,6 @@
                     <div class="mt-6 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-700">{{ session('status') }}</div>
                 @endif
 
-                @if ($errors->any())
-                    <div class="mt-6 p-3.5 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{{ $errors->first() }}</div>
-                @endif
-
                 <div class="mt-6 inline-flex rounded-xl ring-1 ring-gray-200/80 bg-gray-50/80 p-1 text-sm w-full" role="tablist" aria-label="{{ __('site.auth.sign_in') }}">
                     <button type="button" data-set-method="pin" role="tab"
                             aria-selected="{{ $authMethod === 'pin' ? 'true' : 'false' }}"
@@ -173,4 +169,20 @@
             setMethod(root.dataset.method || 'pin');
         })();
     </script>
+    @if ($errors->any())
+        <div
+            x-data
+            x-init="
+                $nextTick(() => window.dispatchEvent(new CustomEvent('open-feedback-default', {
+                    detail: {
+                        tone: 'error',
+                        title: @js(__('site.auth.sign_in_failed_title')),
+                        message: @js($errors->first()),
+                    },
+                })));
+            "
+            class="sr-only"
+            aria-hidden="true"
+        ></div>
+    @endif
 </x-site.layout>

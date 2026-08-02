@@ -9,6 +9,7 @@
     'subtitle' => null,
     'banner' => null,
     'profileLinks' => [],
+    'notificationsRoute' => 'site.partner.notifications',
 ])
 
 @php
@@ -30,6 +31,9 @@
     $profileLinks = $profileLinks ?: [
         ['label' => 'Profile', 'route' => 'site.partner.profile'],
     ];
+    $notificationsHref = \Illuminate\Support\Facades\Route::has($notificationsRoute)
+        ? route($notificationsRoute)
+        : route('site.partner.notifications');
     $partnerNotificationsQuery = \App\Models\NotificationLog::query()
         ->when(
             \Illuminate\Support\Facades\Schema::hasColumn('notification_logs', 'user_id'),
@@ -104,7 +108,7 @@
                     <div x-show="open" @click.outside="open = false" x-cloak class="absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-2xl glass-card overflow-hidden z-50 bg-white/95 shadow-xl">
                         <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                             <p class="text-sm font-semibold text-gray-900">{{ __('site.partner_portal.nav_notifications') }}</p>
-                            <a href="{{ route('site.partner.notifications') }}" class="text-xs font-semibold text-brand hover:underline">{{ __('site.partner_portal.view_all') }}</a>
+                            <a href="{{ $notificationsHref }}" class="text-xs font-semibold text-brand hover:underline">{{ __('site.partner_portal.view_all') }}</a>
                         </div>
                         <div class="max-h-80 overflow-y-auto">
                             @forelse ($partnerPreview as $n)
@@ -152,7 +156,7 @@
             </a>
             <div class="flex items-center gap-0.5 shrink-0">
                 <x-site.locale-switcher variant="compact" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
-                <a href="{{ route('site.partner.notifications') }}" class="relative p-2 text-gray-600 hover:text-brand" title="{{ __('site.partner_portal.nav_notifications') }}">
+                <a href="{{ $notificationsHref }}" class="relative p-2 text-gray-600 hover:text-brand" title="{{ __('site.partner_portal.nav_notifications') }}">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $navService->iconSvg('bell') !!}</svg>
                     @if (($partnerUnread ?? 0) > 0)
                         <span class="absolute top-1 right-1 min-w-[1rem] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $partnerUnread > 9 ? '9+' : $partnerUnread }}</span>
@@ -201,7 +205,7 @@
                     @endforeach
                 </nav>
                 <div class="p-4 border-t border-white/15">
-                    <x-site.locale-switcher :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
+                    <x-site.locale-switcher variant="mobile" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
                 </div>
             </div>
         </div>
@@ -213,10 +217,20 @@
         @endif
 
         @if ($errors->any())
-            <div class="mx-4 lg:mx-8 mt-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
-                <p class="font-semibold mb-1">{{ __('borrower.layout.fix_errors') }}</p>
-                <ul class="list-disc ml-5">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
-            </div>
+            <div
+                x-data
+                x-init="
+                    $nextTick(() => window.dispatchEvent(new CustomEvent('open-feedback-default', {
+                        detail: {
+                            title: @js(__('borrower.feedback.form_errors_title')),
+                            lines: @js($errors->all()),
+                            tone: 'error',
+                        }
+                    })));
+                "
+                class="sr-only"
+                aria-hidden="true"
+            ></div>
         @endif
 
         <main class="flex-1 px-4 lg:px-8 py-6 lg:py-8">

@@ -257,6 +257,7 @@ return [
         'sign_in'            => 'Ingia',
         'sign_in_title'      => 'Ingia kwa simu na PIN.',
         'sign_in_subtitle'   => 'Ufikiaji wa haraka na salama kwa simu.',
+        'sign_in_failed_title' => 'Kuingia kumeshindikana',
         'trust_device'       => 'Amini kifaa hiki kwa siku 30',
         'remember_me'        => 'Nibaki nimeingia',
         'staff_login'        => 'Mfanyakazi?',

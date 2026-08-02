@@ -113,8 +113,10 @@
     /* Prevent mobile viewport jump when focusing inputs (iOS zoom) */
     .form-scroll-lock input,
     .form-scroll-lock select,
-    .form-scroll-lock textarea {
-        font-size: 16px;
+    .form-scroll-lock textarea,
+    .form-scroll-lock [data-phone-local],
+    .form-scroll-lock [data-phone-prefix] {
+        font-size: 16px !important;
     }
 
     .form-scroll-lock {

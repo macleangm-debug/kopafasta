@@ -15,6 +15,7 @@
     :content-width="$contentWidth"
     :nav="$nav"
     home-route="site.supplier.dashboard"
+    notifications-route="site.supplier.notifications"
     :portal-label="__('site.supplier_portal.title')"
     :display-name="$displayName"
     :subtitle="$vendor?->partner_number ?? auth()->user()?->email"

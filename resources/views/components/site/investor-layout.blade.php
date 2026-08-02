@@ -15,6 +15,7 @@
     :content-width="$contentWidth"
     :nav="$nav"
     home-route="site.investor.dashboard"
+    notifications-route="site.investor.notifications"
     portal-label="Capital partner portal"
     :display-name="$displayName"
     :subtitle="$lender?->code ?? auth()->user()?->email"

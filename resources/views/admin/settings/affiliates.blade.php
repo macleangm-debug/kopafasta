@@ -17,7 +17,7 @@
             <x-admin.input name="default_application_discount_percent" label="Default application discount (%)" type="number" step="0.1" min="0" max="100"
                            :value="$values['default_application_discount_percent'] ?? 10" required />
             <x-admin.input name="minimum_payout_amount" label="Minimum payout amount (TZS)" type="number" step="1000" min="0"
-                           :value="$values['minimum_payout_amount'] ?? 50000" required />
+                           :value="$values['minimum_payout_amount'] ?? 50000" required money />
         </div>
 
         <div class="rounded-xl ring-1 ring-gray-200 p-5 space-y-4" x-data="{ mode: @js($values['commission_mode'] ?? 'percentage') }">
@@ -50,7 +50,7 @@
                 <h4 class="text-xs font-semibold text-gray-700 uppercase">Hybrid amounts</h4>
                 <div class="grid md:grid-cols-2 gap-4">
                     <x-admin.input name="hybrid_fixed_amount" label="Fixed part (TZS)" type="number" step="1" min="0"
-                                   :value="$values['hybrid_fixed_amount'] ?? 0" />
+                                   :value="$values['hybrid_fixed_amount'] ?? 0" money />
                     <x-admin.input name="hybrid_percent" label="Percent part (%)" type="number" step="0.1" min="0" max="100"
                                    :value="$values['hybrid_percent'] ?? 0" />
                 </div>
@@ -61,13 +61,13 @@
                 <p class="text-xs text-gray-500">Paid per successful fee event of that type. “Default” is the fallback when a fee type has no amount.</p>
                 <div class="grid md:grid-cols-2 gap-4">
                     <x-admin.input name="fixed_commission_default" label="Default" type="number" step="1" min="0"
-                                   :value="$values['fixed_commission_amounts']['default'] ?? 0" />
+                                   :value="$values['fixed_commission_amounts']['default'] ?? 0" money />
                     <x-admin.input name="fixed_commission_registration_fee" label="Registration fee" type="number" step="1" min="0"
-                                   :value="$values['fixed_commission_amounts']['registration_fee'] ?? 0" />
+                                   :value="$values['fixed_commission_amounts']['registration_fee'] ?? 0" money />
                     <x-admin.input name="fixed_commission_application_fee" label="Application fee" type="number" step="1" min="0"
-                                   :value="$values['fixed_commission_amounts']['application_fee'] ?? 0" />
+                                   :value="$values['fixed_commission_amounts']['application_fee'] ?? 0" money />
                     <x-admin.input name="fixed_commission_post_approval_fee" label="Post approval fee" type="number" step="1" min="0"
-                                   :value="$values['fixed_commission_amounts']['post_approval_fee'] ?? 0" />
+                                   :value="$values['fixed_commission_amounts']['post_approval_fee'] ?? 0" money />
                 </div>
             </div>
 
@@ -192,7 +192,7 @@
             </label>
             <div class="grid md:grid-cols-3 gap-4">
                 <x-admin.input name="membership_fee_amount" label="Annual fee (TZS)" type="number" step="1000" min="0"
-                               :value="$membership['fee_amount'] ?? 50000" />
+                               :value="$membership['fee_amount'] ?? 50000" money />
                 <x-admin.input name="membership_duration_days" label="Duration (days)" type="number" min="1"
                                :value="$membership['duration_days'] ?? 365" />
                 <x-admin.input name="membership_grace_period_hours" label="Pay-within window (hours)" type="number" min="1"

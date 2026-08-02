@@ -294,6 +294,24 @@ class SupplierController extends Controller
         return view('site.supplier.settings', compact('vendor'));
     }
 
+    public function notifications(): View
+    {
+        $vendor = $this->supplier();
+        $notifications = \App\Models\NotificationLog::query()
+            ->when(
+                Schema::hasColumn('notification_logs', 'user_id'),
+                fn ($q) => $q->where('user_id', Auth::id()),
+                fn ($q) => $q->where(function ($inner) {
+                    $inner->where('recipient', Auth::user()?->email)
+                        ->orWhere('recipient', Auth::user()?->phone);
+                })
+            )
+            ->latest()
+            ->paginate(20);
+
+        return view('site.supplier.notifications', compact('vendor', 'notifications'));
+    }
+
     public function updateProfile(Request $request): RedirectResponse
     {
         $vendor = $this->supplier();

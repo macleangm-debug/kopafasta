@@ -123,7 +123,7 @@
             <p class="text-xs text-gray-500">{{ __('borrower.apply.group_members.steps_legend') }}</p>
         </div>
         <div class="space-y-2">
-            <template x-for="(member, index) in group.members" :key="'gm-' + index + '-c' + (member.customer_id || 0) + '-i' + (member.invitation_id || 0)">
+            <template x-for="(member, index) in (group.members || [])" :key="'gm-' + index + '-c' + (member.customer_id || 0) + '-i' + (member.invitation_id || 0)">
                 <div class="glass-card rounded-2xl ring-1 overflow-hidden"
                      :class="member.role === 'leader' ? 'ring-brand/30 bg-brand-muted/20' : 'ring-gray-200/80'">
                     <button type="button"
@@ -202,7 +202,7 @@
         </div>
     </div>
 
-    <div x-show="group.members.length < groupTargetCount() && !addMemberOpen" class="mb-5">
+    <div x-show="(group.members || []).length < groupTargetCount() && !addMemberOpen" class="mb-5">
         <button type="button" @click="openAddMemberPanel()"
                 class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3.5 text-sm shadow-sm">
             <span class="text-lg leading-none">+</span>

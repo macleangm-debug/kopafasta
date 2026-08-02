@@ -8,30 +8,36 @@
         :subtitle="__('site.affiliate_portal.membership_subtitle')"
     />
 
-    <div class="max-w-xl glass-card p-6 space-y-5">
-        <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 py-3">
-            <p class="text-xs text-gray-500">{{ __('site.affiliate_portal.membership_fee') }}</p>
-            <p class="text-2xl font-extrabold text-brand tabular-nums">{{ format_money($cfg['fee_amount']) }}</p>
-            <p class="text-xs text-gray-500 mt-1">{{ __('site.affiliate_portal.membership_reference') }}: <span class="font-mono">{{ $paymentReference }}</span></p>
-        </div>
+    <div class="max-w-xl space-y-5">
+        <x-site.payment-gate
+            :title="__('site.affiliate_portal.membership_pay')"
+            :fee-label="__('site.affiliate_portal.membership_fee')"
+            :currency="$cfg['currency'] ?? 'TZS'"
+            :amount="$cfg['fee_amount'] ?? 50000"
+            :reference="$paymentReference"
+            :show-promo="true"
+            promo-field-name="promo_code"
+            :promo-value="old('promo_code', request('promo_code'))"
+        />
 
         @if ($errors->any())
             <div class="rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ $errors->first() }}</div>
         @endif
 
-        <form method="POST" action="{{ route('site.affiliate.membership.pay.post') }}" class="space-y-4 form-scroll-lock">
+        <form method="POST" action="{{ route('site.affiliate.membership.pay.post') }}" class="glass-card p-6 space-y-4 form-scroll-lock">
             @csrf
             <input type="hidden" name="payment_reference" value="{{ $paymentReference }}">
+
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('borrower.payment_details.method_mobile') }} / {{ __('borrower.payment_details.method_bank') }}</label>
-                <div class="flex flex-wrap gap-3 text-sm">
-                    <label class="inline-flex items-center gap-2">
+                <div class="grid sm:grid-cols-2 gap-3 text-sm">
+                    <label class="flex items-center gap-3 rounded-xl ring-1 ring-gray-200 bg-white px-4 py-3 cursor-pointer has-[:checked]:ring-brand has-[:checked]:bg-brand-muted/40">
                         <input type="radio" name="channel" value="mobile_money" checked class="text-brand">
-                        {{ __('borrower.payment_details.method_mobile') }}
+                        <span class="font-semibold text-gray-900">{{ __('borrower.payment_details.method_mobile') }}</span>
                     </label>
-                    <label class="inline-flex items-center gap-2">
+                    <label class="flex items-center gap-3 rounded-xl ring-1 ring-gray-200 bg-white px-4 py-3 cursor-pointer has-[:checked]:ring-brand has-[:checked]:bg-brand-muted/40">
                         <input type="radio" name="channel" value="bank" class="text-brand">
-                        {{ __('borrower.payment_details.method_bank') }}
+                        <span class="font-semibold text-gray-900">{{ __('borrower.payment_details.method_bank') }}</span>
                     </label>
                 </div>
             </div>

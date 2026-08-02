@@ -31,6 +31,15 @@ class MacLeansCapitalPartnerSeeder extends Seeder
             ]
         );
 
+        // Always re-assert credentials so demo login stays reliable after prior seeds.
+        $user->forceFill([
+            'name' => 'MacLeans Capital',
+            'phone' => '+255710000209',
+            'password' => Hash::make(self::PASSWORD),
+            'role' => 'investor',
+            'is_active' => true,
+        ])->save();
+
         app(PinService::class)->setPin($user, self::PIN);
 
         $lender = Lender::updateOrCreate(

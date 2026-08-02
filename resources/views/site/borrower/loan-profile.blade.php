@@ -156,10 +156,6 @@
 
     @include('site.borrower.loan-profile._product_details', ['profile' => $profile])
 
-    @if ($profile['is_draft'] ?? false)
-        @include('site.borrower.loan-profile._draft_sections', ['profile' => $profile])
-    @endif
-
     @include('site.borrower.loan-profile._guarantor_progress', ['profile' => $profile])
 
     @include('site.borrower.loan-profile._group_member_progress', ['groupProgress' => $groupProgress ?? ($profile['product_details']['progress'] ?? null)])

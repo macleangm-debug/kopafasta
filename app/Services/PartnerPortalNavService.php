@@ -63,6 +63,7 @@ class PartnerPortalNavService
             ['key' => 'dashboard', 'label' => __('site.affiliate_portal.nav_dashboard'), 'route' => 'site.affiliate.dashboard', 'icon' => 'home'],
             ['key' => 'referrals', 'label' => __('site.affiliate_portal.nav_referrals'), 'route' => 'site.affiliate.referrals', 'icon' => 'users'],
             ['key' => 'wallet', 'label' => __('site.affiliate_portal.nav_wallet'), 'route' => 'site.affiliate.wallet', 'icon' => 'wallet'],
+            ['key' => 'notifications', 'label' => __('site.partner_portal.nav_notifications'), 'route' => 'site.affiliate.notifications', 'icon' => 'bell'],
             ['key' => 'profile', 'label' => __('site.affiliate_portal.nav_profile'), 'route' => 'site.affiliate.profile', 'icon' => 'user'],
         ];
     }
@@ -79,6 +80,7 @@ class PartnerPortalNavService
             ['key' => 'reservations', 'label' => __('site.supplier_portal.nav_reservations'), 'route' => 'site.supplier.reservations', 'icon' => 'calendar'],
             ['key' => 'requests', 'label' => __('site.supplier_portal.nav_requests'), 'route' => 'site.supplier.requests', 'icon' => 'bell'],
             ['key' => 'settlements', 'label' => __('site.supplier_portal.nav_settlements'), 'route' => 'site.supplier.settlements', 'icon' => 'wallet'],
+            ['key' => 'notifications', 'label' => __('site.partner_portal.nav_notifications'), 'route' => 'site.supplier.notifications', 'icon' => 'bell'],
             ['key' => 'profile', 'label' => __('site.supplier_portal.nav_profile'), 'route' => 'site.supplier.profile', 'icon' => 'user'],
         ];
     }

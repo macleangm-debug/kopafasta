@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign in · {{ brand_name() }} Console</title>
     @vite(['resources/css/app.css'])
+    <style>[x-cloak]{display:none!important}</style>
 </head>
-<body class="h-full antialiased">
+<body class="h-full antialiased" x-data>
 <div class="min-h-full grid lg:grid-cols-2">
     <aside class="relative hidden lg:flex flex-col justify-between overflow-hidden bg-[#0B3D32] text-white px-10 py-12">
         <div class="absolute inset-0 opacity-40" style="background-image: radial-gradient(circle at 20% 20%, rgba(251,191,36,0.35), transparent 42%), radial-gradient(circle at 90% 80%, rgba(255,255,255,0.12), transparent 40%);"></div>
@@ -36,25 +37,19 @@
                 <p class="mt-1 text-sm text-gray-500">Sign in with your staff account to continue</p>
             </div>
 
-            @if ($errors->any())
-                <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">
-                    {{ $errors->first() }}
-                </div>
-            @endif
-
-            <form method="POST" action="{{ route('admin.login') }}" class="space-y-4">
+            <form method="POST" action="{{ route('admin.login') }}" class="space-y-4 form-scroll-lock">
                 @csrf
 
                 <div>
                     <label class="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-1.5">Email</label>
                     <input type="email" name="email" value="{{ old('email') }}" required autofocus
-                           class="block w-full rounded-xl border-0 ring-1 ring-gray-200 focus:ring-2 focus:ring-brand text-sm px-3.5 py-2.5 bg-white">
+                           class="block w-full rounded-xl border-0 ring-1 ring-gray-200 focus:ring-2 focus:ring-brand text-base px-3.5 py-2.5 bg-white">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-1.5">Password</label>
                     <input type="password" name="password" required
-                           class="block w-full rounded-xl border-0 ring-1 ring-gray-200 focus:ring-2 focus:ring-brand text-sm px-3.5 py-2.5 bg-white">
+                           class="block w-full rounded-xl border-0 ring-1 ring-gray-200 focus:ring-2 focus:ring-brand text-base px-3.5 py-2.5 bg-white">
                 </div>
 
                 <label class="flex items-center gap-2 text-sm text-gray-600">
@@ -70,5 +65,20 @@
         </div>
     </main>
 </div>
+<x-site.feedback-modal name="default" />
+@if ($errors->any())
+    <script>
+        document.addEventListener('alpine:initialized', () => {
+            window.dispatchEvent(new CustomEvent('open-feedback-default', {
+                detail: {
+                    tone: 'error',
+                    title: 'Sign in failed',
+                    message: @js($errors->first()),
+                },
+            }));
+        });
+    </script>
+@endif
+@vite('resources/js/alpine-init.js')
 </body>
 </html>

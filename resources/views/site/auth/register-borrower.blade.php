@@ -169,21 +169,11 @@
                                         <input type="tel" inputmode="numeric" name="local_phone" x-model="form.local_phone" @input="validatePhone()"
                                                :disabled="!activeCountry.active" :readonly="lockIdentity && !!form.local_phone"
                                                placeholder=""
-                                               class="flex-1 px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
+                                               class="flex-1 px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-base outline-none transition">
                                     </div>
                                     <p x-show="errors.phone" x-cloak class="mt-1.5 text-xs text-red-600" x-text="errors.phone"></p>
                                     <p class="mt-1.5 text-xs text-gray-500">Enter your number without the leading zero.</p>
                                 </div>
-
-                                @if (empty($referralCode) && empty($affiliateCode))
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Promo or referral code <span class="text-gray-400 font-normal">(optional)</span></label>
-                                        <input type="text" name="promo_code" value="{{ old('promo_code') }}" maxlength="40"
-                                               class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm font-mono uppercase outline-none transition"
-                                               placeholder="">
-                                        <p class="mt-1.5 text-xs text-gray-500">Enter a code from a friend or affiliate partner, if you have one.</p>
-                                    </div>
-                                @endif
 
                                 <div class="rounded-xl border p-4"
                                      :class="activeCountry.active ? 'border-emerald-200 bg-emerald-50/80' : 'border-rose-200 bg-rose-50/80'">

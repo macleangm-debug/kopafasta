@@ -885,7 +885,17 @@ export function applyWizard(config) {
                     if (draft.external_guarantor) this.externalGuarantor = draft.external_guarantor;
                     if (draft.borrower_signature) this.borrowerSignature = draft.borrower_signature;
                     if (draft.declaration_accepted || draft.borrower_signature) this.declarationAccepted = true;
-                    if (draft.group) this.group = draft.group;
+                    if (draft.group) {
+                        this.group = {
+                            name: '',
+                            purpose: '',
+                            target_member_count: null,
+                            amount_per_member: 0,
+                            members: [],
+                            ...draft.group,
+                            members: Array.isArray(draft.group.members) ? draft.group.members : [],
+                        };
+                    }
                     if (draft.draft_reference) this.draftReference = draft.draft_reference;
                     this.syncFeePaidState();
                     this.syncValuationFeePaidState();
@@ -1585,13 +1595,17 @@ export function applyWizard(config) {
                         this.steps = steps.map(s => this.withStepIcon(s));
                     }
 
-                    // Application fee is never a numbered step — drop if present from older drafts/plans.
+                    // Application fee / in-wizard signature are never numbered steps —
+                    // fee is a payment gate; signature lives on the borrower profile.
                     this.syncFeePaidState();
-                    this.steps = this.steps.filter(s => s.key !== 'application_fee');
+                    this.steps = this.steps.filter(s => s.key !== 'application_fee' && s.key !== 'signature');
 
-                    this.step = this.resolveStepIndex(prevKey === 'application_fee'
-                        ? (this.steps[0]?.key || '')
-                        : prevKey, this.step);
+                    this.step = this.resolveStepIndex(
+                        (prevKey === 'application_fee' || prevKey === 'signature')
+                            ? (this.steps[0]?.key || '')
+                            : prevKey,
+                        this.step
+                    );
                     this.syncStepKey();
                 },
 
@@ -1758,6 +1772,7 @@ export function applyWizard(config) {
                 gotoKey(key) {
                     const i = this.steps.findIndex(s => s.key === key);
                     if (i >= 0 && i <= (this.furthestStep ?? this.step)) {
+                        this.feeGateOpen = false;
                         this.step = i;
                         this.syncStepKey();
                         if (this.stepKey === 'review') {
@@ -2650,8 +2665,14 @@ export function applyWizard(config) {
                 },
 
                 prev() {
+                    if (this.feeGateOpen) {
+                        this.feeGateOpen = false;
+                        this.scrollWizardIntoView();
+                        return;
+                    }
                     if (this.reviewBack()) return;
                     if (this.step > 0) {
+                        this.feeGateOpen = false;
                         this.step--;
                         this.syncStepKey();
                         if (this.stepKey === 'review') {
@@ -2667,6 +2688,7 @@ export function applyWizard(config) {
 
                 goto(i) {
                     if (i <= (this.furthestStep ?? this.step)) {
+                        this.feeGateOpen = false;
                         this.step = i;
                         this.syncStepKey();
                         if (this.stepKey === 'signature') {

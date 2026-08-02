@@ -22,7 +22,7 @@
             </label>
             <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <x-admin.input name="default_fee_amount" label="Default fee (TZS)" type="number" step="1000" min="0"
-                               :value="$values['default_fee_amount'] ?? 0" />
+                               :value="$values['default_fee_amount'] ?? 0" money />
                 <x-admin.input name="default_duration_days" label="Duration (days)" type="number" min="1"
                                :value="$values['default_duration_days'] ?? 365" />
                 <x-admin.input name="grace_period_days" label="Grace after expiry (days)" type="number" min="0"
@@ -49,7 +49,7 @@
                         </label>
                         <div class="flex-1">
                             <x-admin.input :name="'category_fees['.$key.']'" label="Fee (TZS)" type="number" step="1000" min="0"
-                                           :value="$values['category_fees'][$key] ?? ($values['default_fee_amount'] ?? 0)" />
+                                           :value="$values['category_fees'][$key] ?? ($values['default_fee_amount'] ?? 0)" money />
                         </div>
                     </div>
                 @endforeach

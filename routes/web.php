@@ -383,6 +383,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/wallet', [\App\Http\Controllers\Site\AffiliateController::class, 'wallet'])->name('wallet');
             Route::post('/wallet/{payment}/dispute', [\App\Http\Controllers\Site\AffiliateController::class, 'disputePayment'])->name('wallet.dispute');
             Route::post('/wallet/payout-request', [\App\Http\Controllers\Site\AffiliateController::class, 'requestPayout'])->name('wallet.payout-request');
+            Route::get('/notifications', [\App\Http\Controllers\Site\AffiliateController::class, 'notifications'])->name('notifications');
             Route::get('/profile', [\App\Http\Controllers\Site\AffiliateController::class, 'profile'])->name('profile');
             Route::put('/profile', [\App\Http\Controllers\Site\AffiliateController::class, 'updateProfile'])->name('profile.update');
             Route::get('/documents', [\App\Http\Controllers\Site\AffiliateController::class, 'documents'])->name('documents');
@@ -408,6 +409,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/reservations/{reservation}', [\App\Http\Controllers\Site\SupplierController::class, 'updateReservation'])->name('reservations.update');
             Route::post('/requests/{assetRequest}', [\App\Http\Controllers\Site\SupplierController::class, 'updateRequest'])->name('requests.update');
             Route::get('/settlements', [\App\Http\Controllers\Site\SupplierController::class, 'settlements'])->name('settlements');
+            Route::get('/notifications', [\App\Http\Controllers\Site\SupplierController::class, 'notifications'])->name('notifications');
             Route::get('/profile', [\App\Http\Controllers\Site\SupplierController::class, 'profile'])->name('profile');
             Route::put('/profile', [\App\Http\Controllers\Site\SupplierController::class, 'updateProfile'])->name('profile.update');
             Route::get('/documents', [\App\Http\Controllers\Site\SupplierController::class, 'documents'])->name('documents');

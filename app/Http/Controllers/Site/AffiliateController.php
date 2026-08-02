@@ -306,6 +306,24 @@ class AffiliateController extends Controller
         return back()->with('status', __('site.affiliate_portal.dispute_submitted'));
     }
 
+    public function notifications(): View
+    {
+        $vendor = $this->affiliate();
+        $notifications = \App\Models\NotificationLog::query()
+            ->when(
+                \Illuminate\Support\Facades\Schema::hasColumn('notification_logs', 'user_id'),
+                fn ($q) => $q->where('user_id', Auth::id()),
+                fn ($q) => $q->where(function ($inner) {
+                    $inner->where('recipient', Auth::user()?->email)
+                        ->orWhere('recipient', Auth::user()?->phone);
+                })
+            )
+            ->latest()
+            ->paginate(20);
+
+        return view('site.affiliate.notifications', compact('vendor', 'notifications'));
+    }
+
     public function requestPayout(Request $request): RedirectResponse
     {
         $vendor = $this->affiliate();

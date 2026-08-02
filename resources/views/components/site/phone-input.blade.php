@@ -15,11 +15,11 @@
     $split = \App\Support\PhoneNumber::split($value);
     $countries = app(\App\Services\CountrySettingsService::class)->forRegistration();
     $selectClass = $selectClass ?? ($variant === 'rounded'
-        ? 'w-28 shrink-0 px-3.5 py-3 rounded-xl bg-white border border-gray-300 text-sm outline-none transition focus:border-gray-900 focus:ring-4 focus:ring-gray-900/10'
-        : 'w-28 shrink-0 rounded-lg border-gray-300 text-sm focus:border-amber-500 focus:ring-amber-500');
+        ? 'w-28 shrink-0 px-3.5 py-3 rounded-xl bg-white border border-gray-300 text-base outline-none transition focus:border-gray-900 focus:ring-4 focus:ring-gray-900/10'
+        : 'w-28 shrink-0 rounded-lg border-gray-300 text-base focus:border-amber-500 focus:ring-amber-500');
     $inputClass = $inputClass ?? ($variant === 'rounded'
-        ? 'flex-1 px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-gray-900 focus:ring-4 focus:ring-gray-900/10 text-sm outline-none transition'
-        : 'flex-1 rounded-lg border-gray-300 text-sm focus:border-amber-500 focus:ring-amber-500');
+        ? 'flex-1 px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-gray-900 focus:ring-4 focus:ring-gray-900/10 text-base outline-none transition'
+        : 'flex-1 rounded-lg border-gray-300 text-base focus:border-amber-500 focus:ring-amber-500');
     $labelClass = $variant === 'rounded'
         ? 'block text-sm font-medium text-gray-700 mb-1.5'
         : 'block text-xs font-medium text-gray-600 mb-1';

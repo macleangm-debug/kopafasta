@@ -363,16 +363,7 @@
 
             <div class="glass-card">
 
-                @include('site.apply._quote-step')
-
-                @include('site.apply._group-steps')
-
-                @include('site.apply._asset-tenure-step')
-
-                @include('site.apply._asset-details-step')
-
-                @include('site.apply._guarantor-step')
-
+                {{-- Fee gate first so it is never buried when open --}}
                 @php $membershipCfg = \App\Services\MembershipService::config(); @endphp
                 <x-site.application-fee-step
                     :fee-quote="$feeQuote ?? null"
@@ -385,6 +376,16 @@
                     :apply-requirements="$applyRequirements ?? null"
                     :points-balance="$pointsBalance ?? 0"
                 />
+
+                @include('site.apply._quote-step')
+
+                @include('site.apply._group-steps')
+
+                @include('site.apply._asset-tenure-step')
+
+                @include('site.apply._asset-details-step')
+
+                @include('site.apply._guarantor-step')
 
                 @include('site.apply._product-questions-step')
 

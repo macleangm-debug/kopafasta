@@ -262,6 +262,7 @@ return [
         'sign_in'            => 'Sign in',
         'sign_in_title'      => 'Sign in with your phone & PIN.',
         'sign_in_subtitle'   => 'Fast, secure access designed for mobile.',
+        'sign_in_failed_title' => 'Sign in failed',
         'trust_device'       => 'Trust this device for 30 days',
         'remember_me'        => 'Keep me signed in',
         'staff_login'        => 'Staff member?',
