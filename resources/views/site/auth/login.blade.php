@@ -61,7 +61,8 @@
                                 <label class="block text-sm font-medium text-gray-700">4-digit PIN</label>
                                 <a href="{{ route('site.forgot-pin') }}" class="text-xs text-brand font-medium hover:underline">Forgot PIN?</a>
                             </div>
-                            <input type="password" name="pin" inputmode="numeric" maxlength="4" pattern="\d{4}" autocomplete="one-time-code"
+                            <input type="password" name="pin" inputmode="numeric" maxlength="4" pattern="\d{4}" autocomplete="off"
+                                   placeholder="••••"
                                    data-required-when="pin"
                                    @required($authMethod === 'pin')
                                    class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 tracking-[0.5em] font-mono text-center text-base outline-none">
@@ -72,6 +73,7 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Email or phone</label>
                             <input type="text" name="login" value="{{ old('login') }}" autocomplete="username"
+                                   placeholder="you@example.com or phone"
                                    data-required-when="password"
                                    @required($authMethod === 'password')
                                    class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-base outline-none">

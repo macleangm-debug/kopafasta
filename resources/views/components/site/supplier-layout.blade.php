@@ -19,7 +19,7 @@
     :portal-label="__('site.supplier_portal.title')"
     :display-name="$displayName"
     :subtitle="$vendor?->partner_number ?? auth()->user()?->email"
-    :banner="__('site.supplier_portal.banner')"
+    :banner="null"
     :profile-links="[
         ['label' => __('site.supplier_portal.nav_dashboard'), 'route' => 'site.supplier.dashboard'],
         ['label' => __('site.supplier_portal.nav_profile'), 'route' => 'site.supplier.profile'],

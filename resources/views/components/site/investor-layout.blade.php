@@ -19,12 +19,12 @@
     portal-label="Capital partner portal"
     :display-name="$displayName"
     :subtitle="$lender?->code ?? auth()->user()?->email"
-    banner="Capital workspace — deploy funds, track pools, and monitor returns."
+    :banner="null"
     :profile-links="[
         ['label' => 'Dashboard', 'route' => 'site.investor.dashboard'],
         ['label' => 'Profile', 'route' => 'site.investor.profile'],
         ['label' => 'Settings', 'route' => 'site.investor.settings'],
-        ['label' => 'Documents', 'route' => 'site.investor.documents'],
+        ['label' => 'Reports', 'route' => 'site.investor.documents'],
         ['label' => 'Wallet', 'route' => 'site.investor.wallet'],
     ]"
 >

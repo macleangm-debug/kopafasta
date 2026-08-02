@@ -72,7 +72,10 @@
                 <option value="{{ $country['prefix'] }}">{{ $country['emoji'] }} {{ $country['prefix'] }}</option>
             @endforeach
         </select>
-        <input type="tel" inputmode="numeric" x-model="local" data-phone-local placeholder="712 345 678"
+        <input type="tel" inputmode="numeric" x-model="local" data-phone-local
+               placeholder="712 345 678"
+               autocomplete="tel-national"
+               name="{{ $name }}_local"
                @input="syncHidden()"
                @if ($requiredWhen) data-required-when="{{ $requiredWhen }}" @endif
                @if ($required) required @endif

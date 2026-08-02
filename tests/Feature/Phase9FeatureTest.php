@@ -151,6 +151,7 @@ class Phase9FeatureTest extends TestCase
             'category'      => 'gps',
             'status'        => 'active',
         ]);
+        app(\App\Services\PinService::class)->setPin($user, '1234');
 
         return $user;
     }

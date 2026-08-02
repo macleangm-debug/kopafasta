@@ -9,6 +9,7 @@
             'auctioneer'         => 'Auctioneer',
             'affiliate'          => 'Affiliate Partner',
         ];
+        $isValuer = ($vendor->category ?? null) === 'valuer';
     @endphp
 
     @if ($vendor->category === 'affiliate' && $affiliateStats)
@@ -74,28 +75,38 @@
         @include('site.vendor._recovery-kpi', ['kpi' => $recoveryKpi, 'wallet' => $recoveryWallet ?? null])
     @endif
 
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-        <div>
-            <h1 class="text-2xl font-extrabold tracking-tight">Hi, {{ $vendor->name }}</h1>
-            <p class="text-sm text-gray-500">{{ $catLabels[$vendor->category] ?? ucfirst($vendor->category) }} · <span class="font-mono">{{ $vendor->vendor_number }}</span></p>
+    <section class="relative overflow-hidden rounded-3xl bg-brand text-white mb-6 shadow-lg">
+        <div class="absolute inset-0 opacity-25 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)] pointer-events-none"></div>
+        <div class="relative p-6 sm:p-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div>
+                <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">
+                    {{ $catLabels[$vendor->category] ?? ucfirst(str_replace('_', ' ', (string) $vendor->category)) }}
+                </p>
+                <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight mt-1">Hi, {{ $vendor->name }}</h1>
+                <p class="text-sm text-white/70 mt-2 font-mono">{{ $vendor->vendor_number }}</p>
+                @if ($isValuer)
+                    <p class="text-sm text-white/80 mt-3 max-w-lg">Accept inspection jobs, submit valuation evidence, and track payments from one place.</p>
+                @endif
+            </div>
+            <a href="{{ route('site.partner.tasks') }}"
+               class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-gold text-brand font-bold px-5 py-3 hover:bg-yellow-400 shrink-0 shadow-md">
+                {{ $isValuer ? 'Open jobs' : 'View tasks' }}
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+            </a>
         </div>
-        <a href="{{ route('site.partner.tasks') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand text-white font-semibold px-5 py-3 hover:bg-brand-light">
-            View tasks
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-        </a>
-    </div>
+    </section>
 
     <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
         @foreach ([
-            ['Assigned',        $stats['assigned'],            'text-amber-700'],
-            ['In Progress',     $stats['in_progress'],         'text-brand'],
-            ['Done this month', $stats['completed_mo'],        'text-emerald-700'],
-            ['Pending Pay',     $fmt($stats['payments_pend']), 'text-orange-700'],
-            ['Total Earnings',  $fmt($stats['earnings']),      'text-sky-700'],
-        ] as [$label, $value, $color])
-            <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-4">
-                <p class="text-xs uppercase tracking-wide text-gray-500">{{ $label }}</p>
-                <p class="text-xl font-extrabold {{ $color }} mt-1">{{ $value }}</p>
+            ['Assigned',        $stats['assigned'],            'text-amber-700', 'bg-amber-50 ring-amber-100'],
+            ['In Progress',     $stats['in_progress'],         'text-brand', 'bg-brand-muted/50 ring-brand/10'],
+            ['Done this month', $stats['completed_mo'],        'text-emerald-700', 'bg-emerald-50 ring-emerald-100'],
+            ['Pending Pay',     $fmt($stats['payments_pend']), 'text-orange-700', 'bg-orange-50 ring-orange-100'],
+            ['Total Earnings',  $fmt($stats['earnings']),      'text-sky-700', 'bg-sky-50 ring-sky-100'],
+        ] as [$label, $value, $color, $tile])
+            <div class="rounded-2xl ring-1 {{ $tile }} p-4">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $label }}</p>
+                <p class="text-xl font-extrabold {{ $color }} mt-1 tabular-nums">{{ $value }}</p>
             </div>
         @endforeach
     </div>
@@ -103,11 +114,14 @@
     <div class="grid lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 glass-card rounded-2xl ring-1 ring-brand/10 p-5">
             <div class="flex items-center justify-between mb-3">
-                <h2 class="font-bold">Upcoming tasks</h2>
-                <a href="{{ route('site.partner.tasks') }}" class="text-sm text-brand hover:underline">All</a>
+                <h2 class="font-bold">{{ $isValuer ? 'Upcoming jobs' : 'Upcoming tasks' }}</h2>
+                <a href="{{ route('site.partner.tasks') }}" class="text-sm text-brand hover:underline font-semibold">All</a>
             </div>
             @if ($upcoming->isEmpty())
-                <p class="text-sm text-gray-500">No assigned or in-progress tasks right now.</p>
+                <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-4 py-8 text-center">
+                    <p class="text-sm text-gray-600 font-medium">No assigned or in-progress work right now.</p>
+                    <p class="text-xs text-gray-500 mt-1">New jobs will appear here when allocated.</p>
+                </div>
             @else
                 <div class="divide-y divide-gray-100">
                     @foreach ($upcoming as $t)
@@ -128,23 +142,36 @@
             @endif
         </div>
 
-        <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
-            <div class="flex items-center justify-between mb-3">
-                <h2 class="font-bold">Notifications</h2>
-                <a href="{{ route('site.partner.notifications') }}" class="text-sm text-brand hover:underline">All</a>
+        <div class="space-y-6">
+            <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="font-bold">Notifications</h2>
+                    <a href="{{ route('site.partner.notifications') }}" class="text-sm text-brand hover:underline font-semibold">All</a>
+                </div>
+                @if ($notifications->isEmpty())
+                    <p class="text-sm text-gray-500">No notifications yet.</p>
+                @else
+                    <ul class="space-y-3">
+                        @foreach ($notifications as $n)
+                            <li class="text-sm">
+                                <p class="text-gray-900">{{ $n->message ?? $n->subject ?? 'Notification' }}</p>
+                                <p class="text-xs text-gray-500">{{ $n->created_at?->diffForHumans() }}</p>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
             </div>
-            @if ($notifications->isEmpty())
-                <p class="text-sm text-gray-500">No notifications yet.</p>
-            @else
-                <ul class="space-y-3">
-                    @foreach ($notifications as $n)
-                        <li class="text-sm">
-                            <p class="text-gray-900">{{ $n->message ?? $n->subject ?? 'Notification' }}</p>
-                            <p class="text-xs text-gray-500">{{ $n->created_at?->diffForHumans() }}</p>
-                        </li>
-                    @endforeach
-                </ul>
-            @endif
+
+            <div class="rounded-2xl bg-gradient-to-br from-brand-muted to-white ring-1 ring-brand/15 p-5">
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Account</p>
+                <h3 class="font-bold text-gray-900 mt-1">Profile & documents</h3>
+                <p class="text-xs text-gray-600 mt-1">Keep identity docs and payout details current.</p>
+                <div class="mt-4 flex flex-wrap gap-3 text-sm">
+                    <a href="{{ route('site.partner.profile') }}" class="font-semibold text-brand hover:underline">Open profile →</a>
+                    <a href="{{ route('site.partner.documents') }}" class="font-semibold text-brand hover:underline">Documents →</a>
+                    <a href="{{ route('site.partner.settings') }}" class="font-semibold text-brand hover:underline">Settings →</a>
+                </div>
+            </div>
         </div>
     </div>
 </x-site.vendor-layout>

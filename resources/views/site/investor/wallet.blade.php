@@ -4,13 +4,14 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">
-            <div class="rounded-2xl bg-gradient-to-br from-slate-900 to-emerald-900 text-white p-6 shadow-lg">
-                <p class="text-xs uppercase tracking-widest text-brand-gold/90 font-semibold">Available balance</p>
-                <p class="text-4xl font-extrabold mt-1">TZS {{ $fmt($stats['available']) }}</p>
+            <div class="rounded-2xl bg-gradient-to-br from-brand to-emerald-900 text-white p-6 shadow-lg">
+                <p class="text-xs uppercase tracking-widest text-brand-gold/90 font-semibold">Available to deploy</p>
+                <p class="text-4xl font-extrabold mt-1 tabular-nums">TZS {{ $fmt($stats['available']) }}</p>
+                <p class="text-xs text-white/70 mt-2">Committed capital minus amounts currently in outstanding loans.</p>
                 <div class="grid grid-cols-3 gap-4 mt-5">
                     <div><p class="text-xs text-brand-gold/90 uppercase">Total deposited</p><p class="font-bold">TZS {{ $fmt($stats['deposited']) }}</p></div>
                     <div><p class="text-xs text-brand-gold/90 uppercase">Total withdrawn</p><p class="font-bold">TZS {{ $fmt($stats['withdrawn']) }}</p></div>
-                    <div><p class="text-xs text-brand-gold/90 uppercase">Earned</p><p class="font-bold text-brand-gold">TZS {{ $fmt($stats['returnsPaid']) }}</p></div>
+                    <div><p class="text-xs text-brand-gold/90 uppercase">Interest earned</p><p class="font-bold text-brand-gold">TZS {{ $fmt($stats['returnsPaid']) }}</p></div>
                 </div>
             </div>
 
@@ -66,7 +67,10 @@
         </div>
 
         <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-6 h-fit">
-            <h2 class="font-bold mb-4">Recent activity</h2>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="font-bold">Recent activity</h2>
+                <a href="{{ route('site.investor.transactions') }}" class="text-sm font-semibold text-brand hover:underline">All →</a>
+            </div>
             @if ($recent->isEmpty())
                 <p class="text-sm text-gray-500">No activity yet.</p>
             @else
@@ -74,10 +78,10 @@
                     @foreach ($recent as $t)
                         <li class="flex items-center justify-between border-b border-slate-100 pb-2 last:border-0">
                             <div>
-                                <p class="font-medium capitalize">{{ $t->type }}</p>
+                                <p class="font-medium capitalize">{{ str_replace('_', ' ', $t->type) }}</p>
                                 <p class="text-xs text-gray-500">{{ $t->created_at->diffForHumans() }}</p>
                             </div>
-                            <p class="font-semibold {{ in_array($t->type, ['return','deposit']) ? 'text-brand' : '' }}">TZS {{ $fmt($t->amount) }}</p>
+                            <p class="font-semibold {{ in_array($t->type, ['return','deposit','interest_earned','principal_return'], true) ? 'text-brand' : '' }}">TZS {{ $fmt($t->amount) }}</p>
                         </li>
                     @endforeach
                 </ul>

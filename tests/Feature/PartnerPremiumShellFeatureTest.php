@@ -22,8 +22,8 @@ class PartnerPremiumShellFeatureTest extends TestCase
             ->get(route('site.partner.dashboard'))
             ->assertOk()
             ->assertSee('Collections portal', false)
-            ->assertSee('Recovery Cases', false)
-            ->assertSee('Commission Wallet', false)
+            ->assertSee('Recovery cases', false)
+            ->assertSee('Commission wallet', false)
             ->assertSee('bg-brand', false)
             ->assertSee('bg-[#faf8f5]', false);
     }
@@ -38,8 +38,8 @@ class PartnerPremiumShellFeatureTest extends TestCase
             ->get(route('site.partner.dashboard'))
             ->assertOk()
             ->assertSee('Valuer portal', false)
-            ->assertSee('Assigned Tasks', false)
-            ->assertDontSee('Recovery Cases', false);
+            ->assertSee('Jobs', false)
+            ->assertDontSee('Recovery cases', false);
     }
 
     public function test_affiliate_and_supplier_use_shared_shell(): void

@@ -6,7 +6,7 @@
     ];
 @endphp
 
-<x-site.investor-layout title="Settings — Capital partner" active="settings">
+<x-site.investor-layout title="Settings — Capital partner" active="profile">
     <x-site.borrower-page-header
         eyebrow="Capital partner"
         title="Settings"

@@ -47,12 +47,28 @@ class InvestorController extends Controller
 
     protected function stats(Lender $lender): array
     {
+        $metrics = app(\App\Services\CapitalPartnerMetricsService::class)->forLender($lender);
+
         $invested      = (float) $lender->investments()->whereIn('status', ['active', 'matured'])->sum('principal');
         $active        = (float) $lender->investments()->where('status', 'active')->sum('principal');
-        $returnsPaid   = (float) $lender->transactions()->where('type', 'return')->where('status', 'completed')->sum('amount');
+        $returnsPaid   = (float) $lender->transactions()
+            ->where('type', 'interest_earned')
+            ->where('status', 'completed')
+            ->sum('amount');
+        if ($returnsPaid <= 0) {
+            $returnsPaid = (float) ($metrics['interest_earned_partner'] ?? 0);
+        }
         $returnsExpect = (float) $lender->investments()->where('status', 'active')->sum('return_amount');
-        $activeLoans   = $lender->investments()->where('status', 'active')->count();
-        $available     = (float) $lender->available_balance;
+        $activeLoans   = (int) ($metrics['active_loans'] ?? $lender->investments()->where('status', 'active')->count());
+        // Prefer pool capital available so wallet matches admin / deployed capital.
+        $available     = (float) ($metrics['capital_available'] ?? $lender->available_balance);
+
+        // Self-heal wallet column when it drifted from pool deployment (legacy bug).
+        if (abs((float) $lender->available_balance - $available) > 0.5
+            && (float) ($metrics['interest_earned_partner'] ?? 0) < 0.5) {
+            $lender->forceFill(['available_balance' => $available])->save();
+        }
+
         $deposited     = (float) $lender->transactions()->where('type', 'deposit')->where('status', 'completed')->sum('amount');
         $withdrawn     = (float) $lender->transactions()->where('type', 'withdrawal')->where('status', 'completed')->sum('amount');
         $portfolioPerf = $invested > 0 ? round($returnsPaid / $invested * 100, 2) : 0.0;
@@ -93,7 +109,7 @@ class InvestorController extends Controller
             : "DATE_FORMAT(created_at, '%Y-%m')";
 
         $monthlyEarnings = LenderTransaction::where('lender_id', $lender->id)
-            ->where('type', 'return')
+            ->where('type', 'interest_earned')
             ->where('status', 'completed')
             ->where('created_at', '>=', now()->subMonths(6)->startOfMonth())
             ->selectRaw("{$monthExpr} as ym, SUM(amount) as total")
@@ -266,11 +282,20 @@ class InvestorController extends Controller
             ? "strftime('%Y-%m', created_at)"
             : "DATE_FORMAT(created_at, '%Y-%m')";
 
-        $monthly = LenderTransaction::where('lender_id', $lender->id)
-            ->where('type', 'return')->where('status', 'completed')
+        $rawMonthly = LenderTransaction::where('lender_id', $lender->id)
+            ->where('type', 'interest_earned')->where('status', 'completed')
             ->where('created_at', '>=', now()->subMonths(12)->startOfMonth())
             ->selectRaw("{$monthExpr} as ym, SUM(amount) as total")
-            ->groupBy('ym')->orderBy('ym')->get();
+            ->groupBy('ym')->orderBy('ym')->pluck('total', 'ym');
+
+        $monthly = collect();
+        for ($i = 11; $i >= 0; $i--) {
+            $ym = now()->subMonths($i)->format('Y-m');
+            $monthly->push((object) [
+                'ym' => $ym,
+                'total' => (float) ($rawMonthly[$ym] ?? 0),
+            ]);
+        }
 
         $byPool = $lender->investments()
             ->with('pool')
@@ -323,7 +348,7 @@ class InvestorController extends Controller
         $type = $request->string('type')->toString();
 
         $transactions = $lender->transactions()
-            ->when(in_array($type, ['deposit','withdrawal','investment','return','fee'], true),
+            ->when(in_array($type, ['deposit','withdrawal','investment','return','interest_earned','principal_return','fee'], true),
                    fn ($q) => $q->where('type', $type))
             ->latest()->paginate(20)->withQueryString();
 
@@ -408,6 +433,48 @@ class InvestorController extends Controller
         $statements = LenderStatement::where('lender_id', $lender->id)
             ->latest('period_end')->paginate(15);
         return view('site.investor.documents', compact('lender', 'statements'));
+    }
+
+    public function downloadReport(string $kind)
+    {
+        $lender = $this->lender();
+        $stats = $this->stats($lender);
+        $metrics = app(\App\Services\CapitalPartnerMetricsService::class)->forLender($lender);
+
+        $kind = in_array($kind, ['agreement', 'ytd', 'tax'], true) ? $kind : 'ytd';
+        $year = (int) now()->year;
+        if ($kind === 'tax') {
+            $year = (int) now()->subYear()->year;
+        }
+
+        $lines = [
+            brand_name().' — Capital partner report',
+            'Partner: '.$lender->name.' ('.$lender->code.')',
+            'Generated: '.now()->toDateTimeString(),
+            '',
+        ];
+
+        if ($kind === 'agreement') {
+            $lines[] = 'Investor / capital partner agreement summary';
+            $lines[] = 'This confirms '.$lender->name.' is an active capital partner on '.brand_name().'.';
+            $lines[] = 'Committed capital: TZS '.number_format((float) ($metrics['capital_invested'] ?? 0), 2);
+        } else {
+            $interest = (float) ($metrics['interest_earned_partner'] ?? $stats['returnsPaid']);
+            $lines[] = ($kind === 'tax' ? 'Tax summary '.$year : 'Year-to-date statement '.$year);
+            $lines[] = 'Capital committed: TZS '.number_format((float) ($metrics['capital_invested'] ?? 0), 2);
+            $lines[] = 'Capital deployed: TZS '.number_format((float) ($metrics['capital_utilized'] ?? 0), 2);
+            $lines[] = 'Capital available: TZS '.number_format((float) ($metrics['capital_available'] ?? 0), 2);
+            $lines[] = 'Outstanding exposure: TZS '.number_format((float) ($metrics['outstanding_exposure'] ?? 0), 2);
+            $lines[] = 'Partner interest earned: TZS '.number_format($interest, 2);
+            $lines[] = 'Active loans: '.((int) ($metrics['active_loans'] ?? 0));
+        }
+
+        $filename = 'kopafasta-'.$kind.'-'.$lender->code.'-'.$year.'.txt';
+
+        return response(implode("\n", $lines), 200, [
+            'Content-Type' => 'text/plain; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ]);
     }
 
     /* ------------------------------------------------------------------ */

@@ -1,20 +1,21 @@
-<x-site.investor-layout title="Documents — Investor" active="documents">
+<x-site.investor-layout title="Reports — Capital partner" active="documents">
     <x-site.borrower-page-header
         eyebrow="Capital partner"
-        title="Documents & statements"
-        subtitle="Contracts, monthly statements and tax reports."
+        title="Reports & statements"
+        subtitle="Download agreements, year-to-date statements and tax summaries."
     />
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         @foreach ([
-            ['Investor agreement', 'Master capital partner agreement', 'Download agreement'],
-            ['Year-to-date', now()->year.' statement', 'Download statement'],
-            ['Tax report', now()->subYear()->year.' tax summary', 'Download report'],
-        ] as [$eyebrow, $title, $cta])
+            ['Investor agreement', 'Master capital partner agreement', 'Download agreement', 'agreement'],
+            ['Year-to-date', now()->year.' statement', 'Download statement', 'ytd'],
+            ['Tax report', now()->subYear()->year.' tax summary', 'Download report', 'tax'],
+        ] as [$eyebrow, $title, $cta, $kind])
             <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
                 <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $eyebrow }}</p>
                 <p class="font-semibold text-gray-900 mt-1">{{ $title }}</p>
-                <button type="button" class="mt-3 inline-flex items-center gap-2 rounded-xl bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand px-3 py-1.5 text-sm font-semibold">{{ $cta }}</button>
+                <a href="{{ route('site.investor.documents.download', $kind) }}"
+                   class="mt-3 inline-flex items-center gap-2 rounded-xl bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand px-3 py-1.5 text-sm font-semibold">{{ $cta }}</a>
             </div>
         @endforeach
     </div>
@@ -24,7 +25,9 @@
             <h2 class="font-bold text-gray-900">Statement history</h2>
         </div>
         @if ($statements->isEmpty())
-            <div class="p-10 text-center text-gray-500 text-sm">No statements generated yet. Statements appear monthly.</div>
+            <div class="p-10 text-center text-gray-500 text-sm">
+                No archived monthly statements yet. Use the downloads above for a live snapshot.
+            </div>
         @else
             <table class="w-full text-sm">
                 <thead class="bg-brand-muted/30 text-xs uppercase tracking-widest text-brand">

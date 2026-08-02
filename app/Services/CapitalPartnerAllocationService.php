@@ -611,10 +611,8 @@ class CapitalPartnerAllocationService
         $pool->save();
 
         $lender = $slice['lender'];
-        if ($lender->available_balance > 0) {
-            $lender->available_balance = max(0, (float) $lender->available_balance - $share);
-            $lender->save();
-        }
+        $lender->available_balance = max(0, (float) $lender->available_balance - $share);
+        $lender->save();
 
         LenderTransaction::create([
             'lender_id'             => $lender->id,
@@ -680,6 +678,10 @@ class CapitalPartnerAllocationService
             }
 
             if ($partnerShare > 0 && $allocation->lender) {
+                $lender = $allocation->lender;
+                $lender->available_balance = (float) $lender->available_balance + $partnerShare;
+                $lender->save();
+
                 LenderTransaction::create([
                     'lender_id'        => $allocation->lender_id,
                     'funding_pool_id'  => $allocation->funding_pool_id,
@@ -730,6 +732,41 @@ class CapitalPartnerAllocationService
             $remaining -= $reduction;
             $allocation->outstanding_exposure = max(0, (float) $allocation->outstanding_exposure - $reduction);
             $allocation->save();
+
+            if ($reduction <= 0) {
+                continue;
+            }
+
+            if ($allocation->funding_pool_id) {
+                $pool = FundingPool::query()->find($allocation->funding_pool_id);
+                if ($pool) {
+                    $pool->amount_deployed = max(0, (float) $pool->amount_deployed - $reduction);
+                    $pool->save();
+                }
+            }
+
+            if ($allocation->lender_id) {
+                $lender = Lender::query()->find($allocation->lender_id);
+                if ($lender) {
+                    $lender->available_balance = (float) $lender->available_balance + $reduction;
+                    $lender->save();
+
+                    LenderTransaction::create([
+                        'lender_id'        => $lender->id,
+                        'funding_pool_id'  => $allocation->funding_pool_id,
+                        'loan_id'          => $loan->id,
+                        'reference'        => 'TXN-'.Str::upper(Str::random(10)),
+                        'type'             => 'principal_return',
+                        'direction'        => 'credit',
+                        'amount'           => $reduction,
+                        'status'           => 'completed',
+                        'channel'          => 'system',
+                        'notes'            => 'Principal repaid — loan '.$loan->loan_number,
+                        'processed_at'     => now(),
+                        'created_by'       => $this->actorId(),
+                    ]);
+                }
+            }
         }
     }
 

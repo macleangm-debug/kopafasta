@@ -40,7 +40,7 @@ class PartnerActivationController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('site.partner.dashboard')
-            ->with('status', 'Partner account activated. Complete your profile and payment details.');
+        return redirect()->route('site.partner.setup-pin')
+            ->with('status', 'Partner account activated. Create your PIN to continue.');
     }
 }

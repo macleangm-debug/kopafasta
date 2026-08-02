@@ -111,7 +111,7 @@ class PartnerActivationService
         }
 
         $validated = validator($data, [
-            'pin' => ['required', 'digits:4'],
+            'pin' => ['nullable', 'digits:4'],
         ])->validate();
 
         $password = Str::password(32);
@@ -152,7 +152,9 @@ class PartnerActivationService
             $user->update(['is_active' => true]);
         }
 
-        app(PinService::class)->setPin($user, $validated['pin']);
+        if (filled($validated['pin'] ?? null)) {
+            app(PinService::class)->setPin($user, $validated['pin']);
+        }
 
         $vendor->update([
             'user_id'           => $user->id,
@@ -164,8 +166,8 @@ class PartnerActivationService
         return $user;
     }
 
-    /** Activate using partner code + matching phone (no SMS). */
-    public function activateWithPartnerCode(Vendor $vendor, string $phone, string $pin): User
+    /** Activate using partner code + matching phone (PIN is created after login). */
+    public function activateWithPartnerCode(Vendor $vendor, string $phone, ?string $pin = null): User
     {
         $normalizedPhone = preg_replace('/\D+/', '', $phone) ?: $phone;
         $vendorPhone = preg_replace('/\D+/', '', (string) $vendor->phone) ?: (string) $vendor->phone;
@@ -184,6 +186,6 @@ class PartnerActivationService
 
         $token = $this->prepareActivation($vendor);
 
-        return $this->activate($vendor->fresh(), $token, ['pin' => $pin]);
+        return $this->activate($vendor->fresh(), $token, filled($pin) ? ['pin' => $pin] : []);
     }
 }

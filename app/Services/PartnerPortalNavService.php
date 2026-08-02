@@ -16,12 +16,11 @@ class PartnerPortalNavService
             ['key' => 'tasks', 'label' => __('site.partner_portal.nav_jobs'), 'route' => 'site.partner.tasks', 'icon' => 'clipboard'],
             ['key' => 'recovery', 'label' => __('site.partner_portal.nav_recovery'), 'route' => 'site.partner.recovery-cases', 'icon' => 'alert'],
             ['key' => 'recovery_wallet', 'label' => __('site.partner_portal.nav_commission'), 'route' => 'site.partner.recovery-wallet', 'icon' => 'wallet'],
-            ['key' => 'documents', 'label' => __('site.partner_portal.nav_documents'), 'route' => 'site.partner.documents', 'icon' => 'folder'],
             ['key' => 'payments', 'label' => __('site.partner_portal.nav_payments'), 'route' => 'site.partner.payments', 'icon' => 'wallet'],
             ['key' => 'calendar', 'label' => __('site.partner_portal.nav_calendar'), 'route' => 'site.partner.calendar', 'icon' => 'calendar'],
             ['key' => 'notifications', 'label' => __('site.partner_portal.nav_notifications'), 'route' => 'site.partner.notifications', 'icon' => 'bell'],
-            ['key' => 'support', 'label' => __('site.partner_portal.nav_support'), 'route' => 'site.partner.support', 'icon' => 'help'],
             ['key' => 'profile', 'label' => __('site.partner_portal.nav_profile'), 'route' => 'site.partner.profile', 'icon' => 'user'],
+            ['key' => 'support', 'label' => __('site.partner_portal.nav_support'), 'route' => 'site.partner.support', 'icon' => 'help'],
         ];
 
         $showRecovery = $vendor && app(RecoveryPartnerService::class)->isRecoveryPartner($vendor);
@@ -34,7 +33,7 @@ class PartnerPortalNavService
 
         // Collection-focused partners: lead with recovery tools; hide job calendar noise
         if ($showRecovery && in_array($vendor?->category, ['debt_collector', 'call_center', 'legal_partner', 'auctioneer'], true)) {
-            $priority = ['dashboard', 'recovery', 'recovery_wallet', 'tasks', 'documents', 'payments', 'notifications', 'support', 'profile'];
+            $priority = ['dashboard', 'recovery', 'recovery_wallet', 'tasks', 'payments', 'notifications', 'profile', 'support'];
             usort($nav, function (array $a, array $b) use ($priority) {
                 $ai = array_search($a['key'], $priority, true);
                 $bi = array_search($b['key'], $priority, true);
@@ -92,18 +91,13 @@ class PartnerPortalNavService
     {
         return [
             ['key' => 'dashboard', 'label' => 'Dashboard', 'route' => 'site.investor.dashboard', 'icon' => 'home'],
-            ['key' => 'pools', 'label' => 'Funding Pools', 'route' => 'site.investor.pools', 'icon' => 'layers'],
-            ['key' => 'investments', 'label' => 'My Investments', 'route' => 'site.investor.investments', 'icon' => 'chart'],
             ['key' => 'funded', 'label' => 'Funded Loans', 'route' => 'site.investor.funded-loans', 'icon' => 'chart'],
-            ['key' => 'returns', 'label' => 'Returns & Earnings', 'route' => 'site.investor.returns', 'icon' => 'trend'],
-            ['key' => 'analytics', 'label' => 'Portfolio Analytics', 'route' => 'site.investor.analytics', 'icon' => 'pie'],
-            ['key' => 'transactions', 'label' => 'Transactions', 'route' => 'site.investor.transactions', 'icon' => 'list'],
+            ['key' => 'returns', 'label' => 'Earnings', 'route' => 'site.investor.returns', 'icon' => 'trend'],
             ['key' => 'wallet', 'label' => 'Wallet', 'route' => 'site.investor.wallet', 'icon' => 'wallet'],
-            ['key' => 'documents', 'label' => 'Documents', 'route' => 'site.investor.documents', 'icon' => 'folder'],
+            ['key' => 'documents', 'label' => 'Reports', 'route' => 'site.investor.documents', 'icon' => 'folder'],
             ['key' => 'notifications', 'label' => 'Notifications', 'route' => 'site.investor.notifications', 'icon' => 'bell'],
-            ['key' => 'support', 'label' => 'Support', 'route' => 'site.investor.support', 'icon' => 'help'],
             ['key' => 'profile', 'label' => 'Profile', 'route' => 'site.investor.profile', 'icon' => 'user'],
-            ['key' => 'settings', 'label' => 'Settings', 'route' => 'site.investor.settings', 'icon' => 'settings'],
+            ['key' => 'support', 'label' => 'Support', 'route' => 'site.investor.support', 'icon' => 'help'],
         ];
     }
 
@@ -127,17 +121,7 @@ class PartnerPortalNavService
 
     public function roleBanner(?Vendor $vendor): ?string
     {
-        return match ($vendor?->category) {
-            'call_center' => 'Call center queue — work recovery cases and call outcomes.',
-            'debt_collector' => 'Collections workspace — manage assigned recovery cases and commissions.',
-            'legal_partner' => 'Legal cases — track legal recovery assignments and documents.',
-            'auctioneer' => 'Auction jobs — manage auction assignments for recovered assets.',
-            'valuer' => 'Valuation workspace — accept inspection jobs and submit evidence.',
-            'gps_installer' => 'GPS installs — schedule installs and upload completion proof.',
-            'insurance' => 'Insurance workspace — quote and bind cover for collateralised loans.',
-            'yard' => 'Yard operations — intake and prepare recovered assets.',
-            default => null,
-        };
+        return null;
     }
 
     public function iconSvg(string $name): string

@@ -1,4 +1,4 @@
-<x-site.layout :title="brand_title(__('site.auth.partner_sign_in'))">
+<x-site.layout :title="brand_title(__('site.auth.activate_account'))">
     <section class="min-h-[calc(100vh-4rem)] grid lg:grid-cols-2 premium-gradient">
         <aside class="hidden lg:flex relative overflow-hidden bg-brand text-white p-12 flex-col justify-between">
             <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_bottom_left,_#f5c842,_transparent_50%)]"></div>
@@ -24,21 +24,17 @@
                     <div class="mt-6 p-3.5 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{{ $errors->first() }}</div>
                 @endif
 
-                <form method="POST" action="{{ route('site.partner.start.lookup') }}" class="mt-6 space-y-5">
+                <form method="POST" action="{{ route('site.partner.start.lookup') }}" class="mt-6 space-y-5" autocomplete="off">
                     @csrf
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('site.auth.partner_code_label') }}</label>
                         <input type="text" name="partner_code" value="{{ old('partner_code') }}" required
+                               autocomplete="off" autocapitalize="characters" spellcheck="false"
+                               placeholder="PT-XX-TZ-XXXX"
                                class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm font-mono uppercase outline-none">
                     </div>
                     <x-site.phone-input name="phone" :label="__('site.feedback.phone')" :value="old('phone')" variant="rounded" :required="true" />
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('site.auth.create_pin_label') }}</label>
-                        <input type="password" name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required
-                               class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none tracking-widest"
-                               placeholder="••••">
-                        <p class="mt-1.5 text-xs text-gray-500">{{ __('site.auth.create_pin_hint') }}</p>
-                    </div>
+                    <p class="text-xs text-gray-500">After activation you will create a 4-digit PIN to sign in — just like borrowers.</p>
                     <button type="submit" class="w-full bg-brand hover:bg-brand-light text-white font-bold py-3.5 rounded-xl transition shadow-md">
                         {{ __('site.auth.continue_activation') }}
                     </button>

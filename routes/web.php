@@ -169,6 +169,9 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         Route::get('/borrower/setup-pin', [\App\Http\Controllers\Site\AuthController::class, 'showSetupPin'])->name('borrower.setup-pin');
         Route::post('/borrower/setup-pin', [\App\Http\Controllers\Site\AuthController::class, 'storeSetupPin'])->name('borrower.setup-pin.post');
 
+        Route::get('/partner/setup-pin', [\App\Http\Controllers\Site\PartnerPortalController::class, 'showSetupPin'])->name('partner.setup-pin');
+        Route::post('/partner/setup-pin', [\App\Http\Controllers\Site\PartnerPortalController::class, 'storeSetupPin'])->name('partner.setup-pin.post');
+
         Route::middleware('borrower.pin')->group(function () {
             // Browse products without membership; pay / renew when starting apply.
             Route::get('/borrower/loan-products', [\App\Http\Controllers\Site\BorrowerController::class, 'loanProducts'])->name('borrower.loan-products');
@@ -329,7 +332,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         $registerPartnerPortal = require base_path('routes/partner_portal.php');
 
         // ---- Partner portal (/partner primary, /vendor legacy) ----
-        Route::middleware('two_factor:partner')->group(function () use ($registerPartnerPortal) {
+        Route::middleware(['two_factor:partner', 'partner.pin'])->group(function () use ($registerPartnerPortal) {
             $registerPartnerPortal('partner', 'partner.', registerDashboard: false);
             $registerPartnerPortal('vendor', 'vendor.');
 
@@ -377,7 +380,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             });
         });
 
-        Route::prefix('affiliate-portal')->name('affiliate.')->middleware('two_factor:partner')->group(function () {
+        Route::prefix('affiliate-portal')->name('affiliate.')->middleware(['two_factor:partner', 'partner.pin'])->group(function () {
             Route::get('/', [\App\Http\Controllers\Site\AffiliateController::class, 'dashboard'])->name('dashboard');
             Route::get('/referrals', [\App\Http\Controllers\Site\AffiliateController::class, 'referrals'])->name('referrals');
             Route::get('/wallet', [\App\Http\Controllers\Site\AffiliateController::class, 'wallet'])->name('wallet');
@@ -395,7 +398,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         });
         Route::redirect('/partner/affiliate-portal', '/partner/affiliate');
 
-        Route::prefix('supplier')->name('supplier.')->group(function () {
+        Route::prefix('supplier')->name('supplier.')->middleware('partner.pin')->group(function () {
             Route::get('/', [\App\Http\Controllers\Site\SupplierController::class, 'dashboard'])->name('dashboard');
             Route::get('/assets', [\App\Http\Controllers\Site\SupplierController::class, 'assets'])->name('assets');
             Route::get('/assets/create', [\App\Http\Controllers\Site\SupplierController::class, 'createAsset'])->name('assets.create');
@@ -419,6 +422,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         });
 
         // ---- Investor / Capital Lender portal ----
+        Route::middleware('partner.pin')->group(function () {
         Route::get('/investor',                                 [\App\Http\Controllers\Site\InvestorController::class, 'dashboard'])    ->name('investor.dashboard');
         Route::get('/investor/pools',                           [\App\Http\Controllers\Site\InvestorController::class, 'pools'])        ->name('investor.pools');
         Route::get('/investor/pools/{pool}',                    [\App\Http\Controllers\Site\InvestorController::class, 'pool'])         ->name('investor.pool');
@@ -433,6 +437,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         Route::post('/investor/wallet/deposit',                 [\App\Http\Controllers\Site\InvestorController::class, 'deposit'])      ->name('investor.wallet.deposit');
         Route::post('/investor/wallet/withdraw',                [\App\Http\Controllers\Site\InvestorController::class, 'withdraw'])     ->name('investor.wallet.withdraw');
         Route::get('/investor/documents',                       [\App\Http\Controllers\Site\InvestorController::class, 'documents'])    ->name('investor.documents');
+        Route::get('/investor/documents/download/{kind}',       [\App\Http\Controllers\Site\InvestorController::class, 'downloadReport'])->name('investor.documents.download');
         Route::get('/investor/notifications',                   [\App\Http\Controllers\Site\InvestorController::class, 'notifications'])->name('investor.notifications');
         Route::get('/investor/profile/{section?}',               [\App\Http\Controllers\Site\InvestorController::class, 'profile'])      ->name('investor.profile')->where('section', 'hub|personal|face|residence|activity|payment');
         Route::put('/investor/profile/{section}',                [\App\Http\Controllers\Site\InvestorController::class, 'updateProfile'])->name('investor.profile.update')->where('section', 'personal|face|residence|activity|payment');
@@ -440,6 +445,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         Route::put('/investor/settings/pin',                    [\App\Http\Controllers\Site\PartnerAccountController::class, 'updatePin'])->name('investor.settings.pin');
         Route::get('/investor/support',                         [\App\Http\Controllers\Site\InvestorController::class, 'support'])      ->name('investor.support');
         Route::get('/investor-portal', fn () => redirect()->route('site.investor.dashboard'));
+        });
     });
 });
 
