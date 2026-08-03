@@ -78,13 +78,13 @@ class CreditWorkspaceUiFeatureTest extends TestCase
                 ->assertOk()
                 ->getContent();
 
-            $this->assertStringContainsString('Borrower file', $html);
+            $this->assertStringContainsString('Profile sections', $html);
             $this->assertStringContainsString('Facility summary', $html);
             $this->assertStringContainsString('Risk score', $html);
             $this->assertStringContainsString('Borrower CRB', $html);
-            $this->assertStringContainsString('Open Guarantor tab', $html);
+            $this->assertStringContainsString('Open guarantor file', $html);
             $this->assertStringContainsString('tab=face', $html);
-            $this->assertStringContainsString('tab=guarantor', $html);
+            $this->assertStringContainsString('person=guarantor', $html);
         }
 
         $app = $this->application($admin, 'screening');
@@ -121,14 +121,8 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('Product document checklist', $documents);
         $this->assertStringContainsString('Request another document', $documents);
 
-        $guarantor = $this->actingAs($admin, 'admin')
-            ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'tab' => 'guarantor']))
-            ->assertOk()
-            ->getContent();
-        $this->assertStringContainsString('Guarantor review', $guarantor);
-        $this->assertStringContainsString('Guarantor desk', $guarantor);
-        $this->assertStringContainsString('Borrower CRB', $screening);
-        $this->assertStringContainsString('Open Guarantor tab', $screening);
+        $this->assertStringContainsString('person=borrower', $screening);
+        $this->assertStringContainsString('Open guarantor file', $screening);
 
         $committee = $this->actingAs($admin, 'admin')
             ->get(route('admin.loan-applications.show', $this->application($admin, 'pre_approval')))
@@ -157,8 +151,7 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('Credit management workspace', $html);
         $this->assertStringContainsString('Approved facility', $html);
         $this->assertStringContainsString('Release readiness', $html);
-        $this->assertStringContainsString('Borrower file', $html);
-        $this->assertStringContainsString('Guarantor', $html);
-        $this->assertStringNotContainsString('CRB suggestion', $html);
+        $this->assertStringContainsString('Profile sections', $html);
+        $this->assertStringNotContainsString('Borrower CRB', $html);
     }
 }

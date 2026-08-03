@@ -62,7 +62,12 @@
             </div>
         </summary>
         <div class="p-5">
-            <a href="{{ route('admin.loan-applications.show', ['loan_application' => $record, 'tab' => 'face']) }}#borrower-file"
+            <a href="{{ route('admin.loan-applications.show', array_filter([
+                    'loan_application' => $record,
+                    'tab' => 'face',
+                    'person' => request('person', 'borrower'),
+                    'g' => request('g'),
+                ])) }}#borrower-file"
                class="inline-flex text-sm font-semibold text-brand hover:underline">
                 Open Face tab →
             </a>

@@ -342,46 +342,6 @@ class LoanApplicationController extends ResourceController
             ->withFragment('borrower-file');
     }
 
-    public function refreshGuarantorCrb(
-        Request $request,
-        LoanApplication $loan_application,
-        \App\Models\CustomerGuarantor $customerGuarantor,
-    ): RedirectResponse {
-        abort_unless(auth()->user()?->hasPermission('applications.review')
-            || auth()->user()?->hasPermission('applications.view'), 403);
-
-        abort_unless((int) $customerGuarantor->loan_application_id === (int) $loan_application->id, 404);
-
-        $invitation = \App\Models\GuarantorInvitation::query()
-            ->where('customer_guarantor_id', $customerGuarantor->id)
-            ->latest()
-            ->first();
-        $member = $invitation?->guarantor_customer_id
-            ? \App\Models\Customer::find($invitation->guarantor_customer_id)
-            : null;
-
-        if (! $member) {
-            return back()->with('error', 'Guarantor profile is not ready for a CRB pull yet.');
-        }
-
-        try {
-            $result = app(\App\Services\CrbCreditCheckService::class)
-                ->ensureGuarantorCrb($member, $loan_application, force: true);
-        } catch (\Throwable $e) {
-            return back()->with('error', 'CRB recall failed: '.$e->getMessage());
-        }
-
-        if (! empty($result['error']) && empty($result['summary']['score'])) {
-            return back()->with('error', $result['error']);
-        }
-
-        return back()
-            ->with('status', ! empty($result['reused'])
-                ? 'Guarantor CRB reused within freshness window.'
-                : 'Guarantor CRB recalled successfully.')
-            ->withFragment('borrower-file');
-    }
-
     public function runWorkflow(Request $request, LoanApplication $loan_application, LoanApplicationWorkflowService $workflow): RedirectResponse
     {
         abort_unless(auth()->user()?->hasPermission('applications.view'), 403);

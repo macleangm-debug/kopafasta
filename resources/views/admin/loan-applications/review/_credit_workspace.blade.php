@@ -253,9 +253,14 @@
                     </ul>
                 @endif
                 <div class="mt-4 flex flex-wrap gap-2">
-                    <a href="{{ route('admin.loan-applications.show', ['loan_application' => $record, 'tab' => 'guarantor']) }}#borrower-file"
+                    <a href="{{ route('admin.loan-applications.show', [
+                            'loan_application' => $record,
+                            'person' => 'guarantor',
+                            'tab' => 'overview',
+                            'g' => $gSug['link_id'] ?? null,
+                        ]) }}#borrower-file"
                        class="inline-flex text-xs font-semibold rounded-lg bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">
-                        Open Guarantor tab →
+                        Open guarantor file →
                     </a>
                 </div>
             </div>

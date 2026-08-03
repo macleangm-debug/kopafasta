@@ -132,17 +132,23 @@ class GuarantorCreditReviewFeatureTest extends TestCase
             ->getContent();
 
         $this->assertStringContainsString('Borrower CRB', $html);
-        $this->assertStringContainsString('Open Guarantor tab', $html);
+        $this->assertStringContainsString('Open guarantor file', $html);
         $this->assertStringContainsString('Profile incomplete', $html);
 
         $tab = $this->actingAs($admin, 'admin')
-            ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'tab' => 'guarantor']))
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $app,
+                'person' => 'guarantor',
+                'tab' => 'overview',
+                'g' => $app->customerGuarantors()->first()?->id,
+            ]))
             ->assertOk()
             ->getContent();
 
         $this->assertStringContainsString('Waiting for guarantor profile', $tab);
         $this->assertStringContainsString('Ask borrower to change guarantor', $tab);
-        $this->assertStringNotContainsString('CRB · Guarantor', $tab);
+        $this->assertStringNotContainsString('Recall CRB', $tab);
+        $this->assertStringContainsString('person=guarantor', $html);
     }
 
     public function test_admin_can_request_guarantor_change_without_blacklisting_person(): void

@@ -399,8 +399,10 @@ class LoanApplicationReviewService
                     $crbExplain = $crbService->recommendationExplanation($crb);
                 }
 
+                $file = null;
                 $profile = null;
                 if ($member && $profileComplete) {
+                    $file = $this->subjectFile($member);
                     $profile = [
                         'full_name' => $member->full_name,
                         'date_of_birth' => optional($member->date_of_birth)->format('d M Y'),
@@ -442,12 +444,74 @@ class LoanApplicationReviewService
                     'profile_complete' => $profileComplete,
                     'profile_percent'  => (int) ($profileStatus['percent'] ?? 0),
                     'profile'          => $profile,
+                    'file'             => $file,
                     'crb'              => $crb,
                     'crb_explanation'  => $crbExplain,
                     'can_change'       => in_array($link->status, ['pending', 'approved'], true),
-                    'can_recall_crb'   => $member && $profileComplete && $link->status !== 'rejected',
                 ];
             });
+    }
+
+    /**
+     * Borrower-equivalent dossier slice for a guarantor Customer (profile sections + face + docs).
+     *
+     * @return array<string, mixed>
+     */
+    private function subjectFile(Customer $customer): array
+    {
+        $profile = $this->profile->calculate($customer);
+        $facePhotos = $this->face->latestByAngle($customer, true);
+        $faceProgress = $this->face->progress($customer);
+        $nidaPhotoPath = $customer->kyc?->payload['nida_verification']['photo_path'] ?? null;
+
+        $idDocs = CustomerDocument::query()
+            ->where('customer_id', $customer->id)
+            ->whereHas('documentType', fn ($q) => $q->whereIn('code', [
+                'national_id_front',
+                'national_id_back',
+                'passport',
+                'voter_id',
+                'driving_license',
+                'other_id',
+            ]))
+            ->with('documentType')
+            ->latest()
+            ->get()
+            ->unique(fn (CustomerDocument $doc) => $doc->documentType?->code ?: $doc->id)
+            ->keyBy(fn (CustomerDocument $doc) => $doc->documentType?->code ?: ('doc-'.$doc->id));
+
+        $kycDocuments = CustomerDocument::query()
+            ->where('customer_id', $customer->id)
+            ->with('documentType')
+            ->latest()
+            ->get()
+            ->unique(fn (CustomerDocument $doc) => $doc->document_type_id ?: $doc->id);
+
+        $profileDocuments = CustomerDocument::query()
+            ->where('customer_id', $customer->id)
+            ->with('documentType')
+            ->latest()
+            ->get();
+
+        return [
+            'customer'           => $customer,
+            'profile'            => $profile,
+            'face_photos'        => $facePhotos,
+            'face_progress'      => $faceProgress,
+            'face_angles'        => config('face_verification.angles', []),
+            'nida_photo_path'    => $nidaPhotoPath,
+            'id_documents'       => $idDocs,
+            'alternate_id_types' => (array) ($customer->alternate_id_types ?? []),
+            'alternate_id_notes' => $customer->alternate_id_notes,
+            'kyc_documents'      => $kycDocuments,
+            'profile_documents'  => $profileDocuments,
+            'activity_label'     => display_label($customer->activity_type, 'activity_type')
+                ?: activity_type_label($customer->activity_type) ?? $customer->activity_type,
+            'income_label'       => income_range_label($customer->income_range) ?? $customer->income_range,
+            'business_name'      => $this->activityValue($customer, 'business_name')
+                ?: $this->activityValue($customer, 'employer_name')
+                ?: $this->activityValue($customer, 'trade_type'),
+        ];
     }
 
     /**
@@ -474,8 +538,8 @@ class LoanApplicationReviewService
             return [
                 'required' => true,
                 'recommendation' => 'missing',
-                'label' => 'Missing',
-                'summary' => 'No guarantor linked yet — invite or wait for acceptance.',
+                'label' => 'Awaiting',
+                'summary' => 'Unusual — files normally reach screening only after a guarantor completes. Check invitation status.',
                 'name' => null,
                 'score' => null,
                 'profile_complete' => false,
@@ -492,12 +556,13 @@ class LoanApplicationReviewService
                 'required' => true,
                 'recommendation' => 'pending_profile',
                 'label' => 'Profile incomplete',
-                'summary' => ($primary['name'] ?? 'Guarantor').' has not finished their profile yet — CRB appears after completion.',
+                'summary' => ($primary['name'] ?? 'Guarantor').' has not finished their profile yet — unusual at screening; open their file to check.',
                 'name' => $primary['name'] ?? null,
                 'score' => null,
                 'profile_complete' => false,
                 'status_label' => $primary['status_label'] ?? null,
                 'profile_percent' => $primary['profile_percent'] ?? 0,
+                'link_id' => $primary['link_id'] ?? null,
             ];
         }
 
@@ -509,7 +574,7 @@ class LoanApplicationReviewService
             'required' => true,
             'recommendation' => $rec !== '' ? $rec : 'refer',
             'label' => $rec !== '' ? ucfirst($rec) : 'Review',
-            'summary' => $explain['summary'] ?? 'Guarantor profile complete — review CRB on the Guarantor tab.',
+            'summary' => $explain['summary'] ?? 'Guarantor profile complete — review their file sections.',
             'reasons' => $explain['reasons'] ?? [],
             'name' => $primary['name'] ?? null,
             'score' => $crb['score'] ?? null,
