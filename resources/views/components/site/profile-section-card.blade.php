@@ -42,12 +42,57 @@
             this.open = true;
             this.expanded = true;
             window.dispatchEvent(new CustomEvent('profile-accordion', { detail: this.id }));
-        }
+        },
+        requestClose() {
+            if (! this.open) {
+                this.expanded = false;
+                return;
+            }
+            const detail = {
+                id: this.id,
+                proceed: () => { this.open = false; this.expanded = false; },
+                stay: () => {
+                    this.open = true;
+                    this.expanded = true;
+                    window.dispatchEvent(new CustomEvent('profile-accordion', { detail: this.id }));
+                },
+            };
+            const ev = new CustomEvent('profile-section-before-close', { bubbles: true, cancelable: true, detail });
+            this.$el.dispatchEvent(ev);
+            if (ev.defaultPrevented) {
+                return;
+            }
+
+            const form = this.$el.querySelector('form');
+            const hasUnsavedFiles = !!(form && [...form.querySelectorAll('input[type="file"]')].some((input) => input.files && input.files.length > 0));
+            if (hasUnsavedFiles) {
+                const title = @js(__('borrower.profile.unsaved_photos_title'));
+                const message = @js(__('borrower.profile.unsaved_photos_body'));
+                const confirmLabel = @js(__('borrower.profile.unsaved_photos_confirm'));
+                if (typeof window.confirmForm === 'function') {
+                    window.confirmForm(null, {
+                        title,
+                        message,
+                        confirmLabel,
+                        confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
+                        onConfirm: () => detail.proceed(),
+                        onCancel: () => detail.stay(),
+                    });
+                    return;
+                }
+                if (! window.confirm(message)) {
+                    detail.stay();
+                    return;
+                }
+            }
+            detail.proceed();
+        },
     }"
     x-init="
         if (window.location.hash === '#{{ $sectionId }}') { open = true; expanded = true; }
         window.addEventListener('profile-accordion', (e) => {
-            if (e.detail !== id) { expanded = false; open = false; }
+            if (e.detail !== id && open) { requestClose(); }
+            else if (e.detail !== id) { expanded = false; open = false; }
         });
     "
 >
@@ -78,7 +123,7 @@
         </button>
         @if ($useInline)
             <button type="button"
-                    @click="open ? (open = false) : openEdit()"
+                    @click="open ? requestClose() : openEdit()"
                     class="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full ring-1 transition"
                     :class="open ? 'text-gray-700 ring-gray-200 bg-gray-50' : 'text-amber-700 ring-amber-200 bg-amber-50 hover:text-amber-800'">
                 <span x-show="!open">{{ $empty ? ($addLabel ?? __('borrower.profile.add_details')) : __('borrower.profile.edit_section') }}</span>

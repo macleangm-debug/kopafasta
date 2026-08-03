@@ -105,6 +105,7 @@
                 :name="$fieldName"
                 :input-host-id="$hostId"
                 :labels="$labels"
+                :required="$required"
             />
         @else
             <x-site.multi-page-document-upload

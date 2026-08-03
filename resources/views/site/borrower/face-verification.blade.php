@@ -88,7 +88,6 @@
             <x-site.face-verification-status :customer="$customer" :photos="$photos" :angles="$angles" />
             <div class="mt-6 rounded-3xl bg-gradient-to-b from-sky-50/80 to-white ring-1 ring-sky-200/80 px-6 py-8 text-center">
                 <p class="text-sm text-sky-950 font-semibold">{{ __('borrower.nida.face_submitted_title') }}</p>
-                <p class="text-xs text-sky-800 mt-2 max-w-md mx-auto">{{ __('borrower.nida.face_submitted_body') }}</p>
                 <div class="mt-5 flex flex-wrap justify-center gap-3">
                     @if (! empty($returnUrl))
                         <a href="{{ $returnUrl }}"

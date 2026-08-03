@@ -1721,6 +1721,9 @@ return [
     'swipe_to_browse' => 'Telezesha kidole kupitia picha · gusa kupanua · badilisha kwenye nafasi ya sasa',
     'prev_photo' => 'Picha iliyotangulia',
     'next_photo' => 'Picha inayofuata',
+    'unsaved_photos_title' => 'Ondoka bila kuhifadhi?',
+    'unsaved_photos_body' => 'Umepiga picha ambazo bado hazijahifadhiwa. Ukienda sasa, picha hizo zitafutwa.',
+    'unsaved_photos_confirm' => 'Futa picha',
     'collateral_fields' => [
       'property_name' => 'Jina la mali',
       'address' => 'Anuani',
@@ -2096,6 +2099,9 @@ return [
     'face_capture_hint' => 'Piga picha zako sasa. Timu yetu inazikagua wakati wa ukaguzi wa mkopo — unaweza kuendelea na wasifu na hatua za mdhamini.',
     'face_submitted_title' => 'Picha za uso zimewasilishwa',
     'face_submitted_body' => 'Asante. Timu yetu ya ukaguzi itakagua picha zako unapowasilisha ombi la mkopo. Unaweza kuendelea na sehemu nyingine za wasifu wako.',
+    'face_leave_title' => 'Acha kupiga picha za uso?',
+    'face_leave_body' => 'Bado hujakamilisha kuwasilisha picha za uso. Ukienda sasa, picha zisizokamilika zitafutwa na utahitaji kuanza upya.',
+    'face_leave_confirm' => 'Futa picha na ondoka',
     'face_compare_hint' => 'Tunalinganisha selfie yako na kitambulisho chako cha taifa na picha ya uthibitisho wa utambulisho.',
 ],
   'applications_list' => 

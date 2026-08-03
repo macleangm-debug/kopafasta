@@ -273,7 +273,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <x-site.gated-submit class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile.save')" />
+                            <x-site.gated-submit class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile.save')" :allow-empty="$uploadsComplete" />
                         </form>
                     </x-slot:form>
                 </x-site.profile-section-card>
@@ -404,10 +404,9 @@
                                 };
                             @endphp
                             <p class="text-sm font-semibold {{ $faceStatus[1] }}">{{ $faceStatus[0] }}</p>
-                            <p class="text-xs text-gray-500 mt-2">{{ __('borrower.profile.face_angles_hint') }}</p>
-                            <a href="{{ route('site.borrower.face-verification') }}" class="inline-flex mt-3 text-sm font-semibold text-amber-700 hover:text-amber-800">
-                                {{ __('borrower.nida.face_replace') }}
-                            </a>
+                            <button type="button" @click="openEdit()" class="inline-flex mt-3 text-sm font-semibold text-amber-700 hover:text-amber-800">
+                                {{ __('borrower.profile.add_details') }}
+                            </button>
                         @endif
                     </x-slot:view>
                     <x-slot:form>
@@ -430,16 +429,8 @@
                                 :angles="$faceAngles ?? []"
                                 :compact="true"
                             />
-                            @if ($faceKey === 'pending')
-                                <p class="text-xs text-gray-500 mt-3">{{ __('borrower.nida.face_submitted_body') }}</p>
-                            @elseif ($faceKey === 'verified')
-                                <p class="text-xs text-gray-500 mt-3">{{ __('borrower.nida.face_replace_hint') }}</p>
-                            @endif
                         @else
                             <p class="text-sm text-gray-600">{{ __('borrower.nida.face_capture_hint') }}</p>
-                            <a href="{{ route('site.borrower.face-verification') }}" class="inline-flex mt-3 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2 rounded-full text-sm">
-                                {{ __('borrower.nida.face_complete') }}
-                            </a>
                         @endif
                     </x-slot:form>
                 </x-site.profile-section-card>

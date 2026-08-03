@@ -217,15 +217,7 @@
             <svg class="w-8 h-8 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
         </div>
         <h2 class="text-xl font-bold text-gray-900 tracking-tight">{{ __('borrower.face_verification_page.done_title') }}</h2>
-        <p class="text-sm text-gray-600 mt-2 max-w-sm mx-auto">{{ __('borrower.face_verification_page.done_body') }}</p>
-        <a href="{{ route('site.borrower.dashboard') }}" class="inline-flex mt-6 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-3 rounded-full text-sm shadow-sm">
-            {{ __('borrower.face_verification_page.back_dashboard') }}
-        </a>
     </div>
-
-    <p class="text-xs text-gray-400 text-center mt-4" x-show="phase !== 'done'">
-        {{ __('borrower.face_verification_page.privacy_note') }}
-    </p>
 
     {{-- Collateral / NIDA enlarge — teleport escapes overflow + backdrop-filter traps --}}
     <template x-teleport="body">
@@ -342,9 +334,91 @@
                         // Never auto-start the camera — Chrome fails when the video is inside a
                         // hidden profile section (videoWidth stays 0). User must click Start.
                         this.observeVisibility();
+                        this.bindLeaveGuard();
 
                         // Alpine cleanup when the component is torn down.
                         return () => this.destroy();
+                    },
+
+                    isDirty() {
+                        if (this.phase === 'done' || this.isSubmitting) {
+                            return false;
+                        }
+                        if (['scanning', 'saving', 'preview', 'review'].includes(this.phase)) {
+                            return true;
+                        }
+                        return (this.steps || []).some((step) => step.done);
+                    },
+
+                    bindLeaveGuard() {
+                        this._beforeClose = (event) => {
+                            // Event is dispatched on the parent section card; listen in capture on document.
+                            if (! event?.target?.contains?.(this.$el)) {
+                                return;
+                            }
+                            if (! this.isDirty()) {
+                                return;
+                            }
+                            event.preventDefault();
+                            const detail = event.detail || {};
+                            const title = @js(__('borrower.nida.face_leave_title'));
+                            const message = @js(__('borrower.nida.face_leave_body'));
+                            const confirmLabel = @js(__('borrower.nida.face_leave_confirm'));
+                            const runDiscard = async () => {
+                                await this.discardIncompletePhotos();
+                                detail.proceed?.();
+                            };
+                            if (typeof window.confirmForm === 'function') {
+                                window.confirmForm(null, {
+                                    title,
+                                    message,
+                                    confirmLabel,
+                                    confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
+                                    onConfirm: () => { runDiscard(); },
+                                    onCancel: () => detail.stay?.(),
+                                });
+                                return;
+                            }
+                            if (window.confirm(message)) {
+                                runDiscard();
+                            } else {
+                                detail.stay?.();
+                            }
+                        };
+                        document.addEventListener('profile-section-before-close', this._beforeClose, true);
+                        this._onBeforeUnload = (e) => {
+                            if (! this.isDirty()) return;
+                            e.preventDefault();
+                            e.returnValue = '';
+                        };
+                        window.addEventListener('beforeunload', this._onBeforeUnload);
+                    },
+
+                    async discardIncompletePhotos() {
+                        this.stopCamera();
+                        this.closePreview?.();
+                        const deletes = (this.steps || [])
+                            .filter((step) => step.done && this.deleteUrls?.[step.key])
+                            .map(async (step) => {
+                                try {
+                                    await fetch(this.deleteUrls[step.key], {
+                                        method: 'DELETE',
+                                        headers: {
+                                            'X-Requested-With': 'XMLHttpRequest',
+                                            'Accept': 'application/json',
+                                            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
+                                        },
+                                        credentials: 'same-origin',
+                                    });
+                                } catch (e) { /* ignore */ }
+                                step.done = false;
+                                step.previewUrl = null;
+                            });
+                        await Promise.all(deletes);
+                        this.phase = 'intro';
+                        this.stepIndex = 0;
+                        this.holdProgress = 0;
+                        this.notice = null;
                     },
 
                     observeVisibility() {
@@ -374,6 +448,14 @@
                         if (this._visibilityObserver) {
                             this._visibilityObserver.disconnect();
                             this._visibilityObserver = null;
+                        }
+                        if (this._beforeClose) {
+                            document.removeEventListener('profile-section-before-close', this._beforeClose, true);
+                            this._beforeClose = null;
+                        }
+                        if (this._onBeforeUnload) {
+                            window.removeEventListener('beforeunload', this._onBeforeUnload);
+                            this._onBeforeUnload = null;
                         }
                     },
 

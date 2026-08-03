@@ -2198,14 +2198,14 @@ class BorrowerController extends Controller
             $faces->beginRetake($customer);
         } catch (\InvalidArgumentException $e) {
             return redirect()
-                ->route('site.borrower.face-verification')
+                ->route('site.borrower.profile', ['section' => 'personal', 'focus' => 'face'])
                 ->with('error', $e->getMessage());
         }
 
         $this->auditBorrower('face_verification.retake_started', $customer);
 
         return redirect()
-            ->route('site.borrower.face-verification')
+            ->route('site.borrower.profile', ['section' => 'personal', 'focus' => 'face'])
             ->with('status', __('borrower.nida.face_retake_started'));
     }
 

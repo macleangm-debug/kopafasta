@@ -77,6 +77,7 @@
                             <div class="w-full h-28 rounded-lg bg-gray-50 ring-1 ring-gray-100 grid place-items-center text-gray-400 text-xs mb-2">{{ __('site.affiliate_portal.no_upload') }}</div>
                         @endif
                         <input type="file" name="{{ $field }}" accept="image/*" capture="user"
+                               @if(! filled($info['path'])) required @endif
                                class="w-full text-xs file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-brand-muted file:text-brand file:font-semibold">
                         @error($field)<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                     </div>
@@ -85,7 +86,7 @@
             @if ($noPhysicalCard)
                 <p class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-xl px-3 py-2">{{ __('site.partner_account.face_no_card_note') }}</p>
             @endif
-            <x-site.gated-submit class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm" :label="__('site.partner_account.save_profile')" />
+            <x-site.gated-submit class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm" :label="__('site.partner_account.save_profile')" :allow-empty="$faceComplete" />
         </form>
     </x-site.profile-section-card>
 

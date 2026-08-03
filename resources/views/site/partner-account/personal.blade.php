@@ -144,7 +144,7 @@
                     <div>
                         <label class="block text-xs text-gray-600 mb-1">{{ __('site.partner_account.nida_number') }}</label>
                         <input type="text" name="national_id" value="{{ old('national_id', $identity['national_id'] ?? '') }}"
-                               @if($nidaLocked) readonly @endif
+                               @if($nidaLocked) readonly @else required @endif
                                class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm font-mono uppercase {{ $nidaLocked ? 'bg-gray-50 text-gray-500' : '' }}">
                         <p class="text-[11px] text-gray-400 mt-1">{{ __('site.partner_account.nida_hint') }}</p>
                         @error('national_id')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
@@ -161,17 +161,19 @@
                         <div>
                             <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.nida_front') }}</label>
                             <input type="file" name="national_id_front" accept=".jpg,.jpeg,.png,.pdf"
+                                   @if(! filled($identity['national_id_front'] ?? null)) required @endif
                                    class="w-full text-xs file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-brand-muted file:text-brand file:font-semibold">
                             @error('national_id_front')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.nida_back') }}</label>
                             <input type="file" name="national_id_back" accept=".jpg,.jpeg,.png,.pdf"
+                                   @if(! filled($identity['national_id_back'] ?? null)) required @endif
                                    class="w-full text-xs file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-brand-muted file:text-brand file:font-semibold">
                             @error('national_id_back')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                         </div>
                     </div>
-                    <x-site.gated-submit class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5" :label="__('site.partner_account.save_profile')" />
+                    <x-site.gated-submit class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5" :label="__('site.partner_account.save_profile')" :allow-empty="$identityComplete" />
                 </form>
             </x-slot:form>
         </x-site.profile-section-card>
