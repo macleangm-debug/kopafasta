@@ -61,12 +61,46 @@ class ApplicationOfferService
         ?int $tenureMonths,
         ?string $remarks,
         ?int $alternativeProductId = null,
+        ?string $rationale = null,
+        ?string $preferredRejectionReasonCode = null,
     ): LoanApplication {
         if (! in_array($type, [self::RECOMMEND_APPROVE, self::RECOMMEND_COUNTER, self::RECOMMEND_ASSET], true)) {
             throw ValidationException::withMessages(['recommendation_type' => 'Invalid recommendation type.']);
         }
 
+        $rationale = $rationale ?: null;
+        $rationaleLabels = config('credit_recommendation.rationales', []);
+        if ($rationale !== null && ! array_key_exists($rationale, $rationaleLabels)) {
+            throw ValidationException::withMessages(['recommendation_rationale' => 'Select a valid recommendation reason.']);
+        }
+
+        $remarks = trim((string) $remarks);
+        if ($remarks === '') {
+            throw ValidationException::withMessages(['remarks' => 'Add notes explaining your recommendation for the committee.']);
+        }
+
+        if ($rationale === 'other' && strlen($remarks) < 12) {
+            throw ValidationException::withMessages(['remarks' => 'When choosing Other, explain your reasoning in the notes.']);
+        }
+
         $application->loadMissing(['customer', 'product']);
+        $crb = app(CrbCreditCheckService::class)->summaryForCustomer($application->customer, $application);
+        $crbRec = strtolower((string) ($crb['recommendation'] ?? ''));
+
+        $screeningPayload = is_array($application->screening_payload) ? $application->screening_payload : [];
+        $screeningPayload['recommendation_meta'] = [
+            'rationale' => $rationale,
+            'rationale_label' => $rationale ? ($rationaleLabels[$rationale] ?? $rationale) : null,
+            'crb_recommendation' => $crbRec !== '' ? $crbRec : null,
+            'differs_from_crb' => $this->recommendationDiffersFromCrb($type, $crbRec, $rationale),
+            'preferred_rejection_reason_code' => $preferredRejectionReasonCode,
+            'submitted_at' => now()->toIso8601String(),
+        ];
+
+        $preferredRejection = filled($preferredRejectionReasonCode)
+            && app(LoanRejectionReasonService::class)->isValidCode($preferredRejectionReasonCode)
+            ? $preferredRejectionReasonCode
+            : null;
 
         if ($type === self::RECOMMEND_ASSET) {
             if (! app(UnderwritingSettingsService::class)->assetBackedAlternativeEnabled()) {
@@ -88,6 +122,8 @@ class ApplicationOfferService
                 'committee_recommendation'    => $remarks,
                 'recommended_by'              => $user->id,
                 'recommended_at'              => now(),
+                'screening_payload'           => $screeningPayload,
+                'screening_rejection_reason_code' => $preferredRejection ?? $application->screening_rejection_reason_code,
             ]);
 
             $this->notifyAssetAlternative($application->fresh(['customer', 'product']), $product);
@@ -145,9 +181,28 @@ class ApplicationOfferService
             'offer_status'             => null,
             'offered_amount'           => null,
             'offered_tenure_months'    => null,
+            'screening_payload'        => $screeningPayload,
+            'screening_rejection_reason_code' => $preferredRejection ?? $application->screening_rejection_reason_code,
         ]);
 
         return $application->fresh();
+    }
+
+    private function recommendationDiffersFromCrb(string $type, string $crbRec, ?string $rationale): bool
+    {
+        if ($rationale && str_starts_with($rationale, 'differs_')) {
+            return true;
+        }
+
+        if ($crbRec === '') {
+            return false;
+        }
+
+        return match ($type) {
+            self::RECOMMEND_APPROVE => $crbRec !== 'approve',
+            self::RECOMMEND_COUNTER, self::RECOMMEND_ASSET => $crbRec === 'approve',
+            default => false,
+        };
     }
 
     public function issueOffer(

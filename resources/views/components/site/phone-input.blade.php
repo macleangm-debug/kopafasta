@@ -9,6 +9,7 @@
     'id' => null,
     'inputClass' => null,
     'selectClass' => null,
+    'showErrors' => true,
 ])
 
 @php
@@ -85,9 +86,11 @@
     @if ($help)
         <p class="mt-1.5 text-xs text-gray-500">{{ $help }}</p>
     @endif
-    @error($name)
-        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-    @enderror
+    @if ($showErrors)
+        @error($name)
+            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+        @enderror
+    @endif
 </div>
 
 @once

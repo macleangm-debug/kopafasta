@@ -53,7 +53,16 @@ class ApplicationBorrowerStatusService
                 ?: $application->rejection_reason
                 ?: __('borrower.applications_list.rejected_default');
 
-            return __('borrower.loan_profile.rejection_reason', ['reason' => $label]);
+            $detail = __('borrower.loan_profile.rejection_reason', ['reason' => $label]);
+            $advice = $this->rejectionReasons->resolveBorrowerAdvice(
+                $application->rejection_advice_code,
+                $application->rejection_advice,
+            );
+            if ($advice) {
+                $detail .= "\n".__('borrower.loan_profile.rejection_advice', ['advice' => $advice]);
+            }
+
+            return $detail;
         }
 
         if (in_array($this->resolveCode($application), ['documents_requested', 'documents_resubmitted'], true)) {
@@ -370,18 +379,20 @@ class ApplicationBorrowerStatusService
             return 'under_review';
         }
 
-        if (in_array($status, ['submitted', 'pending'], true) && in_array($stage, ['submitted', 'screening'], true)) {
-            return in_array($stage, ['screening'], true) ? 'under_review' : 'submitted';
+        // Borrower-facing: once submitted, stay on one "credit review" label through
+        // screening / underwriting until approved, rejected, or a document request.
+        if (in_array($status, ['submitted', 'pending'], true)) {
+            return 'under_review';
         }
 
-        return 'submitted';
+        return 'under_review';
     }
 
     private function labelForCode(string $code, LoanApplication $application): string
     {
         return match ($code) {
             'draft'                 => __('borrower.applications_list.statuses.draft'),
-            'submitted'             => __('borrower.applications_list.statuses.submitted'),
+            'submitted'             => __('borrower.applications_list.statuses.under_review'),
             'under_review'          => __('borrower.applications_list.statuses.under_review'),
             'screening'             => __('borrower.applications_list.statuses.under_review'),
             'documents_requested'   => __('borrower.applications_list.statuses.documents_requested'),
@@ -414,6 +425,7 @@ class ApplicationBorrowerStatusService
             'awaiting_signature', 'awaiting_disbursement_details', 'awaiting_contract' => 'sky',
             'approved', 'ready_for_disbursement', 'disbursed', 'closed' => 'emerald',
             'draft', 'submitted' => 'amber',
+            'under_review', 'screening', 'credit_review' => 'sky',
             'documents_requested', 'documents_resubmitted' => 'orange',
             default => 'sky',
         };

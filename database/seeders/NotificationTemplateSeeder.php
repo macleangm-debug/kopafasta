@@ -169,11 +169,11 @@ class NotificationTemplateSeeder extends Seeder
                 'locales' => [
                     'en' => [
                         'subject' => 'Application update',
-                        'body' => "Hi {{ name }}, your loan application {{ application_number }} was not approved. Reason: {{ reason }}. — {$brand}",
+                        'body' => "Hi {{ name }}, your loan application {{ application_number }} was not approved. Reason: {{ reason }}.{{ advice }} — {$brand}",
                     ],
                     'sw' => [
                         'subject' => 'Taarifa ya ombi',
-                        'body' => "Habari {{ name }}, ombi lako la mkopo {{ application_number }} halikuidhinishwa. Sababu: {{ reason }}. — {$brand}",
+                        'body' => "Habari {{ name }}, ombi lako la mkopo {{ application_number }} halikuidhinishwa. Sababu: {{ reason }}.{{ advice }} — {$brand}",
                     ],
                 ],
             ],

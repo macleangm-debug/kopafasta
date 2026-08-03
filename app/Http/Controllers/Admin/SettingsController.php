@@ -39,7 +39,15 @@ class SettingsController extends Controller
             'currency'    => ['required', 'string', 'size:3'],
             'timezone'    => ['required', 'string', 'max:50'],
             'fiscal_year_start' => ['nullable', 'string', 'max:5'],   // MM-DD
+            'thousands_separator' => ['nullable', 'string', \Illuminate\Validation\Rule::in([',', '.', ' '])],
+            'decimal_separator' => ['nullable', 'string', \Illuminate\Validation\Rule::in(['.', ','])],
         ]);
+
+        if (($data['thousands_separator'] ?? ',') === ($data['decimal_separator'] ?? '.')) {
+            return back()->withInput()->withErrors([
+                'decimal_separator' => 'Thousands and decimal separators must be different.',
+            ]);
+        }
 
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["company.$k" => $v])->all());
         return back()->with('status', 'Company profile saved.');

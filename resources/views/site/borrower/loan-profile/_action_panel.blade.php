@@ -69,40 +69,53 @@
             @if ($editQuoteUrl || $editGuarantorUrl)
                 <div class="mt-4 space-y-3">
                     @if ($isDraft && $draft = ($profile['draft'] ?? null))
-                        <details class="rounded-xl bg-white ring-1 ring-brand/15 open:ring-brand/30">
-                            <summary class="cursor-pointer list-none px-3 py-2 text-xs font-semibold text-brand flex items-center justify-between gap-2">
-                                <span>{{ __('borrower.loan_profile.actions.edit_quote') }}</span>
-                                <span class="text-gray-400 font-normal">{{ __('borrower.apply.edit') }}</span>
-                            </summary>
-                            <form method="POST" action="{{ route('site.borrower.draft.amount', $draft) }}" class="px-3 pb-3 space-y-3 border-t border-gray-100 pt-3">
-                                @csrf
-                                <div class="grid sm:grid-cols-2 gap-3">
-                                    <div>
-                                        <label class="block text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{{ __('borrower.applications_list.amount') }}</label>
-                                        <input type="number" name="requested_amount" required min="1000" step="1000"
-                                               value="{{ old('requested_amount', $profile['summary']['requested_amount'] ?? '') }}"
-                                               class="w-full rounded-lg border-gray-300 text-sm">
-                                        @error('requested_amount')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
-                                    </div>
-                                    <div>
-                                        <label class="block text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{{ __('borrower.applications_list.tenure') }}</label>
-                                        <input type="number" name="requested_tenure_months" required min="1" max="120"
-                                               value="{{ old('requested_tenure_months', $profile['summary']['requested_tenure'] ?? '') }}"
-                                               class="w-full rounded-lg border-gray-300 text-sm">
-                                    </div>
+                        <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-gradient-to-br from-brand-muted/40 via-white to-white"
+                             x-data="{ open: {{ $errors->has('requested_amount') || $errors->has('requested_tenure_months') ? 'true' : 'false' }} }">
+                            <button type="button" @click="open = !open"
+                                    class="w-full px-4 py-3 flex items-center justify-between gap-3 text-left">
+                                <div>
+                                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loan_profile.actions.edit_quote') }}</p>
+                                    <p class="text-sm text-gray-700 mt-0.5">
+                                        {{ format_money((float) ($profile['summary']['requested_amount'] ?? 0)) }}
+                                        · {{ __('borrower.applications_list.tenure_months', ['count' => (int) ($profile['summary']['requested_tenure'] ?? 0)]) }}
+                                    </p>
                                 </div>
-                                <button type="submit" class="inline-flex text-xs font-bold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-lg">
-                                    {{ __('borrower.apply.complete_editing') }}
-                                </button>
-                            </form>
-                        </details>
-                    @elseif ($editQuoteUrl)
+                                <span class="text-xs font-bold text-brand bg-brand-gold/80 px-3 py-1.5 rounded-lg"
+                                      x-text="open ? @js(__('borrower.apply.complete_editing')) : @js(__('borrower.apply.edit'))"></span>
+                            </button>
+                            <div x-show="open" x-cloak class="px-4 pb-4 border-t border-brand/10 pt-3">
+                                <form method="POST" action="{{ route('site.borrower.draft.amount', $draft) }}" class="space-y-3">
+                                    @csrf
+                                    <div class="grid sm:grid-cols-2 gap-3">
+                                        <x-site.numeric-input
+                                            name="requested_amount"
+                                            :label="__('borrower.applications_list.amount')"
+                                            :value="old('requested_amount', $profile['summary']['requested_amount'] ?? '')"
+                                            :money="true"
+                                            :decimals="0"
+                                            :required="true"
+                                            class="w-full rounded-xl border-0 ring-1 ring-gray-200 focus:ring-2 focus:ring-brand text-sm px-3.5 py-2.5"
+                                        />
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.applications_list.tenure') }}</label>
+                                            <input type="number" name="requested_tenure_months" required min="1" max="120"
+                                                   value="{{ old('requested_tenure_months', $profile['summary']['requested_tenure'] ?? '') }}"
+                                                   class="w-full rounded-xl border-0 ring-1 ring-gray-200 focus:ring-2 focus:ring-brand text-sm px-3.5 py-2.5 tabular-nums">
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="inline-flex text-xs font-bold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl shadow-sm">
+                                        {{ __('borrower.apply.complete_editing') }}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    @elseif ($editQuoteUrl && $isDraft)
                         <a href="{{ $editQuoteUrl }}"
                            class="inline-flex text-xs font-semibold text-brand bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 px-3 py-2 rounded-lg">
                             {{ __('borrower.loan_profile.actions.edit_quote') }}
                         </a>
                     @endif
-                    @if ($editGuarantorUrl)
+                    @if ($editGuarantorUrl && $isDraft)
                         <a href="{{ $editGuarantorUrl }}"
                            class="inline-flex text-xs font-semibold text-brand bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 px-3 py-2 rounded-lg">
                             {{ __('borrower.loan_profile.actions.edit_guarantor') }}
@@ -156,7 +169,25 @@
             <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_profile.current_status') }}</p>
             <p class="text-lg font-bold text-red-800 mt-1">{{ __('borrower.applications_list.statuses.not_approved') }}</p>
             @if (! empty($status['detail']))
-                <p class="text-sm text-red-700 mt-2">{{ $status['detail'] }}</p>
+                @php
+                    $detailLines = preg_split("/\n+/", trim((string) $status['detail'])) ?: [];
+                    $reasonLine = $detailLines[0] ?? null;
+                    $adviceLine = $detailLines[1] ?? null;
+                @endphp
+                @if ($reasonLine)
+                    <p class="text-sm text-red-700 mt-2">{{ $reasonLine }}</p>
+                @endif
+                @if ($adviceLine)
+                    <p class="text-sm text-gray-700 mt-2 rounded-lg bg-gray-50 ring-1 ring-gray-100 px-3 py-2">{{ $adviceLine }}</p>
+                @elseif (! empty($status['rejection_advice']))
+                    <p class="text-sm text-gray-700 mt-2 rounded-lg bg-gray-50 ring-1 ring-gray-100 px-3 py-2">
+                        {{ __('borrower.loan_profile.rejection_advice', ['advice' => $status['rejection_advice']]) }}
+                    </p>
+                @endif
+            @elseif (! empty($status['rejection_advice']))
+                <p class="text-sm text-gray-700 mt-2 rounded-lg bg-gray-50 ring-1 ring-gray-100 px-3 py-2">
+                    {{ __('borrower.loan_profile.rejection_advice', ['advice' => $status['rejection_advice']]) }}
+                </p>
             @endif
             @if (! empty($next['url']))
                 <a href="{{ $next['url'] }}"

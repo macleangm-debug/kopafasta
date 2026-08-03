@@ -13,10 +13,14 @@
         default => null,
     };
     $isLoanSubmitted = in_array('loan_submitted', $reasons, true);
+    $statusFlash = session('status');
+    $modalMessage = $isLoanSubmitted
+        ? (is_string($statusFlash) && $statusFlash !== '' ? $statusFlash : $message)
+        : $message;
 @endphp
 
 @if ($shouldCelebrate)
-    @if ($message)
+    @if ($message && ! $isLoanSubmitted)
         <div class="fixed top-5 left-1/2 -translate-x-1/2 z-[10000] max-w-sm w-[calc(100%-2rem)] pointer-events-none"
              role="status" aria-live="polite">
             <div class="rounded-2xl bg-white/95 backdrop-blur px-5 py-3.5 text-center text-sm font-semibold text-brand shadow-lg ring-1 ring-brand/15 animate-[fadeIn_0.45s_ease-out]">
@@ -26,6 +30,18 @@
     @endif
     <script>
         (function () {
+            @if ($isLoanSubmitted && $modalMessage)
+            document.addEventListener('alpine:initialized', function () {
+                window.dispatchEvent(new CustomEvent('open-feedback-default', {
+                    detail: {
+                        tone: 'success',
+                        title: @js(__('borrower.apply.success.submitted_title')),
+                        message: @js($modalMessage),
+                    },
+                }));
+            });
+            @endif
+
             if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
                 return;
             }

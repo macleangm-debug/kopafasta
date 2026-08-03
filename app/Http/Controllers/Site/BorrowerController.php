@@ -243,6 +243,10 @@ class BorrowerController extends Controller
         $product = $draft->product ?? \App\Models\LoanProduct::find($draft->loan_product_id);
         abort_unless($product, 404);
 
+        $request->merge([
+            'requested_amount' => \App\Support\MoneyFormat::toNumber($request->input('requested_amount')),
+        ]);
+
         $data = $request->validate([
             'requested_amount' => ['required', 'numeric', 'min:1000'],
             'requested_tenure_months' => ['required', 'integer', 'min:1', 'max:120'],
@@ -1745,6 +1749,9 @@ class BorrowerController extends Controller
                 'district' => ['required', 'string', 'max:100'],
                 'ward'     => ['nullable', 'string', 'max:100'],
                 'street'   => ['required', 'string', 'max:255'],
+                'lga_officer_name' => ['required', 'string', 'max:150'],
+                'lga_officer_position' => ['required', 'string', 'max:120'],
+                'lga_officer_phone' => ['required', 'string', 'max:30'],
                 'residence_letter' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
                 'residence_letter_pages' => ['nullable', 'array'],
                 'residence_letter_pages.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
@@ -1754,6 +1761,9 @@ class BorrowerController extends Controller
                 'district' => $data['district'],
                 'ward'     => $data['ward'] ?? null,
                 'street'   => $data['street'],
+                'lga_officer_name' => $data['lga_officer_name'],
+                'lga_officer_position' => $data['lga_officer_position'],
+                'lga_officer_phone' => preg_replace('/\D+/', '', (string) $data['lga_officer_phone']) ?: $data['lga_officer_phone'],
                 'address'  => trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', ')),
             ])->save();
 

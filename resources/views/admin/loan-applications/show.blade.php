@@ -1,15 +1,27 @@
+@php
+    $customer = $review['customer'];
+    $product = $review['product'];
+    $stage = $record->current_stage ?? 'submitted';
+    $isScreeningStage = in_array($stage, ['submitted', 'screening', 'credit_appraisal'], true);
+    $isCommitteeStage = $stage === 'pre_approval';
+    $isManagementStage = in_array($stage, [
+        'approval',
+        'post_approval_fees',
+        'awaiting_disbursement_details',
+        'contract_generation',
+    ], true);
+    $isDisbursementStage = $stage === 'disbursement' || $record->status === 'disbursed';
+    $isOpsStage = $isManagementStage || $isDisbursementStage;
+    $isCreditWorkspace = $isScreeningStage || $isCommitteeStage;
+@endphp
+
 <x-admin.layout
     :title="$record->application_number"
     heading=""
     :backUrl="route('admin.loan-applications.index')"
     backLabel="Back to applications">
 
-    @php
-        $customer = $review['customer'];
-        $product = $review['product'];
-    @endphp
-
-    {{-- Credit file letterhead --}}
+    {{-- Compact credit file letterhead --}}
     <div class="mb-5 -mt-2 rounded-2xl overflow-hidden ring-1 ring-brand/20 shadow-sm">
         <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-5 sm:px-6 py-5 text-white">
             <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
@@ -61,85 +73,40 @@
         </div>
     </div>
 
-    <form method="POST" action="{{ route('admin.loan-applications.assign-analyst', $record) }}"
-          class="mb-4 bg-white rounded-xl shadow-sm ring-1 ring-brand/15 px-4 py-3 flex flex-col sm:flex-row sm:items-end gap-3">
-        @csrf
-        <div class="flex-1 min-w-0">
-            <label class="block text-[10px] uppercase tracking-widest text-brand font-semibold mb-1">Assign credit analyst</label>
-            <select name="assigned_analyst_id" class="w-full rounded-lg border-gray-300 text-sm focus:border-brand focus:ring-brand">
-                <option value="">Unassigned</option>
-                @foreach ($assignableAnalysts ?? [] as $analyst)
-                    <option value="{{ $analyst->id }}" @selected((int) $record->assigned_analyst_id === (int) $analyst->id)>
-                        {{ $analyst->name }} ({{ display_label($analyst->role, 'role') }})
-                    </option>
+    @if ($isCreditWorkspace)
+        @include('admin.loan-applications.review._credit_workspace')
+    @elseif ($isOpsStage)
+        @include('admin.loan-applications.review._header')
+        @include('admin.loan-applications.review._ops')
+
+        <div x-data="{ tab: 'borrower' }" class="mt-6 space-y-4">
+            <nav class="grid grid-cols-2 sm:grid-cols-3 gap-2" aria-label="Supporting sections">
+                @foreach ([['borrower', 'Borrower'], ['documents', 'Documents'], ['guarantor', 'Guarantor']] as [$key, $label])
+                    <button type="button"
+                            @click="tab = '{{ $key }}'"
+                            :class="tab === '{{ $key }}' ? 'bg-brand text-white' : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-brand-muted/40'"
+                            class="rounded-xl px-3 py-2.5 text-xs font-semibold transition text-left">
+                        {{ $label }}
+                    </button>
                 @endforeach
-            </select>
-        </div>
-        <button type="submit" class="inline-flex justify-center bg-brand-gold hover:brightness-95 text-brand font-semibold px-4 py-2 rounded-lg text-sm shrink-0">
-            Save assignment
-        </button>
-        <a href="{{ route('admin.credit-team.index') }}" class="inline-flex justify-center text-xs font-semibold text-brand hover:underline self-center shrink-0">
-            Manage team →
-        </a>
-    </form>
-
-    @include('admin.loan-applications.review._header')
-
-    @include('admin.loan-applications.review._affordability-summary')
-
-    <div x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'borrower' }" class="space-y-4"
-         @set-review-tab.window="tab = $event.detail">
-        @include('admin.loan-applications.review._recommendation')
-
-        <nav class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2" aria-label="Review sections">
-            @php
-                $reviewTabs = [
-                    ['borrower', 'Borrower'],
-                    ['documents', 'Documents'],
-                    ['crb', 'CRB'],
-                    ['guarantor', 'Guarantor'],
-                ];
-                if ($groupReview ?? null) {
-                    $reviewTabs[] = ['group', 'Group loan'];
-                }
-                // Decision merged into Step 2 committee panel — no separate Decision tab.
-            @endphp
-            @foreach ($reviewTabs as [$key, $label])
-                <button type="button"
-                        @click="tab = '{{ $key }}'"
-                        :class="tab === '{{ $key }}' ? 'bg-brand-gold text-brand ring-brand' : 'bg-white text-gray-700 ring-gray-200 hover:bg-brand-muted/40'"
-                        class="rounded-xl px-3 py-2.5 text-xs font-semibold ring-1 transition text-left">
-                    {{ $label }}
-                </button>
-            @endforeach
-        </nav>
-
-        <div x-show="tab === 'borrower'" x-cloak class="space-y-6">
-            @include('admin.loan-applications.review._borrower')
-            @include('admin.loan-applications.review._verification')
-        </div>
-
-        <div x-show="tab === 'documents'" x-cloak class="space-y-6">
-            @include('admin.loan-applications.review._documents')
-            @include('admin.loan-applications.review._document-requests')
-            @include('admin.loan-applications.review._asset')
-            @include('admin.loan-applications._asset-backed')
-            @include('admin.loan-applications._asset-lending')
-        </div>
-
-        <div x-show="tab === 'crb'" x-cloak class="space-y-6">
-            @include('admin.loan-applications.review._crb')
-        </div>
-
-        <div x-show="tab === 'guarantor'" x-cloak class="space-y-6">
-            @include('admin.loan-applications.review._guarantors')
-        </div>
-
-        @if ($groupReview ?? null)
-            <div x-show="tab === 'group'" x-cloak class="space-y-6">
-                @include('admin.loan-applications.review._group')
+            </nav>
+            <div x-show="tab === 'borrower'" x-cloak class="rounded-2xl bg-white ring-1 ring-brand/10 p-5">
+                @include('admin.loan-applications.review._borrower')
             </div>
-        @endif
-    </div>
+            <div x-show="tab === 'documents'" x-cloak class="space-y-5">
+                @include('admin.loan-applications.review._documents')
+                @include('admin.loan-applications.review._document-requests')
+                @include('admin.loan-applications._asset-backed')
+                @include('admin.loan-applications._asset-lending')
+            </div>
+            <div x-show="tab === 'guarantor'" x-cloak>
+                @include('admin.loan-applications.review._guarantors')
+            </div>
+        </div>
+    @else
+        @include('admin.loan-applications.review._header')
+        @include('admin.loan-applications.review._recommendation')
+        @include('admin.loan-applications.review._borrower')
+    @endif
 
 </x-admin.layout>

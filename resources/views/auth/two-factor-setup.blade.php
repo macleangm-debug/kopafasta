@@ -4,55 +4,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Set up two-factor · Kopafasta</title>
+    <title>Set up two-factor · {{ brand_name() }}</title>
     @vite(['resources/css/app.css'])
+    <style>[x-cloak]{display:none!important}</style>
 </head>
-<body class="h-full bg-gray-100 grid place-items-center antialiased">
-<div class="w-full max-w-lg p-8 bg-white rounded-2xl shadow-lg ring-1 ring-gray-200">
-    <h1 class="text-lg font-semibold mb-2">Set up two-factor authentication</h1>
-    <p class="text-sm text-gray-500 mb-4">Scan this QR with Google Authenticator, Authy, or 1Password. This is not a website link — it only pairs your authenticator app.</p>
-
-    <div class="flex flex-col sm:flex-row gap-4 items-center mb-4">
-        <div class="shrink-0 rounded-xl bg-white ring-1 ring-gray-200 p-3">
-            <img
-                src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&ecc=M&data={{ urlencode($provisioning_uri) }}"
-                width="180"
-                height="180"
-                alt="Two-factor QR code"
-                class="block rounded-lg"
-            >
+<body class="h-full antialiased" x-data>
+<div class="min-h-full grid lg:grid-cols-2">
+    <aside class="relative hidden lg:flex flex-col justify-between overflow-hidden bg-[#0B3D32] text-white px-10 py-12">
+        <div class="absolute inset-0 opacity-40" style="background-image: radial-gradient(circle at 20% 20%, rgba(251,191,36,0.35), transparent 42%), radial-gradient(circle at 90% 80%, rgba(255,255,255,0.12), transparent 40%);"></div>
+        <div class="relative">
+            <img src="{{ asset(brand('logo_url_light') ?: brand('logo_url') ?: 'images/brand/kopafasta-logo-light.svg') }}"
+                 alt="{{ brand_name() }}"
+                 class="h-10 w-auto object-contain">
+            <p class="mt-3 text-xs uppercase tracking-[0.2em] text-white/60">Secure access</p>
+            <h1 class="mt-16 text-4xl font-bold leading-tight max-w-md">Protect every staff sign-in with a second factor.</h1>
+            <p class="mt-4 text-sm text-white/70 max-w-sm">Scan once, confirm once. Your authenticator app will show a fresh 6-digit code every 30 seconds.</p>
         </div>
-        <div class="min-w-0 flex-1 w-full">
-            <p class="text-xs text-gray-500 uppercase mb-1">Or enter this secret key</p>
-            <p class="font-mono text-sm break-all bg-gray-50 rounded-lg px-3 py-2 ring-1 ring-gray-200">{{ $secret }}</p>
-            <p class="text-[11px] text-gray-500 mt-2">Account: your email · Issuer: {{ config('app.name', 'Kopafasta') }}</p>
+        <p class="relative text-xs text-white/50">© {{ date('Y') }} {{ brand('legal_name') }}</p>
+    </aside>
+
+    <main class="relative flex items-center justify-center px-4 py-10 sm:px-6 bg-[#F4F7F5]">
+        <div class="absolute inset-0 opacity-60" style="background-image: linear-gradient(180deg, rgba(11,61,50,0.04), transparent 40%), radial-gradient(circle at 80% 10%, rgba(251,191,36,0.12), transparent 35%);"></div>
+        <div class="relative w-full max-w-lg rounded-3xl bg-white/95 p-6 sm:p-8 shadow-[0_24px_80px_rgba(11,61,50,0.12)] ring-1 ring-[#0B3D32]/10">
+            <div class="lg:hidden mb-6">
+                <img src="{{ asset(brand('logo_url') ?: 'images/brand/kopafasta-logo.svg') }}"
+                     alt="{{ brand_name() }}"
+                     class="h-9 w-auto object-contain">
+            </div>
+
+            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">One-time setup</p>
+            <h2 class="mt-1 text-2xl font-bold tracking-tight text-gray-900">Set up two-factor authentication</h2>
+            <p class="mt-2 text-sm text-gray-500">Scan this QR with Google Authenticator, Authy, or iPhone Passwords. This is not a website link — it only pairs your authenticator app.</p>
+
+            <div class="mt-6 flex flex-col sm:flex-row gap-4 items-center">
+                <div class="shrink-0 rounded-2xl bg-white ring-1 ring-brand/15 p-3 shadow-sm">
+                    <img
+                        src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&ecc=M&data={{ urlencode($provisioning_uri) }}"
+                        width="180"
+                        height="180"
+                        alt="Two-factor QR code"
+                        class="block rounded-xl"
+                    >
+                </div>
+                <div class="min-w-0 flex-1 w-full">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1.5">Or enter this secret key</p>
+                    <p class="font-mono text-sm break-all bg-brand-muted/40 rounded-xl px-3 py-2.5 ring-1 ring-brand/10 text-gray-900">{{ $secret }}</p>
+                    <p class="text-[11px] text-gray-500 mt-2">Account: your email · Issuer: {{ config('app.name', 'Kopafasta') }}</p>
+                </div>
+            </div>
+
+            <div class="mt-5 rounded-2xl bg-amber-50 ring-1 ring-amber-200/80 px-4 py-3.5">
+                <p class="text-xs font-bold text-amber-950">Recovery codes — save these now (shown once)</p>
+                <p class="text-[11px] text-amber-900/80 mt-1">Use one on the sign-in challenge if you lose your phone. Each code works once. Store them offline — not in email or screenshots only.</p>
+                <ul class="mt-3 text-xs font-mono grid grid-cols-2 gap-1.5 text-amber-950">
+                    @foreach ($recovery_codes as $code)
+                        <li class="rounded-lg bg-white/70 px-2 py-1.5 ring-1 ring-amber-100">{{ $code }}</li>
+                    @endforeach
+                </ul>
+            </div>
+
+            <form method="POST" action="{{ route('auth.two-factor.confirm-setup') }}" class="mt-6 space-y-5">
+                @csrf
+                <input type="hidden" name="context" value="{{ $context }}">
+                <x-auth.otp-digits name="code" :length="6" :autofocus="true" label="Confirm with a 6-digit code from your app" />
+                <button type="submit"
+                        class="w-full bg-brand-gold hover:bg-yellow-400 text-brand font-bold rounded-xl py-3 shadow-sm transition">
+                    Enable 2FA
+                </button>
+            </form>
         </div>
-    </div>
-
-    <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
-        <p class="text-xs font-semibold text-amber-900 mb-2">Recovery codes — save these now (shown once)</p>
-        <ul class="text-xs font-mono grid grid-cols-2 gap-1 text-amber-950">
-            @foreach ($recovery_codes as $code)
-                <li>{{ $code }}</li>
-            @endforeach
-        </ul>
-        <p class="text-[11px] text-amber-800 mt-2">Store them offline. Each code works once if you lose your phone.</p>
-    </div>
-
-    @if ($errors->any())
-        <div class="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">{{ $errors->first() }}</div>
-    @endif
-
-    <form method="POST" action="{{ route('auth.two-factor.confirm-setup') }}" class="space-y-4">
-        @csrf
-        <input type="hidden" name="context" value="{{ $context }}">
-        <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">Confirm with a 6-digit code from your app</label>
-            <input type="text" name="code" inputmode="numeric" required autocomplete="one-time-code"
-                   class="block w-full rounded-lg border-gray-300 text-sm px-3 py-2 border tracking-widest">
-        </div>
-        <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-gray-900 font-semibold rounded-lg py-2.5">Enable 2FA</button>
-    </form>
+    </main>
 </div>
+
+<x-site.feedback-modal name="default" />
+@if ($errors->any())
+    <script>
+        document.addEventListener('alpine:initialized', () => {
+            window.dispatchEvent(new CustomEvent('open-feedback-default', {
+                detail: {
+                    tone: 'error',
+                    title: 'Could not enable 2FA',
+                    message: @js($errors->first()),
+                },
+            }));
+        });
+    </script>
+@endif
+@vite('resources/js/alpine-init.js')
 </body>
 </html>

@@ -38,7 +38,10 @@ class ProfileCompletionService
     {
         return filled($customer->region)
             && filled($customer->district)
-            && filled($customer->street);
+            && filled($customer->street)
+            && filled($customer->lga_officer_name)
+            && filled($customer->lga_officer_position)
+            && filled($customer->lga_officer_phone);
     }
 
     /**

@@ -17,6 +17,8 @@
     }
     if ($isCommitteeStage) {
         $showCommitteePanel = true;
+        // Screening recommendation is presented in the dual CRB/screening panel above.
+        $showAnalystPanel = false;
     }
 @endphp
 
@@ -67,8 +69,16 @@
                     Recommendation:
                     <span class="capitalize">{{ str_replace('_', ' ', $rec['type']) }}</span>
                 </p>
+                @if (! empty($rec['rationale_label']))
+                    <p class="text-xs font-semibold text-brand/80 mt-2">{{ $rec['rationale_label'] }}</p>
+                @endif
                 @if (! empty($rec['remarks']))
                     <p class="text-brand/80 mt-1">{{ $rec['remarks'] }}</p>
+                @endif
+                @if (! empty($rec['differs_from_crb']))
+                    <p class="mt-2 text-xs font-semibold text-amber-800 bg-amber-50 ring-1 ring-amber-100 rounded-lg px-3 py-1.5 inline-flex">
+                        Flagged as differing from CRB
+                    </p>
                 @endif
                 @if (! empty($rec['recommended_by']))
                     <p class="text-xs text-brand/70 mt-2">
@@ -112,7 +122,7 @@
             <div>
                 <p class="text-[10px] uppercase tracking-widest font-semibold text-brand">Step 2 · Credit committee</p>
                 <h3 class="text-sm font-semibold text-gray-900 mt-0.5">Committee decision &amp; offer</h3>
-                <p class="text-xs text-gray-500 mt-0.5">Review the analyst recommendation, then approve, counter-offer, reject, or return for documents</p>
+                <p class="text-xs text-gray-500 mt-0.5">Review the analyst recommendation and CRB side by side, then approve, counter-offer, reject, or return for documents</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 @if ($isCommitteeStage)
@@ -180,7 +190,7 @@
 
         @if ($isCommitteeStage || in_array($stage, ['approval', 'post_approval_fees', 'contract_generation', 'disbursement'], true))
             <div class="mt-6 border-t border-gray-100 pt-5 space-y-6" id="decision-panel">
-                @include('admin.loan-applications._workflow')
+                @include('admin.loan-applications._workflow', ['showHistory' => false, 'showStepper' => false])
                 @include('admin.loan-applications._loan-link')
                 @include('admin.loan-applications.review._contract')
             </div>

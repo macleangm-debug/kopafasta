@@ -55,7 +55,11 @@
             <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-sm">
                 <div><dt class="text-xs text-gray-500">Region</dt><dd class="font-medium mt-0.5">{{ $customer->region ?? '—' }}</dd></div>
                 <div><dt class="text-xs text-gray-500">District</dt><dd class="font-medium mt-0.5">{{ $customer->district ?? '—' }}</dd></div>
+                <div><dt class="text-xs text-gray-500">Ward</dt><dd class="font-medium mt-0.5">{{ $customer->ward ?? '—' }}</dd></div>
                 <div class="sm:col-span-2"><dt class="text-xs text-gray-500">Street / address</dt><dd class="font-medium mt-0.5">{{ $customer->street ?? $customer->address ?? '—' }}</dd></div>
+                <div><dt class="text-xs text-gray-500">LGA officer</dt><dd class="font-medium mt-0.5">{{ $customer->lga_officer_name ?? '—' }}</dd></div>
+                <div><dt class="text-xs text-gray-500">Officer position</dt><dd class="font-medium mt-0.5">{{ $customer->lga_officer_position ?? '—' }}</dd></div>
+                <div class="sm:col-span-2"><dt class="text-xs text-gray-500">Officer phone</dt><dd class="font-medium mt-0.5">{{ $customer->lga_officer_phone ?? '—' }}</dd></div>
             </dl>
         </div>
 

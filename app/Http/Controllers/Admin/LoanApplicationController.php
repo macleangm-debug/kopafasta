@@ -196,6 +196,8 @@ class LoanApplicationController extends ResourceController
             $record->loadMissing(['customer', 'product'])
         );
         $rejectionReasons = app(\App\Services\LoanRejectionReasonService::class)->grouped();
+        $rejectionAdviceOptions = app(\App\Services\LoanRejectionReasonService::class)->adviceOptions();
+        $underwritingAnomalies = app(\App\Services\UnderwritingAnomalyService::class)->forApplication($record, $review);
         $groupedDocumentRequests = app(\App\Services\ApplicationBorrowerStatusService::class)
             ->groupedDocumentRequests($documentRequests);
         $counterOffer = app(ApplicationOfferService::class)->maxCounterOffer($record);
@@ -247,6 +249,8 @@ class LoanApplicationController extends ResourceController
             'documentRequests',
             'affordability',
             'rejectionReasons',
+            'rejectionAdviceOptions',
+            'underwritingAnomalies',
             'groupedDocumentRequests',
             'counterOffer',
             'assetAlternativeProduct',
@@ -319,7 +323,11 @@ class LoanApplicationController extends ResourceController
             'remarks'                  => ['nullable', 'string', 'max:1000'],
             'rejection_reason_code'    => ['nullable', 'string', 'max:80'],
             'rejection_internal_notes' => ['nullable', 'string', 'max:2000'],
+            'rejection_advice_code'    => ['nullable', 'string', 'max:80'],
+            'rejection_advice'         => ['nullable', 'string', 'max:2000'],
+            'screening_rejection_reason_code' => ['nullable', 'string', 'max:80'],
             'recommendation_type'      => ['nullable', 'in:approve,counter,asset_alternative'],
+            'recommendation_rationale' => ['nullable', 'string', 'max:80'],
             'recommended_amount'       => ['nullable', 'numeric', 'min:0'],
             'offered_amount'           => ['nullable', 'numeric', 'min:0'],
             'offered_tenure_months'    => ['nullable', 'integer', 'min:1', 'max:120'],
@@ -343,12 +351,26 @@ class LoanApplicationController extends ResourceController
             return back()->withErrors(['rejection_reason_code' => 'Select a rejection reason.'])->withInput();
         }
 
+        if ($data['action'] === 'reject'
+            && ($data['rejection_advice_code'] ?? null) === 'custom'
+            && empty(trim($data['rejection_advice'] ?? ''))) {
+            return back()->withErrors(['rejection_advice' => 'Write the custom advice for the borrower.'])->withInput();
+        }
+
         if ($data['action'] === 'return_for_documents' && empty(trim($data['remarks'] ?? ''))) {
             return back()->withErrors(['remarks' => 'Explain which documents the borrower must provide or update.'])->withInput();
         }
 
         if ($data['action'] === 'submit_recommendation' && empty($data['recommendation_type'])) {
             return back()->withErrors(['recommendation_type' => 'Select a recommendation type.'])->withInput();
+        }
+
+        if ($data['action'] === 'submit_recommendation' && empty($data['recommendation_rationale'])) {
+            return back()->withErrors(['recommendation_rationale' => 'Select why you are recommending this.'])->withInput();
+        }
+
+        if ($data['action'] === 'submit_recommendation' && empty(trim((string) ($data['remarks'] ?? '')))) {
+            return back()->withErrors(['remarks' => 'Add notes for the committee explaining your recommendation.'])->withInput();
         }
 
         if ($data['action'] === 'issue_offer' && empty($data['offered_amount'])) {
@@ -366,6 +388,9 @@ class LoanApplicationController extends ResourceController
                     isset($data['recommended_amount']) ? (float) $data['recommended_amount'] : null,
                     isset($data['offered_tenure_months']) ? (int) $data['offered_tenure_months'] : null,
                     $data['remarks'] ?? null,
+                    null,
+                    $data['recommendation_rationale'] ?? null,
+                    $data['screening_rejection_reason_code'] ?? null,
                 );
                 $loan_application->refresh();
             }
@@ -377,8 +402,10 @@ class LoanApplicationController extends ResourceController
                     ApplicationOfferService::RECOMMEND_ASSET,
                     null,
                     null,
-                    $data['remarks'] ?? null,
+                    $data['remarks'] ?? 'Asset-backed alternative suggested after screening review.',
                     isset($data['alternative_product_id']) ? (int) $data['alternative_product_id'] : null,
+                    $data['recommendation_rationale'] ?? 'differs_risk',
+                    $data['screening_rejection_reason_code'] ?? null,
                 );
 
                 return redirect()
@@ -418,6 +445,8 @@ class LoanApplicationController extends ResourceController
                     false,
                     $data['rejection_reason_code'] ?? null,
                     $data['rejection_internal_notes'] ?? null,
+                    $data['rejection_advice_code'] ?? null,
+                    $data['rejection_advice'] ?? null,
                 );
 
                 if ($data['action'] === 'return_for_documents' && ! empty($data['document_presets'])) {

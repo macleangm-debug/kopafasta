@@ -113,6 +113,8 @@ class LoanApplicationWorkflowService
         bool $overrideAffordability = false,
         ?string $rejectionReasonCode = null,
         ?string $rejectionInternalNotes = null,
+        ?string $rejectionAdviceCode = null,
+        ?string $rejectionAdvice = null,
     ): LoanApplication {
         $action = self::ACTIONS[$actionKey] ?? null;
 
@@ -207,6 +209,14 @@ class LoanApplicationWorkflowService
                 ]);
             }
             $rejectionLabel = $reasonService->labelForCode($rejectionReasonCode);
+            // Keep predefined advice as code only so borrower locale can resolve at display time.
+            $storedAdvice = ($rejectionAdviceCode === 'custom' || ! filled($rejectionAdviceCode))
+                ? (trim((string) $rejectionAdvice) ?: null)
+                : null;
+            $fromStage = $from;
+        } else {
+            $storedAdvice = null;
+            $fromStage = $from;
         }
 
         $application->update([
@@ -219,6 +229,11 @@ class LoanApplicationWorkflowService
             'rejection_reason_code'     => $to === 'rejected' ? $rejectionReasonCode : $application->rejection_reason_code,
             'rejection_reason'          => $to === 'rejected' ? ($rejectionLabel ?: $application->rejection_reason) : $application->rejection_reason,
             'rejection_internal_notes'  => $to === 'rejected' ? $rejectionInternalNotes : $application->rejection_internal_notes,
+            'rejection_advice_code'     => $to === 'rejected' ? ($rejectionAdviceCode ?: null) : $application->rejection_advice_code,
+            'rejection_advice'          => $to === 'rejected' ? $storedAdvice : $application->rejection_advice,
+            'screening_rejection_reason_code' => $to === 'rejected' && in_array($fromStage, ['submitted', 'screening', 'credit_appraisal'], true)
+                ? $rejectionReasonCode
+                : $application->screening_rejection_reason_code,
             'credit_appraisal_payload'  => $appraisal,
         ]);
 
@@ -436,9 +451,22 @@ class LoanApplicationWorkflowService
             return;
         }
 
-        $reason = app(LoanRejectionReasonService::class)->labelForCode($application->rejection_reason_code)
+        $locale = optional($customer->user)->locale
+            ?? data_get(optional($customer->user)->preferences, 'locale')
+            ?? app()->getLocale();
+
+        $reason = app(LoanRejectionReasonService::class)->labelForCode(
+            $application->rejection_reason_code,
+            $locale,
+        )
             ?: $application->rejection_reason
             ?: 'Application declined';
+
+        $advice = app(LoanRejectionReasonService::class)->resolveBorrowerAdvice(
+            $application->rejection_advice_code,
+            $application->rejection_advice,
+            $locale,
+        );
 
         $name = $customer->full_name ?? $customer->first_name ?? 'Customer';
 
@@ -446,7 +474,10 @@ class LoanApplicationWorkflowService
             'name'               => $name,
             'application_number' => $application->application_number,
             'reason'             => $reason,
-            '_fallback_body'     => 'Hi '.$name.', your loan application '.$application->application_number.' was not approved. Reason: '.$reason.'. — Kopa Fasta',
+            'advice'             => $advice ? ' Advice: '.$advice : '',
+            '_fallback_body'     => 'Hi '.$name.', your loan application '.$application->application_number.' was not approved. Reason: '.$reason.'.'
+                .($advice ? ' Advice: '.$advice : '')
+                .' — Kopa Fasta',
             '_fallback_subject'  => 'Loan application update',
         ];
 

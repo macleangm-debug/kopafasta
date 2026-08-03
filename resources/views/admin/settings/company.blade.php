@@ -21,6 +21,31 @@
             <x-admin.input name="fiscal_year_start" label="Fiscal year start (MM-DD)" :value="$values['fiscal_year_start'] ?? '01-01'" />
         </div>
 
+        <div class="rounded-xl bg-brand-muted/30 ring-1 ring-brand/10 px-5 py-4 space-y-3">
+            <div>
+                <p class="text-xs uppercase tracking-widest text-brand font-semibold">Number formatting</p>
+                <p class="text-sm text-gray-600 mt-1">All amounts and large numbers display with thousand separators (e.g. 1,500,000). Money inputs accept and show commas automatically.</p>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Thousands separator</label>
+                    <select name="thousands_separator" class="w-full text-sm bg-white border border-brand/15 rounded-xl px-3.5 py-2.5">
+                        <option value="," @selected(($values['thousands_separator'] ?? ',') === ',')>Comma (1,500,000)</option>
+                        <option value="." @selected(($values['thousands_separator'] ?? ',') === '.')>Dot (1.500.000)</option>
+                        <option value=" " @selected(($values['thousands_separator'] ?? ',') === ' ')>Space (1 500 000)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Decimal separator</label>
+                    <select name="decimal_separator" class="w-full text-sm bg-white border border-brand/15 rounded-xl px-3.5 py-2.5">
+                        <option value="." @selected(($values['decimal_separator'] ?? '.') === '.')>Dot (1,500.50)</option>
+                        <option value="," @selected(($values['decimal_separator'] ?? '.') === ',')>Comma (1.500,50)</option>
+                    </select>
+                </div>
+            </div>
+            <p class="text-xs text-gray-500">Example: {{ format_money(1500000.5, true, 2) }}</p>
+        </div>
+
         <p class="text-xs text-gray-500 rounded-lg bg-gray-50 ring-1 ring-gray-200 px-4 py-3">
             Contract signatory, company stamp, and legal clauses are managed under
             <a href="{{ route('admin.settings.legal') }}" class="font-semibold text-brand hover:underline">Legal settings</a>.

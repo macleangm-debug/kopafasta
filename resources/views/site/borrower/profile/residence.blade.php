@@ -45,6 +45,9 @@
                         ['label' => __('borrower.profile.district'), 'value' => $customer->district],
                         ['label' => __('borrower.profile.ward'), 'value' => $customer->ward],
                         ['label' => __('borrower.profile.street'), 'value' => $customer->street ?: $customer->address, 'span' => true],
+                        ['label' => __('borrower.profile.lga_officer_name'), 'value' => $customer->lga_officer_name],
+                        ['label' => __('borrower.profile.lga_officer_position'), 'value' => $customer->lga_officer_position],
+                        ['label' => __('borrower.profile.lga_officer_phone'), 'value' => $customer->lga_officer_phone],
                     ] as $field)
                         <div @class(['sm:col-span-2' => ! empty($field['span'])])>
                             <dt class="text-gray-500">{{ $field['label'] }}</dt>
@@ -92,6 +95,37 @@
                         :ward="old('ward', $customer->ward)"
                         :street="old('street', $customer->street ?? $customer->address)"
                     />
+
+                    <div class="mt-6 pt-6 border-t border-gray-100 space-y-4">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.lga_officer_section') }}</p>
+                            <p class="text-xs text-gray-500 mt-1">{{ __('borrower.profile.lga_officer_hint') }}</p>
+                        </div>
+                        <div class="grid sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.profile.lga_officer_name') }} <span class="text-red-500">*</span></label>
+                                <input type="text" name="lga_officer_name" required
+                                       value="{{ old('lga_officer_name', $customer->lga_officer_name) }}"
+                                       class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-gray-900 focus:ring-4 focus:ring-gray-900/10 text-base outline-none">
+                                @error('lga_officer_name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.profile.lga_officer_position') }} <span class="text-red-500">*</span></label>
+                                <input type="text" name="lga_officer_position" required
+                                       value="{{ old('lga_officer_position', $customer->lga_officer_position) }}"
+                                       placeholder="{{ __('borrower.profile.lga_officer_position_placeholder') }}"
+                                       class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-gray-900 focus:ring-4 focus:ring-gray-900/10 text-base outline-none">
+                                @error('lga_officer_position')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                            </div>
+                        </div>
+                        <x-site.phone-input
+                            name="lga_officer_phone"
+                            :label="__('borrower.profile.lga_officer_phone')"
+                            :value="old('lga_officer_phone', $customer->lga_officer_phone)"
+                            variant="rounded"
+                            :required="true"
+                        />
+                    </div>
 
                     @if ($requiresLetter)
                     <div class="mt-6 pt-6 border-t border-gray-100">

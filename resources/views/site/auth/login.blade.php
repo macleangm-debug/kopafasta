@@ -55,7 +55,7 @@
                     <input type="hidden" name="auth_method" id="login-auth-method" value="{{ $authMethod }}">
 
                     <div data-method-panel="pin" @class(['hidden' => $authMethod !== 'pin'])>
-                        <x-site.phone-input name="phone" label="{{ __('site.feedback.phone') }}" :value="old('phone')" variant="rounded" :required="$authMethod === 'pin'" required-when="pin" />
+                        <x-site.phone-input name="phone" label="{{ __('site.feedback.phone') }}" :value="old('phone')" variant="rounded" :required="$authMethod === 'pin'" required-when="pin" :show-errors="false" />
                         <div class="mt-4">
                             <div class="flex items-center justify-between mb-1.5">
                                 <label class="block text-sm font-medium text-gray-700">4-digit PIN</label>
@@ -97,7 +97,7 @@
                         {{ __('site.auth.remember_me') }}
                     </label>
 
-                    <x-site.turnstile action="login" />
+                    <x-site.turnstile action="login" :show-errors="false" />
 
                     <button class="w-full bg-brand hover:bg-brand-light text-white font-bold py-3.5 rounded-xl transition shadow-md">
                         {{ __('site.auth.sign_in') }}
@@ -174,19 +174,16 @@
         })();
     </script>
     @if ($errors->any())
-        <div
-            x-data
-            x-init="
-                $nextTick(() => window.dispatchEvent(new CustomEvent('open-feedback-default', {
+        <script>
+            document.addEventListener('alpine:initialized', () => {
+                window.dispatchEvent(new CustomEvent('open-feedback-default', {
                     detail: {
                         tone: 'error',
                         title: @js(__('site.auth.sign_in_failed_title')),
                         message: @js($errors->first()),
                     },
-                })));
-            "
-            class="sr-only"
-            aria-hidden="true"
-        ></div>
+                }));
+            });
+        </script>
     @endif
 </x-site.layout>

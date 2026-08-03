@@ -1,0 +1,42 @@
+<?php
+
+return [
+    'reasons' => [
+        'identity_verification_failed' => 'Identity verification failed',
+        'national_id_mismatch' => 'National ID details did not match',
+        'incomplete_kyc' => 'Incomplete KYC / profile information',
+        'fraud_suspected' => 'Application could not be verified (integrity review)',
+        'poor_crb_history' => 'Unfavourable credit bureau history',
+        'excessive_existing_debt' => 'Existing debt is too high',
+        'active_loan_delinquency' => 'Active loan delinquency on file',
+        'low_credit_score' => 'Credit score below our lending threshold',
+        'insufficient_income' => 'Income is insufficient for the requested loan',
+        'repayment_exceeds_limit' => 'Proposed repayment exceeds affordability limits',
+        'unstable_income_pattern' => 'Income pattern could not be confirmed as stable',
+        'required_documents_missing' => 'Required documents were missing',
+        'documents_not_verified' => 'Submitted documents could not be verified',
+        'inconsistent_information' => 'Information provided was inconsistent',
+        'employment_not_verified' => 'Employment could not be verified',
+        'business_not_verified' => 'Business activity could not be verified',
+        'business_too_new' => 'Business is too new for this product',
+        'product_eligibility_not_met' => 'Product eligibility requirements were not met',
+        'internal_credit_policy_declined' => 'Declined under internal credit policy',
+    ],
+    'advice' => [
+        'improve_income_docs' => 'Strengthen with clearer income documents (salary slips, bank or mobile-money statements) and re-apply.',
+        'reduce_existing_debt' => 'Settle or reduce existing loan balances, then re-apply with an updated CRB position.',
+        'complete_kyc' => 'Complete your profile, ID, and face verification fully before applying again.',
+        'reapply_smaller_amount' => 'Consider applying for a smaller amount or a shorter tenure next time.',
+        'wait_and_reapply' => 'Wait a few months to strengthen your credit profile, then re-apply.',
+        'fix_documents' => 'Ensure all documents are clear, recent, and match your registered details.',
+        'custom' => null,
+    ],
+    'categories' => [
+        'Identity & KYC' => 'Identity & KYC',
+        'Credit' => 'Credit',
+        'Affordability' => 'Affordability',
+        'Documentation' => 'Documentation',
+        'Employment / Business' => 'Employment / Business',
+        'Internal Policy' => 'Internal Policy',
+    ],
+];

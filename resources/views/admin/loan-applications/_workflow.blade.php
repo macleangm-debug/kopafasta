@@ -5,12 +5,18 @@
     if ($currentStage === 'rejected') {
         $currentIndex = false;
     }
+    $showHistory = $showHistory ?? false;
+    $showStepper = $showStepper ?? true;
+    $isOpsStage = in_array($currentStage, ['approval', 'post_approval_fees', 'awaiting_disbursement_details', 'contract_generation', 'disbursement'], true);
 @endphp
 
+@if ($showStepper)
 <div id="review-workflow" class="scroll-mt-24 mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
     <div class="flex flex-wrap items-start justify-between gap-3 mb-5">
         <div>
-            <h3 class="text-sm font-semibold text-gray-900">Application workflow</h3>
+            <h3 class="text-sm font-semibold text-gray-900">
+                {{ $isOpsStage ? 'Post-approval progress' : 'Application workflow' }}
+            </h3>
             <p class="text-xs text-gray-500 mt-0.5">
                 Current stage:
                 <span class="font-semibold text-gray-800">{{ $workflow->stageLabel($currentStage) }}</span>
@@ -18,8 +24,19 @@
         </div>
         @if ($currentStage === 'rejected')
             <span class="text-xs font-semibold rounded-full px-3 py-1 bg-red-100 text-red-800">Rejected</span>
-            @if ($record->rejection_reason)
-                <span class="text-xs text-red-700">Reason: {{ $record->rejection_reason }}</span>
+            @php
+                $rejectLabel = app(\App\Services\LoanRejectionReasonService::class)->labelForCode($record->rejection_reason_code)
+                    ?: $record->rejection_reason;
+                $rejectAdvice = app(\App\Services\LoanRejectionReasonService::class)->resolveBorrowerAdvice(
+                    $record->rejection_advice_code,
+                    $record->rejection_advice,
+                );
+            @endphp
+            @if ($rejectLabel)
+                <span class="text-xs text-red-700">Reason: {{ $rejectLabel }}</span>
+            @endif
+            @if ($rejectAdvice)
+                <span class="text-xs text-gray-600">Advice: {{ $rejectAdvice }}</span>
             @endif
         @elseif ($record->status === 'pending_documents')
             <span class="text-xs font-semibold rounded-full px-3 py-1 bg-sky-100 text-sky-800">Awaiting borrower documents</span>
@@ -69,29 +86,20 @@
 
     @if ($availableActions->isNotEmpty() && ! $actionsEmbeddedInRecommendation)
         <div class="border-t border-gray-100 pt-5">
-                    <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Dual approval</p>
-                    <div class="mb-4 grid sm:grid-cols-2 gap-3 text-xs">
-                        <div class="rounded-lg bg-sky-50 ring-1 ring-sky-100 px-3 py-2">
-                            <p class="font-semibold text-sky-800">1. Credit recommendation</p>
-                            <p class="text-sky-700 mt-0.5">Analyst submits approve / counter before committee.</p>
-                        </div>
-                        <div class="rounded-lg bg-amber-50 ring-1 ring-amber-100 px-3 py-2">
-                            <p class="font-semibold text-amber-900">2. Committee approve</p>
-                            <p class="text-amber-800 mt-0.5">Committee issues offer or final approval.</p>
-                        </div>
-                    </div>
-                    <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Available actions</p>
+            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Available actions</p>
             @include('admin.loan-applications._workflow_actions')
         </div>
     @elseif ($availableActions->isNotEmpty() && $actionsEmbeddedInRecommendation)
         <p class="text-sm text-gray-500 border-t border-gray-100 pt-4">
-            Workflow actions for this stage are in the <a href="#review-recommendation" class="font-semibold text-brand hover:underline">Credit recommendation</a> panel above.
+            Workflow actions for this stage are in the <a href="#review-recommendation" class="font-semibold text-brand hover:underline">decision panel</a> above.
         </p>
     @elseif ($currentStage !== 'rejected' && $currentStage !== 'disbursement')
         <p class="text-sm text-gray-500 border-t border-gray-100 pt-4">No workflow actions available for your role at this stage.</p>
     @endif
 </div>
+@endif
 
+@if ($showHistory)
 <div id="review-history" class="scroll-mt-24 mt-6 grid lg:grid-cols-2 gap-6">
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
         <h3 class="text-sm font-semibold text-gray-900 mb-4">Stage history</h3>
@@ -143,3 +151,4 @@
         @endif
     </div>
 </div>
+@endif

@@ -179,6 +179,12 @@ class LoanApplicationProfileService
                 'label'   => $borrowerStatus['label'],
                 'tone'    => $borrowerStatus['tone'],
                 'detail'  => $this->statusDetail($application),
+                'rejection_advice' => $borrowerStatus['code'] === 'rejected'
+                    ? app(\App\Services\LoanRejectionReasonService::class)->resolveBorrowerAdvice(
+                        $application->rejection_advice_code,
+                        $application->rejection_advice,
+                    )
+                    : null,
             ],
             'progress'             => [
                 'profile_percent'            => $profileProgress['percent'],

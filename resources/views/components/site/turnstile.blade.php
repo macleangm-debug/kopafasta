@@ -1,5 +1,6 @@
 @props([
     'action' => 'login',
+    'showErrors' => true,
 ])
 
 @php
@@ -13,7 +14,9 @@
             <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
         @endpush
     @endonce
-    @error('cf-turnstile-response')
-        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-    @enderror
+    @if ($showErrors)
+        @error('cf-turnstile-response')
+            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+        @enderror
+    @endif
 @endif

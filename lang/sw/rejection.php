@@ -1,0 +1,42 @@
+<?php
+
+return [
+    'reasons' => [
+        'identity_verification_failed' => 'Uthibitisho wa utambulisho umeshindikana',
+        'national_id_mismatch' => 'Maelezo ya kitambulisho cha taifa hayalingani',
+        'incomplete_kyc' => 'Taarifa za KYC / wasifu hazijakamilika',
+        'fraud_suspected' => 'Ombi halikuweza kuthibitishwa (ukaguzi wa uadilifu)',
+        'poor_crb_history' => 'Historia ya ofisi ya mikopo si nzuri',
+        'excessive_existing_debt' => 'Madeni yaliyopo ni makubwa mno',
+        'active_loan_delinquency' => 'Kuna mkopo amilifu wenye ucheleweshaji',
+        'low_credit_score' => 'Alama ya mkopo iko chini ya kiwango chetu',
+        'insufficient_income' => 'Mapato hayatoshi kwa mkopo ulioombwa',
+        'repayment_exceeds_limit' => 'Malipo yaliyopendekezwa yanazidi uwezo wa kumudu',
+        'unstable_income_pattern' => 'Muundo wa mapato haujathibitishwa kuwa thabiti',
+        'required_documents_missing' => 'Nyaraka zinazohitajika zilikosekana',
+        'documents_not_verified' => 'Nyaraka zilizowasilishwa hazikuweza kuthibitishwa',
+        'inconsistent_information' => 'Taarifa zilizotolewa hazikuwa thabiti',
+        'employment_not_verified' => 'Ajira haikuweza kuthibitishwa',
+        'business_not_verified' => 'Shughuli ya biashara haikuweza kuthibitishwa',
+        'business_too_new' => 'Biashara ni mpya mno kwa bidhaa hii',
+        'product_eligibility_not_met' => 'Masharti ya kuhitimu bidhaa hayakutimizwa',
+        'internal_credit_policy_declined' => 'Imekataliwa kwa mujibu wa sera yetu ya mikopo',
+    ],
+    'advice' => [
+        'improve_income_docs' => 'Rudi na nyaraka wazi za mapato (slips, taarifa za benki au mitandao ya simu) kisha omba tena.',
+        'reduce_existing_debt' => 'Lipa au punguza madeni yaliyopo, kisha omba tena ukiwa na nafasi bora ya CRB.',
+        'complete_kyc' => 'Kamilisha wasifu, kitambulisho, na uthibitisho wa uso kabla ya kuomba tena.',
+        'reapply_smaller_amount' => 'Fikiria kuomba kiasi kidogo au muda mfupi zaidi wakati ujao.',
+        'wait_and_reapply' => 'Subiri miezi michache kuimarisha wasifu wako wa mkopo, kisha omba tena.',
+        'fix_documents' => 'Hakikisha nyaraka zote ni wazi, za hivi karibuni, na zinalingana na taarifa zako.',
+        'custom' => null,
+    ],
+    'categories' => [
+        'Identity & KYC' => 'Utambulisho na KYC',
+        'Credit' => 'Mkopo',
+        'Affordability' => 'Uwezo wa kumudu',
+        'Documentation' => 'Nyaraka',
+        'Employment / Business' => 'Ajira / Biashara',
+        'Internal Policy' => 'Sera ya ndani',
+    ],
+];

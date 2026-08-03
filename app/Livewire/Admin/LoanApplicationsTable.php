@@ -63,7 +63,7 @@ class LoanApplicationsTable extends Component
             ->when($this->stage !== '', fn ($q) => $q->where('current_stage', $this->stage))
             ->when($this->pipeline === 'under_review', function ($q) {
                 $q->where(function ($q) {
-                    $q->whereIn('current_stage', ['screening', 'credit_appraisal'])
+                    $q->whereIn('current_stage', ['submitted', 'screening', 'credit_appraisal'])
                         ->orWhere(function ($q) {
                             $q->where(function ($inner) {
                                 $inner->where('current_stage', 'rejected')

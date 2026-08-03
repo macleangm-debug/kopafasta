@@ -1802,7 +1802,7 @@ class ApplyController extends Controller
                 $drafts->clear($customer, (int) $loanProduct->id);
 
                 return redirect()
-                    ->route('site.borrower.apply.success', $existingApplication)
+                    ->route('site.borrower.application', $existingApplication)
                     ->with('status', __('borrower.apply.success.already_submitted_message'));
             }
         }
@@ -1817,7 +1817,7 @@ class ApplyController extends Controller
             'requested_amount'           => $data['requested_amount'],
             'requested_tenure_months'    => $data['requested_tenure_months'],
             'status'                     => $status,
-            'current_stage'              => $status,
+            'current_stage'              => 'screening',
             'purpose'                    => $purposeLabel,
             'screening_payload'          => [
                 'product_code'      => $loanProduct->code,
@@ -1982,7 +1982,7 @@ class ApplyController extends Controller
         }
 
         return \App\Support\Celebration::with(
-            redirect()->route('site.borrower.apply.success', $app)->with('status', $message),
+            redirect()->route('site.borrower.application', $app)->with('status', $message),
             'loan_submitted',
         );
     }

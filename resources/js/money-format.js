@@ -159,6 +159,18 @@ export function bindMoneyFormatGlobally() {
         boot();
     }
 
+    document.addEventListener('submit', (event) => {
+        const form = event.target;
+        if (! (form instanceof HTMLFormElement)) {
+            return;
+        }
+        form.querySelectorAll('[data-money-input]').forEach((input) => {
+            if (input instanceof HTMLInputElement && input.value) {
+                input.value = String(parseNumber(input.value));
+            }
+        });
+    }, true);
+
     document.addEventListener('livewire:navigated', boot);
     document.addEventListener('livewire:init', () => {
         if (typeof Livewire !== 'undefined' && Livewire.hook) {

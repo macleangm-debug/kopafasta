@@ -1,21 +1,49 @@
             <div class="flex flex-wrap gap-3">
                 @foreach ($availableActions as $action)
                     @if ($action['key'] === 'reject')
+                        @php
+                            $screeningReasonCode = $record->screening_rejection_reason_code
+                                ?: data_get($record->screening_payload, 'recommendation_meta.preferred_rejection_reason_code');
+                            $screeningReasonLabel = $screeningReasonCode
+                                ? app(\App\Services\LoanRejectionReasonService::class)->labelForCode($screeningReasonCode)
+                                : null;
+                            $adviceOptions = $rejectionAdviceOptions
+                                ?? app(\App\Services\LoanRejectionReasonService::class)->adviceOptions();
+                        @endphp
                         <button type="button"
                                 data-open-dialog="reject-application-{{ $record->id }}"
                                 class="inline-flex items-center gap-2 text-sm font-semibold text-red-800 bg-red-100 hover:bg-red-200 px-4 py-2.5 rounded-lg ring-1 ring-red-200 transition">
                             {{ $action['label'] }}
                         </button>
                         <dialog id="reject-application-{{ $record->id }}"
-                                class="rounded-xl shadow-xl ring-1 ring-gray-200 w-full max-w-md p-0 backdrop:bg-black/40 open:flex open:flex-col">
-                            <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="p-6 space-y-4">
+                                class="rounded-xl shadow-xl ring-1 ring-gray-200 w-full max-w-lg p-0 backdrop:bg-black/40 open:flex open:flex-col"
+                                x-data="{
+                                    reason: '{{ old('rejection_reason_code', $screeningReasonCode ?? '') }}',
+                                    advice: '{{ old('rejection_advice_code', '') }}',
+                                    useScreening() { this.reason = '{{ $screeningReasonCode }}'; }
+                                }">
+                            <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
                                 @csrf
                                 <input type="hidden" name="action" value="reject">
                                 <h4 class="font-semibold text-gray-900">Reject application</h4>
-                                <p class="text-sm text-gray-600">Select a standardized reason. The borrower sees the reason label only — internal notes stay private.</p>
+                                <p class="text-sm text-gray-600">The borrower sees the reason and optional advice in their language. Internal notes stay private.</p>
+
+                                @if ($screeningReasonCode && $screeningReasonLabel)
+                                    <div class="rounded-lg bg-amber-50 ring-1 ring-amber-100 px-3 py-2.5 flex flex-wrap items-center justify-between gap-2">
+                                        <div class="min-w-0">
+                                            <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Screening reason</p>
+                                            <p class="text-sm text-amber-950 font-medium mt-0.5">{{ $screeningReasonLabel }}</p>
+                                        </div>
+                                        <button type="button" @click="useScreening()"
+                                                class="shrink-0 text-xs font-semibold text-amber-900 bg-white hover:bg-amber-100 ring-1 ring-amber-200 px-3 py-1.5 rounded-lg">
+                                            Use this reason
+                                        </button>
+                                    </div>
+                                @endif
+
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1">Rejection reason</label>
-                                    <select name="rejection_reason_code" required
+                                    <select name="rejection_reason_code" required x-model="reason"
                                             class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand">
                                         <option value="">Select reason…</option>
                                         @foreach (($rejectionReasons ?? []) as $category => $reasons)
@@ -27,6 +55,28 @@
                                         @endforeach
                                     </select>
                                 </div>
+
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Advice for borrower (optional)</label>
+                                    <select name="rejection_advice_code" x-model="advice"
+                                            class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand">
+                                        <option value="">No advice</option>
+                                        @foreach ($adviceOptions as $code => $label)
+                                            @if ($code !== 'custom')
+                                                <option value="{{ $code }}">{{ $label }}</option>
+                                            @endif
+                                        @endforeach
+                                        <option value="custom">Custom advice (write below)</option>
+                                    </select>
+                                    <p class="mt-1 text-[11px] text-gray-500">Shown on the borrower’s loan profile in their selected language.</p>
+                                </div>
+                                <div x-show="advice === 'custom'" x-cloak>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Custom advice</label>
+                                    <textarea name="rejection_advice" rows="3" maxlength="2000"
+                                              placeholder="Practical guidance for a stronger application next time"
+                                              class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand">{{ old('rejection_advice') }}</textarea>
+                                </div>
+
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1">Internal notes (optional)</label>
                                     <textarea name="rejection_internal_notes" rows="3" maxlength="2000" placeholder="Notes for internal use only"
@@ -133,9 +183,36 @@
                                            class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Notes for committee</label>
-                                    <textarea name="remarks" rows="3" maxlength="1000" placeholder="Optional rationale"
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Why this recommendation <span class="text-red-500">*</span></label>
+                                    <select name="recommendation_rationale" required
+                                            class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand">
+                                        <option value="">Select…</option>
+                                        @foreach (config('credit_recommendation.rationales', []) as $code => $label)
+                                            <option value="{{ $code }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                    <p class="mt-1 text-[11px] text-gray-500">Committee sees this next to the CRB suggestion.</p>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Notes for committee <span class="text-red-500">*</span></label>
+                                    <textarea name="remarks" rows="3" maxlength="1000" required
+                                              placeholder="Explain your judgment — especially if it differs from CRB."
                                               class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Preferred reject reason (optional)</label>
+                                    <select name="screening_rejection_reason_code"
+                                            class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand">
+                                        <option value="">None — committee chooses if they decline</option>
+                                        @foreach (($rejectionReasons ?? []) as $category => $reasons)
+                                            <optgroup label="{{ $category }}">
+                                                @foreach ($reasons as $reason)
+                                                    <option value="{{ $reason['code'] }}">{{ $reason['label'] }}</option>
+                                                @endforeach
+                                            </optgroup>
+                                        @endforeach
+                                    </select>
+                                    <p class="mt-1 text-[11px] text-gray-500">If committee declines, they can reuse this reason in one click.</p>
                                 </div>
                                 <div class="flex justify-end gap-2 pt-1">
                                     <button type="button" data-close-dialog="recommend-{{ $record->id }}"
@@ -210,8 +287,18 @@
                                     <p class="text-sm text-red-700">No active asset-backed product (code AB) configured.</p>
                                 @endif
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Message to borrower</label>
-                                    <textarea name="remarks" rows="3" maxlength="1000" placeholder="Explain why asset-backed may be a better fit"
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Why suggest asset-backed <span class="text-red-500">*</span></label>
+                                    <select name="recommendation_rationale" required
+                                            class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand">
+                                        <option value="">Select…</option>
+                                        @foreach (config('credit_recommendation.rationales', []) as $code => $label)
+                                            <option value="{{ $code }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Message to borrower <span class="text-red-500">*</span></label>
+                                    <textarea name="remarks" rows="3" maxlength="1000" required placeholder="Explain why asset-backed may be a better fit"
                                               class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand"></textarea>
                                 </div>
                                 <div class="flex justify-end gap-2 pt-1">
