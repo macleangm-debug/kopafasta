@@ -1,9 +1,9 @@
 @props(['active' => 'under_review'])
 @php
     $tabs = [
-        'under_review' => ['Credit review', 'admin.loan-applications.pipeline.under-review'],
+        'under_review' => ['Credit screening', 'admin.loan-applications.pipeline.under-review'],
         'committee'    => ['Credit committee', 'admin.loan-applications.pre-approvals'],
-        'approved'     => ['Approved Loans', 'admin.loan-applications.pipeline.approved'],
+        'approved'     => ['Post-approval', 'admin.loan-applications.pipeline.approved'],
         'disbursement' => ['Disbursement', 'admin.loan-applications.pipeline.disbursement'],
     ];
 @endphp

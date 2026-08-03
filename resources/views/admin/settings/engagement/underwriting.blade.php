@@ -9,7 +9,7 @@
 
     @include('admin.settings.engagement._guide', [
         'title' => 'How underwriting boosts work',
-        'summary' => 'When a member opens the loan quote step, the system combines their referral tier and trust score into three live benefits: a higher available limit, a lower quoted interest rate, and faster review priority. These settings control that math — they do not change product base rates or hard product max amounts by themselves.',
+        'summary' => 'When a member opens the loan amount step, the system combines their referral tier and trust score into three live benefits: a higher available limit, a lower quoted interest rate, and faster review priority. These settings control that math — they do not change product base rates or hard product max amounts by themselves.',
         'borrowerSees' => [
             'On the apply wizard quote step: “Your member benefits” with available limit and interest discount.',
             'On the dashboard financial-health panel: available limit that already includes the boost.',

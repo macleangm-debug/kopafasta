@@ -175,16 +175,16 @@ class LoanApplicationDraftService
 
     /**
      * Build a resume wizard URL that jumps to a specific step without duplicating query params.
-     * When editing from Review/Submit, pass return_to so Continue returns there.
+     * Edit hops always return to the loan profile (not the full wizard path / fee gate).
      *
      * @param  array{phase?: string, step_key?: string|null, step?: int, reason?: string|null, return_to?: string|null}  $baseTarget
      */
     public function wizardApplyUrlForStep(LoanApplicationDraft $draft, string $stepKey, array $baseTarget = []): string
     {
         $target = $baseTarget;
-        $currentKey = $target['step_key'] ?? null;
-        if (is_string($currentKey) && $currentKey !== '' && $currentKey !== $stepKey) {
-            $target['return_to'] = $currentKey;
+        // Prefer explicit return_to; otherwise send edit hops back to the loan profile.
+        if (! isset($target['return_to']) || $target['return_to'] === '' || $target['return_to'] === null) {
+            $target['return_to'] = 'profile';
         }
         $target['step_key'] = $stepKey;
         unset($target['step']);

@@ -48,7 +48,7 @@ class NotificationTemplatePagesProbeTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get(route('admin.notification-templates.edit', $t))
             ->assertOk()
-            ->assertSee('all languages', false)
+            ->assertSee('English', false)
             ->assertSee('Hello {{ name }}', false)
             ->assertSee('Habari {{ name }}', false);
     }

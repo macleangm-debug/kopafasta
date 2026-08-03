@@ -19,8 +19,9 @@ class CreditTeamController extends Controller
 
         $underwriting = Department::query()->where('code', 'UND')->first();
         $committee = Department::query()->where('code', 'CRC')->first();
+        $management = Department::query()->where('code', 'CRM')->first();
 
-        $analysts = User::query()
+        $screening = User::query()
             ->with(['department', 'branch'])
             ->where('is_active', true)
             ->where(function ($q) use ($underwriting) {
@@ -28,7 +29,7 @@ class CreditTeamController extends Controller
                 if ($underwriting) {
                     $q->orWhere(function ($inner) use ($underwriting) {
                         $inner->where('department_id', $underwriting->id)
-                            ->whereIn('role', ['credit_analyst', 'manager', 'admin']);
+                            ->whereIn('role', ['credit_analyst', 'officer', 'admin']);
                     });
                 }
             })
@@ -43,7 +44,22 @@ class CreditTeamController extends Controller
                 if ($committee) {
                     $q->orWhere(function ($inner) use ($committee) {
                         $inner->where('department_id', $committee->id)
-                            ->whereIn('role', ['credit_committee', 'manager', 'admin']);
+                            ->whereIn('role', ['credit_committee', 'admin']);
+                    });
+                }
+            })
+            ->orderBy('name')
+            ->get();
+
+        $managers = User::query()
+            ->with(['department', 'branch'])
+            ->where('is_active', true)
+            ->where(function ($q) use ($management) {
+                $q->where('role', 'manager');
+                if ($management) {
+                    $q->orWhere(function ($inner) use ($management) {
+                        $inner->where('department_id', $management->id)
+                            ->whereIn('role', ['manager', 'admin']);
                     });
                 }
             })
@@ -53,8 +69,10 @@ class CreditTeamController extends Controller
         return view('admin.credit-team.index', [
             'underwriting' => $underwriting,
             'committee' => $committee,
-            'analysts' => $analysts,
+            'management' => $management,
+            'screening' => $screening,
             'committeeMembers' => $committeeMembers,
+            'managers' => $managers,
             'branches' => Branch::query()->orderBy('name')->get(['id', 'name']),
         ]);
     }
@@ -64,7 +82,7 @@ class CreditTeamController extends Controller
         abort_unless(auth()->user()?->hasPermission('users.manage'), 403);
 
         $team = $request->validate([
-            'team' => ['required', Rule::in(['analyst', 'committee'])],
+            'team' => ['required', Rule::in(['screening', 'committee', 'management'])],
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:190', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:40'],
@@ -74,16 +92,20 @@ class CreditTeamController extends Controller
 
         $underwriting = Department::query()->where('code', 'UND')->first();
         $committee = Department::query()->where('code', 'CRC')->first();
+        $management = Department::query()->where('code', 'CRM')->first();
 
-        $isCommittee = $team['team'] === 'committee';
-        $department = $isCommittee ? $committee : $underwriting;
+        [$role, $department, $status] = match ($team['team']) {
+            'committee' => ['credit_committee', $committee, 'Credit committee member added.'],
+            'management' => ['manager', $management, 'Credit manager added to the management team.'],
+            default => ['credit_analyst', $underwriting, 'Credit screening analyst added.'],
+        };
 
         User::query()->create([
             'name' => $team['name'],
             'email' => $team['email'],
             'phone' => $team['phone'] ?? null,
             'password' => $team['password'],
-            'role' => $isCommittee ? 'credit_committee' : 'credit_analyst',
+            'role' => $role,
             'department_id' => $department?->id,
             'branch_id' => $team['branch_id'] ?? null,
             'is_active' => true,
@@ -91,8 +113,6 @@ class CreditTeamController extends Controller
 
         return redirect()
             ->route('admin.credit-team.index')
-            ->with('status', $isCommittee
-                ? 'Credit committee member added.'
-                : 'Credit analyst added to underwriting.');
+            ->with('status', $status);
     }
 }

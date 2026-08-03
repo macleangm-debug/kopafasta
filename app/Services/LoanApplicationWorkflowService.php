@@ -374,7 +374,7 @@ class LoanApplicationWorkflowService
         return match ($stage) {
             'submitted'           => 'Submitted',
             'screening'           => 'Screening',
-            'credit_appraisal'    => 'Credit review',
+            'credit_appraisal'    => 'Credit appraisal',
             'pre_approval'        => 'Pre-approval',
             'approval'            => 'Committee approval',
             'disbursement'        => 'Disbursement',

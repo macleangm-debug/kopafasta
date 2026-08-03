@@ -18,6 +18,7 @@ class DepartmentSeeder extends Seeder
             ['code' => 'CRD', 'name' => 'Credit'],
             ['code' => 'UND', 'name' => 'Underwriting'],
             ['code' => 'CRC', 'name' => 'Credit Committee'],
+            ['code' => 'CRM', 'name' => 'Credit Management'],
             ['code' => 'COL', 'name' => 'Collections'],
             ['code' => 'CMP', 'name' => 'Compliance'],
             ['code' => 'FIN', 'name' => 'Finance'],

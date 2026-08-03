@@ -54,7 +54,7 @@
                 </div>
 
                 {{-- Step 2: Product & quote --}}
-                <div data-step data-step-label="Product & quote" data-step-key="product" hidden class="p-6 space-y-5">
+                <div data-step data-step-label="Product & amount" data-step-key="product" hidden class="p-6 space-y-5">
                     <div>
                         <h2 class="text-sm font-semibold text-gray-900">Choose loan product</h2>
                         <p class="text-xs text-gray-500 mt-0.5">Limits and rates come from product configuration.</p>

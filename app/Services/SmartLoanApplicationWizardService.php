@@ -189,7 +189,7 @@ class SmartLoanApplicationWizardService
     {
         return [
             ['key' => 'applicant', 'label' => 'Applicant'],
-            ['key' => 'product', 'label' => 'Product & quote'],
+            ['key' => 'product', 'label' => 'Product & amount'],
             ['key' => 'profile', 'label' => 'Profile check'],
             ['key' => 'details', 'label' => 'Application'],
             ['key' => 'review', 'label' => 'Review'],

@@ -44,10 +44,10 @@ class LoanApplicationProfileService
         $stepKeys = collect($stepPlan)->pluck('key')->all();
         $quoteStepKey = $this->drafts->quoteLikeStepKey($stepPlan);
         $editQuoteUrl = $quoteStepKey
-            ? $this->drafts->wizardApplyUrlForStep($draft, $quoteStepKey, $resumeTarget)
+            ? $this->drafts->wizardApplyUrlForStep($draft, $quoteStepKey, ['return_to' => 'profile'])
             : null;
         $editGuarantorUrl = in_array('guarantor', $stepKeys, true)
-            ? $this->drafts->wizardApplyUrlForStep($draft, 'guarantor', $resumeTarget)
+            ? $this->drafts->wizardApplyUrlForStep($draft, 'guarantor', ['return_to' => 'profile'])
             : null;
 
         return [

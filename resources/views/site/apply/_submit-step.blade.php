@@ -43,7 +43,7 @@
             <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.submit_step.summary_title') }}</p>
             <button type="button"
                     x-show="hasStep('quote') || hasStep('asset_tenure') || hasStep('asset_details')"
-                    @click="gotoKey(hasStep('asset_details') ? 'asset_details' : (hasStep('quote') ? 'quote' : 'asset_tenure'))"
+                    @click="gotoKey(hasStep('asset_details') ? 'asset_details' : (hasStep('quote') ? 'quote' : 'asset_tenure'), { returnTo: 'submit' })"
                     class="text-xs font-semibold text-brand hover:underline shrink-0">
                 {{ __('borrower.apply.submit_step.edit_quote') }}
             </button>
@@ -84,12 +84,12 @@
             </div>
             <div class="flex flex-col gap-2 shrink-0 w-full sm:w-auto">
                 <button type="button"
-                        @click="gotoKey('guarantor')"
+                        @click="gotoKey('guarantor', { returnTo: 'submit' })"
                         class="inline-flex justify-center bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-semibold px-4 py-2.5 rounded-xl text-sm">
                     {{ __('borrower.apply.submit_step.view_guarantor') }}
                 </button>
                 <button type="button"
-                        @click="gotoKey('guarantor'); $nextTick(() => { if (isGuarantorLocked()) changeGuarantor(); })"
+                        @click="gotoKey('guarantor', { returnTo: 'submit' }); $nextTick(() => { if (isGuarantorLocked()) changeGuarantor(); })"
                         :disabled="guarantorChanging"
                         class="inline-flex justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm disabled:opacity-60">
                     {{ __('borrower.apply.change_guarantor') }}

@@ -11,7 +11,7 @@
         ];
         $cards = [
             ['My queue', format_number($stats['my_assigned_queue'] ?? 0), route('admin.loan-applications.index', ['mine' => 1])],
-            ['Credit review', format_number($stats['credit_review_queue'] ?? 0), route('admin.loan-applications.pipeline.under-review')],
+            ['Credit screening', format_number($stats['credit_review_queue'] ?? 0), route('admin.loan-applications.pipeline.under-review')],
             ['Committee', format_number($stats['committee_queue'] ?? 0), route('admin.loan-applications.pre-approvals')],
             ['Incomplete', format_number($stats['incomplete_applications']), route('admin.loan-applications.incomplete')],
             ['Applications', format_number($stats['applications']), route('admin.loan-applications.index')],
@@ -41,7 +41,7 @@
                 </a>
                 <a href="{{ route('admin.credit-team.index') }}"
                    class="inline-flex items-center rounded-xl bg-white/10 hover:bg-white/15 ring-1 ring-white/20 text-white text-xs font-semibold px-3 py-2">
-                    Credit team
+                    Credit teams
                 </a>
             </div>
         </div>

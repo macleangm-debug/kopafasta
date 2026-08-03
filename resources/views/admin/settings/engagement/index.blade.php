@@ -3,7 +3,7 @@
 
     @include('admin.settings.engagement._guide', [
         'title' => 'How engagement settings map to the borrower app',
-        'summary' => 'These pages control the member rewards loop: earn trust and points → climb referral tiers → unlock better loan terms and fee discounts. Configure each area so the numbers match what members see on Profile, Rewards & referrals, and the loan quote step.',
+        'summary' => 'These pages control the member rewards loop: earn trust and points → climb referral tiers → unlock better loan terms and fee discounts. Configure each area so the numbers match what members see on Profile, Rewards & referrals, and the loan amount step.',
         'borrowerSees' => [
             'Rewards & referrals hub — points balance, redeem catalog, referral link, streak, and leaderboard.',
             'Profile hub — completion % and profile-strength tier labels.',
@@ -25,7 +25,7 @@
             ['Repayment streak', 'admin.settings.engagement.repayment-streak', 'Bonus loyalty points after consecutive on-time instalments (shown on the streak tab).'],
             ['Profile strength', 'admin.settings.engagement.profile-strength', 'Labels for completion bands (Bronze → Verified) on the profile hub.'],
             ['Loyalty points', 'admin.settings.engagement.loyalty-points', 'Points earned per action and the redeem catalog used at membership / application fee checkout.'],
-            ['Underwriting boosts', 'admin.settings.engagement.underwriting', 'How referral tier + trust score raise limit, cut rate, and speed review on the loan quote.'],
+            ['Underwriting boosts', 'admin.settings.engagement.underwriting', 'How referral tier + trust score raise limit, cut rate, and speed review on the loan amount.'],
             ['Notifications', 'admin.settings.engagement.notifications', 'Which notification categories appear in the member inbox, plus referral leaderboard display rules.'],
             ['Profile builder', 'admin.profile-sections.index', 'Which profile sections exist and count toward completion % (feeds trust and apply gates).'],
         ] as [$title, $route, $desc])

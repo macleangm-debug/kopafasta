@@ -392,6 +392,7 @@ export function applyWizard(config) {
 
                 /** Fee is a gate between setup steps and guarantor/review — not a numbered wizard step. */
                 needsFeeGateBefore(nextKey) {
+                    if (this.isEditHop()) return false;
                     if (this.supplementMode || this.feeGateSatisfied()) return false;
                     if (this.effectiveFeeAmount() <= 0) return false;
                     return ['guarantor', 'product_questions', 'review', 'signature', 'submit'].includes(nextKey);
@@ -401,8 +402,17 @@ export function applyWizard(config) {
                     return this.needsFeeGateBefore(targetStepKey);
                 },
 
+                /** Editing amount/guarantor from loan profile — skip the full process. */
+                isEditHop() {
+                    return this.returnTo === 'profile'
+                        || ['quote', 'asset_details', 'asset_tenure', 'group_setup', 'guarantor'].includes(this.returnTo);
+                },
+
                 enforceStepRequirements(onResume = false) {
-                    if (this.supplementMode) return;
+                    if (this.supplementMode || this.isEditHop()) {
+                        this.feeGateOpen = false;
+                        return;
+                    }
                     if (this.effectiveFeeAmount() <= 0 || this.feeGateSatisfied()) {
                         this.feeGateOpen = false;
                         return;
@@ -1769,9 +1779,12 @@ export function applyWizard(config) {
                     }
                 },
 
-                gotoKey(key) {
+                gotoKey(key, opts = {}) {
                     const i = this.steps.findIndex(s => s.key === key);
                     if (i >= 0 && i <= (this.furthestStep ?? this.step)) {
+                        if (opts.returnTo) {
+                            this.returnTo = opts.returnTo;
+                        }
                         this.feeGateOpen = false;
                         this.step = i;
                         this.syncStepKey();
@@ -2627,9 +2640,16 @@ export function applyWizard(config) {
                         if (this.step >= this.steps.length - 1) {
                             return;
                         }
-                        // Edit Amount / Edit Guarantor: return to Review/Submit instead of restarting.
+                        // Edit amount / edit guarantor: finish and leave the full process.
                         const returnKey = this.returnTo;
                         const fromEdit = ['quote', 'asset_details', 'asset_tenure', 'group_setup', 'guarantor'].includes(this.stepKey);
+                        if (returnKey === 'profile' && fromEdit) {
+                            this.returnTo = null;
+                            if (this.profileUrl) {
+                                window.location.href = this.profileUrl;
+                                return;
+                            }
+                        }
                         if (returnKey && fromEdit && this.steps.some(s => s.key === returnKey)) {
                             this.gotoKey(returnKey);
                             this.returnTo = null;

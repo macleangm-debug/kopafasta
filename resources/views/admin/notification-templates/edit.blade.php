@@ -9,11 +9,6 @@
     @endif
 
     <div class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-brand/10">
-        <div class="bg-gradient-to-r from-brand via-brand to-brand-light px-6 py-5 text-white">
-            <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ brand_name() }}</p>
-            <h1 class="text-xl font-bold tracking-tight mt-1">Edit message — all languages</h1>
-            <p class="text-sm text-white/75 mt-1 font-mono">{{ $record->code }}</p>
-        </div>
         <div class="p-6">
             <form method="POST" action="{{ route('admin.notification-templates.update', $record) }}" class="space-y-6">
                 @csrf
@@ -35,7 +30,7 @@
                 <div class="flex items-center justify-between gap-3 pt-4 border-t border-gray-100">
                     <a href="{{ route('admin.notification-templates.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-800 px-4 py-2">Cancel</a>
                     <button type="submit" class="inline-flex items-center gap-2 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-5 py-2.5 rounded-xl shadow-sm">
-                        Save all languages
+                        Save template
                     </button>
                 </div>
             </form>

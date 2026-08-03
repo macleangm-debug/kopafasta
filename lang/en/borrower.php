@@ -184,6 +184,8 @@ return [
         ],
         'asset_reservation' => 'Asset loan application for :asset. Deposit target: TZS :amount.',
         'continue' => 'Continue',
+        'complete_editing' => 'Complete editing',
+        'edit_hop_hint' => 'Change only this section, then tap Complete editing — you will not go through payments or the full application again.',
         'back' => '← Back',
         'back_products' => '← Product details',
         'back_dashboard' => '← Back to dashboard',

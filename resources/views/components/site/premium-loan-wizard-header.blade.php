@@ -4,17 +4,28 @@
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div class="min-w-0">
                 <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-1">{{ brand_name() }} {{ __('borrower.apply.smart_application') }}</p>
-                <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-brand">{{ __('borrower.apply.wizard_title') }}</h1>
-                <p class="mt-1 text-sm text-gray-600" x-show="current" x-cloak>
+                <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-brand"
+                    x-text="isEditHop()
+                        ? (['guarantor'].includes(stepKey) ? @js(__('borrower.apply.change_guarantor')) : @js(__('borrower.apply.submit_step.edit_quote')))
+                        : @js(__('borrower.apply.wizard_title'))"></h1>
+                <p class="mt-1 text-sm text-gray-600" x-show="isEditHop()" x-cloak>
+                    {{ __('borrower.apply.edit_hop_hint') }}
+                </p>
+                <p class="mt-1 text-sm text-gray-600" x-show="!isEditHop() && current" x-cloak>
                     <span x-text="current?.name"></span>
                     <span class="text-gray-400 mx-1">·</span>
                     <span class="font-mono text-xs" x-text="current?.code"></span>
                 </p>
-                <p class="mt-1 text-sm text-gray-600" x-show="! current" x-cloak>{{ __('borrower.apply.subtitle') }}</p>
+                <p class="mt-1 text-sm text-gray-600" x-show="!isEditHop() && ! current" x-cloak>{{ __('borrower.apply.subtitle') }}</p>
             </div>
             <div class="flex flex-col items-end gap-2 shrink-0">
+                <a :href="profileUrl || loanProductsUrl"
+                   x-show="isEditHop()"
+                   class="text-sm font-semibold text-gray-600 hover:text-gray-900">
+                    {{ __('borrower.apply.cancel') }}
+                </a>
                 <a :href="loanProductsUrl"
-                   x-show="! reservationMode"
+                   x-show="! reservationMode && !isEditHop()"
                    class="text-sm font-semibold text-gray-600 hover:text-gray-900">
                     {{ __('borrower.apply.details.all_products') }}
                 </a>
@@ -26,7 +37,7 @@
             </div>
         </div>
 
-        <div class="mt-5" x-show="phase === 'details' || phase === 'application'" x-cloak>
+        <div class="mt-5" x-show="!isEditHop() && (phase === 'details' || phase === 'application')" x-cloak>
             <div class="h-1.5 bg-white/60 rounded-full overflow-hidden">
                 <div class="h-full bg-brand transition-all duration-500 rounded-full"
                      :style="'width:' + (phase === 'details' ? '35' : Math.min(100, 35 + ((step + 1) / Math.max(steps.length, 1)) * 65)) + '%'"></div>

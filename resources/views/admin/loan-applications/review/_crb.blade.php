@@ -11,7 +11,7 @@
         </p>
     @elseif (! in_array($record->current_stage ?? 'submitted', ['credit_appraisal', 'pre_approval', 'approval', 'disbursement'], true))
         <p class="mb-4 text-sm text-gray-600 bg-gray-50 ring-1 ring-gray-100 rounded-lg px-4 py-3">
-            Credit review becomes the active underwriting stage after screening is completed.
+            Credit appraisal becomes the active underwriting stage after screening is completed.
         </p>
     @endif
     <div class="grid sm:grid-cols-2 gap-4 mb-5">

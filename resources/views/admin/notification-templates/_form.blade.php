@@ -50,10 +50,10 @@
         }
     }"
 >
-    <div class="rounded-2xl bg-brand text-white px-5 py-4 shadow-sm">
-        <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">When this sends</p>
-        <p class="text-lg font-bold mt-1" x-text="stageLabel"></p>
-        <p class="text-sm text-white/80 mt-1" x-text="description || 'Pick an event below. English and Kiswahili edit side by side.'"></p>
+    <div class="rounded-2xl bg-gradient-to-r from-brand via-brand to-brand-light px-5 py-4 text-white shadow-sm -mt-1 mb-2">
+        <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ brand_name() }} · Message template</p>
+        <h1 class="text-xl font-bold tracking-tight mt-1" x-text="stageLabel"></h1>
+        <p class="text-sm text-white/80 mt-1" x-text="description || 'Pick the stage event below, then write each language side by side.'"></p>
     </div>
 
     <div class="grid sm:grid-cols-2 gap-5">
@@ -73,7 +73,7 @@
                 @endforeach
             </select>
             @error('code')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
-            <p class="mt-1 text-[11px] text-gray-500">Events are grouped by stage (registration, application, repayment, late payment…).</p>
+            <p class="mt-1 text-[11px] text-gray-500">Grouped by where it happens (registration, application, repayment…).</p>
         </div>
 
         <div>

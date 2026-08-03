@@ -134,6 +134,8 @@ return [
     'requirements_hint' => 'Bado unaweza kukagua bidhaa za mkopo hapa chini — alama yako ya utayari itaonyesha kinachokosekana kabla ya kuomba.',
     'asset_reservation' => 'Ombi la mkopo wa mali kwa :asset. Malengo ya amana: TZS :amount.',
     'continue' => 'Endelea',
+    'complete_editing' => 'Maliza kuhariri',
+    'edit_hop_hint' => 'Badilisha sehemu hii tu, kisha gusa Maliza kuhariri — hutarudi kwenye malipo wala mchakato wote wa maombi.',
     'back' => '← Rudi',
     'back_products' => '← Maelezo ya bidhaa',
     'back_dashboard' => '← Rudi kwenye dashibodi',

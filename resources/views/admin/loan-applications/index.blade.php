@@ -10,7 +10,7 @@
             ['New / submitted', 'admin.loan-applications.new'],
             ['Rejected', 'admin.loan-applications.rejected'],
             ['Incomplete drafts', 'admin.loan-applications.incomplete'],
-            ['Credit review', 'admin.loan-applications.pipeline.under-review'],
+            ['Credit screening', 'admin.loan-applications.pipeline.under-review'],
             ['Committee', 'admin.loan-applications.pre-approvals'],
         ] as [$label, $name])
             <a href="{{ route($name) }}"

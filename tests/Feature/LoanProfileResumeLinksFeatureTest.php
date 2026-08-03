@@ -91,6 +91,8 @@ class LoanProfileResumeLinksFeatureTest extends TestCase
         $this->assertStringContainsString('step_key=quote', (string) $profile['edit_quote_url']);
         $this->assertStringContainsString('step_key=guarantor', (string) $profile['edit_guarantor_url']);
         $this->assertStringContainsString('resume=1', (string) $profile['edit_quote_url']);
+        $this->assertStringContainsString('return_to=profile', (string) $profile['edit_quote_url']);
+        $this->assertStringContainsString('return_to=profile', (string) $profile['edit_guarantor_url']);
     }
 
     public function test_continue_edit_quote_and_edit_guarantor_resume_without_server_error(): void

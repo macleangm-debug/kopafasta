@@ -118,7 +118,7 @@ return [
                 'key'           => 'interest_half',
                 'label'         => '0.5% interest discount',
                 'label_sw'      => 'Punguzo la 0.5% kwa riba',
-                'description'   => 'Lower rate on your next loan quote',
+                'description'   => 'Lower rate on your next loan amount',
                 'description_sw'=> 'Kiwango cha chini cha riba kwenye mkopo wako unaofuata',
                 'points'        => 1000,
                 'benefit_type'  => 'rate_discount',

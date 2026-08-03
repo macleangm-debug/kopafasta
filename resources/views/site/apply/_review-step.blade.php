@@ -171,7 +171,7 @@
                     <p class="text-xs text-gray-500 mt-1">{{ __('borrower.apply.review_step.terms_hint') }}</p>
                 </div>
                 <button type="button"
-                        @click="gotoKey(hasStep('asset_details') ? 'asset_details' : (hasStep('group_members') ? 'group_members' : (hasStep('quote') ? 'quote' : 'asset_tenure')))"
+                        @click="gotoKey(hasStep('asset_details') ? 'asset_details' : (hasStep('group_members') ? 'group_members' : (hasStep('quote') ? 'quote' : 'asset_tenure')), { returnTo: 'review' })"
                         x-show="hasStep('quote') || hasStep('asset_tenure') || hasStep('asset_details') || hasStep('group_members')"
                         class="text-xs font-semibold text-brand hover:underline shrink-0">{{ __('borrower.apply.edit') }}</button>
             </div>
@@ -218,7 +218,7 @@
         <section x-show="hasStep('guarantor')" class="rounded-2xl overflow-hidden ring-1 ring-gray-200/80 bg-white">
             <div class="px-5 py-3.5 flex items-center justify-between gap-3 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white">
                 <h3 class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.apply.review_step.guarantor_section') }}</h3>
-                <button type="button" @click="gotoKey('guarantor')" class="text-xs font-semibold text-brand hover:underline shrink-0">{{ __('borrower.apply.edit') }}</button>
+                <button type="button" @click="gotoKey('guarantor', { returnTo: 'review' })" class="text-xs font-semibold text-brand hover:underline shrink-0">{{ __('borrower.apply.edit') }}</button>
             </div>
             <dl class="px-5 py-4 grid sm:grid-cols-2 gap-4 text-sm">
                 <div>
