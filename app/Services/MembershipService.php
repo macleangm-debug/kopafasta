@@ -379,12 +379,28 @@ $this->notify($customer, 'membership_issued');
     {
         try {
             $name = trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
-            app(\App\Services\NotificationService::class)->notifyCustomer($customer, $templateCode, [
+            $vars = [
                 'name'       => $name,
                 'member_no'  => $customer->member_no ?? '',
                 'issued_at'  => optional($customer->membership_issued_at)->format('d M Y') ?? '',
                 'expires_at' => optional($customer->membership_expires_at)->format('d M Y') ?? '',
-            ]);
+            ];
+            $notifier = app(\App\Services\NotificationService::class);
+            $notifier->notifyCustomer($customer, $templateCode, $vars);
+
+            if ($templateCode === 'membership_issued') {
+                $notifier->notifyInApp(
+                    $customer,
+                    __('borrower.membership.notification_body', [
+                        'member_no' => $customer->member_no ?? '',
+                    ]),
+                    'membership',
+                    'membership_issued',
+                    __('borrower.membership.notification_title'),
+                    route('site.borrower.loan-products'),
+                    __('borrower.membership.notification_cta'),
+                );
+            }
         } catch (\Throwable $e) {
             Log::warning('Membership notification failed', [
                 'customer_id' => $customer->id,

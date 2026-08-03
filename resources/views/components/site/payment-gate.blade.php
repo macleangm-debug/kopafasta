@@ -32,28 +32,10 @@
 </div>
 
 @if ($showPromo)
-    <form method="GET" action="{{ $applyUrl }}" class="mb-6 rounded-xl bg-white ring-1 ring-gray-200 px-4 py-4 text-sm">
-        <label class="block text-xs font-semibold text-gray-600 mb-1">{{ __('borrower.membership.promo_code_label') }}</label>
-        <div class="flex gap-2">
-            <input type="text" name="{{ $promoFieldName }}" value="{{ $promoValue ?? old($promoFieldName) }}" maxlength="40"
-                   class="flex-1 rounded-lg border-gray-300 text-sm font-mono uppercase"
-                   placeholder="{{ __('borrower.membership.promo_code_placeholder') }}">
-            <button type="submit"
-                    class="shrink-0 inline-flex items-center justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2 rounded-lg text-sm">
-                {{ __('borrower.membership.apply_promo') }}
-            </button>
-        </div>
-        @if ($quote && filled($quote['promo_code'] ?? null))
-            <p @class([
-                'mt-2 text-xs',
-                ($quote['promo_valid'] ?? false) ? 'text-emerald-700' : 'text-red-700',
-            ])>
-                @if ($quote['promo_valid'] ?? false)
-                    {{ __('borrower.membership.promo_applied', ['code' => $quote['promo_code']]) }}
-                @else
-                    {{ __('borrower.membership.promo_invalid') }}
-                @endif
-            </p>
-        @endif
-    </form>
+    <x-site.promo-code-toggle
+        :name="$promoFieldName"
+        :value="$promoValue ?? old($promoFieldName)"
+        :action="$applyUrl"
+        :quote="$quote"
+    />
 @endif

@@ -214,6 +214,7 @@ class ProfileAndPaymentsUxFeatureTest extends TestCase
 
         $this->actingAs($customer->user)
             ->put(route('site.borrower.profile.update', ['section' => 'residence']), [
+                'focus' => 'verification',
                 'region' => 'Dar es Salaam',
                 'district' => 'Ilala',
                 'ward' => 'Kariakoo',
@@ -222,7 +223,10 @@ class ProfileAndPaymentsUxFeatureTest extends TestCase
                 'lga_officer_position' => 'Afisa wa Mtaa',
                 'lga_officer_phone' => '255712345678',
             ])
-            ->assertRedirect(route('site.borrower.profile', ['section' => 'residence']))
+            ->assertRedirect(route('site.borrower.profile', [
+                'section' => 'residence',
+                'focus' => 'verification',
+            ]).'#profile-residence-verification')
             ->assertSessionHas('status');
 
         $customer->refresh();
@@ -233,6 +237,30 @@ class ProfileAndPaymentsUxFeatureTest extends TestCase
         $this->assertSame('Macmillan Gomera', $customer->lga_officer_name);
         $this->assertSame('Afisa wa Mtaa', $customer->lga_officer_position);
         $this->assertSame('255712345678', preg_replace('/\D+/', '', (string) $customer->lga_officer_phone));
+    }
+
+    public function test_residence_address_save_uses_address_focus(): void
+    {
+        $customer = $this->makeCustomer();
+
+        $this->actingAs($customer->user)
+            ->put(route('site.borrower.profile.update', ['section' => 'residence']), [
+                'focus' => 'address',
+                'region' => 'Arusha',
+                'district' => 'Arusha City',
+                'ward' => 'Sekei',
+                'street' => 'Clock Tower Road',
+            ])
+            ->assertRedirect(route('site.borrower.profile', [
+                'section' => 'residence',
+                'focus' => 'address',
+            ]).'#profile-residence-address')
+            ->assertSessionHas('status');
+
+        $customer->refresh();
+        $this->assertSame('Arusha', $customer->region);
+        $this->assertSame('Arusha City', $customer->district);
+        $this->assertSame('Clock Tower Road', $customer->street);
     }
 
     public function test_residence_and_activity_save_forms_submit_without_confirm_wrapper(): void

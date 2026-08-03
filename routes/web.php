@@ -176,32 +176,39 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             // Browse products without membership; pay / renew when starting apply.
             Route::get('/borrower/loan-products', [\App\Http\Controllers\Site\BorrowerController::class, 'loanProducts'])->name('borrower.loan-products');
 
+            // Browse and draft freely; membership is enforced at fee payment / submit.
+            Route::get('/borrower/apply',  [\App\Http\Controllers\Site\ApplyController::class, 'show'])->name('borrower.apply');
+            Route::get('/borrower/apply/product/{product}/readiness', [\App\Http\Controllers\Site\ApplyController::class, 'productReadiness'])->name('borrower.apply.product-readiness');
+            Route::post('/borrower/apply/guarantor-lookup', [\App\Http\Controllers\Site\ApplyController::class, 'lookupGuarantor'])->name('borrower.apply.guarantor-lookup');
+            Route::post('/borrower/apply/group-member-lookup', [\App\Http\Controllers\Site\ApplyController::class, 'lookupGroupMember'])->name('borrower.apply.group-member-lookup');
+            Route::get('/borrower/apply/previous-group-members', [\App\Http\Controllers\Site\ApplyController::class, 'previousGroupMembers'])->name('borrower.apply.previous-group-members');
+            Route::post('/borrower/apply/previous-group-member', [\App\Http\Controllers\Site\ApplyController::class, 'selectPreviousGroupMember'])->name('borrower.apply.previous-group-member');
+            Route::post('/borrower/apply/group-member-invite', [\App\Http\Controllers\Site\ApplyController::class, 'prepareGroupMemberInvite'])->name('borrower.apply.group-member-invite');
+            Route::post('/borrower/apply/group-member-expire', [\App\Http\Controllers\Site\ApplyController::class, 'expireGroupMemberInvitation'])->name('borrower.apply.group-member-expire');
+            Route::post('/borrower/apply/group-member-statuses', [\App\Http\Controllers\Site\ApplyController::class, 'refreshGroupMemberStatuses'])->name('borrower.apply.group-member-statuses');
+            Route::get('/borrower/apply/previous-guarantors', [\App\Http\Controllers\Site\ApplyController::class, 'previousGuarantors'])->name('borrower.apply.previous-guarantors');
+            Route::post('/borrower/apply/previous-guarantor', [\App\Http\Controllers\Site\ApplyController::class, 'selectPreviousGuarantor'])->name('borrower.apply.previous-guarantor');
+            Route::post('/borrower/apply/guarantor-invite', [\App\Http\Controllers\Site\ApplyController::class, 'prepareExternalGuarantor'])->name('borrower.apply.guarantor-invite');
+            Route::get('/borrower/apply/guarantor-status', [\App\Http\Controllers\Site\ApplyController::class, 'guarantorInvitationStatus'])->name('borrower.apply.guarantor-status');
+            Route::post('/borrower/apply/guarantor-expire', [\App\Http\Controllers\Site\ApplyController::class, 'expireGuarantorInvitation'])->name('borrower.apply.guarantor-expire');
+            Route::get('/borrower/apply/draft', [\App\Http\Controllers\Site\ApplyController::class, 'loadDraft'])->name('borrower.apply.draft');
+            Route::put('/borrower/apply/draft', [\App\Http\Controllers\Site\ApplyController::class, 'saveDraft'])->name('borrower.apply.draft.save');
+            Route::get('/borrower/apply/application-fee/quote', [\App\Http\Controllers\Site\ApplyController::class, 'applicationFeeQuote'])->name('borrower.apply.application-fee.quote');
+            Route::get('/borrower/apply/valuation-fee/quote', [\App\Http\Controllers\Site\ApplyController::class, 'valuationFeeQuote'])->name('borrower.apply.valuation-fee.quote');
+            Route::post('/borrower/apply/asset-document', [\App\Http\Controllers\Site\ApplyController::class, 'uploadAssetDocument'])->name('borrower.apply.asset-document');
+            Route::get('/borrower/apply/repayment-preview', [\App\Http\Controllers\Site\ApplyController::class, 'repaymentPreview'])->name('borrower.apply.repayment-preview');
+            Route::get('/apply', fn () => redirect()->route('site.borrower.loan-products'))->name('apply.show');
+
             Route::middleware('membership.active')->group(function () {
-                Route::get('/borrower/apply',  [\App\Http\Controllers\Site\ApplyController::class, 'show'])->name('borrower.apply');
-                Route::get('/borrower/apply/product/{product}/readiness', [\App\Http\Controllers\Site\ApplyController::class, 'productReadiness'])->name('borrower.apply.product-readiness');
-                Route::post('/borrower/apply/guarantor-lookup', [\App\Http\Controllers\Site\ApplyController::class, 'lookupGuarantor'])->name('borrower.apply.guarantor-lookup');
-                Route::post('/borrower/apply/group-member-lookup', [\App\Http\Controllers\Site\ApplyController::class, 'lookupGroupMember'])->name('borrower.apply.group-member-lookup');
-                Route::get('/borrower/apply/previous-group-members', [\App\Http\Controllers\Site\ApplyController::class, 'previousGroupMembers'])->name('borrower.apply.previous-group-members');
-                Route::post('/borrower/apply/previous-group-member', [\App\Http\Controllers\Site\ApplyController::class, 'selectPreviousGroupMember'])->name('borrower.apply.previous-group-member');
-                Route::post('/borrower/apply/group-member-invite', [\App\Http\Controllers\Site\ApplyController::class, 'prepareGroupMemberInvite'])->name('borrower.apply.group-member-invite');
-                Route::post('/borrower/apply/group-member-expire', [\App\Http\Controllers\Site\ApplyController::class, 'expireGroupMemberInvitation'])->name('borrower.apply.group-member-expire');
-                Route::post('/borrower/apply/group-member-statuses', [\App\Http\Controllers\Site\ApplyController::class, 'refreshGroupMemberStatuses'])->name('borrower.apply.group-member-statuses');
-                Route::get('/borrower/apply/previous-guarantors', [\App\Http\Controllers\Site\ApplyController::class, 'previousGuarantors'])->name('borrower.apply.previous-guarantors');
-                Route::post('/borrower/apply/previous-guarantor', [\App\Http\Controllers\Site\ApplyController::class, 'selectPreviousGuarantor'])->name('borrower.apply.previous-guarantor');
-                Route::post('/borrower/apply/guarantor-invite', [\App\Http\Controllers\Site\ApplyController::class, 'prepareExternalGuarantor'])->name('borrower.apply.guarantor-invite');
-                Route::get('/borrower/apply/guarantor-status', [\App\Http\Controllers\Site\ApplyController::class, 'guarantorInvitationStatus'])->name('borrower.apply.guarantor-status');
-                Route::post('/borrower/apply/guarantor-expire', [\App\Http\Controllers\Site\ApplyController::class, 'expireGuarantorInvitation'])->name('borrower.apply.guarantor-expire');
-                Route::get('/borrower/apply/draft', [\App\Http\Controllers\Site\ApplyController::class, 'loadDraft'])->name('borrower.apply.draft');
-                Route::put('/borrower/apply/draft', [\App\Http\Controllers\Site\ApplyController::class, 'saveDraft'])->name('borrower.apply.draft.save');
                 Route::post('/borrower/apply/application-fee', [\App\Http\Controllers\Site\ApplyController::class, 'payApplicationFee'])->name('borrower.apply.application-fee.pay');
-                Route::get('/borrower/apply/application-fee/quote', [\App\Http\Controllers\Site\ApplyController::class, 'applicationFeeQuote'])->name('borrower.apply.application-fee.quote');
                 Route::post('/borrower/apply/valuation-fee', [\App\Http\Controllers\Site\ApplyController::class, 'payValuationFee'])->name('borrower.apply.valuation-fee.pay');
-                Route::get('/borrower/apply/valuation-fee/quote', [\App\Http\Controllers\Site\ApplyController::class, 'valuationFeeQuote'])->name('borrower.apply.valuation-fee.quote');
-                Route::post('/borrower/apply/asset-document', [\App\Http\Controllers\Site\ApplyController::class, 'uploadAssetDocument'])->name('borrower.apply.asset-document');
-                Route::get('/borrower/apply/repayment-preview', [\App\Http\Controllers\Site\ApplyController::class, 'repaymentPreview'])->name('borrower.apply.repayment-preview');
                 Route::post('/borrower/apply', [\App\Http\Controllers\Site\ApplyController::class, 'submit'])->name('borrower.apply.submit');
-                Route::get('/apply', fn () => redirect()->route('site.borrower.loan-products'))->name('apply.show');
                 Route::post('/apply', [\App\Http\Controllers\Site\ApplyController::class, 'submit'])->name('apply.submit');
+                Route::post('/borrower/marketplace/{assetId}/reserve', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'reserve'])->name('borrower.marketplace.reserve.post');
+                Route::post('/borrower/marketplace/{assetId}/reservation', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'advanceReservation'])->name('borrower.marketplace.reservation.advance');
+                Route::post('/borrower/marketplace/{assetId}/reservation/pay', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'payReservation'])->name('borrower.marketplace.reservation.pay');
+                Route::post('/borrower/marketplace/{assetId}/apply', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'startApply'])->name('borrower.marketplace.apply');
+                Route::post('/borrower/applications/{application}/post-approval-fees', [\App\Http\Controllers\Site\BorrowerController::class, 'payPostApprovalFees'])->name('borrower.application.post-approval-fees.pay');
             });
             Route::get('/borrower/apply/{application}/success', [\App\Http\Controllers\Site\ApplyController::class, 'success'])->name('borrower.apply.success');
             Route::get('/apply/{application}/success', [\App\Http\Controllers\Site\ApplyController::class, 'success'])->name('apply.success');
@@ -220,10 +227,6 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/applications',                   [\App\Http\Controllers\Site\BorrowerController::class, 'applications']) ->name('borrower.applications');
             Route::get('/borrower/marketplace',                    [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'index'])->name('borrower.marketplace');
             Route::get('/borrower/marketplace/{assetId}',          [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'show'])->name('borrower.marketplace.show');
-            Route::post('/borrower/marketplace/{assetId}/apply', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'startApply'])->name('borrower.marketplace.apply');
-            Route::post('/borrower/marketplace/{assetId}/reserve', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'reserve'])->name('borrower.marketplace.reserve.post');
-            Route::post('/borrower/marketplace/{assetId}/reservation', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'advanceReservation'])->name('borrower.marketplace.reservation.advance');
-            Route::post('/borrower/marketplace/{assetId}/reservation/pay', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'payReservation'])->name('borrower.marketplace.reservation.pay');
             Route::get('/borrower/marketplace/{assetId}/reserve', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'reserveFlow'])->name('borrower.marketplace.reserve');
             Route::get('/borrower/applications/{application}',     [\App\Http\Controllers\Site\BorrowerController::class, 'application'])  ->name('borrower.application');
             Route::post('/borrower/applications/{application}/withdraw', [\App\Http\Controllers\Site\BorrowerController::class, 'withdrawApplication'])->name('borrower.application.withdraw');
@@ -289,7 +292,6 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/applications/{application}/group-members/{loan_group_member}/replace-internal', [\App\Http\Controllers\Site\GroupMemberReplacementController::class, 'replaceInternal'])->name('borrower.group-member.replace-internal');
             Route::post('/borrower/applications/{application}/group-members/{loan_group_member}/replace-external', [\App\Http\Controllers\Site\GroupMemberReplacementController::class, 'replaceExternal'])->name('borrower.group-member.replace-external');
             Route::get('/borrower/applications/{application}/post-approval-fees', [\App\Http\Controllers\Site\BorrowerController::class, 'postApprovalFees'])->name('borrower.application.post-approval-fees');
-            Route::post('/borrower/applications/{application}/post-approval-fees', [\App\Http\Controllers\Site\BorrowerController::class, 'payPostApprovalFees'])->name('borrower.application.post-approval-fees.pay');
             Route::get('/borrower/applications/{application}/disbursement-details', [\App\Http\Controllers\Site\BorrowerController::class, 'disbursementDetails'])->name('borrower.application.disbursement-details');
             Route::post('/borrower/applications/{application}/disbursement-details/confirm', [\App\Http\Controllers\Site\BorrowerController::class, 'confirmDisbursementDetails'])->name('borrower.application.disbursement-details.confirm');
             Route::post('/borrower/marketplace/request', [\App\Http\Controllers\Site\AssetMarketplaceController::class, 'storeRequest'])->name('borrower.marketplace.request');

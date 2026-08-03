@@ -17,7 +17,8 @@
         default => 'individual',
     };
     $lightText = ! in_array($variant, ['under_review', 'guarantor_request'], true);
-    $cleanHome = in_array($variant, ['no_loan', 'applications'], true);
+    $cleanHome = in_array($variant, ['applications'], true)
+        || (($variant === 'no_loan') && empty($hero['title']) && empty($hero['subtitle']));
 @endphp
 
 <section class="mb-6 rounded-2xl ring-1 p-5 sm:p-6 relative overflow-hidden {{ $shell }}">

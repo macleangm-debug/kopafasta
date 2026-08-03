@@ -11,13 +11,25 @@
         ])
 
         @php
+            $residenceAddressComplete = filled($customer->region) && filled($customer->district) && filled($customer->street ?: $customer->address);
             $residenceComplete = app(\App\Services\ProfileCompletionService::class)->isResidenceComplete($customer);
             $residenceStale = in_array('residence', app(\App\Services\KycFreshnessService::class)->sectionsDueForRefresh($customer), true);
             $requiresLetter = app(\App\Services\ProfileValidationService::class)->requiresResidenceLetter();
+            $hasLetter = ($residenceLetter ?? null) !== null;
             $officerPhone = \App\Support\PhoneNumber::format($customer->lga_officer_phone);
             $hasOfficer = filled($customer->lga_officer_name)
-                || filled($customer->lga_officer_position)
-                || filled($customer->lga_officer_phone);
+                && filled($customer->lga_officer_position)
+                && filled($customer->lga_officer_phone);
+            $verificationComplete = (! $requiresLetter || $hasLetter) && $hasOfficer;
+            $focus = (string) request()->query('focus', '');
+            $openAddress = ($wizardMode ?? false)
+                || in_array($focus, ['address', 'residence', ''], true) && ($errors->hasAny(['region', 'district', 'ward', 'street']) || ! $residenceAddressComplete && $focus !== 'verification');
+            $openVerification = ($wizardMode ?? false)
+                || $focus === 'verification'
+                || $errors->hasAny(['lga_officer_name', 'lga_officer_position', 'lga_officer_phone', 'residence_letter', 'residence_letter_pages']);
+            if ($errors->hasAny(['region', 'district', 'ward', 'street'])) {
+                $openAddress = true;
+            }
         @endphp
 
         @if ($residenceStale && $residenceComplete)
@@ -33,14 +45,15 @@
             <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ $errors->first() }}</div>
         @endif
 
+        {{-- Card 1: Address --}}
         <x-site.profile-section-card
-            section-id="profile-residence"
+            section-id="profile-residence-address"
             icon="🏠"
-            :title="__('borrower.profile.residence')"
-            :complete="$residenceComplete"
-            :empty="! $residenceComplete"
+            :title="__('borrower.profile.residence_address_card')"
+            :complete="$residenceAddressComplete"
+            :empty="! $residenceAddressComplete"
             :allow-overflow="true"
-            :default-open="($wizardMode ?? false) || ($editing ?? false) || $errors->any()">
+            :default-open="$openAddress">
             <x-slot:view>
                 <dl class="grid sm:grid-cols-2 gap-4 text-sm">
                     @foreach ([
@@ -59,63 +72,11 @@
                         </div>
                     @endforeach
                 </dl>
-
-                @if ($requiresLetter || $hasOfficer)
-                    <div class="mt-5 pt-5 border-t border-gray-100">
-                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ __('borrower.profile.residence_verification_section') }}</p>
-                        <p class="text-xs text-gray-500 mt-1 mb-4">{{ __('borrower.profile.residence_verification_hint') }}</p>
-
-                        @if ($requiresLetter)
-                            @if ($residenceLetter ?? null)
-                                <x-site.profile-document-field
-                                    :document="$residenceLetter"
-                                    field-name="residence_letter"
-                                    mode="multi"
-                                    :label="__('borrower.profile.residence_letter')"
-                                    input-host-id="residence-letter-view"
-                                />
-                            @else
-                                <p class="text-sm font-semibold text-amber-700">{{ __('borrower.profile.residence_letter') }} — {{ __('borrower.profile.missing') }}</p>
-                                <button type="button" @click="open = true" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
-                            @endif
-                        @endif
-
-                        <div class="mt-4 rounded-xl bg-brand-muted/30 ring-1 ring-brand/10 px-4 py-4">
-                            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.profile.residence_signed_by') }}</p>
-                            <dl class="mt-3 grid sm:grid-cols-3 gap-3 text-sm">
-                                <div>
-                                    <dt class="text-xs text-gray-500">{{ __('borrower.profile.lga_officer_name') }}</dt>
-                                    @if (filled($customer->lga_officer_name))
-                                        <dd class="font-medium mt-0.5">{{ $customer->lga_officer_name }}</dd>
-                                    @else
-                                        <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
-                                    @endif
-                                </div>
-                                <div>
-                                    <dt class="text-xs text-gray-500">{{ __('borrower.profile.lga_officer_position') }}</dt>
-                                    @if (filled($customer->lga_officer_position))
-                                        <dd class="font-medium mt-0.5">{{ $customer->lga_officer_position }}</dd>
-                                    @else
-                                        <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
-                                    @endif
-                                </div>
-                                <div>
-                                    <dt class="text-xs text-gray-500">{{ __('borrower.profile.lga_officer_phone') }}</dt>
-                                    @if ($officerPhone)
-                                        <dd class="font-medium mt-0.5 tabular-nums">{{ $officerPhone }}</dd>
-                                    @else
-                                        <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
-                                    @endif
-                                </div>
-                            </dl>
-                        </div>
-                    </div>
-                @endif
             </x-slot:view>
             <x-slot:form>
-                <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'residence']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
-                      enctype="multipart/form-data"
-                      @submit="document.querySelectorAll('[data-phone-input]').forEach((el) => window.syncSitePhoneInput?.(el))">
+                <form method="POST"
+                      action="{{ route('site.borrower.profile.update', ['section' => 'residence']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
+                      novalidate>
                     @csrf @method('PUT')
                     @if ($wizardMode ?? false)
                         <input type="hidden" name="wizard" value="1">
@@ -123,6 +84,7 @@
                     @if (! empty($returnUrl))
                         <input type="hidden" name="return" value="{{ $returnUrl }}">
                     @endif
+                    <input type="hidden" name="focus" value="address">
 
                     <x-site.address-fields
                         :region="old('region', $customer->region)"
@@ -131,14 +93,95 @@
                         :street="old('street', $customer->street ?? $customer->address)"
                     />
 
-                    <div class="mt-6 pt-6 border-t border-gray-100 space-y-5">
-                        <div>
-                            <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.residence_verification_section') }}</p>
-                            <p class="text-xs text-gray-500 mt-1">{{ __('borrower.profile.residence_verification_hint') }}</p>
-                        </div>
+                    <button type="submit" class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                        {{ ($wizardMode ?? false) ? __('borrower.profile_wizard.save_continue') : __('borrower.profile.save') }}
+                    </button>
+                </form>
+            </x-slot:form>
+        </x-site.profile-section-card>
+
+        {{-- Card 2: Verification --}}
+        <div class="mt-5">
+            <x-site.profile-section-card
+                section-id="profile-residence-verification"
+                icon="✅"
+                :title="__('borrower.profile.residence_verification_section')"
+                :complete="$verificationComplete"
+                :empty="! $verificationComplete"
+                :allow-overflow="true"
+                :default-open="$openVerification || ($residenceAddressComplete && ! $verificationComplete)">
+                <x-slot:view>
+                    <p class="text-sm text-gray-600 mb-4">{{ __('borrower.profile.residence_verification_hint') }}</p>
+
+                    @if ($requiresLetter)
+                        @if ($residenceLetter ?? null)
+                            <x-site.profile-document-field
+                                :document="$residenceLetter"
+                                field-name="residence_letter"
+                                mode="multi"
+                                :label="__('borrower.profile.residence_letter')"
+                                input-host-id="residence-letter-view"
+                            />
+                        @else
+                            <p class="text-sm font-semibold text-amber-700">{{ __('borrower.profile.residence_letter') }} — {{ __('borrower.profile.missing') }}</p>
+                            <button type="button" @click="open = true" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
+                        @endif
+                    @endif
+
+                    <div class="mt-4 rounded-xl bg-brand-muted/30 ring-1 ring-brand/10 px-4 py-4">
+                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.profile.residence_signed_by') }}</p>
+                        <dl class="mt-3 grid sm:grid-cols-3 gap-3 text-sm">
+                            <div>
+                                <dt class="text-xs text-gray-500">{{ __('borrower.profile.lga_officer_name') }}</dt>
+                                @if (filled($customer->lga_officer_name))
+                                    <dd class="font-medium mt-0.5">{{ $customer->lga_officer_name }}</dd>
+                                @else
+                                    <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
+                                @endif
+                            </div>
+                            <div>
+                                <dt class="text-xs text-gray-500">{{ __('borrower.profile.lga_officer_position') }}</dt>
+                                @if (filled($customer->lga_officer_position))
+                                    <dd class="font-medium mt-0.5">{{ $customer->lga_officer_position }}</dd>
+                                @else
+                                    <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
+                                @endif
+                            </div>
+                            <div>
+                                <dt class="text-xs text-gray-500">{{ __('borrower.profile.lga_officer_phone') }}</dt>
+                                @if ($officerPhone)
+                                    <dd class="font-medium mt-0.5 tabular-nums">{{ $officerPhone }}</dd>
+                                @else
+                                    <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
+                                @endif
+                            </div>
+                        </dl>
+                    </div>
+                </x-slot:view>
+                <x-slot:form>
+                    <form method="POST"
+                          action="{{ route('site.borrower.profile.update', ['section' => 'residence']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
+                          enctype="multipart/form-data"
+                          novalidate
+                          @submit="document.querySelectorAll('[data-phone-input]').forEach((el) => window.syncSitePhoneInput?.(el))">
+                        @csrf @method('PUT')
+                        @if ($wizardMode ?? false)
+                            <input type="hidden" name="wizard" value="1">
+                        @endif
+                        @if (! empty($returnUrl))
+                            <input type="hidden" name="return" value="{{ $returnUrl }}">
+                        @endif
+                        <input type="hidden" name="focus" value="verification">
+                        {{-- Keep existing address on verification-only saves --}}
+                        <input type="hidden" name="region" value="{{ old('region', $customer->region) }}">
+                        <input type="hidden" name="district" value="{{ old('district', $customer->district) }}">
+                        <input type="hidden" name="ward" value="{{ old('ward', $customer->ward) }}">
+                        <input type="hidden" name="street" value="{{ old('street', $customer->street ?? $customer->address) }}">
+
+                        <p class="text-sm text-gray-600 mb-5">{{ __('borrower.profile.residence_verification_hint') }}</p>
 
                         @if ($requiresLetter)
-                            <div>
+                            <div class="mb-5">
                                 <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.profile.residence_letter') }} <span class="text-red-500">*</span></label>
                                 <x-site.profile-document-field
                                     :document="$residenceLetter ?? null"
@@ -187,14 +230,14 @@
                                 :required="true"
                             />
                         </div>
-                    </div>
 
-                    <button type="submit" class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                        {{ ($wizardMode ?? false) ? __('borrower.profile_wizard.save_continue') : __('borrower.profile.save') }}
-                    </button>
-                </form>
-            </x-slot:form>
-        </x-site.profile-section-card>
+                        <button type="submit" class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                            {{ ($wizardMode ?? false) ? __('borrower.profile_wizard.save_continue') : __('borrower.profile.save') }}
+                        </button>
+                    </form>
+                </x-slot:form>
+            </x-site.profile-section-card>
+        </div>
 
         @include('site.borrower.profile._wizard_footer', ['customer' => $customer, 'wizardMode' => $wizardMode ?? false, 'wizardKey' => $wizardKey ?? 'residence'])
     </div>

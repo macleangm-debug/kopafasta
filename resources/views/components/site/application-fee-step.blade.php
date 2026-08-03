@@ -148,28 +148,18 @@
             </label>
         </div>
 
-        <div class="mb-6 rounded-xl bg-white ring-1 ring-gray-200 px-4 py-4 text-sm" x-show="!feeUseWallet">
-            <label class="block text-xs font-semibold text-gray-600 mb-1">{{ __('borrower.apply.application_fee.promo_label') }}</label>
-            <div class="flex gap-2">
-                <input type="text"
-                       x-model="feePromoCode"
-                       @keydown.enter.prevent="refreshApplicationFeeQuote()"
-                       maxlength="40"
-                       class="flex-1 rounded-lg border-gray-300 text-sm font-mono uppercase"
-                       placeholder="{{ __('borrower.membership.promo_code_placeholder') }}">
-                <button type="button"
-                        @click="refreshApplicationFeeQuote()"
-                        class="shrink-0 inline-flex items-center justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2 rounded-lg text-sm">
-                    {{ __('borrower.membership.apply_promo') }}
-                </button>
-            </div>
+        <x-site.promo-code-toggle
+            alpine-model="feePromoCode"
+            alpine-apply="refreshApplicationFeeQuote()"
+            hidden-when="!feeUseWallet"
+        >
             <template x-if="feeQuoteData?.promo_valid && feeQuoteData?.promo_code">
                 <p class="mt-1 text-xs text-emerald-700" x-text="`{{ __('borrower.membership.promo_applied', ['code' => '__CODE__']) }}`.replace('__CODE__', feeQuoteData.promo_code)"></p>
             </template>
             <p class="mt-1 text-xs text-emerald-700" x-show="feeQuoteData?.has_affiliate && feeQuoteData?.affiliate_discount > 0" x-cloak>
                 {{ __('borrower.apply.application_fee.affiliate_applied') }}
             </p>
-        </div>
+        </x-site.promo-code-toggle>
 
         @if ($feeQuote && ($feeQuote['wallet_allowed'] ?? false) && $referralPoints > 0)
             <div class="mb-6 rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 py-4 text-sm text-brand">

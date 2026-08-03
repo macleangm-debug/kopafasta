@@ -75,8 +75,9 @@ class RemainingFeedbackCleanupFeatureTest extends TestCase
         $this->assertNotFalse($blade);
         $this->assertStringContainsString('canShowQuoteRewards()', $blade);
         $this->assertStringNotContainsString('rate_disclosure', $blade);
-        $this->assertStringContainsString('formatAmount(quote.interest)', $blade);
-        $this->assertSame('Interest estimate (TZS)', __('borrower.apply.quote.interest_est_tzs'));
+        $this->assertStringContainsString('purpose_hint', $blade);
+        $this->assertStringContainsString('form.purpose', $blade);
+        $this->assertStringNotContainsString('interest_est_tzs', $blade);
     }
 
     public function test_late_repayment_deducts_points_once(): void

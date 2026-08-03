@@ -162,12 +162,14 @@ class MembershipController extends Controller
                 'referral'  => $paymentBreakdown,
             ]);
 
-            $redirect = redirect()->route('site.borrower.profile', ['section' => 'membership'])
-                ->with('status', $message)
-                ->with(\App\Support\Celebration::SESSION_KEY, ['membership']);
+            $redirect = redirect()->route('site.borrower.dashboard')
+                ->with('status', $isFirstTime
+                    ? __('borrower.membership.activated_start_loan')
+                    : $message)
+                ->with(\App\Support\Celebration::SESSION_KEY, [$isFirstTime ? 'membership' : 'payment']);
 
             if ($next = app(\App\Services\PortalOnboardingResumeService::class)->redirectIfPending($request, $customer->fresh())) {
-                return $next->with(\App\Support\Celebration::SESSION_KEY, ['membership']);
+                return $next->with(\App\Support\Celebration::SESSION_KEY, [$isFirstTime ? 'membership' : 'payment']);
             }
 
             return $redirect;
@@ -181,7 +183,7 @@ class MembershipController extends Controller
             'referral'  => $paymentBreakdown,
         ]);
 
-        return redirect()->route('site.borrower.profile', ['section' => 'membership'])
+        return redirect()->route('site.borrower.dashboard')
             ->with('warning', 'Bank payment submitted. We will activate your membership after verifying your transfer. Reference: '.$paymentReference);
     }
 

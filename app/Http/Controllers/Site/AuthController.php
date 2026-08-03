@@ -282,8 +282,8 @@ class AuthController extends Controller
                 ->with(\App\Support\Celebration::SESSION_KEY, ['registration']);
         }
 
-        return redirect()->route('site.membership.renew')
-            ->with('status', 'PIN created. Pay your registration fee to unlock loans and services.')
+        return redirect()->route('site.borrower.dashboard')
+            ->with('status', __('borrower.membership.pin_ready_browse'))
             ->with(\App\Support\Celebration::SESSION_KEY, ['registration']);
     }
 

@@ -28,6 +28,18 @@
                     </div>
                 </div>
 
+                {{-- Purpose sits immediately under amount so it is hard to miss --}}
+                <div class="rounded-2xl bg-brand-muted/40 ring-1 ring-brand/15 p-4 sm:p-5">
+                    <x-site.sheet-select
+                        model="form.purpose"
+                        :label="__('borrower.apply.quote.purpose')"
+                        :options="$loanPurposes"
+                        :required="true"
+                        :placeholder="__('borrower.apply.quote.select_purpose')"
+                    />
+                    <p class="mt-2 text-xs text-brand/80">{{ __('borrower.apply.quote.purpose_hint') }}</p>
+                </div>
+
                 <div>
                     <div class="flex items-end justify-between gap-3 mb-3">
                         <label class="text-sm font-semibold text-gray-700">{{ __('borrower.apply.quote.tenure') }}</label>
@@ -47,17 +59,9 @@
                         <span><span x-text="current.tmax"></span> {{ __('borrower.apply.browse.months_short') }}</span>
                     </div>
                 </div>
-
-                <x-site.sheet-select
-                    model="form.purpose"
-                    :label="__('borrower.apply.quote.purpose')"
-                    :options="$loanPurposes"
-                    :required="true"
-                    :placeholder="__('borrower.apply.quote.select_purpose')"
-                />
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div class="rounded-2xl bg-white ring-1 ring-brand/20 p-5 min-h-[7.5rem] flex flex-col justify-between">
                     <p class="text-[10px] uppercase tracking-widest text-brand font-semibold"
                        x-text="repaymentCadence() === 'monthly'
@@ -66,16 +70,11 @@
                     <p class="text-2xl font-extrabold mt-3 text-gray-900 tabular-nums" x-text="formatAmount(quote.primary ?? quote.monthly)"></p>
                 </div>
                 <div class="rounded-2xl bg-white ring-1 ring-gray-200/80 p-5 min-h-[7.5rem] flex flex-col justify-between">
-                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.apply.quote.interest_est_tzs') }}</p>
-                    <p class="text-2xl font-extrabold mt-3 text-gray-900 tabular-nums" x-text="formatAmount(quote.interest)"></p>
-                </div>
-                <div class="rounded-2xl bg-white ring-1 ring-gray-200/80 p-5 min-h-[7.5rem] flex flex-col justify-between">
                     <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.apply.quote.total_repayment_tzs') }}</p>
                     <p class="text-2xl font-extrabold mt-3 text-gray-900 tabular-nums" x-text="formatAmount(quote.total)"></p>
                 </div>
             </div>
 
-            {{-- Rewards only when the borrower can actually redeem something --}}
             <div x-show="canShowQuoteRewards()" x-cloak
                  class="rounded-2xl bg-emerald-50 ring-1 ring-emerald-200 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
                 <div class="min-w-0 space-y-1">

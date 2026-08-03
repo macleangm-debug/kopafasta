@@ -4,6 +4,17 @@
         :subtitle="null"
     />
 
+    <div x-show="requiresGuarantor() && !isGuarantorLocked() && !addGuarantorOpen" x-cloak
+         class="mb-5 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 text-sm text-amber-950">
+        <p class="font-semibold">{{ __('borrower.apply.guarantor_fields.add_cta') }}</p>
+        <p class="mt-1 text-amber-900/90">{{ __('borrower.apply.guarantor_required_hint') }}</p>
+    </div>
+
+    <div x-show="!requiresGuarantor() && !isGuarantorLocked() && !addGuarantorOpen" x-cloak
+         class="mb-5 rounded-2xl bg-slate-50 ring-1 ring-gray-200 px-4 py-4 text-sm text-gray-700">
+        <p>{{ __('borrower.apply.guarantor_optional_hint') }}</p>
+    </div>
+
     {{-- Field-level errors stay inline; summary feedback opens as modal via setGuarantorFieldErrors() --}}
 
     <div x-show="isGuarantorLocked()" x-cloak class="glass-card rounded-2xl px-5 py-5 space-y-4 mb-5 ring-1"
@@ -309,13 +320,16 @@
                         <p class="mt-1" x-text="guarantorInviteError"></p>
                     </div>
                 </div>
-                <div class="sm:col-span-2" x-show="isExternalGuarantorComplete() && !externalGuarantor?.invitation_url">
+                <div class="sm:col-span-2" x-show="form.guarantor_mode === 'external' && (!externalGuarantor || !externalGuarantor.invitation_url)">
                     <button type="button"
                             @click="generateExternalInvite()"
-                            :disabled="guarantorInvitePreparing"
-                            class="w-full inline-flex justify-center bg-brand hover:bg-brand-light disabled:opacity-60 text-white font-semibold px-5 py-3 rounded-xl text-sm">
+                            :disabled="guarantorInvitePreparing || !isExternalGuarantorComplete()"
+                            class="w-full inline-flex justify-center bg-brand hover:bg-brand-light disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-5 py-3.5 rounded-xl text-sm shadow-sm">
                         <span x-text="guarantorInvitePreparing ? @js(__('borrower.apply.guarantor_fields.generating_link')) : @js(__('borrower.apply.guarantor_fields.generate_link'))"></span>
                     </button>
+                    <p class="mt-2 text-xs text-gray-500" x-show="!isExternalGuarantorComplete()" x-cloak>
+                        {{ __('borrower.apply.guarantor_fields.complete_fields_first') }}
+                    </p>
                 </div>
             </div>
     </div>

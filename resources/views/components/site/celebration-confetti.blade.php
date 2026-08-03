@@ -6,36 +6,39 @@
         in_array('profile_complete', $reasons, true) => __('borrower.celebration.profile_complete'),
         in_array('loan_submitted', $reasons, true) => __('borrower.celebration.loan_submitted'),
         in_array('registration', $reasons, true) => __('borrower.celebration.registration'),
+        in_array('application_fee', $reasons, true) => __('borrower.celebration.application_fee'),
+        in_array('post_approval_fee', $reasons, true) => __('borrower.celebration.post_approval_fee'),
         in_array('payment', $reasons, true) => __('borrower.celebration.payment'),
         in_array('membership', $reasons, true) => __('borrower.celebration.membership'),
         in_array('reward_redeemed', $reasons, true) => __('borrower.celebration.reward_redeemed'),
         in_array('points_earned', $reasons, true) => __('borrower.celebration.points_earned'),
         default => null,
     };
-    $isLoanSubmitted = in_array('loan_submitted', $reasons, true);
+    $modalTitle = match (true) {
+        in_array('loan_submitted', $reasons, true) => __('borrower.apply.success.submitted_title'),
+        in_array('membership', $reasons, true) => __('borrower.celebration.membership_title'),
+        in_array('application_fee', $reasons, true) => __('borrower.celebration.application_fee_title'),
+        in_array('post_approval_fee', $reasons, true) => __('borrower.celebration.post_approval_fee_title'),
+        in_array('payment', $reasons, true) => __('borrower.celebration.payment_title'),
+        in_array('registration', $reasons, true) => __('borrower.celebration.registration_title'),
+        default => __('borrower.celebration.default_title'),
+    };
     $statusFlash = session('status');
-    $modalMessage = $isLoanSubmitted
-        ? (is_string($statusFlash) && $statusFlash !== '' ? $statusFlash : $message)
-        : $message;
+    $modalMessage = (is_string($statusFlash) && $statusFlash !== '')
+        ? $statusFlash
+        : ($message ?? __('borrower.celebration.payment'));
+    $useModal = $shouldCelebrate && filled($message);
 @endphp
 
 @if ($shouldCelebrate)
-    @if ($message && ! $isLoanSubmitted)
-        <div class="fixed top-5 left-1/2 -translate-x-1/2 z-[10000] max-w-sm w-[calc(100%-2rem)] pointer-events-none"
-             role="status" aria-live="polite">
-            <div class="rounded-2xl bg-white/95 backdrop-blur px-5 py-3.5 text-center text-sm font-semibold text-brand shadow-lg ring-1 ring-brand/15 animate-[fadeIn_0.45s_ease-out]">
-                {{ $message }}
-            </div>
-        </div>
-    @endif
     <script>
         (function () {
-            @if ($isLoanSubmitted && $modalMessage)
+            @if ($useModal)
             document.addEventListener('alpine:initialized', function () {
                 window.dispatchEvent(new CustomEvent('open-feedback-default', {
                     detail: {
                         tone: 'success',
-                        title: @js(__('borrower.apply.success.submitted_title')),
+                        title: @js($modalTitle),
                         message: @js($modalMessage),
                     },
                 }));
@@ -47,7 +50,7 @@
             }
 
             var colors = ['#f5c842', '#10b981', '#004d40', '#0d9488', '#fbbf24', '#34d399', '#ffffff'];
-            var count = {{ $isLoanSubmitted ? 180 : 120 }};
+            var count = 160;
             var originX = window.innerWidth / 2;
             var originY = Math.min(220, window.innerHeight * 0.28);
 
@@ -58,7 +61,7 @@
                 var driftX = Math.cos(angle) * velocity * (14 + Math.random() * 18);
                 var driftY = Math.sin(angle) * velocity * (6 + Math.random() * 10) - (40 + Math.random() * 80);
                 var delay = Math.random() * 280;
-                var duration = {{ $isLoanSubmitted ? 2800 : 2200 }} + Math.random() * 1400;
+                var duration = 2600 + Math.random() * 1400;
                 var size = 5 + Math.random() * 7;
                 var isRound = Math.random() > 0.55;
 

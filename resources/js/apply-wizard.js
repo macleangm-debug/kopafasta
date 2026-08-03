@@ -767,6 +767,10 @@ export function applyWizard(config) {
                             tone: 'success',
                             message: data.message || this.i18n.applicationFee.paid,
                         };
+                        this.celebratePayment(
+                            this.i18n.applicationFee?.celebrate_title || 'Fee paid — continue',
+                            data.message || this.i18n.applicationFee.paid
+                        );
                         this.feePaying = false;
                         try {
                             await this.next();
@@ -780,6 +784,53 @@ export function applyWizard(config) {
                         };
                     } finally {
                         this.feePaying = false;
+                    }
+                },
+
+                celebratePayment(title, message) {
+                    try {
+                        window.dispatchEvent(new CustomEvent('open-feedback-default', {
+                            detail: {
+                                tone: 'success',
+                                title: title || 'Congratulations',
+                                message: message || '',
+                            },
+                        }));
+                    } catch (e) {}
+                    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+                    const colors = ['#f5c842', '#10b981', '#004d40', '#0d9488', '#fbbf24', '#34d399', '#ffffff'];
+                    const originX = window.innerWidth / 2;
+                    const originY = Math.min(220, window.innerHeight * 0.28);
+                    for (let i = 0; i < 120; i++) {
+                        const piece = document.createElement('div');
+                        const angle = Math.random() * Math.PI * 2;
+                        const velocity = 8 + Math.random() * 18;
+                        const driftX = Math.cos(angle) * velocity * (14 + Math.random() * 18);
+                        const driftY = Math.sin(angle) * velocity * (6 + Math.random() * 10) - (40 + Math.random() * 80);
+                        const delay = Math.random() * 280;
+                        const duration = 2200 + Math.random() * 1400;
+                        const size = 5 + Math.random() * 7;
+                        const isRound = Math.random() > 0.55;
+                        piece.style.cssText = [
+                            'position:fixed',
+                            `top:${originY}px`,
+                            `left:${originX}px`,
+                            `width:${size}px`,
+                            `height:${isRound ? size : size * (1.2 + Math.random())}px`,
+                            `background:${colors[i % colors.length]}`,
+                            'opacity:1',
+                            'z-index:9999',
+                            `border-radius:${isRound ? '999px' : '2px'}`,
+                            'pointer-events:none',
+                            `transform:translate(-50%,-50%) rotate(${Math.random() * 360}deg)`,
+                            `transition:transform ${duration}ms cubic-bezier(0.15,0.75,0.25,1), opacity ${duration}ms ease-out`,
+                        ].join(';');
+                        document.body.appendChild(piece);
+                        setTimeout(() => {
+                            piece.style.transform = `translate(calc(-50% + ${driftX}px), calc(-50% + ${driftY + window.innerHeight * 0.55}px)) rotate(${Math.random() * 720}deg)`;
+                            piece.style.opacity = '0';
+                        }, delay);
+                        setTimeout(() => piece.remove(), delay + duration + 80);
                     }
                 },
 

@@ -11,14 +11,24 @@
         } elseif (! empty($eligibility) && ! ($eligibility['has_data'] ?? false)) {
             $hero['eligibility_hint'] = __('borrower.dashboard.eligibility_no_data_hint');
         }
-        // Clean home card: no "application in progress / continue / start another"
+        // Clean home card for active members; unpaid members still need clear guidance.
         if (in_array($hero['variant'] ?? '', ['applications', 'no_loan'], true)) {
-            $hero['title'] = null;
-            $hero['subtitle'] = null;
-            $hero['secondary_cta_label'] = null;
-            $hero['secondary_cta_url'] = null;
-            if (($hero['variant'] ?? '') === 'applications') {
-                $hero['cta_label'] = __('borrower.dashboard.hero.view_application');
+            $needsMembership = ! ($customer->isMembershipActive() || $customer->isMembershipInGrace());
+            if ($needsMembership && ($hero['variant'] ?? '') === 'no_loan') {
+                $hero['title'] = __('borrower.membership.banner_title');
+                $hero['subtitle'] = __('borrower.membership.banner_body');
+                $hero['cta_label'] = __('borrower.membership.banner_cta');
+                $hero['cta_url'] = route('site.membership.renew');
+                $hero['secondary_cta_label'] = __('borrower.dashboard.hero.apply_now');
+                $hero['secondary_cta_url'] = route('site.borrower.loan-products');
+            } else {
+                $hero['title'] = null;
+                $hero['subtitle'] = null;
+                $hero['secondary_cta_label'] = null;
+                $hero['secondary_cta_url'] = null;
+                if (($hero['variant'] ?? '') === 'applications') {
+                    $hero['cta_label'] = __('borrower.dashboard.hero.view_application');
+                }
             }
         }
     @endphp

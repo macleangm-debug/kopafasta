@@ -1758,51 +1758,71 @@ class BorrowerController extends Controller
         }
 
         if ($section === 'residence') {
-            $data = $request->validate([
-                'region'   => ['required', 'string', 'max:100'],
-                'district' => ['required', 'string', 'max:100'],
-                'ward'     => ['nullable', 'string', 'max:100'],
-                'street'   => ['required', 'string', 'max:255'],
-                'lga_officer_name' => ['required', 'string', 'max:150'],
-                'lga_officer_position' => ['required', 'string', 'max:120'],
-                'lga_officer_phone' => ['required', 'string', 'max:30'],
-                'residence_letter' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-                'residence_letter_pages' => ['nullable', 'array'],
-                'residence_letter_pages.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            ]);
-            $customer->fill([
-                'region'   => $data['region'],
-                'district' => $data['district'],
-                'ward'     => $data['ward'] ?? null,
-                'street'   => $data['street'],
-                'lga_officer_name' => $data['lga_officer_name'],
-                'lga_officer_position' => $data['lga_officer_position'],
-                'lga_officer_phone' => preg_replace('/\D+/', '', (string) $data['lga_officer_phone']) ?: $data['lga_officer_phone'],
-                'address'  => trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', ')),
-            ])->save();
+            $focus = (string) $request->input('focus', 'address');
+            $isVerification = $focus === 'verification';
 
-            $pageFiles = array_values(array_filter($request->file('residence_letter_pages', []) ?? []));
-            $this->persistProfileDocumentUpload(
-                $customer,
-                'residence_letter',
-                $request->file('residence_letter'),
-                $pageFiles,
-            );
+            if ($isVerification) {
+                $data = $request->validate([
+                    'region'   => ['required', 'string', 'max:100'],
+                    'district' => ['required', 'string', 'max:100'],
+                    'ward'     => ['nullable', 'string', 'max:100'],
+                    'street'   => ['required', 'string', 'max:255'],
+                    'lga_officer_name' => ['required', 'string', 'max:150'],
+                    'lga_officer_position' => ['required', 'string', 'max:120'],
+                    'lga_officer_phone' => ['required', 'string', 'max:30'],
+                    'residence_letter' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                    'residence_letter_pages' => ['nullable', 'array'],
+                    'residence_letter_pages.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                ]);
+                $customer->fill([
+                    'region'   => $data['region'],
+                    'district' => $data['district'],
+                    'ward'     => $data['ward'] ?? null,
+                    'street'   => $data['street'],
+                    'lga_officer_name' => $data['lga_officer_name'],
+                    'lga_officer_position' => $data['lga_officer_position'],
+                    'lga_officer_phone' => preg_replace('/\D+/', '', (string) $data['lga_officer_phone']) ?: $data['lga_officer_phone'],
+                    'address'  => trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', ')),
+                ])->save();
 
-            $residenceParams = array_filter([
-                'section' => 'residence',
-                'wizard'  => $request->boolean('wizard') ? 1 : null,
-            ]);
+                $pageFiles = array_values(array_filter($request->file('residence_letter_pages', []) ?? []));
+                $this->persistProfileDocumentUpload(
+                    $customer,
+                    'residence_letter',
+                    $request->file('residence_letter'),
+                    $pageFiles,
+                );
 
-            if ($validation->requiresResidenceLetter() && ! $validation->hasResidenceLetter($customer->fresh())) {
-                return redirect()
-                    ->route('site.borrower.profile', $residenceParams)
-                    ->with('status', __('borrower.profile.residence_address_saved'))
-                    ->withErrors(['residence_letter' => __('borrower.profile.residence_letter_required')])
-                    ->withInput();
+                $residenceParams = array_filter([
+                    'section' => 'residence',
+                    'focus'   => 'verification',
+                    'wizard'  => $request->boolean('wizard') ? 1 : null,
+                ]);
+
+                if ($validation->requiresResidenceLetter() && ! $validation->hasResidenceLetter($customer->fresh())) {
+                    return redirect()
+                        ->route('site.borrower.profile', $residenceParams)
+                        ->with('status', __('borrower.profile.residence_address_saved'))
+                        ->withErrors(['residence_letter' => __('borrower.profile.residence_letter_required')])
+                        ->withInput();
+                }
+
+                app(KycFreshnessService::class)->markSectionConfirmed($customer->fresh(), 'residence');
+            } else {
+                $data = $request->validate([
+                    'region'   => ['required', 'string', 'max:100'],
+                    'district' => ['required', 'string', 'max:100'],
+                    'ward'     => ['nullable', 'string', 'max:100'],
+                    'street'   => ['required', 'string', 'max:255'],
+                ]);
+                $customer->fill([
+                    'region'   => $data['region'],
+                    'district' => $data['district'],
+                    'ward'     => $data['ward'] ?? null,
+                    'street'   => $data['street'],
+                    'address'  => trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', ')),
+                ])->save();
             }
-
-            app(KycFreshnessService::class)->markSectionConfirmed($customer->fresh(), 'residence');
         }
 
         if ($section === 'kyc') {
@@ -1888,9 +1908,12 @@ class BorrowerController extends Controller
                         'personal' => 'personal',
                         default => $section,
                     },
-                    'focus' => $section === 'kyc'
-                        ? ((string) $request->input('focus') ?: 'income')
-                        : null,
+                    'focus' => match ($section) {
+                        'kyc' => ((string) $request->input('focus') ?: 'income'),
+                        'residence' => ((string) $request->input('focus') ?: null),
+                        'personal' => ((string) $request->input('focus') ?: null),
+                        default => null,
+                    },
                 ]))
                 ->with('status', __('borrower.profile.save_confirm_title'));
 
@@ -1904,6 +1927,10 @@ class BorrowerController extends Controller
                 'kyc' => match ((string) $request->input('focus')) {
                     'additional' => 'profile-additional-documents',
                     default      => 'profile-income-statement',
+                },
+                'residence' => match ((string) $request->input('focus')) {
+                    'verification' => 'profile-residence-verification',
+                    default        => 'profile-residence-address',
                 },
                 default => null,
             };
@@ -2776,7 +2803,8 @@ class BorrowerController extends Controller
                 ->route('site.borrower.application.disbursement-details', $application)
                 ->with('status', payment_gateway_is_dummy()
                     ? __('borrower.post_approval_fees.paid_dummy')
-                    : __('borrower.post_approval_fees.paid_mobile'));
+                    : __('borrower.post_approval_fees.paid_mobile'))
+                ->with(\App\Support\Celebration::SESSION_KEY, ['post_approval_fee']);
         }
 
         $result = $paymentService->processBankPending(
@@ -2808,7 +2836,8 @@ class BorrowerController extends Controller
             ->route('site.borrower.payments.show', $payment)
             ->with('status', payment_gateway_is_dummy()
                 ? __('borrower.post_approval_fees.paid_dummy')
-                : __('borrower.post_approval_fees.bank_submitted'));
+                : __('borrower.post_approval_fees.bank_submitted'))
+            ->with(\App\Support\Celebration::SESSION_KEY, ['post_approval_fee']);
     }
 
     public function updatePin(Request $request, PinService $pins): RedirectResponse

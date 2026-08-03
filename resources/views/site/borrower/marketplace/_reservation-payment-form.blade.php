@@ -31,10 +31,12 @@
         @endif
     </div>
 
-    <div class="rounded-xl bg-white ring-1 ring-gray-200 px-4 py-3 text-sm">
-        <label class="block text-xs font-semibold text-gray-600 mb-1">{{ __('borrower.marketplace.promo_code_label') }}</label>
-        <input type="text" name="promo_code" value="{{ old('promo_code') }}" maxlength="40" class="w-full rounded-lg border-gray-300 text-sm font-mono uppercase" placeholder="{{ __('borrower.marketplace.promo_code_placeholder') }}">
-    </div>
+    <x-site.promo-code-toggle
+        name="promo_code"
+        :value="old('promo_code')"
+        :quote="$feeQuote"
+        :inline="true"
+    />
 
     @if (($feeQuote['wallet_allowed'] ?? false) && ($referralWallet->balance ?? 0) > 0)
         <label class="flex items-start gap-3 rounded-xl bg-indigo-50 ring-1 ring-indigo-200 px-4 py-3 text-sm cursor-pointer">

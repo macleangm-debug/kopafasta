@@ -74,10 +74,12 @@
                     <p class="mt-2 text-xs text-white/90">{{ __('borrower.membership.payment_reference') }}: <span class="font-mono">{{ $paymentReference }}</span></p>
                 </div>
 
-                <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3 text-sm">
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">{{ __('borrower.post_approval_fees.promo_code_label') }}</label>
-                    <input type="text" name="promo_code" value="{{ old('promo_code') }}" maxlength="40" class="w-full rounded-lg border-gray-300 text-sm font-mono uppercase" placeholder="{{ __('borrower.post_approval_fees.promo_code_placeholder') }}">
-                </div>
+                <x-site.promo-code-toggle
+                    name="promo_code"
+                    :value="old('promo_code')"
+                    :quote="$feeQuote"
+                    :inline="true"
+                />
 
                 <div>
                     <p class="text-xs uppercase tracking-wider text-gray-500 mb-2">{{ __('borrower.membership.payment_method') }}</p>

@@ -193,6 +193,7 @@
                           'failed' => __('borrower.apply.application_fee.failed'),
                           'paid' => __('borrower.apply.application_fee.paid'),
                           'requiredBeforeContinue' => __('borrower.apply.application_fee.required_before_continue'),
+                          'celebrate_title' => __('borrower.celebration.application_fee_title'),
                       ],
                       'group' => [
                           'lookupNotFound' => __('borrower.apply.group.lookup_not_found'),
