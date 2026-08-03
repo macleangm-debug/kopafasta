@@ -87,7 +87,8 @@ class LoanApplicationWorkflowService
         $stage = $application->current_stage ?? 'submitted';
 
         return collect(self::ACTIONS)
-            ->filter(fn (array $action, string $key) => $key !== 'complete_screening')
+            // Document gaps are requested from the Documents tab (same as committee), not a separate workflow CTA.
+            ->filter(fn (array $action, string $key) => ! in_array($key, ['complete_screening', 'return_for_documents'], true))
             ->filter(fn (array $action) => in_array($stage, $action['from'], true))
             ->filter(fn (array $action, string $key) => $this->permissions->has($user, $action['permission']))
             ->filter(fn (array $action, string $key) => ! (

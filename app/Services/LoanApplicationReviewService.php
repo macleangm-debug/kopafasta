@@ -164,6 +164,8 @@ class LoanApplicationReviewService
                 'remarks'     => $application->committee_recommendation,
                 'rationale'   => data_get($application->screening_payload, 'recommendation_meta.rationale'),
                 'rationale_label' => data_get($application->screening_payload, 'recommendation_meta.rationale_label'),
+                'decision_reason' => data_get($application->screening_payload, 'recommendation_meta.decision_reason'),
+                'additional_notes' => data_get($application->screening_payload, 'recommendation_meta.additional_notes'),
                 'differs_from_crb' => (bool) data_get($application->screening_payload, 'recommendation_meta.differs_from_crb'),
                 'crb_at_recommend' => data_get($application->screening_payload, 'recommendation_meta.crb_recommendation'),
                 'recommended_by' => $application->recommendedByUser,

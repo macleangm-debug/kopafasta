@@ -95,8 +95,13 @@
                     @if (! empty($rec['rationale_label']))
                         <p class="text-xs font-semibold text-brand/80 mt-2">{{ $rec['rationale_label'] }}</p>
                     @endif
-                    @if (! empty($rec['remarks']))
-                        <p class="text-brand/80 mt-1">{{ $rec['remarks'] }}</p>
+                    @if (! empty($rec['decision_reason']) || ! empty($rec['remarks']))
+                        <p class="text-brand/80 mt-1">{{ $rec['decision_reason'] ?? $rec['remarks'] }}</p>
+                    @endif
+                    @if (! empty($rec['additional_notes']))
+                        <p class="text-xs text-brand/70 mt-1">Notes: {{ $rec['additional_notes'] }}</p>
+                    @elseif (! empty($rec['remarks']) && ! empty($rec['decision_reason']) && $rec['remarks'] !== $rec['decision_reason'])
+                        <p class="text-xs text-brand/70 mt-1">{{ $rec['remarks'] }}</p>
                     @endif
                     @if (! empty($rec['recommended_by']))
                         <p class="text-xs text-brand/70 mt-2">
@@ -111,9 +116,9 @@
                 @php $autoReject = app(\App\Services\UnderwritingSettingsService::class)->automaticRejectionEnabled(); @endphp
                 <p class="text-sm text-red-700 bg-red-50 ring-1 ring-red-100 rounded-lg px-4 py-3 mb-3">
                     @if ($autoReject)
-                        Affordability failed at requested amount — reject the application or return for documents.
+                        Affordability failed at requested amount — reject the application or request documents on the Documents tab.
                     @else
-                        Affordability failed — use <span class="font-semibold">Push recommendation to committee</span> for a counter-offer, or return for documents.
+                        Affordability failed — use <span class="font-semibold">Record decision</span> for a counter-offer, or request documents on the Documents tab.
                     @endif
                 </p>
             @elseif ($isCreditStage)
@@ -138,7 +143,7 @@
                     <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
                         <div>
                             <p class="text-xs font-semibold uppercase tracking-widest text-brand">Your decision</p>
-                            <p class="text-xs text-gray-500 mt-0.5">Approve or counter pushes to committee. Reject closes the file. Return for documents stays available.</p>
+                            <p class="text-xs text-gray-500 mt-0.5">Approve or counter pushes to committee. Reject closes the file. Need files? Request them on the Documents tab.</p>
                         </div>
                         <a href="{{ route('admin.teams.screening') }}"
                            class="text-xs font-semibold text-brand hover:underline">
@@ -170,7 +175,7 @@
                 <p class="text-[10px] uppercase tracking-widest font-semibold text-brand">Step 2 · Credit committee</p>
                 <h3 class="text-base font-bold text-gray-900 mt-0.5">Record the committee decision</h3>
                 <p class="text-xs text-gray-500 mt-0.5">
-                    Compare CRB vs screening above, then issue an offer, final-approve, reject, or return for documents.
+                    Compare CRB vs screening above, then issue an offer, final-approve, or reject. Request any missing files on the Documents tab.
                 </p>
             </div>
             <div class="flex flex-wrap items-center gap-2">

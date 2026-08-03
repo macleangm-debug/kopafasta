@@ -96,9 +96,13 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('Record the screening recommendation', $screening);
         $this->assertStringContainsString('Your decision', $screening);
         $this->assertStringContainsString('Record decision', $screening);
-        $this->assertStringContainsString('Screening decision', $screening);
-        $this->assertStringContainsString('data-open-dialog="recommend-'.$app->id.'"', $screening);
-        $this->assertStringContainsString('Screening queue', $screening);
+        $this->assertStringContainsString('Record your decision', $screening);
+        $this->assertStringContainsString('Why are you approving this application?', $screening);
+        $this->assertStringContainsString('Push to Committee', $screening);
+        $this->assertStringNotContainsString('Preferred reject reason', $screening);
+        $this->assertStringNotContainsString('Return for documents', $screening);
+        $this->assertStringContainsString('Advice for borrower', $screening);
+        $this->assertStringContainsString('Notes and advice', $screening);
         $this->assertStringNotContainsString('Complete screening', $screening);
         $this->assertStringContainsString('Other institutions', $screening);
         $this->assertStringContainsString('Affordability', $screening);
@@ -125,8 +129,8 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->assertOk()
             ->getContent();
         $this->assertStringContainsString('Uploaded documents', $documents);
-        $this->assertStringContainsString('Request document', $documents);
-        $this->assertStringContainsString('Request a document', $documents);
+        $this->assertStringContainsString('Request documents', $documents);
+        $this->assertStringNotContainsString('Return for documents', $documents);
 
         $this->assertStringContainsString('person=borrower', $screening);
         $this->assertStringContainsString('Open guarantor file', $screening);

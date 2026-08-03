@@ -356,6 +356,7 @@ class LoanApplicationController extends ResourceController
             'screening_rejection_reason_code' => ['nullable', 'string', 'max:80'],
             'recommendation_type'      => ['nullable', 'in:approve,counter,asset_alternative'],
             'recommendation_rationale' => ['nullable', 'string', 'max:80'],
+            'recommendation_notes'     => ['nullable', 'string', 'max:1000'],
             'committee_rationale'      => ['nullable', 'string', 'max:80'],
             'recommended_amount'       => ['nullable', 'numeric', 'min:0'],
             'offered_amount'           => ['nullable', 'numeric', 'min:0'],
@@ -394,12 +395,8 @@ class LoanApplicationController extends ResourceController
             return back()->withErrors(['recommendation_type' => 'Select a decision: approve, counter-offer, or use Reject.'])->withInput();
         }
 
-        if ($data['action'] === 'submit_recommendation' && empty($data['recommendation_rationale'])) {
-            return back()->withErrors(['recommendation_rationale' => 'Select why you are making this decision.'])->withInput();
-        }
-
         if ($data['action'] === 'submit_recommendation' && empty(trim((string) ($data['remarks'] ?? '')))) {
-            return back()->withErrors(['remarks' => 'Add notes for the committee explaining your decision.'])->withInput();
+            return back()->withErrors(['remarks' => 'Answer why you are making this decision.'])->withInput();
         }
 
         if ($data['action'] === 'issue_offer' && empty($data['offered_amount'])) {
@@ -462,6 +459,7 @@ class LoanApplicationController extends ResourceController
                     null,
                     $data['recommendation_rationale'] ?? null,
                     $data['screening_rejection_reason_code'] ?? null,
+                    $data['recommendation_notes'] ?? null,
                 );
                 $loan_application->refresh();
             }

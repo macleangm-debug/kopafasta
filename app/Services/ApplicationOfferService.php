@@ -63,34 +63,40 @@ class ApplicationOfferService
         ?int $alternativeProductId = null,
         ?string $rationale = null,
         ?string $preferredRejectionReasonCode = null,
+        ?string $additionalNotes = null,
     ): LoanApplication {
         if (! in_array($type, [self::RECOMMEND_APPROVE, self::RECOMMEND_COUNTER, self::RECOMMEND_ASSET], true)) {
             throw ValidationException::withMessages(['recommendation_type' => 'Invalid recommendation type.']);
         }
 
-        $rationale = $rationale ?: null;
-        $rationaleLabels = config('credit_recommendation.rationales', []);
-        if ($rationale !== null && ! array_key_exists($rationale, $rationaleLabels)) {
-            throw ValidationException::withMessages(['recommendation_rationale' => 'Select a valid recommendation reason.']);
-        }
-
         $remarks = trim((string) $remarks);
         if ($remarks === '') {
-            throw ValidationException::withMessages(['remarks' => 'Add notes explaining your recommendation for the committee.']);
+            throw ValidationException::withMessages(['remarks' => 'Explain why you are making this decision.']);
         }
 
-        if ($rationale === 'other' && strlen($remarks) < 12) {
-            throw ValidationException::withMessages(['remarks' => 'When choosing Other, explain your reasoning in the notes.']);
-        }
+        $additionalNotes = trim((string) $additionalNotes) ?: null;
 
         $application->loadMissing(['customer', 'product']);
         $crb = app(CrbCreditCheckService::class)->summaryForCustomer($application->customer, $application);
         $crbRec = strtolower((string) ($crb['recommendation'] ?? ''));
 
+        $rationaleLabels = config('credit_recommendation.rationales', []);
+        // Prefer an explicit rationale; otherwise derive align/differ from CRB automatically.
+        if ($rationale === null || $rationale === '' || ! array_key_exists($rationale, $rationaleLabels)) {
+            $differs = $this->recommendationDiffersFromCrb($type, $crbRec, null);
+            $rationale = match (true) {
+                $type === self::RECOMMEND_COUNTER => 'counter_capacity',
+                $differs => 'differs_risk',
+                default => 'aligns_with_crb',
+            };
+        }
+
         $screeningPayload = is_array($application->screening_payload) ? $application->screening_payload : [];
         $screeningPayload['recommendation_meta'] = [
             'rationale' => $rationale,
-            'rationale_label' => $rationale ? ($rationaleLabels[$rationale] ?? $rationale) : null,
+            'rationale_label' => $rationaleLabels[$rationale] ?? $rationale,
+            'decision_reason' => $remarks,
+            'additional_notes' => $additionalNotes,
             'crb_recommendation' => $crbRec !== '' ? $crbRec : null,
             'differs_from_crb' => $this->recommendationDiffersFromCrb($type, $crbRec, $rationale),
             'preferred_rejection_reason_code' => $preferredRejectionReasonCode,
@@ -101,6 +107,10 @@ class ApplicationOfferService
             && app(LoanRejectionReasonService::class)->isValidCode($preferredRejectionReasonCode)
             ? $preferredRejectionReasonCode
             : null;
+
+        $committeeNotes = $additionalNotes
+            ? $remarks."\n\nNotes: ".$additionalNotes
+            : $remarks;
 
         if ($type === self::RECOMMEND_ASSET) {
             if (! app(UnderwritingSettingsService::class)->assetBackedAlternativeEnabled()) {
@@ -119,7 +129,7 @@ class ApplicationOfferService
                 'recommendation_type'         => self::RECOMMEND_ASSET,
                 'alternative_loan_product_id' => $product->id,
                 'offer_status'                => 'pending_asset_conversion',
-                'committee_recommendation'    => $remarks,
+                'committee_recommendation'    => $committeeNotes,
                 'recommended_by'              => $user->id,
                 'recommended_at'              => now(),
                 'screening_payload'           => $screeningPayload,
@@ -175,7 +185,7 @@ class ApplicationOfferService
         $application->update([
             'recommendation_type'      => $type,
             'recommended_amount'       => $recommendedAmount,
-            'committee_recommendation' => $remarks,
+            'committee_recommendation' => $committeeNotes,
             'recommended_by'           => $user->id,
             'recommended_at'           => now(),
             'offer_status'             => null,

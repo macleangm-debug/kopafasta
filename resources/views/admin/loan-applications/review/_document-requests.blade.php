@@ -4,10 +4,13 @@
     $assetPresets = $docService::ASSET_BACKED_PRESET_LABELS;
     $collateralPresets = $docService::COLLATERAL_PRESET_LABELS;
     $identityPresets = ['Updated National ID', 'New National ID photo', 'New face verification photo', 'Identity verification photo', 'Image Not Clear'];
-    $generalPresets = array_values(array_diff($presets, $assetPresets, $collateralPresets, $identityPresets));
     $record->loadMissing('product');
     $isAssetProduct = app(\App\Services\AssetBackedLoanService::class)->isAssetBackedApplication($record)
         || app(\App\Services\AssetLendingService::class)->isAssetLendingApplication($record);
+    // Keep every PRESET_LABELS option available (former workflow return-for-docs list).
+    $generalPresets = $isAssetProduct
+        ? array_values(array_diff($presets, $assetPresets, $collateralPresets, $identityPresets))
+        : array_values(array_diff($presets, $collateralPresets, $identityPresets));
     $documentRequests = collect($documentRequests ?? []);
     $canRequestDocs = auth()->user()?->hasPermission('applications.request_documents');
 
@@ -202,13 +205,13 @@
         <div class="px-5 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3">
             <div>
                 <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Need more?</p>
-                <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Request a document</h2>
-                <p class="text-xs text-gray-500 mt-0.5">Send a loan upload request, or ask for a profile update (ID / face / collateral).</p>
+                <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Request documents</h2>
+                <p class="text-xs text-gray-500 mt-0.5">Same for screening and committee — borrower is notified and the file moves to pending documents.</p>
             </div>
             <button type="button"
                     @click="open = !open"
                     class="inline-flex items-center gap-2 text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl shadow-sm ring-1 ring-brand/15">
-                <span x-text="open ? 'Hide form' : 'Request document'"></span>
+                <span x-text="open ? 'Hide form' : 'Request documents'"></span>
                 <svg class="size-4 transition" :class="open && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M5 8l5 5 5-5z"/></svg>
             </button>
         </div>

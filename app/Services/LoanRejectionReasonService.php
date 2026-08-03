@@ -13,7 +13,11 @@ class LoanRejectionReasonService
             ['code' => 'identity_verification_failed', 'label' => 'Identity Verification Failed', 'category' => 'Identity & KYC'],
             ['code' => 'national_id_mismatch', 'label' => 'National ID Mismatch', 'category' => 'Identity & KYC'],
             ['code' => 'incomplete_kyc', 'label' => 'Incomplete KYC', 'category' => 'Identity & KYC'],
+            ['code' => 'face_verification_failed', 'label' => 'Face Verification Failed', 'category' => 'Identity & KYC'],
             ['code' => 'fraud_suspected', 'label' => 'Fraud Suspected', 'category' => 'Identity & KYC'],
+            ['code' => 'residence_cannot_be_verified', 'label' => 'Residence Could Not Be Verified', 'category' => 'Residence'],
+            ['code' => 'residence_letter_missing', 'label' => 'Residence Letter Missing or Invalid', 'category' => 'Residence'],
+            ['code' => 'address_mismatch', 'label' => 'Address Details Do Not Match', 'category' => 'Residence'],
             ['code' => 'poor_crb_history', 'label' => 'Poor CRB History', 'category' => 'Credit'],
             ['code' => 'excessive_existing_debt', 'label' => 'Excessive Existing Debt', 'category' => 'Credit'],
             ['code' => 'active_loan_delinquency', 'label' => 'Active Loan Delinquency', 'category' => 'Credit'],
@@ -27,6 +31,9 @@ class LoanRejectionReasonService
             ['code' => 'employment_not_verified', 'label' => 'Employment Could Not Be Verified', 'category' => 'Employment / Business'],
             ['code' => 'business_not_verified', 'label' => 'Business Activity Could Not Be Verified', 'category' => 'Employment / Business'],
             ['code' => 'business_too_new', 'label' => 'Business Too New', 'category' => 'Employment / Business'],
+            ['code' => 'guarantor_not_acceptable', 'label' => 'Guarantor Not Acceptable', 'category' => 'Guarantor'],
+            ['code' => 'guarantor_profile_incomplete', 'label' => 'Guarantor Profile Incomplete', 'category' => 'Guarantor'],
+            ['code' => 'collateral_insufficient', 'label' => 'Collateral Insufficient or Unverified', 'category' => 'Collateral'],
             ['code' => 'product_eligibility_not_met', 'label' => 'Product Eligibility Not Met', 'category' => 'Internal Policy'],
             ['code' => 'internal_credit_policy_declined', 'label' => 'Internal Credit Policy Declined', 'category' => 'Internal Policy'],
         ];
@@ -35,26 +42,37 @@ class LoanRejectionReasonService
     /** @return list<array{code: string, label: string, category: string}> */
     public function all(): array
     {
+        $defaults = collect($this->defaults())->keyBy('code');
         $configured = Setting::get('rejection.reasons');
 
+        $rows = $defaults;
         if (is_array($configured) && $configured !== []) {
-            return collect($configured)
-                ->filter(fn ($row) => filled($row['code'] ?? null) && filled($row['label'] ?? null))
-                ->map(fn (array $row) => [
-                    'code' => $row['code'],
-                    'label' => $this->labelForCode($row['code']) ?: $row['label'],
-                    'category' => $this->categoryLabel($row['category'] ?? 'Internal Policy'),
-                ])
-                ->values()
-                ->all();
+            foreach ($configured as $row) {
+                if (! filled($row['code'] ?? null)) {
+                    continue;
+                }
+                $code = (string) $row['code'];
+                $rows[$code] = [
+                    'code' => $code,
+                    'label' => $row['label'] ?? ($defaults[$code]['label'] ?? $code),
+                    'category' => $row['category'] ?? ($defaults[$code]['category'] ?? 'Internal Policy'),
+                ];
+            }
+            // Keep any new default codes that older settings lists omitted
+            foreach ($defaults as $code => $default) {
+                if (! $rows->has($code)) {
+                    $rows[$code] = $default;
+                }
+            }
         }
 
-        return collect($this->defaults())
+        return $rows
             ->map(fn (array $row) => [
                 'code' => $row['code'],
                 'label' => $this->labelForCode($row['code']) ?: $row['label'],
-                'category' => $this->categoryLabel($row['category']),
+                'category' => $this->categoryLabel($row['category'] ?? 'Internal Policy'),
             ])
+            ->values()
             ->all();
     }
 
