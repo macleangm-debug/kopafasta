@@ -317,6 +317,11 @@ class BorrowerController extends Controller
             'rejection_reason' => $application->rejection_reason ?: 'Withdrawn by borrower',
         ]);
 
+        // Close outstanding UW requests so withdrawn apps never keep "action required" CTAs.
+        $application->documentRequests()
+            ->whereIn('status', ['pending', 'rejected', 'uploaded'])
+            ->update(['status' => 'satisfied']);
+
         $this->auditBorrower('loan_application.withdrawn', $application, [
             'application_number' => $application->application_number,
         ]);

@@ -55,7 +55,13 @@ class BorrowerApplicationsDashboardService
         }
 
         return collect($items)
-            ->sortByDesc(fn (array $row) => $row['sort_at'])
+            ->sortBy([
+                // Active drafts/apps first; withdrawn/rejected/offer-declined last.
+                fn (array $row) => ! empty($row['is_closed']) || in_array((string) ($row['status'] ?? ''), [
+                    'withdrawn', 'offer_declined', 'rejected',
+                ], true) ? 1 : 0,
+                fn (array $row) => -1 * (int) ($row['sort_at'] ?? 0),
+            ])
             ->values()
             ->all();
     }
@@ -93,6 +99,7 @@ class BorrowerApplicationsDashboardService
             'status'             => 'draft',
             'status_label'       => $this->borrowerStatus->forDraft($draft)['label'],
             'status_tone'        => 'gray',
+            'is_closed'          => false,
             'profile_percent'    => $profileProgress['percent'],
             'profile_complete'   => $profileProgress['percent'] >= 100,
             'application_percent'=> $applicationProgress['percent'],
@@ -136,7 +143,11 @@ class BorrowerApplicationsDashboardService
         $needsDocuments = $underwritingActions !== []
             || in_array($statusCode, ['documents_requested', 'documents_resubmitted'], true);
         $isRejected = $statusCode === 'rejected';
-        $firstUw = $underwritingActions[0] ?? null;
+        $isClosed = in_array($statusCode, ['withdrawn', 'offer_declined'], true);
+        $firstUw = $isClosed ? null : ($underwritingActions[0] ?? null);
+        if ($isClosed) {
+            $underwritingActions = [];
+        }
 
         return [
             'is_draft'           => false,
@@ -149,12 +160,13 @@ class BorrowerApplicationsDashboardService
             'status'             => $statusCode,
             'status_label'       => $borrowerStatus['label'],
             'status_tone'        => $borrowerStatus['tone'],
+            'is_closed'          => $isClosed || $isRejected,
             'profile_percent'    => $profileProgress['percent'],
             'profile_complete'   => $profileProgress['percent'] >= 100,
             'application_percent'=> $pipelineProgress['percent'],
             'application_status' => $borrowerStatus['label'],
             'progress_percent'   => $pipelineProgress['percent'],
-            'progress_steps'     => $pipelineProgress['steps'],
+            'progress_steps'     => $isClosed || $isRejected ? [] : $pipelineProgress['steps'],
             'created_at'         => $application->created_at,
             'updated_at'         => $application->updated_at,
             'last_updated_human' => optional($application->updated_at)->diffForHumans(),
@@ -162,6 +174,7 @@ class BorrowerApplicationsDashboardService
             'detail'             => $this->borrowerStatus->borrowerDetail($application),
             'underwriting_actions' => $underwritingActions,
             'underwriting_active'  => ! $isRejected
+                && ! $isClosed
                 && $firstUw === null
                 && ! $needsDocuments
                 && ! in_array($statusCode, [
@@ -169,16 +182,18 @@ class BorrowerApplicationsDashboardService
                 ], true),
             'action_url'         => match (true) {
                 $isRejected => route('site.borrower.application', $application->id).'#rejection',
+                $isClosed => route('site.borrower.application', $application->id),
                 $firstUw !== null => $firstUw['url'],
                 default => route('site.borrower.application', $application->id),
             },
             'action_label'       => match (true) {
                 $isRejected => __('borrower.loan_profile.actions.view_reason'),
+                $isClosed => __('borrower.applications_list.view'),
                 $firstUw !== null => $firstUw['cta_label'],
                 $needsDocuments => __('borrower.loan_profile.actions.upload_documents'),
                 default => __('borrower.applications_list.view'),
             },
-            'receipt_url'        => route('site.apply.success', $application->id),
+            'receipt_url'        => $isClosed ? null : route('site.apply.success', $application->id),
         ];
     }
 

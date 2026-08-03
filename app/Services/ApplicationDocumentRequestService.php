@@ -191,6 +191,10 @@ class ApplicationDocumentRequestService
      */
     public function openGuidedActionsForApplication(LoanApplication $application): array
     {
+        if (in_array((string) $application->status, ['withdrawn', 'rejected', 'disbursed'], true)) {
+            return [];
+        }
+
         $application->loadMissing('documentRequests');
 
         return $application->documentRequests

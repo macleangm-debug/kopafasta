@@ -147,28 +147,33 @@
             @endif
         </div>
 
-            @unless ($profileComplete)
-            <div class="px-5 sm:px-6 py-4 border-t border-brand/10 bg-gradient-to-r from-brand-muted/40 to-white">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div>
-                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loan_profile.profile_completion') }}</p>
-                        <p class="text-sm text-gray-700 mt-1">
-                            <span class="tabular-nums font-bold text-gray-900">{{ $profilePercent }}%</span>
-                            — {{ __('borrower.loan_profile.profile_completion_hint_short') }}
-                        </p>
-                    </div>
-                    <a href="{{ route('site.borrower.profile') }}"
-                       class="inline-flex items-center justify-center font-bold px-5 py-2.5 rounded-xl text-sm shrink-0 bg-brand-gold hover:bg-yellow-400 text-brand">
-                        {{ __('borrower.loan_profile.complete_profile') }}
-                    </a>
-                </div>
-            </div>
-            @elseif (! empty($next['ready']))
+        @if (! empty($next['ready']) && $profileComplete)
             <div class="px-5 sm:px-6 py-4 bg-emerald-50/80 border-t border-emerald-100">
                 <p class="text-sm font-semibold text-emerald-800">{{ __('borrower.loan_profile.application_ready') }}</p>
             </div>
-            @endif
+        @endif
     </div>
+
+    @unless ($profileComplete)
+        <div class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15">
+            <div class="px-5 sm:px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div class="min-w-0 flex-1">
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loan_profile.profile_completion') }}</p>
+                    <div class="flex items-center gap-3 mt-3 max-w-md">
+                        <div class="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
+                            <div class="h-full rounded-full bg-brand" style="width: {{ $profilePercent }}%"></div>
+                        </div>
+                        <span class="text-sm font-bold tabular-nums text-gray-900">{{ $profilePercent }}%</span>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-2">{{ __('borrower.loan_profile.profile_completion_hint') }}</p>
+                </div>
+                <a href="{{ route('site.borrower.profile') }}"
+                   class="inline-flex items-center justify-center font-bold px-5 py-2.5 rounded-xl text-sm shrink-0 bg-brand-gold hover:bg-yellow-400 text-brand">
+                    {{ __('borrower.loan_profile.complete_profile') }}
+                </a>
+            </div>
+        </div>
+    @endunless
 @elseif (($status['code'] ?? '') === 'rejected')
     <div class="mb-6 rounded-2xl bg-gradient-to-br from-brand-muted/60 to-white ring-1 ring-brand/10 p-4 sm:p-5">
         <div id="rejection" class="rounded-xl bg-white ring-1 ring-red-100 px-4 py-4">
