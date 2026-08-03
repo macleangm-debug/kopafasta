@@ -83,18 +83,49 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             $this->assertStringContainsString('Risk score', $html);
             $this->assertStringContainsString('CRB suggestion', $html);
             $this->assertStringContainsString('Guarantor', $html);
-            $this->assertStringContainsString("tab = 'face'", $html);
-            $this->assertStringContainsString("tab = 'guarantor'", $html);
+            $this->assertStringContainsString('tab=face', $html);
+            $this->assertStringContainsString('tab=guarantor', $html);
         }
 
+        $app = $this->application($admin, 'screening');
         $screening = $this->actingAs($admin, 'admin')
-            ->get(route('admin.loan-applications.show', $this->application($admin, 'screening')))
+            ->get(route('admin.loan-applications.show', $app))
             ->assertOk()
             ->getContent();
         $this->assertStringContainsString('Screening workspace', $screening);
         $this->assertStringContainsString('Record your screening recommendation', $screening);
         $this->assertStringContainsString('Push recommendation to committee', $screening);
+        $this->assertStringContainsString('data-open-dialog="recommend-'.$app->id.'"', $screening);
         $this->assertStringNotContainsString('Record the committee decision', $screening);
+
+        $residence = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'tab' => 'residence']))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('Residence information', $residence);
+        $this->assertStringContainsString('aria-selected="true"', $residence);
+
+        $face = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'tab' => 'face']))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('Side-by-side comparison', $face);
+        $this->assertStringContainsString('Primary check', $face);
+        $this->assertStringContainsString('Front face not uploaded', $face);
+
+        $documents = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'tab' => 'documents']))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('Requested documents', $documents);
+        $this->assertStringContainsString('Product document checklist', $documents);
+        $this->assertStringContainsString('Request another document', $documents);
+
+        $guarantor = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'tab' => 'guarantor']))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('Guarantor review', $guarantor);
 
         $committee = $this->actingAs($admin, 'admin')
             ->get(route('admin.loan-applications.show', $this->application($admin, 'pre_approval')))

@@ -6,13 +6,16 @@
     $stage = $record->current_stage ?? 'submitted';
     $isCreditStage = in_array($stage, ['submitted', 'screening', 'credit_appraisal'], true);
     $isCommitteeStage = $stage === 'pre_approval';
-    // Screening desk: analyst panel only. Committee desk: decision panel only.
     $showAnalystPanel = $isCreditStage || (! $isCommitteeStage && ! empty($rec['type']));
     $showCommitteePanel = $isCommitteeStage;
     if ($isCommitteeStage) {
         $showAnalystPanel = false;
     }
-    $hasScreeningActions = $isCreditStage && ($availableActions ?? collect())->isNotEmpty();
+    $viewer = auth()->user();
+    $canReview = (bool) ($viewer?->hasPermission('applications.review'));
+    $screeningActions = collect($availableActions ?? []);
+    $canPushRecommendation = $isCreditStage && $canReview && empty($rec['type']);
+    $hasScreeningActions = $screeningActions->isNotEmpty() || $canPushRecommendation;
 @endphp
 
 <div id="review-recommendation" class="scroll-mt-24 mb-2 space-y-4">
@@ -68,11 +71,6 @@
                 @if (! empty($rec['remarks']))
                     <p class="text-brand/80 mt-1">{{ $rec['remarks'] }}</p>
                 @endif
-                @if (! empty($rec['differs_from_crb']))
-                    <p class="mt-2 text-xs font-semibold text-amber-800 bg-amber-50 ring-1 ring-amber-100 rounded-lg px-3 py-1.5 inline-flex">
-                        Flagged as differing from CRB
-                    </p>
-                @endif
                 @if (! empty($rec['recommended_by']))
                     <p class="text-xs text-brand/70 mt-2">
                         By {{ $rec['recommended_by']->name ?? 'Staff' }}
@@ -82,28 +80,39 @@
                     </p>
                 @endif
             </div>
-        @elseif ($affordFail && in_array($stage, ['screening', 'credit_appraisal'], true))
+        @elseif ($affordFail && $isCreditStage)
             @php $autoReject = app(\App\Services\UnderwritingSettingsService::class)->automaticRejectionEnabled(); @endphp
-            <p class="text-sm text-red-700 bg-red-50 ring-1 ring-red-100 rounded-lg px-4 py-3">
+            <p class="text-sm text-red-700 bg-red-50 ring-1 ring-red-100 rounded-lg px-4 py-3 mb-3">
                 @if ($autoReject)
                     Affordability failed at requested amount — reject the application or return for documents.
                 @else
-                    Affordability failed at requested amount — push a counter-offer recommendation to committee, or return for documents.
+                    Affordability failed — use <span class="font-semibold">Push recommendation to committee</span> for a counter-offer, or return for documents.
                 @endif
             </p>
         @else
-            <p class="text-sm text-gray-500">No credit recommendation recorded yet. Use <span class="font-semibold text-brand">Push recommendation to committee</span> below.</p>
+            <p class="text-sm text-gray-500 mb-3">No credit recommendation recorded yet.</p>
         @endif
 
         @if ($hasScreeningActions)
+            @php
+                $actionsForButtons = $screeningActions;
+                if ($canPushRecommendation && ! $actionsForButtons->contains(fn ($a) => ($a['key'] ?? '') === 'submit_recommendation')) {
+                    $actionsForButtons = $actionsForButtons->push([
+                        'key' => 'submit_recommendation',
+                        'label' => 'Push recommendation to committee',
+                        'to_stage' => 'pre_approval',
+                        'permission' => 'applications.review',
+                    ]);
+                }
+            @endphp
             <div class="mt-4 rounded-2xl bg-gradient-to-br from-brand-muted/40 to-white ring-1 ring-brand/15 p-4">
                 <p class="text-xs font-semibold uppercase tracking-widest text-brand mb-1">Analyst actions</p>
                 <p class="text-xs text-gray-500 mb-3">Open the gold button to choose approve/counter, write notes, and send the file to committee.</p>
-                @include('admin.loan-applications._workflow_actions')
+                @include('admin.loan-applications._workflow_actions', ['availableActions' => $actionsForButtons])
             </div>
         @elseif ($isCreditStage)
             <p class="mt-4 text-sm text-amber-900 bg-amber-50 ring-1 ring-amber-200 rounded-xl px-4 py-3">
-                No screening actions available for your role on this file. You need the <span class="font-semibold">applications.review</span> permission (and the application must be in screening or credit appraisal).
+                No screening actions available for your role on this file. You need the <span class="font-semibold">applications.review</span> permission.
             </p>
         @endif
         </div>

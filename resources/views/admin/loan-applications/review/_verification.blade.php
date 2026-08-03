@@ -22,13 +22,9 @@
     $idCompareIsBureau = ! $idCompareDoc && $nidaPhotoPath;
 @endphp
 
-@php $embedded = $embedded ?? false; @endphp
-
-@if ($embedded)
+{{-- Always a plain wrapper: conditional <x-admin.review-section> opening/closing tags
+     swallow slot content when $embedded is true (Blade component compiler quirk). --}}
 <div class="space-y-5">
-@else
-<x-admin.review-section id="review-verification" title="Face & identity verification" subtitle="Compare front face capture with the identification card picture">
-@endif
     <div class="mb-5 rounded-lg bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
         <p class="text-sm font-semibold text-amber-950">Primary check — front face vs ID card</p>
         <p class="text-xs text-amber-900/90 mt-1">Confirm the person in the <strong>front face capture</strong> is the same person on the <strong>identification card picture</strong>. Other angles are supporting evidence only.</p>
@@ -179,8 +175,4 @@
             </dialog>
         </div>
     @endif
-@if ($embedded)
 </div>
-@else
-</x-admin.review-section>
-@endif

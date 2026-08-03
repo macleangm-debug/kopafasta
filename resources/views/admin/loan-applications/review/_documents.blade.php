@@ -1,4 +1,4 @@
-<x-admin.review-section id="review-documents" title="Document review" subtitle="Product requirements, reviewer guidance, and verification for this application" collapsible :open="true">
+<x-admin.review-section id="review-documents" title="Product document checklist" subtitle="Standard requirements for this loan product — separate from application-specific requests above" collapsible :open="true">
     <div class="flex items-center justify-between gap-3 mb-5 flex-wrap">
         <div class="text-sm text-gray-600">
             <span class="font-semibold text-gray-900">{{ $review['satisfied_docs'] }}</span> of

@@ -57,13 +57,19 @@
     <details class="group rounded-2xl ring-1 ring-gray-200 bg-white overflow-hidden">
         <summary class="cursor-pointer list-none px-5 py-3.5 flex items-center justify-between gap-3 border-b border-gray-100 [&::-webkit-details-marker]:hidden">
             <div>
-                <p class="text-sm font-semibold text-gray-900">Face & identity (shortcut)</p>
-                <p class="text-xs text-gray-500">Prefer the Face tab above for full comparison tools</p>
+                <p class="text-sm font-semibold text-gray-900">Face & identity</p>
+                <p class="text-xs text-gray-500">Compare face captures with the ID card on the Face tab</p>
             </div>
-            <svg class="size-4 text-gray-400 transition group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
         </summary>
         <div class="p-5">
-            @include('admin.loan-applications.review._verification', ['embedded' => true])
+            <a href="{{ route('admin.loan-applications.show', ['loan_application' => $record, 'tab' => 'face']) }}#borrower-file"
+               class="inline-flex text-sm font-semibold text-brand hover:underline">
+                Open Face tab →
+            </a>
+            <div class="mt-3 flex flex-wrap gap-2">
+                <x-admin.badge :value="$customer->face_verification_status ?? 'none'" group="face_verification_status"
+                    :map="['verified'=>'bg-emerald-100 text-emerald-800','pending'=>'bg-amber-100 text-amber-800','rejected'=>'bg-red-100 text-red-800']" />
+            </div>
         </div>
     </details>
 </div>

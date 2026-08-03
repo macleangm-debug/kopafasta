@@ -170,9 +170,17 @@
                                         @if ($affordPass)
                                             <option value="approve">Recommend approval at requested amount ({{ format_money((float) $record->requested_amount) }})</option>
                                         @endif
-                                        @if ($counterEnabled && $maxCounter > 0)
-                                            <option value="counter">Counter-offer (max {{ format_money($maxCounter) }})</option>
+                                        @if ($counterEnabled)
+                                            <option value="counter">
+                                                Counter-offer
+                                                @if ($maxCounter > 0)
+                                                    (max {{ format_money($maxCounter) }})
+                                                @endif
+                                            </option>
                                         @endif
+                                        @unless ($affordPass || $counterEnabled)
+                                            <option value="approve" disabled>No recommendation options available — reject or return for documents</option>
+                                        @endunless
                                     </select>
                                 </div>
                                 <div>

@@ -29,7 +29,7 @@ class LoanApplicationWorkflowService
             'label'      => 'Push recommendation to committee',
             'to_stage'   => 'pre_approval',
             'permission' => 'applications.review',
-            'from'       => ['screening', 'credit_appraisal'],
+            'from'       => ['submitted', 'screening', 'credit_appraisal'],
         ],
         'suggest_asset_alternative' => [
             'label'      => 'Suggest asset-backed alternative',
