@@ -36,7 +36,7 @@
         $showGuarantorBlock = $isDraft
             || ($application && app(\App\Services\GuarantorSupplementService::class)->hasOpenRequest($application));
         $showDisbursementChecklist = ! $isDraft && $isPostApproval && ! $isDisbursed && ! empty($profile['disbursement_checklist']);
-        $showSchedule = $isPostApproval || $isDisbursed;
+        $showSchedule = false; // Repayment schedule lives on the active loan page only.
     @endphp
 
     <div class="mb-4">

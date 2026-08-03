@@ -36,6 +36,15 @@
             <h2 class="mt-1 text-2xl font-bold tracking-tight text-gray-900">Set up two-factor authentication</h2>
             <p class="mt-2 text-sm text-gray-500">Scan the QR with your authenticator app, then enter a code below.</p>
 
+            @php
+                $recoveryLines = collect(array_values($recovery_codes))
+                    ->map(fn ($code, $i) => ($i + 1).'. '.$code)
+                    ->implode("\n");
+                $recoveryClipboard = "Kopafasta recovery codes\n"
+                    ."Use one if you lose your phone or authenticator device. Each code works once. Store offline.\n\n"
+                    .$recoveryLines;
+            @endphp
+
             <div class="mt-6 flex flex-col sm:flex-row gap-4 items-center">
                 <div class="shrink-0 rounded-2xl bg-white ring-1 ring-brand/15 p-3 shadow-sm">
                     <img
@@ -65,9 +74,9 @@
             <div class="mt-5 rounded-2xl bg-amber-50 ring-1 ring-amber-200/80 px-4 py-3.5"
                  x-data="{
                     copied: false,
-                    codes: @js(array_values($recovery_codes)),
+                    text: @js($recoveryClipboard),
                     async copyAll() {
-                        await navigator.clipboard.writeText(this.codes.join('\\n'));
+                        await navigator.clipboard.writeText(this.text);
                         this.copied = true;
                         setTimeout(() => this.copied = false, 1800);
                     }
@@ -75,7 +84,7 @@
                 <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
                         <p class="text-xs font-bold text-amber-950">Recovery codes</p>
-                        <p class="text-[11px] text-amber-900/80 mt-0.5">Save these — shown once. Use one if you lose your phone.</p>
+                        <p class="text-[11px] text-amber-900/80 mt-0.5">Shown once. Use one if you lose your phone or authenticator — each code works once.</p>
                     </div>
                     <button type="button"
                             @click="copyAll()"
@@ -86,11 +95,14 @@
                         <span x-text="copied ? 'Copied' : 'Copy all'"></span>
                     </button>
                 </div>
-                <ul class="mt-3 text-xs font-mono grid grid-cols-2 gap-1.5 text-amber-950">
-                    @foreach ($recovery_codes as $code)
-                        <li class="rounded-lg bg-white/70 px-2 py-1.5 ring-1 ring-amber-100 text-center tracking-wide">{{ $code }}</li>
+                <ol class="mt-3 text-xs font-mono grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-amber-950 list-none">
+                    @foreach ($recovery_codes as $i => $code)
+                        <li class="rounded-lg bg-white/70 px-2.5 py-1.5 ring-1 ring-amber-100 tracking-wide flex items-center gap-2">
+                            <span class="text-[10px] font-sans font-semibold text-amber-700/70 tabular-nums w-4 shrink-0">{{ $i + 1 }}.</span>
+                            <span>{{ $code }}</span>
+                        </li>
                     @endforeach
-                </ul>
+                </ol>
             </div>
 
             <form method="POST" action="{{ route('auth.two-factor.confirm-setup') }}" class="mt-6 space-y-5">
