@@ -295,10 +295,6 @@
 
             <x-site.premium-loan-wizard-header />
 
-            <div x-show="draftSavedAt" x-cloak class="mb-3 text-[11px] text-gray-500 px-0.5">
-                {{ __('borrower.apply.draft.autosaved') }}
-            </div>
-
             {{-- Phase: Product details + readiness --}}
             <div x-show="phase === 'details'" class="glass-card overflow-hidden ring-1 ring-brand/10">
                 <x-site.loan-product-details />
