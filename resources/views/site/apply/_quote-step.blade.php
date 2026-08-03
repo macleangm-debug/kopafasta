@@ -28,7 +28,7 @@
                     </div>
                 </div>
 
-                {{-- Purpose: locked after selection; Change to edit --}}
+                {{-- Purpose: locked after selection; Change to edit (x-show keeps select mounted) --}}
                 <div class="rounded-2xl bg-brand-muted/40 ring-1 ring-brand/15 p-4 sm:p-5">
                     <div x-show="form.purpose && !purposeEditing" x-cloak class="space-y-2">
                         <div class="flex items-center justify-between gap-3">
@@ -45,28 +45,33 @@
                            class="text-sm text-gray-600"
                            x-text="form.purpose_other"></p>
                     </div>
-                    <template x-if="!form.purpose || purposeEditing">
-                        <div>
-                            <x-site.sheet-select
-                                model="form.purpose"
-                                :label="__('borrower.apply.quote.purpose')"
-                                :options="$loanPurposes"
-                                :required="true"
-                                :placeholder="__('borrower.apply.quote.select_purpose')"
-                                on-pick="purposeEditing = false; scheduleDraftSave()"
-                            />
-                            <p class="mt-2 text-xs text-brand/80">{{ __('borrower.apply.quote.purpose_hint') }}</p>
-                            <div x-show="form.purpose === 'other'" x-cloak class="mt-4">
-                                <label class="block text-sm font-semibold text-gray-800 mb-1.5">{{ __('borrower.apply.quote.purpose_other_label') }} <span class="text-red-500">*</span></label>
-                                <input type="text"
-                                       x-model="form.purpose_other"
-                                       @input="scheduleDraftSave()"
-                                       maxlength="120"
-                                       class="kf-field"
-                                       placeholder="{{ __('borrower.apply.quote.purpose_other_placeholder') }}">
-                            </div>
+                    <div x-show="!form.purpose || purposeEditing" x-cloak>
+                        <x-site.sheet-select
+                            model="form.purpose"
+                            :label="__('borrower.apply.quote.purpose')"
+                            :options="$loanPurposes"
+                            :required="true"
+                            :placeholder="__('borrower.apply.quote.select_purpose')"
+                            on-pick="if (form.purpose !== 'other') { purposeEditing = false; form.purpose_other = ''; } scheduleDraftSave()"
+                        />
+                        <p class="mt-2 text-xs text-brand/80">{{ __('borrower.apply.quote.purpose_hint') }}</p>
+                        <div x-show="form.purpose === 'other'" x-cloak class="mt-4">
+                            <label class="block text-sm font-semibold text-gray-800 mb-1.5">{{ __('borrower.apply.quote.purpose_other_label') }} <span class="text-red-500">*</span></label>
+                            <input type="text"
+                                   x-model="form.purpose_other"
+                                   @input="scheduleDraftSave()"
+                                   maxlength="120"
+                                   class="kf-field"
+                                   placeholder="{{ __('borrower.apply.quote.purpose_other_placeholder') }}">
+                            <button type="button"
+                                    x-show="form.purpose_other && String(form.purpose_other).trim()"
+                                    x-cloak
+                                    @click="purposeEditing = false; scheduleDraftSave()"
+                                    class="mt-3 inline-flex text-xs font-semibold text-brand hover:underline">
+                                {{ __('borrower.apply.quote.purpose_other_done') }}
+                            </button>
                         </div>
-                    </template>
+                    </div>
                 </div>
 
                 <div>

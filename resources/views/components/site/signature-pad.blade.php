@@ -7,6 +7,7 @@
     'includeInForm' => true,
     'initialDataUrl' => '',
     'compact' => false,
+    'hideClear' => false,
 ])
 
 <div x-data="signaturePad(@js($defaultName), @js((bool) $readonlyName), @js($initialDataUrl))"
@@ -46,8 +47,10 @@
                     @mousedown="startDraw($event)" @mousemove="draw($event)" @mouseup="endDraw()" @mouseleave="endDraw()"
                     @touchstart.prevent="startDraw($event)" @touchmove.prevent="draw($event)" @touchend.prevent="endDraw()"></canvas>
         </div>
-        <div class="flex justify-between items-center mt-2.5 gap-3">
-            <button type="button" @click="clear()" class="text-xs font-semibold text-brand/80 hover:text-brand">{{ __('borrower.apply.signature_clear') }}</button>
+        <div class="flex {{ $hideClear ? 'justify-end' : 'justify-between' }} items-center mt-2.5 gap-3">
+            @unless ($hideClear)
+                <button type="button" @click="clear()" class="text-xs font-semibold text-brand/80 hover:text-brand">{{ __('borrower.apply.signature_clear') }}</button>
+            @endunless
             <p class="text-[11px] text-gray-500">{{ __('borrower.apply.signature_draw_hint') }}</p>
         </div>
     </div>

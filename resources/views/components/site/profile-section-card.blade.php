@@ -106,7 +106,18 @@
                             : (@js($isStale)
                                 ? 'text-amber-800 ring-amber-300 bg-amber-50 hover:bg-amber-100'
                                 : 'text-amber-700 ring-amber-200 bg-amber-50 hover:text-amber-800')">
-                    <span x-show="!open">{{ $empty ? ($addLabel ?? __('borrower.profile.add_details')) : ($isStale ? __('borrower.profile.update_section') : __('borrower.profile.edit_section')) }}</span>
+                    <span x-show="!open" class="inline-flex items-center gap-1.5">
+                        @if ($empty)
+                            <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                            <span>{{ $addLabel ?? __('borrower.profile.add_details') }}</span>
+                        @elseif ($isStale)
+                            <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182"/></svg>
+                            <span>{{ __('borrower.profile.update_section') }}</span>
+                        @else
+                            <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                            <span>{{ __('borrower.profile.edit_section') }}</span>
+                        @endif
+                    </span>
                     <span x-show="open" x-cloak>{{ __('borrower.profile.cancel_edit') }}</span>
                 </button>
             </div>
@@ -127,13 +138,28 @@
                        x-show="reveal"
                        x-cloak
                        class="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 hover:text-amber-800 px-3 py-1.5 rounded-full ring-1 ring-amber-200 bg-amber-50">
-                        {{ $empty ? ($addLabel ?? __('borrower.profile.add_details')) : __('borrower.profile.edit_section') }}
+                        @if ($empty)
+                            <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                            {{ $addLabel ?? __('borrower.profile.add_details') }}
+                        @else
+                            <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                            {{ __('borrower.profile.edit_section') }}
+                        @endif
                     </a>
                 </div>
             @else
                 <a href="{{ $editUrl }}"
                    class="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold {{ $isStale ? 'text-amber-800 ring-amber-300' : 'text-amber-700 ring-amber-200' }} hover:text-amber-800 px-3 py-1.5 rounded-full ring-1 bg-amber-50">
-                    {{ $empty ? ($addLabel ?? __('borrower.profile.add_details')) : ($isStale ? __('borrower.profile.update_section') : __('borrower.profile.edit_section')) }}
+                    @if ($empty)
+                        <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                        {{ $addLabel ?? __('borrower.profile.add_details') }}
+                    @elseif ($isStale)
+                        <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182"/></svg>
+                        {{ __('borrower.profile.update_section') }}
+                    @else
+                        <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                        {{ __('borrower.profile.edit_section') }}
+                    @endif
                 </a>
             @endif
         @elseif ($isComplete)

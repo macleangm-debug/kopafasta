@@ -107,18 +107,16 @@
                     <p class="text-base font-bold text-gray-900"
                        x-text="purposeLabels[form.purpose] || form.purpose"></p>
                 </div>
-                <template x-if="!form.purpose || purposeEditing">
-                    <div>
-                        <x-site.sheet-select
-                            model="form.purpose"
-                            :label="__('borrower.apply.quote.purpose')"
-                            :options="$loanPurposes"
-                            :required="true"
-                            :placeholder="__('borrower.apply.quote.select_purpose')"
-                            on-pick="purposeEditing = false; scheduleDraftSave()"
-                        />
-                    </div>
-                </template>
+                <div x-show="!form.purpose || purposeEditing" x-cloak>
+                    <x-site.sheet-select
+                        model="form.purpose"
+                        :label="__('borrower.apply.quote.purpose')"
+                        :options="$loanPurposes"
+                        :required="true"
+                        :placeholder="__('borrower.apply.quote.select_purpose')"
+                        on-pick="if (form.purpose !== 'other') { purposeEditing = false; } scheduleDraftSave()"
+                    />
+                </div>
             </div>
         </div>
     </template>

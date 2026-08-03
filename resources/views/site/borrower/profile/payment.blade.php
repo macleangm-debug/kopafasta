@@ -26,7 +26,11 @@
             $returnQuery = ! empty($returnUrl) ? ['return' => $returnUrl] : [];
         @endphp
 
-        <div class="glass-card overflow-hidden" x-data="{ expanded: @js(request()->boolean('add') || request()->boolean('edit') || $errors->any() || (bool) ($wizardMode ?? false)) }">
+        <div class="glass-card overflow-hidden" x-data="{
+            expanded: @js(request()->boolean('add') || request()->boolean('edit') || $errors->any() || (bool) ($wizardMode ?? false)),
+            showEditAction: @js(! $paymentComplete || $showAdd),
+            get showCompleteTick() { return @js($paymentComplete) && ! this.showEditAction && ! this.expanded; }
+        }">
             <div class="px-5 sm:px-6 py-4 border-b border-gray-100/80 flex flex-wrap items-start justify-between gap-3">
                 <button type="button" @click="expanded = !expanded" class="flex items-start gap-3 min-w-0 text-left flex-1">
                     <span class="text-2xl leading-none shrink-0 mt-0.5" aria-hidden="true">💳</span>
@@ -39,17 +43,47 @@
                         </h2>
                     </div>
                 </button>
-                @if ($paymentComplete && ! $showAdd)
-                    <a href="{{ route('site.borrower.profile', array_filter(['section' => 'payment', 'add' => 1] + $returnQuery)) }}"
-                       class="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 hover:text-amber-800 px-3 py-1.5 rounded-full ring-1 ring-amber-200 bg-amber-50">
-                        {{ __('borrower.payment_details.add_account') }}
-                    </a>
-                @endif
+                <div class="shrink-0 relative min-h-9 min-w-9 flex items-center justify-end gap-2">
+                    @if ($paymentComplete)
+                        <button type="button"
+                                @click.stop="showEditAction = true; expanded = true"
+                                x-show="showCompleteTick"
+                                class="size-9 rounded-full grid place-items-center bg-gradient-to-br from-brand to-brand-light text-brand-gold shadow-sm shadow-brand/25 ring-2 ring-brand-gold/40 hover:ring-brand-gold/70 transition"
+                                title="{{ __('borrower.profile.section_complete_tap') }}"
+                                aria-label="{{ __('borrower.profile.section_complete_tap') }}">
+                            <svg class="size-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
+                            </svg>
+                        </button>
+                        <button type="button"
+                                @click.stop="expanded = true; showEditAction = true"
+                                x-show="!showCompleteTick"
+                                x-cloak
+                                class="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 hover:text-amber-800 px-3 py-1.5 rounded-full ring-1 ring-amber-200 bg-amber-50">
+                            <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                            {{ __('borrower.profile.edit_section') }}
+                        </button>
+                        <a href="{{ route('site.borrower.profile', array_filter(['section' => 'payment', 'add' => 1] + $returnQuery)) }}"
+                           x-show="!showCompleteTick"
+                           x-cloak
+                           class="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 hover:text-amber-800 px-3 py-1.5 rounded-full ring-1 ring-amber-200 bg-amber-50">
+                            <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                            {{ __('borrower.payment_details.add_account') }}
+                        </a>
+                    @else
+                        <button type="button"
+                                @click="expanded = true"
+                                class="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 hover:text-amber-800 px-3 py-1.5 rounded-full ring-1 ring-amber-200 bg-amber-50">
+                            <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                            {{ __('borrower.profile.add_details') }}
+                        </button>
+                    @endif
+                </div>
             </div>
 
             <div x-show="!expanded" x-cloak class="px-5 sm:px-6 py-3">
                 <button type="button" @click="expanded = true" class="text-xs font-semibold text-brand hover:underline">
-                    {{ __('borrower.profile.hub.view_edit') }} →
+                    {{ $paymentComplete ? __('borrower.profile.hub.view') : __('borrower.profile.hub.view_edit') }} →
                 </button>
             </div>
 

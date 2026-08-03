@@ -1973,7 +1973,11 @@ class ApplyController extends Controller
             && ! $guarantors->hasApprovedGuarantor($app);
 
         if ($guarantorPending && app(\App\Services\UnderwritingSettingsService::class)->holdApplicationsUntilGuarantorApproved()) {
-            $app->update(['status' => 'awaiting_guarantor']);
+            // Hold outside credit screening until guarantor accepts + completes profile.
+            $app->update([
+                'status'        => 'awaiting_guarantor',
+                'current_stage' => 'awaiting_guarantor',
+            ]);
         }
 
         $message = __('borrower.apply.success.submitted_message');

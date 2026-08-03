@@ -904,7 +904,7 @@ class GuarantorInvitationService
                 if ($hasApproved) {
                     $application->update([
                         'status'        => 'submitted',
-                        'current_stage' => 'submitted',
+                        'current_stage' => 'screening',
                         'submitted_at'  => $application->submitted_at ?? now(),
                     ]);
                 }

@@ -65,8 +65,12 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
             $this->assertNotEmpty(__('borrower.apply.review_step.deal_snapshot', [], $locale));
             $this->assertNotEmpty(__('borrower.apply.review_step.pages_nav', [], $locale));
             $this->assertNotEmpty(__('borrower.apply.quote.change_purpose', [], $locale));
-            $this->assertNotEmpty(__('borrower.apply.submit_step.signed_hint_short', [], $locale));
+            $this->assertNotEmpty(__('borrower.apply.submit_step.group_signatures_title', [], $locale));
             $this->assertNotEmpty(__('borrower.apply.submit_step.guarantor_pending_hint', [], $locale));
+            $this->assertSame(
+                $locale === 'en' ? 'Complete profile before submission' : 'Kamilisha wasifu kabla ya kuwasilisha',
+                __('borrower.apply.complete_profile_to_submit', [], $locale),
+            );
             $this->assertNotEmpty(__('borrower.apply.success.celebration_eyebrow', [], $locale));
             $this->assertNotSame(
                 'borrower.apply.review_step.page_overview',
@@ -82,12 +86,18 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
         $sheet = file_get_contents(resource_path('views/components/site/sheet-select.blade.php'));
         $quote = file_get_contents(resource_path('views/site/apply/_quote-step.blade.php'));
         $submit = file_get_contents(resource_path('views/site/apply/_submit-step.blade.php'));
+        $footer = file_get_contents(resource_path('views/components/site/wizard-footer.blade.php'));
+        $pad = file_get_contents(resource_path('views/components/site/signature-pad.blade.php'));
+        $payment = file_get_contents(resource_path('views/site/borrower/profile/payment.blade.php'));
 
         $this->assertNotFalse($review);
         $this->assertNotFalse($js);
         $this->assertNotFalse($sheet);
         $this->assertNotFalse($quote);
         $this->assertNotFalse($submit);
+        $this->assertNotFalse($footer);
+        $this->assertNotFalse($pad);
+        $this->assertNotFalse($payment);
 
         $this->assertStringContainsString('displayInstallmentAmount()', $review);
         $this->assertStringNotContainsString('reviewSummary.installment_amount ?? quote.primary', $review);
@@ -100,10 +110,22 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
         $this->assertStringContainsString('displayInstallmentAmount()', $js);
         $this->assertStringContainsString('purposeEditing', $js);
         $this->assertStringContainsString('optionEntries', $sheet);
+        $this->assertStringContainsString('afterPick', $sheet);
         $this->assertStringContainsString('change_purpose', $quote);
         $this->assertStringContainsString('purposeEditing', $quote);
-        $this->assertStringContainsString('signature_draw_label', $submit);
+        $this->assertStringContainsString('x-show="!form.purpose || purposeEditing"', $quote);
+        $this->assertStringNotContainsString('template x-if="!form.purpose || purposeEditing"', $quote);
+        $this->assertStringContainsString('guarantor_hold_title', $submit);
         $this->assertStringContainsString('resigningOnSubmit', $submit);
+        $this->assertStringContainsString('group_signatures_title', $submit);
+        $this->assertStringNotContainsString('signed_hint_short', $submit);
+        $this->assertStringNotContainsString("submit_step.reference", $submit);
+        $this->assertStringContainsString('hide-clear', $submit);
+        $this->assertStringContainsString("'hideClear'", $pad);
+        $this->assertStringContainsString("stepKey !== 'submit'", $footer);
+        $this->assertStringContainsString('complete_profile_to_submit', $footer);
+        $this->assertStringContainsString('showCompleteTick', $payment);
+        $this->assertStringContainsString('add_details', $payment);
         $this->assertStringContainsString('showCompleteTick', file_get_contents(resource_path('views/components/site/profile-section-card.blade.php')));
         $card = file_get_contents(resource_path('views/components/site/profile-section-card.blade.php'));
         $this->assertStringContainsString("'stale'", $card);

@@ -60,17 +60,15 @@
                         <p class="text-base font-bold text-gray-900"
                            x-text="purposeLabels[group.purpose] || group.purpose"></p>
                     </div>
-                    <template x-if="!group.purpose || purposeEditing">
-                        <div>
-                            <x-site.sheet-select
-                                model="group.purpose"
-                                :label="__('borrower.apply.group_setup.purpose')"
-                                :options="$loanPurposes"
-                                :placeholder="__('borrower.apply.quote.select_purpose')"
-                                on-pick="purposeEditing = false; form.purpose = group.purpose; scheduleDraftSave()"
-                            />
-                        </div>
-                    </template>
+                    <div x-show="!group.purpose || purposeEditing" x-cloak>
+                        <x-site.sheet-select
+                            model="group.purpose"
+                            :label="__('borrower.apply.group_setup.purpose')"
+                            :options="$loanPurposes"
+                            :placeholder="__('borrower.apply.quote.select_purpose')"
+                            on-pick="if (group.purpose !== 'other') { purposeEditing = false; } form.purpose = group.purpose; scheduleDraftSave()"
+                        />
+                    </div>
                 </div>
             </div>
 

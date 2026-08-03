@@ -8,7 +8,15 @@
     </button>
     <div class="flex flex-wrap items-center justify-end gap-3">
         <a :href="isEditHop() ? (profileUrl || @js(route('site.borrower.dashboard'))) : @js(route('site.borrower.dashboard'))"
+           x-show="stepKey !== 'submit'"
            class="text-sm text-gray-500 hover:text-gray-700">{{ __('borrower.apply.cancel') }}</a>
+        <button type="button"
+                @click="showProfileGateModal = true"
+                x-show="stepKey === 'submit' && !canApply"
+                x-cloak
+                class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-2.5 rounded-xl text-sm shadow-sm transition">
+            {{ __('borrower.apply.complete_profile_to_submit') }}
+        </button>
         <button type="button"
                 @click.prevent="next()"
                 :disabled="advancing || resumeLoading || (guarantorInvitePreparing && stepKey === 'guarantor')"

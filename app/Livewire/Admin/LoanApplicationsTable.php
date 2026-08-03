@@ -73,7 +73,8 @@ class LoanApplicationsTable extends Component
                                     ->orWhereNotIn('current_stage', ['pre_approval', 'approval', 'disbursement']);
                             });
                         });
-                })->whereNotIn('status', ['approved', 'disbursed']);
+                })->whereNotIn('status', ['approved', 'disbursed', 'awaiting_guarantor'])
+                    ->where('current_stage', '!=', 'awaiting_guarantor');
             })
             ->when($this->pipeline === 'committee', function ($q) {
                 $q->where('current_stage', 'pre_approval')

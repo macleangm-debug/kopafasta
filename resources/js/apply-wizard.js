@@ -280,13 +280,14 @@ export function applyWizard(config) {
                         if (this.phase === 'application') this.scheduleDraftSave();
                     });
                     this.$watch('form.purpose', (value, oldValue) => {
-                        if (value && value !== oldValue) {
+                        // Keep the editor open for "other" so the custom text field stays visible.
+                        if (value && value !== oldValue && value !== 'other') {
                             this.purposeEditing = false;
                         }
                         if (this.phase === 'application') this.scheduleDraftSave();
                     });
                     this.$watch('group.purpose', (value, oldValue) => {
-                        if (value && value !== oldValue) {
+                        if (value && value !== oldValue && value !== 'other') {
                             this.purposeEditing = false;
                             this.form.purpose = value;
                         }
