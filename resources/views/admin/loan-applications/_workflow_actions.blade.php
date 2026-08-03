@@ -9,6 +9,7 @@
                                 : null;
                             $adviceOptions = $rejectionAdviceOptions
                                 ?? app(\App\Services\LoanRejectionReasonService::class)->adviceOptions();
+                            $screeningReasonCodes = old('rejection_reason_codes', filled($screeningReasonCode) ? [$screeningReasonCode] : []);
                         @endphp
                         <button type="button"
                                 data-open-dialog="reject-application-{{ $record->id }}"
@@ -16,81 +17,59 @@
                             {{ $action['label'] }}
                         </button>
                         <dialog id="reject-application-{{ $record->id }}"
-                                class="rounded-xl shadow-xl ring-1 ring-gray-200 w-full max-w-lg p-0 backdrop:bg-black/40 open:flex open:flex-col"
+                                class="rounded-2xl shadow-2xl ring-1 ring-brand/15 w-full max-w-xl p-0 backdrop:bg-brand/40 open:flex open:flex-col"
                                 x-data="{
-                                    reason: '{{ old('rejection_reason_code', $screeningReasonCode ?? '') }}',
                                     advice: '{{ old('rejection_advice_code', '') }}',
-                                    useScreening() { this.reason = '{{ $screeningReasonCode }}'; }
+                                    useScreening() {
+                                        const code = '{{ $screeningReasonCode }}';
+                                        if (!code) return;
+                                        const box = document.querySelector('#reject-application-{{ $record->id }} input[name=\"rejection_reason_codes[]\"][value=\"'+code+'\"]');
+                                        if (box) box.checked = true;
+                                    }
                                 }">
-                            <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
+                            <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="max-h-[90vh] overflow-y-auto">
                                 @csrf
                                 <input type="hidden" name="action" value="reject">
-                                <h4 class="font-semibold text-gray-900">Reject application</h4>
-                                <p class="text-sm text-gray-600">The borrower sees the reason and optional advice in their language. Internal notes stay private.</p>
 
-                                @if ($screeningReasonCode && $screeningReasonLabel)
-                                    <div class="rounded-lg bg-amber-50 ring-1 ring-amber-100 px-3 py-2.5 flex flex-wrap items-center justify-between gap-2">
-                                        <div class="min-w-0">
-                                            <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Screening reason</p>
-                                            <p class="text-sm text-amber-950 font-medium mt-0.5">{{ $screeningReasonLabel }}</p>
+                                <div class="px-6 pt-6 pb-5 bg-gradient-to-br from-rose-700 via-rose-600 to-brand text-white">
+                                    <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-rose-100">Credit committee</p>
+                                    <h4 class="text-xl font-bold mt-1">Reject application</h4>
+                                    <p class="text-sm text-white/75 mt-1.5">
+                                        Select every reason that applies. The borrower sees reasons and advice in their language.
+                                    </p>
+                                </div>
+
+                                <div class="p-6 space-y-5">
+                                    @if ($screeningReasonCode && $screeningReasonLabel)
+                                        <div class="rounded-xl bg-amber-50 ring-1 ring-amber-100 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+                                            <div class="min-w-0">
+                                                <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Screening reason</p>
+                                                <p class="text-sm text-amber-950 font-medium mt-0.5">{{ $screeningReasonLabel }}</p>
+                                            </div>
+                                            <button type="button" @click="useScreening()"
+                                                    class="shrink-0 text-xs font-semibold text-amber-900 bg-white hover:bg-amber-100 ring-1 ring-amber-200 px-3 py-1.5 rounded-lg">
+                                                Include this reason
+                                            </button>
                                         </div>
-                                        <button type="button" @click="useScreening()"
-                                                class="shrink-0 text-xs font-semibold text-amber-900 bg-white hover:bg-amber-100 ring-1 ring-amber-200 px-3 py-1.5 rounded-lg">
-                                            Use this reason
-                                        </button>
-                                    </div>
-                                @endif
+                                    @endif
 
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Rejection reason</label>
-                                    <select name="rejection_reason_code" required x-model="reason"
-                                            class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand">
-                                        <option value="">Select reason…</option>
-                                        @foreach (($rejectionReasons ?? []) as $category => $reasons)
-                                            <optgroup label="{{ $category }}">
-                                                @foreach ($reasons as $reason)
-                                                    <option value="{{ $reason['code'] }}">{{ $reason['label'] }}</option>
-                                                @endforeach
-                                            </optgroup>
-                                        @endforeach
-                                    </select>
+                                    @include('admin.loan-applications.review._rejection_fields', [
+                                        'selectedRejectionCodes' => $screeningReasonCodes,
+                                        'fallbackRejectionCode' => $screeningReasonCode,
+                                        'adviceOptions' => $adviceOptions,
+                                    ])
+
+                                    @include('admin.loan-applications.review._committee_divergence_fields', ['committeeDiffers' => true])
                                 </div>
 
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Advice for borrower (optional)</label>
-                                    <select name="rejection_advice_code" x-model="advice"
-                                            class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand">
-                                        <option value="">No advice</option>
-                                        @foreach ($adviceOptions as $code => $label)
-                                            @if ($code !== 'custom')
-                                                <option value="{{ $code }}">{{ $label }}</option>
-                                            @endif
-                                        @endforeach
-                                        <option value="custom">Custom advice (write below)</option>
-                                    </select>
-                                    <p class="mt-1 text-[11px] text-gray-500">Shown on the borrower’s loan profile in their selected language.</p>
-                                </div>
-                                <div x-show="advice === 'custom'" x-cloak>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Custom advice</label>
-                                    <textarea name="rejection_advice" rows="3" maxlength="2000"
-                                              placeholder="Practical guidance for a stronger application next time"
-                                              class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand">{{ old('rejection_advice') }}</textarea>
-                                </div>
-
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Internal notes (optional)</label>
-                                    <textarea name="rejection_internal_notes" rows="3" maxlength="2000" placeholder="Notes for internal use only"
-                                              class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand"></textarea>
-                                </div>
-                                @include('admin.loan-applications.review._committee_divergence_fields', ['committeeDiffers' => true])
-                                <div class="flex justify-end gap-2 pt-1">
+                                <div class="px-6 py-4 border-t border-gray-100 bg-gray-50/80 flex flex-wrap items-center justify-end gap-2">
                                     <button type="button"
                                             data-close-dialog="reject-application-{{ $record->id }}"
-                                            class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">
+                                            class="px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 rounded-xl">
                                         Cancel
                                     </button>
                                     <button type="submit"
-                                            class="bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-4 py-2 rounded-lg">
+                                            class="inline-flex items-center justify-center min-w-[10rem] bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl shadow-sm">
                                         Confirm reject
                                     </button>
                                 </div>
@@ -253,54 +232,13 @@
 
                                     <div x-show="decision === 'reject'" x-cloak class="space-y-4">
                                         <p class="text-xs text-gray-500">
-                                            The rejection reason is shown on the borrower’s loan profile in their language (English or Kiswahili).
+                                            Tick every reason that applies. The borrower sees these — and any advice — in their language.
                                         </p>
-                                        <div>
-                                            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Rejection reason <span class="text-red-500">*</span></label>
-                                            <select name="rejection_reason_code"
-                                                    :disabled="decision !== 'reject'"
-                                                    :required="decision === 'reject'"
-                                                    class="w-full rounded-xl border-0 text-sm ring-1 ring-brand/15 px-4 py-3 focus:ring-2 focus:ring-brand/30">
-                                                <option value="">Select reason…</option>
-                                                @foreach (($rejectionReasons ?? []) as $category => $reasons)
-                                                    <optgroup label="{{ $category }}">
-                                                        @foreach ($reasons as $reason)
-                                                            <option value="{{ $reason['code'] }}">{{ $reason['label'] }}</option>
-                                                        @endforeach
-                                                    </optgroup>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Advice for borrower <span class="font-normal text-gray-400">(optional)</span></label>
-                                            <select name="rejection_advice_code"
-                                                    x-model="advice"
-                                                    :disabled="decision !== 'reject'"
-                                                    class="w-full rounded-xl border-0 text-sm ring-1 ring-brand/15 px-4 py-3 focus:ring-2 focus:ring-brand/30">
-                                                <option value="">No advice</option>
-                                                @foreach ($adviceOptions as $code => $label)
-                                                    @if ($code !== 'custom')
-                                                        <option value="{{ $code }}">{{ $label }}</option>
-                                                    @endif
-                                                @endforeach
-                                                <option value="custom">Custom advice (write below)</option>
-                                            </select>
-                                            <p class="mt-1 text-[11px] text-gray-500">Shown on the borrower’s loan profile in their selected language.</p>
-                                        </div>
-                                        <div x-show="advice === 'custom'" x-cloak>
-                                            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Custom advice <span class="font-normal text-gray-400">(optional)</span></label>
-                                            <textarea name="rejection_advice" rows="3" maxlength="2000"
-                                                      :disabled="decision !== 'reject' || advice !== 'custom'"
-                                                      placeholder="Practical guidance for a stronger application next time"
-                                                      class="w-full rounded-xl border-0 text-sm ring-1 ring-brand/15 px-4 py-3 focus:ring-2 focus:ring-brand/30">{{ old('rejection_advice') }}</textarea>
-                                        </div>
-                                        <div>
-                                            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Notes and advice <span class="font-normal text-gray-400">(optional)</span></label>
-                                            <textarea name="rejection_internal_notes" rows="3" maxlength="2000"
-                                                      :disabled="decision !== 'reject'"
-                                                      placeholder="Internal notes for staff, or extra context for this rejection"
-                                                      class="w-full rounded-xl border-0 text-sm ring-1 ring-brand/15 px-4 py-3 focus:ring-2 focus:ring-brand/30">{{ old('rejection_internal_notes') }}</textarea>
-                                        </div>
+                                        @include('admin.loan-applications.review._rejection_fields', [
+                                            'selectedRejectionCodes' => old('rejection_reason_codes', []),
+                                            'adviceOptions' => $adviceOptions,
+                                            'disabledWhen' => "decision !== 'reject'",
+                                        ])
                                     </div>
                                 </div>
 
@@ -481,36 +419,50 @@
                             {{ $action['label'] }}
                         </button>
                         <dialog id="approve-application-{{ $record->id }}"
-                                class="rounded-xl shadow-xl ring-1 ring-gray-200 w-full max-w-lg p-0 backdrop:bg-black/40 open:flex open:flex-col">
-                            <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="p-6 space-y-4">
+                                class="rounded-2xl shadow-2xl ring-1 ring-brand/15 w-full max-w-xl p-0 backdrop:bg-brand/40 open:flex open:flex-col"
+                                x-data="{ approvalReason: '{{ old('approval_reason_code', ($record->recommendation_type ?? null) === 'approve' ? 'aligns_with_screening' : '') }}' }">
+                            <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="max-h-[90vh] overflow-y-auto">
                                 @csrf
                                 <input type="hidden" name="action" value="approve">
-                                <h4 class="font-semibold text-gray-900">Final approve — funding source</h4>
-                                <p class="text-sm text-gray-600">Choose whether this loan is funded from company balance or an external capital partner pool.</p>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Funding source</label>
-                                    <select name="funding_source" required class="w-full rounded-lg border-gray-300 text-sm">
-                                        <option value="">Select…</option>
-                                        <option value="internal">Internal (company funds)</option>
-                                        <option value="external">External capital partner</option>
-                                    </select>
+
+                                <div class="px-6 pt-6 pb-5 bg-gradient-to-br from-brand via-brand to-brand-light text-white">
+                                    <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">Credit committee</p>
+                                    <h4 class="text-xl font-bold mt-1">Final approve</h4>
+                                    <p class="text-sm text-white/75 mt-1.5">
+                                        Record why you are approving, then choose the funding source.
+                                    </p>
                                 </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Preferred capital partner (optional)</label>
-                                    <select name="preferred_lender_id" class="w-full rounded-lg border-gray-300 text-sm">
-                                        <option value="">Auto-allocate at disbursement</option>
-                                        @foreach (($externalLenders ?? collect()) as $lender)
-                                            <option value="{{ $lender->id }}">{{ $lender->name }} ({{ $lender->code }})</option>
-                                        @endforeach
-                                    </select>
+
+                                <div class="p-6 space-y-5">
+                                    @include('admin.loan-applications.review._approval_reason_fields')
+
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-700 mb-1.5">Funding source <span class="text-red-500">*</span></label>
+                                        <select name="funding_source" required class="w-full rounded-xl border-0 text-sm ring-1 ring-brand/15 px-4 py-3 focus:ring-2 focus:ring-brand/30">
+                                            <option value="">Select…</option>
+                                            <option value="internal">Internal (company funds)</option>
+                                            <option value="external">External capital partner</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-700 mb-1.5">Preferred capital partner <span class="font-normal text-gray-400">(optional)</span></label>
+                                        <select name="preferred_lender_id" class="w-full rounded-xl border-0 text-sm ring-1 ring-brand/15 px-4 py-3 focus:ring-2 focus:ring-brand/30">
+                                            <option value="">Auto-allocate at disbursement</option>
+                                            @foreach (($externalLenders ?? collect()) as $lender)
+                                                <option value="{{ $lender->id }}">{{ $lender->name }} ({{ $lender->code }})</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+
+                                    @include('admin.loan-applications.review._committee_divergence_fields', [
+                                        'committeeDiffers' => ($record->recommendation_type ?? null) !== 'approve',
+                                    ])
                                 </div>
-                                @include('admin.loan-applications.review._committee_divergence_fields', [
-                                    'committeeDiffers' => ($record->recommendation_type ?? null) !== 'approve',
-                                ])
-                                <div class="flex justify-end gap-2 pt-1">
+
+                                <div class="px-6 py-4 border-t border-gray-100 bg-gray-50/80 flex flex-wrap items-center justify-end gap-2">
                                     <button type="button" data-close-dialog="approve-application-{{ $record->id }}"
-                                            class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">Cancel</button>
-                                    <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-4 py-2 rounded-lg">
+                                            class="px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 rounded-xl">Cancel</button>
+                                    <button type="submit" class="inline-flex items-center justify-center min-w-[12rem] bg-brand-gold hover:brightness-95 text-brand font-bold text-sm px-5 py-2.5 rounded-xl shadow-sm">
                                         Approve application
                                     </button>
                                 </div>
@@ -523,19 +475,32 @@
                             {{ $action['label'] }}
                         </button>
                         <dialog id="approve-plain-{{ $record->id }}"
-                                class="rounded-xl shadow-xl ring-1 ring-gray-200 w-full max-w-lg p-0 backdrop:bg-black/40 open:flex open:flex-col">
-                            <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="p-6 space-y-4">
+                                class="rounded-2xl shadow-2xl ring-1 ring-brand/15 w-full max-w-xl p-0 backdrop:bg-brand/40 open:flex open:flex-col"
+                                x-data="{ approvalReason: '{{ old('approval_reason_code', ($record->recommendation_type ?? null) === 'approve' ? 'aligns_with_screening' : '') }}' }">
+                            <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="max-h-[90vh] overflow-y-auto">
                                 @csrf
                                 <input type="hidden" name="action" value="approve">
-                                <h4 class="font-semibold text-gray-900">Final approve</h4>
-                                <p class="text-sm text-gray-600">Confirm final approval for this application.</p>
-                                @include('admin.loan-applications.review._committee_divergence_fields', [
-                                    'committeeDiffers' => ($record->recommendation_type ?? null) !== 'approve',
-                                ])
-                                <div class="flex justify-end gap-2 pt-1">
+
+                                <div class="px-6 pt-6 pb-5 bg-gradient-to-br from-brand via-brand to-brand-light text-white">
+                                    <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">Credit committee</p>
+                                    <h4 class="text-xl font-bold mt-1">Final approve</h4>
+                                    <p class="text-sm text-white/75 mt-1.5">
+                                        Confirm final approval and record why the committee is approving.
+                                    </p>
+                                </div>
+
+                                <div class="p-6 space-y-5">
+                                    @include('admin.loan-applications.review._approval_reason_fields')
+
+                                    @include('admin.loan-applications.review._committee_divergence_fields', [
+                                        'committeeDiffers' => ($record->recommendation_type ?? null) !== 'approve',
+                                    ])
+                                </div>
+
+                                <div class="px-6 py-4 border-t border-gray-100 bg-gray-50/80 flex flex-wrap items-center justify-end gap-2">
                                     <button type="button" data-close-dialog="approve-plain-{{ $record->id }}"
-                                            class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">Cancel</button>
-                                    <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-4 py-2 rounded-lg">
+                                            class="px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 rounded-xl">Cancel</button>
+                                    <button type="submit" class="inline-flex items-center justify-center min-w-[12rem] bg-brand-gold hover:brightness-95 text-brand font-bold text-sm px-5 py-2.5 rounded-xl shadow-sm">
                                         Approve application
                                     </button>
                                 </div>

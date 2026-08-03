@@ -179,25 +179,33 @@
         <div id="rejection" class="rounded-xl bg-white ring-1 ring-red-100 px-4 py-4">
             <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_profile.current_status') }}</p>
             <p class="text-lg font-bold text-red-800 mt-1">{{ __('borrower.applications_list.statuses.not_approved') }}</p>
-            @if (! empty($status['detail']))
+            @php
+                $rejectionReasons = collect($status['rejection_reasons'] ?? [])->filter()->values();
+                $rejectionAdvice = $status['rejection_advice'] ?? null;
+            @endphp
+            @if ($rejectionReasons->isNotEmpty())
+                <p class="text-xs uppercase tracking-widest text-red-700/80 font-semibold mt-3">{{ __('borrower.loan_profile.rejection_reasons_title') }}</p>
+                <ul class="mt-2 space-y-1.5">
+                    @foreach ($rejectionReasons as $reasonLabel)
+                        <li class="text-sm text-red-700 flex gap-2">
+                            <span class="mt-1.5 size-1.5 rounded-full bg-red-500 shrink-0" aria-hidden="true"></span>
+                            <span>{{ $reasonLabel }}</span>
+                        </li>
+                    @endforeach
+                </ul>
+            @elseif (! empty($status['detail']))
                 @php
                     $detailLines = preg_split("/\n+/", trim((string) $status['detail'])) ?: [];
                     $reasonLine = $detailLines[0] ?? null;
-                    $adviceLine = $detailLines[1] ?? null;
                 @endphp
                 @if ($reasonLine)
                     <p class="text-sm text-red-700 mt-2">{{ $reasonLine }}</p>
                 @endif
-                @if ($adviceLine)
-                    <p class="text-sm text-gray-700 mt-2 rounded-lg bg-gray-50 ring-1 ring-gray-100 px-3 py-2">{{ $adviceLine }}</p>
-                @elseif (! empty($status['rejection_advice']))
-                    <p class="text-sm text-gray-700 mt-2 rounded-lg bg-gray-50 ring-1 ring-gray-100 px-3 py-2">
-                        {{ __('borrower.loan_profile.rejection_advice', ['advice' => $status['rejection_advice']]) }}
-                    </p>
-                @endif
-            @elseif (! empty($status['rejection_advice']))
+            @endif
+            @if ($rejectionAdvice)
+                <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mt-4">{{ __('borrower.loan_profile.rejection_advice_title') }}</p>
                 <p class="text-sm text-gray-700 mt-2 rounded-lg bg-gray-50 ring-1 ring-gray-100 px-3 py-2">
-                    {{ __('borrower.loan_profile.rejection_advice', ['advice' => $status['rejection_advice']]) }}
+                    {{ $rejectionAdvice }}
                 </p>
             @endif
             @if (! empty($next['url']))

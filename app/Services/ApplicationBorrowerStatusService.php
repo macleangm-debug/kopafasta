@@ -49,9 +49,11 @@ class ApplicationBorrowerStatusService
         }
 
         if ($this->resolveCode($application) === 'rejected') {
-            $label = $this->rejectionReasons->labelForCode($application->rejection_reason_code)
-                ?: $application->rejection_reason
-                ?: __('borrower.applications_list.rejected_default');
+            $label = $this->rejectionReasons->formatReasonsForBorrower(
+                $application->rejection_reason_codes,
+                $application->rejection_reason_code,
+                $application->rejection_reason,
+            );
 
             $detail = __('borrower.loan_profile.rejection_reason', ['reason' => $label]);
             $advice = $this->rejectionReasons->resolveBorrowerAdvice(

@@ -125,6 +125,9 @@ class LoanApplicationWorkflowService
         ?string $rejectionInternalNotes = null,
         ?string $rejectionAdviceCode = null,
         ?string $rejectionAdvice = null,
+        ?array $rejectionReasonCodes = null,
+        ?string $approvalReasonCode = null,
+        ?string $approvalReasonNotes = null,
     ): LoanApplication {
         $action = self::ACTIONS[$actionKey] ?? null;
 
@@ -210,23 +213,60 @@ class LoanApplicationWorkflowService
 
         $oldStatus = $application->status;
         $rejectionLabel = null;
+        $normalizedRejectionCodes = [];
 
         if ($to === 'rejected') {
             $reasonService = app(LoanRejectionReasonService::class);
-            if (! $reasonService->isValidCode($rejectionReasonCode)) {
+            $normalizedRejectionCodes = $reasonService->normalizeCodes($rejectionReasonCodes, $rejectionReasonCode);
+            if ($normalizedRejectionCodes === []) {
                 throw ValidationException::withMessages([
-                    'rejection_reason_code' => 'Select a valid rejection reason.',
+                    'rejection_reason_codes' => 'Select at least one rejection reason.',
                 ]);
             }
-            $rejectionLabel = $reasonService->labelForCode($rejectionReasonCode);
-            // Keep predefined advice as code only so borrower locale can resolve at display time.
-            $storedAdvice = ($rejectionAdviceCode === 'custom' || ! filled($rejectionAdviceCode))
-                ? (trim((string) $rejectionAdvice) ?: null)
-                : null;
+            $rejectionReasonCode = $normalizedRejectionCodes[0];
+            $rejectionLabel = $reasonService->formatReasonsForBorrower(
+                $normalizedRejectionCodes,
+                $rejectionReasonCode,
+            );
+            // Keep predefined advice as code; free-text advice is always stored when provided.
+            $storedAdvice = trim((string) $rejectionAdvice) ?: null;
+            if ($rejectionAdviceCode && $rejectionAdviceCode !== 'custom' && $storedAdvice === null) {
+                // Preset-only advice — store code, leave free-text empty for locale resolution.
+                $storedAdvice = null;
+            } elseif ($storedAdvice !== null && ! filled($rejectionAdviceCode)) {
+                $rejectionAdviceCode = 'custom';
+            }
             $fromStage = $from;
         } else {
             $storedAdvice = null;
             $fromStage = $from;
+        }
+
+        if ($actionKey === 'approve') {
+            $approvalReasons = config('credit_recommendation.approval_reasons', []);
+            $approvalReasonCode = filled($approvalReasonCode) && array_key_exists($approvalReasonCode, $approvalReasons)
+                ? $approvalReasonCode
+                : null;
+            $approvalReasonNotes = trim((string) $approvalReasonNotes) ?: null;
+            if ($approvalReasonCode === 'custom' && $approvalReasonNotes === null) {
+                throw ValidationException::withMessages([
+                    'approval_reason_notes' => 'Enter the custom approval reason.',
+                ]);
+            }
+            if ($approvalReasonCode === null && $approvalReasonNotes === null) {
+                throw ValidationException::withMessages([
+                    'approval_reason_code' => 'Select a reason for approval.',
+                ]);
+            }
+            $appraisal['committee_approval'] = [
+                'reason_code' => $approvalReasonCode,
+                'reason_label' => $approvalReasonCode
+                    ? ($approvalReasons[$approvalReasonCode] ?? $approvalReasonCode)
+                    : null,
+                'notes' => $approvalReasonNotes,
+                'approved_by' => $user->id,
+                'approved_at' => now()->toIso8601String(),
+            ];
         }
 
         $application->update([
@@ -237,6 +277,7 @@ class LoanApplicationWorkflowService
             'pre_approved_at'           => $to === 'pre_approval' ? now() : $application->pre_approved_at,
             'approved_at'               => $to === 'approval' ? now() : $application->approved_at,
             'rejection_reason_code'     => $to === 'rejected' ? $rejectionReasonCode : $application->rejection_reason_code,
+            'rejection_reason_codes'    => $to === 'rejected' ? $normalizedRejectionCodes : $application->rejection_reason_codes,
             'rejection_reason'          => $to === 'rejected' ? ($rejectionLabel ?: $application->rejection_reason) : $application->rejection_reason,
             'rejection_internal_notes'  => $to === 'rejected' ? $rejectionInternalNotes : $application->rejection_internal_notes,
             'rejection_advice_code'     => $to === 'rejected' ? ($rejectionAdviceCode ?: null) : $application->rejection_advice_code,
@@ -462,17 +503,23 @@ class LoanApplicationWorkflowService
         }
 
         $locale = optional($customer->user)->locale
+            ?? data_get(optional($customer->user)->preferences, 'preferred_locale')
             ?? data_get(optional($customer->user)->preferences, 'locale')
             ?? app()->getLocale();
 
-        $reason = app(LoanRejectionReasonService::class)->labelForCode(
-            $application->rejection_reason_code,
-            $locale,
-        )
-            ?: $application->rejection_reason
-            ?: 'Application declined';
+        if (! in_array($locale, ['en', 'sw'], true)) {
+            $locale = 'en';
+        }
 
-        $advice = app(LoanRejectionReasonService::class)->resolveBorrowerAdvice(
+        $reasonService = app(LoanRejectionReasonService::class);
+        $reason = $reasonService->formatReasonsForBorrower(
+            $application->rejection_reason_codes,
+            $application->rejection_reason_code,
+            $application->rejection_reason,
+            $locale,
+        );
+
+        $advice = $reasonService->resolveBorrowerAdvice(
             $application->rejection_advice_code,
             $application->rejection_advice,
             $locale,

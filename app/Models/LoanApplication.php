@@ -34,6 +34,7 @@ class LoanApplication extends Model
             'offered_amount' => 'decimal:2',
             'screening_payload' => 'array',
             'credit_appraisal_payload' => 'array',
+            'rejection_reason_codes' => 'array',
             'submitted_at' => 'datetime',
             'guarantor_deadline_at' => 'datetime',
             'pre_approved_at' => 'datetime',

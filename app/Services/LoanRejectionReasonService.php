@@ -147,13 +147,25 @@ class LoanRejectionReasonService
 
     public function resolveBorrowerAdvice(?string $code, ?string $custom, ?string $locale = null): ?string
     {
+        $parts = [];
+
         if ($code && $code !== 'custom') {
-            return $this->adviceLabel($code, $locale) ?: (filled($custom) ? trim((string) $custom) : null);
+            $preset = $this->adviceLabel($code, $locale);
+            if ($preset) {
+                $parts[] = $preset;
+            }
         }
 
         $custom = trim((string) $custom);
+        if ($custom !== '') {
+            $parts[] = $custom;
+        }
 
-        return $custom !== '' ? $custom : null;
+        if ($parts === []) {
+            return null;
+        }
+
+        return implode(' ', array_unique($parts));
     }
 
     public function categoryLabel(string $category, ?string $locale = null): string
@@ -178,5 +190,61 @@ class LoanRejectionReasonService
 
         return is_array($configured)
             && collect($configured)->contains(fn ($row) => ($row['code'] ?? null) === $code);
+    }
+
+    /**
+     * @param  list<string|null>|null  $codes
+     * @return list<string>
+     */
+    public function normalizeCodes(?array $codes, ?string $fallbackCode = null): array
+    {
+        $normalized = collect($codes ?? [])
+            ->map(fn ($code) => trim((string) $code))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($normalized === [] && filled($fallbackCode)) {
+            $normalized = [trim((string) $fallbackCode)];
+        }
+
+        return array_values(array_filter(
+            $normalized,
+            fn (string $code) => $this->isValidCode($code),
+        ));
+    }
+
+    /**
+     * @param  list<string>|null  $codes
+     * @return list<string>
+     */
+    public function labelsForCodes(?array $codes, ?string $locale = null, ?string $fallbackCode = null): array
+    {
+        $codes = $this->normalizeCodes($codes, $fallbackCode);
+
+        return collect($codes)
+            ->map(fn (string $code) => $this->labelForCode($code, $locale))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  list<string>|null  $codes
+     */
+    public function formatReasonsForBorrower(?array $codes, ?string $fallbackCode = null, ?string $fallbackLabel = null, ?string $locale = null): string
+    {
+        $labels = $this->labelsForCodes($codes, $locale, $fallbackCode);
+
+        if ($labels === []) {
+            $labels = array_values(array_filter([(string) $fallbackLabel]));
+        }
+
+        if ($labels === []) {
+            return __('borrower.applications_list.rejected_default', [], $locale ?? app()->getLocale());
+        }
+
+        return implode('; ', $labels);
     }
 }

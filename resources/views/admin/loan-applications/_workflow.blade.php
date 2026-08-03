@@ -25,8 +25,11 @@
         @if ($currentStage === 'rejected')
             <span class="text-xs font-semibold rounded-full px-3 py-1 bg-red-100 text-red-800">Rejected</span>
             @php
-                $rejectLabel = app(\App\Services\LoanRejectionReasonService::class)->labelForCode($record->rejection_reason_code)
-                    ?: $record->rejection_reason;
+                $rejectLabel = app(\App\Services\LoanRejectionReasonService::class)->formatReasonsForBorrower(
+                    $record->rejection_reason_codes,
+                    $record->rejection_reason_code,
+                    $record->rejection_reason,
+                );
                 $rejectAdvice = app(\App\Services\LoanRejectionReasonService::class)->resolveBorrowerAdvice(
                     $record->rejection_advice_code,
                     $record->rejection_advice,

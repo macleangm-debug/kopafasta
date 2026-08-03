@@ -23,6 +23,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Committee final-approval reasons
+    |--------------------------------------------------------------------------
+    */
+    'approval_reasons' => [
+        'aligns_with_screening' => 'Confirms the screening recommendation',
+        'strong_affordability' => 'Strong affordability / repayment capacity',
+        'acceptable_risk' => 'Risk is within policy',
+        'adequate_security' => 'Collateral / security is adequate',
+        'strong_guarantor' => 'Guarantor strength supports approval',
+        'documents_complete' => 'Documents are complete and verified',
+        'custom' => 'Custom (write below)',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Committee divergence reasons (required when not validating screening)
     |--------------------------------------------------------------------------
     */

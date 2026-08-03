@@ -350,6 +350,8 @@ class LoanApplicationController extends ResourceController
             'action'                   => ['required', 'string', 'in:'.implode(',', array_keys(LoanApplicationWorkflowService::ACTIONS))],
             'remarks'                  => ['nullable', 'string', 'max:1000'],
             'rejection_reason_code'    => ['nullable', 'string', 'max:80'],
+            'rejection_reason_codes'   => ['nullable', 'array'],
+            'rejection_reason_codes.*' => ['string', 'max:80'],
             'rejection_internal_notes' => ['nullable', 'string', 'max:2000'],
             'rejection_advice_code'    => ['nullable', 'string', 'max:80'],
             'rejection_advice'         => ['nullable', 'string', 'max:2000'],
@@ -358,6 +360,8 @@ class LoanApplicationController extends ResourceController
             'recommendation_rationale' => ['nullable', 'string', 'max:80'],
             'recommendation_notes'     => ['nullable', 'string', 'max:1000'],
             'committee_rationale'      => ['nullable', 'string', 'max:80'],
+            'approval_reason_code'     => ['nullable', 'string', 'max:80'],
+            'approval_reason_notes'    => ['nullable', 'string', 'max:1000'],
             'recommended_amount'       => ['nullable', 'numeric', 'min:0'],
             'offered_amount'           => ['nullable', 'numeric', 'min:0'],
             'offered_tenure_months'    => ['nullable', 'integer', 'min:1', 'max:120'],
@@ -377,8 +381,26 @@ class LoanApplicationController extends ResourceController
             }
         }
 
-        if ($data['action'] === 'reject' && empty(trim($data['rejection_reason_code'] ?? ''))) {
-            return back()->withErrors(['rejection_reason_code' => 'Select a rejection reason.'])->withInput();
+        if ($data['action'] === 'approve' && empty(trim((string) ($data['approval_reason_code'] ?? '')))) {
+            return back()->withErrors(['approval_reason_code' => 'Select a reason for approval.'])->withInput();
+        }
+
+        if ($data['action'] === 'approve'
+            && ($data['approval_reason_code'] ?? null) === 'custom'
+            && empty(trim((string) ($data['approval_reason_notes'] ?? '')))) {
+            return back()->withErrors(['approval_reason_notes' => 'Enter the custom approval reason.'])->withInput();
+        }
+
+        $rejectionCodes = collect($data['rejection_reason_codes'] ?? [])
+            ->push($data['rejection_reason_code'] ?? null)
+            ->map(fn ($code) => trim((string) $code))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($data['action'] === 'reject' && $rejectionCodes === []) {
+            return back()->withErrors(['rejection_reason_codes' => 'Select at least one rejection reason.'])->withInput();
         }
 
         if ($data['action'] === 'reject'
@@ -440,6 +462,14 @@ class LoanApplicationController extends ResourceController
                         auth()->user(),
                         'approve',
                         'Committee validated the screening approval.',
+                        false,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        'aligns_with_screening',
+                        'Validated the screening approval.',
                     );
 
                     return redirect()
@@ -541,10 +571,13 @@ class LoanApplicationController extends ResourceController
                     $data['action'],
                     $data['remarks'] ?? null,
                     false,
-                    $data['rejection_reason_code'] ?? null,
+                    $rejectionCodes[0] ?? ($data['rejection_reason_code'] ?? null),
                     $data['rejection_internal_notes'] ?? null,
                     $data['rejection_advice_code'] ?? null,
                     $data['rejection_advice'] ?? null,
+                    $rejectionCodes !== [] ? $rejectionCodes : null,
+                    $data['approval_reason_code'] ?? null,
+                    $data['approval_reason_notes'] ?? null,
                 );
 
                 if ($data['action'] === 'return_for_documents' && ! empty($data['document_presets'])) {

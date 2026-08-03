@@ -180,6 +180,13 @@ class LoanApplicationProfileService
                 'label'   => $borrowerStatus['label'],
                 'tone'    => $borrowerStatus['tone'],
                 'detail'  => $this->statusDetail($application),
+                'rejection_reasons' => $borrowerStatus['code'] === 'rejected'
+                    ? app(\App\Services\LoanRejectionReasonService::class)->labelsForCodes(
+                        $application->rejection_reason_codes,
+                        null,
+                        $application->rejection_reason_code,
+                    )
+                    : [],
                 'rejection_advice' => $borrowerStatus['code'] === 'rejected'
                     ? app(\App\Services\LoanRejectionReasonService::class)->resolveBorrowerAdvice(
                         $application->rejection_advice_code,

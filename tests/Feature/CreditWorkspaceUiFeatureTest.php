@@ -102,7 +102,8 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringNotContainsString('Preferred reject reason', $screening);
         $this->assertStringNotContainsString('Return for documents', $screening);
         $this->assertStringContainsString('Advice for borrower', $screening);
-        $this->assertStringContainsString('Notes and advice', $screening);
+        $this->assertStringContainsString('Rejection reasons', $screening);
+        $this->assertStringContainsString('Open field advice', $screening);
         $this->assertStringNotContainsString('Complete screening', $screening);
         $this->assertStringContainsString('Other institutions', $screening);
         $this->assertStringContainsString('Affordability', $screening);
@@ -142,6 +143,8 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('Committee workspace', $committee);
         $this->assertStringContainsString('Record the committee decision', $committee);
         $this->assertStringContainsString('Validate screening', $committee);
+        $this->assertStringContainsString('Reason for approval', $committee);
+        $this->assertStringContainsString('Rejection reasons', $committee);
         $this->assertStringContainsString('Borrower CRB · Guarantor · Screening', $committee);
     }
 
