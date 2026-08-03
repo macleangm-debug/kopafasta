@@ -27,74 +27,15 @@
 <div
     @if ($sectionId) id="{{ $sectionId }}" @endif
     class="glass-card scroll-mt-24 {{ ($allowOverflow ?? false) ? 'overflow-visible' : 'overflow-hidden' }}"
-    x-data="{
-        open: @js($startOpen),
-        expanded: @js($startExpanded),
-        id: @js($accordionId),
-        toggleExpand() {
-            if (this.open) return;
-            this.expanded = !this.expanded;
-            if (this.expanded) {
-                window.dispatchEvent(new CustomEvent('profile-accordion', { detail: this.id }));
-            }
-        },
-        openEdit() {
-            this.open = true;
-            this.expanded = true;
-            window.dispatchEvent(new CustomEvent('profile-accordion', { detail: this.id }));
-        },
-        requestClose() {
-            if (! this.open) {
-                this.expanded = false;
-                return;
-            }
-            const detail = {
-                id: this.id,
-                proceed: () => { this.open = false; this.expanded = false; },
-                stay: () => {
-                    this.open = true;
-                    this.expanded = true;
-                    window.dispatchEvent(new CustomEvent('profile-accordion', { detail: this.id }));
-                },
-            };
-            const ev = new CustomEvent('profile-section-before-close', { bubbles: true, cancelable: true, detail });
-            this.$el.dispatchEvent(ev);
-            if (ev.defaultPrevented) {
-                return;
-            }
-
-            const form = this.$el.querySelector('form');
-            const hasUnsavedFiles = !!(form && [...form.querySelectorAll('input[type="file"]')].some((input) => input.files && input.files.length > 0));
-            if (hasUnsavedFiles) {
-                const title = @js(__('borrower.profile.unsaved_photos_title'));
-                const message = @js(__('borrower.profile.unsaved_photos_body'));
-                const confirmLabel = @js(__('borrower.profile.unsaved_photos_confirm'));
-                if (typeof window.confirmForm === 'function') {
-                    window.confirmForm(null, {
-                        title,
-                        message,
-                        confirmLabel,
-                        confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
-                        onConfirm: () => detail.proceed(),
-                        onCancel: () => detail.stay(),
-                    });
-                    return;
-                }
-                if (! window.confirm(message)) {
-                    detail.stay();
-                    return;
-                }
-            }
-            detail.proceed();
-        },
-    }"
-    x-init="
-        if (window.location.hash === '#{{ $sectionId }}') { open = true; expanded = true; }
-        window.addEventListener('profile-accordion', (e) => {
-            if (e.detail !== id && open) { requestClose(); }
-            else if (e.detail !== id) { expanded = false; open = false; }
-        });
-    "
+    x-data="profileSectionCard(@js([
+        'open' => $startOpen,
+        'expanded' => $startExpanded,
+        'id' => $accordionId,
+        'sectionHash' => $sectionId,
+        'unsavedTitle' => __('borrower.profile.unsaved_photos_title'),
+        'unsavedMessage' => __('borrower.profile.unsaved_photos_body'),
+        'unsavedConfirm' => __('borrower.profile.unsaved_photos_confirm'),
+    ]))"
 >
     <div class="flex items-start justify-between gap-3 px-5 sm:px-6 py-4 border-b border-gray-100/80">
         <button type="button"
