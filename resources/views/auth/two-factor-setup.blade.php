@@ -10,8 +10,9 @@
 </head>
 <body class="h-full antialiased" x-data>
 <div class="min-h-full grid lg:grid-cols-2">
-    <aside class="relative hidden lg:flex flex-col justify-between overflow-hidden bg-[#0B3D32] text-white px-10 py-12">
-        <div class="absolute inset-0 opacity-40" style="background-image: radial-gradient(circle at 20% 20%, rgba(251,191,36,0.35), transparent 42%), radial-gradient(circle at 90% 80%, rgba(255,255,255,0.12), transparent 40%);"></div>
+    <aside class="relative hidden lg:flex flex-col justify-between overflow-hidden bg-brand text-white px-10 py-12"
+           style="background-color: #0B3D32; color: #fff;">
+        <div class="absolute inset-0 opacity-40 pointer-events-none" style="background-image: radial-gradient(circle at 20% 20%, rgba(251,191,36,0.35), transparent 42%), radial-gradient(circle at 90% 80%, rgba(255,255,255,0.12), transparent 40%);"></div>
         <div class="relative">
             <img src="{{ asset(brand('logo_url_light') ?: brand('logo_url') ?: 'images/brand/kopafasta-logo-light.svg') }}"
                  alt="{{ brand_name() }}"
