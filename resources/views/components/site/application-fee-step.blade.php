@@ -16,7 +16,8 @@
     $hasRewardsCta = $loyaltyPoints > 0 || $referralPoints > 0;
 @endphp
 
-<div x-show="stepKey === 'application_fee' || feeGateOpen" class="p-6 sm:p-8">
+{{-- Use $data.feeGateOpen so a stale JS bundle without feeGateOpen cannot ReferenceError-blank the wizard. --}}
+<div x-show="stepKey === 'application_fee' || $data.feeGateOpen" class="p-6 sm:p-8">
     <x-site.wizard-step-header
         :eyebrow="__('borrower.apply.application_fee.eyebrow')"
         :title="__('borrower.apply.application_fee.title')"

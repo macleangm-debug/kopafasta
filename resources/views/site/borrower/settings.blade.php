@@ -17,19 +17,26 @@
         </div>
 
         @if (session('status'))
-            <div class="mb-5 rounded-2xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
+            <div
+                x-data
+                x-init="
+                    $nextTick(() => window.showBorrowerFeedback({
+                        title: @js(__('borrower.feedback.saved_title')),
+                        message: @js(session('status')),
+                        tone: 'success',
+                    }));
+                "
+                class="sr-only"
+                aria-hidden="true"
+            ></div>
         @endif
 
         <div class="space-y-6">
             <x-site.profile-section-card
                 :title="auth()->user()->pin_set_at ? __('borrower.security_tab.change_pin') : __('borrower.security_tab.set_pin')"
-                :complete="(bool) auth()->user()->pin_set_at"
                 :collapsible="true">
                 <x-slot:view>
                     <p class="text-sm text-gray-600">{{ __('borrower.security_tab.pin_hint') }}</p>
-                    <p class="mt-2 text-sm font-semibold {{ auth()->user()->pin_set_at ? 'text-emerald-700' : 'text-amber-700' }}">
-                        {{ auth()->user()->pin_set_at ? __('borrower.profile.section_complete') : __('borrower.profile.section_incomplete') }}
-                    </p>
                 </x-slot:view>
                 <x-slot:form>
                     <form method="POST" action="{{ route('site.borrower.profile.pin.update') }}" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -58,7 +65,7 @@
                 </x-slot:form>
             </x-site.profile-section-card>
 
-            <x-site.profile-section-card :title="__('borrower.security_tab.trusted_devices')" :complete="$trustedDevices->isNotEmpty()">
+            <x-site.profile-section-card :title="__('borrower.security_tab.trusted_devices')">
                 <x-slot:view>
                     <p class="text-sm text-gray-600">{{ __('borrower.settings.trusted_devices_advice') }}</p>
                     <p class="mt-2 text-sm font-medium text-gray-800">
@@ -91,7 +98,7 @@
                 </x-slot:form>
             </x-site.profile-section-card>
 
-            <x-site.profile-section-card section-id="notifications" :title="__('borrower.security_tab.notifications_title')" :complete="true">
+            <x-site.profile-section-card section-id="notifications" :title="__('borrower.security_tab.notifications_title')">
                 <x-slot:view>
                     <p class="text-sm text-gray-600">{{ __('borrower.security_tab.notifications_hint') }}</p>
                     <p class="text-xs text-gray-500 mt-2">{{ __('borrower.security_tab.notif_credit_limit_hint') }}</p>
@@ -118,7 +125,7 @@
                 </x-slot:form>
             </x-site.profile-section-card>
 
-            <x-site.profile-section-card :title="__('borrower.settings.personalisation_title')" :complete="filled($displayName)">
+            <x-site.profile-section-card :title="__('borrower.settings.personalisation_title')">
                 <x-slot:view>
                     <dl class="grid sm:grid-cols-2 gap-3 text-sm">
                         <div>

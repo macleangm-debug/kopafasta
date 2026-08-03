@@ -1,6 +1,6 @@
 <x-site.borrower-layout :title="brand_title('Profile — Activity')" active="profile" content-width="wide">
 
-    <div>
+    <div class="space-y-4">
         @include('site.borrower.profile._profile_shell', [
             'title' => __('borrower.profile.activity'),
             'subtitle' => __('borrower.profile.activity_subtitle'),
@@ -15,12 +15,13 @@
             $activityStale = in_array('activity', app(\App\Services\KycFreshnessService::class)->sectionsDueForRefresh($customer), true);
             $activityLabel = activity_type_label($customer->activity_type ?? $customer->employment_type);
             $incomeLabel = income_range_label($customer->income_range);
-            $saveConfirm = [
-                'title' => __('borrower.profile.save_confirm_title'),
-                'message' => __('borrower.profile.save_confirm_message'),
-                'confirmLabel' => __('borrower.profile.save'),
-                'confirmClass' => 'bg-amber-500 hover:bg-amber-400 text-gray-900',
-            ];
+            $focus = request()->query('focus');
+            $openActivity = ($wizardMode ?? false) || ($editing ?? false)
+                || $errors->hasAny(['activity_type', 'income_range', 'employment_contract', 'activity_details'])
+                || ! in_array($focus, ['income', 'statement', 'additional', 'documents'], true);
+            if (in_array($focus, ['income', 'statement', 'additional', 'documents'], true)) {
+                $openActivity = false;
+            }
         @endphp
 
         @if ($activityStale && $activityComplete)
@@ -32,13 +33,17 @@
             </div>
         @endif
 
+        @if ($errors->any())
+            <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ $errors->first() }}</div>
+        @endif
+
+        {{-- 1. Activity details --}}
         <x-site.profile-section-card
             section-id="profile-activity"
             icon="💼"
             :title="__('borrower.profile.activity')"
-            :complete="$activityComplete"
-            :empty="! $activityComplete"
-            :default-open="($wizardMode ?? false) || ($editing ?? false)">
+            :empty="! filled($customer->activity_type) || ! filled($customer->income_range)"
+            :default-open="$openActivity">
             <x-slot:view>
                 <dl class="grid sm:grid-cols-2 gap-4 text-sm">
                     <div>
@@ -64,7 +69,7 @@
             </x-slot:view>
             <x-slot:form>
                 <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'activity']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data"
-                      @submit.prevent="window.confirmForm($el, @js($saveConfirm))">
+                      x-data="{ uploading: false }" @submit="uploading = true">
                     @csrf @method('PUT')
                     @if ($wizardMode ?? false)
                         <input type="hidden" name="wizard" value="1">
@@ -86,9 +91,16 @@
                     <button type="submit" class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
                         {{ ($wizardMode ?? false) ? __('borrower.profile_wizard.save_continue') : __('borrower.profile.save') }}
                     </button>
+                    <x-site.upload-busy-overlay />
                 </form>
             </x-slot:form>
         </x-site.profile-section-card>
+
+        {{-- 2. Account / bank statement (proof of income) --}}
+        @include('site.borrower.profile._income_statement_card')
+
+        {{-- 3. Additional documents (type dropdown → attach) --}}
+        @include('site.borrower.profile._additional_documents_card')
 
         @include('site.borrower.profile._wizard_footer', ['customer' => $customer, 'wizardMode' => $wizardMode ?? false, 'wizardKey' => $wizardKey ?? 'activity'])
     </div>

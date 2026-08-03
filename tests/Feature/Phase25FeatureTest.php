@@ -114,10 +114,10 @@ class Phase25FeatureTest extends TestCase
             ->pluck('key')
             ->all();
 
-        $this->assertSame(
-            ['asset_tenure', 'application_fee', 'review', 'signature', 'submit'],
-            $stepKeys
-        );
+        // Application fee is an in-wizard payment gate (not numbered); signature lives on profile.
+        $this->assertSame(['asset_tenure', 'review', 'submit'], $stepKeys);
+        $this->assertNotContains('application_fee', $stepKeys);
+        $this->assertNotContains('signature', $stepKeys);
     }
 
     public function test_asset_backed_wizard_step_plan_uses_asset_details(): void
@@ -141,9 +141,10 @@ class Phase25FeatureTest extends TestCase
             ->all();
 
         $this->assertSame('asset_details', $stepKeys[0]);
-        $this->assertContains('application_fee', $stepKeys);
         $this->assertContains('submit', $stepKeys);
         $this->assertNotContains('quote', $stepKeys);
+        $this->assertNotContains('application_fee', $stepKeys);
+        $this->assertNotContains('signature', $stepKeys);
     }
 
     public function test_swahili_disbursement_loan_servicing_and_policy_strings_are_available(): void

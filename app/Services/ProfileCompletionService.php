@@ -31,7 +31,8 @@ class ProfileCompletionService
             }
         }
 
-        return $validation->employmentContractComplete($customer);
+        return $validation->employmentContractComplete($customer)
+            && app(IncomeProofService::class)->satisfiesRequirement($customer);
     }
 
     public function isResidenceComplete(Customer $customer): bool
@@ -82,7 +83,7 @@ class ProfileCompletionService
                 'key'        => 'documents',
                 'label'      => __('borrower.profile.documents_proof'),
                 'status'     => $this->isDocumentsComplete($customer) ? 'complete' : 'missing',
-                'action_url' => route('site.borrower.profile', ['section' => 'kyc']),
+                'action_url' => route('site.borrower.profile', ['section' => 'activity', 'focus' => 'income']),
             ],
         ];
 
@@ -261,7 +262,7 @@ class ProfileCompletionService
                 'complete' => $this->isDocumentsComplete($customer),
                 'required' => true,
                 'label'    => __('borrower.profile.kyc'),
-                'url'      => route('site.borrower.profile', ['section' => 'kyc']),
+                'url'      => route('site.borrower.profile', ['section' => 'activity', 'focus' => 'income']),
             ],
             'payment' => [
                 'complete' => app(CustomerDisbursementDetailsService::class)->isComplete($customer),

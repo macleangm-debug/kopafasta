@@ -68,7 +68,7 @@
                 </div>
             </x-site.bottom-sheet>
         </div>
-        <select x-model="prefix" data-phone-prefix class="{{ $selectClass }} max-lg:absolute max-lg:opacity-0 max-lg:pointer-events-none max-lg:h-0 max-lg:overflow-hidden" @change="syncHidden()">
+        <select x-model="prefix" data-phone-prefix class="{{ $selectClass }} max-lg:sr-only" @change="syncHidden()">
             @foreach ($countries as $country)
                 <option value="{{ $country['prefix'] }}">{{ $country['emoji'] }} {{ $country['prefix'] }}</option>
             @endforeach

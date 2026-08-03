@@ -69,7 +69,7 @@
         </div>
 
         <select name="{{ $regionName }}" x-model="region" @change="onRegionChange()" @if($required) required @endif
-                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm max-lg:absolute max-lg:opacity-0 max-lg:pointer-events-none max-lg:h-0 max-lg:overflow-hidden">
+                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm max-lg:sr-only">
             <option value="">{{ __('borrower.profile.select_region') }}</option>
             @foreach ($locations as $regionLabel => $districts)
                 <option value="{{ $regionLabel }}" @selected($initialRegion === $regionLabel)>{{ $regionLabel }}</option>
@@ -98,7 +98,7 @@
         </div>
 
         <select name="{{ $districtName }}" x-model="district" @if($required) required @endif
-                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm max-lg:absolute max-lg:opacity-0 max-lg:pointer-events-none max-lg:h-0 max-lg:overflow-hidden"
+                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm max-lg:sr-only"
                 :key="'district-' + region">
             <option value="">{{ __('borrower.profile.select_district') }}</option>
             <template x-for="d in districtOptions" :key="d">

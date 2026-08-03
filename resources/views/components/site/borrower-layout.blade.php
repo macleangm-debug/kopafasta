@@ -286,7 +286,14 @@
             '</svg><span>' + label + '</span>';
     }
 
+    // Bubble phase so @submit.prevent (confirm modals) can cancel first.
+    // Capture-phase loading previously disabled Save before the confirm opened,
+    // leaving the button stuck if the user cancelled or never confirmed.
     document.addEventListener('submit', function (event) {
+        if (event.defaultPrevented) {
+            return;
+        }
+
         const form = event.target;
         if (!(form instanceof HTMLFormElement) || form.dataset.skipLoading === '1' || form.dataset.loadingBound === '1') {
             return;
@@ -314,21 +321,21 @@
         } else {
             submitter.value = loadingLabel;
         }
-    }, true);
+    });
 })();
 </script>
 <script>
-document.addEventListener('alpine:init', () => {
-    window.confirmForm = (form, detail = {}) => {
-        const tone = detail.tone
-            || (String(detail.confirmClass || '').includes('red') ? 'warning' : 'confirm');
-        // form may be null when detail.onConfirm is provided (Alpine actions).
-        window.dispatchEvent(new CustomEvent('open-confirm-default', {
-            detail: { form: form || null, tone, ...detail },
-        }));
-    };
+window.confirmForm = (form, detail = {}) => {
+    const tone = detail.tone
+        || (String(detail.confirmClass || '').includes('red') ? 'warning' : 'confirm');
+    // form may be null when detail.onConfirm is provided (Alpine actions).
+    window.dispatchEvent(new CustomEvent('open-confirm-default', {
+        detail: { form: form || null, tone, ...detail },
+    }));
+};
+window.confirmAction = (detail = {}) => window.confirmForm(null, detail);
 
-    window.confirmAction = (detail = {}) => window.confirmForm(null, detail);
+document.addEventListener('alpine:init', () => {
 
     window.showBorrowerFeedback = (detail = {}) => {
         window.dispatchEvent(new CustomEvent('open-feedback-default', {

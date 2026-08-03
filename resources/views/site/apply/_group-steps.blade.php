@@ -91,7 +91,7 @@
     </template>
 </div>
 
-<div x-show="stepKey === 'group_members' && !feeGateOpen" class="p-6 sm:p-8">
+<div x-show="stepKey === 'group_members' && ! $data.feeGateOpen" class="p-6 sm:p-8">
     <x-site.wizard-step-header
         :eyebrow="__('borrower.apply.steps.group_members')"
         :title="__('borrower.apply.group_members.title')"

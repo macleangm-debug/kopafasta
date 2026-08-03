@@ -10,7 +10,18 @@
 @endphp
 
 @if (session('status'))
-    <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
+    <div
+        x-data
+        x-init="
+            $nextTick(() => window.showBorrowerFeedback && window.showBorrowerFeedback({
+                title: @js(__('borrower.feedback.saved_title')),
+                message: @js(session('status')),
+                tone: 'success',
+            }));
+        "
+        class="sr-only"
+        aria-hidden="true"
+    ></div>
 @endif
 @if ($errors->any())
     <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ $errors->first() }}</div>
@@ -20,13 +31,9 @@
     @if ($pinUpdateRoute)
         <x-site.profile-section-card
             :title="$hasPin ? __('borrower.security_tab.change_pin') : __('borrower.security_tab.set_pin')"
-            :complete="$hasPin"
             :collapsible="true">
             <x-slot:view>
                 <p class="text-sm text-gray-600">{{ __('site.partner_account.pin_hint') }}</p>
-                <p class="mt-2 text-sm font-semibold {{ $hasPin ? 'text-emerald-700' : 'text-amber-700' }}">
-                    {{ $hasPin ? __('borrower.profile.section_complete') : __('borrower.profile.section_incomplete') }}
-                </p>
             </x-slot:view>
             <x-slot:form>
                 <form method="POST" action="{{ $pinUpdateRoute }}" class="grid sm:grid-cols-2 gap-4">

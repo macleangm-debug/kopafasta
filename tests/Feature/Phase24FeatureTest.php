@@ -72,10 +72,10 @@ class Phase24FeatureTest extends TestCase
             $this->assertNotContains($profileKey, $stepKeys, "Profile step {$profileKey} should not appear in apply wizard.");
         }
 
-        $this->assertSame(
-            ['quote', 'application_fee', 'review', 'signature', 'submit'],
-            $stepKeys
-        );
+        // Application fee is an in-wizard payment gate (not numbered); signature lives on profile.
+        $this->assertSame(['quote', 'review', 'submit'], $stepKeys);
+        $this->assertNotContains('application_fee', $stepKeys);
+        $this->assertNotContains('signature', $stepKeys);
     }
 
     public function test_swahili_payment_and_notification_strings_are_available(): void

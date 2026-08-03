@@ -2,34 +2,78 @@
     'documents',
     'uploadRoute',
     'canUpload' => true,
+    'documentTypes' => null,
 ])
 
+@php
+    $documentTypes = $documentTypes ?? [
+        'business_license' => __('site.partner_account.doc_types.business_license'),
+        'tin_certificate' => __('site.partner_account.doc_types.tin_certificate'),
+        'vat_certificate' => __('site.partner_account.doc_types.vat_certificate'),
+        'registration' => __('site.partner_account.doc_types.registration'),
+        'other' => __('site.partner_account.doc_types.other'),
+    ];
+@endphp
+
 @if (session('status'))
-    <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
+    <div
+        x-data
+        x-init="
+            $nextTick(() => window.showBorrowerFeedback && window.showBorrowerFeedback({
+                title: @js(__('borrower.feedback.saved_title')),
+                message: @js(session('status')),
+                tone: 'success',
+            }));
+        "
+        class="sr-only"
+        aria-hidden="true"
+    ></div>
 @endif
 
 <div class="grid lg:grid-cols-3 gap-6">
     @if ($canUpload)
-        <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5 h-fit">
+        <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5 h-fit"
+             x-data="{ docType: '', customLabel: '', uploading: false, types: @js($documentTypes) }">
             <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('site.partner_account.upload_new') }}</p>
             <h2 class="text-lg font-bold text-gray-900 mt-1 mb-4">{{ __('site.partner_account.add_document') }}</h2>
-            <form method="POST" action="{{ $uploadRoute }}" enctype="multipart/form-data" class="space-y-3">
+            <form method="POST" action="{{ $uploadRoute }}" enctype="multipart/form-data" class="space-y-3"
+                  @submit="
+                      if (!docType) { $event.preventDefault(); return; }
+                      const labelInput = $el.querySelector('[data-doc-label]');
+                      if (labelInput) labelInput.value = docType === 'other' ? customLabel : (types[docType] || docType);
+                      uploading = true;
+                  ">
                 @csrf
                 <div>
+                    <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.doc_type') }}</label>
+                    <select x-model="docType" required
+                            class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand focus:border-brand bg-white">
+                        <option value="">{{ __('site.partner_account.doc_type_placeholder') }}</option>
+                        @foreach ($documentTypes as $key => $label)
+                            <option value="{{ $key }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div x-show="docType === 'other'" x-cloak>
                     <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.doc_label') }}</label>
-                    <input name="label" required maxlength="80"
+                    <input x-model="customLabel" maxlength="80"
                            class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand focus:border-brand"
                            placeholder="{{ __('site.partner_account.doc_label_placeholder') }}">
                 </div>
-                <div>
+                <input type="hidden" name="label" value="" data-doc-label>
+                <div x-show="docType" x-cloak>
                     <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.partner_account.doc_file') }}</label>
-                    <input type="file" name="file" required accept=".jpg,.jpeg,.png,.pdf" class="w-full text-sm">
+                    <input type="file" name="file" accept=".jpg,.jpeg,.png,.pdf,.webp,image/*" capture="environment" class="w-full text-sm"
+                           :required="!!docType">
+                    <p class="mt-2 text-xs text-gray-500">{{ __('borrower.profile.or_take_picture_hint') }}</p>
                 </div>
-                <button type="submit" class="w-full rounded-xl bg-brand-gold hover:brightness-95 text-brand text-sm font-bold py-2.5">
+                <button type="submit" :disabled="!docType"
+                        class="w-full rounded-xl bg-brand-gold hover:brightness-95 disabled:opacity-50 text-brand text-sm font-bold py-2.5">
                     {{ __('site.partner_account.upload') }}
                 </button>
             </form>
             <p class="text-xs text-gray-500 mt-3">{{ __('site.partner_account.docs_admin_hint') }}</p>
+            <x-site.upload-busy-overlay />
         </div>
     @endif
 

@@ -217,7 +217,7 @@ class IncomeProofService
                     'key'        => $item['key'],
                     'label'      => $item['label'],
                     'complete'   => (bool) $item['complete'],
-                    'action_url' => route('site.borrower.profile', ['section' => 'kyc']),
+                    'action_url' => route('site.borrower.profile', ['section' => 'activity', 'focus' => 'income']),
                 ];
             }
 
@@ -228,7 +228,7 @@ class IncomeProofService
             'key'        => 'income',
             'label'      => __('borrower.loan_profile.sections.proof_of_income'),
             'complete'   => $this->hasPrimaryProof($customer),
-            'action_url' => $this->hasPrimaryProof($customer) ? null : route('site.borrower.profile', ['section' => 'kyc']),
+            'action_url' => $this->hasPrimaryProof($customer) ? null : route('site.borrower.profile', ['section' => 'activity', 'focus' => 'income']),
         ]];
     }
 

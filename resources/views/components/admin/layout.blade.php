@@ -536,6 +536,10 @@ document.addEventListener('keydown', function (event) {
     }
 
     document.addEventListener('submit', function (event) {
+        if (event.defaultPrevented) {
+            return;
+        }
+
         const form = event.target;
         if (!(form instanceof HTMLFormElement) || form.dataset.skipLoading === '1' || form.dataset.loadingBound === '1') {
             return;
@@ -570,7 +574,7 @@ document.addEventListener('keydown', function (event) {
         form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function (btn) {
             if (btn !== submitter) btn.disabled = true;
         });
-    }, true);
+    });
 })();
 </script>
 <x-admin.number-format-script />

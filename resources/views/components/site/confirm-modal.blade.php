@@ -27,6 +27,13 @@
         onCancel: null,
         onConfirm: null,
         cancel() {
+            if (this.form instanceof HTMLFormElement) {
+                delete this.form.dataset.loadingBound;
+                this.form.querySelectorAll('button[type=submit][disabled], input[type=submit][disabled]').forEach((btn) => {
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-70', 'cursor-wait');
+                });
+            }
             this.open = false;
             this.form = null;
             this.onConfirm = null;
@@ -117,6 +124,11 @@
                             const confirmCb = onConfirm;
                             if (form) {
                                 form.dispatchEvent(new CustomEvent('sync-before-submit', { bubbles: true }));
+                                form.querySelectorAll('[data-phone-input]').forEach(function (root) {
+                                    if (typeof window.syncSitePhoneInput === 'function') {
+                                        window.syncSitePhoneInput(root);
+                                    }
+                                });
                                 form.querySelectorAll('button[type=submit], input[type=submit]').forEach(function (btn) { btn.disabled = true; });
                                 form.submit();
                             } else if (typeof confirmCb === 'function') {

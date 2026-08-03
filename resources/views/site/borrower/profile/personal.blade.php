@@ -50,12 +50,14 @@
             $faceComplete = in_array($faceKey, ['verified', 'pending'], true);
             $faceHasPhotos = ($facePhotos ?? collect())->isNotEmpty();
             $focusHash = request()->query('focus');
-            $saveConfirm = [
-                'title' => __('borrower.profile.save_confirm_title'),
-                'message' => __('borrower.profile.save_confirm_message'),
-                'confirmLabel' => __('borrower.profile.save'),
-                'confirmClass' => 'bg-amber-500 hover:bg-amber-400 text-gray-900',
-            ];
+            $errorFocus = match (true) {
+                $errors->hasAny(['national_id', 'national_id_front', 'national_id_back', 'alternate_id_types', 'alternate_id_front', 'alternate_id_back', 'no_physical_nida_card']) => 'identity',
+                $errors->hasAny(['phone', 'email']) => 'contact',
+                $errors->hasAny(['nok_first_name', 'nok_last_name', 'nok_name', 'nok_phone', 'nok_relationship', 'nok_region', 'nok_district', 'nok_street']) => 'kin',
+                $errors->hasAny(['signature_data', 'signer_name']) => 'signature',
+                default => null,
+            };
+            $focusHash = $focusHash ?: $errorFocus;
         @endphp
 
         @include('site.borrower.profile._nida_result', ['customer' => $customer])
@@ -69,8 +71,7 @@
         @endif
 
         @if (($wizardMode ?? false) && ($wizardKey ?? 'nida') === 'kin')
-            <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal', 'wizard' => 1]) }}{{ ! empty($returnUrl) ? '&return='.urlencode($returnUrl) : '' }}" class="glass-card p-6 space-y-8"
-                  @submit.prevent="window.confirmForm($el, @js($saveConfirm))">
+            <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal', 'wizard' => 1]) }}{{ ! empty($returnUrl) ? '&return='.urlencode($returnUrl) : '' }}" class="glass-card p-6 space-y-8">
                 @csrf @method('PUT')
                 <input type="hidden" name="wizard" value="1">
                 <input type="hidden" name="focus" value="kin">
@@ -170,8 +171,7 @@
                                 <p class="mt-1 text-emerald-800">{{ $locked ? __('borrower.nida.locked_hint') : __('borrower.nida.saved_locked_hint') }}</p>
                             </div>
                         @endif
-                        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data"
-                              @submit.prevent="window.confirmForm($el, @js($saveConfirm))">
+                        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data">
                             @csrf @method('PUT')
                             <input type="hidden" name="focus" value="identity">
                             @if (! empty($returnUrl))
@@ -289,8 +289,7 @@
                         </dl>
                     </x-slot:view>
                     <x-slot:form>
-                        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}"
-                              @submit.prevent="window.confirmForm($el, @js($saveConfirm))">
+                        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}">
                             @csrf @method('PUT')
                             <input type="hidden" name="focus" value="contact">
                             @if (! empty($returnUrl))
@@ -350,8 +349,7 @@
                         </dl>
                     </x-slot:view>
                     <x-slot:form>
-                        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}"
-                              @submit.prevent="window.confirmForm($el, @js($saveConfirm))">
+                        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}">
                             @csrf @method('PUT')
                             <input type="hidden" name="focus" value="kin">
                             @if (! empty($returnUrl))
@@ -466,14 +464,13 @@
                     <x-slot:form>
                         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}" class="space-y-4"
                               x-data
-                              @submit.prevent="
+                              @submit="
                                   const pad = $el.querySelector('[data-signature-pad]');
                                   const alpine = pad && window.Alpine ? Alpine.$data(pad) : null;
                                   if (alpine) {
                                       const hidden = $el.querySelector('[name=signature_data]');
                                       if (hidden) hidden.value = alpine.dataUrl || '';
                                   }
-                                  window.confirmForm($el, @js($saveConfirm));
                               ">
                             @csrf @method('PUT')
                             <input type="hidden" name="focus" value="signature">

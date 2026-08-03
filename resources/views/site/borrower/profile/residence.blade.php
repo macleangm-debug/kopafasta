@@ -18,12 +18,6 @@
             $hasOfficer = filled($customer->lga_officer_name)
                 || filled($customer->lga_officer_position)
                 || filled($customer->lga_officer_phone);
-            $saveConfirm = [
-                'title' => __('borrower.profile.save_confirm_title'),
-                'message' => __('borrower.profile.save_confirm_message'),
-                'confirmLabel' => __('borrower.profile.save'),
-                'confirmClass' => 'bg-amber-500 hover:bg-amber-400 text-gray-900',
-            ];
         @endphp
 
         @if ($residenceStale && $residenceComplete)
@@ -35,13 +29,17 @@
             </div>
         @endif
 
+        @if ($errors->any())
+            <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ $errors->first() }}</div>
+        @endif
+
         <x-site.profile-section-card
             section-id="profile-residence"
             icon="🏠"
             :title="__('borrower.profile.residence')"
             :complete="$residenceComplete"
             :empty="! $residenceComplete"
-            :default-open="($wizardMode ?? false) || ($editing ?? false)">
+            :default-open="($wizardMode ?? false) || ($editing ?? false) || $errors->any()">
             <x-slot:view>
                 <dl class="grid sm:grid-cols-2 gap-4 text-sm">
                     @foreach ([
@@ -115,8 +113,7 @@
             </x-slot:view>
             <x-slot:form>
                 <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'residence']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
-                      enctype="multipart/form-data"
-                      @submit.prevent="window.confirmForm($el, @js($saveConfirm))">
+                      enctype="multipart/form-data">
                     @csrf @method('PUT')
                     @if ($wizardMode ?? false)
                         <input type="hidden" name="wizard" value="1">

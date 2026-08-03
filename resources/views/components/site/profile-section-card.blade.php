@@ -12,14 +12,15 @@
     'defaultOpen' => false,
     'allowOverflow' => false,
     'collapsible' => true,
+    'showStatus' => false,
 ])
 
 @php
     $hasForm = isset($form);
     $useInline = $inlineEdit && ($hasForm || $editing) && ! $editUrl;
-    // Start collapsed; only open when editing or defaultOpen (e.g. deep-link focus).
-    $startOpen = (bool) $editing;
-    $startExpanded = (bool) $defaultOpen;
+    // Start collapsed; only open when editing or defaultOpen (e.g. deep-link / validation focus).
+    $startOpen = (bool) $editing || (bool) $defaultOpen;
+    $startExpanded = $startOpen || (bool) $defaultOpen;
     $accordionId = $sectionId ?: ('section-'.substr(md5($title), 0, 8));
 @endphp
 
@@ -68,9 +69,9 @@
                         </svg>
                     @endif
                 </h2>
-                @if ($complete === true)
+                @if ($showStatus && $complete === true)
                     <p class="text-xs text-emerald-700 mt-1">{{ __('borrower.profile.section_complete') }}</p>
-                @elseif ($complete === false)
+                @elseif ($showStatus && $complete === false)
                     <p class="text-xs text-amber-700 mt-1">{{ __('borrower.profile.section_incomplete') }}</p>
                 @endif
             </div>

@@ -1,5 +1,6 @@
 {{-- Quote / loan amount step. Expects Alpine parent: current, form, quote, updateQuote(), etc. --}}
-<div x-show="stepKey === 'quote' && !feeGateOpen" class="p-6 sm:p-8">
+{{-- Use $data.feeGateOpen so a stale JS bundle without feeGateOpen cannot ReferenceError-blank this step. --}}
+<div x-show="stepKey === 'quote' && ! $data.feeGateOpen" class="p-6 sm:p-8">
     <x-site.wizard-step-header
         :eyebrow="__('borrower.apply.quote.eyebrow')"
         :title="__('borrower.apply.quote.title')"

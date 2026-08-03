@@ -1447,6 +1447,16 @@ class BorrowerController extends Controller
             ]));
         }
 
+        // Income proof + additional docs live under Activity (unified UX).
+        if ($section === 'kyc') {
+            return redirect()->route('site.borrower.profile', array_filter([
+                'section' => 'activity',
+                'focus'   => $request->query('focus', 'income'),
+                'wizard'  => $wizardMode ? 1 : null,
+                'return'  => $request->query('return'),
+            ]));
+        }
+
         $section = in_array($section, ['personal', 'activity', 'residence', 'kyc', 'security', 'payment', 'assets'], true)
             ? $section
             : 'personal';
@@ -1454,7 +1464,6 @@ class BorrowerController extends Controller
         $view = match ($section) {
             'activity'  => 'site.borrower.profile.activity',
             'residence' => 'site.borrower.profile.residence',
-            'kyc'       => 'site.borrower.profile.kyc',
             'security'  => 'site.borrower.profile.security',
             'payment'   => 'site.borrower.profile.payment',
             'assets'    => 'site.borrower.profile.assets',
@@ -1860,7 +1869,16 @@ class BorrowerController extends Controller
             $redirect = $this->redirectWizardStep($request, $customer, $section);
         } else {
             $profileRedirect = redirect()
-                ->route('site.borrower.profile', array_filter(['section' => $section !== 'personal' ? $section : 'personal']))
+                ->route('site.borrower.profile', array_filter([
+                    'section' => match ($section) {
+                        'kyc' => 'activity',
+                        'personal' => 'personal',
+                        default => $section,
+                    },
+                    'focus' => $section === 'kyc'
+                        ? ((string) $request->input('focus') ?: 'income')
+                        : null,
+                ]))
                 ->with('status', __('borrower.profile.save_confirm_title'));
 
             $fragment = match ($section) {
@@ -1869,6 +1887,10 @@ class BorrowerController extends Controller
                     'kin'      => 'profile-kin',
                     'identity' => 'profile-identity',
                     default    => null,
+                },
+                'kyc' => match ((string) $request->input('focus')) {
+                    'additional' => 'profile-additional-documents',
+                    default      => 'profile-income-statement',
                 },
                 default => null,
             };
@@ -2937,7 +2959,7 @@ class BorrowerController extends Controller
             'label'               => ['required', 'string', 'max:150'],
             'description'         => ['nullable', 'string', 'max:2000'],
             'registration_number' => [$type === 'vehicle' ? 'required' : 'nullable', 'string', 'max:80'],
-            'estimated_value'     => ['required', 'numeric', 'min:1'],
+            'estimated_value'     => ['nullable', 'numeric', 'min:1'],
             'details'             => ['nullable', 'array'],
             'photos'              => ['required', 'array', 'min:2', 'max:6'],
             'photos.*'            => ['required', 'image', 'max:5120'],
@@ -3011,7 +3033,7 @@ class BorrowerController extends Controller
             'label'               => ['required', 'string', 'max:150'],
             'description'         => ['nullable', 'string', 'max:2000'],
             'registration_number' => [$type === 'vehicle' ? 'required' : 'nullable', 'string', 'max:80'],
-            'estimated_value'     => ['required', 'numeric', 'min:1'],
+            'estimated_value'     => ['nullable', 'numeric', 'min:1'],
             'details'             => ['nullable', 'array'],
         ], $detailRules));
 
@@ -3038,7 +3060,9 @@ class BorrowerController extends Controller
             'label'               => $data['label'],
             'description'         => $data['description'] ?? null,
             'registration_number' => $data['registration_number'] ?? null,
-            'estimated_value'     => (float) $data['estimated_value'],
+            'estimated_value'     => array_key_exists('estimated_value', $data) && filled($data['estimated_value'])
+                ? (float) $data['estimated_value']
+                : $asset->estimated_value,
             'metadata'            => $meta,
         ]);
 

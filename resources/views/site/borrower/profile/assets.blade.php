@@ -20,10 +20,11 @@
             {{-- ============ Item 18: type-specific add form ============ --}}
             <x-site.profile-section-card :title="($typeIcons[$selectedType] ?? '📦').'  '.__('borrower.profile.add_asset').': '.($assetTypes[$selectedType] ?? $selectedType)">
                 <form method="POST" action="{{ route('site.borrower.profile.assets.store') }}" enctype="multipart/form-data" class="space-y-6"
-                      x-data="{ saving: false }"
-                      @submit="saving = true">
+                      x-data="{ saving: false, uploading: false }"
+                      @submit="saving = true; uploading = true">
                     @csrf
                     <input type="hidden" name="asset_type" value="{{ $selectedType }}">
+                    <x-site.upload-busy-overlay :message="__('borrower.profile.uploading_collateral')" />
 
                     <div class="grid sm:grid-cols-2 gap-4">
                         <div class="sm:col-span-2">
@@ -50,18 +51,14 @@
                             </div>
                         @endforeach
 
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.estimated_value') }} <span class="text-red-500">*</span></label>
-                            <input type="number" name="estimated_value" value="{{ old('estimated_value') }}" min="1" inputmode="numeric" required
-                                   class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                        </div>
                         <div class="sm:col-span-2">
                             <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.description') }}</label>
                             <textarea name="description" rows="2" class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">{{ old('description') }}</textarea>
+                            <p class="mt-1.5 text-xs text-gray-500">{{ __('borrower.profile.collateral_value_staff_hint') }}</p>
                         </div>
                     </div>
 
-                    {{-- ============ Item 19: 2 × 3 photo grid ============ --}}
+                    {{-- Photo gallery: front/back required first, then optional angles --}}
                     <div class="pt-4 border-t border-gray-100">
                         <p class="text-sm font-semibold text-gray-800">{{ __('borrower.profile.collateral_gallery') }}</p>
                         <p class="text-xs text-gray-500 mb-3">{{ __('borrower.profile.collateral_photos_hint') }}</p>
@@ -77,7 +74,7 @@
                                 ];
                             @endphp
                             @foreach ($photoSlots as $slot)
-                                <div class="rounded-xl ring-1 ring-gray-200 p-3">
+                                <div class="rounded-xl ring-1 ring-gray-200 p-3 {{ $slot['required'] ? 'bg-amber-50/40 ring-amber-200/80' : '' }}">
                                     <label class="text-[11px] font-semibold text-gray-700 mb-2 block">
                                         {{ $slot['label'] }}
                                         @if ($slot['required']) <span class="text-red-500">*</span> @endif
@@ -192,9 +189,11 @@
                                 </div>
                                 <div class="p-4 flex-1 flex flex-col">
                                     <h3 class="font-bold text-gray-900 truncate">{{ $asset->label }}</h3>
-                                    <p class="text-sm text-brand font-semibold mt-1 tabular-nums">
-                                        {{ $asset->estimated_value ? format_money($asset->estimated_value) : __('borrower.profile.no_value_set') }}
-                                    </p>
+                                    @if ($asset->estimated_value)
+                                        <p class="text-sm text-brand font-semibold mt-1 tabular-nums">{{ format_money($asset->estimated_value) }}</p>
+                                    @else
+                                        <p class="text-xs text-gray-500 mt-1">{{ __('borrower.profile.collateral_awaiting_valuation') }}</p>
+                                    @endif
                                     @if ($cardDetails->isNotEmpty())
                                         <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
                                             @foreach ($cardDetails as $detail)
@@ -218,7 +217,7 @@
                 </div>
             @endif
 
-            {{-- ============ Item 17: Add New Collateral CTA + type chooser ============ --}}
+            {{-- Type-first collateral add (choose type → form) --}}
             <div class="glass-card p-5 sm:p-6">
                 @if ($assets->isEmpty())
                     <p class="text-sm text-gray-600 mb-4">{{ __('borrower.profile.no_assets_yet') }}</p>
@@ -229,15 +228,16 @@
                     {{ $assets->isEmpty() ? __('borrower.profile.add_first_collateral') : __('borrower.profile.add_new_collateral') }}
                 </button>
 
-                <div x-show="addOpen" x-cloak x-collapse class="mt-5">
-                    <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-3">{{ __('borrower.profile.choose_asset_type') }}</p>
+                <div x-show="addOpen" x-cloak class="mt-5">
+                    <p class="text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.profile.choose_asset_type') }}</p>
+                    <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.choose_asset_type_hint') }}</p>
                     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         @foreach ($assetTypes as $key => $label)
                             <a href="{{ route('site.borrower.profile', ['section' => 'assets', 'add' => 1, 'type' => $key]) }}"
                                class="group rounded-2xl ring-1 ring-gray-200/80 p-5 hover:ring-brand/40 hover:shadow-md transition bg-white text-center">
                                 <span class="text-3xl block mb-3" aria-hidden="true">{{ $typeIcons[$key] ?? '📦' }}</span>
                                 <h3 class="font-bold text-gray-900 group-hover:text-brand">{{ $label }}</h3>
-                                <p class="mt-2 text-xs font-semibold text-brand">{{ __('borrower.profile.add_asset') }} →</p>
+                                <p class="mt-2 text-xs font-semibold text-brand">{{ __('borrower.profile.continue_with_type') }} →</p>
                             </a>
                         @endforeach
                     </div>
@@ -279,11 +279,7 @@
                                         <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.asset_label') }} <span class="text-red-500">*</span></label>
                                         <input type="text" name="label" value="{{ old('label', $asset->label) }}" required maxlength="150"
                                                class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                                    </div>
-                                    <div>
-                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.estimated_value') }} <span class="text-red-500">*</span></label>
-                                        <input type="number" name="estimated_value" value="{{ old('estimated_value', $asset->estimated_value) }}" min="1" required
-                                               class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                        <p class="mt-1.5 text-[11px] text-gray-500">{{ __('borrower.profile.collateral_value_staff_hint') }}</p>
                                     </div>
                                     @foreach (\App\Models\CustomerAsset::detailFieldsFor($asset->asset_type) as $field)
                                         @php

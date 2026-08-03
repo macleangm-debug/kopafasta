@@ -151,7 +151,7 @@ class ProfileAndPaymentsUxFeatureTest extends TestCase
         $keys = collect($cards)->pluck('key')->all();
 
         $this->assertSame(
-            ['personal', 'activity', 'residence', 'kyc', 'payment', 'assets'],
+            ['personal', 'activity', 'residence', 'payment', 'assets'],
             $keys
         );
         $this->assertEmpty(
@@ -201,5 +201,66 @@ class ProfileAndPaymentsUxFeatureTest extends TestCase
             ->assertSee('from-brand', false)
             ->assertSee(__('borrower.payments_page.make_repayment'), false)
             ->assertSee(__('borrower.payments_page.history_title'), false);
+    }
+
+    public function test_residence_profile_save_persists_officer_and_address(): void
+    {
+        $customer = $this->makeCustomer();
+        $customer->update([
+            'region' => 'Dar es Salaam',
+            'district' => 'Ilala',
+            'street' => 'Old Street',
+        ]);
+
+        $this->actingAs($customer->user)
+            ->put(route('site.borrower.profile.update', ['section' => 'residence']), [
+                'region' => 'Dar es Salaam',
+                'district' => 'Ilala',
+                'ward' => 'Kariakoo',
+                'street' => 'Uhuru Street 12',
+                'lga_officer_name' => 'Macmillan Gomera',
+                'lga_officer_position' => 'Afisa wa Mtaa',
+                'lga_officer_phone' => '255712345678',
+            ])
+            ->assertRedirect(route('site.borrower.profile', ['section' => 'residence']))
+            ->assertSessionHas('status');
+
+        $customer->refresh();
+        $this->assertSame('Dar es Salaam', $customer->region);
+        $this->assertSame('Ilala', $customer->district);
+        $this->assertSame('Kariakoo', $customer->ward);
+        $this->assertSame('Uhuru Street 12', $customer->street);
+        $this->assertSame('Macmillan Gomera', $customer->lga_officer_name);
+        $this->assertSame('Afisa wa Mtaa', $customer->lga_officer_position);
+        $this->assertSame('255712345678', preg_replace('/\D+/', '', (string) $customer->lga_officer_phone));
+    }
+
+    public function test_residence_and_activity_save_forms_submit_without_confirm_wrapper(): void
+    {
+        $customer = $this->makeCustomer();
+
+        $residence = $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', ['section' => 'residence']))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('confirmForm($el', $residence);
+        $this->assertStringContainsString('name="lga_officer_name"', $residence);
+        $this->assertStringContainsString('method="POST"', $residence);
+
+        $activity = $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', ['section' => 'activity']))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('confirmForm($el', $activity);
+
+        $personal = $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', ['section' => 'personal']))
+            ->assertOk()
+            ->getContent();
+
+        // Contact/kin/identity saves should not wrap in the generic save confirm dialog.
+        $this->assertStringNotContainsString(__('borrower.profile.save_confirm_title'), $personal);
     }
 }

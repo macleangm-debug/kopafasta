@@ -35,6 +35,28 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
         );
     }
 
+    public function test_quote_step_fee_gate_uses_safe_alpine_data_access(): void
+    {
+        $source = file_get_contents(resource_path('js/apply-wizard.js'));
+        $quote = file_get_contents(resource_path('views/site/apply/_quote-step.blade.php'));
+        $fee = file_get_contents(resource_path('views/components/site/application-fee-step.blade.php'));
+        $group = file_get_contents(resource_path('views/site/apply/_group-steps.blade.php'));
+
+        $this->assertNotFalse($source);
+        $this->assertNotFalse($quote);
+        $this->assertNotFalse($fee);
+        $this->assertNotFalse($group);
+
+        // feeGateOpen must exist on the Alpine component; Blade must use $data.* so a
+        // stale Vite bundle without the property cannot ReferenceError-blank the step.
+        $this->assertStringContainsString('feeGateOpen: false', $source);
+        $this->assertStringContainsString('$data.feeGateOpen', $quote);
+        $this->assertStringContainsString('$data.feeGateOpen', $fee);
+        $this->assertStringContainsString('$data.feeGateOpen', $group);
+        $this->assertStringNotContainsString("&& !feeGateOpen", $quote);
+        $this->assertStringNotContainsString('|| feeGateOpen', $fee);
+    }
+
     public function test_review_and_submit_translation_keys_exist(): void
     {
         foreach (['en', 'sw'] as $locale) {
