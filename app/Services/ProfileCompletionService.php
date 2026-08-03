@@ -320,7 +320,8 @@ class ProfileCompletionService
                 'kyc' => $resolve($complete, 'kyc', $complete ? null : 'pending'),
                 'security' => $complete ? 'complete' : 'not_started',
                 'payment' => $complete ? 'complete' : 'not_started',
-                'assets' => $assetCount > 0 ? 'complete' : 'not_started',
+                // Optional section: empty is fine — do not look "incomplete" or falsely "complete".
+                'assets' => $assetCount > 0 ? 'complete' : 'optional',
                 default => $resolve($complete, $key),
             };
 

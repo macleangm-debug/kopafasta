@@ -34,6 +34,11 @@
             $nidaBack = $nidaDocs->get('national_id_back');
             $altDocs = $nidaDocs;
             $uploadsComplete = app(\App\Services\ProfileValidationService::class)->nationalIdUploadsComplete($customer);
+            $idPhotosLocked = $locked || (
+                $uploadsComplete
+                && ! app(\App\Services\ProfileRevisionService::class)->hasOpenRevision($customer, 'nida_docs')
+                && ! app(\App\Services\ProfileRevisionService::class)->hasOpenRevision($customer, 'nida')
+            );
             $noPhysicalCard = (bool) old('no_physical_nida_card', $customer->no_physical_nida_card);
             $hasIdentity = $nidaSaved && (
                 ! $requireIdentityDuringProfile || $uploadsComplete
@@ -237,7 +242,12 @@
                                 noCard: @js($noPhysicalCard),
                                 altTypes: @js(array_values(old('alternate_id_types', $customer->alternate_id_types ?? []))),
                             }">
-                                @unless ($locked)
+                                @if ($idPhotosLocked)
+                                    <div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-3 text-sm text-slate-700">
+                                        {{ __('borrower.profile.id_photos_locked_hint') }}
+                                    </div>
+                                @endif
+                                @unless ($locked || $idPhotosLocked)
                                     <label class="flex items-start gap-3 rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3 cursor-pointer">
                                         <input type="checkbox" name="no_physical_nida_card" value="1" x-model="noCard"
                                                class="mt-0.5 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
@@ -249,9 +259,9 @@
                                     </label>
                                 @endunless
                                 <div x-show="!noCard" x-cloak class="space-y-4">
-                                    <x-site.profile-document-field :document="$nidaFront" field-name="national_id_front" mode="single" :label="__('borrower.profile.nida_front')" input-host-id="nida-front-upload" :required="! $nidaFront && ! $noPhysicalCard" />
+                                    <x-site.profile-document-field :document="$nidaFront" field-name="national_id_front" mode="single" :label="__('borrower.profile.nida_front')" input-host-id="nida-front-upload" :required="! $nidaFront && ! $noPhysicalCard && ! $idPhotosLocked" :read-only="$idPhotosLocked" />
                                     @error('national_id_front')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
-                                    <x-site.profile-document-field :document="$nidaBack" field-name="national_id_back" mode="single" :label="__('borrower.profile.nida_back')" input-host-id="nida-back-upload" :required="! $nidaBack && ! $noPhysicalCard" />
+                                    <x-site.profile-document-field :document="$nidaBack" field-name="national_id_back" mode="single" :label="__('borrower.profile.nida_back')" input-host-id="nida-back-upload" :required="! $nidaBack && ! $noPhysicalCard && ! $idPhotosLocked" :read-only="$idPhotosLocked" />
                                     @error('national_id_back')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                                 </div>
                                 <div x-show="noCard" x-cloak class="space-y-4 rounded-xl bg-amber-50/80 ring-1 ring-amber-200 p-4">
@@ -259,6 +269,7 @@
                                         <p class="text-sm font-semibold text-amber-950">{{ __('borrower.nida.alt_id_title') }}</p>
                                         <p class="text-xs text-amber-900/80 mt-1">{{ __('borrower.nida.alt_id_hint') }}</p>
                                     </div>
+                                    @unless ($idPhotosLocked)
                                     <div class="grid sm:grid-cols-2 gap-2">
                                         @foreach ([
                                             'passport' => __('borrower.nida.alt_passport'),
@@ -280,21 +291,24 @@
                                         <input type="text" name="alternate_id_notes" value="{{ old('alternate_id_notes', $customer->alternate_id_notes) }}"
                                                class="kf-field" placeholder="{{ __('borrower.nida.alt_notes_placeholder') }}">
                                     </div>
+                                    @endunless
                                     <div class="space-y-3" x-show="altTypes.includes('passport')">
-                                        <x-site.profile-document-field :document="$altDocs->get('passport')" field-name="passport" mode="single" :label="__('borrower.nida.alt_passport')" input-host-id="passport-upload" />
+                                        <x-site.profile-document-field :document="$altDocs->get('passport')" field-name="passport" mode="single" :label="__('borrower.nida.alt_passport')" input-host-id="passport-upload" :read-only="$idPhotosLocked" />
                                     </div>
                                     <div class="space-y-3" x-show="altTypes.includes('voter_id')">
-                                        <x-site.profile-document-field :document="$altDocs->get('voter_id')" field-name="voter_id" mode="single" :label="__('borrower.nida.alt_voter')" input-host-id="voter-upload" />
+                                        <x-site.profile-document-field :document="$altDocs->get('voter_id')" field-name="voter_id" mode="single" :label="__('borrower.nida.alt_voter')" input-host-id="voter-upload" :read-only="$idPhotosLocked" />
                                     </div>
                                     <div class="space-y-3" x-show="altTypes.includes('driving_license')">
-                                        <x-site.profile-document-field :document="$altDocs->get('driving_license')" field-name="driving_license" mode="single" :label="__('borrower.nida.alt_driving')" input-host-id="license-upload" />
+                                        <x-site.profile-document-field :document="$altDocs->get('driving_license')" field-name="driving_license" mode="single" :label="__('borrower.nida.alt_driving')" input-host-id="license-upload" :read-only="$idPhotosLocked" />
                                     </div>
                                     <div class="space-y-3" x-show="altTypes.includes('other_id')">
-                                        <x-site.profile-document-field :document="$altDocs->get('other_id')" field-name="other_id" mode="single" :label="__('borrower.nida.alt_other')" input-host-id="other-id-upload" />
+                                        <x-site.profile-document-field :document="$altDocs->get('other_id')" field-name="other_id" mode="single" :label="__('borrower.nida.alt_other')" input-host-id="other-id-upload" :read-only="$idPhotosLocked" />
                                     </div>
                                 </div>
                             </div>
+                            @unless ($idPhotosLocked)
                             <x-site.gated-submit class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile.save')" :allow-empty="$uploadsComplete" />
+                            @endunless
                         </form>
                     </x-slot:form>
                 </x-site.profile-section-card>

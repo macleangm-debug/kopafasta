@@ -60,8 +60,29 @@ class ProfileFaceSectionTest extends TestCase
             ->assertSee(__('borrower.nida.face_captured_photos'), false)
             ->assertSee(__('borrower.nida.face_view'), false)
             ->assertSee(__('borrower.profile.tap_to_enlarge'), false)
+            ->assertSee(__('borrower.nida.face_retake_pending_blocked'), false)
+            ->assertDontSee(__('borrower.nida.face_replace'), false)
             ->assertSee('Face front', false)
             ->assertSee('x-teleport="body"', false);
+    }
+
+    public function test_verified_face_photos_are_locked_without_self_retake(): void
+    {
+        Storage::fake('public');
+        $customer = $this->borrower('verified');
+        $path = UploadedFile::fake()->image('front.jpg')->store("borrower/{$customer->id}/face", 'public');
+        FaceVerification::create([
+            'customer_id' => $customer->id,
+            'angle'       => 'front',
+            'file_path'   => $path,
+            'status'      => 'verified',
+        ]);
+
+        $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', ['section' => 'personal']))
+            ->assertOk()
+            ->assertSee(__('borrower.nida.face_locked_hint'), false)
+            ->assertDontSee(__('borrower.nida.face_replace'), false);
     }
 
     public function test_revision_required_opens_face_replace_wizard(): void

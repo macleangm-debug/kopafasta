@@ -16,6 +16,7 @@
         'under_review' => 'bg-violet-100 text-violet-800 ring-violet-200',
         'rejected'     => 'bg-red-100 text-red-800 ring-red-200',
         'pending'      => 'bg-orange-100 text-orange-800 ring-orange-200',
+        'optional'     => 'bg-slate-100 text-slate-700 ring-slate-200',
         'not_started'  => 'bg-gray-100 text-gray-600 ring-gray-200',
     ];
 @endphp
@@ -73,7 +74,13 @@
                     </ul>
                 @endif
                 @if (($section['key'] ?? '') === 'assets' || empty($section['required']))
-                    <p class="mt-3 text-xs text-gray-500">{{ __('borrower.profile.hub.optional_for_apply') }}</p>
+                    <p class="mt-3 text-xs text-gray-500">
+                        @if (($section['key'] ?? '') === 'assets' && empty($section['count']))
+                            {{ __('borrower.profile.hub.optional_none_added') }}
+                        @else
+                            {{ __('borrower.profile.hub.optional_for_apply') }}
+                        @endif
+                    </p>
                 @endif
                 <p class="mt-4 text-xs font-semibold text-brand">{{ $section['action_label'] ?? __('borrower.profile.hub.view_edit') }} →</p>
             </a>

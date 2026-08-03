@@ -128,24 +128,15 @@
                 {{ __('borrower.nida.face_view') }}
             </button>
         @endif
-        @if ($canReplaceFace || $statusKey === 'verified')
-            @if ($statusKey === 'verified' || $compact)
-                <form method="POST" action="{{ route('site.borrower.face-verification.retake') }}"
-                      @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.nida.face_replace')), message: @js(__('borrower.nida.face_replace_hint')), confirmLabel: @js(__('borrower.nida.face_retake')), confirmClass: 'bg-brand-gold hover:bg-yellow-400 text-brand' })">
-                    @csrf
-                    <button type="submit"
-                            class="inline-flex items-center justify-center font-semibold px-4 py-2 rounded-full text-sm bg-brand-gold hover:bg-yellow-400 text-brand">
-                        {{ __('borrower.nida.face_replace') }}
-                    </button>
-                </form>
-            @else
-                <a href="{{ route('site.borrower.face-verification') }}"
-                   class="inline-flex items-center justify-center font-semibold px-4 py-2 rounded-full text-sm bg-brand-gold hover:bg-yellow-400 text-brand">
-                    {{ __('borrower.nida.face_replace') }}
-                </a>
-            @endif
+        @if ($canReplaceFace)
+            <a href="{{ route('site.borrower.face-verification') }}"
+               class="inline-flex items-center justify-center font-semibold px-4 py-2 rounded-full text-sm bg-brand-gold hover:bg-yellow-400 text-brand">
+                {{ __('borrower.nida.face_replace') }}
+            </a>
         @elseif ($statusKey === 'pending')
             <p class="text-xs text-gray-500 self-center">{{ __('borrower.nida.face_retake_pending_blocked') }}</p>
+        @elseif ($statusKey === 'verified')
+            <p class="text-xs text-gray-500 self-center">{{ __('borrower.nida.face_locked_hint') }}</p>
         @endif
     </div>
 
@@ -172,15 +163,12 @@
                         if (Math.abs(dx) > 40) { dx < 0 ? next() : prev(); }
                      ">
             </div>
-            @if ($canReplaceFace || $statusKey === 'verified')
+            @if ($canReplaceFace)
                 <div class="absolute bottom-6 left-1/2 -translate-x-1/2">
-                    <form method="POST" action="{{ route('site.borrower.face-verification.retake') }}"
-                          @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.nida.face_replace')), message: @js(__('borrower.nida.face_replace_hint')), confirmLabel: @js(__('borrower.nida.face_retake')), confirmClass: 'bg-brand-gold hover:bg-yellow-400 text-brand' })">
-                        @csrf
-                        <button type="submit" class="inline-flex font-semibold px-5 py-2.5 rounded-full text-sm bg-brand-gold hover:bg-yellow-400 text-brand shadow-lg">
-                            {{ __('borrower.nida.face_replace') }}
-                        </button>
-                    </form>
+                    <a href="{{ route('site.borrower.face-verification') }}"
+                       class="inline-flex font-semibold px-5 py-2.5 rounded-full text-sm bg-brand-gold hover:bg-yellow-400 text-brand shadow-lg">
+                        {{ __('borrower.nida.face_replace') }}
+                    </a>
                 </div>
             @endif
         </div>

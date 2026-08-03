@@ -114,6 +114,7 @@ class ProfileSectionBuilderService
             'under_review' => __('borrower.profile.status.under_review'),
             'rejected'     => __('borrower.profile.status.rejected'),
             'pending'      => __('borrower.profile.status.pending'),
+            'optional'     => __('borrower.profile.status.optional'),
             default        => __('borrower.profile.status.not_started'),
         };
     }
@@ -122,6 +123,9 @@ class ProfileSectionBuilderService
     {
         if ($status === 'complete') {
             return __('borrower.profile.hub.view_edit');
+        }
+        if ($status === 'optional') {
+            return __('borrower.profile.hub.add_optional');
         }
 
         return match ($fallback) {

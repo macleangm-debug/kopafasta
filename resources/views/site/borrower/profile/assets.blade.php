@@ -302,7 +302,10 @@
             {{-- Type-first collateral add (choose type → form) --}}
             <div class="glass-card p-5 sm:p-6">
                 @if ($assets->isEmpty())
-                    <p class="text-sm text-gray-600 mb-4">{{ __('borrower.profile.no_assets_yet') }}</p>
+                    <div class="rounded-2xl bg-slate-50 ring-1 ring-slate-200/80 px-4 py-4 mb-4">
+                        <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.collateral_none_needed_title') }}</p>
+                        <p class="text-sm text-gray-600 mt-1">{{ __('borrower.profile.collateral_none_needed_body') }}</p>
+                    </div>
                 @endif
                 <button type="button" @click="addOpen = !addOpen"
                         class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-3 rounded-xl text-sm">

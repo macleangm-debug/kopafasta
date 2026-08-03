@@ -82,14 +82,28 @@
                                 {{ __('borrower.profile.replace_document') }}
                             </button>
                             @if ($removeUrl ?? null)
-                                <form method="POST" action="{{ $removeUrl }}" onsubmit="return confirm(@js(__('borrower.profile.remove_document_confirm')))">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit"
-                                            class="inline-flex items-center rounded-full bg-white ring-1 ring-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50">
-                                        {{ __('borrower.profile.remove_document') }}
-                                    </button>
-                                </form>
+                                {{-- Must not nest <form> inside profile edit forms — browsers close the parent early and hide Save. --}}
+                                <button type="button"
+                                        class="inline-flex items-center rounded-full bg-white ring-1 ring-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+                                        @click="
+                                            if (! confirm(@js(__('borrower.profile.remove_document_confirm')))) return;
+                                            const f = document.createElement('form');
+                                            f.method = 'POST';
+                                            f.action = @js($removeUrl);
+                                            f.style.display = 'none';
+                                            const token = document.createElement('input');
+                                            token.name = '_token';
+                                            token.value = @js(csrf_token());
+                                            f.appendChild(token);
+                                            const method = document.createElement('input');
+                                            method.name = '_method';
+                                            method.value = 'DELETE';
+                                            f.appendChild(method);
+                                            document.body.appendChild(f);
+                                            f.submit();
+                                        ">
+                                    {{ __('borrower.profile.remove_document') }}
+                                </button>
                             @endif
                         @endunless
                     </div>

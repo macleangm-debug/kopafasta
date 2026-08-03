@@ -161,6 +161,21 @@ class ProfileAndPaymentsUxFeatureTest extends TestCase
         );
         $personal = collect($cards)->firstWhere('key', 'personal');
         $this->assertNotNull($personal['description']);
+
+        $assets = collect($cards)->firstWhere('key', 'assets');
+        $this->assertSame('optional', $assets['status']);
+        $this->assertSame(__('borrower.profile.status.optional'), $assets['status_label']);
+    }
+
+    public function test_empty_collateral_page_explains_optional(): void
+    {
+        $customer = $this->makeCustomer();
+
+        $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', ['section' => 'assets']))
+            ->assertOk()
+            ->assertSee(__('borrower.profile.collateral_none_needed_title'), false)
+            ->assertSee(__('borrower.profile.collateral_none_needed_body'), false);
     }
 
     public function test_payments_create_accepts_loan_query_and_uses_brand_ui(): void
@@ -277,6 +292,10 @@ class ProfileAndPaymentsUxFeatureTest extends TestCase
         $this->assertStringNotContainsString('confirmForm($el', $residence);
         $this->assertStringContainsString('name="lga_officer_name"', $residence);
         $this->assertStringContainsString('method="POST"', $residence);
+        // Nested remove forms break the parent Save button — remove uses a button + dynamic form.
+        $this->assertStringNotContainsString('method="DELETE"', $residence);
+        $this->assertStringContainsString('kfGatedSubmit', $residence);
+        $this->assertStringContainsString(__('borrower.profile.save'), $residence);
 
         $activity = $this->actingAs($customer->user)
             ->get(route('site.borrower.profile', ['section' => 'activity']))
