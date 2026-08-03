@@ -45,10 +45,13 @@ class PartnerApplicationController extends Controller
     public function show(PartnerApplication $partnerApplication, PartnerApplicationReviewService $reviewService): View
     {
         $partnerApplication->load(['documents', 'partner', 'reviewer']);
+        $review = $reviewService->dossier($partnerApplication);
 
         return view('admin.partner-applications.show', [
             'application' => $partnerApplication,
-            'review'      => $reviewService->dossier($partnerApplication),
+            'review'      => $review,
+            'anomalies'   => app(\App\Services\PartnerEnrollmentAnomalyService::class)
+                ->forApplication($partnerApplication, $review),
         ]);
     }
 

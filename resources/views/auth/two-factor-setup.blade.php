@@ -34,7 +34,7 @@
 
             <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">One-time setup</p>
             <h2 class="mt-1 text-2xl font-bold tracking-tight text-gray-900">Set up two-factor authentication</h2>
-            <p class="mt-2 text-sm text-gray-500">Scan this QR with Google Authenticator, Authy, or iPhone Passwords. This is not a website link — it only pairs your authenticator app.</p>
+            <p class="mt-2 text-sm text-gray-500">Scan the QR with your authenticator app, then enter a code below.</p>
 
             <div class="mt-6 flex flex-col sm:flex-row gap-4 items-center">
                 <div class="shrink-0 rounded-2xl bg-white ring-1 ring-brand/15 p-3 shadow-sm">
@@ -46,19 +46,49 @@
                         class="block rounded-xl"
                     >
                 </div>
-                <div class="min-w-0 flex-1 w-full">
-                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1.5">Or enter this secret key</p>
+                <div class="min-w-0 flex-1 w-full" x-data="{ copied: false }">
+                    <div class="flex items-center justify-between gap-2 mb-1.5">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Or enter this key</p>
+                        <button type="button"
+                                @click="navigator.clipboard.writeText(@js($secret)); copied = true; setTimeout(() => copied = false, 1600)"
+                                class="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:text-brand-light">
+                            <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                            <span x-text="copied ? 'Copied' : 'Copy'"></span>
+                        </button>
+                    </div>
                     <p class="font-mono text-sm break-all bg-brand-muted/40 rounded-xl px-3 py-2.5 ring-1 ring-brand/10 text-gray-900">{{ $secret }}</p>
-                    <p class="text-[11px] text-gray-500 mt-2">Account: your email · Issuer: {{ config('app.name', 'Kopafasta') }}</p>
                 </div>
             </div>
 
-            <div class="mt-5 rounded-2xl bg-amber-50 ring-1 ring-amber-200/80 px-4 py-3.5">
-                <p class="text-xs font-bold text-amber-950">Recovery codes — save these now (shown once)</p>
-                <p class="text-[11px] text-amber-900/80 mt-1">Use one on the sign-in challenge if you lose your phone. Each code works once. Store them offline — not in email or screenshots only.</p>
+            <div class="mt-5 rounded-2xl bg-amber-50 ring-1 ring-amber-200/80 px-4 py-3.5"
+                 x-data="{
+                    copied: false,
+                    codes: @js(array_values($recovery_codes)),
+                    async copyAll() {
+                        await navigator.clipboard.writeText(this.codes.join('\\n'));
+                        this.copied = true;
+                        setTimeout(() => this.copied = false, 1800);
+                    }
+                 }">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <p class="text-xs font-bold text-amber-950">Recovery codes</p>
+                        <p class="text-[11px] text-amber-900/80 mt-0.5">Save these — shown once. Use one if you lose your phone.</p>
+                    </div>
+                    <button type="button"
+                            @click="copyAll()"
+                            class="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-semibold text-amber-950 ring-1 ring-amber-200 hover:bg-amber-100 transition">
+                        <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                        </svg>
+                        <span x-text="copied ? 'Copied' : 'Copy all'"></span>
+                    </button>
+                </div>
                 <ul class="mt-3 text-xs font-mono grid grid-cols-2 gap-1.5 text-amber-950">
                     @foreach ($recovery_codes as $code)
-                        <li class="rounded-lg bg-white/70 px-2 py-1.5 ring-1 ring-amber-100">{{ $code }}</li>
+                        <li class="rounded-lg bg-white/70 px-2 py-1.5 ring-1 ring-amber-100 text-center tracking-wide">{{ $code }}</li>
                     @endforeach
                 </ul>
             </div>
@@ -66,7 +96,7 @@
             <form method="POST" action="{{ route('auth.two-factor.confirm-setup') }}" class="mt-6 space-y-5">
                 @csrf
                 <input type="hidden" name="context" value="{{ $context }}">
-                <x-auth.otp-digits name="code" :length="6" :autofocus="true" label="Confirm with a 6-digit code from your app" />
+                <x-auth.otp-digits name="code" :length="6" :autofocus="true" label="Enter the 6-digit code from your app" />
                 <button type="submit"
                         class="w-full bg-brand-gold hover:bg-yellow-400 text-brand font-bold rounded-xl py-3 shadow-sm transition">
                     Enable 2FA

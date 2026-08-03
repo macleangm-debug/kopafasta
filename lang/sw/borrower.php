@@ -1245,6 +1245,7 @@ return [
     'supplier' => 'Muuzaji',
     'back_to_asset' => 'Rudi kwenye mali',
     'asset_summary' => 'Muhtasari wa mali',
+    'wizard_progress' => 'Maendeleo ya mkopo wa mali',
     'fees' => 
 [
       'application' => 'Ada ya maombi',

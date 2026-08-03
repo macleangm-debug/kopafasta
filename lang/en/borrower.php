@@ -1154,6 +1154,7 @@ return [
         'reserve_title' => 'Apply for asset',
         'back_to_asset' => 'Back to asset',
         'asset_summary' => 'Asset summary',
+        'wizard_progress' => 'Asset lending progress',
         'fees_heading' => 'Fees & charges',
         'fees' => [
             'application' => 'Application fee',
