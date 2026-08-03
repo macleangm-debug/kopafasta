@@ -102,6 +102,28 @@ class Phase69StaffPortalAnd2faFeatureTest extends TestCase
         ])->assertRedirect(route('auth.two-factor.challenge', ['context' => 'admin']));
     }
 
+    public function test_trusted_device_cookie_does_not_skip_admin_2fa_challenge(): void
+    {
+        $secret = app(TotpService::class)->generateSecret();
+
+        $user = User::factory()->create([
+            'email'                   => 'admin-trust@example.com',
+            'password'                => bcrypt('password'),
+            'role'                    => 'admin',
+            'two_factor_secret'       => $secret,
+            'two_factor_confirmed_at' => now(),
+        ]);
+
+        $token = app(\App\Services\TrustedDeviceService::class)->create($user, request());
+        $cookie = app(\App\Services\TrustedDeviceService::class)->makeCookie($token);
+
+        $this->withCookie($cookie->getName(), $cookie->getValue())
+            ->post(route('admin.login'), [
+                'email'    => 'admin-trust@example.com',
+                'password' => 'password',
+            ])->assertRedirect(route('auth.two-factor.challenge', ['context' => 'admin']));
+    }
+
     public function test_partner_password_login_requires_2fa_when_enrolled(): void
     {
         $secret = app(TotpService::class)->generateSecret();
@@ -124,11 +146,12 @@ class Phase69StaffPortalAnd2faFeatureTest extends TestCase
             'activated_at'   => now(),
         ]);
 
-        $this->post(route('site.login.post'), [
-            'login'       => 'partner2fa@example.com',
-            'password'    => 'password',
-            'auth_method' => 'password',
-        ])->assertRedirect(route('auth.two-factor.challenge', ['context' => 'partner']));
+        $this->withSession(['login_portal' => 'partner'])
+            ->post(route('site.login.post'), [
+                'login'       => 'partner2fa@example.com',
+                'password'    => 'password',
+                'auth_method' => 'password',
+            ])->assertRedirect(route('auth.two-factor.challenge', ['context' => 'partner']));
     }
 
     public function test_staff_login_hint_redirects_to_staff_portal(): void

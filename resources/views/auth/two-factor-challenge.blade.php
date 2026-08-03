@@ -23,10 +23,7 @@
             <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" required autofocus
                    class="block w-full rounded-lg border-gray-300 text-sm px-3 py-2 border tracking-widest">
         </div>
-        <label class="flex items-center gap-2 text-sm text-gray-600">
-            <input type="checkbox" name="trust_device" value="1" class="rounded border-gray-300 text-amber-500">
-            Trust this device for 30 days
-        </label>
+        <p class="text-xs text-gray-500">Required on every sign-in. Recovery codes can be used if you lose your authenticator app.</p>
         <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-gray-900 font-semibold rounded-lg py-2.5">Verify</button>
     </form>
 </div>

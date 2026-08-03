@@ -11,7 +11,8 @@
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <h3 class="text-sm font-semibold text-gray-900 mb-1">Two-factor authentication (TOTP)</h3>
             <p class="text-xs text-gray-500 mb-4">
-                When enabled, users must enroll an authenticator app on first sign-in, then enter a code (or recovery code) on each new browser session.
+                When enabled, users must enroll an authenticator app on first sign-in, then enter a code (or recovery code) on <strong>every new login</strong>.
+                Trusted devices cannot skip 2FA. Within an active session, the code is not re-asked until logout or the session trust window expires.
                 Staff without console access use the <a href="{{ route('staff.login') }}" class="text-amber-700 underline">staff workspace</a>.
             </p>
 
@@ -54,7 +55,8 @@
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <h3 class="text-sm font-semibold text-gray-900 mb-1">Session trust window</h3>
             <p class="text-xs text-gray-500 mb-4">
-                After a successful 2FA verification, the browser session is trusted for this many hours before another code is required (unless a trusted device cookie is used).
+                After a successful 2FA verification, this browser session stays verified for this many hours (no re-prompt while still signed in).
+                Logging out always requires a fresh 2FA code on the next sign-in.
             </p>
             <div class="max-w-xs">
                 <x-admin.input name="two_factor_session_hours" label="Hours" type="number" min="1" max="168"

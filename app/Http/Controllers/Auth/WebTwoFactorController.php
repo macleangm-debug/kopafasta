@@ -25,9 +25,8 @@ class WebTwoFactorController extends Controller
     public function verifyChallenge(Request $request, WebTwoFactorAuthService $twoFactor): RedirectResponse
     {
         $data = $request->validate([
-            'code'         => ['required', 'string'],
-            'trust_device' => ['nullable', 'boolean'],
-            'context'      => ['nullable', 'string'],
+            'code'    => ['required', 'string'],
+            'context' => ['nullable', 'string'],
         ]);
 
         $pending = $twoFactor->pendingLogin($request);
@@ -44,19 +43,12 @@ class WebTwoFactorController extends Controller
         }
 
         if ($pending) {
-            $response = $twoFactor->completePendingLogin($request, (bool) ($data['trust_device'] ?? false));
+            $response = $twoFactor->completePendingLogin($request);
 
             return $response ?? redirect()->route('admin.dashboard');
         }
 
         $twoFactor->markSessionVerified($request);
-
-        if ($request->boolean('trust_device')) {
-            $token = app(\App\Services\TrustedDeviceService::class)->create($user, $request);
-
-            return redirect()->intended($this->intendedFor($user))
-                ->withCookie(app(\App\Services\TrustedDeviceService::class)->makeCookie($token));
-        }
 
         return redirect()->intended($this->intendedFor($user));
     }

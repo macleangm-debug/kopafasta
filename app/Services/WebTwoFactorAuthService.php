@@ -79,7 +79,9 @@ class WebTwoFactorAuthService
             return false;
         }
 
-        if ($this->sessionVerified($request) || $this->trustedDeviceBypassesChallenge($user, $request)) {
+        // Every new login must pass 2FA. Trusted-device cookies must not skip the challenge.
+        // Within an already-verified browser session, do not re-prompt until logout / TTL.
+        if ($this->sessionVerified($request)) {
             return false;
         }
 
@@ -165,12 +167,7 @@ class WebTwoFactorAuthService
         $this->markSessionVerified($request);
         $this->clearPendingLogin($request);
 
-        if ($trustDevice) {
-            $token = app(TrustedDeviceService::class)->create($user, $request);
-
-            return redirect()->to((string) ($pending['redirect_to'] ?? '/'))
-                ->withCookie(app(TrustedDeviceService::class)->makeCookie($token));
-        }
+        // Intentionally ignore $trustDevice for 2FA — every login must use a code.
 
         return redirect()->to((string) ($pending['redirect_to'] ?? '/'));
     }
