@@ -295,7 +295,7 @@
 
             <x-site.premium-loan-wizard-header />
 
-            <div x-show="draftSavedAt" x-cloak class="mb-4 rounded-lg bg-gray-50 ring-1 ring-gray-200 px-3 py-2 text-xs text-gray-600">
+            <div x-show="draftSavedAt" x-cloak class="mb-3 text-[11px] text-gray-500 px-0.5">
                 {{ __('borrower.apply.draft.autosaved') }}
             </div>
 
