@@ -97,16 +97,20 @@
     </div>
 @endif
 
-@include('site.borrower.loan-profile._schedule_preview', ['profile' => $profile])
+@if ($showSchedule ?? true)
+    @include('site.borrower.loan-profile._schedule_preview', ['profile' => $profile])
+@endif
 
-{{-- Guarantor supplement CTA lives in the top action panel --}}
-
+{{-- Guarantor list: only when product requires and invites exist; collapsed by default --}}
 @if (($application->product?->requires_guarantor ?? false) && ($guarantorInvitations->isNotEmpty() || ($application->customerGuarantors ?? collect())->isNotEmpty()))
-    <div class="glass-card overflow-hidden mb-6">
-        <div class="px-5 py-4 border-b border-gray-200">
-            <h2 class="font-semibold">{{ __('borrower.application.guarantor_section') }}</h2>
-            <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.application.guarantor_section_hint') }}</p>
-        </div>
+    <details class="glass-card overflow-hidden mb-6 group">
+        <summary class="cursor-pointer list-none px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+            <div>
+                <h2 class="font-semibold">{{ __('borrower.application.guarantor_section') }}</h2>
+                <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.application.guarantor_section_hint') }}</p>
+            </div>
+            <svg class="size-4 text-gray-400 transition group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+        </summary>
         <ul class="divide-y divide-gray-100">
             @foreach ($guarantorInvitations as $invite)
                 @php
@@ -119,14 +123,10 @@
                 @endphp
                 <li class="px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
                     <div>
-                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ __('borrower.application.guarantor_request_sent') }}</p>
-                        <p class="text-sm text-gray-700 mt-1">
-                            <span class="text-gray-500">{{ __('borrower.application.guarantor_to') }}</span>
+                        <p class="text-sm text-gray-700">
                             <span class="font-medium text-gray-900">{{ $invite->invitee_name ?? __('borrower.application.guarantor_external') }}</span>
                         </p>
-                        <p class="text-xs text-gray-500 mt-0.5">
-                            <span class="text-gray-400">{{ __('borrower.application.guarantor_status_label') }}</span> {{ $status }}
-                        </p>
+                        <p class="text-xs text-gray-500 mt-0.5">{{ $status }}</p>
                     </div>
                     <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $gBadge }}">{{ $status }}</span>
                 </li>
@@ -146,13 +146,12 @@
                 <li class="px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
                     <div>
                         <p class="text-sm font-medium text-gray-900">{{ $link->displayName() }}</p>
-                        <p class="text-xs text-gray-500">{{ __('borrower.application.guarantor_internal') }}</p>
                     </div>
                     <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $gBadge }}">{{ $status }}</span>
                 </li>
             @endforeach
         </ul>
-    </div>
+    </details>
 @endif
 
 @php
@@ -162,115 +161,109 @@
         'completed' => collect(),
         'rejected' => collect(),
     ];
-    $groupLabels = [
-        'pending'   => __('borrower.application.doc_group_pending'),
-        'uploaded'  => __('borrower.application.doc_group_uploaded'),
-        'completed' => __('borrower.application.doc_group_completed'),
-        'rejected'  => __('borrower.application.doc_group_rejected'),
-    ];
+    $actionDocs = collect($documentGroups['pending'] ?? [])->concat($documentGroups['rejected'] ?? [])->values();
+    $otherDocs = collect($documentGroups['uploaded'] ?? [])->concat($documentGroups['completed'] ?? [])->values();
+    $openDocCount = $actionDocs->count();
 @endphp
 
-@if (collect($documentGroups)->flatten(1)->isNotEmpty())
-    <div id="documents" class="glass-card overflow-hidden mb-6">
-        <div class="px-5 py-4 border-b border-gray-200">
-            <h2 class="font-semibold">{{ __('borrower.application.requested_documents') }}</h2>
-            <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.application.requested_documents_hint') }}</p>
-        </div>
-        <div class="p-5 space-y-6">
-            @foreach ($groupLabels as $groupKey => $groupLabel)
-                @php $items = $documentGroups[$groupKey] ?? collect(); @endphp
-                @if ($items->isNotEmpty())
-                    <div>
-                        <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">{{ $groupLabel }}</p>
-                        <ul class="divide-y divide-gray-100 ring-1 ring-gray-100 rounded-xl overflow-hidden">
-                            @foreach ($items as $docReq)
+@if ($actionDocs->isNotEmpty() || $otherDocs->isNotEmpty())
+    <div id="documents" class="mb-6 space-y-3">
+        @if ($actionDocs->isNotEmpty())
+            <div class="glass-card overflow-hidden ring-1 ring-amber-200/80">
+                <div class="px-5 py-4 border-b border-amber-100 bg-amber-50/80">
+                    <h2 class="font-semibold text-amber-950">{{ __('borrower.loan_profile.documents_collapsed') }}</h2>
+                    <p class="text-xs text-amber-900/80 mt-0.5">{{ __('borrower.loan_profile.documents_open_count', ['count' => $openDocCount]) }}</p>
+                </div>
+                <ul class="divide-y divide-amber-100">
+                    @foreach ($actionDocs as $docReq)
+                        @php
+                            $reqBadge = $docReq->status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-sky-100 text-sky-700';
+                            $reqLabel = $docReq->status === 'rejected'
+                                ? __('borrower.application.request_status_pending')
+                                : __('borrower.application.request_status_pending');
+                        @endphp
+                        <li id="request-{{ $docReq->id }}" class="p-5 bg-white">
+                            <div class="flex items-start justify-between gap-3 mb-3 flex-wrap">
+                                <div>
+                                    <p class="font-semibold text-gray-900">{{ $docReq->label }}</p>
+                                    @if ($docReq->instructions)
+                                        <p class="text-sm text-gray-600 mt-2">{{ $docReq->instructions }}</p>
+                                    @endif
+                                    @if ($docReq->admin_notes && $docReq->status === 'rejected')
+                                        <p class="text-xs text-red-700 bg-red-50 ring-1 ring-red-200 rounded-lg px-3 py-2 mt-2">{{ $docReq->admin_notes }}</p>
+                                    @endif
+                                </div>
+                                <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $reqBadge }}">{{ $reqLabel }}</span>
+                            </div>
+
+                            @if ($docReq->uploads->isNotEmpty())
+                                <div class="flex flex-wrap gap-2 mb-3">
+                                    @foreach ($docReq->uploads as $upload)
+                                        <x-site.document-thumb :url="asset('storage/'.$upload->file_path)" />
+                                    @endforeach
+                                </div>
+                            @endif
+
+                            @if ($docReq->needsBorrowerAction())
                                 @php
-                                    $reqBadge = match ($docReq->status) {
-                                        'satisfied' => 'bg-emerald-100 text-emerald-700',
-                                        'uploaded'  => 'bg-amber-100 text-amber-700',
-                                        'rejected'  => 'bg-red-100 text-red-700',
-                                        default     => 'bg-sky-100 text-sky-700',
-                                    };
-                                    $reqLabel = match ($docReq->status) {
-                                        'satisfied' => __('borrower.application.request_status_completed'),
-                                        'uploaded'  => __('borrower.application.request_status_uploaded'),
-                                        'rejected'  => __('borrower.application.request_status_pending'),
-                                        default     => __('borrower.application.request_status_pending'),
-                                    };
+                                    $docSvc = app(\App\Services\ApplicationDocumentRequestService::class);
+                                    $profileGuided = $docSvc->isProfileGuidedRequest($docReq);
+                                    $profileUrl = $docSvc->borrowerActionUrl($docReq);
                                 @endphp
-                                <li id="request-{{ $docReq->id }}" class="p-5 bg-white/80">
-                                    <div class="flex items-start justify-between gap-3 mb-3 flex-wrap">
-                                        <div>
-                                            <p class="font-semibold text-gray-900">{{ $docReq->label }}</p>
-                                            <p class="text-xs text-gray-500 mt-0.5">
-                                                {{ ucfirst($docReq->type) }}
-                                                @if ($docReq->due_at) · Due {{ $docReq->due_at->format('d M Y') }} @endif
-                                            </p>
-                                            @if ($docReq->instructions)
-                                                <p class="text-sm text-gray-600 mt-2">{{ $docReq->instructions }}</p>
-                                            @endif
-                                            @if ($docReq->admin_notes && $docReq->status === 'rejected')
-                                                <p class="text-xs text-red-700 bg-red-50 ring-1 ring-red-200 rounded-lg px-3 py-2 mt-2">{{ $docReq->admin_notes }}</p>
-                                            @endif
-                                        </div>
-                                        <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $reqBadge }}">{{ $reqLabel }}</span>
-                                    </div>
+                                @if ($profileGuided)
+                                    <a href="{{ $profileUrl }}"
+                                       class="inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm">
+                                        {{ __('borrower.notifications.profile_revision_cta') }}
+                                    </a>
+                                @else
+                                    <x-site.document-upload
+                                        :action="route('site.borrower.application.document-requests.store', [$application, $docReq])"
+                                        :show-clarification="$docReq->type === 'clarification'"
+                                        :multiple="true"
+                                    />
+                                @endif
+                            @endif
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
 
-                                    @if ($docReq->uploads->isNotEmpty())
-                                        <div class="flex flex-wrap gap-2 mb-3">
-                                            @foreach ($docReq->uploads as $upload)
-                                                <x-site.document-thumb :url="asset('storage/'.$upload->file_path)" />
-                                            @endforeach
-                                        </div>
-                                    @endif
-
-                                    @if ($docReq->needsBorrowerAction())
-                                        @php
-                                            $docSvc = app(\App\Services\ApplicationDocumentRequestService::class);
-                                            $profileGuided = $docSvc->isProfileGuidedRequest($docReq);
-                                            $profileUrl = $docSvc->borrowerActionUrl($docReq);
-                                        @endphp
-                                        @if ($profileGuided)
-                                            <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 py-4">
-                                                <p class="text-sm text-gray-700">{{ $docReq->instructions ?: __('borrower.notifications.profile_revision_body', ['label' => $docReq->label, 'application' => $application->application_number]) }}</p>
-                                                <a href="{{ $profileUrl }}"
-                                                   class="mt-3 inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm">
-                                                    {{ __('borrower.notifications.profile_revision_cta') }}
-                                                </a>
-                                            </div>
-                                        @else
-                                            <x-site.document-upload
-                                                :action="route('site.borrower.application.document-requests.store', [$application, $docReq])"
-                                                :show-clarification="$docReq->type === 'clarification'"
-                                                :multiple="true"
-                                            />
-                                        @endif
-                                    @endif
-                                </li>
-                            @endforeach
-                        </ul>
+        @if ($otherDocs->isNotEmpty())
+            <details class="glass-card overflow-hidden group">
+                <summary class="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                    <div>
+                        <p class="text-sm font-semibold text-gray-900">{{ __('borrower.application.doc_group_completed') }} / {{ __('borrower.application.doc_group_uploaded') }}</p>
+                        <p class="text-xs text-gray-500 mt-0.5">{{ $otherDocs->count() }} {{ __('borrower.loan_profile.documents_collapsed') }}</p>
                     </div>
-                @endif
-            @endforeach
-        </div>
+                    <svg class="size-4 text-gray-400 transition group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                </summary>
+                <ul class="divide-y divide-gray-100 border-t border-gray-100">
+                    @foreach ($otherDocs as $docReq)
+                        <li class="px-5 py-3 flex items-center justify-between gap-3 text-sm">
+                            <span class="font-medium text-gray-800">{{ $docReq->label }}</span>
+                            <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $docReq->status === 'satisfied' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700' }}">
+                                {{ $docReq->status === 'satisfied' ? __('borrower.application.request_status_completed') : __('borrower.application.request_status_uploaded') }}
+                            </span>
+                        </li>
+                    @endforeach
+                </ul>
+            </details>
+        @endif
     </div>
 @endif
 
-@if ($requirements->isNotEmpty())
-    <div class="glass-card overflow-hidden mb-6">
-        <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-3 flex-wrap">
+{{-- Product document checklist: only while post-approval / draft gaps — hide after plain submit --}}
+@if (($isPostApproval ?? false) && $requirements->isNotEmpty())
+    <details class="glass-card overflow-hidden mb-6 group">
+        <summary class="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
             <div>
                 <h2 class="font-semibold">{{ __('borrower.application.required_documents') }}</h2>
-                <p class="text-xs text-gray-500">{{ __('borrower.application.required_documents_hint') }}</p>
-            </div>
-            <div class="text-right">
                 <p class="text-xs text-gray-500">{{ __('borrower.application.required_progress', ['satisfied' => $satisfiedCount, 'total' => $requiredCount]) }}</p>
-                <div class="mt-1 h-1.5 w-40 bg-gray-100 rounded-full overflow-hidden">
-                    <div class="h-full bg-amber-500" style="width: {{ $docProgress }}%"></div>
-                </div>
             </div>
-        </div>
-        <ul class="divide-y divide-gray-100">
+            <svg class="size-4 text-gray-400 transition group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+        </summary>
+        <ul class="divide-y divide-gray-100 border-t border-gray-100">
             @foreach ($requirements as $req)
                 @php
                     $myUploads = $uploads[$req->id] ?? collect();
@@ -281,8 +274,8 @@
                         $isApproved => 'bg-emerald-100 text-emerald-700',
                         $isRejected => 'bg-red-100 text-red-700',
                         $latest      => 'bg-amber-100 text-amber-700',
-                        !$req->is_required => 'bg-gray-100 text-gray-500',
-                        default      => 'bg-gray-100 text-gray-600',
+                        ! $req->is_required => 'bg-gray-100 text-gray-500',
+                        default => 'bg-gray-100 text-gray-600',
                     };
                     $label = $latest
                         ? (__('borrower.application.upload_statuses.'.$latest->status) !== 'borrower.application.upload_statuses.'.$latest->status
@@ -294,19 +287,14 @@
                     <div class="flex items-start justify-between gap-3 mb-2 flex-wrap">
                         <div class="min-w-0">
                             <p class="font-semibold text-gray-900">{{ $req->name }}</p>
-                            @if ($req->description)
-                                <p class="text-xs text-gray-500 mt-0.5">{{ $req->description }}</p>
-                            @endif
                         </div>
                         <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $badge }}">{{ $label }}</span>
                     </div>
-
                     @if ($latest && $latest->file_path)
                         <div class="mb-3">
                             <x-site.document-thumb :url="asset('storage/'.$latest->file_path)" />
                         </div>
                     @endif
-
                     @if (! $isApproved)
                         <x-site.document-upload
                             :action="route('site.borrower.application.documents.store', $application->id)"
@@ -318,5 +306,5 @@
                 </li>
             @endforeach
         </ul>
-    </div>
+    </details>
 @endif

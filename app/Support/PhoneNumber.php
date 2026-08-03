@@ -49,6 +49,20 @@ class PhoneNumber
         ];
     }
 
+    public static function format(?string $phone): ?string
+    {
+        if (! filled($phone)) {
+            return null;
+        }
+
+        $split = self::split($phone);
+        if ($split['local'] === '') {
+            return null;
+        }
+
+        return trim($split['prefix'].' '.$split['local']);
+    }
+
     public static function merge(?string $prefix, ?string $local): ?string
     {
         $prefixDigits = preg_replace('/\D+/', '', (string) $prefix) ?? '';

@@ -205,51 +205,81 @@
                 <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1 bg-white/15 text-white ring-1 ring-white/25">{{ $status['label'] ?? '—' }}</span>
             </div>
             <p class="text-lg sm:text-xl font-bold mt-2">{{ $next['label'] ?? __('borrower.loan_profile.next_actions.under_review', ['time' => '']) }}</p>
-            <div class="mt-4 flex items-center gap-3 max-w-md">
-                <div class="flex-1 h-2 rounded-full bg-white/20 overflow-hidden">
-                    <div class="h-full rounded-full bg-brand-gold" style="width: {{ $applicationPercent }}%"></div>
+            @if (! empty($progress['is_loan_progress']))
+                <div class="mt-4 flex items-center gap-3 max-w-md">
+                    <div class="flex-1 h-2 rounded-full bg-white/20 overflow-hidden">
+                        <div class="h-full rounded-full bg-brand-gold" style="width: {{ $applicationPercent }}%"></div>
+                    </div>
+                    <span class="text-sm font-bold tabular-nums text-brand-gold">{{ $applicationPercent }}%</span>
                 </div>
-                <span class="text-sm font-bold tabular-nums text-brand-gold">{{ $applicationPercent }}%</span>
-            </div>
+            @endif
         </div>
 
         <div class="px-5 sm:px-6 py-5">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                    <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-1">{{ __('borrower.loan_profile.next_action_title') }}</p>
-                    <p class="text-sm font-semibold text-gray-900">{{ $next['label'] ?? __('borrower.loan_profile.next_actions.continue_form') }}</p>
-                </div>
-                @if (! empty($next['url']) && ! in_array($next['code'] ?? '', ['under_review', 'view_application'], true))
+            @if (! empty($next['url']) && ! in_array($next['code'] ?? '', ['under_review', 'view_application'], true))
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                        <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-1">{{ __('borrower.loan_profile.next_action_title') }}</p>
+                        <p class="text-sm font-semibold text-gray-900">{{ $next['label'] ?? __('borrower.loan_profile.next_actions.continue_form') }}</p>
+                    </div>
                     <a href="{{ $next['url'] }}"
                        class="inline-flex items-center justify-center font-semibold px-6 py-3 rounded-xl text-sm shrink-0 bg-brand-gold hover:bg-yellow-400 text-brand font-bold">
                         {{ $next['button_label'] ?? __('borrower.loan_profile.actions.continue_to_form') }}
                     </a>
-                @endif
-            </div>
+                </div>
+            @endif
 
             @if ($underwritingActions->isNotEmpty())
-                <div id="underwriting-requests" class="mt-5 rounded-xl bg-amber-50 ring-1 ring-amber-200/80 px-4 py-4">
+                @php
+                    $primaryUw = $underwritingActions->first();
+                    $extraUw = $underwritingActions->slice(1)->values();
+                @endphp
+                <div id="underwriting-requests" class="mt-5 rounded-xl bg-amber-50 ring-1 ring-amber-200/80 px-4 py-4"
+                     x-data="{ open: {{ $extraUw->isEmpty() ? 'true' : 'false' }} }">
                     <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">{{ __('borrower.loan_profile.uw_feedback_title') }}</p>
                     <p class="text-xs text-amber-900/80 mt-1">{{ __('borrower.loan_profile.uw_feedback_hint') }}</p>
-                    <div class="mt-3 flex flex-col gap-2">
-                        @foreach ($underwritingActions as $action)
-                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg bg-white/90 ring-1 ring-amber-100 px-3 py-2.5">
-                                <div class="min-w-0">
-                                    <p class="text-sm font-semibold text-gray-900">{{ $action['label'] }}</p>
-                                    @if (! empty($action['instructions']))
-                                        <p class="text-xs text-gray-600 mt-0.5 line-clamp-2">{{ $action['instructions'] }}</p>
-                                    @endif
-                                    @if (! empty($action['rejected']))
-                                        <p class="text-[11px] font-semibold text-red-700 mt-1">{{ __('borrower.loan_profile.uw_rejected_hint') }}</p>
-                                    @endif
-                                </div>
-                                <a href="{{ $action['url'] }}"
-                                   class="inline-flex items-center justify-center shrink-0 font-bold px-4 py-2 rounded-xl text-sm bg-brand-gold hover:bg-yellow-400 text-brand">
-                                    {{ $action['cta_label'] }}
-                                </a>
+
+                    <div class="mt-3 rounded-lg bg-white/90 ring-1 ring-amber-100 px-3 py-3">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div class="min-w-0">
+                                <p class="text-sm font-semibold text-gray-900">{{ $primaryUw['label'] }}</p>
+                                @if (! empty($primaryUw['instructions']))
+                                    <p class="text-xs text-gray-600 mt-0.5 line-clamp-2">{{ $primaryUw['instructions'] }}</p>
+                                @endif
+                                @if (! empty($primaryUw['rejected']))
+                                    <p class="text-[11px] font-semibold text-red-700 mt-1">{{ __('borrower.loan_profile.uw_rejected_hint') }}</p>
+                                @endif
                             </div>
-                        @endforeach
+                            <a href="{{ $primaryUw['url'] }}"
+                               class="inline-flex items-center justify-center shrink-0 font-bold px-4 py-2.5 rounded-xl text-sm bg-brand-gold hover:bg-yellow-400 text-brand">
+                                {{ $primaryUw['cta_label'] }}
+                            </a>
+                        </div>
                     </div>
+
+                    @if ($extraUw->isNotEmpty())
+                        <button type="button" @click="open = !open"
+                                class="mt-3 text-xs font-semibold text-amber-900 underline">
+                            <span x-show="!open">{{ __('borrower.loan_profile.uw_show_more', ['count' => $extraUw->count()]) }}</span>
+                            <span x-show="open" x-cloak>{{ __('borrower.loan_profile.uw_show_less') }}</span>
+                        </button>
+                        <div x-show="open" x-cloak class="mt-3 flex flex-col gap-2">
+                            @foreach ($extraUw as $action)
+                                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg bg-white/90 ring-1 ring-amber-100 px-3 py-2.5">
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-semibold text-gray-900">{{ $action['label'] }}</p>
+                                        @if (! empty($action['instructions']))
+                                            <p class="text-xs text-gray-600 mt-0.5 line-clamp-2">{{ $action['instructions'] }}</p>
+                                        @endif
+                                    </div>
+                                    <a href="{{ $action['url'] }}"
+                                       class="inline-flex items-center justify-center shrink-0 font-bold px-4 py-2 rounded-xl text-sm bg-white ring-1 ring-brand/20 text-brand hover:bg-brand-muted/40">
+                                        {{ $action['cta_label'] }}
+                                    </a>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
             @endif
 
