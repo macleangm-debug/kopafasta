@@ -467,6 +467,8 @@ Route::prefix('staff')->name('staff.')->group(function () {
         Route::post('logout', [StaffAuthController::class, 'logout'])->name('logout');
         Route::get('/', [StaffPortalController::class, 'dashboard'])->name('dashboard');
         Route::get('security', [StaffPortalController::class, 'security'])->name('security');
+        Route::post('security/recovery-codes', [StaffPortalController::class, 'regenerateRecoveryCodes'])
+            ->name('security.regenerate-recovery');
     });
 });
 

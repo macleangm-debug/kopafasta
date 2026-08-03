@@ -160,6 +160,51 @@ class Phase69StaffPortalAnd2faFeatureTest extends TestCase
             ->assertRedirect(route('staff.login'));
     }
 
+    public function test_enabled_security_page_shows_status_and_recovery_actions(): void
+    {
+        $secret = app(TotpService::class)->generateSecret();
+        $codes = ['aaaa111111', 'bbbb222222'];
+
+        $collector = User::factory()->create([
+            'role'                      => 'collector',
+            'two_factor_secret'         => $secret,
+            'two_factor_confirmed_at'   => now(),
+            'two_factor_recovery_codes' => $codes,
+        ]);
+
+        $this->actingAs($collector, 'admin')
+            ->withSession(['two_factor_verified_at' => now()->timestamp])
+            ->get(route('staff.security'))
+            ->assertOk()
+            ->assertSee('Enabled', false)
+            ->assertSee('2 remaining', false)
+            ->assertSee('Generate new recovery codes', false);
+    }
+
+    public function test_staff_can_regenerate_recovery_codes_with_authenticator(): void
+    {
+        $secret = app(TotpService::class)->generateSecret();
+
+        $collector = User::factory()->create([
+            'role'                      => 'collector',
+            'two_factor_secret'         => $secret,
+            'two_factor_confirmed_at'   => now(),
+            'two_factor_recovery_codes' => ['oldcode123'],
+        ]);
+
+        $code = app(TotpService::class)->currentCode($secret);
+
+        $this->actingAs($collector, 'admin')
+            ->withSession(['two_factor_verified_at' => now()->timestamp])
+            ->post(route('staff.security.regenerate-recovery'), ['code' => $code])
+            ->assertRedirect(route('staff.security'))
+            ->assertSessionHas('fresh_recovery_codes');
+
+        $fresh = $collector->fresh()->two_factor_recovery_codes;
+        $this->assertCount(8, $fresh);
+        $this->assertNotContains('oldcode123', $fresh);
+    }
+
     public function test_admin_settings_can_disable_staff_2fa_requirement(): void
     {
         \App\Models\Setting::set('auth_portal.require_2fa_admin', false);

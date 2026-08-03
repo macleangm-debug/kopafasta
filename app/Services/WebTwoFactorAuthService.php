@@ -147,6 +147,35 @@ class WebTwoFactorAuthService
         return true;
     }
 
+    /**
+     * Replace recovery codes after verifying a current authenticator code.
+     *
+     * @return list<string>|null
+     */
+    public function regenerateRecoveryCodes(User $user, string $code, Request $request): ?array
+    {
+        if (! $this->isEnabled($user)) {
+            return null;
+        }
+
+        if (! app(TotpService::class)->verify((string) $user->two_factor_secret, $code)) {
+            $this->audit($request, 'auth.2fa_recovery_regen_failed', $user);
+
+            return null;
+        }
+
+        $codes = collect(range(1, 8))->map(fn () => Str::lower(Str::random(10)))->all();
+        $user->forceFill(['two_factor_recovery_codes' => $codes])->save();
+        $this->audit($request, 'auth.2fa_recovery_regenerated', $user, ['code_count' => count($codes)]);
+
+        return $codes;
+    }
+
+    public function remainingRecoveryCodeCount(User $user): int
+    {
+        return count($user->two_factor_recovery_codes ?? []);
+    }
+
     public function completePendingLogin(Request $request, bool $trustDevice = false): ?\Illuminate\Http\RedirectResponse
     {
         $pending = $this->pendingLogin($request);

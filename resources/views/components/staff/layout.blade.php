@@ -6,8 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $title }} · Kopafasta</title>
     @vite(['resources/css/app.css'])
+    <style>[x-cloak]{display:none!important}</style>
 </head>
-<body class="bg-slate-100 text-gray-900 antialiased min-h-screen">
+<body class="bg-slate-100 text-gray-900 antialiased min-h-screen" x-data>
     <header class="bg-slate-900 text-white">
         <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
             <div>
@@ -30,5 +31,6 @@
     <main class="max-w-5xl mx-auto px-4 py-8">
         {{ $slot }}
     </main>
+    @vite('resources/js/alpine-init.js')
 </body>
 </html>

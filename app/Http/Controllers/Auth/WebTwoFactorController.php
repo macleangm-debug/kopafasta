@@ -91,15 +91,21 @@ class WebTwoFactorController extends Controller
             return back()->withErrors(['code' => 'Invalid code. Try again with a fresh code from your app.']);
         }
 
+        $context = (string) ($data['context'] ?? data_get($pending, 'context', 'staff'));
+
         if ($pending) {
             $response = $twoFactor->completePendingLogin($request);
 
-            return $response ?? redirect()->route('staff.dashboard');
+            return ($response ?? redirect()->to($this->postSetupRedirect($context, $user)))
+                ->with('status', 'Two-factor authentication enabled.');
         }
 
         $twoFactor->markSessionVerified($request);
 
-        return redirect()->route('staff.security')->with('status', 'Two-factor authentication enabled.');
+        return redirect()
+            ->to($this->postSetupRedirect($context, $user))
+            ->with('status', 'Two-factor authentication enabled.')
+            ->with('two_factor_just_enabled', true);
     }
 
     protected function intendedFor(User $user): string
