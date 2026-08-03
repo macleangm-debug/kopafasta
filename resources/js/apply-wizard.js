@@ -147,6 +147,7 @@ export function applyWizard(config) {
                     requested_amount: 0,
                     requested_tenure_months: 0,
                     purpose: '',
+                    purpose_other: '',
                     guarantor_mode: '',
                     internal_member_no: '',
                     internal_guarantor_phone: '',
@@ -1932,6 +1933,13 @@ export function applyWizard(config) {
                     return false;
                 },
 
+                canShowGuarantorContinue() {
+                    if (! this.requiresGuarantor()) {
+                        return this.isGuarantorLocked() || this.form.guarantor_mode === 'none' || ! this.addGuarantorOpen;
+                    }
+                    return this.isGuarantorLocked();
+                },
+
                 guarantorSummaryText() {
                     if (this.form.guarantor_mode === 'internal') {
                         return this.guarantorLookup.label || this.form.internal_guarantor_name || '—';
@@ -2491,6 +2499,10 @@ export function applyWizard(config) {
                             showWizardFeedback(this.i18n.alerts.selectPurpose);
                             return false;
                         }
+                        if (this.form.purpose === 'other' && ! String(this.form.purpose_other || '').trim()) {
+                            showWizardFeedback(this.i18n.alerts?.purposeOtherRequired || this.i18n.apply?.quote?.purpose_other_required);
+                            return false;
+                        }
                     }
                     if (this.stepKey === 'group_setup' && this.hasStep('group_setup')) {
                         if (! (this.group.name || '').trim()) {
@@ -2569,17 +2581,41 @@ export function applyWizard(config) {
                     }
                     if (this.stepKey === 'guarantor' && this.hasStep('guarantor')) {
                         this.syncGuarantorFormFromDom();
+                        if (! this.requiresGuarantor() && (! this.form.guarantor_mode || this.form.guarantor_mode === 'none')) {
+                            return await new Promise((resolve) => {
+                                if (typeof window.confirmForm !== 'function') {
+                                    this.form.guarantor_mode = 'none';
+                                    resolve(true);
+                                    return;
+                                }
+                                window.confirmForm(null, {
+                                    title: this.i18n.alerts?.guarantor_skip_title || 'Continue without a guarantor?',
+                                    message: this.i18n.alerts?.guarantor_skip_message || this.i18n.apply?.guarantor_optional_hint || '',
+                                    confirmLabel: this.i18n.continue || 'Continue',
+                                    confirmClass: 'bg-brand-gold hover:bg-yellow-400 text-brand',
+                                    onConfirm: () => {
+                                        this.form.guarantor_mode = 'none';
+                                        resolve(true);
+                                    },
+                                    onCancel: () => resolve(false),
+                                });
+                            });
+                        }
                         if (! this.form.guarantor_mode || this.form.guarantor_mode === 'none') {
-                            showWizardFeedback(this.i18n.alerts.selectGuarantor);
+                            showWizardFeedback({
+                                tone: 'warning',
+                                title: this.i18n.alerts?.guarantor_required_title || 'Guarantor required',
+                                message: this.i18n.alerts.selectGuarantor,
+                            });
                             return false;
                         }
                         if (this.form.guarantor_mode === 'internal' || this.form.guarantor_mode === 'previous') {
                             if (! this.internalGuarantorValidated()) {
-                                this.guarantorLookup = {
-                                    ...this.guarantorLookup,
-                                    ok: false,
-                                    error: this.i18n.alerts.guarantor_validate_first,
-                                };
+                                showWizardFeedback({
+                                    tone: 'warning',
+                                    title: this.i18n.alerts?.guarantor_required_title || 'Guarantor required',
+                                    message: this.i18n.alerts.guarantor_validate_first,
+                                });
                                 this.scrollWizardIntoView();
                                 return false;
                             }
@@ -2590,11 +2626,20 @@ export function applyWizard(config) {
                                 const missing = this.externalGuarantorMissingFields();
                                 if (Object.keys(missing).length) {
                                     this.setGuarantorFieldErrors(missing);
+                                    showWizardFeedback({
+                                        tone: 'warning',
+                                        title: this.i18n.alerts?.guarantor_fields_title || 'Complete guarantor details',
+                                        message: this.i18n.alerts?.guarantor_fields_message || this.i18n.apply?.guarantor_fields?.complete_fields_first,
+                                    });
                                     this.scrollWizardIntoView();
                                     return false;
                                 }
-                                this.guarantorInviteError = this.i18n.alerts.guarantor_external_invite_required
-                                    || this.i18n.alerts.guarantor_validate_first;
+                                showWizardFeedback({
+                                    tone: 'warning',
+                                    title: this.i18n.alerts?.guarantor_invite_title || 'Generate invitation link',
+                                    message: this.i18n.alerts.guarantor_external_invite_required
+                                        || this.i18n.alerts.guarantor_validate_first,
+                                });
                                 this.scrollWizardIntoView();
                                 return false;
                             }
@@ -2611,10 +2656,11 @@ export function applyWizard(config) {
                         if (this.effectiveFeeAmount() > 0) {
                             const st = this.applicationFeeState?.status || '';
                             if (! ['paid', 'waived', 'pending'].includes(st)) {
-                                this.feeNotice = {
-                                    tone: 'error',
+                                showWizardFeedback({
+                                    tone: 'warning',
+                                    title: this.i18n.applicationFee?.pay_title || 'Payment required',
                                     message: this.i18n.applicationFee.requiredBeforeContinue,
-                                };
+                                });
                                 return false;
                             }
                         } else if (! this.applicationFeePaid) {
@@ -2624,10 +2670,11 @@ export function applyWizard(config) {
                     if (this.feeGateOpen) {
                         await this.refreshApplicationFeeQuote();
                         if (! this.feeGateSatisfied()) {
-                            this.feeNotice = {
-                                tone: 'error',
+                            showWizardFeedback({
+                                tone: 'warning',
+                                title: this.i18n.applicationFee?.pay_title || 'Payment required',
                                 message: this.i18n.applicationFee.requiredBeforeContinue,
-                            };
+                            });
                             return false;
                         }
                         this.feeGateOpen = false;

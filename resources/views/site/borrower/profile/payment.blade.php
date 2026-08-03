@@ -183,7 +183,7 @@
                                     </fieldset>
                                     <div>
                                         <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.phone_number') }}</label>
-                                        <input type="text" name="mobile_number" value="{{ old('mobile_number') }}" placeholder="{{ __('borrower.apply.guarantor_fields.phone_placeholder') }}" autocomplete="off" class="w-full rounded-lg border-gray-300 text-sm" :disabled="type !== 'mobile_money'">
+                                        <input type="text" name="mobile_number" value="{{ old('mobile_number') }}" placeholder="{{ __('borrower.apply.guarantor_fields.phone_placeholder') }}" autocomplete="off" class="kf-field" :disabled="type !== 'mobile_money'">
                                         <p class="text-xs text-gray-500 mt-1">{{ __('borrower.payment_details.mobile_prefix_hint') }}</p>
                                         @error('mobile_number')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                     </div>
@@ -192,17 +192,17 @@
                                 <div x-show="type === 'bank'" class="space-y-4">
                                     <div>
                                         <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.bank_name') }}</label>
-                                        <input type="text" name="bank_name" value="{{ old('bank_name') }}" placeholder="{{ __('borrower.payment_details.bank_name_placeholder') }}" autocomplete="off" class="w-full rounded-lg border-gray-300 text-sm" :disabled="type !== 'bank'">
+                                        <input type="text" name="bank_name" value="{{ old('bank_name') }}" placeholder="{{ __('borrower.payment_details.bank_name_placeholder') }}" autocomplete="off" class="kf-field" :disabled="type !== 'bank'">
                                         @error('bank_name')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                     </div>
                                     <div>
                                         <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.account_number') }}</label>
-                                        <input type="text" name="account_number" value="{{ old('account_number') }}" placeholder="{{ __('borrower.payment_details.account_number_placeholder') }}" autocomplete="off" class="w-full rounded-lg border-gray-300 text-sm" :disabled="type !== 'bank'">
+                                        <input type="text" name="account_number" value="{{ old('account_number') }}" placeholder="{{ __('borrower.payment_details.account_number_placeholder') }}" autocomplete="off" class="kf-field" :disabled="type !== 'bank'">
                                         @error('account_number')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                     </div>
                                     <div>
                                         <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.branch') }} <span class="text-gray-400 font-normal">({{ __('borrower.payment_details.optional') }})</span></label>
-                                        <input type="text" name="bank_branch" value="{{ old('bank_branch') }}" placeholder="{{ __('borrower.payment_details.branch_placeholder') }}" autocomplete="off" class="w-full rounded-lg border-gray-300 text-sm" :disabled="type !== 'bank'">
+                                        <input type="text" name="bank_branch" value="{{ old('bank_branch') }}" placeholder="{{ __('borrower.payment_details.branch_placeholder') }}" autocomplete="off" class="kf-field" :disabled="type !== 'bank'">
                                     </div>
                                 </div>
 

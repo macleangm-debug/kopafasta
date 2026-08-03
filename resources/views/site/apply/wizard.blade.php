@@ -194,6 +194,7 @@
                           'paid' => __('borrower.apply.application_fee.paid'),
                           'requiredBeforeContinue' => __('borrower.apply.application_fee.required_before_continue'),
                           'celebrate_title' => __('borrower.celebration.application_fee_title'),
+                          'pay_title' => __('borrower.apply.application_fee.pay_title'),
                       ],
                       'group' => [
                           'lookupNotFound' => __('borrower.apply.group.lookup_not_found'),
@@ -260,6 +261,13 @@
                           'guarantor_external_incomplete' => __('borrower.apply.alerts.guarantor_external_incomplete'),
                           'guarantor_invite_failed' => __('borrower.apply.alerts.guarantor_invite_failed'),
                           'guarantor_external_invite_required' => __('borrower.apply.alerts.guarantor_external_invite_required'),
+                          'guarantor_required_title' => __('borrower.apply.alerts.guarantor_required_title'),
+                          'guarantor_skip_title' => __('borrower.apply.alerts.guarantor_skip_title'),
+                          'guarantor_skip_message' => __('borrower.apply.alerts.guarantor_skip_message'),
+                          'guarantor_fields_title' => __('borrower.apply.alerts.guarantor_fields_title'),
+                          'guarantor_fields_message' => __('borrower.apply.alerts.guarantor_fields_message'),
+                          'guarantor_invite_title' => __('borrower.apply.alerts.guarantor_invite_title'),
+                          'purposeOtherRequired' => __('borrower.apply.alerts.purpose_other_required'),
                           'guarantorStatus' => [
                               'invitation_sent' => __('borrower.apply.guarantor_status.invitation_sent'),
                               'registration_in_progress' => __('borrower.apply.guarantor_status.registration_in_progress'),

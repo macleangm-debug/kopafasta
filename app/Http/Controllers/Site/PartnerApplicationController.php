@@ -120,6 +120,9 @@ class PartnerApplicationController extends Controller
             'registration_number' => ['nullable', 'string', 'max:80'],
             'tin' => ['nullable', 'string', 'max:40'],
             'region' => ['nullable', 'string', 'max:100'],
+            'district' => ['nullable', 'string', 'max:100'],
+            'ward' => ['nullable', 'string', 'max:100'],
+            'street' => ['nullable', 'string', 'max:255'],
             'coverage_regions' => ['nullable', 'array'],
             'coverage_regions.*' => ['string', 'max:100'],
             'message' => ['nullable', 'string', 'max:2000'],
@@ -132,6 +135,15 @@ class PartnerApplicationController extends Controller
         ]);
 
         $category = $enrollment->normalizeCategory($data['partner_category']);
+
+        $locationDetail = collect([
+            'District' => $data['district'] ?? null,
+            'Ward' => $data['ward'] ?? null,
+            'Street' => $data['street'] ?? null,
+        ])->filter()->map(fn ($value, $label) => "{$label}: {$value}")->implode('; ');
+        if ($locationDetail !== '') {
+            $data['message'] = trim(($data['message'] ?? '')."\n".$locationDetail);
+        }
 
         // Only valuers may register as individuals; all other service partners are companies.
         if ($category !== 'valuer') {

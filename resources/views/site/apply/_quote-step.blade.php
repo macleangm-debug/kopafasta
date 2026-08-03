@@ -38,6 +38,15 @@
                         :placeholder="__('borrower.apply.quote.select_purpose')"
                     />
                     <p class="mt-2 text-xs text-brand/80">{{ __('borrower.apply.quote.purpose_hint') }}</p>
+                    <div x-show="form.purpose === 'other'" x-cloak class="mt-4">
+                        <label class="block text-sm font-semibold text-gray-800 mb-1.5">{{ __('borrower.apply.quote.purpose_other_label') }} <span class="text-red-500">*</span></label>
+                        <input type="text"
+                               x-model="form.purpose_other"
+                               @input="scheduleDraftSave()"
+                               maxlength="120"
+                               class="kf-field"
+                               placeholder="{{ __('borrower.apply.quote.purpose_other_placeholder') }}">
+                    </div>
                 </div>
 
                 <div>

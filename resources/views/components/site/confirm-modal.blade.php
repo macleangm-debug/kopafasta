@@ -1,12 +1,18 @@
 @props([
     'name' => 'confirm',
-    'title' => 'Are you sure you want to proceed?',
+    'title' => null,
     'message' => null,
-    'confirmLabel' => 'Confirm',
-    'cancelLabel' => 'Cancel',
+    'confirmLabel' => null,
+    'cancelLabel' => null,
     'confirmClass' => 'bg-brand-gold hover:bg-yellow-400 text-brand',
     'tone' => 'confirm',
 ])
+
+@php
+    $title = $title ?? __('borrower.feedback.confirm_title');
+    $confirmLabel = $confirmLabel ?? __('borrower.feedback.confirm');
+    $cancelLabel = $cancelLabel ?? __('borrower.apply.cancel');
+@endphp
 
 <div
     x-data="{

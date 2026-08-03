@@ -144,15 +144,12 @@
 
             {{-- Step 2: Location --}}
             <div x-show="step === 2" x-cloak class="space-y-5">
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.region') }}</label>
-                    <select name="region" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                        <option value="">{{ __('site.affiliate_apply.select_region') }}</option>
-                        @foreach ($regions as $region)
-                            <option value="{{ $region }}" @selected(old('region') === $region)>{{ $region }}</option>
-                        @endforeach
-                    </select>
-                </div>
+                <x-site.address-fields
+                    :region="old('region')"
+                    :district="old('district')"
+                    :ward="old('ward')"
+                    :street="old('street', old('address'))"
+                />
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.partner_apply.coverage') }}</label>
                     <div class="grid sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto rounded-xl ring-1 ring-gray-200 p-3">

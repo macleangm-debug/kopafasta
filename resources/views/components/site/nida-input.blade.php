@@ -10,7 +10,7 @@
 @endphp
 
 <input
-    {{ $attributes->merge(['class' => 'w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm font-mono tracking-wide']) }}
+    {{ $attributes->merge(['class' => 'kf-field font-mono tracking-wide']) }}
     type="text"
     inputmode="numeric"
     autocomplete="off"

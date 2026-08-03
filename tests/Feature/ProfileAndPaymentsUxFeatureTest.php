@@ -33,17 +33,19 @@ class ProfileAndPaymentsUxFeatureTest extends TestCase
         ]);
     }
 
-    public function test_personal_profile_shows_nida_verify_and_add_details(): void
+    public function test_personal_profile_shows_nida_id_images_and_face(): void
     {
         $customer = $this->makeCustomer();
 
         $this->actingAs($customer->user)
             ->get(route('site.borrower.profile', ['section' => 'personal']))
             ->assertOk()
-            ->assertSee(__('borrower.nida.verify_button'), false)
+            ->assertDontSee(__('borrower.nida.verify_button'), false)
             ->assertSee(__('borrower.profile.add_details'), false)
             ->assertSee(__('borrower.nida.number'), false)
-            ->assertSee(__('borrower.nida.format_hint'), false);
+            ->assertSee(__('borrower.nida.format_hint'), false)
+            ->assertSee(__('borrower.profile.id_images_title'), false)
+            ->assertSee(__('borrower.nida.face_title'), false);
     }
 
     public function test_residence_and_address_fields_use_mobile_pickers(): void

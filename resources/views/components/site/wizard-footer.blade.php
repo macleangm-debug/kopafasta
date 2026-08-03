@@ -11,8 +11,8 @@
            class="text-sm text-gray-500 hover:text-gray-700">{{ __('borrower.apply.cancel') }}</a>
         <button type="button"
                 @click.prevent="next()"
-                :disabled="advancing || resumeLoading || (guarantorInvitePreparing && stepKey === 'guarantor') || (stepKey === 'guarantor' && form.guarantor_mode === 'internal' && !internalGuarantorFieldsFilled()) || (stepKey === 'guarantor' && form.guarantor_mode === 'external' && !isExternalGuarantorComplete())"
-                x-show="!['signature', 'submit'].includes(stepKey)"
+                :disabled="advancing || resumeLoading || (guarantorInvitePreparing && stepKey === 'guarantor') || (stepKey === 'guarantor' && !canShowGuarantorContinue())"
+                x-show="!['signature', 'submit'].includes(stepKey) && (stepKey !== 'guarantor' || canShowGuarantorContinue())"
                 class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 disabled:opacity-60 text-brand font-bold px-6 py-2.5 rounded-xl text-sm shadow-sm transition">
             <span x-text="(guarantorInvitePreparing && stepKey === 'guarantor')
                 ? @js(__('borrower.apply.application_fee.processing'))

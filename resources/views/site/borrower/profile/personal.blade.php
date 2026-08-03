@@ -14,15 +14,12 @@
             $personalGaps = app(\App\Services\ProfileValidationService::class)->personalGaps($customer);
         @endphp
         @if ($personalGaps !== [])
-            <div class="mb-6 rounded-2xl bg-amber-50 ring-1 ring-amber-200/80 p-5">
-                <p class="text-sm font-bold text-amber-950">{{ __('borrower.profile.gaps.banner_title') }}</p>
-                <ul class="mt-3 space-y-2">
-                    @foreach ($personalGaps as $gap)
-                        <li>
-                            <a href="{{ $gap['url'] }}" class="text-sm font-semibold text-brand hover:underline">• {{ $gap['label'] }} →</a>
-                        </li>
-                    @endforeach
-                </ul>
+            <div class="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                <span class="font-semibold text-amber-800">{{ __('borrower.profile.gaps.banner_compact') }}</span>
+                @foreach ($personalGaps as $gap)
+                    <a href="{{ $gap['url'] }}" class="font-semibold text-brand hover:underline">{{ $gap['label'] }}</a>
+                    @if (! $loop->last)<span class="text-gray-300">·</span>@endif
+                @endforeach
             </div>
         @endif
 
@@ -41,8 +38,8 @@
             $hasIdentity = $nidaSaved && (
                 ! $requireIdentityDuringProfile || $uploadsComplete
             );
-            $readonly = 'w-full rounded-lg border-gray-200 bg-gray-50 ring-1 ring-gray-200 px-3 py-2 text-sm';
-            $editable = 'w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2 text-sm';
+            $readonly = 'kf-field-readonly';
+            $editable = 'kf-field';
             $hasContact = filled($customer->phone) || filled($customer->email);
             $kinComplete = app(\App\Services\ProfileValidationService::class)->isKinComplete($customer);
             $kinName = $customer->nok_name ?: trim(($customer->nok_first_name ?? '').' '.($customer->nok_last_name ?? ''));
@@ -171,22 +168,58 @@
                                 <p class="mt-1 text-emerald-800">{{ $locked ? __('borrower.nida.locked_hint') : __('borrower.nida.saved_locked_hint') }}</p>
                             </div>
                         @endif
+                        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}">
+                            @csrf @method('PUT')
+                            <input type="hidden" name="focus" value="identity">
+                            @if (! empty($returnUrl))
+                                <input type="hidden" name="return" value="{{ $returnUrl }}">
+                            @endif
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ __('borrower.nida.number') }} <span class="text-red-500">*</span></label>
+                                    <x-site.nida-input name="national_id" :value="old('national_id', $customer->national_id)" :required="! $nidaReadonly" @if($nidaReadonly) readonly @endif />
+                                    <p class="text-xs text-gray-500 mt-2">{{ __('borrower.nida.format_hint') }}</p>
+                                    @error('national_id')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                                </div>
+                                <p class="text-xs text-gray-500">{{ __('borrower.profile.id_images_follow_hint') }}</p>
+                            </div>
+                            <button type="submit" class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                                {{ __('borrower.profile.save') }}
+                            </button>
+                        </form>
+                    </x-slot:form>
+                </x-site.profile-section-card>
+
+                {{-- ID images: NIDA card photos or alternate ID --}}
+                <x-site.profile-section-card
+                    section-id="profile-id-images"
+                    icon="🖼️"
+                    :title="__('borrower.profile.id_images_title')"
+                    :complete="$uploadsComplete"
+                    :empty="! $uploadsComplete"
+                    :default-open="$focusHash === 'id_images' || ($nidaSaved && ! $uploadsComplete)">
+                    <x-slot:view>
+                        @if ($uploadsComplete)
+                            <p class="text-sm font-semibold text-emerald-700">{{ __('borrower.profile.id_images_complete') }}</p>
+                        @else
+                            <p class="text-sm text-gray-500">{{ __('borrower.profile.id_images_empty') }}</p>
+                            <button type="button" @click="open = true" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
+                        @endif
+                    </x-slot:view>
+                    <x-slot:form>
                         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data">
                             @csrf @method('PUT')
                             <input type="hidden" name="focus" value="identity">
                             @if (! empty($returnUrl))
                                 <input type="hidden" name="return" value="{{ $returnUrl }}">
                             @endif
+                            @if ($nidaSaved)
+                                <input type="hidden" name="national_id" value="{{ $customer->national_id }}">
+                            @endif
                             <div class="space-y-4" x-data="{
                                 noCard: @js($noPhysicalCard),
                                 altTypes: @js(array_values(old('alternate_id_types', $customer->alternate_id_types ?? []))),
                             }">
-                                <div>
-                                    <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.nida.number') }} <span class="text-red-500">*</span></label>
-                                    <x-site.nida-input name="national_id" :value="old('national_id', $customer->national_id)" :required="! $nidaReadonly" @if($nidaReadonly) readonly @endif />
-                                    <p class="text-[11px] text-gray-400 mt-1">{{ __('borrower.nida.format_hint') }}</p>
-                                    @error('national_id')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
-                                </div>
                                 @unless ($locked)
                                     <label class="flex items-start gap-3 rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3 cursor-pointer">
                                         <input type="checkbox" name="no_physical_nida_card" value="1" x-model="noCard"
@@ -226,9 +259,9 @@
                                     </div>
                                     @error('alternate_id_types')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                                     <div>
-                                        <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.nida.alt_notes_label') }}</label>
+                                        <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ __('borrower.nida.alt_notes_label') }}</label>
                                         <input type="text" name="alternate_id_notes" value="{{ old('alternate_id_notes', $customer->alternate_id_notes) }}"
-                                               class="w-full rounded-xl border-gray-300 text-sm" placeholder="{{ __('borrower.nida.alt_notes_placeholder') }}">
+                                               class="kf-field" placeholder="{{ __('borrower.nida.alt_notes_placeholder') }}">
                                     </div>
                                     <div class="space-y-3" x-show="altTypes.includes('passport')">
                                         <x-site.profile-document-field :document="$altDocs->get('passport')" field-name="passport" mode="single" :label="__('borrower.nida.alt_passport')" input-host-id="passport-upload" />
@@ -248,20 +281,6 @@
                                 {{ __('borrower.profile.save') }}
                             </button>
                         </form>
-                        @unless ($locked)
-                            <form method="POST" action="{{ route('site.borrower.profile.nida.verify') }}" class="mt-4 pt-4 border-t border-gray-100"
-                                  @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.nida.verify_button')), message: @js(__('borrower.nida.subtitle')), confirmLabel: @js(__('borrower.nida.verify_button')), confirmClass: 'bg-brand hover:bg-brand-light text-white' })">
-                                @csrf
-                                <div class="mb-3">
-                                    <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.nida.number') }}</label>
-                                    <x-site.nida-input name="national_id" :value="old('national_id', $customer->national_id)" :required="true" @if($nidaReadonly) readonly @endif />
-                                </div>
-                                <p class="text-xs text-gray-500 mb-3">{{ __('borrower.nida.subtitle') }}</p>
-                                <button type="submit" class="bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-full text-sm">
-                                    {{ __('borrower.nida.verify_button') }}
-                                </button>
-                            </form>
-                        @endunless
                     </x-slot:form>
                 </x-site.profile-section-card>
 
@@ -366,8 +385,7 @@
                     </x-slot:form>
                 </x-site.profile-section-card>
 
-                {{-- Face capture — only required during profile stage; otherwise show if already started --}}
-                @if ($requireIdentityDuringProfile || $faceHasPhotos || in_array($faceKey, ['verified', 'pending', 'rejected', 'revision_required'], true))
+                {{-- Face photos — always available on personal profile --}}
                 <x-site.profile-section-card
                     section-id="profile-face"
                     icon="📷"
@@ -375,7 +393,7 @@
                     :complete="$faceComplete"
                     :empty="! $faceHasPhotos && ! $faceComplete"
                     :inline-edit="true"
-                    :default-open="$focusHash === 'face' || in_array($faceKey, ['rejected', 'revision_required'], true)"
+                    :default-open="$focusHash === 'face' || in_array($faceKey, ['rejected', 'revision_required', 'incomplete'], true)"
                     :allow-overflow="true">
                     <x-slot:view>
                         @if (! empty($faceAngles ?? []))
@@ -435,7 +453,6 @@
                         @endif
                     </x-slot:form>
                 </x-site.profile-section-card>
-                @endif
 
                 {{-- Legal signature (reusable across contracts) --}}
                 @php

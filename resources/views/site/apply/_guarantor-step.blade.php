@@ -4,15 +4,22 @@
         :subtitle="null"
     />
 
-    <div x-show="requiresGuarantor() && !isGuarantorLocked() && !addGuarantorOpen" x-cloak
-         class="mb-5 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 text-sm text-amber-950">
-        <p class="font-semibold">{{ __('borrower.apply.guarantor_fields.add_cta') }}</p>
-        <p class="mt-1 text-amber-900/90">{{ __('borrower.apply.guarantor_required_hint') }}</p>
+    <div x-show="requiresGuarantor() && !isGuarantorLocked() && !addGuarantorOpen" x-cloak class="mb-5">
+        <button type="button"
+                @click="addGuarantorOpen = true; if (!form.guarantor_mode || form.guarantor_mode === 'none') form.guarantor_mode = previousGuarantors.length ? 'previous' : 'internal'"
+                class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3.5 text-sm shadow-sm">
+            <span class="text-lg leading-none">+</span>
+            {{ __('borrower.apply.guarantor_fields.add_cta') }}
+        </button>
     </div>
 
-    <div x-show="!requiresGuarantor() && !isGuarantorLocked() && !addGuarantorOpen" x-cloak
-         class="mb-5 rounded-2xl bg-slate-50 ring-1 ring-gray-200 px-4 py-4 text-sm text-gray-700">
-        <p>{{ __('borrower.apply.guarantor_optional_hint') }}</p>
+    <div x-show="!requiresGuarantor() && !isGuarantorLocked() && !addGuarantorOpen" x-cloak class="mb-5 flex flex-wrap gap-3">
+        <button type="button"
+                @click="addGuarantorOpen = true; if (!form.guarantor_mode || form.guarantor_mode === 'none') form.guarantor_mode = previousGuarantors.length ? 'previous' : 'internal'"
+                class="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3.5 text-sm shadow-sm">
+            <span class="text-lg leading-none">+</span>
+            {{ __('borrower.apply.guarantor_fields.add_cta') }}
+        </button>
     </div>
 
     {{-- Field-level errors stay inline; summary feedback opens as modal via setGuarantorFieldErrors() --}}
@@ -56,16 +63,6 @@
                 :disabled="guarantorChanging"
                 class="inline-flex bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-semibold px-4 py-2.5 rounded-xl text-sm disabled:opacity-60">
             {{ __('borrower.apply.change_guarantor') }}
-        </button>
-    </div>
-
-    <div x-show="!isGuarantorLocked()" class="mb-5">
-        <button type="button"
-                x-show="!addGuarantorOpen"
-                @click="addGuarantorOpen = true; if (!form.guarantor_mode || form.guarantor_mode === 'none') form.guarantor_mode = previousGuarantors.length ? 'previous' : 'internal'"
-                class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3.5 text-sm shadow-sm">
-            <span class="text-lg leading-none">+</span>
-            {{ __('borrower.apply.guarantor_fields.add_cta') }}
         </button>
     </div>
 
