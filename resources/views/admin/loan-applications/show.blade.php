@@ -76,37 +76,10 @@
     @if ($isCreditWorkspace)
         @include('admin.loan-applications.review._credit_workspace')
     @elseif ($isOpsStage)
-        @include('admin.loan-applications.review._header')
-        @include('admin.loan-applications.review._ops')
-
-        <div x-data="{ tab: 'borrower' }" class="mt-6 space-y-4">
-            <nav class="grid grid-cols-2 sm:grid-cols-3 gap-2" aria-label="Supporting sections">
-                @foreach ([['borrower', 'Borrower'], ['documents', 'Documents'], ['guarantor', 'Guarantor']] as [$key, $label])
-                    <button type="button"
-                            @click="tab = '{{ $key }}'"
-                            :class="tab === '{{ $key }}' ? 'bg-brand text-white' : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-brand-muted/40'"
-                            class="rounded-xl px-3 py-2.5 text-xs font-semibold transition text-left">
-                        {{ $label }}
-                    </button>
-                @endforeach
-            </nav>
-            <div x-show="tab === 'borrower'" x-cloak class="rounded-2xl bg-white ring-1 ring-brand/10 p-5">
-                @include('admin.loan-applications.review._borrower')
-            </div>
-            <div x-show="tab === 'documents'" x-cloak class="space-y-5">
-                @include('admin.loan-applications.review._documents')
-                @include('admin.loan-applications.review._document-requests')
-                @include('admin.loan-applications._asset-backed')
-                @include('admin.loan-applications._asset-lending')
-            </div>
-            <div x-show="tab === 'guarantor'" x-cloak>
-                @include('admin.loan-applications.review._guarantors')
-            </div>
-        </div>
+        @include('admin.loan-applications.review._ops_workspace')
     @else
-        @include('admin.loan-applications.review._header')
-        @include('admin.loan-applications.review._recommendation')
-        @include('admin.loan-applications.review._borrower')
+        {{-- Fallback for odd stages: still use the premium credit workspace so tabs/cards are never missing --}}
+        @include('admin.loan-applications.review._credit_workspace')
     @endif
 
 </x-admin.layout>

@@ -24,7 +24,6 @@
         'medium' => 'bg-amber-50 text-amber-950 ring-amber-200',
         default => 'bg-rose-50 text-rose-900 ring-rose-200',
     };
-    $defaultTab = request('tab', 'personal');
 @endphp
 
 {{-- ── Decision deck ─────────────────────────────────────────────── --}}
@@ -151,6 +150,16 @@
             <p class="text-xs mt-2 opacity-90">
                 System: <span class="font-bold uppercase">{{ $risk['recommendation'] ?? '—' }}</span>
             </p>
+            @if (! empty($risk['factors']))
+                <ul class="mt-3 space-y-1 text-[11px] opacity-90 border-t border-current/15 pt-2">
+                    @foreach (array_slice($risk['factors'], 0, 4) as $factor)
+                        <li>• {{ $factor }}</li>
+                    @endforeach
+                </ul>
+            @endif
+            <p class="mt-2 text-[10px] opacity-70 leading-snug">
+                Starts at 100. Deductions for profile, NIDA, face, affordability, documents, guarantor, overdue loans. ≥75 approve · ≥50 refer · below 50 reject.
+            </p>
         </div>
 
         <div class="lg:col-span-4 rounded-2xl overflow-hidden shadow-sm ring-1 ring-black/5 bg-gradient-to-br {{ $crbTone['card'] }} text-white">
@@ -194,6 +203,11 @@
     @if ($isCommitteeStage)
         @include('admin.loan-applications.review._committee_inputs')
     @endif
+
+    {{-- Primary decision / recommendation zone — directly under the decision cards --}}
+    <div id="review-action-zone" class="scroll-mt-24">
+        @include('admin.loan-applications.review._recommendation')
+    </div>
 
     {{-- Affordability (collapsed by default when pass) --}}
     @if (! empty($afford))
@@ -267,76 +281,6 @@
             @endforeach
         </div>
     @endif
-
-    {{-- Recommendation / decision — primary CTA zone --}}
-    <div id="review-action-zone" class="scroll-mt-24">
-        @include('admin.loan-applications.review._recommendation')
-    </div>
 </section>
 
-{{-- ── Profile file tabs ─────────────────────────────────────────── --}}
-<section
-    class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden"
-    x-data="{ tab: @js($defaultTab) }"
->
-    <div class="px-5 pt-5 pb-3 border-b border-gray-100 bg-gradient-to-r from-brand-muted/50 to-white">
-        <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Borrower file</p>
-        <h3 class="text-base font-bold text-gray-900 mt-0.5">Profile sections</h3>
-        <p class="text-xs text-gray-500 mt-0.5">Open one section at a time — keep the page short while you verify.</p>
-    </div>
-
-    @php
-        $profileTabs = [
-            ['personal', 'Personal'],
-            ['residence', 'Residence'],
-            ['activity', 'Activity'],
-            ['documents', 'Documents'],
-            ['guarantor', 'Guarantor'],
-        ];
-        if ($groupReview ?? null) {
-            $profileTabs[] = ['group', 'Group'];
-        }
-    @endphp
-
-    <div class="px-3 pt-3 flex gap-1.5 overflow-x-auto border-b border-gray-100" role="tablist">
-        @foreach ($profileTabs as [$key, $label])
-            <button type="button"
-                    role="tab"
-                    @click="tab = '{{ $key }}'"
-                    :aria-selected="tab === '{{ $key }}'"
-                    :class="tab === '{{ $key }}'
-                        ? 'bg-brand text-white shadow-sm'
-                        : 'bg-transparent text-gray-600 hover:bg-brand-muted/50'"
-                    class="shrink-0 rounded-xl px-4 py-2.5 text-xs font-semibold transition">
-                {{ $label }}
-            </button>
-        @endforeach
-    </div>
-
-    <div class="p-5">
-        <div x-show="tab === 'personal'" x-cloak class="space-y-5">
-            @include('admin.loan-applications.review._profile_personal')
-        </div>
-        <div x-show="tab === 'residence'" x-cloak>
-            @include('admin.loan-applications.review._profile_residence')
-        </div>
-        <div x-show="tab === 'activity'" x-cloak>
-            @include('admin.loan-applications.review._profile_activity')
-        </div>
-        <div x-show="tab === 'documents'" x-cloak class="space-y-5">
-            @include('admin.loan-applications.review._documents')
-            @include('admin.loan-applications.review._document-requests')
-            @include('admin.loan-applications._asset-backed')
-            @include('admin.loan-applications._asset-lending')
-            @include('admin.loan-applications.review._asset')
-        </div>
-        <div x-show="tab === 'guarantor'" x-cloak>
-            @include('admin.loan-applications.review._guarantors')
-        </div>
-        @if ($groupReview ?? null)
-            <div x-show="tab === 'group'" x-cloak>
-                @include('admin.loan-applications.review._group')
-            </div>
-        @endif
-    </div>
-</section>
+@include('admin.loan-applications.review._borrower_file_tabs')

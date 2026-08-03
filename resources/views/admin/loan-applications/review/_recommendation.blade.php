@@ -4,8 +4,8 @@
     $affordFail = ($affordability['verdict'] ?? '') === 'fail' || ! $affordPass;
     $counter = $counterOffer ?? ($review['counter_offer'] ?? null);
     $stage = $record->current_stage ?? 'submitted';
-    $isCreditStage = in_array($stage, ['credit_appraisal', 'screening'], true);
-    $isCommitteeStage = in_array($stage, ['pre_approval', 'approval'], true);
+    $isCreditStage = in_array($stage, ['submitted', 'screening', 'credit_appraisal'], true);
+    $isCommitteeStage = $stage === 'pre_approval';
     $viewerRole = auth()->user()?->role;
     $isAnalystViewer = $viewerRole === 'credit_analyst';
     $isAdminViewer = in_array($viewerRole, ['admin', 'super_admin', 'manager'], true);
@@ -22,40 +22,41 @@
     }
 @endphp
 
-<div id="review-recommendation" class="scroll-mt-24 mb-6 space-y-4">
+<div id="review-recommendation" class="scroll-mt-24 mb-2 space-y-4">
     {{-- Credit analyst recommendation panel --}}
     @if ($showAnalystPanel)
     <div @class([
-        'bg-white rounded-xl shadow-sm ring-1 p-6',
+        'bg-white rounded-2xl shadow-sm ring-1 overflow-hidden',
         'ring-brand ring-2' => $isCreditStage,
-        'ring-gray-200' => ! $isCreditStage,
+        'ring-brand/10' => ! $isCreditStage,
     ])>
-        <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+        <div class="px-5 sm:px-6 py-4 border-b border-brand/10 bg-gradient-to-r from-brand-muted/50 to-white flex flex-wrap items-start justify-between gap-3">
             <div>
                 <p class="text-[10px] uppercase tracking-widest font-semibold text-brand">Step 1 · Credit analyst</p>
-                <h3 class="text-sm font-semibold text-gray-900 mt-0.5">Credit recommendation</h3>
-                <p class="text-xs text-gray-500 mt-0.5">Suggest approve, counter, or return for documents — then move to committee</p>
+                <h3 class="text-base font-bold text-gray-900 mt-0.5">Record your screening recommendation</h3>
+                <p class="text-xs text-gray-500 mt-0.5">Review the cards above, then recommend approve, counter, or return for documents.</p>
             </div>
             @if ($isCreditStage)
-                <span class="text-xs font-semibold rounded-full px-3 py-1 bg-brand-muted text-brand">Active stage</span>
+                <span class="text-xs font-semibold rounded-full px-3 py-1 bg-brand-gold/40 text-brand ring-1 ring-brand-gold/50">Decide here</span>
             @elseif (! empty($rec['type']))
                 <span class="text-xs font-semibold rounded-full px-3 py-1 bg-emerald-100 text-emerald-800">Recommendation provided</span>
             @endif
         </div>
 
+        <div class="p-5 sm:p-6">
         <dl class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm mb-4">
-            <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 px-3 py-3">
+            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-3">
                 <dt class="text-[10px] uppercase tracking-widest text-gray-500">Requested</dt>
                 <dd class="font-bold text-gray-900 mt-1">{{ format_money((float) $record->requested_amount) }}</dd>
             </div>
             @if ($record->recommended_amount)
-                <div class="rounded-lg bg-brand-muted/60 ring-1 ring-brand/15 px-3 py-3">
+                <div class="rounded-xl bg-brand-muted/60 ring-1 ring-brand/15 px-3 py-3">
                     <dt class="text-[10px] uppercase tracking-widest text-brand">Recommended</dt>
                     <dd class="font-bold text-brand mt-1">{{ format_money((float) $record->recommended_amount) }}</dd>
                 </div>
             @endif
             @if ($counter && ($counter['amount'] ?? 0) > 0)
-                <div class="rounded-lg bg-brand-gold/15 ring-1 ring-brand-gold/40 px-3 py-3">
+                <div class="rounded-xl bg-brand-gold/15 ring-1 ring-brand-gold/40 px-3 py-3">
                     <dt class="text-[10px] uppercase tracking-widest text-brand">Max affordable (counter)</dt>
                     <dd class="font-bold text-brand mt-1">{{ format_money((float) $counter['amount']) }}</dd>
                     <dd class="text-[10px] text-brand/70 mt-0.5">Est. {{ format_money((float) ($counter['installment'] ?? 0)) }}/mo</dd>
@@ -64,7 +65,7 @@
         </dl>
 
         @if (! empty($rec['type']))
-            <div class="rounded-lg bg-brand-muted/60 ring-1 ring-brand/15 px-4 py-3 text-sm">
+            <div class="rounded-xl bg-brand-muted/60 ring-1 ring-brand/15 px-4 py-3 text-sm">
                 <p class="font-semibold text-brand">
                     Recommendation:
                     <span class="capitalize">{{ str_replace('_', ' ', $rec['type']) }}</span>
@@ -108,25 +109,28 @@
                 @include('admin.loan-applications._workflow_actions')
             </div>
         @endif
+        </div>
     </div>
     @endif
 
-    {{-- Committee / offer panel (merged with Decision: workflow + contract live here when active) --}}
+    {{-- Committee decision panel --}}
     @if ($showCommitteePanel)
     <div @class([
-        'bg-white rounded-xl shadow-sm ring-1 p-6',
+        'bg-white rounded-2xl shadow-sm ring-1 overflow-hidden',
         'ring-brand-gold ring-2' => $isCommitteeStage,
-        'ring-gray-200' => ! $isCommitteeStage,
+        'ring-brand/10' => ! $isCommitteeStage,
     ])>
-        <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+        <div class="px-5 sm:px-6 py-4 border-b border-brand-gold/30 bg-gradient-to-r from-brand-gold/20 to-white flex flex-wrap items-start justify-between gap-3">
             <div>
                 <p class="text-[10px] uppercase tracking-widest font-semibold text-brand">Step 2 · Credit committee</p>
-                <h3 class="text-sm font-semibold text-gray-900 mt-0.5">Committee decision &amp; offer</h3>
-                <p class="text-xs text-gray-500 mt-0.5">Review the analyst recommendation and CRB side by side, then approve, counter-offer, reject, or return for documents</p>
+                <h3 class="text-base font-bold text-gray-900 mt-0.5">Record the committee decision</h3>
+                <p class="text-xs text-gray-500 mt-0.5">
+                    Compare CRB vs screening above, then issue an offer, final-approve, reject, or return for documents.
+                </p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 @if ($isCommitteeStage)
-                    <span class="text-xs font-semibold rounded-full px-3 py-1 bg-brand-gold/30 text-brand">Active stage</span>
+                    <span class="text-xs font-semibold rounded-full px-3 py-1 bg-brand-gold text-brand ring-1 ring-brand/20">Decide here</span>
                 @endif
                 @if (! empty($rec['offer_status']))
                     @php
@@ -148,20 +152,21 @@
             </div>
         </div>
 
+        <div class="p-5 sm:p-6">
         <dl class="grid sm:grid-cols-2 gap-4 text-sm mb-3">
             @if ($record->offered_amount)
-                <div class="rounded-lg bg-brand-gold/15 ring-1 ring-brand-gold/40 px-3 py-3">
+                <div class="rounded-xl bg-brand-gold/15 ring-1 ring-brand-gold/40 px-3 py-3">
                     <dt class="text-[10px] uppercase tracking-widest text-brand">Offered to borrower</dt>
                     <dd class="font-bold text-brand mt-1">{{ format_money((float) $record->offered_amount) }}</dd>
                 </div>
             @else
-                <div class="rounded-lg bg-gray-50 ring-1 ring-gray-100 px-3 py-3">
+                <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3 py-3">
                     <dt class="text-[10px] uppercase tracking-widest text-gray-500">Offered to borrower</dt>
                     <dd class="font-medium text-gray-500 mt-1">Not issued yet</dd>
                 </div>
             @endif
             @if ($record->recommended_amount)
-                <div class="rounded-lg bg-brand-muted/50 ring-1 ring-brand/10 px-3 py-3">
+                <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/10 px-3 py-3">
                     <dt class="text-[10px] uppercase tracking-widest text-brand">From analyst</dt>
                     <dd class="font-bold text-brand mt-1">{{ format_money((float) $record->recommended_amount) }}</dd>
                 </div>
@@ -176,9 +181,12 @@
         @endif
 
         @if ($isCommitteeStage && ($availableActions ?? collect())->isNotEmpty())
-            <div class="mt-4 border-t border-brand-gold/30 pt-4">
+            <div class="mt-4 rounded-2xl bg-gradient-to-br from-brand-muted/40 to-white ring-1 ring-brand/15 p-4">
                 <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-                    <p class="text-xs font-semibold uppercase tracking-widest text-brand">Committee actions</p>
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-widest text-brand">Your decision</p>
+                        <p class="text-xs text-gray-500 mt-0.5">Choose one action — this is the committee recommendation that moves the file forward.</p>
+                    </div>
                     <a href="{{ route('admin.loan-applications.pre-approvals') }}"
                        class="text-xs font-semibold text-brand hover:underline">
                         Committee queue →
@@ -186,6 +194,10 @@
                 </div>
                 @include('admin.loan-applications._workflow_actions')
             </div>
+        @elseif ($isCommitteeStage)
+            <p class="mt-4 text-sm text-amber-900 bg-amber-50 ring-1 ring-amber-200 rounded-xl px-4 py-3">
+                No committee actions available for your role on this file. Ask an admin to grant pre-approve / approve / reject permissions.
+            </p>
         @endif
 
         @if ($isCommitteeStage || in_array($stage, ['approval', 'post_approval_fees', 'contract_generation', 'disbursement'], true))
@@ -195,6 +207,7 @@
                 @include('admin.loan-applications.review._contract')
             </div>
         @endif
+        </div>
     </div>
     @endif
 </div>
