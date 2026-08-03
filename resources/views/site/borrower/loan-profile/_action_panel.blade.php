@@ -67,8 +67,36 @@
             </div>
 
             @if ($editQuoteUrl || $editGuarantorUrl)
-                <div class="mt-4 flex flex-wrap gap-2">
-                    @if ($editQuoteUrl)
+                <div class="mt-4 space-y-3">
+                    @if ($isDraft && $draft = ($profile['draft'] ?? null))
+                        <details class="rounded-xl bg-white ring-1 ring-brand/15 open:ring-brand/30">
+                            <summary class="cursor-pointer list-none px-3 py-2 text-xs font-semibold text-brand flex items-center justify-between gap-2">
+                                <span>{{ __('borrower.loan_profile.actions.edit_quote') }}</span>
+                                <span class="text-gray-400 font-normal">{{ __('borrower.apply.edit') }}</span>
+                            </summary>
+                            <form method="POST" action="{{ route('site.borrower.draft.amount', $draft) }}" class="px-3 pb-3 space-y-3 border-t border-gray-100 pt-3">
+                                @csrf
+                                <div class="grid sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{{ __('borrower.applications_list.amount') }}</label>
+                                        <input type="number" name="requested_amount" required min="1000" step="1000"
+                                               value="{{ old('requested_amount', $profile['summary']['requested_amount'] ?? '') }}"
+                                               class="w-full rounded-lg border-gray-300 text-sm">
+                                        @error('requested_amount')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{{ __('borrower.applications_list.tenure') }}</label>
+                                        <input type="number" name="requested_tenure_months" required min="1" max="120"
+                                               value="{{ old('requested_tenure_months', $profile['summary']['requested_tenure'] ?? '') }}"
+                                               class="w-full rounded-lg border-gray-300 text-sm">
+                                    </div>
+                                </div>
+                                <button type="submit" class="inline-flex text-xs font-bold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-lg">
+                                    {{ __('borrower.apply.complete_editing') }}
+                                </button>
+                            </form>
+                        </details>
+                    @elseif ($editQuoteUrl)
                         <a href="{{ $editQuoteUrl }}"
                            class="inline-flex text-xs font-semibold text-brand bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 px-3 py-2 rounded-lg">
                             {{ __('borrower.loan_profile.actions.edit_quote') }}

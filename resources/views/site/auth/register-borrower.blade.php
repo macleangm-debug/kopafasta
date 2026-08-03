@@ -320,10 +320,13 @@
                                 <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
                             </button>
 
-                            <button type="submit" x-show="step === 3" x-cloak
-                                    class="ml-auto bg-brand-gold hover:bg-yellow-400 text-brand font-bold py-3 px-7 rounded-xl transition shadow-sm">
-                                Create account →
-                            </button>
+                            <div x-show="step === 3" x-cloak class="w-full sm:w-auto sm:ml-auto space-y-3">
+                                <x-site.turnstile action="register" />
+                                <button type="submit"
+                                        class="w-full bg-brand-gold hover:bg-yellow-400 text-brand font-bold py-3 px-7 rounded-xl transition shadow-sm">
+                                    Create account →
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>

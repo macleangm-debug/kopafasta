@@ -234,6 +234,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/applications/{application}/asset-conversion', [\App\Http\Controllers\Site\BorrowerController::class, 'respondToAssetConversion'])->name('borrower.application.asset-conversion.respond');
             Route::post('/borrower/applications/{application}/asset-conversion/pay', [\App\Http\Controllers\Site\BorrowerController::class, 'payAssetConversionFee'])->name('borrower.application.asset-conversion.pay');
             Route::get('/borrower/loan-profile/draft/{draft}',     [\App\Http\Controllers\Site\BorrowerController::class, 'loanProfileDraft'])->name('borrower.loan-profile.draft');
+            Route::post('/borrower/loan-profile/draft/{draft}/amount', [\App\Http\Controllers\Site\BorrowerController::class, 'updateDraftAmount'])->name('borrower.draft.amount');
             Route::post('/borrower/applications/{application}/documents', [\App\Http\Controllers\Site\BorrowerController::class, 'uploadApplicationDocument'])->name('borrower.application.documents.store');
             Route::post('/borrower/applications/{application}/document-requests/{documentRequest}', [\App\Http\Controllers\Site\BorrowerController::class, 'uploadDocumentRequest'])->name('borrower.application.document-requests.store');
             Route::get('/borrower/applications/{application}/agreement',                [\App\Http\Controllers\Site\LoanAgreementController::class, 'show'])      ->name('borrower.application.agreement');
@@ -520,6 +521,15 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::post('credit-team', [\App\Http\Controllers\Admin\CreditTeamController::class, 'store'])
             ->middleware('permission:users.manage')
             ->name('credit-team.store');
+        Route::get('teams/screening', [\App\Http\Controllers\Admin\CreditTeamWorkspaceController::class, 'screening'])
+            ->middleware('permission:applications.view')
+            ->name('teams.screening');
+        Route::get('teams/committee', [\App\Http\Controllers\Admin\CreditTeamWorkspaceController::class, 'committee'])
+            ->middleware('permission:applications.view')
+            ->name('teams.committee');
+        Route::get('teams/management', [\App\Http\Controllers\Admin\CreditTeamWorkspaceController::class, 'management'])
+            ->middleware('permission:applications.view')
+            ->name('teams.management');
         Route::redirect('loan-applications/final-approvals', '/admin/loan-applications/pipeline/approved')->name('loan-applications.final-approvals');
         Route::view('loan-applications/rejected',         'admin.loan-applications.rejected')         ->name('loan-applications.rejected');
         Route::view('loan-applications/incomplete',      'admin.loan-applications.incomplete')      ->name('loan-applications.incomplete');

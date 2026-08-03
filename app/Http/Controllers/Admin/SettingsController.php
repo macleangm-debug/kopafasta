@@ -379,8 +379,14 @@ class SettingsController extends Controller
 
     public function authPortal()
     {
+        $values = app(\App\Services\AuthPortalSettingsService::class)->forForm();
+        $values['turnstile_site_key'] = \App\Models\Setting::get('security.turnstile_site_key')
+            ?? config('security.turnstile_site_key', '');
+        $values['turnstile_secret_key'] = \App\Models\Setting::get('security.turnstile_secret_key')
+            ?? config('security.turnstile_secret_key', '');
+
         return view('admin.settings.auth-portal', [
-            'values' => app(\App\Services\AuthPortalSettingsService::class)->forForm(),
+            'values' => $values,
         ]);
     }
 
@@ -391,6 +397,8 @@ class SettingsController extends Controller
             'require_2fa_staff'        => ['nullable', 'boolean'],
             'require_2fa_partner'      => ['nullable', 'boolean'],
             'two_factor_session_hours' => ['required', 'integer', 'min:1', 'max:168'],
+            'turnstile_site_key'       => ['nullable', 'string', 'max:255'],
+            'turnstile_secret_key'     => ['nullable', 'string', 'max:255'],
         ]);
 
         Setting::setMany([
@@ -398,6 +406,8 @@ class SettingsController extends Controller
             'auth_portal.require_2fa_staff'        => $request->boolean('require_2fa_staff'),
             'auth_portal.require_2fa_partner'      => $request->boolean('require_2fa_partner'),
             'auth_portal.two_factor_session_hours' => (int) $data['two_factor_session_hours'],
+            'security.turnstile_site_key'          => trim((string) ($data['turnstile_site_key'] ?? '')),
+            'security.turnstile_secret_key'        => trim((string) ($data['turnstile_secret_key'] ?? '')),
         ]);
 
         return back()->with('status', 'Authentication settings saved.');

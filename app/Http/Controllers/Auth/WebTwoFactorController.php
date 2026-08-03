@@ -108,9 +108,12 @@ class WebTwoFactorController extends Controller
             return route('site.partner.dashboard');
         }
 
-        return app(\App\Services\RoleService::class)->hasConsoleAccess($user)
-            ? route('admin.dashboard')
-            : route('staff.dashboard');
+        $roles = app(\App\Services\RoleService::class);
+        if ($roles->hasConsoleAccess($user)) {
+            return route($roles->homeRoute($user));
+        }
+
+        return route('staff.dashboard');
     }
 
     protected function postSetupRedirect(string $context, User $user): string

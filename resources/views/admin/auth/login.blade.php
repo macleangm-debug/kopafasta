@@ -57,6 +57,15 @@
                     Remember me
                 </label>
 
+                @php $turnstile = app(\App\Services\TurnstileService::class); @endphp
+                @if ($turnstile->enabled())
+                    <div class="cf-turnstile" data-sitekey="{{ $turnstile->siteKey() }}" data-action="admin-login"></div>
+                    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+                    @error('cf-turnstile-response')
+                        <p class="text-xs text-red-600">{{ $message }}</p>
+                    @enderror
+                @endif
+
                 <button type="submit"
                         class="w-full bg-brand hover:bg-brand-light text-white font-semibold rounded-xl py-3 transition shadow-sm">
                     Sign in

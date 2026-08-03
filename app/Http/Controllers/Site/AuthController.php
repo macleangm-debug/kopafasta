@@ -15,6 +15,7 @@ use App\Services\NotificationService;
 use App\Services\PinService;
 use App\Services\ReferralService;
 use App\Services\TrustedDeviceService;
+use App\Services\TurnstileService;
 use App\Services\WebLoginThrottle;
 use App\Services\WebTwoFactorAuthService;
 use Illuminate\Http\RedirectResponse;
@@ -80,6 +81,12 @@ class AuthController extends Controller
 
     public function login(Request $request): RedirectResponse
     {
+        if (! app(TurnstileService::class)->verify($request->input('cf-turnstile-response'), $request->ip())) {
+            return back()
+                ->withErrors(['cf-turnstile-response' => 'Please complete the human verification challenge.'])
+                ->withInput($request->except('password', 'pin'));
+        }
+
         $method = $request->input('auth_method', 'pin');
 
         return $method === 'password'
@@ -626,6 +633,12 @@ class AuthController extends Controller
                 ? __('borrower.guarantor_invite.register_phone_taken')
                 : 'This phone number is already registered to a member account.',
         ]);
+
+        if (! app(TurnstileService::class)->verify($request->input('cf-turnstile-response'), $request->ip())) {
+            return back()
+                ->withErrors(['cf-turnstile-response' => 'Please complete the human verification challenge.'])
+                ->withInput();
+        }
 
         $phoneDigits = preg_replace('/\D/', '', $data['phone']);
         $phoneTaken = \App\Models\Customer::query()

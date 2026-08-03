@@ -110,6 +110,20 @@ class RoleService
             && ! ($user->locked_until && $user->locked_until->isFuture());
     }
 
+    /**
+     * Default landing route after console login (intended URL still wins).
+     */
+    public function homeRoute(?User $user): string
+    {
+        return match ($user?->role) {
+            'credit_analyst' => 'admin.teams.screening',
+            'officer' => 'admin.teams.screening',
+            'credit_committee' => 'admin.teams.committee',
+            'manager' => 'admin.teams.management',
+            default => 'admin.dashboard',
+        };
+    }
+
     public function hasPermissionBypass(User $user): bool
     {
         return (bool) ($this->definition($user->role)['permission_bypass'] ?? false);

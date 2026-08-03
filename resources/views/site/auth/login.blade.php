@@ -97,6 +97,8 @@
                         {{ __('site.auth.remember_me') }}
                     </label>
 
+                    <x-site.turnstile action="login" />
+
                     <button class="w-full bg-brand hover:bg-brand-light text-white font-bold py-3.5 rounded-xl transition shadow-md">
                         {{ __('site.auth.sign_in') }}
                     </button>

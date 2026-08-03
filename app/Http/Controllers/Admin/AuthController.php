@@ -29,6 +29,12 @@ class AuthController extends Controller
             'password' => ['required'],
         ]);
 
+        if (! app(\App\Services\TurnstileService::class)->verify($request->input('cf-turnstile-response'), $request->ip())) {
+            throw ValidationException::withMessages([
+                'cf-turnstile-response' => 'Please complete the human verification challenge.',
+            ]);
+        }
+
         if (! Auth::guard('admin')->attempt($credentials, $request->boolean('remember'))) {
             throw ValidationException::withMessages([
                 'email' => 'These credentials do not match our records.',
@@ -44,14 +50,16 @@ class AuthController extends Controller
             ]);
         }
 
+        $home = route($this->roles->homeRoute($user));
+
         if ($this->twoFactor->mustEnroll($user, 'admin')) {
-            $this->twoFactor->storePendingLogin($request, $user, 'admin', 'admin', route('admin.dashboard'), $request->boolean('remember'));
+            $this->twoFactor->storePendingLogin($request, $user, 'admin', 'admin', $home, $request->boolean('remember'));
 
             return redirect()->route('auth.two-factor.setup', ['context' => 'admin']);
         }
 
         if ($this->twoFactor->needsChallenge($user, $request, 'admin')) {
-            $this->twoFactor->storePendingLogin($request, $user, 'admin', 'admin', route('admin.dashboard'), $request->boolean('remember'));
+            $this->twoFactor->storePendingLogin($request, $user, 'admin', 'admin', $home, $request->boolean('remember'));
 
             return redirect()->route('auth.two-factor.challenge', ['context' => 'admin']);
         }
@@ -60,7 +68,7 @@ class AuthController extends Controller
         $request->session()->regenerate();
         $this->twoFactor->markSessionVerified($request);
 
-        return redirect()->intended(route('admin.dashboard'));
+        return redirect()->intended($home);
     }
 
     public function logout(Request $request)

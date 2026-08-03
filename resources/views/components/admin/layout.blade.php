@@ -33,10 +33,13 @@
         ], null],
         ['Lending', 'M3 10h18M3 14h18M5 6h14M5 18h14', [
             ['— Credit screening —', '__group__'],
+            ['Screening home',        'admin.teams.screening'],
             ['Credit screening',      'admin.loan-applications.pipeline.under-review'],
             ['— Credit committee —', '__group__'],
+            ['Committee home',        'admin.teams.committee'],
             ['Credit committee',      'admin.loan-applications.pre-approvals'],
             ['— Credit management —', '__group__'],
+            ['Management home',       'admin.teams.management'],
             ['Post-approval queue',   'admin.loan-applications.pipeline.approved'],
             ['Disbursement',          'admin.loan-applications.pipeline.disbursement'],
             ['Disbursement queue',    'admin.loans.disbursement'],

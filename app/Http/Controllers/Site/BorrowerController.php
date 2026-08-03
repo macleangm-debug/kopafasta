@@ -235,6 +235,48 @@ class BorrowerController extends Controller
         return view('site.borrower.loan-profile', compact('customer', 'profile', 'groupProgress'));
     }
 
+    public function updateDraftAmount(Request $request, LoanApplicationDraft $draft): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_if($draft->customer_id !== $customer->id, 404);
+
+        $product = $draft->product ?? \App\Models\LoanProduct::find($draft->loan_product_id);
+        abort_unless($product, 404);
+
+        $data = $request->validate([
+            'requested_amount' => ['required', 'numeric', 'min:1000'],
+            'requested_tenure_months' => ['required', 'integer', 'min:1', 'max:120'],
+            'purpose' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $amount = (float) $data['requested_amount'];
+        $min = (float) ($product->min_amount ?? 0);
+        $max = (float) ($product->max_amount ?? PHP_FLOAT_MAX);
+        if ($amount < $min || $amount > $max) {
+            return back()->withErrors([
+                'requested_amount' => 'Amount must be between '.format_number($min).' and '.format_number($max).'.',
+            ]);
+        }
+
+        $payload = $draft->payload ?? [];
+        $form = (array) ($payload['form'] ?? []);
+        $form['requested_amount'] = $amount;
+        $form['requested_tenure_months'] = (int) $data['requested_tenure_months'];
+        if (array_key_exists('purpose', $data) && $data['purpose'] !== null && $data['purpose'] !== '') {
+            $form['purpose'] = $data['purpose'];
+        }
+        $payload['form'] = $form;
+
+        $draft->forceFill([
+            'payload' => $payload,
+            'saved_at' => now(),
+        ])->save();
+
+        return redirect()
+            ->route('site.borrower.loan-profile.draft', $draft)
+            ->with('status', __('borrower.loan_profile.amount_updated'));
+    }
+
     /**
      * Show a single application — unified loan profile dashboard.
      */

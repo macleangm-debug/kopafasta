@@ -113,7 +113,12 @@
     <div class="glass-card p-5 mb-6">
         <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
             <h2 class="font-semibold">{{ __('borrower.loan_profile.summary_title') }}</h2>
-            @if ($editQuoteUrl)
+            @if ($editQuoteUrl && ($profile['is_draft'] ?? false))
+                <button type="button" onclick="document.querySelector('details')?.setAttribute('open',''); document.querySelector('details')?.scrollIntoView({behavior:'smooth',block:'center'});"
+                   class="inline-flex text-xs font-semibold text-brand bg-brand-muted/40 ring-1 ring-brand/20 hover:bg-brand-muted px-3 py-2 rounded-lg">
+                    {{ __('borrower.loan_profile.actions.edit_quote') }}
+                </button>
+            @elseif ($editQuoteUrl)
                 <a href="{{ $editQuoteUrl }}"
                    class="inline-flex text-xs font-semibold text-brand bg-brand-muted/40 ring-1 ring-brand/20 hover:bg-brand-muted px-3 py-2 rounded-lg">
                     {{ __('borrower.loan_profile.actions.edit_quote') }}

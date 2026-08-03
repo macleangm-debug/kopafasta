@@ -107,6 +107,7 @@ rm -f public/hot
 "$PHP_BIN" artisan db:seed --class=LoanPolicyDefaultsSeeder --force || true
 "$PHP_BIN" artisan db:seed --class=RecoveryPolicyDefaultsSeeder --force || true
 "$PHP_BIN" artisan db:seed --class=DepartmentSeeder --force || true
+"$PHP_BIN" artisan db:seed --class=AuthPortalDefaultsSeeder --force || true
 "$PHP_BIN" artisan db:seed --class=RoleSeeder --force || true
 "$PHP_BIN" artisan db:seed --class=DefaultChartOfAccountsSeeder --force || true
 "$PHP_BIN" artisan db:seed --class=DefaultWriteOffRulesSeeder --force || true

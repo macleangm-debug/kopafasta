@@ -2695,6 +2695,7 @@ return [
       'edit_guarantor' => 'Hariri mdhamini',
       'withdraw' => 'Batilisha ombi',
     ],
+    'amount_updated' => 'Kiasi cha mkopo kimesasishwa.',
     'guarantor_progress' => 'Maendeleo ya mdhamini: :accepted kati ya :total wamekubali',
     'profile_completion_hint_short' => 'Kamilisha wasifu wako ili kuwasilisha.',
     'timeline_title' => 'Maendeleo ya ombi',

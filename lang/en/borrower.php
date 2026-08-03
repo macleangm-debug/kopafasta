@@ -2175,6 +2175,7 @@ return [
             'edit_guarantor' => 'Edit guarantor',
             'withdraw' => 'Withdraw application',
         ],
+        'amount_updated' => 'Loan amount updated.',
         'guarantor_progress' => 'Guarantor progress: :accepted of :total accepted',
         'profile_completion_hint_short' => 'Finish your profile to submit.',
         'timeline_title' => 'Application progress',
