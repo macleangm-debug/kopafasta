@@ -116,23 +116,49 @@ class CreditCommitteeWorkflowFeatureTest extends TestCase
         $this->assertNotContains('issue_offer', $actions);
     }
 
-    public function test_analyst_cannot_issue_offer(): void
+    public function test_committee_can_validate_screening_approve(): void
     {
-        Setting::set('underwriting.enable_counter_offers', true);
+        $branch = $this->branch();
+        $committee = User::factory()->create([
+            'role'      => 'credit_committee',
+            'branch_id' => $branch->id,
+        ]);
+        $application = $this->application($committee, [
+            'recommendation_type' => 'approve',
+            'recommended_amount'  => 250_000,
+            'offer_status'        => null,
+        ]);
 
+        $actions = app(LoanApplicationWorkflowService::class)
+            ->availableActions($application, $committee)
+            ->pluck('key')
+            ->all();
+
+        $this->assertContains('validate_screening', $actions);
+        $this->assertTrue(
+            app(\App\Services\ApplicationOfferService::class)->canValidateScreening($application, $committee)
+        );
+    }
+
+    public function test_complete_screening_is_hidden_from_available_actions(): void
+    {
         $branch = $this->branch();
         $analyst = User::factory()->create([
             'role'      => 'credit_analyst',
             'branch_id' => $branch->id,
         ]);
-        $application = $this->application($analyst);
+        $application = $this->application($analyst, [
+            'current_stage'       => 'screening',
+            'status'              => 'under_review',
+            'recommendation_type' => null,
+        ]);
 
         $actions = app(LoanApplicationWorkflowService::class)
             ->availableActions($application, $analyst)
             ->pluck('key')
             ->all();
 
-        $this->assertNotContains('issue_offer', $actions);
-        $this->assertNotContains('approve', $actions);
+        $this->assertNotContains('complete_screening', $actions);
+        $this->assertContains('submit_recommendation', $actions);
     }
 }

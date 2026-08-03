@@ -356,6 +356,7 @@ class LoanApplicationController extends ResourceController
             'screening_rejection_reason_code' => ['nullable', 'string', 'max:80'],
             'recommendation_type'      => ['nullable', 'in:approve,counter,asset_alternative'],
             'recommendation_rationale' => ['nullable', 'string', 'max:80'],
+            'committee_rationale'      => ['nullable', 'string', 'max:80'],
             'recommended_amount'       => ['nullable', 'numeric', 'min:0'],
             'offered_amount'           => ['nullable', 'numeric', 'min:0'],
             'offered_tenure_months'    => ['nullable', 'integer', 'min:1', 'max:120'],
@@ -390,15 +391,15 @@ class LoanApplicationController extends ResourceController
         }
 
         if ($data['action'] === 'submit_recommendation' && empty($data['recommendation_type'])) {
-            return back()->withErrors(['recommendation_type' => 'Select a recommendation type.'])->withInput();
+            return back()->withErrors(['recommendation_type' => 'Select a decision: approve, counter-offer, or use Reject.'])->withInput();
         }
 
         if ($data['action'] === 'submit_recommendation' && empty($data['recommendation_rationale'])) {
-            return back()->withErrors(['recommendation_rationale' => 'Select why you are recommending this.'])->withInput();
+            return back()->withErrors(['recommendation_rationale' => 'Select why you are making this decision.'])->withInput();
         }
 
         if ($data['action'] === 'submit_recommendation' && empty(trim((string) ($data['remarks'] ?? '')))) {
-            return back()->withErrors(['remarks' => 'Add notes for the committee explaining your recommendation.'])->withInput();
+            return back()->withErrors(['remarks' => 'Add notes for the committee explaining your decision.'])->withInput();
         }
 
         if ($data['action'] === 'issue_offer' && empty($data['offered_amount'])) {
@@ -406,8 +407,50 @@ class LoanApplicationController extends ResourceController
         }
 
         $offerService = app(ApplicationOfferService::class);
+        $stage = $loan_application->current_stage ?? 'submitted';
+        $isCommitteeStage = $stage === 'pre_approval';
+        $screeningType = $loan_application->recommendation_type;
+        $divergingCommitteeActions = ['approve', 'reject', 'issue_offer'];
 
         try {
+            if ($data['action'] === 'validate_screening') {
+                $result = $offerService->validateScreeningDecision($loan_application, auth()->user());
+                $loan_application->refresh();
+
+                if ($result['action'] === 'issue_offer') {
+                    return redirect()
+                        ->route("{$this->routePrefix}.show", $loan_application)
+                        ->with('status', $result['message']);
+                }
+
+                // Final-approve path after validating screening approval
+                if ($result['action'] === 'approve') {
+                    if (application_needs_funding_choice($loan_application->product) && empty($data['funding_source'])) {
+                        return back()
+                            ->withErrors(['funding_source' => 'Select funding source to validate this approval.'])
+                            ->withInput();
+                    }
+                    if (application_needs_funding_choice($loan_application->product)) {
+                        $loan_application->update([
+                            'funding_source'      => $data['funding_source'],
+                            'preferred_lender_id' => $data['funding_source'] === 'external'
+                                ? ($data['preferred_lender_id'] ?? null)
+                                : null,
+                        ]);
+                    }
+                    $workflow->transition(
+                        $loan_application->fresh(),
+                        auth()->user(),
+                        'approve',
+                        'Committee validated the screening approval.',
+                    );
+
+                    return redirect()
+                        ->route("{$this->routePrefix}.show", $loan_application)
+                        ->with('status', 'Screening decision validated — application approved.');
+                }
+            }
+
             if ($data['action'] === 'submit_recommendation') {
                 $offerService->submitRecommendation(
                     $loan_application,
@@ -442,6 +485,16 @@ class LoanApplicationController extends ResourceController
             }
 
             if ($data['action'] === 'issue_offer') {
+                if ($isCommitteeStage && filled($screeningType) && $screeningType !== ApplicationOfferService::RECOMMEND_COUNTER) {
+                    $offerService->recordCommitteeDivergence(
+                        $loan_application,
+                        auth()->user(),
+                        'issue_offer',
+                        $data['committee_rationale'] ?? null,
+                        $data['remarks'] ?? null,
+                    );
+                }
+
                 $offerService->issueOffer(
                     $loan_application,
                     auth()->user(),
@@ -455,7 +508,26 @@ class LoanApplicationController extends ResourceController
                     ->with('status', 'Counter-offer issued to borrower.');
             }
 
-            if (! in_array($data['action'], ['suggest_asset_alternative', 'issue_offer'], true)) {
+            if (! in_array($data['action'], ['suggest_asset_alternative', 'issue_offer', 'validate_screening'], true)) {
+                if ($isCommitteeStage
+                    && in_array($data['action'], $divergingCommitteeActions, true)
+                    && filled($screeningType)
+                ) {
+                    $differs = ($data['action'] === 'reject')
+                        || ($data['action'] === 'approve' && $screeningType !== ApplicationOfferService::RECOMMEND_APPROVE)
+                        || ($data['action'] === 'issue_offer' && $screeningType !== ApplicationOfferService::RECOMMEND_COUNTER);
+
+                    if ($differs) {
+                        $offerService->recordCommitteeDivergence(
+                            $loan_application,
+                            auth()->user(),
+                            $data['action'],
+                            $data['committee_rationale'] ?? null,
+                            $data['remarks'] ?? ($data['rejection_internal_notes'] ?? null),
+                        );
+                    }
+                }
+
                 if ($data['action'] === 'approve' && application_needs_funding_choice($loan_application->product)) {
                     $loan_application->update([
                         'funding_source'        => $data['funding_source'],

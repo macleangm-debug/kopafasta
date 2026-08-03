@@ -327,12 +327,12 @@
                 </p>
                 <p class="text-sm font-bold mt-0.5">
                     {{ $isCommitteeStage
-                        ? 'Record the committee decision — issue offer, approve, reject, or return'
-                        : 'Record the screening recommendation — approve / counter + notes, then push to committee' }}
+                        ? 'Validate screening or record a different decision with reasons'
+                        : 'Record the screening decision — Approve / Reject / Counter (if enabled)' }}
                 </p>
             </div>
             <span class="inline-flex items-center gap-1.5 text-sm font-bold shrink-0">
-                {{ $isCommitteeStage ? 'Go to decision' : 'Go to recommendation' }}
+                {{ $isCommitteeStage ? 'Go to decision' : 'Go to decision' }}
                 <svg class="size-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M7 5l5 5-5 5"/></svg>
             </span>
         </a>

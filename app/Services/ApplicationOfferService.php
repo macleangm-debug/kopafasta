@@ -390,6 +390,116 @@ class ApplicationOfferService
         return ($application->current_stage ?? '') === 'pre_approval';
     }
 
+    /**
+     * Committee can one-click validate the screening decision when it still applies.
+     */
+    public function canValidateScreening(LoanApplication $application, User $user): bool
+    {
+        if (($application->current_stage ?? '') !== 'pre_approval') {
+            return false;
+        }
+
+        if (! filled($application->recommendation_type)) {
+            return false;
+        }
+
+        if ($application->offer_status === 'pending_borrower') {
+            return false;
+        }
+
+        $permissions = app(PermissionService::class);
+
+        return match ($application->recommendation_type) {
+            self::RECOMMEND_APPROVE => $this->canFinalApprove($application)
+                && $permissions->has($user, 'applications.approve'),
+            self::RECOMMEND_COUNTER => app(UnderwritingSettingsService::class)->counterOffersEnabled()
+                && $application->offer_status !== 'accepted'
+                && (float) ($application->recommended_amount ?? 0) > 0
+                && $permissions->has($user, 'applications.pre_approve'),
+            default => false,
+        };
+    }
+
+    /**
+     * Apply the screening recommendation as the committee decision without re-entering fields.
+     *
+     * @return array{action: string, message: string}
+     */
+    public function validateScreeningDecision(LoanApplication $application, User $user): array
+    {
+        if (! $this->canValidateScreening($application, $user)) {
+            throw ValidationException::withMessages([
+                'action' => 'This screening decision cannot be validated in one click right now.',
+            ]);
+        }
+
+        $payload = is_array($application->screening_payload) ? $application->screening_payload : [];
+        $payload['committee_meta'] = [
+            'validated_screening' => true,
+            'validated_at' => now()->toIso8601String(),
+            'validated_by' => $user->id,
+            'screening_recommendation_type' => $application->recommendation_type,
+        ];
+        $application->update(['screening_payload' => $payload]);
+
+        if ($application->recommendation_type === self::RECOMMEND_COUNTER) {
+            $this->issueOffer(
+                $application->fresh(),
+                $user,
+                (float) $application->recommended_amount,
+                (int) ($application->requested_tenure_months ?? 6),
+                'Committee validated the screening counter-offer.',
+            );
+
+            return [
+                'action' => 'issue_offer',
+                'message' => 'Screening counter-offer validated and issued to the borrower.',
+            ];
+        }
+
+        // Approve path — final approve is done by the workflow transition in the controller.
+        return [
+            'action' => 'approve',
+            'message' => 'Screening approval validated — completing final approve.',
+        ];
+    }
+
+    public function recordCommitteeDivergence(
+        LoanApplication $application,
+        User $user,
+        string $committeeAction,
+        ?string $rationale,
+        ?string $remarks,
+    ): void {
+        $rationaleLabels = config('credit_recommendation.committee_rationales', []);
+        if (! $rationale || ! array_key_exists($rationale, $rationaleLabels)) {
+            throw ValidationException::withMessages([
+                'committee_rationale' => 'Select why your decision differs from screening.',
+            ]);
+        }
+
+        $remarks = trim((string) $remarks);
+        if ($remarks === '') {
+            throw ValidationException::withMessages([
+                'remarks' => 'Add notes explaining how your decision differs from screening.',
+            ]);
+        }
+
+        $payload = is_array($application->screening_payload) ? $application->screening_payload : [];
+        $payload['committee_meta'] = [
+            'validated_screening' => false,
+            'differs_from_screening' => true,
+            'committee_action' => $committeeAction,
+            'screening_recommendation_type' => $application->recommendation_type,
+            'rationale' => $rationale,
+            'rationale_label' => $rationaleLabels[$rationale] ?? $rationale,
+            'remarks' => $remarks,
+            'decided_at' => now()->toIso8601String(),
+            'decided_by' => $user->id,
+        ];
+        $application->update(['screening_payload' => $payload]);
+    }
+
     public function pendingAssetConversion(LoanApplication $application): bool
     {
         return $application->recommendation_type === self::RECOMMEND_ASSET

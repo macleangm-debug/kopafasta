@@ -20,16 +20,23 @@ class LoanApplicationWorkflowService
             'from'       => ['submitted'],
         ],
         'complete_screening' => [
+            // Kept for backwards compatibility — hidden from the desk UI.
             'label'      => 'Complete screening',
             'to_stage'   => 'credit_appraisal',
             'permission' => 'applications.review',
             'from'       => ['screening'],
         ],
         'submit_recommendation' => [
-            'label'      => 'Push recommendation to committee',
+            'label'      => 'Record screening decision',
             'to_stage'   => 'pre_approval',
             'permission' => 'applications.review',
             'from'       => ['submitted', 'screening', 'credit_appraisal'],
+        ],
+        'validate_screening' => [
+            'label'      => 'Validate screening decision',
+            'to_stage'   => 'pre_approval',
+            'permission' => 'applications.pre_approve',
+            'from'       => ['pre_approval'],
         ],
         'suggest_asset_alternative' => [
             'label'      => 'Suggest asset-backed alternative',
@@ -80,6 +87,7 @@ class LoanApplicationWorkflowService
         $stage = $application->current_stage ?? 'submitted';
 
         return collect(self::ACTIONS)
+            ->filter(fn (array $action, string $key) => $key !== 'complete_screening')
             ->filter(fn (array $action) => in_array($stage, $action['from'], true))
             ->filter(fn (array $action, string $key) => $this->permissions->has($user, $action['permission']))
             ->filter(fn (array $action, string $key) => ! (
@@ -95,6 +103,7 @@ class LoanApplicationWorkflowService
             ->filter(fn (array $action, string $key) => ! ($key === 'suggest_asset_alternative' && ! app(UnderwritingSettingsService::class)->assetBackedAlternativeEnabled()))
             ->filter(fn (array $action, string $key) => ! ($key === 'approve' && ! app(ApplicationOfferService::class)->canFinalApprove($application)))
             ->filter(fn (array $action, string $key) => ! ($key === 'disburse' && ! app(ApplicationDisbursementReadinessService::class)->canMarkDisbursement($application)))
+            ->filter(fn (array $action, string $key) => ! ($key === 'validate_screening' && ! app(ApplicationOfferService::class)->canValidateScreening($application, $user)))
             ->filter(fn (array $action) => $this->sameBranch($user, $application))
             ->map(fn (array $action, string $key) => [
                 'key'        => $key,

@@ -14,8 +14,8 @@
             <div class="rounded-2xl bg-brand text-white shadow-2xl ring-1 ring-brand-gold/40 px-4 sm:px-5 py-3.5 flex flex-wrap items-center justify-between gap-3">
                 @if ($showScreeningSticky)
                     <div class="min-w-0">
-                        <p class="text-[10px] uppercase tracking-widest font-semibold text-brand-gold">Screening team · Same desk as committee</p>
-                        <p class="text-sm font-bold mt-0.5 truncate">Record your recommendation, then push to committee</p>
+                        <p class="text-[10px] uppercase tracking-widest font-semibold text-brand-gold">Screening team · Decision desk</p>
+                        <p class="text-sm font-bold mt-0.5 truncate">Approve, Reject, or Counter-offer — then push to committee</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-2 shrink-0">
                         <a href="#review-recommendation"
@@ -25,13 +25,13 @@
                         <button type="button"
                                 data-open-dialog="recommend-{{ $record->id }}"
                                 class="inline-flex items-center gap-1.5 text-sm font-bold rounded-lg bg-brand-gold text-brand hover:brightness-95 px-4 py-2.5 shadow-sm">
-                            Push recommendation to committee
+                            Record decision
                         </button>
                     </div>
                 @else
                     <div class="min-w-0">
                         <p class="text-[10px] uppercase tracking-widest font-semibold text-brand-gold">Credit committee</p>
-                        <p class="text-sm font-bold mt-0.5 truncate">Record the committee decision on this file</p>
+                        <p class="text-sm font-bold mt-0.5 truncate">Validate screening or record a different decision</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-2 shrink-0">
                         <a href="#review-recommendation"

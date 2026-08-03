@@ -94,11 +94,12 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->getContent();
         $this->assertStringContainsString('Screening workspace', $screening);
         $this->assertStringContainsString('Record the screening recommendation', $screening);
-        $this->assertStringContainsString('Your recommendation', $screening);
-        $this->assertStringContainsString('Go to recommendation', $screening);
-        $this->assertStringContainsString('Push recommendation to committee', $screening);
+        $this->assertStringContainsString('Your decision', $screening);
+        $this->assertStringContainsString('Record decision', $screening);
+        $this->assertStringContainsString('Screening decision', $screening);
         $this->assertStringContainsString('data-open-dialog="recommend-'.$app->id.'"', $screening);
         $this->assertStringContainsString('Screening queue', $screening);
+        $this->assertStringNotContainsString('Complete screening', $screening);
         $this->assertStringContainsString('Other institutions', $screening);
         $this->assertStringContainsString('Affordability', $screening);
         $this->assertStringNotContainsString('Profile complete', $screening);
@@ -136,6 +137,7 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->getContent();
         $this->assertStringContainsString('Committee workspace', $committee);
         $this->assertStringContainsString('Record the committee decision', $committee);
+        $this->assertStringContainsString('Validate screening', $committee);
         $this->assertStringContainsString('Borrower CRB · Guarantor · Screening', $committee);
     }
 

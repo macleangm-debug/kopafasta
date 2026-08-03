@@ -35,7 +35,7 @@
                 <p class="text-[10px] uppercase tracking-widest font-semibold text-brand">Step 1 · Screening team</p>
                 <h3 class="text-base font-bold text-gray-900 mt-0.5">Record the screening recommendation</h3>
                 <p class="text-xs text-gray-500 mt-0.5">
-                    Review CRB and affordability above, then recommend approve or counter, reject, or return for documents — same decision desk pattern as committee.
+                    Choose Approve, Reject, or Counter-offer (if enabled) with reasons — same decision desk pattern as committee.
                 </p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
@@ -122,11 +122,13 @@
 
             @if ($hasScreeningActions)
                 @php
-                    $actionsForButtons = $screeningActions;
+                    $actionsForButtons = $screeningActions
+                        ->reject(fn ($a) => in_array($a['key'] ?? '', ['complete_screening', 'reject'], true))
+                        ->values();
                     if ($canPushRecommendation && ! $actionsForButtons->contains(fn ($a) => ($a['key'] ?? '') === 'submit_recommendation')) {
                         $actionsForButtons = $actionsForButtons->push([
                             'key' => 'submit_recommendation',
-                            'label' => 'Push recommendation to committee',
+                            'label' => 'Record screening decision',
                             'to_stage' => 'pre_approval',
                             'permission' => 'applications.review',
                         ]);
@@ -135,8 +137,8 @@
                 <div class="mt-4 rounded-2xl bg-gradient-to-br from-brand-muted/40 to-white ring-1 ring-brand/15 p-4">
                     <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-widest text-brand">Your recommendation</p>
-                            <p class="text-xs text-gray-500 mt-0.5">Choose one action — this moves the file to the committee queue.</p>
+                            <p class="text-xs font-semibold uppercase tracking-widest text-brand">Your decision</p>
+                            <p class="text-xs text-gray-500 mt-0.5">Approve or counter pushes to committee. Reject closes the file. Return for documents stays available.</p>
                         </div>
                         <a href="{{ route('admin.teams.screening') }}"
                            class="text-xs font-semibold text-brand hover:underline">
@@ -226,7 +228,10 @@
                 <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-widest text-brand">Your decision</p>
-                        <p class="text-xs text-gray-500 mt-0.5">Choose one action — this moves the file forward.</p>
+                        <p class="text-xs text-gray-500 mt-0.5">
+                            Agree with screening? Use <span class="font-semibold">Validate screening decision</span>.
+                            Differing decisions require a reason.
+                        </p>
                     </div>
                     <a href="{{ route('admin.loan-applications.pre-approvals') }}"
                        class="text-xs font-semibold text-brand hover:underline">
