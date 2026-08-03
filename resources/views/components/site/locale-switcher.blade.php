@@ -21,19 +21,19 @@
 @endphp
 
 @if ($isCompact)
-<div x-data="{ localeOpen: false, countryOpen: false }" class="flex items-center gap-2">
-    {{-- Mobile: bottom sheets --}}
+{{-- Separate mobile/desktop open flags so desktop dropdowns never open teleported sheets --}}
+<div x-data="{ localeOpen: false, mobileLocaleOpen: false, mobileCountryOpen: false }" class="flex items-center gap-2">
     <div class="lg:hidden flex items-center gap-2">
-        <button type="button" @click="countryOpen = true"
+        <button type="button" @click="mobileCountryOpen = true"
                 class="inline-flex items-center gap-1 rounded-lg border border-gray-200/80 bg-white/80 px-2 py-1.5 text-xs font-semibold text-gray-700 shadow-sm">
             <span>{{ $currentCountry['emoji'] ?: '🌍' }}</span>
         </button>
-        <button type="button" @click="localeOpen = true"
+        <button type="button" @click="mobileLocaleOpen = true"
                 class="inline-flex items-center gap-1 rounded-lg border border-gray-200/80 bg-white/80 px-2 py-1.5 text-xs font-semibold text-gray-700 shadow-sm">
             <span>{{ $siteLocale === 'sw' ? '🇹🇿' : '🇬🇧' }}</span>
             <span class="uppercase">{{ $siteLocale }}</span>
         </button>
-        <x-site.bottom-sheet :title="__('site.locale.country')" open="countryOpen">
+        <x-site.bottom-sheet :title="__('site.locale.country')" open="mobileCountryOpen">
             <div class="space-y-1">
                 @foreach ($siteCountries as $country)
                     <form method="POST" action="{{ route('site.country.update') }}">
@@ -51,7 +51,7 @@
                 @endforeach
             </div>
         </x-site.bottom-sheet>
-        <x-site.bottom-sheet :title="__('site.locale.language')" open="localeOpen">
+        <x-site.bottom-sheet :title="__('site.locale.language')" open="mobileLocaleOpen">
             <div class="space-y-1">
                 @foreach ($localeOptions as $code => $meta)
                     <form method="POST" action="{{ route('site.locale.update') }}">
@@ -68,7 +68,6 @@
             </div>
         </x-site.bottom-sheet>
     </div>
-    {{-- Desktop: dropdown --}}
     <div class="hidden lg:block relative" @keydown.escape.window="localeOpen = false">
         <button type="button" @click="localeOpen = !localeOpen"
                 class="inline-flex items-center gap-1 rounded-lg border border-gray-200/80 bg-white/80 px-2 py-1.5 text-xs font-semibold text-gray-700 hover:bg-white shadow-sm">
@@ -94,37 +93,37 @@
 </div>
 @else
 <div class="{{ $isHeader ? 'flex items-center gap-2' : 'flex flex-col gap-3' }}"
-     x-data="{ countryOpen: false, localeOpen: false }"
-     @keydown.escape.window="countryOpen = false; localeOpen = false">
+     x-data="{ countryOpen: false, localeOpen: false, mobileCountryOpen: false, mobileLocaleOpen: false }"
+     @keydown.escape.window="countryOpen = false; localeOpen = false; mobileCountryOpen = false; mobileLocaleOpen = false">
 
-    {{-- Mobile: compact triggers + bottom sheets (never stack full-width controls in the header) --}}
+    {{-- Mobile triggers + sheets only (never share open state with desktop dropdowns) --}}
     <div class="{{ $isMobile || ! $isHeader ? 'w-full space-y-2' : 'lg:hidden flex items-center gap-2 shrink-0' }}">
         @if ($isMobile || ! $isHeader)
-            <button type="button" @click="countryOpen = true"
+            <button type="button" @click="mobileCountryOpen = true"
                     class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800">
                 <span class="text-lg">{{ $currentCountry['emoji'] ?: '🌍' }}</span>
                 <span class="flex-1 text-left truncate">{{ $currentCountry['name'] ?? $siteCountry }}</span>
                 <svg class="w-4 h-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
             </button>
-            <button type="button" @click="localeOpen = true"
+            <button type="button" @click="mobileLocaleOpen = true"
                     class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800">
                 <span>{{ $siteLocale === 'sw' ? '🇹🇿' : '🇬🇧' }}</span>
                 <span class="flex-1 text-left">{{ $siteLocale === 'sw' ? __('site.locale.swahili') : __('site.locale.english') }}</span>
                 <svg class="w-4 h-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
             </button>
         @else
-            <button type="button" @click="countryOpen = true"
+            <button type="button" @click="mobileCountryOpen = true"
                     class="inline-flex items-center gap-1 rounded-lg border border-gray-200/80 bg-white/80 px-2 py-1.5 text-xs font-semibold text-gray-700 shadow-sm">
                 <span>{{ $currentCountry['emoji'] ?: '🌍' }}</span>
             </button>
-            <button type="button" @click="localeOpen = true"
+            <button type="button" @click="mobileLocaleOpen = true"
                     class="inline-flex items-center gap-1 rounded-lg border border-gray-200/80 bg-white/80 px-2 py-1.5 text-xs font-semibold text-gray-700 shadow-sm">
                 <span>{{ $siteLocale === 'sw' ? '🇹🇿' : '🇬🇧' }}</span>
                 <span class="uppercase">{{ $siteLocale }}</span>
             </button>
         @endif
 
-        <x-site.bottom-sheet :title="__('site.locale.country')" open="countryOpen">
+        <x-site.bottom-sheet :title="__('site.locale.country')" open="mobileCountryOpen">
             <div class="space-y-1">
                 @foreach ($siteCountries as $country)
                     <form method="POST" action="{{ route('site.country.update') }}">
@@ -143,7 +142,7 @@
             </div>
         </x-site.bottom-sheet>
 
-        <x-site.bottom-sheet :title="__('site.locale.language')" open="localeOpen">
+        <x-site.bottom-sheet :title="__('site.locale.language')" open="mobileLocaleOpen">
             <div class="space-y-1">
                 @foreach ($localeOptions as $code => $meta)
                     <form method="POST" action="{{ route('site.locale.update') }}">
@@ -161,7 +160,6 @@
         </x-site.bottom-sheet>
     </div>
 
-    {{-- Desktop dropdowns --}}
     @if ($isHeader)
     <div class="hidden lg:flex items-center gap-2">
         <div class="relative">

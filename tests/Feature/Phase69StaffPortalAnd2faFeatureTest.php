@@ -176,6 +176,22 @@ class Phase69StaffPortalAnd2faFeatureTest extends TestCase
             ->assertRedirect(route('admin.dashboard'));
     }
 
+    public function test_credit_team_lands_on_role_home_from_staff_dashboard(): void
+    {
+        $secret = app(TotpService::class)->generateSecret();
+
+        $analyst = User::factory()->create([
+            'role'                    => 'credit_analyst',
+            'two_factor_secret'       => $secret,
+            'two_factor_confirmed_at' => now(),
+        ]);
+
+        $this->actingAs($analyst, 'admin')
+            ->withSession(['two_factor_verified_at' => now()->timestamp])
+            ->get(route('staff.dashboard'))
+            ->assertRedirect(route('admin.teams.screening'));
+    }
+
     public function test_staff_security_redirects_into_admin_account_security(): void
     {
         $secret = app(TotpService::class)->generateSecret();

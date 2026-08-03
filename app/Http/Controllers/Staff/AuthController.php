@@ -59,14 +59,16 @@ class AuthController extends Controller
 
     protected function delegateConsoleLogin(Request $request, $user, WebTwoFactorAuthService $twoFactor): RedirectResponse
     {
+        $home = route(app(RoleService::class)->homeRoute($user));
+
         if ($twoFactor->mustEnroll($user, 'admin')) {
-            $twoFactor->storePendingLogin($request, $user, 'admin', 'admin', route('admin.dashboard'), $request->boolean('remember'));
+            $twoFactor->storePendingLogin($request, $user, 'admin', 'admin', $home, $request->boolean('remember'));
 
             return redirect()->route('auth.two-factor.setup', ['context' => 'admin']);
         }
 
         if ($twoFactor->needsChallenge($user, $request, 'admin')) {
-            $twoFactor->storePendingLogin($request, $user, 'admin', 'admin', route('admin.dashboard'), $request->boolean('remember'));
+            $twoFactor->storePendingLogin($request, $user, 'admin', 'admin', $home, $request->boolean('remember'));
 
             return redirect()->route('auth.two-factor.challenge', ['context' => 'admin']);
         }
@@ -75,7 +77,7 @@ class AuthController extends Controller
         $request->session()->regenerate();
         $twoFactor->markSessionVerified($request);
 
-        return redirect()->route('admin.dashboard');
+        return redirect()->to($home);
     }
 
     protected function finishStaffLogin(Request $request, $user, WebTwoFactorAuthService $twoFactor): RedirectResponse

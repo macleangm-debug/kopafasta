@@ -287,6 +287,7 @@ return [
         'english'            => 'English',
         'swahili'            => 'Kiswahili',
         'country'            => 'Nchi',
+        'language'           => 'Lugha',
     ],
     'help_hub' => [
         'title'          => 'Msaada na maoni',

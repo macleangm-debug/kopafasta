@@ -293,6 +293,7 @@ return [
         'english'            => 'English',
         'swahili'            => 'Kiswahili',
         'country'            => 'Country',
+        'language'           => 'Language',
     ],
 
     'help_hub' => [
