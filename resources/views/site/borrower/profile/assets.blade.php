@@ -19,97 +19,99 @@
         @if ($adding && $selectedType)
             {{-- ============ Item 18: type-specific add form ============ --}}
             <x-site.profile-section-card :title="($typeIcons[$selectedType] ?? '📦').'  '.__('borrower.profile.add_asset').': '.($assetTypes[$selectedType] ?? $selectedType)">
+                @php
+                    $photoSlots = [
+                        ['key' => 0, 'label' => __('borrower.profile.asset_photo_front'), 'required' => true, 'hint' => __('borrower.profile.asset_photo_front_hint')],
+                        ['key' => 1, 'label' => __('borrower.profile.asset_photo_back'), 'required' => true, 'hint' => __('borrower.profile.asset_photo_back_hint')],
+                        ['key' => 2, 'label' => __('borrower.profile.asset_photo_side'), 'required' => false, 'hint' => __('borrower.profile.asset_photo_side_hint')],
+                        ['key' => 3, 'label' => __('borrower.profile.asset_photo_angle'), 'required' => false, 'hint' => __('borrower.profile.asset_photo_angle_hint')],
+                        ['key' => 4, 'label' => __('borrower.profile.asset_photo').' 5', 'required' => false, 'hint' => __('borrower.profile.asset_photo_extra_hint')],
+                        ['key' => 5, 'label' => __('borrower.profile.asset_photo').' 6', 'required' => false, 'hint' => __('borrower.profile.asset_photo_extra_hint')],
+                    ];
+                    $isVehicle = $selectedType === 'vehicle';
+                @endphp
                 <form method="POST" action="{{ route('site.borrower.profile.assets.store') }}" enctype="multipart/form-data" class="space-y-6"
-                      x-data="{ saving: false, uploading: false }"
+                      x-data="{
+                          saving: false,
+                          uploading: false,
+                          step: 1,
+                          photoIndex: 0,
+                          isVehicle: @js($isVehicle),
+                          photoCount: {{ count($photoSlots) }},
+                          get lastStep() { return this.isVehicle ? 4 : 3; },
+                          next() { if (this.step < this.lastStep) this.step++; },
+                          prev() {
+                              if (this.step === 2 && this.photoIndex > 0) { this.photoIndex--; return; }
+                              if (this.step > 1) this.step--;
+                          },
+                          nextPhoto() {
+                              if (this.photoIndex < this.photoCount - 1) this.photoIndex++;
+                              else this.next();
+                          },
+                      }"
                       @submit="saving = true; uploading = true">
                     @csrf
                     <input type="hidden" name="asset_type" value="{{ $selectedType }}">
                     <x-site.upload-busy-overlay :message="__('borrower.profile.uploading_collateral')" />
 
-                    <div class="grid sm:grid-cols-2 gap-4">
-                        <div class="sm:col-span-2">
-                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.asset_label') }} <span class="text-red-500">*</span></label>
-                            <input type="text" name="label" value="{{ old('label') }}" required maxlength="150"
-                                   placeholder="{{ __('borrower.profile.asset_label_placeholder') }}"
-                                   class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                        </div>
-
-                        @foreach ($detailFields as $field)
-                            @php
-                                $fieldKey = $field['key'];
-                                $isColumn = $field['column'] ?? false;
-                                $inputName = $isColumn ? $fieldKey : 'details['.$fieldKey.']';
-                                $oldVal = $isColumn ? old($fieldKey) : old('details.'.$fieldKey);
-                                $fieldLabel = __('borrower.profile.collateral_fields.'.$fieldKey);
-                            @endphp
-                            <div>
-                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ $fieldLabel }} <span class="text-red-500">*</span></label>
-                                <input type="{{ $field['type'] === 'number' ? 'number' : 'text' }}"
-                                       @if ($field['type'] === 'number') inputmode="numeric" min="0" @endif
-                                       name="{{ $inputName }}" value="{{ $oldVal }}" maxlength="150" required
-                                       class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                            </div>
-                        @endforeach
-
-                        <div class="sm:col-span-2">
-                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.description') }}</label>
-                            <textarea name="description" rows="2" class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">{{ old('description') }}</textarea>
-                            <p class="mt-1.5 text-xs text-gray-500">{{ __('borrower.profile.collateral_value_staff_hint') }}</p>
-                        </div>
+                    <div class="flex items-center gap-2 text-xs font-semibold text-gray-500 mb-2">
+                        <template x-for="n in lastStep" :key="'c'+n">
+                            <span class="inline-flex items-center gap-1.5">
+                                <span class="size-6 rounded-full grid place-items-center text-[11px]"
+                                      :class="step >= n ? 'bg-brand text-white' : 'bg-gray-100 text-gray-500'"
+                                      x-text="n"></span>
+                                <span x-show="n < lastStep" class="text-gray-300" aria-hidden="true">·</span>
+                            </span>
+                        </template>
                     </div>
 
-                    {{-- Photo gallery: front/back required first, then optional angles --}}
-                    <div class="pt-4 border-t border-gray-100">
-                        <p class="text-sm font-semibold text-gray-800">{{ __('borrower.profile.collateral_gallery') }}</p>
-                        <p class="text-xs text-gray-500 mb-3">{{ __('borrower.profile.collateral_photos_hint') }}</p>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            @php
-                                $photoSlots = [
-                                    ['key' => 0, 'label' => __('borrower.profile.asset_photo_front'), 'required' => true],
-                                    ['key' => 1, 'label' => __('borrower.profile.asset_photo_back'), 'required' => true],
-                                    ['key' => 2, 'label' => __('borrower.profile.asset_photo_side'), 'required' => false],
-                                    ['key' => 3, 'label' => __('borrower.profile.asset_photo_angle'), 'required' => false],
-                                    ['key' => 4, 'label' => __('borrower.profile.asset_photo').' 5', 'required' => false],
-                                    ['key' => 5, 'label' => __('borrower.profile.asset_photo').' 6', 'required' => false],
-                                ];
-                            @endphp
-                            @foreach ($photoSlots as $slot)
-                                <div class="rounded-xl ring-1 ring-gray-200 p-3 {{ $slot['required'] ? 'bg-amber-50/40 ring-amber-200/80' : '' }}">
-                                    <label class="text-[11px] font-semibold text-gray-700 mb-2 block">
-                                        {{ $slot['label'] }}
-                                        @if ($slot['required']) <span class="text-red-500">*</span> @endif
-                                    </label>
-                                    <x-site.single-image-document-upload :name="'photos['.$slot['key'].']'" />
+                    {{-- Step 1: details (+ insurance fields for vehicle) --}}
+                    <div x-show="step === 1" x-cloak class="space-y-4">
+                        <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.collateral_step_details') }}</p>
+                        <div class="grid sm:grid-cols-2 gap-4">
+                            <div class="sm:col-span-2">
+                                <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ __('borrower.profile.asset_label') }} <span class="text-red-500">*</span></label>
+                                <input type="text" name="label" value="{{ old('label') }}" required maxlength="150"
+                                       placeholder="{{ __('borrower.profile.asset_label_placeholder') }}"
+                                       class="kf-field">
+                            </div>
+
+                            @foreach ($detailFields as $field)
+                                @php
+                                    $fieldKey = $field['key'];
+                                    $isColumn = $field['column'] ?? false;
+                                    $inputName = $isColumn ? $fieldKey : 'details['.$fieldKey.']';
+                                    $oldVal = $isColumn ? old($fieldKey) : old('details.'.$fieldKey);
+                                    $fieldLabel = __('borrower.profile.collateral_fields.'.$fieldKey);
+                                @endphp
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ $fieldLabel }} <span class="text-red-500">*</span></label>
+                                    <input type="{{ $field['type'] === 'number' ? 'number' : 'text' }}"
+                                           @if ($field['type'] === 'number') inputmode="numeric" min="0" @endif
+                                           name="{{ $inputName }}" value="{{ $oldVal }}" maxlength="150" required
+                                           class="kf-field">
                                 </div>
                             @endforeach
-                        </div>
-                    </div>
 
-                    <div class="grid sm:grid-cols-2 gap-3">
-                        <div class="rounded-xl ring-1 ring-gray-200 p-4">
-                            <label class="text-xs font-semibold text-gray-700 mb-3 block">
-                                {{ __('borrower.profile.person_with_asset') }} <span class="text-red-500">*</span>
-                            </label>
-                            <x-site.single-image-document-upload name="person_photo" />
+                            <div class="sm:col-span-2">
+                                <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ __('borrower.profile.description') }}</label>
+                                <textarea name="description" rows="2" class="kf-field">{{ old('description') }}</textarea>
+                                <p class="mt-1.5 text-xs text-gray-500">{{ __('borrower.profile.collateral_value_staff_hint') }}</p>
+                            </div>
                         </div>
-                        <div class="rounded-xl ring-1 ring-gray-200 p-4">
-                            <label class="text-xs font-semibold text-gray-700 mb-3 block">
-                                {{ __('borrower.profile.ownership_document') }} <span class="text-red-500">*</span>
-                            </label>
-                            <x-site.single-image-document-upload name="ownership_document" />
-                        </div>
-                        @if ($selectedType === 'vehicle')
-                            <div class="sm:col-span-2 rounded-xl ring-1 ring-brand/20 bg-brand-muted/30 p-4">
+
+                        @if ($isVehicle)
+                            <div class="rounded-xl ring-1 ring-brand/20 bg-brand-muted/30 p-4">
                                 <label class="text-xs font-semibold text-brand mb-1 block">
                                     {{ __('borrower.profile.comprehensive_insurance') }} <span class="text-red-500">*</span>
                                 </label>
                                 <p class="text-xs text-brand/80 mb-3">{{ __('borrower.profile.comprehensive_insurance_hint') }}</p>
                                 <input type="hidden" name="details[insurance_type]" value="comprehensive">
-                                <div class="grid sm:grid-cols-2 gap-3 mb-3">
+                                <div class="grid sm:grid-cols-2 gap-3">
                                     <div>
-                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.collateral_fields.insurance_policy_number') }} <span class="text-red-500">*</span></label>
+                                        <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ __('borrower.profile.collateral_fields.insurance_policy_number') }} <span class="text-red-500">*</span></label>
                                         <input type="text" name="details[insurance_policy_number]" value="{{ old('details.insurance_policy_number') }}" maxlength="150" required
-                                               class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                               class="kf-field">
                                     </div>
                                     <div>
                                         <x-site.date-input
@@ -117,17 +119,84 @@
                                             :label="__('borrower.profile.collateral_fields.insurance_expires_at')"
                                             :value="old('details.insurance_expires_at')"
                                             :required="true"
-                                            input-class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-base"
+                                            input-class="kf-field"
                                         />
                                     </div>
                                 </div>
-                                <x-site.single-image-document-upload name="insurance_document" />
                             </div>
                         @endif
                     </div>
 
-                    <div class="flex flex-wrap gap-3">
-                        <button type="submit" :disabled="saving"
+                    {{-- Step 2: guided photos one-by-one --}}
+                    <div x-show="step === 2" x-cloak class="space-y-4">
+                        <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.collateral_step_photos') }}</p>
+                        <p class="text-xs text-gray-500">{{ __('borrower.profile.collateral_step_photos_hint') }}</p>
+                        @foreach ($photoSlots as $slot)
+                            <div x-show="photoIndex === {{ $slot['key'] }}" x-cloak
+                                 class="rounded-2xl ring-1 ring-brand/15 bg-white p-5 space-y-3 {{ $slot['required'] ? 'ring-amber-200' : '' }}">
+                                <div>
+                                    <p class="text-base font-bold text-gray-900">
+                                        {{ $slot['label'] }}
+                                        @if ($slot['required']) <span class="text-red-500">*</span> @endif
+                                    </p>
+                                    <p class="text-sm text-gray-600 mt-1">{{ $slot['hint'] }}</p>
+                                    <p class="text-xs text-gray-400 mt-1">{{ __('borrower.profile.collateral_photo_progress', ['current' => $slot['key'] + 1, 'total' => count($photoSlots)]) }}</p>
+                                </div>
+                                <x-site.single-image-document-upload :name="'photos['.$slot['key'].']'" />
+                            </div>
+                        @endforeach
+                    </div>
+
+                    {{-- Step 3: person + ownership --}}
+                    <div x-show="step === 3" x-cloak class="space-y-4">
+                        <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.collateral_step_proof') }}</p>
+                        <div class="grid sm:grid-cols-2 gap-3">
+                            <div class="rounded-xl ring-1 ring-gray-200 p-4">
+                                <label class="text-xs font-semibold text-gray-700 mb-3 block">
+                                    {{ __('borrower.profile.person_with_asset') }} <span class="text-red-500">*</span>
+                                </label>
+                                <p class="text-xs text-gray-500 mb-3">{{ __('borrower.profile.person_with_asset_hint') }}</p>
+                                <x-site.single-image-document-upload name="person_photo" />
+                            </div>
+                            <div class="rounded-xl ring-1 ring-gray-200 p-4">
+                                <label class="text-xs font-semibold text-gray-700 mb-3 block">
+                                    {{ __('borrower.profile.ownership_document') }} <span class="text-red-500">*</span>
+                                </label>
+                                <p class="text-xs text-gray-500 mb-3">{{ __('borrower.profile.ownership_document_hint') }}</p>
+                                <x-site.single-image-document-upload name="ownership_document" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Step 4: insurance certificate (vehicle only) --}}
+                    @if ($isVehicle)
+                        <div x-show="step === 4" x-cloak class="space-y-4">
+                            <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.collateral_step_insurance_doc') }}</p>
+                            <p class="text-xs text-gray-500">{{ __('borrower.profile.comprehensive_insurance_hint') }}</p>
+                            <div class="rounded-xl ring-1 ring-brand/20 bg-brand-muted/30 p-4">
+                                <x-site.single-image-document-upload name="insurance_document" />
+                            </div>
+                        </div>
+                    @endif
+
+                    <div class="flex flex-wrap gap-3 pt-2">
+                        <button type="button" x-show="step > 1 || photoIndex > 0" x-cloak @click="prev()"
+                                class="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50">
+                            {{ __('borrower.profile.back') }}
+                        </button>
+                        <button type="button" x-show="step === 2 && photoIndex < photoCount - 1" x-cloak @click="nextPhoto()"
+                                class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
+                            {{ __('borrower.profile.collateral_next_photo') }}
+                        </button>
+                        <button type="button" x-show="step === 2 && photoIndex >= photoCount - 1" x-cloak @click="next()"
+                                class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
+                            {{ __('borrower.profile.continue') }}
+                        </button>
+                        <button type="button" x-show="step === 1 || (step === 3 && isVehicle)" x-cloak @click="next()"
+                                class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
+                            {{ __('borrower.profile.continue') }}
+                        </button>
+                        <button type="submit" x-show="(step === 3 && !isVehicle) || step === 4" x-cloak :disabled="saving"
                                 class="inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm disabled:opacity-70">
                             <svg x-show="saving" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
