@@ -41,6 +41,12 @@ class GuarantorSupplementService
             'screening',
             'credit_appraisal',
             'pre_approved',
+            'under_review',
+        ], true) && ! in_array((string) $application->current_stage, [
+            'submitted',
+            'screening',
+            'credit_appraisal',
+            'pre_approval',
         ], true)) {
             throw new \InvalidArgumentException('Additional guarantor can only be requested while the application is under review.');
         }
@@ -52,6 +58,7 @@ class GuarantorSupplementService
                 'requested_by' => $admin->id,
                 'notes'        => $notes,
                 'satisfied_at' => null,
+                'kind'         => 'additional',
             ];
             $application->update(['screening_payload' => $payload]);
         });
@@ -62,7 +69,7 @@ class GuarantorSupplementService
             app(NotificationService::class)->notifyInApp(
                 $customer,
                 __('borrower.guarantor_supplement.notify_body', [
-                    'reference' => $application->reference_no ?? $application->id,
+                    'reference' => $application->reference_no ?? $application->application_number ?? $application->id,
                 ]),
                 category: 'loan_application',
                 template: 'guarantor_supplement_request',
@@ -73,7 +80,73 @@ class GuarantorSupplementService
                     'title_key' => 'borrower.guarantor_supplement.notify_title',
                     'body_key'  => 'borrower.guarantor_supplement.notify_body',
                     'params'    => [
-                        'reference' => $application->reference_no ?? $application->id,
+                        'reference' => $application->reference_no ?? $application->application_number ?? $application->id,
+                    ],
+                ],
+            );
+        }
+    }
+
+    /**
+     * Soft-reject this guarantor on this application only and ask the borrower to choose someone else.
+     * Does not blacklist the guarantor person — their membership and CRB remain reusable elsewhere.
+     */
+    public function requestChange(
+        LoanApplication $application,
+        \App\Models\CustomerGuarantor $link,
+        User $admin,
+        ?string $notes = null,
+    ): void {
+        if ((int) $link->loan_application_id !== (int) $application->id) {
+            throw new \InvalidArgumentException('Guarantor is not linked to this application.');
+        }
+
+        if ($link->status === 'rejected') {
+            throw new \InvalidArgumentException('This guarantor is already declined for this application.');
+        }
+
+        $guarantorName = trim((string) (
+            ($link->guarantor?->first_name.' '.$link->guarantor?->last_name)
+            ?: 'Guarantor'
+        ));
+
+        app(GuarantorInvitationService::class)->rejectByUnderwriting($link, $notes);
+
+        DB::transaction(function () use ($application, $admin, $notes, $link, $guarantorName): void {
+            $payload = $application->screening_payload ?? [];
+            $payload['guarantor_supplement'] = [
+                'requested_at' => now()->toIso8601String(),
+                'requested_by' => $admin->id,
+                'notes'        => $notes,
+                'satisfied_at' => null,
+                'kind'         => 'change',
+                'replaced_customer_guarantor_id' => $link->id,
+                'replaced_guarantor_name' => $guarantorName,
+            ];
+            $application->update(['screening_payload' => $payload]);
+        });
+
+        $customer = $application->customer;
+        if ($customer instanceof Customer) {
+            $url = $this->borrowerWizardUrl($application);
+            $reference = $application->reference_no ?? $application->application_number ?? $application->id;
+            app(NotificationService::class)->notifyInApp(
+                $customer,
+                __('borrower.guarantor_supplement.change_notify_body', [
+                    'reference' => $reference,
+                    'guarantor' => $guarantorName,
+                ]),
+                category: 'loan_application',
+                template: 'guarantor_change_request',
+                title: __('borrower.guarantor_supplement.change_notify_title'),
+                actionUrl: $url,
+                actionLabel: __('borrower.guarantor_supplement.change_cta'),
+                i18n: [
+                    'title_key' => 'borrower.guarantor_supplement.change_notify_title',
+                    'body_key'  => 'borrower.guarantor_supplement.change_notify_body',
+                    'params'    => [
+                        'reference' => $reference,
+                        'guarantor' => $guarantorName,
                     ],
                 ],
             );

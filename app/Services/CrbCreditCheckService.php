@@ -180,6 +180,90 @@ class CrbCreditCheckService
     }
 
     /** @param  array{history?: CreditHistory|null, reused?: bool, refreshed?: bool, error?: string|null}  $meta */
+    /**
+     * Ensure a fresh (or reused) CRB for a guarantor Customer and store a pointer on the application.
+     * Reuses within crb_freshness_days — does not re-bill when already fresh.
+     *
+     * @return array{summary: array<string, mixed>, reused: bool, refreshed: bool, error: string|null}
+     */
+    public function ensureGuarantorCrb(Customer $guarantor, LoanApplication $application, bool $force = false): array
+    {
+        if ($force) {
+            try {
+                $history = $this->refreshCreditReport($guarantor, [
+                    'purpose' => 'guarantor_underwriting',
+                    'loan_application_id' => $application->id,
+                ], force: true);
+                $meta = [
+                    'history' => $history,
+                    'reused' => false,
+                    'refreshed' => (bool) $history,
+                    'error' => $history ? null : 'CRB credit report could not be retrieved.',
+                ];
+            } catch (\Throwable $e) {
+                Log::warning('Guarantor CRB force refresh failed', [
+                    'customer_id' => $guarantor->id,
+                    'application_id' => $application->id,
+                    'message' => $e->getMessage(),
+                ]);
+                $meta = [
+                    'history' => $this->latest($guarantor),
+                    'reused' => false,
+                    'refreshed' => false,
+                    'error' => $e->getMessage(),
+                ];
+            }
+        } else {
+            $meta = $this->ensureFreshForSubmission($guarantor);
+        }
+
+        $history = $meta['history'] ?? null;
+        $this->storeGuarantorCrbPointer($application, $guarantor, $meta);
+
+        // Never use the borrower's application CRB blob for the guarantor.
+        $summary = $this->summaryForCustomer($guarantor);
+        $summary['submission_meta'] = [
+            'reused' => (bool) ($meta['reused'] ?? false),
+            'refreshed' => (bool) ($meta['refreshed'] ?? false),
+            'error' => $meta['error'] ?? null,
+        ];
+
+        return [
+            'summary' => $summary,
+            'reused' => (bool) ($meta['reused'] ?? false),
+            'refreshed' => (bool) ($meta['refreshed'] ?? false),
+            'error' => $meta['error'] ?? null,
+            'history' => $history,
+        ];
+    }
+
+    /**
+     * @param  array{history?: ?CreditHistory, reused?: bool, refreshed?: bool, error?: ?string}  $meta
+     */
+    public function storeGuarantorCrbPointer(LoanApplication $application, Customer $guarantor, array $meta): void
+    {
+        $history = $meta['history'] ?? null;
+        $payload = $application->credit_appraisal_payload ?? [];
+        $rows = collect($payload['guarantor_crb'] ?? [])
+            ->reject(fn ($row) => (int) ($row['customer_id'] ?? 0) === (int) $guarantor->id)
+            ->values()
+            ->all();
+
+        $rows[] = [
+            'customer_id'       => $guarantor->id,
+            'credit_history_id' => $history?->id,
+            'checked_at'        => $history?->checked_at?->toIso8601String(),
+            'score'             => $history?->score,
+            'risk_grade'        => $history?->risk_grade,
+            'reused'            => (bool) ($meta['reused'] ?? false),
+            'refreshed'         => (bool) ($meta['refreshed'] ?? false),
+            'error'             => $meta['error'] ?? null,
+        ];
+
+        $payload['guarantor_crb'] = $rows;
+        $application->update(['credit_appraisal_payload' => $payload]);
+    }
+
     public function attachToApplication(LoanApplication $application, ?CreditHistory $history, array $meta = []): void
     {
         if (! $history) {

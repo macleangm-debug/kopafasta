@@ -82,6 +82,9 @@ class LoanApplicationReviewService
 
         $crb = $this->crbSummary($customer, $application);
 
+        $guarantorRows = $this->guarantorRows($application);
+        $guarantorSuggestion = $this->guarantorSuggestion($guarantorRows, $application);
+
         $risk = $this->riskAssessment(
             $application,
             $customer,
@@ -89,6 +92,7 @@ class LoanApplicationReviewService
             $documentProgress,
             $affordability,
             $crb,
+            $guarantorSuggestion,
         );
 
         $facePhotos = $this->face->latestByAngle($customer, true);
@@ -111,7 +115,6 @@ class LoanApplicationReviewService
             ->unique(fn (CustomerDocument $doc) => $doc->documentType?->code ?: $doc->id)
             ->keyBy(fn (CustomerDocument $doc) => $doc->documentType?->code ?: ('doc-'.$doc->id));
 
-        $guarantorRows = $this->guarantorRows($application);
         $asset = $this->assetSummary($application);
 
         $checklist = $this->checklist(
@@ -167,6 +170,7 @@ class LoanApplicationReviewService
                 'recommended_at' => $application->recommended_at,
             ],
             'risk'               => $risk,
+            'guarantor_suggestion' => $guarantorSuggestion,
             'face_photos'        => $facePhotos,
             'face_progress'      => $faceProgress,
             'face_angles'        => config('face_verification.angles', []),
@@ -341,11 +345,14 @@ class LoanApplicationReviewService
 
     private function guarantorRows(LoanApplication $application): Collection
     {
+        $crbService = app(CrbCreditCheckService::class);
+        $onboarding = app(GuarantorOnboardingService::class);
+
         return CustomerGuarantor::query()
             ->where('loan_application_id', $application->id)
             ->with(['guarantor'])
             ->get()
-            ->map(function (CustomerGuarantor $link) use ($application) {
+            ->map(function (CustomerGuarantor $link) use ($application, $crbService, $onboarding) {
                 $guarantor = $link->guarantor;
                 $invitation = GuarantorInvitation::query()
                     ->where('customer_guarantor_id', $link->id)
@@ -353,8 +360,13 @@ class LoanApplicationReviewService
                     ->first();
 
                 $member = $invitation?->guarantor_customer_id
-                    ? Customer::find($invitation->guarantor_customer_id)
+                    ? Customer::with('kyc')->find($invitation->guarantor_customer_id)
                     : null;
+
+                $profileStatus = $member
+                    ? $onboarding->guarantorProfileStatus($member)
+                    : ['met' => false, 'percent' => 0, 'checklist' => [], 'next_url' => null];
+                $profileComplete = (bool) ($profileStatus['met'] ?? false);
 
                 $activeLoans = $member
                     ? Loan::query()->where('customer_id', $member->id)->whereIn('status', ['active', 'disbursed'])->count()
@@ -379,10 +391,43 @@ class LoanApplicationReviewService
                     )
                     : null;
 
+                $crb = null;
+                $crbExplain = null;
+                if ($member && $profileComplete && $link->status !== 'rejected') {
+                    $pull = $crbService->ensureGuarantorCrb($member, $application);
+                    $crb = $pull['summary'];
+                    $crbExplain = $crbService->recommendationExplanation($crb);
+                }
+
+                $profile = null;
+                if ($member && $profileComplete) {
+                    $profile = [
+                        'full_name' => $member->full_name,
+                        'date_of_birth' => optional($member->date_of_birth)->format('d M Y'),
+                        'gender' => $member->gender ? ucfirst((string) $member->gender) : null,
+                        'national_id' => $member->national_id,
+                        'phone' => $member->phone,
+                        'email' => $member->email,
+                        'region' => $member->region,
+                        'district' => $member->district,
+                        'ward' => $member->ward,
+                        'street' => $member->street ?: $member->address,
+                        'nida_status' => display_label($member->nida_verification_status, 'nida_verification_status') ?: 'Not verified',
+                        'face_status' => display_label($member->face_verification_status, 'face_verification_status') ?: 'Not started',
+                        'activity' => display_label($member->activity_type, 'activity_type')
+                            ?: (activity_type_label($member->activity_type) ?? $member->activity_type),
+                        'income_range' => income_range_label($member->income_range) ?? $member->income_range,
+                    ];
+                }
+
                 return [
-                    'name'             => trim(($guarantor?->first_name ?? '').' '.($guarantor?->last_name ?? '')),
+                    'link_id'          => $link->id,
+                    'invitation_id'    => $invitation?->id,
+                    'customer_id'      => $member?->id,
+                    'name'             => trim(($guarantor?->first_name ?? '').' '.($guarantor?->last_name ?? ''))
+                        ?: ($member?->full_name ?? '—'),
                     'membership_no'    => $member?->member_no ?? $invitation?->membership_id,
-                    'phone'            => $guarantor?->phone,
+                    'phone'            => $guarantor?->phone ?? $member?->phone,
                     'status'           => $link->status,
                     'status_label'     => app(GuarantorInvitationService::class)->underwritingGuarantorStatusLabel($link),
                     'relationship'     => $guarantor?->relationship,
@@ -394,8 +439,87 @@ class LoanApplicationReviewService
                     'affordability'    => $affordability,
                     'risk_band'        => $riskBand,
                     'risk_label'       => $this->riskBandLabel($riskBand),
+                    'profile_complete' => $profileComplete,
+                    'profile_percent'  => (int) ($profileStatus['percent'] ?? 0),
+                    'profile'          => $profile,
+                    'crb'              => $crb,
+                    'crb_explanation'  => $crbExplain,
+                    'can_change'       => in_array($link->status, ['pending', 'approved'], true),
+                    'can_recall_crb'   => $member && $profileComplete && $link->status !== 'rejected',
                 ];
             });
+    }
+
+    /**
+     * Top-of-desk guarantor suggestion for screening + committee.
+     *
+     * @param  Collection<int, array<string, mixed>>  $rows
+     * @return array<string, mixed>
+     */
+    private function guarantorSuggestion(Collection $rows, LoanApplication $application): array
+    {
+        if (! $application->product?->requires_guarantor) {
+            return [
+                'required' => false,
+                'recommendation' => 'not_required',
+                'label' => 'Not required',
+                'summary' => 'This product does not require a guarantor.',
+                'name' => null,
+                'score' => null,
+                'profile_complete' => false,
+            ];
+        }
+
+        if ($rows->isEmpty()) {
+            return [
+                'required' => true,
+                'recommendation' => 'missing',
+                'label' => 'Missing',
+                'summary' => 'No guarantor linked yet — invite or wait for acceptance.',
+                'name' => null,
+                'score' => null,
+                'profile_complete' => false,
+            ];
+        }
+
+        $primary = $rows->first(fn (array $row) => ($row['status'] ?? '') === 'approved' && ($row['profile_complete'] ?? false))
+            ?? $rows->first(fn (array $row) => ($row['profile_complete'] ?? false) && ($row['status'] ?? '') !== 'rejected')
+            ?? $rows->first(fn (array $row) => ($row['status'] ?? '') !== 'rejected')
+            ?? $rows->first();
+
+        if (! ($primary['profile_complete'] ?? false)) {
+            return [
+                'required' => true,
+                'recommendation' => 'pending_profile',
+                'label' => 'Profile incomplete',
+                'summary' => ($primary['name'] ?? 'Guarantor').' has not finished their profile yet — CRB appears after completion.',
+                'name' => $primary['name'] ?? null,
+                'score' => null,
+                'profile_complete' => false,
+                'status_label' => $primary['status_label'] ?? null,
+                'profile_percent' => $primary['profile_percent'] ?? 0,
+            ];
+        }
+
+        $crb = $primary['crb'] ?? [];
+        $rec = strtolower((string) ($crb['recommendation'] ?? ''));
+        $explain = $primary['crb_explanation'] ?? [];
+
+        return [
+            'required' => true,
+            'recommendation' => $rec !== '' ? $rec : 'refer',
+            'label' => $rec !== '' ? ucfirst($rec) : 'Review',
+            'summary' => $explain['summary'] ?? 'Guarantor profile complete — review CRB on the Guarantor tab.',
+            'reasons' => $explain['reasons'] ?? [],
+            'name' => $primary['name'] ?? null,
+            'score' => $crb['score'] ?? null,
+            'profile_complete' => true,
+            'status_label' => $primary['status_label'] ?? null,
+            'existing_loans' => $crb['existing_loans'] ?? 0,
+            'delinquencies' => $crb['delinquencies'] ?? 0,
+            'freshness_label' => $crb['freshness_label'] ?? null,
+            'link_id' => $primary['link_id'] ?? null,
+        ];
     }
 
     /** @return array<string, mixed> */
@@ -412,6 +536,7 @@ class LoanApplicationReviewService
         int $documentProgress,
         array $affordability,
         array $crb = [],
+        array $guarantorSuggestion = [],
     ): array {
         $score = 100;
         $factors = [];
@@ -464,6 +589,33 @@ class LoanApplicationReviewService
         if ($application->product?->requires_guarantor && ! $this->guarantors->hasApprovedGuarantor($application)) {
             $score -= 12;
             $factors[] = 'Guarantor not approved (−12)';
+        }
+
+        $gRec = strtolower((string) ($guarantorSuggestion['recommendation'] ?? ''));
+        $gScore = $guarantorSuggestion['score'] ?? null;
+        if (($guarantorSuggestion['required'] ?? false) === true) {
+            $gHit = match ($gRec) {
+                'reject' => 15,
+                'refer' => 6,
+                'missing', 'pending_profile' => 8,
+                'approve' => 0,
+                'not_required' => 0,
+                default => 0,
+            };
+            if ($gHit > 0) {
+                $score -= $gHit;
+                if ($gRec === 'reject') {
+                    $factors[] = 'Guarantor CRB suggests reject'.($gScore !== null ? ' (score '.$gScore.')' : '').' (−15)';
+                } elseif ($gRec === 'refer') {
+                    $factors[] = 'Guarantor CRB suggests refer'.($gScore !== null ? ' (score '.$gScore.')' : '').' (−6)';
+                } elseif ($gRec === 'missing') {
+                    $factors[] = 'Guarantor missing (−8)';
+                } else {
+                    $factors[] = 'Guarantor profile incomplete (−8)';
+                }
+            } elseif ($gRec === 'approve') {
+                $factors[] = 'Guarantor CRB suggests approve'.($gScore !== null ? ' (score '.$gScore.')' : '').' (no deduction)';
+            }
         }
 
         $overdue = RepaymentSchedule::query()

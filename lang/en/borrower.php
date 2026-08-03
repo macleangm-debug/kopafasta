@@ -3000,6 +3000,13 @@ return [
         'borrower_banner' => 'Underwriting needs another guarantor for this application.',
         'next_action' => 'Add another guarantor for this application',
         'submitted' => 'Guarantor details submitted. We will continue reviewing your application.',
+        'change_notify_title' => 'Please change your guarantor',
+        'change_notify_body' => 'Underwriting needs a different guarantor for application :reference. :guarantor was not accepted for this file — choose someone else. Their own membership is unaffected.',
+        'change_cta' => 'Choose another guarantor',
+        'change_admin_button' => 'Ask borrower to change guarantor',
+        'change_admin_notes' => 'Reason shown to the borrower (optional)',
+        'change_admin_success' => 'This guarantor was declined for this application. The borrower has been asked to choose someone else.',
+        'change_borrower_banner' => 'Underwriting asked you to choose a different guarantor for this application.',
     ],
 
     'guarantor_invite' => [

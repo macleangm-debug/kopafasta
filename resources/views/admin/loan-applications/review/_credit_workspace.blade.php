@@ -105,9 +105,21 @@
         @endif
     </div>
 
-    {{-- Facility + risk + CRB suggestion --}}
+    {{-- Facility + risk + borrower CRB + guarantor --}}
+    @php
+        $gSug = $review['guarantor_suggestion'] ?? [];
+        $gRec = strtolower((string) ($gSug['recommendation'] ?? ''));
+        $gTone = match ($gRec) {
+            'approve' => ['card' => 'from-emerald-600 to-emerald-800', 'badge' => 'bg-emerald-100 text-emerald-900'],
+            'refer' => ['card' => 'from-amber-500 to-amber-700', 'badge' => 'bg-amber-100 text-amber-950'],
+            'reject' => ['card' => 'from-rose-600 to-rose-800', 'badge' => 'bg-rose-100 text-rose-900'],
+            'missing', 'pending_profile' => ['card' => 'from-slate-600 to-slate-800', 'badge' => 'bg-white/20 text-white'],
+            'not_required' => ['card' => 'from-slate-500 to-slate-700', 'badge' => 'bg-white/20 text-white'],
+            default => ['card' => 'from-brand to-brand-light', 'badge' => 'bg-white/20 text-white'],
+        };
+    @endphp
     <div class="grid lg:grid-cols-12 gap-4">
-        <div class="lg:col-span-5 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
+        <div class="lg:col-span-3 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
             <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-5 py-4 text-white">
                 <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">Facility summary</p>
                 <p class="text-2xl font-bold mt-1 tabular-nums">{{ format_money((float) $record->requested_amount) }}</p>
@@ -163,15 +175,15 @@
                 </ul>
             @endif
             <p class="mt-2 text-[10px] opacity-70 leading-snug">
-                Starts at 100 with profile, NIDA, face, affordability, documents, guarantor, overdue, and CRB deductions. ≥75 approve · ≥50 refer · below 50 reject.
+                Includes borrower CRB and guarantor CRB/profile. ≥75 approve · ≥50 refer · below 50 reject.
             </p>
         </div>
 
-        <div class="lg:col-span-4 rounded-2xl overflow-hidden shadow-sm ring-1 ring-black/5 bg-gradient-to-br {{ $crbTone['card'] }} text-white">
+        <div class="lg:col-span-3 rounded-2xl overflow-hidden shadow-sm ring-1 ring-black/5 bg-gradient-to-br {{ $crbTone['card'] }} text-white">
             <div class="px-5 py-5">
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">CRB suggestion</p>
+                        <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">Borrower CRB</p>
                         <p class="text-2xl font-bold mt-1 uppercase tracking-tight">{{ $crbRec !== '' ? $crbRec : '—' }}</p>
                     </div>
                     <span class="inline-flex text-[10px] font-bold uppercase tracking-wider rounded-full px-2.5 py-1 {{ $crbTone['badge'] }}">
@@ -199,6 +211,52 @@
                         <p class="text-[10px] uppercase tracking-wider text-white/60">Fresh</p>
                         <p class="text-sm font-bold truncate">{{ $crb['freshness_label'] ?? '—' }}</p>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-3 rounded-2xl overflow-hidden shadow-sm ring-1 ring-black/5 bg-gradient-to-br {{ $gTone['card'] }} text-white">
+            <div class="px-5 py-5">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">Guarantor</p>
+                        <p class="text-2xl font-bold mt-1 uppercase tracking-tight">
+                            @if ($gRec === 'not_required')
+                                N/A
+                            @elseif ($gRec === 'pending_profile')
+                                Profile
+                            @elseif ($gRec === 'missing')
+                                Missing
+                            @elseif ($gRec !== '')
+                                {{ $gRec }}
+                            @else
+                                —
+                            @endif
+                        </p>
+                    </div>
+                    <span class="inline-flex text-[10px] font-bold uppercase tracking-wider rounded-full px-2.5 py-1 {{ $gTone['badge'] }}">
+                        @if (! empty($gSug['score'])) Score {{ $gSug['score'] }}
+                        @elseif (! empty($gSug['profile_percent'])) {{ (int) $gSug['profile_percent'] }}%
+                        @else {{ $gSug['label'] ?? '—' }}
+                        @endif
+                    </span>
+                </div>
+                @if (! empty($gSug['name']))
+                    <p class="text-xs text-white/70 mt-2 truncate">{{ $gSug['name'] }}</p>
+                @endif
+                <p class="text-sm text-white/85 mt-3 leading-relaxed">{{ $gSug['summary'] ?? 'No guarantor signal yet.' }}</p>
+                @if (! empty($gSug['reasons']))
+                    <ul class="mt-3 space-y-1 text-xs text-white/80">
+                        @foreach (array_slice($gSug['reasons'], 0, 2) as $reason)
+                            <li class="flex gap-2"><span class="opacity-60">•</span><span>{{ $reason }}</span></li>
+                        @endforeach
+                    </ul>
+                @endif
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <a href="{{ route('admin.loan-applications.show', ['loan_application' => $record, 'tab' => 'guarantor']) }}#borrower-file"
+                       class="inline-flex text-xs font-semibold rounded-lg bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">
+                        Open Guarantor tab →
+                    </a>
                 </div>
             </div>
         </div>

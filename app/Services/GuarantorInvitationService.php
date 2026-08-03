@@ -969,6 +969,27 @@ class GuarantorInvitationService
         });
     }
 
+    /**
+     * Decline this guarantor for this application only (underwriting).
+     * Does not notify the borrower — caller sends the "change guarantor" message.
+     * Does not affect the guarantor's own membership or credit file.
+     */
+    public function rejectByUnderwriting(CustomerGuarantor $link, ?string $notes = null): void
+    {
+        DB::transaction(function () use ($link, $notes): void {
+            $link->update(['status' => 'rejected']);
+
+            GuarantorInvitation::query()
+                ->where('customer_guarantor_id', $link->id)
+                ->whereIn('status', ['pending', 'accepted'])
+                ->update([
+                    'status'         => 'rejected',
+                    'responded_at'   => now(),
+                    'response_notes' => $notes ?: 'Declined by underwriting for this application',
+                ]);
+        });
+    }
+
     public function hasApprovedGuarantor(LoanApplication $application): bool
     {
         return CustomerGuarantor::query()

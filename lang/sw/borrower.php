@@ -3029,6 +3029,13 @@ return [
     'borrower_banner' => 'Ukaguzi unahitaji mdhamini mwingine kwa ombi hili.',
     'next_action' => 'Ongeza mdhamini mwingine kwa ombi hili',
     'submitted' => 'Taarifa za mdhamini zimewasilishwa. Tutendelea kukagua ombi lako.',
+    'change_notify_title' => 'Tafadhali badilisha mdhamini',
+    'change_notify_body' => 'Ukaguzi unahitaji mdhamini mwingine kwa ombi :reference. :guarantor hakukubaliwa kwa faili hili — chagua mtu mwingine. Uanachama wake hauathiriwi.',
+    'change_cta' => 'Chagua mdhamini mwingine',
+    'change_admin_button' => 'Omba mkopaji abadilishe mdhamini',
+    'change_admin_notes' => 'Sababu inayoonekana kwa mkopaji (hiari)',
+    'change_admin_success' => 'Mdhamini huyu amekataliwa kwa ombi hili. Mkopaji ameombwa achague mtu mwingine.',
+    'change_borrower_banner' => 'Ukaguzi umeomba uchague mdhamini mwingine kwa ombi hili.',
 ],
 
   'guarantor_invite' =>
