@@ -1,8 +1,10 @@
 <x-site.borrower-layout :title="brand_title(__('borrower.loans_page.title'))" active="loans" content-width="wide" :portalMode="($isGuarantorPortal ?? false) ? 'guarantor' : 'borrower'">
 
     @php
+        $isClosedApplicationRow = fn (array $row): bool => ! empty($row['is_closed'])
+            || in_array((string) ($row['status'] ?? ''), ['withdrawn', 'offer_declined', 'rejected'], true);
         $loanSummary = [
-            'applications' => count($applicationRows ?? []),
+            'applications' => collect($applicationRows ?? [])->reject($isClosedApplicationRow)->count(),
             'active' => ($loans ?? collect())->count(),
             'guarantor' => ($pendingGuarantorRequests ?? collect())->count(),
             'guaranteed' => ($guaranteedLinks ?? collect())->count(),
