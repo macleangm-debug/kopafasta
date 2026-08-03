@@ -135,6 +135,7 @@ export function applyWizard(config) {
                 pointsBalance: Number(config.pointsBalance || 0),
                 declarationAccepted: !!(config.savedDraft?.declaration_accepted || config.savedDraft?.borrower_signature || config.profileSignature),
                 declarationSaveTimer: null,
+                resigningOnSubmit: false,
                 i18n: config.i18n,
                 phase: 'details',
                 readiness: null,
@@ -2924,13 +2925,9 @@ export function applyWizard(config) {
                             this.reviewPage = 1;
                             this.refreshReview(this.formRoot());
                         }
-                        if (this.stepKey === 'submit' && ! this.borrowerSignature?.signature_data) {
-                            if (this.profileUrl) {
-                                window.location.href = this.profileUrl.includes('focus=signature')
-                                    ? this.profileUrl
-                                    : (this.profileUrl + (this.profileUrl.includes('?') ? '&' : '?') + 'section=personal&focus=signature');
-                                return;
-                            }
+                        if (this.stepKey === 'submit') {
+                            this.resigningOnSubmit = ! this.borrowerSignature?.signature_data;
+                            this.$nextTick(() => this.syncSubmitPayload(this.formRoot()));
                         }
                         this.scrollWizardIntoView();
                     } finally {
@@ -2982,6 +2979,34 @@ export function applyWizard(config) {
                     const pad = form?.querySelector('[data-signature-pad]');
                     const alpineData = pad?._x_dataStack?.[0];
                     alpineData?.loadFromDataUrl?.(sig);
+                },
+
+                startResignOnSubmit() {
+                    this.resigningOnSubmit = true;
+                    this.$nextTick(() => {
+                        const form = this.formRoot();
+                        const pad = form?.querySelector('[data-signature-pad]');
+                        const alpineData = pad?._x_dataStack?.[0];
+                        alpineData?.clear?.();
+                    });
+                },
+
+                captureSubmitSignature(form) {
+                    const fromPad = this.readSignatureFromPad(form);
+                    if (fromPad) {
+                        this.borrowerSignature = {
+                            signer_name: this.verifiedLegalName || this.borrowerSignature?.signer_name || '',
+                            signature_data: fromPad,
+                            consent_accepted: true,
+                            signed_at: new Date().toISOString(),
+                        };
+                        this.resigningOnSubmit = false;
+                        this.declarationAccepted = true;
+                        return fromPad;
+                    }
+                    return this.borrowerSignature?.signature_data
+                        || this.profileSignature?.signature_data
+                        || '';
                 },
 
                 readSignatureFromPad(form) {
@@ -3041,19 +3066,21 @@ export function applyWizard(config) {
                         showWizardFeedback(this.i18n.group.membersNotVerified);
                         return;
                     }
-                    const sigData = this.borrowerSignature?.signature_data
-                        || this.profileSignature?.signature_data
-                        || this.readSignatureFromPad(e.target);
+                    if (! this.declarationAccepted && ! this.supplementMode) {
+                        showWizardFeedback(this.i18n.alerts.acceptTerms);
+                        return;
+                    }
+                    const sigData = this.supplementMode
+                        ? (this.borrowerSignature?.signature_data || this.profileSignature?.signature_data || 'supplement')
+                        : this.captureSubmitSignature(e.target);
                     const signerName = (this.borrowerSignature?.signer_name
                         || this.profileSignature?.signer_name
                         || this.verifiedLegalName
                         || e.target.elements['signer_name']?.value
                         || '').trim();
-                    if (! signerName || ! sigData) {
-                        const target = this.profileUrl || '/borrower/profile';
-                        window.location.href = target.includes('focus=signature')
-                            ? target
-                            : (target + (target.includes('?') ? '&' : '?') + 'section=personal&focus=signature');
+                    if (! this.supplementMode && (! signerName || ! sigData)) {
+                        showWizardFeedback(this.i18n.alerts.drawSignature);
+                        this.resigningOnSubmit = true;
                         return;
                     }
                     this.syncSubmitPayload(e.target);

@@ -1,4 +1,4 @@
-{{-- Submit step — final confirmation (premium brand treatment) --}}
+{{-- Submit step — signature-first, no duplicate deal/guarantor cards --}}
 <div x-show="stepKey === 'submit'" class="p-6 sm:p-8">
     <x-site.wizard-step-header
         :eyebrow="__('borrower.apply.steps.submit')"
@@ -26,90 +26,74 @@
         <p class="mt-1 text-sky-800">{{ __('borrower.apply.submit_step.supplement_hint') }}</p>
     </div>
 
-    <div x-show="canApply && !supplementMode" x-cloak
-         class="mb-6 rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-gradient-to-br from-brand via-brand to-brand-light text-white shadow-sm">
-        <div class="px-5 sm:px-6 py-5 flex items-start gap-4">
-            <span class="size-12 rounded-full bg-brand-gold text-brand grid place-items-center text-xl font-bold shrink-0 shadow-sm">✓</span>
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.apply.steps.submit') }}</p>
-                <p class="text-lg font-bold mt-1">{{ __('borrower.apply.submit_step.signed_title') }}</p>
-                <p class="text-sm text-white/85 mt-1">{{ __('borrower.apply.submit_step.signed_hint') }}</p>
-            </div>
-        </div>
-    </div>
+    {{-- Premium signature surface --}}
+    <section class="relative overflow-hidden rounded-3xl ring-1 ring-brand/15 bg-white shadow-lg shadow-brand/10 mb-6"
+             x-show="!supplementMode"
+             x-cloak>
+        <div class="absolute inset-x-0 top-0 h-28 bg-gradient-to-br from-brand via-brand to-brand-light" aria-hidden="true"></div>
+        <div class="absolute inset-x-0 top-0 h-28 opacity-20" style="background-image: radial-gradient(circle at 15% 20%, #fff 0, transparent 40%), radial-gradient(circle at 85% 0%, #f5c842 0, transparent 35%);" aria-hidden="true"></div>
 
-    <section class="glass-card overflow-hidden ring-1 ring-brand/15 mb-6">
-        <div class="bg-gradient-to-r from-brand-muted/40 to-white px-5 py-3 border-b border-brand/10 flex items-center justify-between gap-3">
-            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.submit_step.summary_title') }}</p>
-            <button type="button"
-                    x-show="hasStep('quote') || hasStep('asset_tenure') || hasStep('asset_details')"
-                    @click="gotoKey(hasStep('asset_details') ? 'asset_details' : (hasStep('quote') ? 'quote' : 'asset_tenure'), { returnTo: 'submit' })"
-                    class="text-xs font-semibold text-brand hover:underline shrink-0">
-                {{ __('borrower.apply.submit_step.edit_quote') }}
-            </button>
+        <div class="relative px-5 sm:px-7 pt-6 pb-2">
+            <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">{{ __('borrower.apply.signature_draw_label') }}</p>
+            <p class="mt-2 text-xl sm:text-2xl font-bold text-white tracking-tight"
+               x-text="verifiedLegalName || borrowerSignature?.signer_name || '—'"></p>
+            <p x-show="identityVerified" x-cloak
+               class="mt-2 inline-flex items-center gap-1.5 text-[11px] font-semibold bg-white/15 text-white px-2.5 py-1 rounded-lg">
+                <span aria-hidden="true">✓</span> {{ __('borrower.apply.signature_verified') }}
+            </p>
         </div>
-        <dl class="grid sm:grid-cols-2 text-sm">
-            <div class="px-5 py-4 border-b sm:border-r border-gray-100">
-                <dt class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.apply.review_step.product') }}</dt>
-                <dd class="mt-1 font-semibold text-gray-900" x-text="current?.name || '—'"></dd>
+
+        <div class="relative mx-4 sm:mx-6 mb-4 -mt-1 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
+            <div class="px-4 sm:px-5 pt-4 pb-3 border-b border-gray-100">
+                <label class="flex items-start gap-3 text-sm text-gray-700 cursor-pointer">
+                    <input type="checkbox"
+                           name="borrower_consent"
+                           value="1"
+                           x-model="declarationAccepted"
+                           @change="persistDeclaration()"
+                           class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand">
+                    <span class="leading-snug">{{ __('borrower.apply.signature_consent', ['brand' => brand_name()]) }}</span>
+                </label>
             </div>
-            <div class="px-5 py-4 border-b border-gray-100">
-                <dt class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.apply.review_step.loan_amount') }}</dt>
-                <dd class="mt-1 font-semibold tabular-nums text-gray-900" x-text="formatTzs(form.requested_amount)"></dd>
-                <dd class="text-[11px] text-gray-500 mt-0.5" x-show="isAssetBackedProduct(current)">{{ __('borrower.apply.asset_details.request_label') }}</dd>
+
+            <div class="p-4 sm:p-5"
+                 :class="declarationAccepted ? '' : 'opacity-55 pointer-events-none'">
+                {{-- Saved signature preview --}}
+                <div x-show="borrowerSignature?.signature_data && !resigningOnSubmit" x-cloak class="space-y-3">
+                    <div class="rounded-2xl bg-[linear-gradient(180deg,#f8faf9_0%,#ffffff_55%)] ring-1 ring-brand/10 px-3 py-4 min-h-[9rem] grid place-items-center">
+                        <img :src="borrowerSignature.signature_data"
+                             alt=""
+                             class="max-h-28 w-auto max-w-full object-contain">
+                    </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-xs font-semibold text-emerald-700 flex items-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 20 20" stroke="currentColor" stroke-width="2"><path d="M5 10l3 3 7-7"/></svg>
+                            {{ __('borrower.apply.submit_step.signed_hint_short') }}
+                        </p>
+                        <button type="button"
+                                @click="startResignOnSubmit()"
+                                class="text-xs font-semibold text-brand hover:underline">
+                            {{ __('borrower.apply.signature_clear') }}
+                        </button>
+                    </div>
+                </div>
+
+                {{-- Live pad when unsigned or resigning --}}
+                <template x-if="!borrowerSignature?.signature_data || resigningOnSubmit">
+                    <div>
+                        <x-site.signature-pad
+                            :default-name="$verifiedLegalName"
+                            :readonly-name="true"
+                            :verified="$identityVerified"
+                            :include-in-form="false"
+                            compact />
+                    </div>
+                </template>
             </div>
-            <div class="px-5 py-4 sm:border-r border-gray-100">
-                <dt class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.apply.review_step.duration') }}</dt>
-                <dd class="mt-1 font-semibold text-gray-900"><span x-text="form.requested_tenure_months"></span> {{ __('borrower.apply.browse.months_short') }}</dd>
-                <dd class="text-[11px] text-gray-500 mt-0.5" x-show="isAssetBackedProduct(current)">{{ __('borrower.apply.asset_details.request_label') }}</dd>
-            </div>
-            <div class="px-5 py-4">
-                <dt class="text-[10px] uppercase tracking-widest text-gray-500" x-text="repaymentCadence() === 'monthly' ? @js(__('borrower.apply.review_step.monthly_repayment')) : @js(__('borrower.apply.review_step.weekly_repayment'))"></dt>
-                <dd class="mt-1 font-semibold text-brand" x-show="isAssetBackedProduct(current)">{{ __('borrower.apply.asset_details.repayment_pending_offer') }}</dd>
-                <dd class="mt-1 font-semibold tabular-nums text-brand" x-show="!isAssetBackedProduct(current)" x-text="formatTzs(displayInstallmentAmount())"></dd>
-            </div>
-        </dl>
+        </div>
     </section>
 
-    <div x-show="hasStep('guarantor') && form.guarantor_mode && form.guarantor_mode !== 'none'" x-cloak
-         class="mb-6 rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white shadow-sm">
-        <div class="bg-gradient-to-br from-brand-muted/50 to-white px-5 py-4 border-b border-brand/10">
-            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.review_step.guarantor_section') }}</p>
-            <p class="text-base font-semibold text-gray-900 mt-1" x-text="review.guarantorName || guarantorSummaryText()"></p>
-        </div>
-        <div class="px-5 py-5 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <div class="min-w-0">
-                <p class="text-sm font-semibold text-gray-900" x-text="review.guarantorStatus || @js(__('borrower.apply.submit_step.guarantor_pending_title'))"></p>
-                <p class="text-sm text-gray-600 mt-1">{{ __('borrower.apply.submit_step.guarantor_pending_hint') }}</p>
-            </div>
-            <div class="flex flex-col gap-2 shrink-0 w-full sm:w-auto">
-                <button type="button"
-                        @click="gotoKey('guarantor', { returnTo: 'submit' })"
-                        class="inline-flex justify-center bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-semibold px-4 py-2.5 rounded-xl text-sm">
-                    {{ __('borrower.apply.submit_step.view_guarantor') }}
-                </button>
-                <button type="button"
-                        @click="gotoKey('guarantor', { returnTo: 'submit' }); $nextTick(() => { if (isGuarantorLocked()) changeGuarantor(); })"
-                        :disabled="guarantorChanging"
-                        class="inline-flex justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm disabled:opacity-60">
-                    {{ __('borrower.apply.change_guarantor') }}
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <div x-show="borrowerSignature?.signature_data" x-cloak
-         class="mb-6 rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white">
-        <div class="bg-gradient-to-r from-brand-muted/40 to-white px-5 py-3 border-b border-brand/10">
-            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.signature_draw_label') }}</p>
-            <p class="text-sm font-semibold text-gray-900 mt-0.5" x-text="borrowerSignature?.signer_name || verifiedLegalName"></p>
-        </div>
-        <div class="px-5 py-4">
-            <img :src="borrowerSignature?.signature_data" alt="" class="max-h-32 border border-gray-200 rounded-xl bg-white">
-        </div>
-    </div>
-
-    <div x-show="draftReference" class="glass-card rounded-2xl bg-brand-muted/30 ring-1 ring-brand/15 px-5 py-4 text-sm text-gray-700 mb-6">
+    <div x-show="draftReference" class="rounded-2xl bg-brand-muted/40 ring-1 ring-brand/10 px-5 py-3.5 text-sm text-gray-700">
         {{ __('borrower.apply.submit_step.reference') }}:
         <span class="font-mono font-semibold text-gray-900" x-text="draftReference"></span>
     </div>

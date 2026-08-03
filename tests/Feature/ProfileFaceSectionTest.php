@@ -55,6 +55,8 @@ class ProfileFaceSectionTest extends TestCase
         $response->assertOk()
             ->assertSee('id="profile-face"', false)
             ->assertSee(__('borrower.profile.edit_section'), false)
+            ->assertSee(__('borrower.profile.section_complete_tap'), false)
+            ->assertSee('showCompleteTick', false)
             ->assertSee(__('borrower.nida.face_captured_photos'), false)
             ->assertSee(__('borrower.nida.face_view'), false)
             ->assertSee(__('borrower.profile.tap_to_enlarge'), false)

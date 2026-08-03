@@ -826,9 +826,10 @@ return [
     'submit_step' => 
 [
       'title' => 'Wasilisha ombi',
-      'subtitle' => 'Ombi lako limesainiwa. Wasilisha kwa ukaguzi unapokuwa tayari.',
+      'subtitle' => 'Saini hapa chini, kisha tuma ombi lako kwa ukaguzi.',
       'signed_title' => 'Ombi limesainiwa',
       'signed_hint' => 'Saini yako ya kidijitali imehifadhiwa. Bofya hapa chini kuwasilisha ombi lako.',
+      'signed_hint_short' => 'Saini imehifadhiwa — tayari kuwasilisha.',
       'reference' => 'Rejea ya ombi',
       'summary_title' => 'Tayari kuwasilisha',
       'guarantor_pending_title' => 'Mwaliko wa mdhamini unasubiri',
@@ -1600,6 +1601,7 @@ return [
       'assets_hint' => 'Magari, mali na dhamana nyingine.',
       'optional_for_apply' => 'Si lazima kwa mikopo mingi — inahitajika tu unapoombа mkopo wenye dhamana ya mali.',
       'view_edit' => 'Angalia / Hariri',
+      'view' => 'Angalia',
       'complete_section' => 'Kamilisha sehemu',
       'add' => 'Ongeza',
       'upload' => 'Pakia mbele na nyuma',
@@ -1834,6 +1836,7 @@ return [
     'section_empty' => 'Hakuna maelezo yaliyoongezwa bado.',
     'cancel_edit' => 'Ghairi',
     'section_complete' => 'Imekamilika',
+    'section_complete_tap' => 'Imekamilika — gusa kuhariri',
     'section_incomplete' => 'Haijakamilika',
     'uploaded' => 'Imepakiwa',
     'missing' => 'Inakosekana',

@@ -65,7 +65,7 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
             $this->assertNotEmpty(__('borrower.apply.review_step.deal_snapshot', [], $locale));
             $this->assertNotEmpty(__('borrower.apply.review_step.pages_nav', [], $locale));
             $this->assertNotEmpty(__('borrower.apply.quote.change_purpose', [], $locale));
-            $this->assertNotEmpty(__('borrower.apply.submit_step.summary_title', [], $locale));
+            $this->assertNotEmpty(__('borrower.apply.submit_step.signed_hint_short', [], $locale));
             $this->assertNotEmpty(__('borrower.apply.submit_step.guarantor_pending_hint', [], $locale));
             $this->assertNotEmpty(__('borrower.apply.success.celebration_eyebrow', [], $locale));
             $this->assertNotSame(
@@ -81,11 +81,13 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
         $js = file_get_contents(resource_path('js/apply-wizard.js'));
         $sheet = file_get_contents(resource_path('views/components/site/sheet-select.blade.php'));
         $quote = file_get_contents(resource_path('views/site/apply/_quote-step.blade.php'));
+        $submit = file_get_contents(resource_path('views/site/apply/_submit-step.blade.php'));
 
         $this->assertNotFalse($review);
         $this->assertNotFalse($js);
         $this->assertNotFalse($sheet);
         $this->assertNotFalse($quote);
+        $this->assertNotFalse($submit);
 
         $this->assertStringContainsString('displayInstallmentAmount()', $review);
         $this->assertStringNotContainsString('reviewSummary.installment_amount ?? quote.primary', $review);
@@ -100,5 +102,13 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
         $this->assertStringContainsString('optionEntries', $sheet);
         $this->assertStringContainsString('change_purpose', $quote);
         $this->assertStringContainsString('purposeEditing', $quote);
+        $this->assertStringContainsString('signature_draw_label', $submit);
+        $this->assertStringContainsString('resigningOnSubmit', $submit);
+        $this->assertStringContainsString('showCompleteTick', file_get_contents(resource_path('views/components/site/profile-section-card.blade.php')));
+        $this->assertStringNotContainsString('summary_title', $submit);
+        $this->assertStringNotContainsString('edit_quote', $submit);
+        $this->assertStringNotContainsString('view_guarantor', $submit);
+        $this->assertStringContainsString('resigningOnSubmit: false', $js);
+        $this->assertStringContainsString('startResignOnSubmit()', $js);
     }
 }

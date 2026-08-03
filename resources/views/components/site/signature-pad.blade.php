@@ -6,35 +6,48 @@
     'verified' => false,
     'includeInForm' => true,
     'initialDataUrl' => '',
+    'compact' => false,
 ])
 
-<div x-data="signaturePad(@js($defaultName), @js((bool) $readonlyName), @js($initialDataUrl))" class="space-y-4" data-signature-pad>
-    <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.signature_legal_name') }}</label>
-        @if ($readonlyName)
-            <div class="rounded-lg ring-1 ring-gray-200 bg-gray-50 px-3 py-3">
-                <p class="text-sm font-semibold text-gray-900">{{ $defaultName }}</p>
-                @if ($verified)
-                    <p class="text-xs font-semibold text-emerald-700 mt-1">{{ __('borrower.apply.signature_verified') }}</p>
+<div x-data="signaturePad(@js($defaultName), @js((bool) $readonlyName), @js($initialDataUrl))"
+     class="{{ $compact ? 'space-y-3' : 'space-y-4' }}"
+     data-signature-pad>
+    @unless ($compact)
+        <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.signature_legal_name') }}</label>
+            @if ($readonlyName)
+                <div class="rounded-lg ring-1 ring-gray-200 bg-gray-50 px-3 py-3">
+                    <p class="text-sm font-semibold text-gray-900">{{ $defaultName }}</p>
+                    @if ($verified)
+                        <p class="text-xs font-semibold text-emerald-700 mt-1">{{ __('borrower.apply.signature_verified') }}</p>
+                    @endif
+                </div>
+                @if ($includeInForm)
+                    <input type="hidden" name="{{ $signerName }}" value="{{ $defaultName }}">
                 @endif
-            </div>
-            @if ($includeInForm)
-                <input type="hidden" name="{{ $signerName }}" value="{{ $defaultName }}">
+            @else
+                <input type="text" @if ($includeInForm) name="{{ $signerName }}" @endif x-model="signerName" required
+                       class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
             @endif
-        @else
-            <input type="text" @if ($includeInForm) name="{{ $signerName }}" @endif x-model="signerName" required
-                   class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+        </div>
+    @else
+        @if ($includeInForm && $readonlyName)
+            <input type="hidden" name="{{ $signerName }}" value="{{ $defaultName }}">
         @endif
-    </div>
+    @endunless
+
     <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.signature_draw_label') }}</label>
-        <div class="rounded-xl ring-1 ring-gray-200 bg-white overflow-hidden">
-            <canvas x-ref="canvas" width="900" height="270" class="w-full touch-none cursor-crosshair bg-white"
+        @unless ($compact)
+            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.apply.signature_draw_label') }}</label>
+        @endunless
+        <div class="rounded-2xl ring-1 ring-brand/15 bg-[linear-gradient(180deg,#f8faf9_0%,#ffffff_55%)] overflow-hidden">
+            <canvas x-ref="canvas" width="900" height="{{ $compact ? 220 : 270 }}"
+                    class="w-full touch-none cursor-crosshair bg-transparent"
                     @mousedown="startDraw($event)" @mousemove="draw($event)" @mouseup="endDraw()" @mouseleave="endDraw()"
                     @touchstart.prevent="startDraw($event)" @touchmove.prevent="draw($event)" @touchend.prevent="endDraw()"></canvas>
         </div>
-        <div class="flex justify-between items-center mt-2">
-            <button type="button" @click="clear()" class="text-xs font-semibold text-gray-600 hover:text-gray-900">{{ __('borrower.apply.signature_clear') }}</button>
+        <div class="flex justify-between items-center mt-2.5 gap-3">
+            <button type="button" @click="clear()" class="text-xs font-semibold text-brand/80 hover:text-brand">{{ __('borrower.apply.signature_clear') }}</button>
             <p class="text-[11px] text-gray-500">{{ __('borrower.apply.signature_draw_hint') }}</p>
         </div>
     </div>
@@ -56,8 +69,8 @@
                     initCanvas() {
                         const canvas = this.$refs.canvas;
                         this.ctx = canvas.getContext('2d');
-                        this.ctx.strokeStyle = '#1d4ed8';
-                        this.ctx.lineWidth = 2.25;
+                        this.ctx.strokeStyle = '#004d40';
+                        this.ctx.lineWidth = 2.5;
                         this.ctx.lineCap = 'round';
                         this.ctx.lineJoin = 'round';
                     },

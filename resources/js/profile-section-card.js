@@ -5,12 +5,18 @@ export function registerProfileSectionCard(Alpine) {
     Alpine.data('profileSectionCard', (config = {}) => ({
         open: !!config.open,
         expanded: !!config.expanded,
+        complete: !!config.complete,
+        showEditAction: !!config.showEditAction,
         id: config.id || '',
         sectionHash: config.sectionHash || '',
         unsavedTitle: config.unsavedTitle || 'Leave without saving?',
         unsavedMessage: config.unsavedMessage || 'You have unsaved photos. Leave anyway?',
         unsavedConfirm: config.unsavedConfirm || 'Discard photos',
         _onAccordion: null,
+
+        get showCompleteTick() {
+            return this.complete && ! this.open && ! this.showEditAction;
+        },
 
         toggleExpand() {
             if (this.open) {
@@ -19,18 +25,28 @@ export function registerProfileSectionCard(Alpine) {
             this.expanded = ! this.expanded;
             if (this.expanded) {
                 window.dispatchEvent(new CustomEvent('profile-accordion', { detail: this.id }));
+            } else {
+                this.showEditAction = false;
             }
+        },
+
+        revealEdit() {
+            this.showEditAction = true;
+            this.expanded = true;
+            window.dispatchEvent(new CustomEvent('profile-accordion', { detail: this.id }));
         },
 
         openEdit() {
             this.open = true;
             this.expanded = true;
+            this.showEditAction = true;
             window.dispatchEvent(new CustomEvent('profile-accordion', { detail: this.id }));
         },
 
         requestClose() {
             if (! this.open) {
                 this.expanded = false;
+                this.showEditAction = false;
                 return;
             }
 
@@ -39,10 +55,12 @@ export function registerProfileSectionCard(Alpine) {
                 proceed: () => {
                     this.open = false;
                     this.expanded = false;
+                    this.showEditAction = false;
                 },
                 stay: () => {
                     this.open = true;
                     this.expanded = true;
+                    this.showEditAction = true;
                     window.dispatchEvent(new CustomEvent('profile-accordion', { detail: this.id }));
                 },
             };
@@ -93,6 +111,9 @@ export function registerProfileSectionCard(Alpine) {
                 if (! this.open) {
                     this.open = false;
                 }
+                if (this.complete) {
+                    this.showEditAction = true;
+                }
             }
 
             this._onAccordion = (e) => {
@@ -104,6 +125,7 @@ export function registerProfileSectionCard(Alpine) {
                 } else {
                     this.expanded = false;
                     this.open = false;
+                    this.showEditAction = false;
                 }
             };
             window.addEventListener('profile-accordion', this._onAccordion);
