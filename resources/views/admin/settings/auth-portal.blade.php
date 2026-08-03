@@ -13,7 +13,7 @@
             <p class="text-xs text-gray-500 mb-4">
                 When enabled, users must enroll an authenticator app on first sign-in, then enter a code (or recovery code) on <strong>every new login</strong>.
                 Trusted devices cannot skip 2FA. Within an active session, the code is not re-asked until logout or the session trust window expires.
-                Staff without console access use the <a href="{{ route('staff.login') }}" class="text-amber-700 underline">staff workspace</a>.
+                Each person manages their own authenticator under <a href="{{ route('admin.settings.account-security') }}" class="text-amber-700 underline">Account security</a>.
             </p>
 
             <div class="space-y-3">

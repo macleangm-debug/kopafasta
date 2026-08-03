@@ -467,8 +467,6 @@ Route::prefix('staff')->name('staff.')->group(function () {
         Route::post('logout', [StaffAuthController::class, 'logout'])->name('logout');
         Route::get('/', [StaffPortalController::class, 'dashboard'])->name('dashboard');
         Route::get('security', [StaffPortalController::class, 'security'])->name('security');
-        Route::post('security/recovery-codes', [StaffPortalController::class, 'regenerateRecoveryCodes'])
-            ->name('security.regenerate-recovery');
     });
 });
 
@@ -853,6 +851,10 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('settings',                  [SettingsController::class, 'index'])         ->name('settings.index');
         Route::get('settings/company',          [SettingsController::class, 'company'])       ->name('settings.company');
         Route::put('settings/company',          [SettingsController::class, 'saveCompany'])   ->name('settings.company.save');
+        Route::get('settings/account-security', [\App\Http\Controllers\Admin\AccountSecurityController::class, 'show'])
+            ->name('settings.account-security');
+        Route::post('settings/account-security/recovery-codes', [\App\Http\Controllers\Admin\AccountSecurityController::class, 'regenerateRecoveryCodes'])
+            ->name('settings.account-security.regenerate');
         Route::get('settings/auth-portal',      [SettingsController::class, 'authPortal'])   ->name('settings.auth-portal');
         Route::put('settings/auth-portal',      [SettingsController::class, 'saveAuthPortal'])->name('settings.auth-portal.save');
         Route::get('settings/gateways',         [SettingsController::class, 'gateways'])      ->name('settings.gateways');

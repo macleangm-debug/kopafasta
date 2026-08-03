@@ -160,6 +160,38 @@ class Phase69StaffPortalAnd2faFeatureTest extends TestCase
             ->assertRedirect(route('staff.login'));
     }
 
+    public function test_console_admin_is_redirected_away_from_staff_dashboard(): void
+    {
+        $secret = app(TotpService::class)->generateSecret();
+
+        $admin = User::factory()->create([
+            'role'                    => 'admin',
+            'two_factor_secret'       => $secret,
+            'two_factor_confirmed_at' => now(),
+        ]);
+
+        $this->actingAs($admin, 'admin')
+            ->withSession(['two_factor_verified_at' => now()->timestamp])
+            ->get(route('staff.dashboard'))
+            ->assertRedirect(route('admin.dashboard'));
+    }
+
+    public function test_staff_security_redirects_into_admin_account_security(): void
+    {
+        $secret = app(TotpService::class)->generateSecret();
+
+        $collector = User::factory()->create([
+            'role'                    => 'collector',
+            'two_factor_secret'       => $secret,
+            'two_factor_confirmed_at' => now(),
+        ]);
+
+        $this->actingAs($collector, 'admin')
+            ->withSession(['two_factor_verified_at' => now()->timestamp])
+            ->get(route('staff.security'))
+            ->assertRedirect(route('admin.settings.account-security'));
+    }
+
     public function test_enabled_security_page_shows_status_and_recovery_actions(): void
     {
         $secret = app(TotpService::class)->generateSecret();
@@ -174,10 +206,10 @@ class Phase69StaffPortalAnd2faFeatureTest extends TestCase
 
         $this->actingAs($collector, 'admin')
             ->withSession(['two_factor_verified_at' => now()->timestamp])
-            ->get(route('staff.security'))
+            ->get(route('admin.settings.account-security'))
             ->assertOk()
             ->assertSee('Account security', false)
-            ->assertSee('Protected with authenticator', false)
+            ->assertSee('Two-factor authentication', false)
             ->assertSee('2 remaining', false)
             ->assertSee('Generate new recovery codes', false);
     }
@@ -197,8 +229,8 @@ class Phase69StaffPortalAnd2faFeatureTest extends TestCase
 
         $this->actingAs($collector, 'admin')
             ->withSession(['two_factor_verified_at' => now()->timestamp])
-            ->post(route('staff.security.regenerate-recovery'), ['code' => $code])
-            ->assertRedirect(route('staff.security'))
+            ->post(route('admin.settings.account-security.regenerate'), ['code' => $code])
+            ->assertRedirect(route('admin.settings.account-security'))
             ->assertSessionHas('fresh_recovery_codes');
 
         $fresh = $collector->fresh()->two_factor_recovery_codes;

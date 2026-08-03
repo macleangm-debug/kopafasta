@@ -10,6 +10,7 @@
 return [
     'Organization' => [
         ['Company profile', 'admin.settings.company', 'company'],
+        ['Account security', 'admin.settings.account-security', 'account-security'],
         ['Authentication', 'admin.settings.auth-portal', 'auth-portal'],
         ['Branches', 'admin.branches.index', 'branches'],
         ['Departments', 'admin.departments.index', 'departments'],

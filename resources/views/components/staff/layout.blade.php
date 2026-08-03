@@ -17,10 +17,7 @@
             </div>
             <nav class="flex flex-wrap gap-2 text-sm">
                 <a href="{{ route('staff.dashboard') }}" class="px-3 py-1.5 rounded-full {{ request()->routeIs('staff.dashboard') ? 'bg-amber-500 text-gray-900' : 'bg-slate-800' }}">Dashboard</a>
-                <a href="{{ route('staff.security') }}" class="px-3 py-1.5 rounded-full {{ request()->routeIs('staff.security') ? 'bg-amber-500 text-gray-900' : 'bg-slate-800' }}">Security</a>
-                @if (app(\App\Services\RoleService::class)->hasConsoleAccess(auth('admin')->user()))
-                    <a href="{{ route('admin.dashboard') }}" class="px-3 py-1.5 rounded-full bg-slate-800">Open console</a>
-                @endif
+                <a href="{{ route('admin.settings.account-security') }}" class="px-3 py-1.5 rounded-full bg-slate-800">Account security</a>
                 <form method="POST" action="{{ route('staff.logout') }}">
                     @csrf
                     <button type="submit" class="px-3 py-1.5 rounded-full bg-slate-800">Sign out</button>

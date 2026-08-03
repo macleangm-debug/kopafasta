@@ -126,8 +126,7 @@ class WebTwoFactorController extends Controller
     {
         return match ($context) {
             'partner' => route('site.partner.dashboard'),
-            'staff'   => route('staff.security'),
-            default   => route('admin.dashboard'),
+            default   => route('admin.settings.account-security'),
         };
     }
 }
