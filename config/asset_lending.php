@@ -83,6 +83,14 @@ return [
         'machinery'   => 'machinery',
     ],
 
+    'max_asset_photos' => (int) env('ASSET_LENDING_MAX_PHOTOS', 4),
+
+    /**
+     * Oldest acceptable vehicle manufacture year = current year − this value.
+     * Example: 10 in 2026 → vehicles from 2016 through 2026.
+     */
+    'vehicle_max_age_years' => (int) env('ASSET_LENDING_VEHICLE_MAX_AGE_YEARS', 10),
+
     'asset_request_statuses' => [
         'sourcing'  => 'Asset sourcing request',
         'reviewing' => 'Under review',

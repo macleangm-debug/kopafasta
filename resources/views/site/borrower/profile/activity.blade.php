@@ -17,11 +17,7 @@
             $incomeLabel = income_range_label($customer->income_range);
             $focus = request()->query('focus');
             $openActivity = ($wizardMode ?? false) || ($editing ?? false)
-                || $errors->hasAny(['activity_type', 'income_range', 'employment_contract', 'activity_details'])
-                || ! in_array($focus, ['income', 'statement', 'additional', 'documents'], true);
-            if (in_array($focus, ['income', 'statement', 'additional', 'documents'], true)) {
-                $openActivity = false;
-            }
+                || $errors->hasAny(['activity_type', 'income_range', 'employment_contract', 'activity_details']);
         @endphp
 
         @if ($activityStale && $activityComplete)
@@ -43,7 +39,8 @@
             icon="💼"
             :title="__('borrower.profile.activity')"
             :empty="! filled($customer->activity_type) || ! filled($customer->income_range)"
-            :default-open="$openActivity">
+            :default-open="false"
+            :default-edit="$openActivity">
             <x-slot:view>
                 <dl class="grid sm:grid-cols-2 gap-4 text-sm">
                     <div>

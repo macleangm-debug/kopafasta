@@ -2988,8 +2988,16 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         $type = (string) $request->input('asset_type');
         $detailRules = [];
+        $vehicleMaxAge = (int) (\App\Models\Setting::get('asset_lending.vehicle_max_age_years')
+            ?? config('asset_lending.vehicle_max_age_years', 10));
+        $yearMax = (int) now()->year;
+        $yearMin = $yearMax - max(1, $vehicleMaxAge);
         foreach (\App\Models\CustomerAsset::detailFieldsFor($type) as $field) {
             if ($field['column'] ?? false) {
+                continue;
+            }
+            if (in_array($field['key'], ['year', 'purchase_year'], true)) {
+                $detailRules['details.'.$field['key']] = ['required', 'integer', 'min:'.$yearMin, 'max:'.$yearMax];
                 continue;
             }
             $detailRules['details.'.$field['key']] = ['required', 'string', 'max:150'];
@@ -3079,8 +3087,16 @@ class BorrowerController extends Controller
 
         $type = (string) $asset->asset_type;
         $detailRules = [];
+        $vehicleMaxAge = (int) (\App\Models\Setting::get('asset_lending.vehicle_max_age_years')
+            ?? config('asset_lending.vehicle_max_age_years', 10));
+        $yearMax = (int) now()->year;
+        $yearMin = $yearMax - max(1, $vehicleMaxAge);
         foreach (\App\Models\CustomerAsset::detailFieldsFor($type) as $field) {
             if ($field['column'] ?? false) {
+                continue;
+            }
+            if (in_array($field['key'], ['year', 'purchase_year'], true)) {
+                $detailRules['details.'.$field['key']] = ['required', 'integer', 'min:'.$yearMin, 'max:'.$yearMax];
                 continue;
             }
             $detailRules['details.'.$field['key']] = ['required', 'string', 'max:150'];

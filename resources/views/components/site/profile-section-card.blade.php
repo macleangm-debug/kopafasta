@@ -10,6 +10,7 @@
     'sectionId' => null,
     'inlineEdit' => true,
     'defaultOpen' => false,
+    'defaultEdit' => false,
     'allowOverflow' => false,
     'collapsible' => true,
     'showStatus' => false,
@@ -18,8 +19,8 @@
 @php
     $hasForm = isset($form);
     $useInline = $inlineEdit && ($hasForm || $editing) && ! $editUrl;
-    // Start collapsed; only open when editing or defaultOpen (e.g. deep-link / validation focus).
-    $startOpen = (bool) $editing || (bool) $defaultOpen;
+    // defaultOpen = expand to VIEW only. defaultEdit / editing = open the form.
+    $startOpen = (bool) $editing || (bool) $defaultEdit;
     $startExpanded = $startOpen || (bool) $defaultOpen;
     $accordionId = $sectionId ?: ('section-'.substr(md5($title), 0, 8));
 @endphp

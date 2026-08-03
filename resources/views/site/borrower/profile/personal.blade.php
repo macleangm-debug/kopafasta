@@ -48,13 +48,15 @@
             $faceHasPhotos = ($facePhotos ?? collect())->isNotEmpty();
             $focusHash = request()->query('focus');
             $errorFocus = match (true) {
-                $errors->hasAny(['national_id', 'national_id_front', 'national_id_back', 'alternate_id_types', 'alternate_id_front', 'alternate_id_back', 'no_physical_nida_card']) => 'identity',
+                $errors->hasAny(['national_id_front', 'national_id_back', 'alternate_id_types', 'alternate_id_front', 'alternate_id_back', 'no_physical_nida_card', 'passport', 'voter_id', 'driving_license', 'other_id']) => 'id_images',
+                $errors->hasAny(['national_id']) => 'identity',
                 $errors->hasAny(['phone', 'email']) => 'contact',
                 $errors->hasAny(['nok_first_name', 'nok_last_name', 'nok_name', 'nok_phone', 'nok_relationship', 'nok_region', 'nok_district', 'nok_street']) => 'kin',
                 $errors->hasAny(['signature_data', 'signer_name']) => 'signature',
                 default => null,
             };
             $focusHash = $focusHash ?: $errorFocus;
+            $editFocus = $errorFocus; // validation errors open the form; deep links expand view only
         @endphp
 
         @include('site.borrower.profile._nida_result', ['customer' => $customer])
@@ -95,67 +97,20 @@
                     :title="__('borrower.profile.fields.national_id')"
                     :complete="$hasIdentity"
                     :empty="! $hasIdentity"
-                    :default-open="$focusHash === 'identity'">
+                    :default-open="$focusHash === 'identity'"
+                    :default-edit="$editFocus === 'identity'">
                     <x-slot:view>
                         @if ($nidaSaved)
-                            <div class="flex flex-wrap items-start justify-between gap-3">
-                                <div>
-                                    <p class="text-lg font-mono font-semibold text-gray-900">{{ $customer->national_id }}</p>
-                                    <p class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
-                                        <span aria-hidden="true">🔒</span>{{ $locked ? __('borrower.nida.locked_title') : __('borrower.nida.saved_locked_title') }}
-                                    </p>
-                                    <p class="text-xs text-gray-500 mt-1">{{ $locked ? __('borrower.nida.locked_hint') : __('borrower.nida.saved_locked_hint') }}</p>
-                                </div>
+                            <div>
+                                <p class="text-lg font-mono font-semibold text-gray-900">{{ $customer->national_id }}</p>
+                                <p class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                                    <span aria-hidden="true">🔒</span>{{ $locked ? __('borrower.nida.locked_title') : __('borrower.nida.saved_locked_title') }}
+                                </p>
+                                <p class="text-xs text-gray-500 mt-1">{{ $locked ? __('borrower.nida.locked_hint') : __('borrower.nida.saved_locked_hint') }}</p>
                             </div>
-                            <dl class="mt-4 grid sm:grid-cols-2 gap-3 text-sm" x-data="{ expandedUrl: null }">
-                                @if ($customer->no_physical_nida_card)
-                                    <div class="sm:col-span-2 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-3">
-                                        <p class="text-sm font-semibold text-amber-900">{{ __('borrower.nida.no_card_saved_title') }}</p>
-                                        <p class="text-xs text-amber-800 mt-1">{{ __('borrower.nida.no_card_saved_hint') }}</p>
-                                    </div>
-                                @else
-                                <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
-                                    <dt class="text-xs text-gray-500">{{ __('borrower.profile.nida_front') }}</dt>
-                                    <dd class="mt-2">
-                                        @if ($nidaFront?->file_path)
-                                            @php $frontUrl = asset('storage/'.$nidaFront->file_path); @endphp
-                                            <button type="button" @click="expandedUrl = @js($frontUrl)"
-                                                    class="h-24 w-full max-w-[7rem] rounded-lg ring-1 ring-gray-200 overflow-hidden bg-white cursor-zoom-in block"
-                                                    title="{{ __('borrower.profile.view_document') }}">
-                                                <img src="{{ $frontUrl }}" alt="" class="h-full w-full object-cover object-center">
-                                            </button>
-                                        @else
-                                            <span class="font-semibold text-amber-700">{{ __('borrower.profile.missing') }}</span>
-                                        @endif
-                                    </dd>
-                                </div>
-                                <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
-                                    <dt class="text-xs text-gray-500">{{ __('borrower.profile.nida_back') }}</dt>
-                                    <dd class="mt-2">
-                                        @if ($nidaBack?->file_path)
-                                            @php $backUrl = asset('storage/'.$nidaBack->file_path); @endphp
-                                            <button type="button" @click="expandedUrl = @js($backUrl)"
-                                                    class="h-24 w-full max-w-[7rem] rounded-lg ring-1 ring-gray-200 overflow-hidden bg-white cursor-zoom-in block"
-                                                    title="{{ __('borrower.profile.view_document') }}">
-                                                <img src="{{ $backUrl }}" alt="" class="h-full w-full object-cover object-center">
-                                            </button>
-                                        @else
-                                            <span class="font-semibold text-amber-700">{{ __('borrower.profile.missing') }}</span>
-                                        @endif
-                                    </dd>
-                                </div>
-                                @endif
-                                <div x-show="expandedUrl" x-cloak x-transition
-                                     class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"
-                                     @keydown.escape.window="expandedUrl = null"
-                                     @click.self="expandedUrl = null">
-                                    <button type="button" class="absolute top-4 right-4 text-white/90 text-sm font-semibold" @click="expandedUrl = null">{{ __('borrower.profile.cancel') }}</button>
-                                    <img :src="expandedUrl" alt="" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
-                                </div>
-                            </dl>
                         @else
                             <p class="text-sm text-gray-500">{{ __('borrower.profile.section_empty') }}</p>
-                            <button type="button" @click="open = true" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
+                            <button type="button" @click="openEdit()" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
                         @endif
                         @unless ($requireIdentityDuringProfile)
                             <p class="text-xs text-gray-400 mt-2">{{ __('borrower.profile.identity_deferred_body') }}</p>
@@ -181,7 +136,7 @@
                                     @error('national_id')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                 </div>
                             </div>
-                            <x-site.gated-submit class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile.save')" />
+                            <x-site.gated-submit class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile.save')" :allow-empty="$nidaSaved" />
                         </form>
                     </x-slot:form>
                 </x-site.profile-section-card>
@@ -193,19 +148,84 @@
                     :title="__('borrower.profile.id_images_title')"
                     :complete="$uploadsComplete"
                     :empty="! $uploadsComplete"
-                    :default-open="$focusHash === 'id_images' || ($nidaSaved && ! $uploadsComplete)">
+                    :default-open="$focusHash === 'id_images'"
+                    :default-edit="$editFocus === 'id_images'">
                     <x-slot:view>
-                        @if ($uploadsComplete)
-                            <p class="text-sm font-semibold text-emerald-700">{{ __('borrower.profile.id_images_complete') }}</p>
-                        @else
-                            <p class="text-sm text-gray-500">{{ __('borrower.profile.id_images_empty') }}</p>
-                            <button type="button" @click="open = true" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
-                        @endif
+                        <div x-data="{ expandedUrl: null }" class="space-y-3">
+                            @if ($customer->no_physical_nida_card)
+                                <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-3">
+                                    <p class="text-sm font-semibold text-amber-900">{{ __('borrower.nida.no_card_saved_title') }}</p>
+                                    <p class="text-xs text-amber-800 mt-1">{{ __('borrower.nida.no_card_saved_hint') }}</p>
+                                </div>
+                                @php
+                                    $altPreview = collect(['passport', 'voter_id', 'driving_license', 'other_id'])
+                                        ->map(fn ($code) => $altDocs->get($code))
+                                        ->filter();
+                                @endphp
+                                @forelse ($altPreview as $doc)
+                                    @if ($doc?->file_path)
+                                        @php $url = asset('storage/'.$doc->file_path); @endphp
+                                        <button type="button" @click="expandedUrl = @js($url)"
+                                                class="h-28 w-28 rounded-xl overflow-hidden ring-1 ring-gray-200 bg-white cursor-zoom-in block">
+                                            <img src="{{ $url }}" alt="" class="h-full w-full object-cover">
+                                        </button>
+                                    @endif
+                                @empty
+                                    <p class="text-sm text-gray-500">{{ __('borrower.profile.id_images_empty') }}</p>
+                                    <button type="button" @click="openEdit()" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
+                                @endforelse
+                            @else
+                                <div class="grid sm:grid-cols-2 gap-3">
+                                    <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
+                                        <p class="text-xs text-gray-500">{{ __('borrower.profile.nida_front') }}</p>
+                                        <div class="mt-2">
+                                            @if ($nidaFront?->file_path)
+                                                @php $frontUrl = asset('storage/'.$nidaFront->file_path); @endphp
+                                                <button type="button" @click="expandedUrl = @js($frontUrl)"
+                                                        class="h-28 w-full max-w-[8rem] rounded-lg ring-1 ring-gray-200 overflow-hidden bg-white cursor-zoom-in block"
+                                                        title="{{ __('borrower.profile.view_document') }}">
+                                                    <img src="{{ $frontUrl }}" alt="" class="h-full w-full object-cover object-center">
+                                                </button>
+                                                <p class="text-[11px] text-gray-500 mt-1.5">{{ __('borrower.profile.tap_to_enlarge') }}</p>
+                                            @else
+                                                <span class="font-semibold text-amber-700 text-sm">{{ __('borrower.profile.missing') }}</span>
+                                            @endif
+                                        </div>
+                                    </div>
+                                    <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
+                                        <p class="text-xs text-gray-500">{{ __('borrower.profile.nida_back') }}</p>
+                                        <div class="mt-2">
+                                            @if ($nidaBack?->file_path)
+                                                @php $backUrl = asset('storage/'.$nidaBack->file_path); @endphp
+                                                <button type="button" @click="expandedUrl = @js($backUrl)"
+                                                        class="h-28 w-full max-w-[8rem] rounded-lg ring-1 ring-gray-200 overflow-hidden bg-white cursor-zoom-in block"
+                                                        title="{{ __('borrower.profile.view_document') }}">
+                                                    <img src="{{ $backUrl }}" alt="" class="h-full w-full object-cover object-center">
+                                                </button>
+                                                <p class="text-[11px] text-gray-500 mt-1.5">{{ __('borrower.profile.tap_to_enlarge') }}</p>
+                                            @else
+                                                <span class="font-semibold text-amber-700 text-sm">{{ __('borrower.profile.missing') }}</span>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                                @unless ($uploadsComplete)
+                                    <button type="button" @click="openEdit()" class="mt-1 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
+                                @endunless
+                            @endif
+                            <div x-show="expandedUrl" x-cloak x-transition
+                                 class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"
+                                 @keydown.escape.window="expandedUrl = null"
+                                 @click.self="expandedUrl = null">
+                                <button type="button" class="absolute top-4 right-4 text-white/90 text-sm font-semibold" @click="expandedUrl = null">{{ __('borrower.profile.cancel') }}</button>
+                                <img :src="expandedUrl" alt="" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
+                            </div>
+                        </div>
                     </x-slot:view>
                     <x-slot:form>
                         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data">
                             @csrf @method('PUT')
-                            <input type="hidden" name="focus" value="identity">
+                            <input type="hidden" name="focus" value="id_images">
                             @if (! empty($returnUrl))
                                 <input type="hidden" name="return" value="{{ $returnUrl }}">
                             @endif
@@ -285,7 +305,8 @@
                     :title="__('borrower.profile.contact_details')"
                     :complete="$hasContact"
                     :empty="! $hasContact"
-                    :default-open="$focusHash === 'contact'">
+                    :default-open="$focusHash === 'contact'"
+                    :default-edit="$editFocus === 'contact'">
                     <x-slot:view>
                         <dl class="grid sm:grid-cols-2 gap-4 text-sm">
                             <div>
@@ -327,7 +348,8 @@
                     :title="__('borrower.profile.kin_info')"
                     :complete="$kinComplete"
                     :empty="! $kinComplete"
-                    :default-open="$focusHash === 'kin'">
+                    :default-open="$focusHash === 'kin'"
+                    :default-edit="$editFocus === 'kin'">
                     <x-slot:view>
                         <dl class="grid sm:grid-cols-2 gap-4 text-sm">
                             <div>
@@ -383,7 +405,8 @@
                     :complete="$faceComplete"
                     :empty="! $faceHasPhotos && ! $faceComplete"
                     :inline-edit="true"
-                    :default-open="$focusHash === 'face' || in_array($faceKey, ['rejected', 'revision_required'], true)"
+                    :default-open="$focusHash === 'face'"
+                    :default-edit="$focusHash === 'face' && in_array($faceKey, ['rejected', 'revision_required', 'incomplete'], true)"
                     :allow-overflow="true">
                     <x-slot:view>
                         @if (! empty($faceAngles ?? []))
@@ -447,7 +470,8 @@
                     :complete="$hasLegalSignature"
                     :empty="! $hasLegalSignature"
                     :inline-edit="true"
-                    :default-open="$focusHash === 'signature'">
+                    :default-open="$focusHash === 'signature'"
+                    :default-edit="$editFocus === 'signature'">
                     <x-slot:view>
                         @if ($hasLegalSignature)
                             <p class="text-sm font-semibold text-gray-900">{{ $customer->legal_signer_name ?: $customer->full_name }}</p>

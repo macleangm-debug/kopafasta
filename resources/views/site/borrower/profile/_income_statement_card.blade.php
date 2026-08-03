@@ -25,7 +25,8 @@
     icon="🏦"
     :title="__('borrower.profile.income_statement_card_title')"
     :empty="! $hasStatement"
-    :default-open="$focusOpen && request()->query('focus') !== 'additional'">
+    :default-open="$focusOpen && request()->query('focus') !== 'additional'"
+    :default-edit="$errors->hasAny(['bank_statement', 'salary_slip', 'mobile_money_statement', 'income_proof_method', 'income_account_provider', 'income_account_number', 'income_account_name'])">
     <x-slot:view>
         @if ($hasStatement)
             <div class="space-y-4">
@@ -52,6 +53,7 @@
         <form method="POST"
               action="{{ route('site.borrower.profile.update', ['section' => 'kyc']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
               enctype="multipart/form-data"
+              novalidate
               x-data="{
                   incomeMethod: @js($initialMethod),
                   step: {{ (int) $initialStep }},
@@ -137,28 +139,31 @@
                 </div>
 
                 {{-- Step 2: account details --}}
-                <div x-show="step === 2" x-cloak class="space-y-4">
+                <div x-show="step === 2" x-cloak class="space-y-4" data-income-step="2">
                     <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.income_account_details') }}</p>
                     <div class="grid sm:grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ __('borrower.profile.income_account_provider') }}</label>
+                            <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ __('borrower.profile.income_account_provider') }} <span class="text-red-500">*</span></label>
                             <input type="text" name="income_account_provider"
                                    value="{{ old('income_account_provider', $customer->activity_details['income_account_provider'] ?? '') }}"
                                    class="kf-field"
+                                   x-bind:required="step === 2"
                                    :placeholder="incomeMethod === 'bank_statement' ? @js(__('borrower.profile.income_bank_placeholder')) : @js(__('borrower.profile.income_momo_placeholder'))">
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ __('borrower.profile.income_account_number') }}</label>
+                            <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ __('borrower.profile.income_account_number') }} <span class="text-red-500">*</span></label>
                             <input type="text" name="income_account_number"
                                    value="{{ old('income_account_number', $customer->activity_details['income_account_number'] ?? '') }}"
                                    class="kf-field"
+                                   x-bind:required="step === 2"
                                    placeholder="{{ __('borrower.profile.income_account_number_placeholder') }}">
                         </div>
                         <div class="sm:col-span-2">
-                            <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ __('borrower.profile.income_account_name') }}</label>
+                            <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ __('borrower.profile.income_account_name') }} <span class="text-red-500">*</span></label>
                             <input type="text" name="income_account_name"
                                    value="{{ old('income_account_name', $customer->activity_details['income_account_name'] ?? '') }}"
                                    class="kf-field"
+                                   x-bind:required="step === 2"
                                    placeholder="{{ __('borrower.profile.income_account_name_placeholder') }}">
                         </div>
                     </div>

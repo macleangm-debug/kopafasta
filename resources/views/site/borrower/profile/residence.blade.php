@@ -23,13 +23,11 @@
             $verificationComplete = (! $requiresLetter || $hasLetter) && $hasOfficer;
             $focus = (string) request()->query('focus', '');
             $openAddress = ($wizardMode ?? false)
-                || in_array($focus, ['address', 'residence', ''], true) && ($errors->hasAny(['region', 'district', 'ward', 'street']) || ! $residenceAddressComplete && $focus !== 'verification');
+                || $errors->hasAny(['region', 'district', 'ward', 'street'])
+                || $focus === 'address';
             $openVerification = ($wizardMode ?? false)
                 || $focus === 'verification'
                 || $errors->hasAny(['lga_officer_name', 'lga_officer_position', 'lga_officer_phone', 'residence_letter', 'residence_letter_pages']);
-            if ($errors->hasAny(['region', 'district', 'ward', 'street'])) {
-                $openAddress = true;
-            }
         @endphp
 
         @if ($residenceStale && $residenceComplete)
@@ -53,7 +51,8 @@
             :complete="$residenceAddressComplete"
             :empty="! $residenceAddressComplete"
             :allow-overflow="true"
-            :default-open="$openAddress">
+            :default-open="$focus === 'address'"
+            :default-edit="$openAddress && $errors->hasAny(['region', 'district', 'ward', 'street'])">
             <x-slot:view>
                 <dl class="grid sm:grid-cols-2 gap-4 text-sm">
                     @foreach ([
@@ -107,7 +106,8 @@
                 :complete="$verificationComplete"
                 :empty="! $verificationComplete"
                 :allow-overflow="true"
-                :default-open="$openVerification || ($residenceAddressComplete && ! $verificationComplete)">
+                :default-open="$openVerification"
+                :default-edit="$errors->hasAny(['residence_letter', 'residence_letter_pages', 'lga_officer_name', 'lga_officer_position', 'lga_officer_phone'])">
                 <x-slot:view>
                     <p class="text-sm text-gray-600 mb-4">{{ __('borrower.profile.residence_verification_hint') }}</p>
 
@@ -179,8 +179,11 @@
                         <p class="text-sm text-gray-600 mb-5">{{ __('borrower.profile.residence_verification_hint') }}</p>
 
                         @if ($requiresLetter)
-                            <div class="mb-5">
-                                <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.profile.residence_letter') }} <span class="text-red-500">*</span></label>
+                            <div class="mb-5 rounded-2xl ring-1 ring-brand/15 bg-white p-4 space-y-3">
+                                <div>
+                                    <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.residence_letter') }} <span class="text-red-500">*</span></p>
+                                    <p class="text-xs text-gray-500 mt-1">{{ __('borrower.profile.residence_upload_hint') }}</p>
+                                </div>
                                 <x-site.profile-document-field
                                     :document="$residenceLetter ?? null"
                                     field-name="residence_letter"
@@ -190,10 +193,10 @@
                                     input-host-id="residence-letter-pages"
                                     :labels="[
                                         'hint' => __('borrower.profile.residence_upload_hint'),
-                                        'uploadFile' => __('borrower.profile.capture_pages_upload'),
-                                        'capturePage' => __('borrower.profile.capture_pages'),
+                                        'uploadFile' => __('borrower.profile.upload_residence_letter'),
+                                        'capturePage' => __('borrower.profile.capture_residence_letter'),
                                     ]"
-                                    :required="true"
+                                    :required="! ($residenceLetter ?? null)"
                                 />
                             </div>
                         @endif

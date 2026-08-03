@@ -41,11 +41,17 @@
         },
         positionDesktop() {
             this.$nextTick(() => {
-                const btn = this.$el.querySelector('button');
+                const btn = this.$refs.triggerBtn || this.$el.querySelector('[data-date-trigger]');
                 if (! btn) return;
                 const r = btn.getBoundingClientRect();
-                const top = Math.min(r.bottom + 8, window.innerHeight - 360);
-                this.desktopStyle = `left:${Math.max(12, Math.min(r.left, window.innerWidth - 370))}px;top:${Math.max(12, top)}px;`;
+                const panelW = 352;
+                const panelH = 380;
+                const left = Math.max(12, Math.min(r.left, window.innerWidth - panelW - 12));
+                let top = r.bottom + 8;
+                if (top + panelH > window.innerHeight - 12) {
+                    top = Math.max(12, r.top - panelH - 8);
+                }
+                this.desktopStyle = `left:${left}px;top:${top}px;`;
             });
         },
         parse(str) {
@@ -242,55 +248,57 @@
         </x-site.bottom-sheet>
     </div>
 
-    {{-- Desktop: popover calendar --}}
+    {{-- Desktop: teleport so glass-card backdrop-filter cannot clip the calendar --}}
     <div class="hidden lg:block relative">
-        <button type="button" @click="openDesktop()"
+        <button type="button" data-date-trigger x-ref="triggerBtn" @click="openDesktop(); positionDesktop()"
                 class="{{ $inputClass }} inline-flex items-center justify-between gap-3 text-left">
             <span class="truncate" :class="value ? 'text-gray-900' : 'text-gray-400'" x-text="display(value)"></span>
             <svg class="w-5 h-5 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
         </button>
 
-        <div x-show="desktopOpen" x-cloak @click.outside="desktopOpen = false"
-             class="fixed z-[90] mt-2 w-[22rem] rounded-2xl bg-white shadow-xl ring-1 ring-brand/15 p-4"
-             x-ref="desktopCal"
-             :style="desktopStyle"
-             x-init="$watch('desktopOpen', v => { if (v) positionDesktop(); })">
-            <div class="flex items-center justify-between mb-3">
-                <button type="button" @click="shiftMonth(-1)" class="p-2 rounded-lg hover:bg-gray-50 text-gray-600" aria-label="Previous month">‹</button>
-                <div class="flex items-center gap-2">
-                    <select x-model.number="viewMonth" class="rounded-lg border-gray-200 text-sm py-1.5">
-                        @foreach ($monthNames as $idx => $monthName)
-                            <option value="{{ $idx }}">{{ $monthName }}</option>
-                        @endforeach
-                    </select>
-                    <select x-model.number="viewYear" class="rounded-lg border-gray-200 text-sm py-1.5">
-                        @for ($y = $maxYear; $y >= $minYear; $y--)
-                            <option value="{{ $y }}">{{ $y }}</option>
-                        @endfor
-                    </select>
+        <template x-teleport="body">
+            <div x-show="desktopOpen" x-cloak @click.outside="desktopOpen = false"
+                 class="fixed z-[90] w-[22rem] rounded-2xl bg-white shadow-xl ring-1 ring-brand/15 p-4"
+                 x-ref="desktopCal"
+                 :style="desktopStyle"
+                 x-init="$watch('desktopOpen', v => { if (v) positionDesktop(); })">
+                <div class="flex items-center justify-between mb-3">
+                    <button type="button" @click="shiftMonth(-1)" class="p-2 rounded-lg hover:bg-gray-50 text-gray-600" aria-label="Previous month">‹</button>
+                    <div class="flex items-center gap-2">
+                        <select x-model.number="viewMonth" class="rounded-lg border-gray-200 text-sm py-1.5">
+                            @foreach ($monthNames as $idx => $monthName)
+                                <option value="{{ $idx }}">{{ $monthName }}</option>
+                            @endforeach
+                        </select>
+                        <select x-model.number="viewYear" class="rounded-lg border-gray-200 text-sm py-1.5">
+                            @for ($y = $maxYear; $y >= $minYear; $y--)
+                                <option value="{{ $y }}">{{ $y }}</option>
+                            @endfor
+                        </select>
+                    </div>
+                    <button type="button" @click="shiftMonth(1)" class="p-2 rounded-lg hover:bg-gray-50 text-gray-600" aria-label="Next month">›</button>
                 </div>
-                <button type="button" @click="shiftMonth(1)" class="p-2 rounded-lg hover:bg-gray-50 text-gray-600" aria-label="Next month">›</button>
+                <div class="grid grid-cols-7 gap-1 text-center text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-1">
+                    <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                </div>
+                <div class="grid grid-cols-7 gap-1 mb-3">
+                    <template x-for="(day, idx) in calendarDays()" :key="'d'+idx">
+                        <button type="button"
+                                @click="pickDay(day)"
+                                :disabled="!day || day.disabled"
+                                class="aspect-square rounded-xl text-sm font-semibold transition"
+                                :class="!day ? 'invisible' : (day.selected ? 'bg-brand text-white' : (day.today ? 'ring-1 ring-brand text-brand' : (day.disabled ? 'text-gray-300' : 'hover:bg-brand-muted text-gray-800')))"
+                                x-text="day ? day.day : ''"></button>
+                    </template>
+                </div>
+                <div class="flex gap-2">
+                    @unless ($required)
+                        <button type="button" @click="clear()" class="flex-1 rounded-xl ring-1 ring-gray-200 py-2.5 text-sm font-semibold text-gray-600">Clear</button>
+                    @endunless
+                    <button type="button" @click="confirm()" class="flex-1 rounded-xl bg-brand hover:bg-brand-light text-white py-2.5 text-sm font-semibold">Apply</button>
+                </div>
             </div>
-            <div class="grid grid-cols-7 gap-1 text-center text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-1">
-                <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
-            </div>
-            <div class="grid grid-cols-7 gap-1 mb-3">
-                <template x-for="(day, idx) in calendarDays()" :key="'d'+idx">
-                    <button type="button"
-                            @click="pickDay(day)"
-                            :disabled="!day || day.disabled"
-                            class="aspect-square rounded-xl text-sm font-semibold transition"
-                            :class="!day ? 'invisible' : (day.selected ? 'bg-brand text-white' : (day.today ? 'ring-1 ring-brand text-brand' : (day.disabled ? 'text-gray-300' : 'hover:bg-brand-muted text-gray-800')))"
-                            x-text="day ? day.day : ''"></button>
-                </template>
-            </div>
-            <div class="flex gap-2">
-                @unless ($required)
-                    <button type="button" @click="clear()" class="flex-1 rounded-xl ring-1 ring-gray-200 py-2.5 text-sm font-semibold text-gray-600">Clear</button>
-                @endunless
-                <button type="button" @click="confirm()" class="flex-1 rounded-xl bg-brand hover:bg-brand-light text-white py-2.5 text-sm font-semibold">Apply</button>
-            </div>
-        </div>
+        </template>
     </div>
 
     @if ($help)

@@ -17,6 +17,8 @@
         'remove' => __('borrower.profile.multi_page_remove'),
         'addAnother' => __('borrower.profile.multi_page_add_another'),
         'pagesReady' => __('borrower.profile.multi_page_pages_ready'),
+        'finish' => __('borrower.profile.multi_page_finish'),
+        'captureMore' => __('borrower.profile.multi_page_capture_more'),
         'cameraDenied' => __('borrower.profile.camera_denied'),
         'cameraUnsupported' => __('borrower.profile.camera_unsupported'),
         'cameraInsecure' => __('borrower.profile.camera_insecure'),
@@ -52,12 +54,22 @@
                             <template x-if="!page.previewUrl">
                                 <div class="size-12 rounded-lg bg-white/20 ring-2 ring-white/80 grid place-items-center text-[10px] font-bold text-white">PDF</div>
                             </template>
+                            <span class="absolute -top-1.5 -left-1.5 size-5 rounded-full bg-brand-gold text-brand text-[10px] font-bold grid place-items-center ring-2 ring-black"
+                                  x-text="index + 1"></span>
                         </div>
                     </template>
                 </div>
                 <div class="flex gap-2 max-w-lg mx-auto">
-                    <button type="button" @click="capturePage()" class="flex-1 bg-brand-gold text-brand font-bold px-4 py-3.5 rounded-full text-sm" x-text="labels.capturePage"></button>
-                    <button type="button" @click="closeCamera()" class="px-5 py-3.5 rounded-full text-sm font-semibold bg-white/15 text-white ring-1 ring-white/30" x-text="labels.close"></button>
+                    <button type="button" @click="capturePage()"
+                            class="flex-1 font-bold px-4 py-3.5 rounded-full text-sm"
+                            :class="pages.length ? 'bg-white/15 text-white ring-1 ring-white/30' : 'bg-brand-gold text-brand'"
+                            x-text="pages.length ? labels.captureMore : labels.capturePage"></button>
+                    <button type="button" x-show="pages.length" x-cloak @click="closeCamera()"
+                            class="flex-1 bg-brand-gold text-brand font-bold px-4 py-3.5 rounded-full text-sm"
+                            x-text="labels.finish"></button>
+                    <button type="button" x-show="!pages.length" @click="closeCamera()"
+                            class="px-5 py-3.5 rounded-full text-sm font-semibold bg-white/15 text-white ring-1 ring-white/30"
+                            x-text="labels.close"></button>
                 </div>
             </div>
         </div>
@@ -82,7 +94,10 @@
                         <div class="absolute inset-0 grid place-items-center text-xs font-bold text-brand">PDF</div>
                     </template>
                     <div class="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-1.5 flex items-center justify-between gap-1">
-                        <span class="text-[10px] font-semibold text-white truncate" x-text="labels.pageLabel + ' ' + (index + 1)"></span>
+                        <span class="inline-flex items-center gap-1.5 text-[10px] font-semibold text-white truncate">
+                            <span class="size-4 rounded-full bg-white/20 grid place-items-center text-[9px] font-bold" x-text="index + 1"></span>
+                            <span x-text="labels.pageLabel + ' ' + (index + 1)"></span>
+                        </span>
                         <button type="button" @click="removePage(index)" class="text-[10px] font-bold text-red-200 hover:text-white" x-text="labels.remove"></button>
                     </div>
                 </li>

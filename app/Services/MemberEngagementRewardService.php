@@ -63,6 +63,7 @@ class MemberEngagementRewardService
 
     public function afterProfileSectionSaved(Customer $customer, string $section): void
     {
+        // Idempotent: same section key never awards twice (even after delete/re-upload).
         $this->loyalty->earn(
             $customer->fresh(),
             'update_information',
@@ -76,6 +77,7 @@ class MemberEngagementRewardService
 
     public function afterDocumentUploaded(Customer $customer, string $documentCode): void
     {
+        // Idempotent: same document code never awards twice after delete/re-add.
         $this->loyalty->earn(
             $customer->fresh(),
             'upload_documents',

@@ -633,6 +633,7 @@ class SettingsController extends Controller
             'insurance_expiry_warning_days'  => ['required', 'integer', 'min:1', 'max:365'],
             'default_monthly_rate_percent'   => ['required', 'numeric', 'min:0', 'max:100'],
             'max_asset_photos'               => ['required', 'integer', 'min:1', 'max:20'],
+            'vehicle_max_age_years'          => ['required', 'integer', 'min:1', 'max:40'],
             'code_prefix'                    => ['required', 'string', 'max:10'],
             'default_country_code'           => ['required', 'string', 'size:2'],
         ]);
@@ -644,6 +645,7 @@ class SettingsController extends Controller
             'asset_lending.insurance_expiry_warning_days'  => $data['insurance_expiry_warning_days'],
             'asset_lending.default_monthly_rate_percent'   => $data['default_monthly_rate_percent'],
             'asset_lending.max_asset_photos'               => $data['max_asset_photos'],
+            'asset_lending.vehicle_max_age_years'          => $data['vehicle_max_age_years'],
             'partners.code_prefix'                         => strtoupper($data['code_prefix']),
             'partners.default_country_code'                => strtoupper($data['default_country_code']),
         ]);

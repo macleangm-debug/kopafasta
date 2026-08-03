@@ -65,14 +65,28 @@
                                     $oldVal = $isColumn ? old($fieldKey) : old('details.'.$fieldKey);
                                     $fieldLabel = __('borrower.profile.collateral_fields.'.$fieldKey);
                                     $useThousands = ($field['format'] ?? null) === 'thousands';
+                                    $isYearField = in_array($fieldKey, ['year', 'purchase_year'], true);
+                                    $vehicleMaxAge = (int) (\App\Models\Setting::get('asset_lending.vehicle_max_age_years')
+                                        ?? config('asset_lending.vehicle_max_age_years', 10));
+                                    $yearMax = (int) now()->year;
+                                    $yearMin = $yearMax - max(1, $vehicleMaxAge);
                                 @endphp
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ $fieldLabel }} <span class="text-red-500">*</span></label>
-                                    <input type="text"
-                                           inputmode="{{ $field['type'] === 'number' ? 'numeric' : 'text' }}"
-                                           name="{{ $inputName }}" value="{{ $oldVal }}" maxlength="150" required
-                                           class="kf-field"
-                                           @if ($useThousands) x-on:input="formatThousands($event.target)" @endif>
+                                    @if ($isYearField)
+                                        <select name="{{ $inputName }}" required class="kf-field">
+                                            <option value="">{{ __('borrower.profile.select_year') }}</option>
+                                            @for ($y = $yearMax; $y >= $yearMin; $y--)
+                                                <option value="{{ $y }}" @selected((string) $oldVal === (string) $y)>{{ $y }}</option>
+                                            @endfor
+                                        </select>
+                                    @else
+                                        <input type="text"
+                                               inputmode="{{ $field['type'] === 'number' ? 'numeric' : 'text' }}"
+                                               name="{{ $inputName }}" value="{{ $oldVal }}" maxlength="150" required
+                                               class="kf-field"
+                                               @if ($useThousands) x-on:input="formatThousands($event.target)" @endif>
+                                    @endif
                                 </div>
                             @endforeach
 
@@ -354,12 +368,26 @@
                                             $val = ($field['column'] ?? false) ? $asset->{$field['key']} : $asset->detail($field['key']);
                                             $inputName = ($field['column'] ?? false) ? $field['key'] : 'details['.$field['key'].']';
                                             $oldKey = ($field['column'] ?? false) ? $field['key'] : 'details.'.$field['key'];
+                                            $isYearField = in_array($field['key'], ['year', 'purchase_year'], true);
+                                            $vehicleMaxAge = (int) (\App\Models\Setting::get('asset_lending.vehicle_max_age_years')
+                                                ?? config('asset_lending.vehicle_max_age_years', 10));
+                                            $yearMax = (int) now()->year;
+                                            $yearMin = $yearMax - max(1, $vehicleMaxAge);
                                         @endphp
                                         <div>
                                             <label class="block text-[11px] font-medium text-gray-600 mb-1">{{ __('borrower.profile.collateral_fields.'.$field['key']) }} <span class="text-red-500">*</span></label>
-                                            <input type="{{ ($field['type'] ?? '') === 'number' ? 'number' : 'text' }}"
-                                                   name="{{ $inputName }}" value="{{ old($oldKey, $val) }}" required maxlength="150"
-                                                   class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                            @if ($isYearField)
+                                                <select name="{{ $inputName }}" required class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                                    <option value="">{{ __('borrower.profile.select_year') }}</option>
+                                                    @for ($y = $yearMax; $y >= $yearMin; $y--)
+                                                        <option value="{{ $y }}" @selected((string) old($oldKey, $val) === (string) $y)>{{ $y }}</option>
+                                                    @endfor
+                                                </select>
+                                            @else
+                                                <input type="{{ ($field['type'] ?? '') === 'number' ? 'number' : 'text' }}"
+                                                       name="{{ $inputName }}" value="{{ old($oldKey, $val) }}" required maxlength="150"
+                                                       class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                            @endif
                                         </div>
                                     @endforeach
                                     @if ($asset->asset_type === 'vehicle')

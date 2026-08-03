@@ -26,7 +26,7 @@
             $returnQuery = ! empty($returnUrl) ? ['return' => $returnUrl] : [];
         @endphp
 
-        <div class="glass-card overflow-hidden" x-data="{ expanded: @js($showAdd || ! $paymentComplete) }">
+        <div class="glass-card overflow-hidden" x-data="{ expanded: @js(request()->boolean('add') || request()->boolean('edit') || $errors->any() || (bool) ($wizardMode ?? false)) }">
             <div class="px-5 sm:px-6 py-4 border-b border-gray-100/80 flex flex-wrap items-start justify-between gap-3">
                 <button type="button" @click="expanded = !expanded" class="flex items-start gap-3 min-w-0 text-left flex-1">
                     <span class="text-2xl leading-none shrink-0 mt-0.5" aria-hidden="true">💳</span>
@@ -137,18 +137,22 @@
                             {{-- Step 1: choose type --}}
                             <div x-show="step === 1" class="space-y-4">
                                 <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">{{ __('borrower.payment_details.choose_type_title') }}</p>
-                                <div class="grid sm:grid-cols-2 gap-3">
+                                <div class="grid sm:grid-cols-2 gap-4">
                                     <button type="button"
                                             @click="type = 'mobile_money'; step = 2"
-                                            class="rounded-2xl ring-1 ring-gray-200 bg-white hover:ring-amber-300 hover:bg-amber-50/40 px-5 py-5 text-left transition">
-                                        <p class="text-sm font-semibold text-gray-900">{{ __('borrower.payment_details.method_mobile') }}</p>
-                                        <p class="text-xs text-gray-500 mt-1">{{ __('borrower.payment_details.choose_mobile_hint') }}</p>
+                                            class="rounded-3xl ring-2 px-6 py-7 text-left transition shadow-sm"
+                                            :class="type === 'mobile_money' ? 'ring-brand bg-brand-muted/40' : 'ring-gray-200 bg-gradient-to-br from-white to-gray-50 hover:ring-brand/40'">
+                                        <span class="text-3xl" aria-hidden="true">📱</span>
+                                        <p class="text-base font-bold text-gray-900 mt-3">{{ __('borrower.payment_details.method_mobile') }}</p>
+                                        <p class="text-sm text-gray-500 mt-1.5 leading-relaxed">{{ __('borrower.payment_details.choose_mobile_hint') }}</p>
                                     </button>
                                     <button type="button"
                                             @click="type = 'bank'; step = 2"
-                                            class="rounded-2xl ring-1 ring-gray-200 bg-white hover:ring-amber-300 hover:bg-amber-50/40 px-5 py-5 text-left transition">
-                                        <p class="text-sm font-semibold text-gray-900">{{ __('borrower.payment_details.method_bank') }}</p>
-                                        <p class="text-xs text-gray-500 mt-1">{{ __('borrower.payment_details.choose_bank_hint') }}</p>
+                                            class="rounded-3xl ring-2 px-6 py-7 text-left transition shadow-sm"
+                                            :class="type === 'bank' ? 'ring-brand bg-brand-muted/40' : 'ring-gray-200 bg-gradient-to-br from-white to-gray-50 hover:ring-brand/40'">
+                                        <span class="text-3xl" aria-hidden="true">🏦</span>
+                                        <p class="text-base font-bold text-gray-900 mt-3">{{ __('borrower.payment_details.method_bank') }}</p>
+                                        <p class="text-sm text-gray-500 mt-1.5 leading-relaxed">{{ __('borrower.payment_details.choose_bank_hint') }}</p>
                                     </button>
                                 </div>
                             </div>
@@ -170,11 +174,14 @@
 
                                 <div x-show="type === 'mobile_money'" class="space-y-4">
                                     <fieldset>
-                                        <legend class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">{{ __('borrower.payment_details.provider') }}</legend>
+                                        <legend class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">{{ __('borrower.payment_details.provider') }} <span class="text-red-500">*</span></legend>
                                         <div class="grid sm:grid-cols-2 gap-3">
                                             @foreach ($providers as $key => $label)
-                                                <label class="inline-flex items-center gap-2 cursor-pointer text-sm rounded-xl ring-1 ring-gray-200 px-3 py-2.5 hover:bg-gray-50">
-                                                    <input type="radio" name="mobile_provider" value="{{ $key }}" @checked(old('mobile_provider') === $key) class="text-amber-600" :disabled="type !== 'mobile_money'">
+                                                <label class="inline-flex items-center gap-2 cursor-pointer text-sm rounded-xl ring-1 ring-gray-200 px-3 py-2.5 hover:bg-gray-50 has-[:checked]:ring-brand has-[:checked]:bg-brand-muted/30">
+                                                    <input type="radio" name="mobile_provider" value="{{ $key }}" @checked(old('mobile_provider') === $key)
+                                                           class="text-amber-600"
+                                                           x-bind:required="type === 'mobile_money'"
+                                                           x-bind:disabled="type !== 'mobile_money'">
                                                     <span>{{ $label }}</span>
                                                 </label>
                                             @endforeach
@@ -182,8 +189,10 @@
                                         @error('mobile_provider')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                     </fieldset>
                                     <div>
-                                        <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.phone_number') }}</label>
-                                        <input type="text" name="mobile_number" value="{{ old('mobile_number') }}" placeholder="{{ __('borrower.apply.guarantor_fields.phone_placeholder') }}" autocomplete="off" class="kf-field" :disabled="type !== 'mobile_money'">
+                                        <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.phone_number') }} <span class="text-red-500">*</span></label>
+                                        <input type="text" name="mobile_number" value="{{ old('mobile_number') }}" placeholder="{{ __('borrower.apply.guarantor_fields.phone_placeholder') }}" autocomplete="off" class="kf-field"
+                                               x-bind:required="type === 'mobile_money'"
+                                               x-bind:disabled="type !== 'mobile_money'">
                                         <p class="text-xs text-gray-500 mt-1">{{ __('borrower.payment_details.mobile_prefix_hint') }}</p>
                                         @error('mobile_number')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                     </div>
@@ -191,18 +200,22 @@
 
                                 <div x-show="type === 'bank'" class="space-y-4">
                                     <div>
-                                        <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.bank_name') }}</label>
-                                        <input type="text" name="bank_name" value="{{ old('bank_name') }}" placeholder="{{ __('borrower.payment_details.bank_name_placeholder') }}" autocomplete="off" class="kf-field" :disabled="type !== 'bank'">
+                                        <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.bank_name') }} <span class="text-red-500">*</span></label>
+                                        <input type="text" name="bank_name" value="{{ old('bank_name') }}" placeholder="{{ __('borrower.payment_details.bank_name_placeholder') }}" autocomplete="off" class="kf-field"
+                                               x-bind:required="type === 'bank'"
+                                               x-bind:disabled="type !== 'bank'">
                                         @error('bank_name')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.account_number') }}</label>
-                                        <input type="text" name="account_number" value="{{ old('account_number') }}" placeholder="{{ __('borrower.payment_details.account_number_placeholder') }}" autocomplete="off" class="kf-field" :disabled="type !== 'bank'">
+                                        <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.account_number') }} <span class="text-red-500">*</span></label>
+                                        <input type="text" name="account_number" value="{{ old('account_number') }}" placeholder="{{ __('borrower.payment_details.account_number_placeholder') }}" autocomplete="off" class="kf-field"
+                                               x-bind:required="type === 'bank'"
+                                               x-bind:disabled="type !== 'bank'">
                                         @error('account_number')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                     </div>
                                     <div>
                                         <label class="block text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.branch') }} <span class="text-gray-400 font-normal">({{ __('borrower.payment_details.optional') }})</span></label>
-                                        <input type="text" name="bank_branch" value="{{ old('bank_branch') }}" placeholder="{{ __('borrower.payment_details.branch_placeholder') }}" autocomplete="off" class="kf-field" :disabled="type !== 'bank'">
+                                        <input type="text" name="bank_branch" value="{{ old('bank_branch') }}" placeholder="{{ __('borrower.payment_details.branch_placeholder') }}" autocomplete="off" class="kf-field" x-bind:disabled="type !== 'bank'">
                                     </div>
                                 </div>
 

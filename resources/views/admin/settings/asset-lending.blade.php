@@ -34,8 +34,10 @@
                            :value="$values['insurance_expiry_warning_days'] ?? 30" required />
             <x-admin.input name="max_asset_photos" label="Max asset photos per listing" type="number"
                            :value="$values['max_asset_photos'] ?? 4" required />
+            <x-admin.input name="vehicle_max_age_years" label="Vehicle max age (years from manufacture)" type="number"
+                           :value="$values['vehicle_max_age_years'] ?? config('asset_lending.vehicle_max_age_years', 10)" required />
         </div>
-        <p class="text-xs text-gray-500">Waiting period is shown to borrowers between deposit and loan application. The monthly rate drives auto-calculated weekly installments during loan processing. Insurance warning appears in underwriting when policy expiry is near or past due.</p>
+        <p class="text-xs text-gray-500">Waiting period is shown to borrowers between deposit and loan application. The monthly rate drives auto-calculated weekly installments during loan processing. Insurance warning appears in underwriting when policy expiry is near or past due. Vehicle max age limits the year-of-manufacture dropdown on borrower collateral (e.g. 10 → from {{ now()->year - 10 }} to {{ now()->year }}).</p>
 
         <div class="border-t border-gray-100 pt-6">
             <p class="text-sm font-semibold text-gray-900 mb-2">Partner code format</p>

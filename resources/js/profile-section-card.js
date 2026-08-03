@@ -87,9 +87,12 @@ export function registerProfileSectionCard(Alpine) {
         },
 
         init() {
+            // Deep-link hash expands to VIEW (not edit) so users can preview first.
             if (this.sectionHash && window.location.hash === `#${this.sectionHash}`) {
-                this.open = true;
                 this.expanded = true;
+                if (! this.open) {
+                    this.open = false;
+                }
             }
 
             this._onAccordion = (e) => {

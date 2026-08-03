@@ -62,7 +62,7 @@
         :title="__('site.partner_account.face_section')"
         :complete="$faceComplete"
         :collapsible="true"
-        :default-open="true">
+        :default-open="false">
         <p class="text-sm text-gray-600 mb-1">{{ __('site.affiliate_portal.face_hint') }}</p>
         <p class="text-xs text-gray-500 mb-4">{{ __('site.affiliate_portal.kyc_camera_hint') }}</p>
         <form method="POST" action="{{ route($updateRoute, ['section' => 'face']) }}" enctype="multipart/form-data" class="space-y-4">

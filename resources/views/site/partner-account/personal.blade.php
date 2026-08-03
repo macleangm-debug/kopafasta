@@ -112,26 +112,37 @@
                         <div class="mt-3 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-3">
                             <p class="text-sm font-semibold text-amber-900">{{ __('site.partner_account.no_physical_card') }}</p>
                         </div>
-                    @else
-                        <div class="grid sm:grid-cols-2 gap-3 mt-3">
-                            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
-                                <p class="text-xs text-gray-500">{{ __('site.partner_account.nida_front') }}</p>
-                                @if (filled($identity['national_id_front'] ?? null))
-                                    <img src="{{ asset('storage/'.$identity['national_id_front']) }}" alt="" class="mt-2 h-20 w-full max-w-[7rem] object-cover rounded-lg ring-1 ring-gray-200">
-                                @else
-                                    <p class="text-amber-700 font-semibold text-sm mt-2">{{ __('site.partner_account.missing') }}</p>
-                                @endif
-                            </div>
-                            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
-                                <p class="text-xs text-gray-500">{{ __('site.partner_account.nida_back') }}</p>
-                                @if (filled($identity['national_id_back'] ?? null))
-                                    <img src="{{ asset('storage/'.$identity['national_id_back']) }}" alt="" class="mt-2 h-20 w-full max-w-[7rem] object-cover rounded-lg ring-1 ring-gray-200">
-                                @else
-                                    <p class="text-amber-700 font-semibold text-sm mt-2">{{ __('site.partner_account.missing') }}</p>
-                                @endif
-                            </div>
-                        </div>
                     @endif
+                    <div class="grid sm:grid-cols-2 gap-3 mt-4" x-data="{ expandedUrl: null }">
+                        <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
+                            <p class="text-xs text-gray-500">{{ __('site.partner_account.nida_front') }}</p>
+                            @if (filled($identity['national_id_front'] ?? null))
+                                @php $frontUrl = asset('storage/'.$identity['national_id_front']); @endphp
+                                <button type="button" @click="expandedUrl = @js($frontUrl)"
+                                        class="mt-2 h-20 w-full max-w-[7rem] object-cover rounded-lg ring-1 ring-gray-200 overflow-hidden cursor-zoom-in block">
+                                    <img src="{{ $frontUrl }}" alt="" class="h-full w-full object-cover">
+                                </button>
+                            @else
+                                <p class="text-amber-700 font-semibold text-sm mt-2">{{ __('site.partner_account.missing') }}</p>
+                            @endif
+                        </div>
+                        <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
+                            <p class="text-xs text-gray-500">{{ __('site.partner_account.nida_back') }}</p>
+                            @if (filled($identity['national_id_back'] ?? null))
+                                @php $backUrl = asset('storage/'.$identity['national_id_back']); @endphp
+                                <button type="button" @click="expandedUrl = @js($backUrl)"
+                                        class="mt-2 h-20 w-full max-w-[7rem] object-cover rounded-lg ring-1 ring-gray-200 overflow-hidden cursor-zoom-in block">
+                                    <img src="{{ $backUrl }}" alt="" class="h-full w-full object-cover">
+                                </button>
+                            @else
+                                <p class="text-amber-700 font-semibold text-sm mt-2">{{ __('site.partner_account.missing') }}</p>
+                            @endif
+                        </div>
+                        <div x-show="expandedUrl" x-cloak class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"
+                             @click.self="expandedUrl = null" @keydown.escape.window="expandedUrl = null">
+                            <img :src="expandedUrl" alt="" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl">
+                        </div>
+                    </div>
                 @else
                     <p class="text-sm text-gray-500">{{ __('site.partner_account.section_empty') }}</p>
                 @endif
