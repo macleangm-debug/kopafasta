@@ -15,6 +15,7 @@
         section-id="profile-additional-documents"
         icon="📎"
         :title="__('borrower.profile.additional_documents_title')"
+        :complete="$uploadedOptional->isNotEmpty()"
         :empty="$uploadedOptional->isEmpty()"
         :default-open="$focusOpen">
         <x-slot:view>

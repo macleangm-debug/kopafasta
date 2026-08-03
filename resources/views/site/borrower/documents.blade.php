@@ -46,6 +46,9 @@
             </div>
         </div>
 
+        @php
+            $documentsStale = in_array('documents', app(\App\Services\KycFreshnessService::class)->sectionsDueForRefresh($customer), true);
+        @endphp
         @forelse ($types as $type)
             @php
                 $typeDocs = $documents->where('document_type_id', $type->id)->values();
@@ -62,6 +65,7 @@
                 :section-id="'doc-type-'.$type->id"
                 :title="$type->name"
                 :complete="$hasUpload && in_array($latest?->status, ['verified', 'approved'], true)"
+                :stale="$documentsStale && $hasUpload"
                 :empty="! $hasUpload"
                 :add-label="__('borrower.documents_page.upload_button')"
                 :default-open="false">

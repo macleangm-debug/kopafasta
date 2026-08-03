@@ -9,6 +9,7 @@
     $hasStatement = $incomeProofEmployed
         ? $requiredItems->every(fn ($item) => ! empty($item['complete']))
         : collect($incomeProofChecklist)->contains(fn ($item) => ($item['group'] ?? null) === 'primary' && ! empty($item['complete']));
+    $documentsStale = in_array('documents', app(\App\Services\KycFreshnessService::class)->sectionsDueForRefresh($customer), true);
     $focusOpen = in_array(request()->query('focus'), ['income', 'statement', 'documents'], true)
         || ($wizardMode ?? false)
         || $errors->hasAny(['bank_statement', 'salary_slip', 'mobile_money_statement', 'income_proof_method']);
@@ -24,6 +25,8 @@
     section-id="profile-income-statement"
     icon="🏦"
     :title="__('borrower.profile.income_statement_card_title')"
+    :complete="$hasStatement"
+    :stale="$documentsStale && $hasStatement"
     :empty="! $hasStatement"
     :default-open="$focusOpen && request()->query('focus') !== 'additional'"
     :default-edit="$errors->hasAny(['bank_statement', 'salary_slip', 'mobile_money_statement', 'income_proof_method', 'income_account_provider', 'income_account_number', 'income_account_name'])">

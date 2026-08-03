@@ -31,6 +31,7 @@
     @if ($pinUpdateRoute)
         <x-site.profile-section-card
             :title="$hasPin ? __('borrower.security_tab.change_pin') : __('borrower.security_tab.set_pin')"
+            :complete="$hasPin"
             :collapsible="true">
             <x-slot:view>
                 <p class="text-sm text-gray-600">{{ __('site.partner_account.pin_hint') }}</p>
@@ -63,7 +64,10 @@
         </x-site.profile-section-card>
     @endif
 
-    <x-site.profile-section-card :title="__('site.partner_account.settings_locale')" :collapsible="true">
+    <x-site.profile-section-card
+        :title="__('site.partner_account.settings_locale')"
+        :complete="true"
+        :collapsible="true">
         <x-slot:view>
             <p class="text-sm text-gray-600">{{ __('site.partner_account.settings_locale_hint') }}</p>
             <p class="text-xs text-gray-500 mt-2">{{ __('site.partner_account.settings_locale_control') }}</p>
@@ -74,7 +78,10 @@
         </x-slot:form>
     </x-site.profile-section-card>
 
-    <x-site.profile-section-card :title="__('site.partner_account.settings_account')" :collapsible="true">
+    <x-site.profile-section-card
+        :title="__('site.partner_account.settings_account')"
+        :complete="filled($partner?->name)"
+        :collapsible="true">
         <x-slot:view>
             <dl class="text-sm space-y-3">
                 @if ($partner)

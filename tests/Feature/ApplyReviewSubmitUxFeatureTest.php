@@ -105,6 +105,12 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
         $this->assertStringContainsString('signature_draw_label', $submit);
         $this->assertStringContainsString('resigningOnSubmit', $submit);
         $this->assertStringContainsString('showCompleteTick', file_get_contents(resource_path('views/components/site/profile-section-card.blade.php')));
+        $card = file_get_contents(resource_path('views/components/site/profile-section-card.blade.php'));
+        $this->assertStringContainsString("'stale'", $card);
+        $this->assertStringContainsString('section_needs_update', $card);
+        $activity = file_get_contents(resource_path('views/site/borrower/profile/activity.blade.php'));
+        $this->assertStringContainsString(':stale="$activityStale"', $activity);
+        $this->assertStringContainsString(':complete="$activityComplete"', $activity);
         $this->assertStringNotContainsString('summary_title', $submit);
         $this->assertStringNotContainsString('edit_quote', $submit);
         $this->assertStringNotContainsString('view_guarantor', $submit);

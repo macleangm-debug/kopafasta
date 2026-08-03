@@ -38,7 +38,9 @@
             section-id="profile-activity"
             icon="💼"
             :title="__('borrower.profile.activity')"
-            :empty="! filled($customer->activity_type) || ! filled($customer->income_range)"
+            :complete="$activityComplete"
+            :stale="$activityStale"
+            :empty="! $activityComplete"
             :default-open="false"
             :default-edit="$openActivity">
             <x-slot:view>

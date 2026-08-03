@@ -42,6 +42,7 @@
             $editable = 'kf-field';
             $hasContact = filled($customer->phone) || filled($customer->email);
             $kinComplete = app(\App\Services\ProfileValidationService::class)->isKinComplete($customer);
+            $kinStale = in_array('kin', app(\App\Services\KycFreshnessService::class)->sectionsDueForRefresh($customer), true);
             $kinName = $customer->nok_name ?: trim(($customer->nok_first_name ?? '').' '.($customer->nok_last_name ?? ''));
             $faceKey = $customer->face_verification_status ?? 'incomplete';
             $faceComplete = in_array($faceKey, ['verified', 'pending'], true);
@@ -347,6 +348,7 @@
                     icon="👨‍👩‍👧"
                     :title="__('borrower.profile.kin_info')"
                     :complete="$kinComplete"
+                    :stale="$kinStale"
                     :empty="! $kinComplete"
                     :default-open="$focusHash === 'kin'"
                     :default-edit="$editFocus === 'kin'">

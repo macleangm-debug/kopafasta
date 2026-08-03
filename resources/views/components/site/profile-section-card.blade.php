@@ -4,6 +4,7 @@
     'editing' => false,
     'editUrl' => null,
     'complete' => null,
+    'stale' => false,
     'empty' => false,
     'addUrl' => null,
     'addLabel' => null,
@@ -23,7 +24,9 @@
     $startOpen = (bool) $editing || (bool) $defaultEdit;
     $startExpanded = $startOpen || (bool) $defaultOpen;
     $accordionId = $sectionId ?: ('section-'.substr(md5($title), 0, 8));
-    $isComplete = $complete === true;
+    $isStale = (bool) $stale;
+    // Tick only when complete AND fresh. Stale KYC sections always show Edit.
+    $isComplete = $complete === true && ! $isStale;
     // Server-render the tick so complete cards never flash Edit before Alpine boots.
     $startWithTick = $isComplete && ! $startOpen;
 @endphp
@@ -35,7 +38,7 @@
         'open' => $startOpen,
         'expanded' => $startExpanded,
         'complete' => $isComplete,
-        'showEditAction' => $startOpen,
+        'showEditAction' => $startOpen || $isStale,
         'id' => $accordionId,
         'sectionHash' => $sectionId,
         'unsavedTitle' => __('borrower.profile.unsaved_photos_title'),
@@ -61,7 +64,9 @@
                         </svg>
                     @endif
                 </h2>
-                @if ($showStatus && $isComplete)
+                @if ($isStale)
+                    <p class="text-xs font-semibold text-amber-700 mt-1">{{ __('borrower.profile.section_needs_update') }}</p>
+                @elseif ($showStatus && $isComplete)
                     <p class="text-xs text-emerald-700 mt-1">{{ __('borrower.profile.section_complete') }}</p>
                 @elseif ($showStatus && $complete === false)
                     <p class="text-xs text-amber-700 mt-1">{{ __('borrower.profile.section_incomplete') }}</p>
@@ -71,7 +76,7 @@
 
         @if ($useInline)
             <div class="shrink-0 relative min-h-9 min-w-9 flex items-center justify-end">
-                {{-- Tick: visible in HTML for complete cards (no Alpine flash) --}}
+                {{-- Tick: visible in HTML for complete+fresh cards (no Alpine flash) --}}
                 <button type="button"
                         @click.stop="revealEdit()"
                         class="size-9 rounded-full grid place-items-center bg-gradient-to-br from-brand to-brand-light text-brand-gold shadow-sm shadow-brand/25 ring-2 ring-brand-gold/40 hover:ring-brand-gold/70 transition"
@@ -87,7 +92,7 @@
                     </svg>
                 </button>
 
-                {{-- Edit/Cancel: hidden in HTML when complete until tick is tapped --}}
+                {{-- Edit/Cancel: always available when not showing tick (incomplete or stale) --}}
                 <button type="button"
                         @click="open ? requestClose() : openEdit()"
                         class="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full ring-1 transition"
@@ -96,8 +101,12 @@
                         @else
                             x-show="!showCompleteTick"
                         @endif
-                        :class="open ? 'text-gray-700 ring-gray-200 bg-gray-50' : 'text-amber-700 ring-amber-200 bg-amber-50 hover:text-amber-800'">
-                    <span x-show="!open">{{ $empty ? ($addLabel ?? __('borrower.profile.add_details')) : __('borrower.profile.edit_section') }}</span>
+                        :class="open
+                            ? 'text-gray-700 ring-gray-200 bg-gray-50'
+                            : (@js($isStale)
+                                ? 'text-amber-800 ring-amber-300 bg-amber-50 hover:bg-amber-100'
+                                : 'text-amber-700 ring-amber-200 bg-amber-50 hover:text-amber-800')">
+                    <span x-show="!open">{{ $empty ? ($addLabel ?? __('borrower.profile.add_details')) : ($isStale ? __('borrower.profile.update_section') : __('borrower.profile.edit_section')) }}</span>
                     <span x-show="open" x-cloak>{{ __('borrower.profile.cancel_edit') }}</span>
                 </button>
             </div>
@@ -123,8 +132,8 @@
                 </div>
             @else
                 <a href="{{ $editUrl }}"
-                   class="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 hover:text-amber-800 px-3 py-1.5 rounded-full ring-1 ring-amber-200 bg-amber-50">
-                    {{ $empty ? ($addLabel ?? __('borrower.profile.add_details')) : __('borrower.profile.edit_section') }}
+                   class="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold {{ $isStale ? 'text-amber-800 ring-amber-300' : 'text-amber-700 ring-amber-200' }} hover:text-amber-800 px-3 py-1.5 rounded-full ring-1 bg-amber-50">
+                    {{ $empty ? ($addLabel ?? __('borrower.profile.add_details')) : ($isStale ? __('borrower.profile.update_section') : __('borrower.profile.edit_section')) }}
                 </a>
             @endif
         @elseif ($isComplete)
@@ -154,7 +163,7 @@
         </div>
         <div x-show="!open && !expanded" class="px-5 sm:px-6 py-3">
             <button type="button" @click="toggleExpand()" class="text-xs font-semibold text-brand hover:underline">
-                {{ $isComplete ? __('borrower.profile.hub.view') : __('borrower.profile.hub.view_edit') }} →
+                {{ $isComplete ? __('borrower.profile.hub.view') : ($isStale ? __('borrower.profile.hub.view_update') : __('borrower.profile.hub.view_edit')) }} →
             </button>
         </div>
         <div x-show="open" x-cloak class="p-5 sm:p-6 border-t border-gray-100/80 bg-gray-50/30">

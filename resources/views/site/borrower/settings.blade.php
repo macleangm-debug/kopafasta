@@ -34,6 +34,7 @@
         <div class="space-y-6">
             <x-site.profile-section-card
                 :title="auth()->user()->pin_set_at ? __('borrower.security_tab.change_pin') : __('borrower.security_tab.set_pin')"
+                :complete="(bool) auth()->user()->pin_set_at"
                 :collapsible="true">
                 <x-slot:view>
                     <p class="text-sm text-gray-600">{{ __('borrower.security_tab.pin_hint') }}</p>
@@ -65,7 +66,9 @@
                 </x-slot:form>
             </x-site.profile-section-card>
 
-            <x-site.profile-section-card :title="__('borrower.security_tab.trusted_devices')">
+            <x-site.profile-section-card
+                :title="__('borrower.security_tab.trusted_devices')"
+                :complete="$trustedDevices->isNotEmpty()">
                 <x-slot:view>
                     <p class="text-sm text-gray-600">{{ __('borrower.settings.trusted_devices_advice') }}</p>
                     <p class="mt-2 text-sm font-medium text-gray-800">
@@ -98,7 +101,10 @@
                 </x-slot:form>
             </x-site.profile-section-card>
 
-            <x-site.profile-section-card section-id="notifications" :title="__('borrower.security_tab.notifications_title')">
+            <x-site.profile-section-card
+                section-id="notifications"
+                :title="__('borrower.security_tab.notifications_title')"
+                :complete="true">
                 <x-slot:view>
                     <p class="text-sm text-gray-600">{{ __('borrower.security_tab.notifications_hint') }}</p>
                     <p class="text-xs text-gray-500 mt-2">{{ __('borrower.security_tab.notif_credit_limit_hint') }}</p>
@@ -125,7 +131,9 @@
                 </x-slot:form>
             </x-site.profile-section-card>
 
-            <x-site.profile-section-card :title="__('borrower.settings.personalisation_title')">
+            <x-site.profile-section-card
+                :title="__('borrower.settings.personalisation_title')"
+                :complete="filled($displayName)">
                 <x-slot:view>
                     <dl class="grid sm:grid-cols-2 gap-3 text-sm">
                         <div>
