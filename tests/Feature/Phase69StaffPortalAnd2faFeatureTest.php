@@ -176,7 +176,8 @@ class Phase69StaffPortalAnd2faFeatureTest extends TestCase
             ->withSession(['two_factor_verified_at' => now()->timestamp])
             ->get(route('staff.security'))
             ->assertOk()
-            ->assertSee('Enabled', false)
+            ->assertSee('Account security', false)
+            ->assertSee('Protected with authenticator', false)
             ->assertSee('2 remaining', false)
             ->assertSee('Generate new recovery codes', false);
     }
