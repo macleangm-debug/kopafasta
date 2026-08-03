@@ -110,11 +110,11 @@
                 <div x-show="!form.purpose || purposeEditing" x-cloak>
                     <x-site.sheet-select
                         model="form.purpose"
+                        setter="setLoanPurpose"
                         :label="__('borrower.apply.quote.purpose')"
                         :options="$loanPurposes"
                         :required="true"
                         :placeholder="__('borrower.apply.quote.select_purpose')"
-                        on-pick="if (form.purpose !== 'other') { purposeEditing = false; } scheduleDraftSave()"
                     />
                 </div>
             </div>

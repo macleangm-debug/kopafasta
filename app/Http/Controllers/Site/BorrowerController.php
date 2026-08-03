@@ -1896,9 +1896,11 @@ class BorrowerController extends Controller
             report($e);
         }
 
-        if ($return = $this->validatedReturnUrl($request)) {
-            $redirect = redirect($return)->with('status', __('borrower.profile.saved_return'));
-        } elseif ($request->boolean('wizard')) {
+        if ($redirect = $this->redirectForApplyProfileReturn($request, $customer, __('borrower.profile.saved_return'))) {
+            return $redirect;
+        }
+
+        if ($request->boolean('wizard')) {
             $redirect = $this->redirectWizardStep($request, $customer, $section);
         } else {
             $profileRedirect = redirect()
@@ -1942,6 +1944,7 @@ class BorrowerController extends Controller
             $redirect = $this->redirectWithGuarantorResume($request, $customer, $profileRedirect);
         }
 
+        // Confetti only when compulsory hub profile is complete (collateral never required).
         if (app(\App\Services\ProfileCompletionService::class)->isFullyComplete($customer->fresh())) {
             \App\Support\Celebration::flashOne('profile_complete');
         }
@@ -2004,8 +2007,8 @@ class BorrowerController extends Controller
 
         $this->auditBorrower('profile.payment_account_added', $customer, ['type' => $type]);
 
-        if ($return = $this->validatedReturnUrl($request)) {
-            return redirect($return)->with('status', __('borrower.payment_details.account_saved'));
+        if ($redirect = $this->redirectForApplyProfileReturn($request, $customer, __('borrower.payment_details.account_saved'))) {
+            return $redirect;
         }
 
         return redirect()
@@ -2060,6 +2063,49 @@ class BorrowerController extends Controller
         }
 
         return $return;
+    }
+
+    /**
+     * When completing profile from apply submit, keep the borrower on required sections
+     * until can_apply is true. Collateral is never part of this gate.
+     */
+    private function redirectForApplyProfileReturn(Request $request, Customer $customer, string $partialStatus): ?RedirectResponse
+    {
+        $return = $this->validatedReturnUrl($request);
+        if (! $return) {
+            return null;
+        }
+
+        $path = parse_url($return, PHP_URL_PATH) ?: '';
+        if (! str_contains($path, '/borrower/apply')) {
+            return redirect($return)->with('status', $partialStatus);
+        }
+
+        $fresh = $customer->fresh();
+        $checklist = app(\App\Services\ApplicationRequirementsService::class)
+            ->checklistForApply($fresh, $return);
+
+        if ($checklist['can_apply'] ?? false) {
+            \App\Support\Celebration::flashOne('profile_complete');
+
+            return redirect($return)
+                ->with('status', __('borrower.profile.ready_to_submit_message'))
+                ->with('profile_ready_to_submit', 1);
+        }
+
+        $next = $checklist['first_action_url'] ?? null;
+        if ($next) {
+            $section = $checklist['first_incomplete']['label'] ?? null;
+
+            return redirect($next)->with(
+                'status',
+                $section
+                    ? __('borrower.profile.continue_required_section', ['section' => $section])
+                    : __('borrower.profile.continue_required_profile')
+            );
+        }
+
+        return redirect($return)->with('status', $partialStatus);
     }
 
     public function verifyNida(Request $request, NidaVerificationService $nida): RedirectResponse

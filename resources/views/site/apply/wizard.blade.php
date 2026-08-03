@@ -69,7 +69,7 @@
                   groupMemberStatusesUrl: @js($groupMemberStatusesUrl ?? route('site.borrower.apply.group-member-statuses')),
                   previousGroupMembersUrl: @js($previousGroupMembersUrl ?? route('site.borrower.apply.previous-group-members')),
                   selectPreviousGroupMemberUrl: @js($selectPreviousGroupMemberUrl ?? route('site.borrower.apply.previous-group-member')),
-                  groupLimits: @js($groupMemberLimits ?? ['min' => 5, 'max' => 30]),
+                  groupLimits: @js($groupMemberLimits ?? ['min' => 3, 'max' => 10, 'minAmountPerMember' => 200000]),
                   leaderCustomerId: {{ (int) ($leaderCustomerId ?? $customer->id) }},
                   leaderName: @js($leaderName ?? $customer->full_name),
                   leaderPhone: @js($leaderPhone ?? $customer->phone),
@@ -118,6 +118,7 @@
                   profileAssetsUrl: @js(route('site.borrower.profile', ['section' => 'assets'])),
                   canApply: @js((bool) ($applyRequirements['can_apply'] ?? false)),
                   openProfileGateOnLoad: @js((bool) (session('show_profile_gate') || request()->boolean('profile_gate'))),
+                  openProfileReadyOnLoad: @js((bool) session('profile_ready_to_submit')),
                   verifiedLegalName: @js($verifiedLegalName),
                   identityVerified: @js($identityVerified),
                   profileSignature: @js(app(\App\Services\BorrowerSignatureService::class)->profileSignature($customer)),
@@ -435,6 +436,39 @@
                                class="inline-flex justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-2.5 rounded-xl text-sm shadow-sm">
                                 {{ __('borrower.loan_profile.complete_profile') }}
                             </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Profile complete — ready to submit --}}
+            <div x-show="showProfileReadyModal"
+                 x-cloak
+                 class="fixed inset-0 z-[90] flex items-center justify-center p-4"
+                 role="dialog"
+                 aria-modal="true"
+                 @keydown.escape.window="showProfileReadyModal = false">
+                <div class="absolute inset-0 bg-brand/70 backdrop-blur-sm" @click="showProfileReadyModal = false"></div>
+                <div class="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-brand/15">
+                    <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-5 text-white">
+                        <div class="flex items-start gap-3">
+                            <span class="mt-0.5 size-11 rounded-2xl grid place-items-center ring-1 shrink-0 bg-brand-gold/25 text-brand-gold ring-brand-gold/40">
+                                <svg class="size-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg>
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.celebration.default_title') }}</p>
+                                <h3 class="text-lg font-bold mt-1">{{ __('borrower.profile.ready_to_submit_title') }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="px-6 py-5">
+                        <p class="text-sm text-gray-600 leading-relaxed">{{ __('borrower.profile.ready_to_submit_message') }}</p>
+                        <div class="mt-5 flex justify-end">
+                            <button type="button"
+                                    @click="showProfileReadyModal = false"
+                                    class="inline-flex justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-2.5 rounded-xl text-sm shadow-sm">
+                                {{ __('borrower.profile.ready_to_submit_cta') }}
+                            </button>
                         </div>
                     </div>
                 </div>

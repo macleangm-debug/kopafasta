@@ -57,18 +57,18 @@
         </ul>
     </section>
 
-    {{-- Guarantor readiness — submit allowed; screening waits until they finish --}}
+    {{-- Guarantor: compact status on submit; full remind UX after submit --}}
     <section x-show="hasStep('guarantor') && form.guarantor_mode && form.guarantor_mode !== 'none'" x-cloak
-             class="mb-6 rounded-2xl overflow-hidden ring-1 ring-amber-200 bg-gradient-to-br from-amber-50 to-white shadow-sm">
-        <div class="px-5 py-4 flex items-start justify-between gap-3">
+             class="mb-6 rounded-2xl ring-1 ring-amber-200/80 bg-amber-50/80 px-4 py-3.5 flex items-center justify-between gap-3">
+        <div class="min-w-0 flex items-center gap-3">
+            <span class="shrink-0 size-9 rounded-full grid place-items-center bg-white ring-1 ring-amber-200 text-amber-800" aria-hidden="true">🤝</span>
             <div class="min-w-0">
                 <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">{{ __('borrower.apply.submit_step.guarantor_hold_title') }}</p>
-                <p class="text-sm font-semibold text-amber-950 mt-1" x-text="review.guarantorName || guarantorSummaryText()"></p>
-                <p class="text-xs text-amber-900/80 mt-1" x-text="review.guarantorStatus || @js(__('borrower.apply.submit_step.guarantor_pending_title'))"></p>
-                <p class="text-xs text-amber-800 mt-2">{{ __('borrower.apply.submit_step.guarantor_hold_hint') }}</p>
+                <p class="text-sm font-semibold text-amber-950 truncate mt-0.5"
+                   x-text="(review.guarantorName || guarantorSummaryText()) + ' · ' + (review.guarantorStatus || @js(__('borrower.apply.submit_step.guarantor_pending_title')))"></p>
             </div>
-            <span class="shrink-0 size-8 rounded-full grid place-items-center bg-white ring-1 ring-amber-200 text-amber-700" aria-hidden="true">🤝</span>
         </div>
+        <p class="shrink-0 text-[11px] font-semibold text-amber-800/90 hidden sm:block">{{ __('borrower.apply.submit_step.guarantor_hold_hint') }}</p>
     </section>
 
     {{-- Premium signature surface (leader / individual borrower) --}}

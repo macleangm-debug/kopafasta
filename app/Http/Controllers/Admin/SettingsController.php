@@ -517,6 +517,7 @@ class SettingsController extends Controller
     {
         $data = $request->validate([
             'guarantor_invitation_expiry_days'       => ['required', 'integer', 'min:1', 'max:90'],
+            'awaiting_guarantor_deadline_days'       => ['required', 'integer', 'min:1', 'max:90'],
             'document_request_default_due_days'      => ['required', 'integer', 'min:1', 'max:60'],
             'stage_sla_days'                         => ['required', 'integer', 'min:1', 'max:60'],
             'default_rate_tier_count'                => ['required', 'integer', 'min:2', 'max:8'],

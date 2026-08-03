@@ -35,6 +35,7 @@ class LoanApplication extends Model
             'screening_payload' => 'array',
             'credit_appraisal_payload' => 'array',
             'submitted_at' => 'datetime',
+            'guarantor_deadline_at' => 'datetime',
             'pre_approved_at' => 'datetime',
             'approved_at' => 'datetime',
             'disbursed_at' => 'datetime',

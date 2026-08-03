@@ -430,7 +430,10 @@ class ApplyController extends Controller
             ->with('marketplaceUrl', route('site.borrower.marketplace'))
             ->with('incomeRanges', config('income_ranges'))
             ->with('activityTypes', activity_type_options())
-            ->with('groupMemberLimits', app(GroupApplyService::class)->memberLimits())
+            ->with('groupMemberLimits', array_merge(
+                app(GroupApplyService::class)->memberLimits(),
+                ['minAmountPerMember' => app(GroupLendingService::class)->minAmountPerMember()],
+            ))
             ->with('groupMemberLookupUrl', route('site.borrower.apply.group-member-lookup'))
             ->with('groupMemberInviteUrl', route('site.borrower.apply.group-member-invite'))
             ->with('groupMemberExpireUrl', route('site.borrower.apply.group-member-expire'))
@@ -1974,10 +1977,7 @@ class ApplyController extends Controller
 
         if ($guarantorPending && app(\App\Services\UnderwritingSettingsService::class)->holdApplicationsUntilGuarantorApproved()) {
             // Hold outside credit screening until guarantor accepts + completes profile.
-            $app->update([
-                'status'        => 'awaiting_guarantor',
-                'current_stage' => 'awaiting_guarantor',
-            ]);
+            app(\App\Services\GuarantorDeadlineService::class)->markAwaiting($app->fresh());
         }
 
         $message = __('borrower.apply.success.submitted_message');
@@ -1995,10 +1995,12 @@ class ApplyController extends Controller
             $drafts->clear($customer, (int) $loanProduct->id);
         }
 
-        return \App\Support\Celebration::with(
-            redirect()->route('site.borrower.application', $app)->with('status', $message),
-            'loan_submitted',
-        );
+        $redirect = redirect()->route('site.borrower.application', $app)->with('status', $message);
+        if ($guarantorPending) {
+            $redirect->with('show_guarantor_remind_modal', 1);
+        }
+
+        return \App\Support\Celebration::with($redirect, 'loan_submitted');
     }
 
     public function success(LoanApplication $application): View

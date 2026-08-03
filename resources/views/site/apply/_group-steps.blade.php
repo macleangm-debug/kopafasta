@@ -63,10 +63,10 @@
                     <div x-show="!group.purpose || purposeEditing" x-cloak>
                         <x-site.sheet-select
                             model="group.purpose"
+                            setter="setGroupPurpose"
                             :label="__('borrower.apply.group_setup.purpose')"
                             :options="$loanPurposes"
                             :placeholder="__('borrower.apply.quote.select_purpose')"
-                            on-pick="if (group.purpose !== 'other') { purposeEditing = false; } form.purpose = group.purpose; scheduleDraftSave()"
                         />
                     </div>
                 </div>

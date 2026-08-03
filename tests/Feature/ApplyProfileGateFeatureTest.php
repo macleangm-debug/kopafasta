@@ -145,4 +145,29 @@ class ApplyProfileGateFeatureTest extends TestCase
         $this->assertStringContainsString('return=', $result);
         $this->assertStringContainsString('focus=kin', $result);
     }
+
+    public function test_profile_return_from_apply_chains_to_next_incomplete_section(): void
+    {
+        $customer = $this->borrower([
+            'region'                   => 'Dar es Salaam',
+            'district'                 => 'Kinondoni',
+            'street'                   => 'Samora Avenue',
+            'activity_type'            => null,
+            'income_range'             => null,
+            'face_verification_status' => 'verified',
+        ]);
+
+        $returnUrl = route('site.borrower.apply', [
+            'product' => 1,
+            'resume' => 1,
+            'step_key' => 'submit',
+        ]);
+
+        $checklist = app(ApplicationRequirementsService::class)->checklistForApply($customer, $returnUrl);
+        $this->assertFalse($checklist['can_apply']);
+        $this->assertNotNull($checklist['first_action_url']);
+        $this->assertStringContainsString('/borrower/profile', (string) $checklist['first_action_url']);
+        $this->assertStringContainsString('return=', (string) $checklist['first_action_url']);
+        $this->assertNull(collect($checklist['items'])->firstWhere('key', 'assets'));
+    }
 }

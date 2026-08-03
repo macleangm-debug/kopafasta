@@ -11,6 +11,7 @@ return [
         'application_status' => [
             'draft'               => 'Draft',
             'awaiting_guarantor'  => 'Submitted – Awaiting Guarantor Completion',
+            'expired'             => 'Closed – Guarantor not completed',
             'submitted'           => 'Submitted',
             'pending'             => 'Pending',
             'pending_documents'   => 'Pending documents',

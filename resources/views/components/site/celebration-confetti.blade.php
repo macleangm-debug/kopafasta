@@ -2,6 +2,12 @@
     $reasons = \App\Support\Celebration::reasons();
     $legacy = session('confetti');
     $shouldCelebrate = $legacy || $reasons !== [];
+    $pointsEarned = (int) session('celebration_points', 0);
+    $remainingSections = session('celebration_remaining', []);
+    $remainingSections = is_array($remainingSections) ? array_values($remainingSections) : [];
+    $isPointsProgress = in_array('points_earned', $reasons, true)
+        && ! in_array('profile_complete', $reasons, true)
+        && $pointsEarned > 0;
     $message = match (true) {
         in_array('profile_complete', $reasons, true) => __('borrower.celebration.profile_complete'),
         in_array('loan_submitted', $reasons, true) => __('borrower.celebration.loan_submitted'),
@@ -11,10 +17,16 @@
         in_array('payment', $reasons, true) => __('borrower.celebration.payment'),
         in_array('membership', $reasons, true) => __('borrower.celebration.membership'),
         in_array('reward_redeemed', $reasons, true) => __('borrower.celebration.reward_redeemed'),
+        $isPointsProgress => __('borrower.celebration.points_earned_section', [
+            'points' => number_format($pointsEarned),
+            'count' => count($remainingSections),
+        ]),
         in_array('points_earned', $reasons, true) => __('borrower.celebration.points_earned'),
         default => null,
     };
     $modalTitle = match (true) {
+        in_array('profile_complete', $reasons, true) => __('borrower.celebration.profile_complete_title'),
+        $isPointsProgress => __('borrower.celebration.points_earned_title', ['points' => number_format($pointsEarned)]),
         in_array('loan_submitted', $reasons, true) => __('borrower.apply.success.submitted_title'),
         in_array('membership', $reasons, true) => __('borrower.celebration.membership_title'),
         in_array('application_fee', $reasons, true) => __('borrower.celebration.application_fee_title'),
@@ -24,10 +36,16 @@
         default => __('borrower.celebration.default_title'),
     };
     $statusFlash = session('status');
-    $modalMessage = (is_string($statusFlash) && $statusFlash !== '')
+    $modalMessage = (is_string($statusFlash) && $statusFlash !== '' && ! $isPointsProgress)
         ? $statusFlash
         : ($message ?? __('borrower.celebration.payment'));
+    if ($isPointsProgress && $remainingSections !== []) {
+        $modalMessage .= ' '.__('borrower.celebration.points_earned_keep_going', [
+            'sections' => implode(', ', array_slice($remainingSections, 0, 3)),
+        ]);
+    }
     $useModal = $shouldCelebrate && filled($message);
+    $confettiCount = $isPointsProgress ? 56 : 160;
 @endphp
 
 @if ($shouldCelebrate)
@@ -50,7 +68,7 @@
             }
 
             var colors = ['#f5c842', '#10b981', '#004d40', '#0d9488', '#fbbf24', '#34d399', '#ffffff'];
-            var count = 160;
+            var count = {{ (int) $confettiCount }};
             var originX = window.innerWidth / 2;
             var originY = Math.min(220, window.innerHeight * 0.28);
 

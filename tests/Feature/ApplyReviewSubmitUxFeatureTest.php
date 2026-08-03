@@ -109,8 +109,11 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
         $this->assertStringContainsString('reviewPageCount: 2', $js);
         $this->assertStringContainsString('displayInstallmentAmount()', $js);
         $this->assertStringContainsString('purposeEditing', $js);
+        $this->assertStringContainsString('setLoanPurpose', $js);
+        $this->assertStringContainsString('syncPurposeHidden', $js);
+        $this->assertStringContainsString('setter="setLoanPurpose"', $quote);
+        $this->assertStringContainsString('choose(val)', $sheet);
         $this->assertStringContainsString('optionEntries', $sheet);
-        $this->assertStringContainsString('afterPick', $sheet);
         $this->assertStringContainsString('change_purpose', $quote);
         $this->assertStringContainsString('purposeEditing', $quote);
         $this->assertStringContainsString('x-show="!form.purpose || purposeEditing"', $quote);

@@ -9,6 +9,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('agreements:expire-offers')->hourly();
+Schedule::command('applications:expire-awaiting-guarantor --remind')->dailyAt('08:30');
 Schedule::command('sanctum:prune-expired --hours=24')->daily();
 Schedule::command('security:expire-blocks')->hourly();
 Schedule::command('loans:mark-overdue')->dailyAt('00:30');

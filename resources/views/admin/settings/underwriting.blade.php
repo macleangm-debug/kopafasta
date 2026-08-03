@@ -13,6 +13,11 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <x-admin.input name="guarantor_invitation_expiry_days" label="Guarantor invitation expiry (days)" type="number"
                                :value="$values['guarantor_invitation_expiry_days'] ?? 14" required />
+                <x-admin.input name="awaiting_guarantor_deadline_days" label="Awaiting-guarantor application window (days)" type="number"
+                               :value="$values['awaiting_guarantor_deadline_days'] ?? 7" required />
+                <p class="text-xs text-gray-500 md:col-span-2 -mt-2">
+                    After submit, applications held for guarantor completion close automatically if the guarantor does not finish within this window (default 7 days). Borrowers see the deadline on their loan profile and get in-app reminders.
+                </p>
                 <x-admin.input name="stage_sla_days" label="Underwriting stage SLA reminder (days)" type="number"
                                :value="$values['stage_sla_days'] ?? 5" required />
                 <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2 md:col-span-2">

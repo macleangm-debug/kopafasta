@@ -41,6 +41,9 @@
         $isHeld = ($application->status ?? '') === 'awaiting_guarantor'
             || ($application->current_stage ?? '') === 'awaiting_guarantor';
         $pending = $guarantorAccepted < max(1, $guarantorTotal);
+        $deadline = $application
+            ? app(\App\Services\GuarantorDeadlineService::class)->progress($application)
+            : null;
     @endphp
 
     <div id="guarantor-progress" class="mb-6 glass-card overflow-hidden ring-1 {{ $isHeld || $pending ? 'ring-amber-200/80' : 'ring-brand/15' }}"
@@ -58,6 +61,12 @@
                     @if ($isHeld || $pending)
                         <p class="text-xs font-semibold text-amber-900 mt-2">{{ __('borrower.loan_profile.guarantor_hold_banner') }}</p>
                         <p class="text-xs text-amber-800 mt-1">{{ __('borrower.loan_profile.guarantor_hold_body') }}</p>
+                    @endif
+                    @if (! empty($deadline['label']))
+                        <p class="mt-2 inline-flex items-center gap-1.5 text-xs font-bold {{ ($deadline['days_left'] ?? 1) <= 2 ? 'text-red-700' : 'text-amber-900' }}">
+                            <span aria-hidden="true">⏱</span>
+                            {{ $deadline['label'] }}
+                        </p>
                     @endif
                     @if ($guarantorSupplementOpen)
                         <p class="text-xs text-amber-800 mt-1">{{ __('borrower.guarantor_supplement.borrower_banner') }}</p>

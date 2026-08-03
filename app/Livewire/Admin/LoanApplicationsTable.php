@@ -73,8 +73,8 @@ class LoanApplicationsTable extends Component
                                     ->orWhereNotIn('current_stage', ['pre_approval', 'approval', 'disbursement']);
                             });
                         });
-                })->whereNotIn('status', ['approved', 'disbursed', 'awaiting_guarantor'])
-                    ->where('current_stage', '!=', 'awaiting_guarantor');
+                })->whereNotIn('status', ['approved', 'disbursed', 'awaiting_guarantor', 'expired', 'withdrawn', 'cancelled'])
+                    ->whereNotIn('current_stage', ['awaiting_guarantor', 'expired']);
             })
             ->when($this->pipeline === 'committee', function ($q) {
                 $q->where('current_stage', 'pre_approval')
@@ -128,6 +128,7 @@ class LoanApplicationsTable extends Component
             'draft',
             'submitted',
             'awaiting_guarantor',
+            'expired',
             'pending_documents',
             'pending',
             'under_review',

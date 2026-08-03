@@ -90,7 +90,20 @@ class LoyaltyPointsService
                 // Notifications must not block points credit.
             }
 
-            \App\Support\Celebration::flashOne('points_earned');
+            $remaining = [];
+            try {
+                $summary = app(ProfileCompletionService::class)->completionSummary($customer);
+                $remaining = array_values($summary['remaining'] ?? []);
+            } catch (\Throwable) {
+                $remaining = [];
+            }
+
+            // Mini celebration for section progress; full profile_complete takes over when done.
+            if ($remaining !== []) {
+                \App\Support\Celebration::flashOne('points_earned');
+                session()->flash('celebration_points', $points);
+                session()->flash('celebration_remaining', $remaining);
+            }
 
             return $points;
         });

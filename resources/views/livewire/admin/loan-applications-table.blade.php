@@ -34,6 +34,7 @@
                         'submitted'      => 'bg-amber-100 text-amber-800',
                         'under_review'   => 'bg-blue-100 text-blue-800',
                         'awaiting_guarantor' => 'bg-purple-100 text-purple-800',
+                        'expired'            => 'bg-gray-200 text-gray-700',
                     ]" />
                     <div class="text-[10px] text-gray-400 mt-0.5">
                         @if (! empty($pipelineStages[$r->id] ?? null))

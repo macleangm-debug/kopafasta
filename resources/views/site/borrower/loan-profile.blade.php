@@ -30,8 +30,12 @@
                 'post_approval_fees',
             ], true);
         $showTimeline = ! $isDraft && ! $isRejected && $isPostApproval && ! empty($progress['timeline']);
-        $showGuarantorBlock = $isDraft
-            || ($application && app(\App\Services\GuarantorSupplementService::class)->hasOpenRequest($application));
+        $showGuarantorBlock = ! $isDraft
+            && $application
+            && (
+                ($application->product?->requires_guarantor ?? false)
+                || app(\App\Services\GuarantorSupplementService::class)->hasOpenRequest($application)
+            );
         $showDisbursementChecklist = ! $isDraft && $isPostApproval && ! $isDisbursed && ! empty($profile['disbursement_checklist']);
         $showSchedule = false; // Repayment schedule lives on the active loan page only.
     @endphp
@@ -224,6 +228,54 @@
             'isPostApproval' => $isPostApproval,
             'isDisbursed' => $isDisbursed,
         ])
+    @endif
+
+    @php
+        $guarantorRemind = null;
+        $showGuarantorRemindModal = (bool) session('show_guarantor_remind_modal');
+        if ($showGuarantorRemindModal && $application && ($application->status === 'awaiting_guarantor' || ($application->current_stage ?? '') === 'awaiting_guarantor')) {
+            $invite = ($profile['guarantor_invitations'] ?? collect())->first()
+                ?? \App\Models\GuarantorInvitation::query()->where('loan_application_id', $application->id)->latest('id')->first();
+            if ($invite) {
+                $guarantorRemind = app(\App\Services\GuarantorInvitationService::class)->sharePayload($invite, $customer);
+            }
+        }
+    @endphp
+
+    @if ($showGuarantorRemindModal && $guarantorRemind)
+        <div x-data="{ open: true }"
+             x-show="open"
+             x-cloak
+             class="fixed inset-0 z-[90] flex items-center justify-center p-4"
+             role="dialog"
+             aria-modal="true"
+             @keydown.escape.window="open = false">
+            <div class="absolute inset-0 bg-brand/70 backdrop-blur-sm" @click="open = false"></div>
+            <div class="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-brand/15">
+                <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-5 text-white">
+                    <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.apply.submit_step.guarantor_hold_title') }}</p>
+                    <h3 class="text-lg font-bold mt-1">{{ __('borrower.apply.submit_step.guarantor_modal_title') }}</h3>
+                </div>
+                <div class="px-6 py-5 space-y-4">
+                    <p class="text-sm text-gray-600 leading-relaxed">
+                        {{ __('borrower.apply.submit_step.guarantor_modal_body_generic') }}
+                    </p>
+                    <div class="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+                        <button type="button"
+                                @click="open = false"
+                                class="inline-flex justify-center bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-700 font-semibold px-5 py-2.5 rounded-xl text-sm">
+                            {{ __('borrower.apply.submit_step.guarantor_modal_dismiss') }}
+                        </button>
+                        @if (! empty($guarantorRemind['whatsapp_url']))
+                            <a href="{{ $guarantorRemind['whatsapp_url'] }}" target="_blank" rel="noopener"
+                               class="inline-flex justify-center bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm">
+                                {{ __('borrower.apply.submit_step.guarantor_modal_cta') }}
+                            </a>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
     @endif
 
 </x-site.borrower-layout>

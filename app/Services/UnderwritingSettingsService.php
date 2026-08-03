@@ -17,6 +17,12 @@ class UnderwritingSettingsService
         return max(1, (int) $this->get('guarantor_invitation_expiry_days', 14));
     }
 
+    /** Days a submitted application may wait for guarantor completion before it is closed. */
+    public function awaitingGuarantorDeadlineDays(): int
+    {
+        return max(1, (int) $this->get('awaiting_guarantor_deadline_days', 7));
+    }
+
     public function documentRequestDefaultDueDays(): int
     {
         return max(1, (int) $this->get('document_request_default_due_days', 7));

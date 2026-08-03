@@ -1,8 +1,11 @@
 <?php
 
 return [
-    'min_members' => 3,
-    'max_members' => 10,
+            'min_members' => 3,
+            'max_members' => 10,
+
+            /** Minimum loan amount each group member may request (TZS). */
+            'min_amount_per_member' => 200_000,
 
     'repayment_cadence' => 'weekly',
 

@@ -25,6 +25,14 @@ class GroupLendingService
         ];
     }
 
+    public function minAmountPerMember(): float
+    {
+        $loan = Setting::group('loan');
+        $configured = (float) ($loan['group_min_amount_per_member'] ?? config('group_lending.min_amount_per_member', 200_000));
+
+        return max(1_000, $configured);
+    }
+
     public function leaderUnlockRepayments(): int
     {
         $loan = Setting::group('loan');

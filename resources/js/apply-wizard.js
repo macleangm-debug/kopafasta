@@ -62,7 +62,7 @@ export function applyWizard(config) {
                 groupMemberStatusesUrl: config.groupMemberStatusesUrl || '',
                 previousGroupMembersUrl: config.previousGroupMembersUrl || '',
                 selectPreviousGroupMemberUrl: config.selectPreviousGroupMemberUrl || '',
-                groupLimits: config.groupLimits || { min: 5, max: 30 },
+                groupLimits: config.groupLimits || { min: 3, max: 10, minAmountPerMember: 200000 },
                 leaderCustomerId: config.leaderCustomerId || null,
                 leaderName: config.leaderName || '',
                 leaderPhone: config.leaderPhone || '',
@@ -113,7 +113,9 @@ export function applyWizard(config) {
                 resumeLoading: false,
                 furthestStep: 0,
                 showProfileGateModal: false,
+                showProfileReadyModal: false,
                 openProfileGateOnLoad: !!(config.openProfileGateOnLoad),
+                openProfileReadyOnLoad: !!(config.openProfileReadyOnLoad),
                 isResume: !! config.isResume,
                 guarantorErrors: {},
                 externalInviteTimer: null,
@@ -284,6 +286,7 @@ export function applyWizard(config) {
                         if (value && value !== oldValue && value !== 'other') {
                             this.purposeEditing = false;
                         }
+                        this.syncPurposeHidden();
                         if (this.phase === 'application') this.scheduleDraftSave();
                     });
                     this.$watch('group.purpose', (value, oldValue) => {
@@ -291,6 +294,7 @@ export function applyWizard(config) {
                             this.purposeEditing = false;
                             this.form.purpose = value;
                         }
+                        this.syncPurposeHidden();
                         if (this.phase === 'application') this.scheduleDraftSave();
                     });
                     this.$watch('form.guarantor_mode', (mode) => {
@@ -304,6 +308,11 @@ export function applyWizard(config) {
                     if (this.openProfileGateOnLoad && ! this.canApply) {
                         this.$nextTick(() => {
                             this.showProfileGateModal = true;
+                        });
+                    }
+                    if (this.openProfileReadyOnLoad && this.canApply) {
+                        this.$nextTick(() => {
+                            this.showProfileReadyModal = true;
                         });
                     }
                     if (this.reservationMode && this.assetApplication) {
@@ -347,7 +356,7 @@ export function applyWizard(config) {
                                 if (key === 'signature_data' || key === 'signer_name') continue;
                                 // Hidden purpose field is empty until submit sync — never let it
                                 // overwrite the Alpine form.purpose value in the draft.
-                                if (key === 'purpose' && ! String(value || '').trim()) continue;
+                                if (key === 'purpose') continue;
                                 inputs[key] = value;
                             }
                         }
@@ -479,8 +488,43 @@ export function applyWizard(config) {
                 },
 
                 syncQuoteFormFromDom() {
-                    const purpose = this.readFormField('purpose');
-                    if (purpose) this.form.purpose = purpose;
+                    // Alpine form.purpose is authoritative. The hidden name="purpose" field
+                    // often still holds a stale value (e.g. "other") from an earlier sync and
+                    // must not overwrite a newer pick when validating Continue.
+                    if (! this.form.purpose) {
+                        const purpose = this.readFormField('purpose');
+                        if (purpose) this.form.purpose = purpose;
+                    }
+                    this.syncPurposeHidden();
+                },
+
+                setLoanPurpose(value) {
+                    const next = String(value || '');
+                    this.form.purpose = next;
+                    if (next && next !== 'other') {
+                        this.form.purpose_other = '';
+                        this.purposeEditing = false;
+                    }
+                    this.syncPurposeHidden();
+                    this.scheduleDraftSave();
+                },
+
+                setGroupPurpose(value) {
+                    const next = String(value || '');
+                    this.group.purpose = next;
+                    this.form.purpose = next;
+                    if (next && next !== 'other') {
+                        this.purposeEditing = false;
+                    }
+                    this.syncPurposeHidden();
+                    this.scheduleDraftSave();
+                },
+
+                syncPurposeHidden() {
+                    const el = this.formRoot()?.querySelector('[data-submit-purpose]');
+                    if (el) {
+                        el.value = this.form.purpose || '';
+                    }
                 },
 
                 async autoWaiveApplicationFeeIfNeeded() {
@@ -1087,9 +1131,10 @@ export function applyWizard(config) {
                 },
 
                 groupAmountPerMemberMin() {
-                    const totalMin = Number(this.current?.min || 1000);
+                    const configured = Number(this.groupLimits?.minAmountPerMember || 200000);
+                    const totalMin = Number(this.current?.min || configured);
                     const members = Math.max(this.groupLimits.min, this.groupTargetCount() || this.groupLimits.min);
-                    return Math.max(1000, Math.ceil(totalMin / members));
+                    return Math.max(configured, Math.ceil(totalMin / Math.max(1, members)));
                 },
 
                 groupAmountPerMemberMax() {
@@ -2026,13 +2071,13 @@ export function applyWizard(config) {
                         const count = this.groupTargetCount();
                         return !!(this.group.name || '').trim()
                             && count >= this.groupLimits.min && count <= this.groupLimits.max
-                            && Number(this.group.amount_per_member) >= 1000
+                            && Number(this.group.amount_per_member) >= this.groupAmountPerMemberMin()
                             && !! this.group.purpose;
                     }
                     if (this.stepKey === 'group_members' && this.hasStep('group_members')) {
                         const target = this.groupTargetCount();
                         if (this.group.members.length !== target) return false;
-                        if (this.group.members.some(m => ! m.requested_amount || Number(m.requested_amount) < 1000)) return false;
+                        if (this.group.members.some(m => ! m.requested_amount || Number(m.requested_amount) < this.groupAmountPerMemberMin())) return false;
                         const total = this.group.members.reduce((sum, m) => sum + Number(m.requested_amount || 0), 0);
                         if (this.current && (total < this.current.min || total > this.current.max)) return false;
                         return true;
@@ -2639,7 +2684,7 @@ export function applyWizard(config) {
                             showWizardFeedback(this.i18n.group.memberCountRange);
                             return false;
                         }
-                        if (! this.group.amount_per_member || Number(this.group.amount_per_member) < 1000) {
+                        if (! this.group.amount_per_member || Number(this.group.amount_per_member) < this.groupAmountPerMemberMin()) {
                             showWizardFeedback(this.i18n.group.amountRequired);
                             return false;
                         }
@@ -2657,7 +2702,7 @@ export function applyWizard(config) {
                             showWizardFeedback(this.i18n.group.membersRequired);
                             return false;
                         }
-                        const invalidAmount = this.group.members.some(m => ! m.requested_amount || Number(m.requested_amount) < 1000);
+                        const invalidAmount = this.group.members.some(m => ! m.requested_amount || Number(m.requested_amount) < this.groupAmountPerMemberMin());
                         if (invalidAmount) {
                             showWizardFeedback(this.i18n.group.amountRequired);
                             return false;

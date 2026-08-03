@@ -48,11 +48,11 @@
                     <div x-show="!form.purpose || purposeEditing" x-cloak>
                         <x-site.sheet-select
                             model="form.purpose"
+                            setter="setLoanPurpose"
                             :label="__('borrower.apply.quote.purpose')"
                             :options="$loanPurposes"
                             :required="true"
                             :placeholder="__('borrower.apply.quote.select_purpose')"
-                            on-pick="if (form.purpose !== 'other') { purposeEditing = false; form.purpose_other = ''; } scheduleDraftSave()"
                         />
                         <p class="mt-2 text-xs text-brand/80">{{ __('borrower.apply.quote.purpose_hint') }}</p>
                         <div x-show="form.purpose === 'other'" x-cloak class="mt-4">

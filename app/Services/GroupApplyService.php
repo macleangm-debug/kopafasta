@@ -89,9 +89,12 @@ class GroupApplyService
 
         $targetCount = max(1, (int) ($group['target_member_count'] ?? 0));
         $amountPerMember = (float) ($group['amount_per_member'] ?? 0);
-        if ($amountPerMember < 1000) {
+        $minPerMember = app(GroupLendingService::class)->minAmountPerMember();
+        if ($amountPerMember < $minPerMember) {
             throw ValidationException::withMessages([
-                'group.amount_per_member' => __('borrower.apply.group.amount_required'),
+                'group.amount_per_member' => __('borrower.apply.group.amount_per_member_min', [
+                    'min' => format_money($minPerMember, true, 0),
+                ]),
             ]);
         }
 
