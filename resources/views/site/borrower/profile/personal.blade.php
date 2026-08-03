@@ -176,12 +176,10 @@
                             @endif
                             <div class="space-y-4">
                                 <div>
-                                    <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ __('borrower.nida.number') }} <span class="text-red-500">*</span></label>
-                                    <x-site.nida-input name="national_id" :value="old('national_id', $customer->national_id)" :required="! $nidaReadonly" @if($nidaReadonly) readonly @endif />
-                                    <p class="text-xs text-gray-500 mt-2">{{ __('borrower.nida.format_hint') }}</p>
+                                    <label class="block text-sm font-semibold text-gray-900 mb-2">{{ __('borrower.nida.number') }} <span class="text-red-500">*</span></label>
+                                    <x-site.nida-input name="national_id" :value="old('national_id', $customer->national_id)" :required="! $nidaReadonly" :readonly="$nidaReadonly" />
                                     @error('national_id')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                 </div>
-                                <p class="text-xs text-gray-500">{{ __('borrower.profile.id_images_follow_hint') }}</p>
                             </div>
                             <button type="submit" class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
                                 {{ __('borrower.profile.save') }}
@@ -393,7 +391,7 @@
                     :complete="$faceComplete"
                     :empty="! $faceHasPhotos && ! $faceComplete"
                     :inline-edit="true"
-                    :default-open="$focusHash === 'face' || in_array($faceKey, ['rejected', 'revision_required', 'incomplete'], true)"
+                    :default-open="$focusHash === 'face' || in_array($faceKey, ['rejected', 'revision_required'], true)"
                     :allow-overflow="true">
                     <x-slot:view>
                         @if (! empty($faceAngles ?? []))

@@ -88,7 +88,6 @@
             @if ($incomeProofEmployed)
                 <div class="space-y-4">
                     <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.income_step_docs_title') }}</p>
-                    <p class="text-xs text-gray-500">{{ __('borrower.profile.income_scan_hint') }}</p>
                     @foreach ($employedItems as $item)
                         <div class="rounded-xl border border-gray-100 p-4 bg-white">
                             <p class="text-sm font-semibold text-gray-900 mb-3">
@@ -103,7 +102,7 @@
                                 :input-host-id="$item['key'].'-upload'"
                                 :required="true"
                                 :labels="[
-                                    'hint' => __('borrower.profile.income_scan_hint'),
+                                    'hint' => __('borrower.profile.multi_page_hint_short'),
                                     'uploadFile' => __('borrower.profile.capture_pages_upload'),
                                     'capturePage' => __('borrower.profile.capture_pages'),
                                 ]"
@@ -157,14 +156,11 @@
 
                 {{-- Step 3: capture / upload pages → server merges to PDF --}}
                 <div x-show="step === 3" x-cloak class="space-y-4">
-                    <div>
-                        <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.income_step_scan_title') }}</p>
-                        <p class="text-xs text-gray-500 mt-1">{{ __('borrower.profile.income_scan_hint') }}</p>
-                    </div>
+                    <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.income_step_scan_title') }}</p>
                     @foreach ($primaryItems as $item)
                         <div class="rounded-xl border border-gray-100 p-4 bg-white space-y-3" x-show="incomeMethod === @js($item['key'])" x-cloak>
                             <p class="text-sm font-semibold text-gray-900">
-                                {{ __('borrower.profile.upload') }} {{ $item['label'] }}
+                                {{ $item['label'] }}
                                 <span class="text-red-500">*</span>
                             </p>
                             <x-site.profile-document-field
@@ -176,7 +172,7 @@
                                 :input-host-id="$item['key'].'-statement-upload'"
                                 :required="true"
                                 :labels="[
-                                    'hint' => __('borrower.profile.income_scan_hint'),
+                                    'hint' => __('borrower.profile.multi_page_hint_short'),
                                     'uploadFile' => __('borrower.profile.capture_pages_upload'),
                                     'capturePage' => __('borrower.profile.capture_pages'),
                                 ]"

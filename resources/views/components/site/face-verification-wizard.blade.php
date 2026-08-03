@@ -21,7 +21,7 @@
     x-init="init()"
 >
     {{-- Intro --}}
-    <div x-show="phase === 'intro'" class="space-y-5">
+    <div x-show="phase === 'intro'" class="space-y-4">
         <nav aria-label="{{ __('borrower.face_verification_page.steps_nav') }}">
             <ol class="flex items-center gap-0">
                 <template x-for="(step, i) in steps" :key="'rail-' + step.key">
@@ -51,185 +51,93 @@
             </ol>
         </nav>
 
-        <div class="rounded-3xl overflow-hidden ring-1 ring-brand/15 bg-gradient-to-b from-brand-muted/40 via-white to-white">
-            <div class="px-5 sm:px-7 py-6 sm:py-7 text-center">
-                <div class="mx-auto mb-5 size-20 rounded-full bg-gradient-to-br from-brand to-brand-light text-white grid place-items-center shadow-lg shadow-brand/20">
-                    <svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-                    </svg>
-                </div>
-                <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">{{ __('borrower.face_verification_page.intro_title') }}</h2>
-                <p class="mt-2 text-sm text-gray-500 max-w-md mx-auto">{{ __('borrower.nida.face_steps_intro') }}</p>
+        <div class="rounded-2xl ring-1 ring-gray-200 bg-white px-5 py-6 text-center">
+            <p class="text-sm text-gray-600">{{ __('borrower.face_verification_page.intro_short') }}</p>
+            <button type="button" @click="startScan()" :disabled="!ready || loading"
+                    class="mt-5 w-full bg-brand-gold hover:bg-yellow-400 disabled:opacity-50 text-brand font-bold px-6 py-4 rounded-full text-sm shadow-sm transition">
+                <span x-show="!loading">{{ __('borrower.face_verification_page.start_cta') }}</span>
+                <span x-show="loading" x-cloak>{{ __('borrower.face_verification_page.opening_camera') }}</span>
+            </button>
+            <p x-show="notice" x-cloak class="mt-3 text-xs text-amber-700" x-text="notice"></p>
+        </div>
 
-                <div class="mt-5 rounded-2xl bg-sky-50/80 ring-1 ring-sky-200/80 px-4 py-3 text-left text-xs text-sky-950 max-w-md mx-auto">
-                    <p class="font-semibold">{{ __('borrower.nida.face_permission_title') }}</p>
-                    <p class="mt-1 text-sky-800">{{ __('borrower.nida.face_permission_body') }}</p>
-                </div>
-            </div>
-
-            <template x-if="steps.some(s => s.done)">
-                <div class="px-5 sm:px-7 pb-2">
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold mb-3">{{ __('borrower.nida.face_captured_photos') }}</p>
-                    <div class="grid sm:grid-cols-2 gap-3">
-                        <template x-for="(step, i) in steps" :key="'intro-' + step.key + '-' + (step.previewUrl || '')">
-                            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3">
-                                <p class="text-xs text-gray-500" x-text="step.label"></p>
-                                <div class="mt-2 flex items-start gap-3">
-                                    <button type="button"
-                                            class="h-28 w-24 shrink-0 rounded-lg ring-1 ring-brand/15 overflow-hidden bg-white cursor-zoom-in block shadow-sm hover:ring-brand/40 transition relative"
-                                            @click="step.done && step.previewUrl ? openPreview(step.previewUrl) : null"
-                                            :disabled="!(step.done && step.previewUrl)">
-                                        <img x-cloak
-                                             x-show="step.done && step.previewUrl"
-                                             :src="step.previewUrl"
-                                             :alt="step.label"
-                                             class="absolute inset-0 w-full h-full object-cover object-top"
-                                             loading="eager"
-                                             decoding="async">
-                                        <div x-show="!(step.done && step.previewUrl)" class="absolute inset-0 flex flex-col items-center justify-center gap-1 text-[10px] text-gray-400 px-1 text-center">
-                                            <span class="text-lg opacity-40" aria-hidden="true">◎</span>
-                                            <span>{{ __('borrower.nida.face_not_captured') }}</span>
-                                        </div>
+        <template x-if="steps.some(s => s.done)">
+            <div class="px-1">
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold mb-3">{{ __('borrower.nida.face_captured_photos') }}</p>
+                <div class="grid sm:grid-cols-2 gap-3">
+                    <template x-for="(step, i) in steps" :key="'intro-' + step.key + '-' + (step.previewUrl || '')">
+                        <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3" x-show="step.done && step.previewUrl">
+                            <p class="text-xs text-gray-500" x-text="step.label"></p>
+                            <div class="mt-2 flex items-start gap-3">
+                                <button type="button"
+                                        class="h-28 w-24 shrink-0 rounded-lg ring-1 ring-brand/15 overflow-hidden bg-white cursor-zoom-in block shadow-sm relative"
+                                        @click="openPreview(step.previewUrl)">
+                                    <img :src="step.previewUrl" :alt="step.label" class="absolute inset-0 w-full h-full object-cover object-top">
+                                </button>
+                                <div class="min-w-0 flex-1 flex flex-col gap-2 pt-0.5">
+                                    <button type="button" @click="retakeStep(i)" :disabled="isRemoving"
+                                            class="text-[11px] font-semibold px-2 py-2 rounded-xl bg-brand-muted/60 hover:bg-brand-muted text-brand disabled:opacity-50">
+                                        {{ __('borrower.nida.face_retake') }}
                                     </button>
-                                    <div class="min-w-0 flex-1 flex flex-col gap-2 pt-0.5" x-show="step.done && step.previewUrl">
-                                        <p class="text-[11px] text-gray-500">{{ __('borrower.profile.tap_to_enlarge') }}</p>
-                                        <button type="button" @click="openPreview(step.previewUrl)"
-                                                class="inline-flex items-center justify-center self-start rounded-full bg-white ring-1 ring-brand/20 px-3 py-1.5 text-xs font-semibold text-brand hover:bg-brand-muted/40">
-                                            {{ __('borrower.nida.face_view_angle') }}
-                                        </button>
-                                        <div class="flex gap-2 pt-1">
-                                            <button type="button" @click="retakeStep(i)" :disabled="isRemoving"
-                                                    class="flex-1 text-[11px] font-semibold px-2 py-2 rounded-xl bg-brand-muted/60 hover:bg-brand-muted text-brand disabled:opacity-50">
-                                                {{ __('borrower.nida.face_retake') }}
-                                            </button>
-                                            <button type="button" @click="removePhoto(step.key)" :disabled="isRemoving"
-                                                    class="flex-1 text-[11px] font-semibold px-2 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 disabled:opacity-50">
-                                                <span x-show="!isRemoving">{{ __('borrower.nida.face_remove') }}</span>
-                                                <span x-show="isRemoving" x-cloak>…</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <p x-show="!(step.done && step.previewUrl)" class="text-sm font-semibold text-amber-700 pt-2">{{ __('borrower.profile.missing') }}</p>
                                 </div>
                             </div>
-                        </template>
-                    </div>
+                        </div>
+                    </template>
                 </div>
-            </template>
-
-            <div class="px-5 sm:px-7 py-6">
-                <p x-show="!ready && !isDesktop" class="text-sm text-gray-400 mb-3 text-center">{{ __('borrower.face_verification_page.loading_scanner') }}</p>
-                <button type="button" @click="startScan()" :disabled="!ready || loading"
-                        class="w-full bg-brand-gold hover:bg-yellow-400 disabled:opacity-50 text-brand font-bold px-6 py-4 rounded-full text-sm shadow-sm transition">
-                    <span x-show="!loading">{{ __('borrower.face_verification_page.start_cta') }}</span>
-                    <span x-show="loading" x-cloak>{{ __('borrower.face_verification_page.opening_camera') }}</span>
-                </button>
-                <p x-show="notice" x-cloak class="mt-3 text-xs text-amber-700 text-center" x-text="notice"></p>
             </div>
-        </div>
+        </template>
     </div>
 
-    {{-- Scanner — live camera preview while capturing --}}
+    {{-- Scanner — fullscreen proper camera --}}
+    <template x-teleport="body">
     <div
         x-show="phase === 'scanning' || phase === 'saving'"
         x-cloak
-        class="relative rounded-3xl overflow-hidden bg-black w-full min-h-[70vh] max-h-[80vh] shadow-2xl ring-1 ring-gray-800"
+        class="fixed inset-0 z-[95] bg-black flex flex-col"
     >
         <video x-ref="video" autoplay playsinline webkit-playsinline muted class="absolute inset-0 z-[1] w-full h-full object-cover mirror bg-gray-900"></video>
         <canvas x-ref="overlay" class="absolute inset-0 z-[2] w-full h-full pointer-events-none"></canvas>
 
-        {{-- Captured thumbs during scan — retake without leaving the camera --}}
-        <div x-show="steps.some(s => s.done)" class="absolute bottom-28 inset-x-0 z-[5] px-3 pointer-events-auto">
-            <div class="flex gap-2 overflow-x-auto justify-center pb-1">
-                <template x-for="(step, i) in steps" :key="'scan-thumb-' + step.key + '-' + (step.previewUrl || '')">
-                    <div x-show="step.done && step.previewUrl" class="relative shrink-0">
-                        <button type="button" @click="openPreview(step.previewUrl)"
-                                class="block size-14 rounded-xl overflow-hidden ring-2 ring-white/80 shadow-lg bg-black/40">
-                            <img :src="step.previewUrl" :alt="step.label" class="w-full h-full object-cover object-top" loading="eager" decoding="async">
-                        </button>
-                        <button type="button" @click="retakeStep(i)" :disabled="isRemoving || isUploading"
-                                class="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-brand-gold text-brand text-[10px] font-bold grid place-items-center shadow disabled:opacity-50"
-                                :title="@js(__('borrower.nida.face_retake'))">↻</button>
-                    </div>
-                </template>
-            </div>
-        </div>
-
-        {{-- Live guidance stack (single column to avoid overlapping labels) --}}
-        <div class="absolute top-4 left-0 right-0 z-[3] pointer-events-none flex flex-col items-center gap-2 px-3">
-            <span class="inline-flex items-center gap-2 text-xs font-semibold text-brand bg-brand-gold px-3 py-1.5 rounded-full shadow-lg">
-                <span class="w-2 h-2 rounded-full bg-brand animate-pulse"></span>
-                {{ __('borrower.face_verification_page.live_preview') }}
-            </span>
-            <div class="rounded-2xl bg-black/45 px-4 py-3 text-white text-center max-w-xs">
+        {{-- Top: step + one instruction only --}}
+        <div class="relative z-[4] pt-[max(1rem,env(safe-area-inset-top))] px-4 flex items-start justify-between gap-3">
+            <div class="rounded-2xl bg-black/55 backdrop-blur-sm px-4 py-3 text-white max-w-md">
                 <p class="text-[11px] uppercase tracking-widest text-white/70"
                    x-text="@js(__('borrower.face_verification_page.step_of', ['current' => '__C__', 'total' => '__T__'])).replace('__C__', String(stepIndex + 1)).replace('__T__', String(steps.length))"></p>
-                <div class="mt-2 text-3xl" x-show="currentStep?.pose === 'left'">← 👤</div>
-                <div class="mt-2 text-3xl" x-show="currentStep?.pose === 'right'">👤 →</div>
-                <div class="mt-2 text-3xl" x-show="currentStep?.key === 'holding_nida'">🪪 👤</div>
-                <div class="mt-2 text-3xl" x-show="!currentStep?.pose && currentStep?.key !== 'holding_nida'">👤</div>
-                <p class="text-xs mt-2 text-white/80" x-text="currentStep?.instruction"></p>
+                <p class="text-sm font-semibold mt-1" x-text="guideTitle"></p>
+                <p class="text-xs text-white/80 mt-1">{{ __('borrower.face_verification_page.oval_hint') }}</p>
             </div>
+            <button type="button" @click="cancelScan()" class="shrink-0 text-xs font-semibold text-white/90 bg-black/50 px-3 py-2 rounded-full">{{ __('borrower.face_verification_page.cancel') }}</button>
         </div>
 
-        {{-- Progress ring + large oval — semi-transparent so you can see yourself --}}
+        {{-- Oval only --}}
         <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-[3]">
-            <svg class="w-[92%] max-w-[380px] aspect-square" viewBox="0 0 120 120">
-                <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2.5"/>
-                <circle cx="60" cy="60" r="54" fill="none" stroke="#34d399" stroke-width="3.5" stroke-linecap="round"
-                        transform="rotate(-90 60 60)"
-                        :stroke-dasharray="339.3"
-                        :stroke-dashoffset="339.3 - (339.3 * holdProgress / 100)"/>
-            </svg>
-            <div class="absolute w-[78%] max-w-[300px] aspect-[4/5] rounded-[50%] border-[3px] transition-all duration-300"
+            <div class="w-[78%] max-w-[340px] aspect-[4/5] rounded-[50%] border-[3px] transition-all duration-300"
                  :class="poseOk
-                    ? 'border-emerald-400 shadow-[0_0_32px_rgba(52,211,153,0.55)] bg-emerald-400/10'
-                    : (faceVisible ? 'border-amber-300/90 shadow-[0_0_20px_rgba(251,191,36,0.35)] bg-transparent' : 'border-white/60 bg-transparent')"></div>
+                    ? 'border-emerald-400 shadow-[0_0_32px_rgba(52,211,153,0.45)]'
+                    : 'border-amber-300/90 shadow-[0_0_20px_rgba(251,191,36,0.3)]'"></div>
         </div>
 
-        {{-- Detection status --}}
-        <div class="absolute top-16 left-0 right-0 flex flex-col items-center gap-2 px-4 z-[4]">
-            <span class="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-full backdrop-blur-sm"
-                  :class="faceVisible
-                    ? (poseOk ? 'bg-emerald-500/90 text-white' : 'bg-amber-500/90 text-gray-900')
-                    : 'bg-black/50 text-white/90'">
-                <span class="w-2.5 h-2.5 rounded-full"
-                      :class="faceVisible ? (poseOk ? 'bg-white animate-pulse' : 'bg-gray-900 animate-pulse') : 'bg-red-400 animate-pulse'"></span>
-                <span x-text="detectionLabel"></span>
-            </span>
-            <span x-show="false" x-cloak
-                  class="text-xs font-mono text-white/80 bg-black/40 px-3 py-1 rounded-full"
-                  x-text="Math.round(holdProgress) + '%'"></span>
-        </div>
-
-        {{-- Step badge --}}
-        <div class="absolute top-4 left-4 right-4 flex justify-between items-center z-[4]">
-            <span class="text-xs font-semibold text-white/90 bg-black/40 px-3 py-1 rounded-full"
-                  x-text="@js(__('borrower.face_verification_page.step_of', ['current' => '__C__', 'total' => '__T__'])).replace('__C__', String(stepIndex + 1)).replace('__T__', String(steps.length))"></span>
-            <button type="button" @click="cancelScan()" class="text-xs font-semibold text-white/80 bg-black/40 px-3 py-1 rounded-full">{{ __('borrower.face_verification_page.cancel') }}</button>
-        </div>
-
-        {{-- Status --}}
-        <div class="absolute bottom-0 inset-x-0 px-6 pb-24 pt-12 bg-gradient-to-t from-black/90 via-black/50 to-transparent text-center z-[4]">
-            <p class="text-lg font-semibold text-white" x-text="statusTitle"></p>
-            <p class="text-sm text-white/70 mt-1" x-text="statusSubtitle"></p>
-            <p class="text-xs text-white/60 mt-2">{{ __('borrower.face_verification_page.capture_hint') }}</p>
+        {{-- Bottom: capture CTA + small page dots (not blocking camera) --}}
+        <div class="relative z-[4] mt-auto px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-8 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+            <div x-show="steps.some(s => s.done)" class="flex gap-2 justify-center mb-4">
+                <template x-for="(step, i) in steps" :key="'scan-dot-' + step.key">
+                    <button type="button" x-show="step.done && step.previewUrl" @click="retakeStep(i)"
+                            class="size-10 rounded-full overflow-hidden ring-2 ring-white/70 shadow bg-black/40">
+                        <img :src="step.previewUrl" alt="" class="w-full h-full object-cover object-top">
+                    </button>
+                </template>
+            </div>
             <button type="button" @click="manualCapture()" :disabled="isUploading || phase === 'saving'"
-                    class="mt-4 inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-3 rounded-full text-sm border-0 shadow-sm">
+                    class="w-full max-w-md mx-auto block bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-6 py-4 rounded-full text-sm border-0 shadow-lg">
                 {{ __('borrower.face_verification_page.capture') }}
             </button>
         </div>
 
-        {{-- Saving flash --}}
-        <div x-show="phase === 'saving'" class="absolute inset-0 bg-black/60 flex items-center justify-center">
-            <div class="text-center text-white">
-                <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-emerald-500 flex items-center justify-center">
-                    <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
-                </div>
-                <p class="font-semibold">{{ __('borrower.face_verification_page.photo_saved') }}</p>
-            </div>
+        <div x-show="phase === 'saving'" class="absolute inset-0 z-[6] bg-black/60 flex items-center justify-center">
+            <p class="font-semibold text-white">{{ __('borrower.face_verification_page.photo_saved') }}</p>
         </div>
     </div>
+    </template>
 
         {{-- Preview captured photo --}}
         <div x-show="phase === 'preview'" x-cloak class="rounded-3xl overflow-hidden ring-1 ring-brand/15 bg-white">
@@ -378,12 +286,14 @@
 
                     get detectionLabel() {
                         void this.uiTick;
-                        if (this.phase === 'saving') return 'Saving photo…';
-                        if (!this.faceVisible && (this.detectorActive || this.landmarkerActive)) {
-                            return 'Align your face in the oval, then tap Capture';
-                        }
-                        if (this.poseOk) return 'Looking good — tap Capture when ready';
-                        return 'Align your face in the oval, then tap Capture';
+                        return this.guideTitle;
+                    },
+
+                    get guideTitle() {
+                        void this.uiTick;
+                        if (this.phase === 'saving') return @js(__('borrower.face_verification_page.saving'));
+                        const step = this.currentStep;
+                        return step?.instruction || @js(__('borrower.face_verification_page.oval_hint'));
                     },
 
                     get currentStep() {
@@ -391,15 +301,11 @@
                     },
 
                     get statusTitle() {
-                        if (this.phase === 'saving') return 'Saving…';
-                        const step = this.currentStep;
-                        if (!step) return '';
-                        return step.instruction;
+                        return this.guideTitle;
                     },
 
                     get statusSubtitle() {
-                        if (this.phase === 'saving') return 'Uploading photo securely';
-                        return 'Place your face inside the oval, then tap Capture yourself — photos are never taken automatically.';
+                        return @js(__('borrower.face_verification_page.oval_hint'));
                     },
 
                     startUiTimer() {

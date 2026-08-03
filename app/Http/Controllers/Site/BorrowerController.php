@@ -2929,7 +2929,10 @@ class BorrowerController extends Controller
 
         $type = DocumentType::where('code', $documentCode)->where('is_active', true)->first();
         if (! $type) {
-            return;
+            report(new \RuntimeException("Missing active DocumentType [{$documentCode}] during profile upload."));
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                $documentCode => [__('borrower.profile.document_type_unavailable')],
+            ]);
         }
 
         $path = $single
@@ -3003,8 +3006,8 @@ class BorrowerController extends Controller
             'registration_number' => [$type === 'vehicle' ? 'required' : 'nullable', 'string', 'max:80'],
             'estimated_value'     => ['nullable', 'numeric', 'min:1'],
             'details'             => ['nullable', 'array'],
-            'photos'              => ['required', 'array', 'min:2', 'max:6'],
-            'photos.*'            => ['required', 'image', 'max:5120'],
+            'photos'              => ['nullable', 'array', 'max:6'],
+            'photos.*'            => ['nullable', 'image', 'max:5120'],
             'person_photo'        => ['required', 'image', 'max:5120'],
             'ownership_document'  => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
             'insurance_document'  => [
@@ -3014,6 +3017,25 @@ class BorrowerController extends Controller
                 'max:8192',
             ],
         ], $detailRules));
+
+        // Strip thousand separators from numeric detail fields (e.g. mileage).
+        if (is_array($data['details'] ?? null)) {
+            foreach ($data['details'] as $key => $value) {
+                if (is_string($value) && preg_match('/^\d{1,3}(,\d{3})+$/', $value)) {
+                    $data['details'][$key] = str_replace(',', '', $value);
+                }
+            }
+        }
+
+        $validPhotos = array_values(array_filter(
+            is_array($request->file('photos')) ? $request->file('photos') : [],
+            fn ($file) => $file instanceof \Illuminate\Http\UploadedFile && $file->isValid()
+        ));
+        if (count($validPhotos) < 2) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'photos' => [__('borrower.profile.asset_photos_min', ['min' => 2])],
+            ]);
+        }
 
         if (($data['asset_type'] ?? '') === 'vehicle') {
             $details = $data['details'] ?? [];
@@ -3039,10 +3061,7 @@ class BorrowerController extends Controller
             ->all();
 
         app(\App\Services\CustomerAssetService::class)->store($customer, $data, [
-            'photos'              => array_values(array_filter(
-                is_array($request->file('photos')) ? $request->file('photos') : [],
-                fn ($file) => $file instanceof \Illuminate\Http\UploadedFile && $file->isValid()
-            )),
+            'photos'              => $validPhotos,
             'person_photo'        => $request->file('person_photo'),
             'ownership_document'  => $request->file('ownership_document'),
             'insurance_document'  => $request->file('insurance_document'),

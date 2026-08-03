@@ -45,15 +45,19 @@
 
     <p x-show="cameraNotice" x-cloak class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2 mt-3" x-text="cameraNotice"></p>
 
-    <div x-show="cameraOpen" x-cloak class="rounded-2xl overflow-hidden ring-1 ring-gray-200 bg-black mt-3">
-        <video x-ref="camVideo" autoplay playsinline webkit-playsinline muted
-               class="w-full max-h-72 object-cover"
-               :class="facingMode === 'user' ? 'mirror' : ''"></video>
-        <div class="p-3 flex gap-2 bg-white">
-            <button type="button" @click="captureImage()" class="flex-1 bg-gray-900 text-white font-semibold px-4 py-2 rounded-xl text-sm" x-text="labels.captureImage"></button>
-            <button type="button" @click="closeCamera()" class="px-4 py-2 rounded-xl text-sm ring-1 ring-gray-200" x-text="labels.close"></button>
+    <template x-teleport="body">
+        <div x-show="cameraOpen" x-cloak class="fixed inset-0 z-[95] bg-black flex flex-col">
+            <video x-ref="camVideo" autoplay playsinline webkit-playsinline muted
+                   class="absolute inset-0 w-full h-full object-cover"
+                   :class="facingMode === 'user' ? 'mirror' : ''"></video>
+            <div class="relative z-[2] mt-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-6 bg-gradient-to-t from-black/85 to-transparent">
+                <div class="flex gap-2 max-w-lg mx-auto">
+                    <button type="button" @click="captureImage()" class="flex-1 bg-brand-gold text-brand font-bold px-4 py-3.5 rounded-full text-sm" x-text="labels.captureImage"></button>
+                    <button type="button" @click="closeCamera()" class="px-5 py-3.5 rounded-full text-sm font-semibold bg-white/15 text-white ring-1 ring-white/30" x-text="labels.close"></button>
+                </div>
+            </div>
         </div>
-    </div>
+    </template>
 
     <div x-show="expanded && previewUrl" x-cloak x-transition
          class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"

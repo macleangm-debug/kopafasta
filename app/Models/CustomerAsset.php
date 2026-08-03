@@ -84,11 +84,9 @@ class CustomerAsset extends Model
             'vehicle' => [
                 ['key' => 'registration_number', 'type' => 'text', 'column' => true],
                 ['key' => 'make', 'type' => 'text'],
-                ['key' => 'model', 'type' => 'text'],
                 ['key' => 'year', 'type' => 'number'],
                 ['key' => 'chassis_number', 'type' => 'text'],
-                ['key' => 'engine_number', 'type' => 'text'],
-                ['key' => 'mileage', 'type' => 'number'],
+                ['key' => 'mileage', 'type' => 'number', 'format' => 'thousands'],
             ],
             'equipment' => [
                 ['key' => 'equipment_type', 'type' => 'text'],

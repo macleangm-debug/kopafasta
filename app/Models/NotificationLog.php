@@ -83,32 +83,48 @@ class NotificationLog extends Model
                 'title' => 'borrower.guarantor_invite.notify_request_title',
                 'body'  => 'borrower.guarantor_invite.guarantor_received',
             ],
+            'loyalty_points_earned' => [
+                'title' => 'borrower.rewards.points_earned_title',
+                'body'  => 'borrower.rewards.points_earned_body',
+            ],
         ];
         $template = (string) ($this->template ?? '');
         if (isset($templateMap[$template])) {
             $params = is_array($meta['params'] ?? null) ? $meta['params'] : [];
+            if ($template === 'loyalty_points_earned' && ! isset($params['points'])) {
+                if (preg_match('/\b(\d[\d,]*)\b/', (string) $this->message, $m)) {
+                    $params['points'] = $m[1];
+                }
+            }
             $title = (string) __($templateMap[$template]['title'], $params);
             $bodyKey = $templateMap[$template]['body'] ?? null;
             if ($bodyKey) {
                 $translated = (string) __($bodyKey, $params);
-                // Only use translation when params exist or key clearly resolved.
                 if ($translated !== $bodyKey || $params !== []) {
-                    return [$title, $translated !== $bodyKey ? $translated : trim(implode(' ', array_slice(
-                        preg_split("/\r\n|\n|\r/", (string) ($this->message ?: '')) ?: [],
-                        1
-                    )))];
+                    return [$title, $translated !== $bodyKey ? $translated : $this->legacyBody()];
                 }
             }
-            $lines = preg_split("/\r\n|\n|\r/", (string) ($this->message ?: '')) ?: [];
-            $body = trim(implode(' ', array_slice($lines, 1))) ?: (string) ($this->message ?: '');
 
-            return [$title, $body];
+            return [$title, $this->legacyBody()];
         }
 
         $lines = preg_split("/\r\n|\n|\r/", (string) ($this->message ?: '')) ?: [];
-        $title = trim($lines[0] ?? '') ?: __('borrower.notifications.fallback_title');
-        $body = trim(implode(' ', array_slice($lines, 1))) ?: (string) ($this->message ?: $this->template ?: '');
+        $title = $this->stripSkippedPrefix(trim($lines[0] ?? '')) ?: __('borrower.notifications.fallback_title');
+        $body = $this->stripSkippedPrefix(trim(implode(' ', array_slice($lines, 1)))) ?: $this->stripSkippedPrefix((string) ($this->message ?: $this->template ?: ''));
 
         return [$title, $body];
+    }
+
+    private function legacyBody(): string
+    {
+        $lines = preg_split("/\r\n|\n|\r/", (string) ($this->message ?: '')) ?: [];
+        $body = trim(implode(' ', array_slice($lines, 1))) ?: (string) ($this->message ?: '');
+
+        return $this->stripSkippedPrefix($body);
+    }
+
+    private function stripSkippedPrefix(string $text): string
+    {
+        return trim((string) preg_replace('/^\[skipped\]\s*/i', '', $text));
     }
 }

@@ -185,11 +185,7 @@ class NotificationService
         ?string $actionLabel = null,
         ?array $i18n = null,
     ): NotificationLog {
-        if (! $this->messaging->channelEnabled('in_app')
-            || ($template && ! $this->messaging->eventEnabled($template))) {
-            return $this->skippedLog('in_app', 'in_app', $message, $customer, $template);
-        }
-
+        // In-app inbox is always written for the user. Channel kill-switches apply to SMS/email/WhatsApp only.
         $payload = [
             'customer_id' => $customer->id,
             'channel'     => 'in_app',

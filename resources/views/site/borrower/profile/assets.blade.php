@@ -18,7 +18,7 @@
 
         @if ($adding && $selectedType)
             {{-- ============ Item 18: type-specific add form ============ --}}
-            <x-site.profile-section-card :title="($typeIcons[$selectedType] ?? '📦').'  '.__('borrower.profile.add_asset').': '.($assetTypes[$selectedType] ?? $selectedType)">
+            <x-site.profile-section-card :title="($typeIcons[$selectedType] ?? '📦').'  '.__('borrower.profile.add_asset').': '.($assetTypes[$selectedType] ?? $selectedType)" :allow-overflow="true">
                 @php
                     $photoSlots = [
                         ['key' => 0, 'label' => __('borrower.profile.asset_photo_front'), 'required' => true, 'hint' => __('borrower.profile.asset_photo_front_hint')],
@@ -30,7 +30,7 @@
                     ];
                     $isVehicle = $selectedType === 'vehicle';
                 @endphp
-                <form method="POST" action="{{ route('site.borrower.profile.assets.store') }}" enctype="multipart/form-data" class="space-y-6"
+                <form method="POST" action="{{ route('site.borrower.profile.assets.store') }}" enctype="multipart/form-data" class="space-y-6" novalidate
                       x-data="{
                           saving: false,
                           uploading: false,
@@ -47,6 +47,10 @@
                           nextPhoto() {
                               if (this.photoIndex < this.photoCount - 1) this.photoIndex++;
                               else this.next();
+                          },
+                          formatThousands(el) {
+                              const digits = String(el.value || '').replace(/\D/g, '');
+                              el.value = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
                           },
                       }"
                       @submit="saving = true; uploading = true">
@@ -83,13 +87,15 @@
                                     $inputName = $isColumn ? $fieldKey : 'details['.$fieldKey.']';
                                     $oldVal = $isColumn ? old($fieldKey) : old('details.'.$fieldKey);
                                     $fieldLabel = __('borrower.profile.collateral_fields.'.$fieldKey);
+                                    $useThousands = ($field['format'] ?? null) === 'thousands';
                                 @endphp
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ $fieldLabel }} <span class="text-red-500">*</span></label>
-                                    <input type="{{ $field['type'] === 'number' ? 'number' : 'text' }}"
-                                           @if ($field['type'] === 'number') inputmode="numeric" min="0" @endif
+                                    <input type="text"
+                                           inputmode="{{ $field['type'] === 'number' ? 'numeric' : 'text' }}"
                                            name="{{ $inputName }}" value="{{ $oldVal }}" maxlength="150" required
-                                           class="kf-field">
+                                           class="kf-field"
+                                           @if ($useThousands) @input="formatThousands($event.target)" @endif>
                                 </div>
                             @endforeach
 
@@ -119,6 +125,8 @@
                                             :label="__('borrower.profile.collateral_fields.insurance_expires_at')"
                                             :value="old('details.insurance_expires_at')"
                                             :required="true"
+                                            :min="now()->addDay()->format('Y-m-d')"
+                                            :max="now()->addYears(15)->format('Y-m-d')"
                                             input-class="kf-field"
                                         />
                                     </div>

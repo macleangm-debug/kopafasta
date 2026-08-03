@@ -292,30 +292,16 @@ class IncomeProofService
             ),
         ];
 
-        if ($this->isBusinessOwner($customer)) {
-            foreach ([
-                'business_registration' => __('borrower.profile.income_business_registration'),
-                'business_license'      => __('borrower.profile.income_business_license'),
-                'tin_certificate'         => __('borrower.profile.income_tin_certificate'),
-                'vat_certificate'         => __('borrower.profile.income_vat_certificate'),
-            ] as $code => $label) {
-                $items[] = array_merge(
-                    $this->checklistRow($code, $label, false, $uploads),
-                    ['multi' => true, 'optional' => true],
-                );
-            }
-        }
-
-        if ($this->showsBusinessPhotos($customer)) {
+        foreach ([
+            'business_registration' => __('borrower.profile.income_business_registration'),
+            'business_license'      => __('borrower.profile.income_business_license'),
+            'tin_certificate'       => __('borrower.profile.income_tin_certificate'),
+            'vat_certificate'       => __('borrower.profile.income_vat_certificate'),
+            'business_photos'       => __('borrower.profile.income_business_photos'),
+            'workshop_photos'       => __('borrower.profile.income_workshop_photos'),
+        ] as $code => $label) {
             $items[] = array_merge(
-                $this->checklistRow('business_photos', __('borrower.profile.income_business_photos'), false, $uploads),
-                ['multi' => true, 'optional' => true],
-            );
-        }
-
-        if ($this->isArtisan($customer)) {
-            $items[] = array_merge(
-                $this->checklistRow('workshop_photos', __('borrower.profile.income_workshop_photos'), false, $uploads),
+                $this->checklistRow($code, $label, false, $uploads),
                 ['multi' => true, 'optional' => true],
             );
         }

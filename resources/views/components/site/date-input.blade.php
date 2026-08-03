@@ -16,12 +16,15 @@
     $maxDate = $max ?: now()->format('Y-m-d');
     $id = 'date-'.str_replace(['[', ']'], ['-', ''], $name).'-'.substr(md5($name.$selected), 0, 6);
     $monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    $minYear = (int) substr($minDate, 0, 4);
+    $maxYear = (int) substr($maxDate, 0, 4);
 @endphp
 
 <div
     x-data="{
         open: false,
         desktopOpen: false,
+        desktopStyle: '',
         pickerMode: 'calendar',
         value: @js($selected),
         draft: @js($selected ?: $maxDate),
@@ -35,6 +38,15 @@
             this.viewYear = base.getFullYear();
             this.viewMonth = base.getMonth();
             if (! this.value) this.draft = this.format(base);
+        },
+        positionDesktop() {
+            this.$nextTick(() => {
+                const btn = this.$el.querySelector('button');
+                if (! btn) return;
+                const r = btn.getBoundingClientRect();
+                const top = Math.min(r.bottom + 8, window.innerHeight - 360);
+                this.desktopStyle = `left:${Math.max(12, Math.min(r.left, window.innerWidth - 370))}px;top:${Math.max(12, top)}px;`;
+            });
         },
         parse(str) {
             const [y, m, d] = String(str || '').split('-').map(Number);
@@ -239,7 +251,10 @@
         </button>
 
         <div x-show="desktopOpen" x-cloak @click.outside="desktopOpen = false"
-             class="absolute z-[80] mt-2 w-[22rem] rounded-2xl bg-white shadow-xl ring-1 ring-brand/15 p-4">
+             class="fixed z-[90] mt-2 w-[22rem] rounded-2xl bg-white shadow-xl ring-1 ring-brand/15 p-4"
+             x-ref="desktopCal"
+             :style="desktopStyle"
+             x-init="$watch('desktopOpen', v => { if (v) positionDesktop(); })">
             <div class="flex items-center justify-between mb-3">
                 <button type="button" @click="shiftMonth(-1)" class="p-2 rounded-lg hover:bg-gray-50 text-gray-600" aria-label="Previous month">‹</button>
                 <div class="flex items-center gap-2">
@@ -249,7 +264,7 @@
                         @endforeach
                     </select>
                     <select x-model.number="viewYear" class="rounded-lg border-gray-200 text-sm py-1.5">
-                        @for ($y = (int) now()->format('Y'); $y >= 1940; $y--)
+                        @for ($y = $maxYear; $y >= $minYear; $y--)
                             <option value="{{ $y }}">{{ $y }}</option>
                         @endfor
                     </select>

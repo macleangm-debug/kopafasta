@@ -62,7 +62,7 @@
                 <input type="hidden" name="focus" value="additional">
                 <input type="hidden" name="additional_document_type" :value="docType">
 
-                <p class="text-sm text-gray-600 mb-5">{{ __('borrower.profile.additional_documents_hint') }}</p>
+                <p class="text-sm text-gray-600 mb-5">{{ __('borrower.profile.additional_documents_hint_short') }}</p>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.profile.additional_document_type') }}</label>
@@ -101,7 +101,7 @@
                                 :input-host-id="'additional-upload-'.$item['key']"
                                 :required="false"
                                 :labels="[
-                                    'hint' => __('borrower.profile.multi_page_hint'),
+                                    'hint' => __('borrower.profile.multi_page_hint_short'),
                                     'uploadFile' => __('borrower.profile.capture_pages_upload'),
                                     'capturePage' => __('borrower.profile.capture_pages'),
                                 ]"

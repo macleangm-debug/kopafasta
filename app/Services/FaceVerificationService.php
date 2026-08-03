@@ -217,9 +217,9 @@ class FaceVerificationService
 
             return [
                 'key'         => $key,
-                'label'       => $meta['label'] ?? $key,
-                'step_title'  => $meta['step_title'] ?? ($meta['label'] ?? $key),
-                'instruction' => $meta['instruction'] ?? '',
+                'label'       => __('borrower.face_verification_page.angles.'.$key.'.label'),
+                'step_title'  => __('borrower.face_verification_page.angles.'.$key.'.label'),
+                'instruction' => __('borrower.face_verification_page.angles.'.$key.'.instruction'),
                 'pose'        => match ($key) {
                     'left'  => 'left',
                     'right' => 'right',

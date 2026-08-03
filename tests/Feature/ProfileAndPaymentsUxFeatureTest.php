@@ -43,7 +43,7 @@ class ProfileAndPaymentsUxFeatureTest extends TestCase
             ->assertDontSee(__('borrower.nida.verify_button'), false)
             ->assertSee(__('borrower.profile.add_details'), false)
             ->assertSee(__('borrower.nida.number'), false)
-            ->assertSee(__('borrower.nida.format_hint'), false)
+            ->assertSee('nida-boxes', false)
             ->assertSee(__('borrower.profile.id_images_title'), false)
             ->assertSee(__('borrower.nida.face_title'), false);
     }
