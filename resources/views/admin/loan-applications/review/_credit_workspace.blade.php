@@ -317,28 +317,22 @@
         </div>
     </div>
 
-    {{-- Clear jump to screening / committee decision --}}
-    @if ($isScreeningStage)
+    {{-- Clear jump to screening / committee decision (same pattern both stages) --}}
+    @if ($isScreeningStage || $isCommitteeStage)
         <a href="#review-recommendation"
            class="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-brand-gold px-5 py-4 text-brand shadow-sm ring-1 ring-brand/20 hover:brightness-95 transition">
             <div>
-                <p class="text-[10px] uppercase tracking-widest font-semibold opacity-80">Screening team</p>
-                <p class="text-sm font-bold mt-0.5">Record your recommendation — approve / counter + notes, then push to committee</p>
+                <p class="text-[10px] uppercase tracking-widest font-semibold opacity-80">
+                    {{ $isCommitteeStage ? 'Credit committee' : 'Screening team' }}
+                </p>
+                <p class="text-sm font-bold mt-0.5">
+                    {{ $isCommitteeStage
+                        ? 'Record the committee decision — issue offer, approve, reject, or return'
+                        : 'Record the screening recommendation — approve / counter + notes, then push to committee' }}
+                </p>
             </div>
             <span class="inline-flex items-center gap-1.5 text-sm font-bold shrink-0">
-                Go to recommendation
-                <svg class="size-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M7 5l5 5-5 5"/></svg>
-            </span>
-        </a>
-    @elseif ($isCommitteeStage)
-        <a href="#review-recommendation"
-           class="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-brand-gold px-5 py-4 text-brand shadow-sm ring-1 ring-brand/20 hover:brightness-95 transition">
-            <div>
-                <p class="text-[10px] uppercase tracking-widest font-semibold opacity-80">Credit committee</p>
-                <p class="text-sm font-bold mt-0.5">Record the committee decision — issue offer, approve, reject, or return</p>
-            </div>
-            <span class="inline-flex items-center gap-1.5 text-sm font-bold shrink-0">
-                Go to decision
+                {{ $isCommitteeStage ? 'Go to decision' : 'Go to recommendation' }}
                 <svg class="size-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M7 5l5 5-5 5"/></svg>
             </span>
         </a>
@@ -349,10 +343,12 @@
         @include('admin.loan-applications.review._committee_inputs')
     @endif
 
-    {{-- Primary decision / recommendation zone — directly under the decision cards --}}
+    {{-- Primary decision zone — same placement for screening and committee --}}
     <div id="review-action-zone" class="scroll-mt-24">
         @include('admin.loan-applications.review._recommendation')
     </div>
 </section>
 
 @include('admin.loan-applications.review._borrower_file_tabs')
+
+@include('admin.loan-applications.review._decision_sticky_bar')

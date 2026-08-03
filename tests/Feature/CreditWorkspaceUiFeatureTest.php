@@ -93,10 +93,12 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->assertOk()
             ->getContent();
         $this->assertStringContainsString('Screening workspace', $screening);
-        $this->assertStringContainsString('Screening team recommendation', $screening);
+        $this->assertStringContainsString('Record the screening recommendation', $screening);
+        $this->assertStringContainsString('Your recommendation', $screening);
         $this->assertStringContainsString('Go to recommendation', $screening);
         $this->assertStringContainsString('Push recommendation to committee', $screening);
         $this->assertStringContainsString('data-open-dialog="recommend-'.$app->id.'"', $screening);
+        $this->assertStringContainsString('Screening queue', $screening);
         $this->assertStringContainsString('Other institutions', $screening);
         $this->assertStringContainsString('Affordability', $screening);
         $this->assertStringNotContainsString('Profile complete', $screening);
@@ -121,9 +123,9 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->get(route('admin.loan-applications.show', ['loan_application' => $app, 'tab' => 'documents']))
             ->assertOk()
             ->getContent();
-        $this->assertStringContainsString('Requested documents', $documents);
-        $this->assertStringContainsString('Product document checklist', $documents);
-        $this->assertStringContainsString('Request another document', $documents);
+        $this->assertStringContainsString('Uploaded documents', $documents);
+        $this->assertStringContainsString('Request document', $documents);
+        $this->assertStringContainsString('Request a document', $documents);
 
         $this->assertStringContainsString('person=borrower', $screening);
         $this->assertStringContainsString('Open guarantor file', $screening);

@@ -190,14 +190,17 @@
             @include('admin.loan-applications.review._profile_activity', ['review' => $subjectReview])
         @elseif ($defaultTab === 'documents')
             @if ($person === 'guarantor')
-                @include('admin.loan-applications.review._subject_documents', ['review' => $subjectReview])
+                <div class="space-y-5">
+                    @include('admin.loan-applications.review._subject_documents', ['review' => $subjectReview])
+                </div>
             @else
                 <div class="space-y-5">
-                    @include('admin.loan-applications.review._document-requests')
+                    {{-- Uploaded docs first; request form is a collapsed CTA at the bottom --}}
                     @include('admin.loan-applications.review._documents')
                     @include('admin.loan-applications._asset-backed')
                     @include('admin.loan-applications._asset-lending')
                     @include('admin.loan-applications.review._asset')
+                    @include('admin.loan-applications.review._document-requests')
                 </div>
             @endif
         @elseif ($defaultTab === 'group' && ($groupReview ?? null))
