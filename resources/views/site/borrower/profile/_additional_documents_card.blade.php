@@ -49,9 +49,19 @@
                   x-data="{
                       docType: @js(old('additional_document_type', '')),
                       uploading: false,
+                      ready: false,
                       options: @js($optionMap),
+                      refreshReady() {
+                          this.ready = !!this.docType && (window.KopaFastaForm?.isComplete(this.$el, { onlyVisible: true }) ?? false);
+                      },
+                      init() {
+                          this.refreshReady();
+                          setInterval(() => this.refreshReady(), 400);
+                      },
                   }"
-                  @submit="if (!docType) { $event.preventDefault(); return; } uploading = true">
+                  x-on:input="refreshReady()"
+                  x-on:change="refreshReady()"
+                  @submit="if (!docType || !ready) { $event.preventDefault(); return; } uploading = true">
                 @csrf @method('PUT')
                 @if ($wizardMode ?? false)
                     <input type="hidden" name="wizard" value="1">
@@ -99,7 +109,7 @@
                                 :mode="($item['multi'] ?? false) ? 'multi' : 'single'"
                                 :label="$item['label']"
                                 :input-host-id="'additional-upload-'.$item['key']"
-                                :required="false"
+                                :required="true"
                                 :labels="[
                                     'hint' => __('borrower.profile.multi_page_hint_short'),
                                     'uploadFile' => __('borrower.profile.capture_pages_upload'),
@@ -111,8 +121,9 @@
                 </div>
 
                 <button type="submit"
-                        :disabled="!docType"
-                        class="mt-6 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
+                        x-show="ready"
+                        x-cloak
+                        class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
                     {{ __('borrower.profile.save_documents') }}
                 </button>
 

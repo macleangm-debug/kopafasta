@@ -44,6 +44,7 @@ export function applyWizard(config) {
                 feeNotice: null,
                 feeLoyaltyOption: config.feeLoyaltyOption || null,
                 feeRedeemLoyalty: !!(config.feeLoyaltyOption?.can_redeem),
+                _gateTick: 0,
                 returnTo: config.returnTo || null,
                 guarantorInviteError: '',
                 stepNotice: null,
@@ -228,6 +229,7 @@ export function applyWizard(config) {
                     this.syncFeePaidState();
                     this.syncValuationFeePaidState();
                     window.applyWizardSaveDraft = () => this.persistDraft(true);
+                    setInterval(() => { this._gateTick++; }, 400);
                     this.$watch('phase', (value, oldValue) => {
                         this.scheduleDraftSave();
                         if (value === 'application' && oldValue !== 'application') {
@@ -1938,6 +1940,73 @@ export function applyWizard(config) {
                         return this.isGuarantorLocked() || this.form.guarantor_mode === 'none' || ! this.addGuarantorOpen;
                     }
                     return this.isGuarantorLocked();
+                },
+
+                /** Silent completeness check — used to show Continue only when the step is ready. */
+                isCurrentStepReady() {
+                    void this._gateTick;
+                    if (this.advancing || this.resumeLoading) {
+                        return false;
+                    }
+                    if (this.stepKey === 'guarantor') {
+                        return this.canShowGuarantorContinue();
+                    }
+                    if (this.stepKey === 'signature') {
+                        return !! this.declarationAccepted;
+                    }
+                    if (this.stepKey === 'submit') {
+                        return true;
+                    }
+                    if (this.stepKey === 'application_fee') {
+                        return this.feeGateSatisfied?.() ?? true;
+                    }
+                    if (this.needsFeeGateBefore?.(this.stepKey) && ! this.feeGateSatisfied?.()) {
+                        return false;
+                    }
+                    if (this.stepKey === 'quote' && this.hasStep('quote')) {
+                        if (! this.form.purpose) return false;
+                        if (this.form.purpose === 'other' && ! String(this.form.purpose_other || '').trim()) return false;
+                        return true;
+                    }
+                    if (this.stepKey === 'group_setup' && this.hasStep('group_setup')) {
+                        const count = this.groupTargetCount();
+                        return !!(this.group.name || '').trim()
+                            && count >= this.groupLimits.min && count <= this.groupLimits.max
+                            && Number(this.group.amount_per_member) >= 1000
+                            && !! this.group.purpose;
+                    }
+                    if (this.stepKey === 'group_members' && this.hasStep('group_members')) {
+                        const target = this.groupTargetCount();
+                        if (this.group.members.length !== target) return false;
+                        if (this.group.members.some(m => ! m.requested_amount || Number(m.requested_amount) < 1000)) return false;
+                        const total = this.group.members.reduce((sum, m) => sum + Number(m.requested_amount || 0), 0);
+                        if (this.current && (total < this.current.min || total > this.current.max)) return false;
+                        return true;
+                    }
+                    if (this.stepKey === 'asset_details' && this.hasStep('asset_details')) {
+                        if (! this.customerAssets?.length || ! this.selectedCustomerAssetIds()?.length) return false;
+                        const missingInsurance = this.selectedCustomerAssetIds().some((id) => {
+                            const asset = (this.customerAssets || []).find(a => String(a.id) === String(id));
+                            return asset && asset.asset_type === 'vehicle' && ! asset.has_insurance;
+                        });
+                        if (missingInsurance) return false;
+                        if (! this.form.requested_amount || this.form.requested_amount < (this.current?.min || 1000)) return false;
+                        if (this.current && this.form.requested_amount > this.current.max) return false;
+                        if (! this.form.requested_tenure_months || this.form.requested_tenure_months < (this.current?.tmin || 1)) return false;
+                        if (! this.form.purpose) return false;
+                        return true;
+                    }
+                    // Generic DOM check for other wizard panels (product questions, etc.)
+                    const panel = document.querySelector(`[data-wizard-step="${this.stepKey}"]`)
+                        || document.querySelector(`[data-step-key="${this.stepKey}"]`)
+                        || document.getElementById('apply-wizard');
+                    if (panel && window.KopaFastaForm) {
+                        const required = panel.querySelectorAll('[required]');
+                        if (required.length) {
+                            return window.KopaFastaForm.isComplete(panel, { onlyVisible: true, allowEmpty: false });
+                        }
+                    }
+                    return true;
                 },
 
                 guarantorSummaryText() {

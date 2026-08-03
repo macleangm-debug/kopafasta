@@ -93,9 +93,7 @@
                         <textarea name="address" rows="3"
                                   class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand focus:border-brand">{{ old('address', $partner->address) }}</textarea>
                     </div>
-                    <button type="submit" class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5">
-                        {{ __('site.partner_account.save_profile') }}
-                    </button>
+                    <x-site.gated-submit class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5" :label="__('site.partner_account.save_profile')" />
                 </form>
             </x-slot:form>
         </x-site.profile-section-card>
@@ -173,9 +171,7 @@
                             @error('national_id_back')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                         </div>
                     </div>
-                    <button type="submit" class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5">
-                        {{ __('site.partner_account.save_profile') }}
-                    </button>
+                    <x-site.gated-submit class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5" :label="__('site.partner_account.save_profile')" />
                 </form>
             </x-slot:form>
         </x-site.profile-section-card>
@@ -212,9 +208,7 @@
                             @error('affiliate_code')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                         </div>
                         @if ($canChangeCode)
-                            <button type="submit" class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5">
-                                {{ __('site.partner_account.save_profile') }}
-                            </button>
+                            <x-site.gated-submit class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5" :label="__('site.partner_account.save_profile')" />
                         @endif
                     </form>
                 </x-slot:form>
@@ -258,9 +252,7 @@
                             <input type="checkbox" name="auto_invest" value="1" @checked(old('auto_invest', $partner->auto_invest)) class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
                             <span class="text-sm text-gray-700">{{ __('site.partner_account.auto_invest_hint') }}</span>
                         </label>
-                        <button type="submit" class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5">
-                            {{ __('site.partner_account.save_profile') }}
-                        </button>
+                        <x-site.gated-submit class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5" :label="__('site.partner_account.save_profile')" />
                     </form>
                 </x-slot:form>
             </x-site.profile-section-card>

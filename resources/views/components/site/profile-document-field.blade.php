@@ -111,6 +111,7 @@
                 :name="$pagesName"
                 :input-host-id="$hostId"
                 :labels="$labels"
+                :required="$required"
             />
             <p class="text-xs text-gray-400 mt-3">{{ __('borrower.profile.or_upload_pdf') }}</p>
             <input type="file" name="{{ $fieldName }}" accept=".jpg,.jpeg,.png,.pdf"

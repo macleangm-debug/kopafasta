@@ -74,7 +74,7 @@
                     <input name="residence_street" value="{{ old('residence_street', $residence['street'] ?? '') }}" class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                 </div>
                 <div class="sm:col-span-2">
-                    <button type="submit" class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5">{{ __('site.partner_account.save_profile') }}</button>
+                    <x-site.gated-submit class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5" :label="__('site.partner_account.save_profile')" />
                 </div>
             </form>
         </x-slot:form>

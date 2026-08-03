@@ -3,6 +3,7 @@
     'inputHostId' => null,
     'labels' => [],
     'facing' => 'user', // user = selfie, environment = document / rear camera
+    'required' => false,
 ])
 
 @php
@@ -20,6 +21,9 @@
 @endphp
 
 <div x-data="singleImageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), @js($facingMode))">
+    {{-- Gate helper: filled when a preview exists --}}
+    <input type="hidden" value="" x-bind:value="previewUrl || previewName ? '1' : ''" @if($required) required @endif aria-hidden="true" tabindex="-1" class="sr-only">
+
     <div class="flex flex-wrap gap-2">
         <label class="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold px-4 py-2.5 rounded-xl text-sm cursor-pointer">
             <span x-text="labels.uploadImage"></span>

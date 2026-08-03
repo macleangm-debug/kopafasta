@@ -1,8 +1,10 @@
 import Alpine from 'alpinejs';
 import collapse from '@alpinejs/collapse';
+import { registerFormReadyAlpine } from './form-ready';
 
 Alpine.plugin(collapse);
 window.Alpine = Alpine;
+registerFormReadyAlpine(Alpine);
 
 function initAlpineTrees() {
     document.querySelectorAll('[x-data]').forEach((el) => {

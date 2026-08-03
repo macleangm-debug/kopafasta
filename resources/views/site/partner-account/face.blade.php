@@ -85,9 +85,7 @@
             @if ($noPhysicalCard)
                 <p class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-xl px-3 py-2">{{ __('site.partner_account.face_no_card_note') }}</p>
             @endif
-            <button type="submit" class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm">
-                {{ __('site.partner_account.save_profile') }}
-            </button>
+            <x-site.gated-submit class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm" :label="__('site.partner_account.save_profile')" />
         </form>
     </x-site.profile-section-card>
 

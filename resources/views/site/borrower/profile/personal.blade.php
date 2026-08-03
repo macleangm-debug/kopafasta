@@ -181,9 +181,7 @@
                                     @error('national_id')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                 </div>
                             </div>
-                            <button type="submit" class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                                {{ __('borrower.profile.save') }}
-                            </button>
+                            <x-site.gated-submit class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile.save')" />
                         </form>
                     </x-slot:form>
                 </x-site.profile-section-card>
@@ -275,9 +273,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <button type="submit" class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                                {{ __('borrower.profile.save') }}
-                            </button>
+                            <x-site.gated-submit class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile.save')" />
                         </form>
                     </x-slot:form>
                 </x-site.profile-section-card>
@@ -319,9 +315,7 @@
                                     <input type="email" name="email" value="{{ old('email', $customer->email) }}" class="{{ $editable }}">
                                 </div>
                             </div>
-                            <button type="submit" class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                                {{ __('borrower.profile.save') }}
-                            </button>
+                            <x-site.gated-submit class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile.save')" />
                         </form>
                     </x-slot:form>
                 </x-site.profile-section-card>
@@ -376,9 +370,7 @@
                                 <x-site.kin-fields :customer="$customer" :input-class="$editable" />
                                 <x-site.address-fields prefix="nok" :region="old('nok_region', $customer->nok_region)" :district="old('nok_district', $customer->nok_district)" :ward="old('nok_ward', $customer->nok_ward)" :street="old('nok_street', $customer->nok_street)" />
                             </div>
-                            <button type="submit" class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                                {{ __('borrower.profile.save') }}
-                            </button>
+                            <x-site.gated-submit class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile.save')" />
                         </form>
                     </x-slot:form>
                 </x-site.profile-section-card>
@@ -500,9 +492,7 @@
                                 :include-in-form="true"
                                 :initial-data-url="$customer->legal_signature_data ?? ''"
                             />
-                            <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                                {{ __('borrower.profile.save') }}
-                            </button>
+                            <x-site.gated-submit class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile.save')" />
                         </form>
                     </x-slot:form>
                 </x-site.profile-section-card>

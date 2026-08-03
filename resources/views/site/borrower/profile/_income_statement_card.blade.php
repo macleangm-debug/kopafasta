@@ -57,13 +57,23 @@
                   step: {{ (int) $initialStep }},
                   employed: @js($incomeProofEmployed),
                   uploading: false,
+                  ready: false,
                   maxStep() { return this.employed ? 1 : 3; },
                   next() {
                       if (this.step === 1 && ! this.incomeMethod && ! this.employed) return;
                       if (this.step < this.maxStep()) this.step++;
                   },
                   prev() { if (this.step > 1) this.step--; },
+                  refreshReady() {
+                      this.ready = window.KopaFastaForm?.isComplete(this.$el, { onlyVisible: true }) ?? false;
+                  },
+                  init() {
+                      this.refreshReady();
+                      setInterval(() => this.refreshReady(), 400);
+                  },
               }"
+              x-on:input="refreshReady()"
+              x-on:change="refreshReady()"
               @submit="uploading = true">
             @csrf @method('PUT')
             @if ($wizardMode ?? false)
@@ -187,12 +197,13 @@
                         class="inline-flex items-center px-5 py-2.5 rounded-full text-sm font-semibold text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50">
                     {{ __('borrower.profile.back') }}
                 </button>
-                <button type="button" x-show="step < maxStep()" x-cloak @click="next()"
-                        :disabled="step === 1 && !employed && !incomeMethod"
-                        class="inline-flex items-center bg-brand hover:bg-brand-light disabled:opacity-50 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
+                <button type="button"
+                        x-show="step < maxStep() && (employed || (step > 1 ? ready : !!incomeMethod))" x-cloak
+                        @click="next()"
+                        class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-full text-sm">
                     {{ __('borrower.profile.continue') }}
                 </button>
-                <button type="submit" x-show="step >= maxStep()" x-cloak
+                <button type="submit" x-show="step >= maxStep() && ready" x-cloak
                         class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
                     {{ __('borrower.profile.save_documents') }}
                 </button>

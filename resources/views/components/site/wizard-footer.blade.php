@@ -11,8 +11,8 @@
            class="text-sm text-gray-500 hover:text-gray-700">{{ __('borrower.apply.cancel') }}</a>
         <button type="button"
                 @click.prevent="next()"
-                :disabled="advancing || resumeLoading || (guarantorInvitePreparing && stepKey === 'guarantor') || (stepKey === 'guarantor' && !canShowGuarantorContinue())"
-                x-show="!['signature', 'submit'].includes(stepKey) && (stepKey !== 'guarantor' || canShowGuarantorContinue())"
+                :disabled="advancing || resumeLoading || (guarantorInvitePreparing && stepKey === 'guarantor')"
+                x-show="!['signature', 'submit'].includes(stepKey) && isCurrentStepReady()"
                 class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 disabled:opacity-60 text-brand font-bold px-6 py-2.5 rounded-xl text-sm shadow-sm transition">
             <span x-text="(guarantorInvitePreparing && stepKey === 'guarantor')
                 ? @js(__('borrower.apply.application_fee.processing'))
@@ -26,17 +26,17 @@
         <button type="button"
                 @click.prevent="signApplication()"
                 :disabled="advancing || !declarationAccepted"
-                x-show="stepKey === 'signature'"
+                x-show="stepKey === 'signature' && declarationAccepted"
                 class="inline-flex items-center gap-2 bg-brand hover:bg-brand-light disabled:opacity-60 text-white font-semibold px-6 py-2.5 rounded-xl text-sm shadow-sm transition">
             {{ __('borrower.apply.sign_application') }}
             <svg class="w-4 h-4" fill="none" viewBox="0 0 20 20" stroke="currentColor" stroke-width="2"><path d="M8 4l6 6-6 6"/></svg>
         </button>
         <button type="button"
                 @click="submitApplication()"
-                :disabled="submitting || advancing"
-                x-show="stepKey === 'submit'"
+                :disabled="submitting || advancing || !canApply"
+                x-show="stepKey === 'submit' && canApply"
                 class="inline-flex items-center gap-2 bg-brand hover:bg-brand-light disabled:opacity-60 text-white font-semibold px-6 py-2.5 rounded-xl text-sm shadow-sm transition">
-            <span x-text="submitting ? @js(__('borrower.apply.submitting')) : (!canApply ? @js(__('borrower.apply.complete_profile_to_submit')) : @js(__('borrower.apply.submit')))"></span>
+            <span x-text="submitting ? @js(__('borrower.apply.submitting')) : @js(__('borrower.apply.submit'))"></span>
             <svg class="w-4 h-4" fill="none" viewBox="0 0 20 20" stroke="currentColor" stroke-width="2"><path d="M8 4l6 6-6 6"/></svg>
         </button>
     </div>

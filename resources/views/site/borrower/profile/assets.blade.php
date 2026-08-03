@@ -23,10 +23,6 @@
                     $photoSlots = [
                         ['key' => 0, 'label' => __('borrower.profile.asset_photo_front'), 'required' => true, 'hint' => __('borrower.profile.asset_photo_front_hint')],
                         ['key' => 1, 'label' => __('borrower.profile.asset_photo_back'), 'required' => true, 'hint' => __('borrower.profile.asset_photo_back_hint')],
-                        ['key' => 2, 'label' => __('borrower.profile.asset_photo_side'), 'required' => false, 'hint' => __('borrower.profile.asset_photo_side_hint')],
-                        ['key' => 3, 'label' => __('borrower.profile.asset_photo_angle'), 'required' => false, 'hint' => __('borrower.profile.asset_photo_angle_hint')],
-                        ['key' => 4, 'label' => __('borrower.profile.asset_photo').' 5', 'required' => false, 'hint' => __('borrower.profile.asset_photo_extra_hint')],
-                        ['key' => 5, 'label' => __('borrower.profile.asset_photo').' 6', 'required' => false, 'hint' => __('borrower.profile.asset_photo_extra_hint')],
                     ];
                     $isVehicle = $selectedType === 'vehicle';
                 @endphp
@@ -38,6 +34,11 @@
                           photoIndex: 0,
                           isVehicle: @js($isVehicle),
                           photoCount: {{ count($photoSlots) }},
+                          step1Ready: false,
+                          step3Ready: false,
+                          step4Ready: false,
+                          currentPhotoReady: false,
+                          allPhotosReady: false,
                           get lastStep() { return this.isVehicle ? 4 : 3; },
                           next() { if (this.step < this.lastStep) this.step++; },
                           prev() {
@@ -52,7 +53,28 @@
                               const digits = String(el.value || '').replace(/\D/g, '');
                               el.value = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
                           },
+                          refreshGates() {
+                              const form = this.$el;
+                              const complete = (scope) => window.KopaFastaForm?.isComplete(form, { onlyVisible: false, scope }) ?? false;
+                              this.step1Ready = complete(form.querySelector('[data-collateral-step="1"]'));
+                              this.step3Ready = complete(form.querySelector('[data-collateral-step="3"]'));
+                              this.step4Ready = !this.isVehicle || complete(form.querySelector('[data-collateral-step="4"]'));
+                              this.currentPhotoReady = complete(form.querySelector('[data-photo-slot="'+this.photoIndex+'"]'));
+                              let all = true;
+                              for (let i = 0; i < this.photoCount; i++) {
+                                  if (! complete(form.querySelector('[data-photo-slot="'+i+'"]'))) { all = false; break; }
+                              }
+                              this.allPhotosReady = all;
+                          },
+                          init() {
+                              this.refreshGates();
+                              this.$watch('step', () => this.$nextTick(() => this.refreshGates()));
+                              this.$watch('photoIndex', () => this.$nextTick(() => this.refreshGates()));
+                              setInterval(() => this.refreshGates(), 400);
+                          },
                       }"
+                      x-on:input="refreshGates()"
+                      x-on:change="refreshGates()"
                       @submit="saving = true; uploading = true">
                     @csrf
                     <input type="hidden" name="asset_type" value="{{ $selectedType }}">
@@ -70,7 +92,7 @@
                     </div>
 
                     {{-- Step 1: details (+ insurance fields for vehicle) --}}
-                    <div x-show="step === 1" x-cloak class="space-y-4">
+                    <div x-show="step === 1" x-cloak class="space-y-4" data-collateral-step="1">
                         <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.collateral_step_details') }}</p>
                         <div class="grid sm:grid-cols-2 gap-4">
                             <div class="sm:col-span-2">
@@ -95,7 +117,7 @@
                                            inputmode="{{ $field['type'] === 'number' ? 'numeric' : 'text' }}"
                                            name="{{ $inputName }}" value="{{ $oldVal }}" maxlength="150" required
                                            class="kf-field"
-                                           @if ($useThousands) @input="formatThousands($event.target)" @endif>
+                                           @if ($useThousands) x-on:input="formatThousands($event.target)" @endif>
                                 </div>
                             @endforeach
 
@@ -135,28 +157,28 @@
                         @endif
                     </div>
 
-                    {{-- Step 2: guided photos one-by-one --}}
-                    <div x-show="step === 2" x-cloak class="space-y-4">
+                    {{-- Step 2: guided photos one-by-one (required only) --}}
+                    <div x-show="step === 2" x-cloak class="space-y-4" data-collateral-step="2">
                         <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.collateral_step_photos') }}</p>
                         <p class="text-xs text-gray-500">{{ __('borrower.profile.collateral_step_photos_hint') }}</p>
                         @foreach ($photoSlots as $slot)
                             <div x-show="photoIndex === {{ $slot['key'] }}" x-cloak
-                                 class="rounded-2xl ring-1 ring-brand/15 bg-white p-5 space-y-3 {{ $slot['required'] ? 'ring-amber-200' : '' }}">
+                                 data-photo-slot="{{ $slot['key'] }}"
+                                 class="rounded-2xl ring-1 ring-brand/15 bg-white p-5 space-y-3 ring-amber-200">
                                 <div>
                                     <p class="text-base font-bold text-gray-900">
-                                        {{ $slot['label'] }}
-                                        @if ($slot['required']) <span class="text-red-500">*</span> @endif
+                                        {{ $slot['label'] }} <span class="text-red-500">*</span>
                                     </p>
                                     <p class="text-sm text-gray-600 mt-1">{{ $slot['hint'] }}</p>
                                     <p class="text-xs text-gray-400 mt-1">{{ __('borrower.profile.collateral_photo_progress', ['current' => $slot['key'] + 1, 'total' => count($photoSlots)]) }}</p>
                                 </div>
-                                <x-site.single-image-document-upload :name="'photos['.$slot['key'].']'" />
+                                <x-site.single-image-document-upload :name="'photos['.$slot['key'].']'" :required="true" facing="environment" />
                             </div>
                         @endforeach
                     </div>
 
                     {{-- Step 3: person + ownership --}}
-                    <div x-show="step === 3" x-cloak class="space-y-4">
+                    <div x-show="step === 3" x-cloak class="space-y-4" data-collateral-step="3">
                         <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.collateral_step_proof') }}</p>
                         <div class="grid sm:grid-cols-2 gap-3">
                             <div class="rounded-xl ring-1 ring-gray-200 p-4">
@@ -164,25 +186,25 @@
                                     {{ __('borrower.profile.person_with_asset') }} <span class="text-red-500">*</span>
                                 </label>
                                 <p class="text-xs text-gray-500 mb-3">{{ __('borrower.profile.person_with_asset_hint') }}</p>
-                                <x-site.single-image-document-upload name="person_photo" />
+                                <x-site.single-image-document-upload name="person_photo" :required="true" />
                             </div>
                             <div class="rounded-xl ring-1 ring-gray-200 p-4">
                                 <label class="text-xs font-semibold text-gray-700 mb-3 block">
                                     {{ __('borrower.profile.ownership_document') }} <span class="text-red-500">*</span>
                                 </label>
                                 <p class="text-xs text-gray-500 mb-3">{{ __('borrower.profile.ownership_document_hint') }}</p>
-                                <x-site.single-image-document-upload name="ownership_document" />
+                                <x-site.single-image-document-upload name="ownership_document" :required="true" facing="environment" />
                             </div>
                         </div>
                     </div>
 
                     {{-- Step 4: insurance certificate (vehicle only) --}}
                     @if ($isVehicle)
-                        <div x-show="step === 4" x-cloak class="space-y-4">
+                        <div x-show="step === 4" x-cloak class="space-y-4" data-collateral-step="4">
                             <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.collateral_step_insurance_doc') }}</p>
                             <p class="text-xs text-gray-500">{{ __('borrower.profile.comprehensive_insurance_hint') }}</p>
                             <div class="rounded-xl ring-1 ring-brand/20 bg-brand-muted/30 p-4">
-                                <x-site.single-image-document-upload name="insurance_document" />
+                                <x-site.single-image-document-upload name="insurance_document" :required="true" facing="environment" />
                             </div>
                         </div>
                     @endif
@@ -192,19 +214,33 @@
                                 class="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50">
                             {{ __('borrower.profile.back') }}
                         </button>
-                        <button type="button" x-show="step === 2 && photoIndex < photoCount - 1" x-cloak @click="nextPhoto()"
+                        <button type="button"
+                                x-show="step === 2 && photoIndex < photoCount - 1 && currentPhotoReady" x-cloak
+                                @click="nextPhoto()"
                                 class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
                             {{ __('borrower.profile.collateral_next_photo') }}
                         </button>
-                        <button type="button" x-show="step === 2 && photoIndex >= photoCount - 1" x-cloak @click="next()"
+                        <button type="button"
+                                x-show="step === 2 && photoIndex >= photoCount - 1 && allPhotosReady" x-cloak
+                                @click="next()"
                                 class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
                             {{ __('borrower.profile.continue') }}
                         </button>
-                        <button type="button" x-show="step === 1 || (step === 3 && isVehicle)" x-cloak @click="next()"
+                        <button type="button"
+                                x-show="step === 1 && step1Ready" x-cloak
+                                @click="next()"
                                 class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
                             {{ __('borrower.profile.continue') }}
                         </button>
-                        <button type="submit" x-show="(step === 3 && !isVehicle) || step === 4" x-cloak :disabled="saving"
+                        <button type="button"
+                                x-show="step === 3 && isVehicle && step3Ready" x-cloak
+                                @click="next()"
+                                class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
+                            {{ __('borrower.profile.continue') }}
+                        </button>
+                        <button type="submit"
+                                x-show="((step === 3 && !isVehicle && step3Ready) || (step === 4 && step4Ready))" x-cloak
+                                :disabled="saving"
                                 class="inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm disabled:opacity-70">
                             <svg x-show="saving" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>

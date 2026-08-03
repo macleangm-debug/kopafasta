@@ -93,9 +93,7 @@
                         :street="old('street', $customer->street ?? $customer->address)"
                     />
 
-                    <button type="submit" class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                        {{ ($wizardMode ?? false) ? __('borrower.profile_wizard.save_continue') : __('borrower.profile.save') }}
-                    </button>
+                    <x-site.gated-submit class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="($wizardMode ?? false) ? __('borrower.profile_wizard.save_continue') : __('borrower.profile.save')" />
                 </form>
             </x-slot:form>
         </x-site.profile-section-card>
@@ -231,9 +229,7 @@
                             />
                         </div>
 
-                        <button type="submit" class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                            {{ ($wizardMode ?? false) ? __('borrower.profile_wizard.save_continue') : __('borrower.profile.save') }}
-                        </button>
+                        <x-site.gated-submit class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="($wizardMode ?? false) ? __('borrower.profile_wizard.save_continue') : __('borrower.profile.save')" />
                     </form>
                 </x-slot:form>
             </x-site.profile-section-card>

@@ -220,7 +220,11 @@
                                             {{ __('borrower.profile.cancel_edit') }}
                                         </a>
                                     @endif
-                                    <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-2.5 rounded-full text-sm">
+                                    <button type="submit"
+                                            x-data="kfGatedSubmit()"
+                                            x-show="ready"
+                                            x-cloak
+                                            class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-2.5 rounded-full text-sm">
                                         {{ __('borrower.payment_details.save_account') }}
                                     </button>
                                 </div>
