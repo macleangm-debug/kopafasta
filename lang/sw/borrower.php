@@ -268,6 +268,7 @@ return [
       'purpose_other_placeholder' => 'Eleza lengo',
       'purpose_other_required' => 'Tafadhali eleza lengo lingine.',
       'select_purpose' => 'Chagua lengo',
+      'change_purpose' => 'Badilisha',
       'engagement_title' => 'Zawadi zako',
       'engagement_limit' => 'Kikomo kinachopatikana',
       'engagement_rate' => 'Punguzo la riba',
@@ -454,7 +455,7 @@ return [
 [
       'eyebrow' => 'Ukaguzi wa mwisho',
       'title' => 'Kagua ombi lako',
-      'subtitle' => 'Thibitisha kila kitu kabla ya kusaini — kurasa tatu fupi.',
+      'subtitle' => 'Thibitisha kila kitu kabla ya kusaini — kurasa mbili fupi.',
       'pages_nav' => 'Kurasa za ukaguzi',
       'deal_snapshot' => 'Muhtasari wa mkopo wako',
       'terms_hint' => 'Nambari muhimu za mkopo huu.',

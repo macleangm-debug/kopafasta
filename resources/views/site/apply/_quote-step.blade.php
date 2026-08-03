@@ -28,25 +28,45 @@
                     </div>
                 </div>
 
-                {{-- Purpose sits immediately under amount so it is hard to miss --}}
+                {{-- Purpose: locked after selection; Change to edit --}}
                 <div class="rounded-2xl bg-brand-muted/40 ring-1 ring-brand/15 p-4 sm:p-5">
-                    <x-site.sheet-select
-                        model="form.purpose"
-                        :label="__('borrower.apply.quote.purpose')"
-                        :options="$loanPurposes"
-                        :required="true"
-                        :placeholder="__('borrower.apply.quote.select_purpose')"
-                    />
-                    <p class="mt-2 text-xs text-brand/80">{{ __('borrower.apply.quote.purpose_hint') }}</p>
-                    <div x-show="form.purpose === 'other'" x-cloak class="mt-4">
-                        <label class="block text-sm font-semibold text-gray-800 mb-1.5">{{ __('borrower.apply.quote.purpose_other_label') }} <span class="text-red-500">*</span></label>
-                        <input type="text"
-                               x-model="form.purpose_other"
-                               @input="scheduleDraftSave()"
-                               maxlength="120"
-                               class="kf-field"
-                               placeholder="{{ __('borrower.apply.quote.purpose_other_placeholder') }}">
+                    <div x-show="form.purpose && !purposeEditing" x-cloak class="space-y-2">
+                        <div class="flex items-center justify-between gap-3">
+                            <p class="text-sm font-semibold text-gray-700">{{ __('borrower.apply.quote.purpose') }}</p>
+                            <button type="button"
+                                    @click="purposeEditing = true"
+                                    class="text-xs font-semibold text-brand hover:underline shrink-0">
+                                {{ __('borrower.apply.quote.change_purpose') }}
+                            </button>
+                        </div>
+                        <p class="text-base font-bold text-gray-900"
+                           x-text="purposeLabels[form.purpose] || form.purpose"></p>
+                        <p x-show="form.purpose === 'other' && form.purpose_other"
+                           class="text-sm text-gray-600"
+                           x-text="form.purpose_other"></p>
                     </div>
+                    <template x-if="!form.purpose || purposeEditing">
+                        <div>
+                            <x-site.sheet-select
+                                model="form.purpose"
+                                :label="__('borrower.apply.quote.purpose')"
+                                :options="$loanPurposes"
+                                :required="true"
+                                :placeholder="__('borrower.apply.quote.select_purpose')"
+                                on-pick="purposeEditing = false; scheduleDraftSave()"
+                            />
+                            <p class="mt-2 text-xs text-brand/80">{{ __('borrower.apply.quote.purpose_hint') }}</p>
+                            <div x-show="form.purpose === 'other'" x-cloak class="mt-4">
+                                <label class="block text-sm font-semibold text-gray-800 mb-1.5">{{ __('borrower.apply.quote.purpose_other_label') }} <span class="text-red-500">*</span></label>
+                                <input type="text"
+                                       x-model="form.purpose_other"
+                                       @input="scheduleDraftSave()"
+                                       maxlength="120"
+                                       class="kf-field"
+                                       placeholder="{{ __('borrower.apply.quote.purpose_other_placeholder') }}">
+                            </div>
+                        </div>
+                    </template>
                 </div>
 
                 <div>

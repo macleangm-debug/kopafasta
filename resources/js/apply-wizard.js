@@ -168,13 +168,14 @@ export function applyWizard(config) {
                     customer_asset_ids: [],
                 },
                 quote: { monthly: 0, weekly: 0, primary: 0, frequency: 'monthly', interest: 0, total: 0, fees: 0 },
+                purposeEditing: false,
                 review: { personal: '', residence: '', employment: '', nok: '', activity: '', guarantor: '', guarantorType: '', guarantorName: '', guarantorStatus: '' },
-                reviewSummary: { monthly_rate_pct: 0, application_fee: 0, monthly_installment: 0, installment_amount: 0, repayment_cadence: 'monthly' },
+                reviewSummary: { monthly_rate_pct: 0, application_fee: 0, monthly_installment: 0, installment_amount: null, repayment_cadence: 'monthly' },
                 repaymentSchedule: [],
                 scheduleDatesAvailable: false,
                 scheduleLoading: false,
                 reviewPage: 1,
-                reviewPageCount: 3,
+                reviewPageCount: 2,
                 supplementMode: !!config.supplementMode,
                 supplementApplicationId: config.supplementApplicationId || null,
                 stepIcons: {
@@ -262,6 +263,13 @@ export function applyWizard(config) {
                         if (key === 'submit') {
                             this.$nextTick(() => this.syncSubmitPayload(this.formRoot()));
                         }
+                        if (key === 'review') {
+                            this.$nextTick(() => this.refreshReview(this.formRoot()));
+                        }
+                        if (key === 'quote' || key === 'asset_details' || key === 'group_setup') {
+                            // Keep purpose locked when navigating back with a value already set.
+                            this.purposeEditing = false;
+                        }
                     });
                     this.$watch('steps', () => this.syncStepKey());
                     this.$watch('form.requested_amount', () => {
@@ -270,7 +278,17 @@ export function applyWizard(config) {
                     this.$watch('form.requested_tenure_months', () => {
                         if (this.phase === 'application') this.scheduleDraftSave();
                     });
-                    this.$watch('form.purpose', () => {
+                    this.$watch('form.purpose', (value, oldValue) => {
+                        if (value && value !== oldValue) {
+                            this.purposeEditing = false;
+                        }
+                        if (this.phase === 'application') this.scheduleDraftSave();
+                    });
+                    this.$watch('group.purpose', (value, oldValue) => {
+                        if (value && value !== oldValue) {
+                            this.purposeEditing = false;
+                            this.form.purpose = value;
+                        }
                         if (this.phase === 'application') this.scheduleDraftSave();
                     });
                     this.$watch('form.guarantor_mode', (mode) => {
@@ -325,9 +343,15 @@ export function applyWizard(config) {
                             for (const [key, value] of fd.entries()) {
                                 if (value instanceof File) continue;
                                 if (key === 'signature_data' || key === 'signer_name') continue;
+                                // Hidden purpose field is empty until submit sync — never let it
+                                // overwrite the Alpine form.purpose value in the draft.
+                                if (key === 'purpose' && ! String(value || '').trim()) continue;
                                 inputs[key] = value;
                             }
                         }
+                    }
+                    if (this.form.purpose) {
+                        inputs.purpose = this.form.purpose;
                     }
                     return {
                         phase: this.phase,
@@ -907,6 +931,7 @@ export function applyWizard(config) {
                     const root = this.formRoot();
                     if (! root) return;
                     Object.entries(inputs || {}).forEach(([name, value]) => {
+                        if (name === 'purpose' && ! String(value || '').trim()) return;
                         const el = root.querySelector(`[name="${name}"]`);
                         if (! el || el.type === 'file') return;
                         if (el.type === 'radio') {
@@ -936,6 +961,7 @@ export function applyWizard(config) {
                     this.selectProduct(product, false);
 
                     Object.assign(this.form, draft.form || {});
+                    this.purposeEditing = false;
                     if (draft.inputs) {
                         this.restoreFormInputs(draft.inputs);
                         [
@@ -946,6 +972,10 @@ export function applyWizard(config) {
                         ].forEach((key) => {
                             if (draft.inputs[key]) this.form[key] = draft.inputs[key];
                         });
+                        // Prefer Alpine form.purpose; only fill from inputs when still empty.
+                        if (! this.form.purpose && draft.inputs.purpose) {
+                            this.form.purpose = draft.inputs.purpose;
+                        }
                     }
                     this.syncGuarantorFormFromDom();
                     if (this.form.guarantor_mode === 'external') {
@@ -1799,9 +1829,31 @@ export function applyWizard(config) {
                         // Loan repayment only — application fee is shown on its own payment step.
                         total: primary * periods,
                     };
+                    // Keep review hero in sync even before the schedule API returns.
+                    // Do not use 0 as a sticky value (nullish coalescing would prefer it).
+                    this.reviewSummary = {
+                        ...this.reviewSummary,
+                        monthly_installment: monthly,
+                        installment_amount: primary > 0 ? primary : (this.reviewSummary.installment_amount || null),
+                        repayment_cadence: cadence,
+                    };
                     if (this.phase === 'application') {
                         this.rebuildSteps();
                     }
+                },
+
+                displayInstallmentAmount() {
+                    const fromSummary = Number(this.reviewSummary?.installment_amount);
+                    if (fromSummary > 0) return fromSummary;
+                    const primary = Number(this.quote?.primary);
+                    if (primary > 0) return primary;
+                    const cadence = this.repaymentCadence();
+                    if (cadence === 'weekly') {
+                        const weekly = Number(this.quote?.weekly);
+                        if (weekly > 0) return weekly;
+                    }
+                    const monthly = Number(this.quote?.monthly);
+                    return monthly > 0 ? monthly : 0;
                 },
 
                 hasStep(key) {
@@ -2208,11 +2260,13 @@ export function applyWizard(config) {
                                     this.processingSla = data.engagement.processing_sla;
                                 }
                             }
+                            const apiInstallment = Number(data.summary?.installment_amount);
+                            const fallbackInstallment = this.displayInstallmentAmount();
                             this.reviewSummary = {
                                 monthly_rate_pct: data.summary?.monthly_rate_pct ?? 0,
                                 application_fee: data.summary?.application_fee ?? this.applicationFee,
                                 monthly_installment: data.summary?.monthly_installment ?? this.quote.monthly,
-                                installment_amount: data.summary?.installment_amount ?? this.quote.primary ?? this.quote.monthly,
+                                installment_amount: apiInstallment > 0 ? apiInstallment : (fallbackInstallment || null),
                                 repayment_cadence: data.summary?.repayment_cadence ?? this.quote.frequency ?? this.repaymentCadence(),
                             };
                         }
@@ -2224,6 +2278,7 @@ export function applyWizard(config) {
                 },
 
                 refreshReview(formEl) {
+                    this.updateQuote();
                     const form = formEl instanceof HTMLFormElement ? formEl : this.formRoot();
                     const snapshot = this.borrowerSnapshot || {};
                     if (! form) {
@@ -2256,15 +2311,14 @@ export function applyWizard(config) {
                     }
                     this.review.guarantorStatus = this.guarantorReviewStatus();
                     this.review.guarantor = this.review.guarantorName;
-                    if (this.reviewPage >= 3) {
-                        this.loadRepaymentSchedule();
-                    }
+                    // Load schedule as soon as review opens so page-1 installment is accurate.
+                    this.loadRepaymentSchedule();
                 },
 
                 setReviewPage(page) {
                     const next = Math.min(this.reviewPageCount, Math.max(1, Number(page) || 1));
                     this.reviewPage = next;
-                    if (next >= 3) {
+                    if (next >= 2) {
                         this.loadRepaymentSchedule();
                     }
                     // Keep the sticky review rail in place — do not scroll the wizard shell up.

@@ -48,12 +48,29 @@
                     <p class="mt-2 text-xs text-gray-500">{{ __('borrower.apply.group_setup.amount_per_member_hint') }}</p>
                 </div>
                 <div>
-                    <x-site.sheet-select
-                        model="group.purpose"
-                        :label="__('borrower.apply.group_setup.purpose')"
-                        :options="$loanPurposes"
-                        :placeholder="__('borrower.apply.quote.select_purpose')"
-                    />
+                    <div x-show="group.purpose && !purposeEditing" x-cloak class="space-y-2">
+                        <div class="flex items-center justify-between gap-3">
+                            <p class="text-sm font-semibold text-gray-700">{{ __('borrower.apply.group_setup.purpose') }}</p>
+                            <button type="button"
+                                    @click="purposeEditing = true"
+                                    class="text-xs font-semibold text-brand hover:underline shrink-0">
+                                {{ __('borrower.apply.quote.change_purpose') }}
+                            </button>
+                        </div>
+                        <p class="text-base font-bold text-gray-900"
+                           x-text="purposeLabels[group.purpose] || group.purpose"></p>
+                    </div>
+                    <template x-if="!group.purpose || purposeEditing">
+                        <div>
+                            <x-site.sheet-select
+                                model="group.purpose"
+                                :label="__('borrower.apply.group_setup.purpose')"
+                                :options="$loanPurposes"
+                                :placeholder="__('borrower.apply.quote.select_purpose')"
+                                on-pick="purposeEditing = false; form.purpose = group.purpose; scheduleDraftSave()"
+                            />
+                        </div>
+                    </template>
                 </div>
             </div>
 

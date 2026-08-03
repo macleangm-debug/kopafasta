@@ -697,6 +697,7 @@ return [
             'purpose_other_placeholder' => 'Describe the purpose',
             'purpose_other_required' => 'Please describe the other purpose.',
             'select_purpose' => 'Select purpose',
+            'change_purpose' => 'Change',
             'engagement_title' => 'Your rewards',
             'engagement_limit' => 'Available limit',
             'engagement_rate' => 'Interest discount',
@@ -907,7 +908,7 @@ return [
         'review_step' => [
             'eyebrow' => 'Final check',
             'title' => 'Review your application',
-            'subtitle' => 'Confirm everything before signing — three short pages.',
+            'subtitle' => 'Confirm everything before signing — two short pages.',
             'pages_nav' => 'Review pages',
             'deal_snapshot' => 'Your deal at a glance',
             'terms_hint' => 'The numbers that matter for this loan.',

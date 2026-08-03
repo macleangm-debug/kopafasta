@@ -66,7 +66,7 @@
             <div class="px-5 py-4">
                 <dt class="text-[10px] uppercase tracking-widest text-gray-500" x-text="repaymentCadence() === 'monthly' ? @js(__('borrower.apply.review_step.monthly_repayment')) : @js(__('borrower.apply.review_step.weekly_repayment'))"></dt>
                 <dd class="mt-1 font-semibold text-brand" x-show="isAssetBackedProduct(current)">{{ __('borrower.apply.asset_details.repayment_pending_offer') }}</dd>
-                <dd class="mt-1 font-semibold tabular-nums text-brand" x-show="!isAssetBackedProduct(current)" x-text="formatTzs(reviewSummary.installment_amount ?? quote.primary ?? quote.monthly)"></dd>
+                <dd class="mt-1 font-semibold tabular-nums text-brand" x-show="!isAssetBackedProduct(current)" x-text="formatTzs(displayInstallmentAmount())"></dd>
             </div>
         </dl>
     </section>

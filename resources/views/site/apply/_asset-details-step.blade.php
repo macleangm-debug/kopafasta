@@ -95,13 +95,30 @@
             </div>
 
             <div x-show="customerAssets.length && selectedCustomerAssetIds().length" class="glass-card p-5 ring-1 ring-gray-200/80">
-                <x-site.sheet-select
-                    model="form.purpose"
-                    :label="__('borrower.apply.quote.purpose')"
-                    :options="$loanPurposes"
-                    :required="true"
-                    :placeholder="__('borrower.apply.quote.select_purpose')"
-                />
+                <div x-show="form.purpose && !purposeEditing" x-cloak class="space-y-2">
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-sm font-semibold text-gray-700">{{ __('borrower.apply.quote.purpose') }}</p>
+                        <button type="button"
+                                @click="purposeEditing = true"
+                                class="text-xs font-semibold text-brand hover:underline shrink-0">
+                            {{ __('borrower.apply.quote.change_purpose') }}
+                        </button>
+                    </div>
+                    <p class="text-base font-bold text-gray-900"
+                       x-text="purposeLabels[form.purpose] || form.purpose"></p>
+                </div>
+                <template x-if="!form.purpose || purposeEditing">
+                    <div>
+                        <x-site.sheet-select
+                            model="form.purpose"
+                            :label="__('borrower.apply.quote.purpose')"
+                            :options="$loanPurposes"
+                            :required="true"
+                            :placeholder="__('borrower.apply.quote.select_purpose')"
+                            on-pick="purposeEditing = false; scheduleDraftSave()"
+                        />
+                    </div>
+                </template>
             </div>
         </div>
     </template>

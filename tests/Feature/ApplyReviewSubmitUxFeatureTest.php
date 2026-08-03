@@ -61,11 +61,10 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
     {
         foreach (['en', 'sw'] as $locale) {
             $this->assertNotEmpty(__('borrower.apply.review_step.page_overview', [], $locale));
-            $this->assertNotEmpty(__('borrower.apply.review_step.page_terms', [], $locale));
             $this->assertNotEmpty(__('borrower.apply.review_step.page_schedule', [], $locale));
             $this->assertNotEmpty(__('borrower.apply.review_step.deal_snapshot', [], $locale));
-            $this->assertNotEmpty(__('borrower.apply.review_step.terms_hint', [], $locale));
             $this->assertNotEmpty(__('borrower.apply.review_step.pages_nav', [], $locale));
+            $this->assertNotEmpty(__('borrower.apply.quote.change_purpose', [], $locale));
             $this->assertNotEmpty(__('borrower.apply.submit_step.summary_title', [], $locale));
             $this->assertNotEmpty(__('borrower.apply.submit_step.guarantor_pending_hint', [], $locale));
             $this->assertNotEmpty(__('borrower.apply.success.celebration_eyebrow', [], $locale));
@@ -74,5 +73,32 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
                 __('borrower.apply.review_step.page_overview', [], $locale),
             );
         }
+    }
+
+    public function test_review_overview_uses_single_premium_card_and_installment_helper(): void
+    {
+        $review = file_get_contents(resource_path('views/site/apply/_review-step.blade.php'));
+        $js = file_get_contents(resource_path('js/apply-wizard.js'));
+        $sheet = file_get_contents(resource_path('views/components/site/sheet-select.blade.php'));
+        $quote = file_get_contents(resource_path('views/site/apply/_quote-step.blade.php'));
+
+        $this->assertNotFalse($review);
+        $this->assertNotFalse($js);
+        $this->assertNotFalse($sheet);
+        $this->assertNotFalse($quote);
+
+        $this->assertStringContainsString('displayInstallmentAmount()', $review);
+        $this->assertStringNotContainsString('reviewSummary.installment_amount ?? quote.primary', $review);
+        $this->assertStringNotContainsString('borrower_section', $review);
+        $this->assertStringNotContainsString('loan_section', $review);
+        $this->assertStringContainsString('guarantor_section', $review);
+        $this->assertStringContainsString('reviewPage === 2', $review);
+        $this->assertStringNotContainsString('reviewPage === 3', $review);
+        $this->assertStringContainsString('reviewPageCount: 2', $js);
+        $this->assertStringContainsString('displayInstallmentAmount()', $js);
+        $this->assertStringContainsString('purposeEditing', $js);
+        $this->assertStringContainsString('optionEntries', $sheet);
+        $this->assertStringContainsString('change_purpose', $quote);
+        $this->assertStringContainsString('purposeEditing', $quote);
     }
 }

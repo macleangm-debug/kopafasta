@@ -14,11 +14,17 @@
     $optionsList = is_array($options) ? $options : [];
     $selected = old($name ?? '', $value);
     $modelExpr = $model; // e.g. form.purpose or group.purpose
+    // Array entries avoid Alpine object x-for + `:key="key"` iterator-name conflicts
+    // that can leave the last option (often "other") selected.
+    $optionEntries = collect($optionsList)
+        ->map(fn ($optionLabel, $key) => ['value' => (string) $key, 'label' => (string) $optionLabel])
+        ->values()
+        ->all();
 @endphp
 
 <div x-data="{
         pickerOpen: false,
-        options: @js($optionsList),
+        optionEntries: @js($optionEntries),
         placeholder: @js($placeholder),
         @if ($modelExpr)
             get selected() { return {{ $modelExpr }}; },
@@ -28,7 +34,8 @@
         @endif
         labelFor(val) {
             if (!val) return this.placeholder;
-            return this.options[val] || val;
+            const hit = this.optionEntries.find((o) => o.value === val);
+            return hit ? hit.label : val;
         },
         pick(val) {
             this.selected = val;
@@ -61,11 +68,11 @@
                         {{ $placeholder }}
                     </button>
                 @endif
-                <template x-for="(optLabel, key) in options" :key="key">
-                    <button type="button" @click="pick(key)"
+                <template x-for="opt in optionEntries" :key="opt.value">
+                    <button type="button" @click="pick(opt.value)"
                             class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50"
-                            :class="selected === key ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''"
-                            x-text="optLabel"></button>
+                            :class="selected === opt.value ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''"
+                            x-text="opt.label"></button>
                 </template>
             </div>
         </x-site.bottom-sheet>
@@ -77,11 +84,13 @@
         @if ($required) required @endif
         {{ $attributes->except('class')->merge(['class' => $selectClass.' max-lg:absolute max-lg:opacity-0 max-lg:pointer-events-none max-lg:h-0 max-lg:overflow-hidden']) }}
     >
-        @if (! $required || $placeholder)
+        @if (! $required)
             <option value="">{{ $placeholder }}</option>
+        @elseif ($placeholder)
+            <option value="" disabled hidden>{{ $placeholder }}</option>
         @endif
-        @foreach ($optionsList as $key => $optionLabel)
-            <option value="{{ $key }}" @selected((string) $selected === (string) $key)>{{ $optionLabel }}</option>
+        @foreach ($optionEntries as $opt)
+            <option value="{{ $opt['value'] }}" @selected((string) $selected === (string) $opt['value'])>{{ $opt['label'] }}</option>
         @endforeach
     </select>
 </div>
