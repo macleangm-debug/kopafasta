@@ -6,24 +6,16 @@
     $stage = $record->current_stage ?? 'submitted';
     $isCreditStage = in_array($stage, ['submitted', 'screening', 'credit_appraisal'], true);
     $isCommitteeStage = $stage === 'pre_approval';
-    $viewerRole = auth()->user()?->role;
-    $isAnalystViewer = $viewerRole === 'credit_analyst';
-    $isAdminViewer = in_array($viewerRole, ['admin', 'super_admin', 'manager'], true);
-    $showAnalystPanel = true;
-    // Analysts on credit stage: recommendation only. Committee / admins: show decision panel when relevant.
-    $showCommitteePanel = $isCommitteeStage || $isAdminViewer || (! $isAnalystViewer && ! $isCreditStage);
-    if ($isAnalystViewer && $isCreditStage) {
-        $showCommitteePanel = false;
-    }
+    // Screening desk: analyst panel only. Committee desk: decision panel only.
+    $showAnalystPanel = $isCreditStage || (! $isCommitteeStage && ! empty($rec['type']));
+    $showCommitteePanel = $isCommitteeStage;
     if ($isCommitteeStage) {
-        $showCommitteePanel = true;
-        // Screening recommendation is presented in the dual CRB/screening panel above.
         $showAnalystPanel = false;
     }
+    $hasScreeningActions = $isCreditStage && ($availableActions ?? collect())->isNotEmpty();
 @endphp
 
 <div id="review-recommendation" class="scroll-mt-24 mb-2 space-y-4">
-    {{-- Credit analyst recommendation panel --}}
     @if ($showAnalystPanel)
     <div @class([
         'bg-white rounded-2xl shadow-sm ring-1 overflow-hidden',
@@ -34,7 +26,7 @@
             <div>
                 <p class="text-[10px] uppercase tracking-widest font-semibold text-brand">Step 1 · Credit analyst</p>
                 <h3 class="text-base font-bold text-gray-900 mt-0.5">Record your screening recommendation</h3>
-                <p class="text-xs text-gray-500 mt-0.5">Review the cards above, then recommend approve, counter, or return for documents.</p>
+                <p class="text-xs text-gray-500 mt-0.5">Choose approve or counter, add notes, then push the file to committee.</p>
             </div>
             @if ($isCreditStage)
                 <span class="text-xs font-semibold rounded-full px-3 py-1 bg-brand-gold/40 text-brand ring-1 ring-brand-gold/50">Decide here</span>
@@ -90,36 +82,36 @@
                     </p>
                 @endif
             </div>
-        @elseif ($affordFail && $stage === 'credit_appraisal')
+        @elseif ($affordFail && in_array($stage, ['screening', 'credit_appraisal'], true))
             @php $autoReject = app(\App\Services\UnderwritingSettingsService::class)->automaticRejectionEnabled(); @endphp
             <p class="text-sm text-red-700 bg-red-50 ring-1 ring-red-100 rounded-lg px-4 py-3">
                 @if ($autoReject)
                     Affordability failed at requested amount — reject the application or return for documents.
                 @else
-                    Affordability failed at requested amount — recommend a counter-offer or suggest the asset-backed product.
+                    Affordability failed at requested amount — push a counter-offer recommendation to committee, or return for documents.
                 @endif
             </p>
         @else
-            <p class="text-sm text-gray-500">No credit recommendation recorded yet.</p>
+            <p class="text-sm text-gray-500">No credit recommendation recorded yet. Use <span class="font-semibold text-brand">Push recommendation to committee</span> below.</p>
         @endif
 
-        @if ($isCreditStage && ($availableActions ?? collect())->isNotEmpty())
-            <div class="mt-4 border-t border-brand/10 pt-4">
-                <p class="text-xs font-semibold uppercase tracking-widest text-brand mb-3">Analyst actions</p>
+        @if ($hasScreeningActions)
+            <div class="mt-4 rounded-2xl bg-gradient-to-br from-brand-muted/40 to-white ring-1 ring-brand/15 p-4">
+                <p class="text-xs font-semibold uppercase tracking-widest text-brand mb-1">Analyst actions</p>
+                <p class="text-xs text-gray-500 mb-3">Open the gold button to choose approve/counter, write notes, and send the file to committee.</p>
                 @include('admin.loan-applications._workflow_actions')
             </div>
+        @elseif ($isCreditStage)
+            <p class="mt-4 text-sm text-amber-900 bg-amber-50 ring-1 ring-amber-200 rounded-xl px-4 py-3">
+                No screening actions available for your role on this file. You need the <span class="font-semibold">applications.review</span> permission (and the application must be in screening or credit appraisal).
+            </p>
         @endif
         </div>
     </div>
     @endif
 
-    {{-- Committee decision panel --}}
     @if ($showCommitteePanel)
-    <div @class([
-        'bg-white rounded-2xl shadow-sm ring-1 overflow-hidden',
-        'ring-brand-gold ring-2' => $isCommitteeStage,
-        'ring-brand/10' => ! $isCommitteeStage,
-    ])>
+    <div class="bg-white rounded-2xl shadow-sm ring-1 overflow-hidden ring-brand-gold ring-2">
         <div class="px-5 sm:px-6 py-4 border-b border-brand-gold/30 bg-gradient-to-r from-brand-gold/20 to-white flex flex-wrap items-start justify-between gap-3">
             <div>
                 <p class="text-[10px] uppercase tracking-widest font-semibold text-brand">Step 2 · Credit committee</p>
@@ -129,9 +121,7 @@
                 </p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
-                @if ($isCommitteeStage)
-                    <span class="text-xs font-semibold rounded-full px-3 py-1 bg-brand-gold text-brand ring-1 ring-brand/20">Decide here</span>
-                @endif
+                <span class="text-xs font-semibold rounded-full px-3 py-1 bg-brand-gold text-brand ring-1 ring-brand/20">Decide here</span>
                 @if (! empty($rec['offer_status']))
                     @php
                         $offerTone = match ($rec['offer_status']) {
@@ -180,12 +170,12 @@
             </p>
         @endif
 
-        @if ($isCommitteeStage && ($availableActions ?? collect())->isNotEmpty())
+        @if (($availableActions ?? collect())->isNotEmpty())
             <div class="mt-4 rounded-2xl bg-gradient-to-br from-brand-muted/40 to-white ring-1 ring-brand/15 p-4">
                 <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-widest text-brand">Your decision</p>
-                        <p class="text-xs text-gray-500 mt-0.5">Choose one action — this is the committee recommendation that moves the file forward.</p>
+                        <p class="text-xs text-gray-500 mt-0.5">Choose one action — this moves the file forward.</p>
                     </div>
                     <a href="{{ route('admin.loan-applications.pre-approvals') }}"
                        class="text-xs font-semibold text-brand hover:underline">
@@ -194,19 +184,17 @@
                 </div>
                 @include('admin.loan-applications._workflow_actions')
             </div>
-        @elseif ($isCommitteeStage)
+        @else
             <p class="mt-4 text-sm text-amber-900 bg-amber-50 ring-1 ring-amber-200 rounded-xl px-4 py-3">
                 No committee actions available for your role on this file. Ask an admin to grant pre-approve / approve / reject permissions.
             </p>
         @endif
 
-        @if ($isCommitteeStage || in_array($stage, ['approval', 'post_approval_fees', 'contract_generation', 'disbursement'], true))
-            <div class="mt-6 border-t border-gray-100 pt-5 space-y-6" id="decision-panel">
-                @include('admin.loan-applications._workflow', ['showHistory' => false, 'showStepper' => false])
-                @include('admin.loan-applications._loan-link')
-                @include('admin.loan-applications.review._contract')
-            </div>
-        @endif
+        <div class="mt-6 border-t border-gray-100 pt-5 space-y-6" id="decision-panel">
+            @include('admin.loan-applications._workflow', ['showHistory' => false, 'showStepper' => false])
+            @include('admin.loan-applications._loan-link')
+            @include('admin.loan-applications.review._contract')
+        </div>
         </div>
     </div>
     @endif

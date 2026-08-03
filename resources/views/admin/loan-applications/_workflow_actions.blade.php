@@ -151,8 +151,8 @@
                             <form method="POST" action="{{ route('admin.loan-applications.workflow', $record) }}" class="p-6 space-y-4">
                                 @csrf
                                 <input type="hidden" name="action" value="submit_recommendation">
-                                <h4 class="font-semibold text-gray-900">Credit recommendation</h4>
-                                <p class="text-sm text-gray-600">Move to committee pre-approval with your recommendation.</p>
+                                <h4 class="font-semibold text-gray-900">Push recommendation to committee</h4>
+                                <p class="text-sm text-gray-600">Record approve or counter with notes — the file moves to the committee pre-approval queue.</p>
                                 @if (! $affordPass && $autoReject)
                                     <p class="text-sm text-red-700 bg-red-50 ring-1 ring-red-100 rounded-lg px-3 py-2">
                                         Affordability failed — reject the application or return for documents.
@@ -218,7 +218,7 @@
                                     <button type="button" data-close-dialog="recommend-{{ $record->id }}"
                                             class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">Cancel</button>
                                     <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-4 py-2 rounded-lg">
-                                        Submit recommendation
+                                        Push to committee
                                     </button>
                                 </div>
                             </form>

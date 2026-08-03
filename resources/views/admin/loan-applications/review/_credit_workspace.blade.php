@@ -150,15 +150,20 @@
             <p class="text-xs mt-2 opacity-90">
                 System: <span class="font-bold uppercase">{{ $risk['recommendation'] ?? '—' }}</span>
             </p>
+            @if (! empty($risk['explanation']))
+                <p class="mt-3 text-[11px] leading-relaxed opacity-95 border-t border-current/15 pt-2">
+                    {{ $risk['explanation'] }}
+                </p>
+            @endif
             @if (! empty($risk['factors']))
-                <ul class="mt-3 space-y-1 text-[11px] opacity-90 border-t border-current/15 pt-2">
-                    @foreach (array_slice($risk['factors'], 0, 4) as $factor)
+                <ul class="mt-2 space-y-1 text-[11px] opacity-90">
+                    @foreach (array_slice($risk['factors'], 0, 5) as $factor)
                         <li>• {{ $factor }}</li>
                     @endforeach
                 </ul>
             @endif
             <p class="mt-2 text-[10px] opacity-70 leading-snug">
-                Starts at 100. Deductions for profile, NIDA, face, affordability, documents, guarantor, overdue loans. ≥75 approve · ≥50 refer · below 50 reject.
+                Starts at 100 with profile, NIDA, face, affordability, documents, guarantor, overdue, and CRB deductions. ≥75 approve · ≥50 refer · below 50 reject.
             </p>
         </div>
 

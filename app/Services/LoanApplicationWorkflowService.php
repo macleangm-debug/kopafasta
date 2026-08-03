@@ -26,10 +26,10 @@ class LoanApplicationWorkflowService
             'from'       => ['screening'],
         ],
         'submit_recommendation' => [
-            'label'      => 'Submit credit recommendation',
+            'label'      => 'Push recommendation to committee',
             'to_stage'   => 'pre_approval',
             'permission' => 'applications.review',
-            'from'       => ['credit_appraisal'],
+            'from'       => ['screening', 'credit_appraisal'],
         ],
         'suggest_asset_alternative' => [
             'label'      => 'Suggest asset-backed alternative',
@@ -146,11 +146,11 @@ class LoanApplicationWorkflowService
             throw ValidationException::withMessages(['remarks' => 'Explain which documents the borrower must provide or update.']);
         }
 
-        if ($actionKey === 'complete_screening') {
+        if ($actionKey === 'complete_screening' || $actionKey === 'submit_recommendation') {
             $dossier = app(LoanApplicationReviewService::class)->dossier($application);
             if (($dossier['document_progress'] ?? 0) < 100) {
                 throw ValidationException::withMessages([
-                    'action' => 'All required documents must be uploaded and verified before completing screening.',
+                    'action' => 'All required documents must be uploaded and verified before pushing to committee.',
                 ]);
             }
         }

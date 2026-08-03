@@ -41,6 +41,13 @@
                                 <span class="text-white/50">·</span> {{ $product->name }}
                             @endif
                         </p>
+                        <p class="text-xs text-white/70 mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+                            <span>DOB {{ optional($customer->date_of_birth)->format('d M Y') ?? '—' }}</span>
+                            <span>Gender {{ ucfirst($customer->gender ?? '—') }}</span>
+                            @if ($customer->phone)
+                                <span>{{ $customer->phone }}</span>
+                            @endif
+                        </p>
                     </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 shrink-0">

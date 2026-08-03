@@ -2,6 +2,7 @@
     $defaultTab = $defaultTab ?? request('tab', 'personal');
     $profileTabs = [
         ['personal', 'Personal'],
+        ['face', 'Face'],
         ['residence', 'Residence'],
         ['activity', 'Activity'],
         ['documents', 'Documents'],
@@ -58,6 +59,9 @@
     <div class="p-5">
         <div x-show="tab === 'personal'" x-cloak class="space-y-5">
             @include('admin.loan-applications.review._profile_personal')
+        </div>
+        <div x-show="tab === 'face'" x-cloak class="space-y-5">
+            @include('admin.loan-applications.review._verification', ['embedded' => true])
         </div>
         <div x-show="tab === 'residence'" x-cloak>
             @include('admin.loan-applications.review._profile_residence')

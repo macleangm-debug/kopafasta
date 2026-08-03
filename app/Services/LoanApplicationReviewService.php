@@ -80,12 +80,15 @@ class LoanApplicationReviewService
             $affordability = $this->affordability->evaluate($application);
         }
 
+        $crb = $this->crbSummary($customer, $application);
+
         $risk = $this->riskAssessment(
             $application,
             $customer,
             $profile,
             $documentProgress,
             $affordability,
+            $crb,
         );
 
         $facePhotos = $this->face->latestByAngle($customer, true);
@@ -107,8 +110,6 @@ class LoanApplicationReviewService
             ->get()
             ->unique(fn (CustomerDocument $doc) => $doc->documentType?->code ?: $doc->id)
             ->keyBy(fn (CustomerDocument $doc) => $doc->documentType?->code ?: ('doc-'.$doc->id));
-
-        $crb = $this->crbSummary($customer, $application);
 
         $guarantorRows = $this->guarantorRows($application);
         $asset = $this->assetSummary($application);
@@ -410,53 +411,59 @@ class LoanApplicationReviewService
         array $profile,
         int $documentProgress,
         array $affordability,
+        array $crb = [],
     ): array {
         $score = 100;
         $factors = [];
 
         if ($profile['percent'] < $profile['threshold']) {
             $score -= 15;
-            $factors[] = 'Profile below minimum completion';
+            $factors[] = 'Profile below minimum completion (−15)';
         } elseif ($profile['percent'] < 90) {
             $score -= 5;
+            $factors[] = 'Profile incomplete under 90% (−5)';
         }
 
         if (! $this->nida->isVerified($customer)) {
             $score -= 20;
-            $factors[] = 'NIDA not verified';
+            $factors[] = 'NIDA not verified (−20)';
         }
 
-        $score -= match ($customer->face_verification_status) {
+        $faceDeduction = match ($customer->face_verification_status) {
             'verified' => 0,
             'pending'  => 10,
             'rejected' => 25,
             default    => 15,
         };
-
-        if (($customer->face_verification_status ?? '') === 'rejected') {
-            $factors[] = 'Face verification rejected';
-        } elseif (($customer->face_verification_status ?? '') === 'pending') {
-            $factors[] = 'Face verification awaiting review';
+        $score -= $faceDeduction;
+        if ($faceDeduction > 0) {
+            $factors[] = match ($customer->face_verification_status) {
+                'pending'  => 'Face verification awaiting review (−10)',
+                'rejected' => 'Face verification rejected (−25)',
+                default    => 'Face photos incomplete (−15)',
+            };
         }
 
-        $score -= match ($affordability['verdict'] ?? 'pass') {
+        $affordDeduction = match ($affordability['verdict'] ?? 'pass') {
             'fail' => 30,
             'warn' => 12,
             default => 0,
         };
-
+        $score -= $affordDeduction;
         if (($affordability['verdict'] ?? '') === 'fail') {
-            $factors[] = 'Affordability check failed';
+            $factors[] = 'Affordability check failed (−30)';
+        } elseif (($affordability['verdict'] ?? '') === 'warn') {
+            $factors[] = 'Affordability near limit (−12)';
         }
 
         if ($documentProgress < 100) {
             $score -= 10;
-            $factors[] = 'Required documents incomplete';
+            $factors[] = 'Required documents incomplete (−10)';
         }
 
         if ($application->product?->requires_guarantor && ! $this->guarantors->hasApprovedGuarantor($application)) {
             $score -= 12;
-            $factors[] = 'Guarantor not approved';
+            $factors[] = 'Guarantor not approved (−12)';
         }
 
         $overdue = RepaymentSchedule::query()
@@ -465,24 +472,84 @@ class LoanApplicationReviewService
             ->count();
 
         if ($overdue > 0) {
-            $score -= min(25, $overdue * 8);
-            $factors[] = $overdue.' overdue instalment(s)';
+            $overdueHit = min(25, $overdue * 8);
+            $score -= $overdueHit;
+            $factors[] = $overdue.' overdue instalment(s) (−'.$overdueHit.')';
+        }
+
+        // Bureau signal — keep application risk coherent with CRB suggestion.
+        $crbRec = strtolower((string) ($crb['recommendation'] ?? ''));
+        $crbScore = $crb['score'] ?? null;
+        $crbHit = match ($crbRec) {
+            'reject' => 20,
+            'refer' => 8,
+            'approve' => 0,
+            default => ($crbScore === null ? 5 : 0),
+        };
+        if ($crbHit > 0) {
+            $score -= $crbHit;
+            if ($crbRec === 'reject') {
+                $factors[] = 'CRB suggests reject'.($crbScore !== null ? ' (score '.$crbScore.')' : '').' (−20)';
+            } elseif ($crbRec === 'refer') {
+                $factors[] = 'CRB suggests refer'.($crbScore !== null ? ' (score '.$crbScore.')' : '').' (−8)';
+            } else {
+                $factors[] = 'CRB score missing (−5)';
+            }
+        } elseif ($crbRec === 'approve') {
+            $factors[] = 'CRB suggests approve'.($crbScore !== null ? ' (score '.$crbScore.')' : '').' (no deduction)';
         }
 
         $score = max(0, min(100, $score));
         $band = $score >= 75 ? 'low' : ($score >= 50 ? 'medium' : 'high');
+        $recommendation = match ($band) {
+            'low'    => 'approve',
+            'medium' => 'refer',
+            default  => 'reject',
+        };
+
+        $explanation = $this->riskExplanation($score, $band, $recommendation, $factors, $crbRec, $crbScore);
 
         return [
             'score'          => $score,
             'band'           => $band,
             'label'          => $this->riskBandLabel($band),
             'factors'        => $factors,
-            'recommendation' => match ($band) {
-                'low'    => 'approve',
-                'medium' => 'refer',
-                default  => 'reject',
-            },
+            'explanation'    => $explanation,
+            'recommendation' => $recommendation,
+            'crb_recommendation' => $crbRec !== '' ? $crbRec : null,
+            'crb_score'      => $crbScore,
         ];
+    }
+
+    /**
+     * @param  list<string>  $factors
+     */
+    private function riskExplanation(
+        int $score,
+        string $band,
+        string $recommendation,
+        array $factors,
+        string $crbRec,
+        mixed $crbScore,
+    ): string {
+        $bandSentence = match ($band) {
+            'low' => 'Score '.$score.'/100 is in the low-risk band (≥75), so the system suggests APPROVE.',
+            'medium' => 'Score '.$score.'/100 is in the medium-risk band (50–74), so the system suggests REFER for manual review.',
+            default => 'Score '.$score.'/100 is in the high-risk band (<50), so the system suggests REJECT.',
+        };
+
+        $drivers = $factors === []
+            ? 'No deductions were applied.'
+            : 'Main drivers: '.implode('; ', array_slice($factors, 0, 4)).'.';
+
+        $crbSentence = match ($crbRec) {
+            'approve' => 'CRB also leans approve'.($crbScore !== null ? ' (bureau score '.$crbScore.')' : '').'.',
+            'refer' => 'CRB leans refer'.($crbScore !== null ? ' (bureau score '.$crbScore.')' : '').', which pulled the application score down.',
+            'reject' => 'CRB leans reject'.($crbScore !== null ? ' (bureau score '.$crbScore.')' : '').', which strongly pulled the application score down.',
+            default => 'No CRB recommendation was available to weight the score.',
+        };
+
+        return $bandSentence.' '.$drivers.' '.$crbSentence.' Staff may still override after reviewing the file.';
     }
 
     private function riskBandLabel(string $band): string

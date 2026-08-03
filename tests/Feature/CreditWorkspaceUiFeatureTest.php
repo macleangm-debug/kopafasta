@@ -83,6 +83,7 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             $this->assertStringContainsString('Risk score', $html);
             $this->assertStringContainsString('CRB suggestion', $html);
             $this->assertStringContainsString('Guarantor', $html);
+            $this->assertStringContainsString("tab = 'face'", $html);
             $this->assertStringContainsString("tab = 'guarantor'", $html);
         }
 
@@ -92,6 +93,8 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->getContent();
         $this->assertStringContainsString('Screening workspace', $screening);
         $this->assertStringContainsString('Record your screening recommendation', $screening);
+        $this->assertStringContainsString('Push recommendation to committee', $screening);
+        $this->assertStringNotContainsString('Record the committee decision', $screening);
 
         $committee = $this->actingAs($admin, 'admin')
             ->get(route('admin.loan-applications.show', $this->application($admin, 'pre_approval')))
