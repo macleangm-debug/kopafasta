@@ -104,29 +104,42 @@
             </div>
         @endif
 
-        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6"
+             x-data="{ confirming: {{ $errors->has('code') ? 'true' : 'false' }} }">
             <h3 class="text-sm font-semibold text-gray-900">Generate new recovery codes</h3>
             <p class="mt-1 text-sm text-gray-500 max-w-2xl">
                 If you lost your saved codes, or used most of them, create a fresh set.
-                Enter a current authenticator code to confirm it’s you.
             </p>
-            <form method="POST" action="{{ route('admin.settings.account-security.regenerate') }}" class="mt-4 flex flex-col sm:flex-row gap-3 sm:items-end max-w-md">
-                @csrf
-                <div class="flex-1">
-                    <label for="regen_code" class="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-1.5">Authenticator code</label>
-                    <input id="regen_code"
-                           name="code"
-                           type="text"
-                           inputmode="numeric"
-                           autocomplete="one-time-code"
-                           required
-                           class="w-full rounded-lg border-0 ring-1 ring-gray-300 focus:ring-2 focus:ring-brand px-3 py-2 text-sm"
-                           placeholder="6-digit code">
-                </div>
-                <button type="submit"
+
+            <div x-show="!confirming" class="mt-4">
+                <button type="button"
+                        @click="confirming = true"
                         class="inline-flex justify-center rounded-lg bg-brand hover:bg-brand-light text-white font-semibold text-sm px-4 py-2.5">
                     Generate new codes
                 </button>
+            </div>
+
+            <form method="POST"
+                  action="{{ route('admin.settings.account-security.regenerate') }}"
+                  class="mt-4 max-w-md space-y-4"
+                  x-show="confirming"
+                  x-cloak>
+                @csrf
+                <p class="text-sm text-gray-600">
+                    Enter a current authenticator code to confirm it’s you.
+                </p>
+                <x-auth.otp-digits name="code" :length="6" :autofocus="false" label="Authenticator code" />
+                <div class="flex flex-wrap gap-3">
+                    <button type="submit"
+                            class="inline-flex justify-center rounded-lg bg-brand hover:bg-brand-light text-white font-semibold text-sm px-4 py-2.5">
+                        Confirm and generate
+                    </button>
+                    <button type="button"
+                            @click="confirming = false"
+                            class="inline-flex justify-center rounded-lg bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-700 font-semibold text-sm px-4 py-2.5">
+                        Cancel
+                    </button>
+                </div>
             </form>
         </div>
     @else

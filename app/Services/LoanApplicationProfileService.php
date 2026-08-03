@@ -46,7 +46,8 @@ class LoanApplicationProfileService
         $editQuoteUrl = $quoteStepKey
             ? $this->drafts->wizardApplyUrlForStep($draft, $quoteStepKey, ['return_to' => 'profile'])
             : null;
-        $editGuarantorUrl = in_array('guarantor', $stepKeys, true)
+        // Edit guarantor only after the borrower has already added one on this draft.
+        $editGuarantorUrl = in_array('guarantor', $stepKeys, true) && $this->draftHasGuarantor($draft)
             ? $this->drafts->wizardApplyUrlForStep($draft, 'guarantor', ['return_to' => 'profile'])
             : null;
 
@@ -678,5 +679,35 @@ class LoanApplicationProfileService
             'installment_count'   => count($rows),
             'total_repayable'     => round(collect($rows)->sum('total_due'), 2),
         ];
+    }
+
+    /**
+     * True when the draft already has guarantor details the borrower can edit
+     * (lookup or external invite) — not merely that the product requires one.
+     */
+    private function draftHasGuarantor(LoanApplicationDraft $draft): bool
+    {
+        $payload = $draft->payload ?? [];
+        $external = $payload['external_guarantor'] ?? null;
+        if (is_array($external) && (
+            filled($external['invitation_url'] ?? null)
+            || filled($external['invitee_name'] ?? null)
+            || filled($external['invitee_phone'] ?? null)
+            || filled($external['phone'] ?? null)
+        )) {
+            return true;
+        }
+
+        $lookup = $payload['guarantor_lookup'] ?? null;
+        if (is_array($lookup) && (
+            filled($lookup['customer_id'] ?? null)
+            || filled($lookup['phone'] ?? null)
+            || filled($lookup['nida'] ?? null)
+            || ! empty($lookup['found'])
+        )) {
+            return true;
+        }
+
+        return false;
     }
 }

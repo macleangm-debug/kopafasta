@@ -21,12 +21,14 @@
     $applicationPercent = (int) ($progress['application_percent'] ?? $progress['percent'] ?? 0);
     $continueUrl = $next['url'] ?? ($profile['wizard_url'] ?? null);
     $continueLabel = $next['button_label'] ?? __('borrower.loan_profile.actions.continue_to_form');
-    $canWithdraw = $application
+    $draft = $profile['draft'] ?? null;
+    $canWithdrawApplication = $application
         && ! in_array((string) $application->status, ['disbursed', 'withdrawn'], true)
         && ! $application->loan;
+    $canDiscardDraft = $isDraft && $draft;
 
     // Prefer service-built URLs (product-aware quote step). Do not hardcode quote/guarantor.
-    $editQuoteUrl = $profile['edit_quote_url'] ?? null;
+    $editQuoteUrl = $isDraft ? ($profile['edit_quote_url'] ?? null) : null;
     $editGuarantorUrl = $profile['edit_guarantor_url'] ?? null;
     // Change/add guarantor CTA only when underwriting opened a supplement request —
     // never reopen the full apply wizard (which re-triggers application fee).
@@ -35,6 +37,10 @@
         : false;
     if (! $isDraft && $application && ! $editGuarantorUrl && $guarantorSupplementOpen) {
         $editGuarantorUrl = app(\App\Services\GuarantorSupplementService::class)->borrowerWizardUrl($application);
+    }
+    // After submit: edit guarantor only for open UW/screening supplement requests.
+    if (! $isDraft && ! $guarantorSupplementOpen) {
+        $editGuarantorUrl = null;
     }
 @endphp
 
@@ -124,8 +130,8 @@
                 </div>
             @endif
 
-            @if ($canWithdraw)
-                <form method="POST" action="{{ route('site.borrower.application.withdraw', $application) }}" class="mt-4"
+            @if ($canDiscardDraft)
+                <form method="POST" action="{{ route('site.borrower.draft.discard', $draft) }}" class="mt-4"
                       onsubmit="event.preventDefault(); confirmForm(this, {
                           title: @js(__('borrower.policy.withdraw_confirm_title')),
                           message: @js(__('borrower.policy.withdraw_confirm_body')),
@@ -292,7 +298,7 @@
                 </div>
             @endif
 
-            @if ($canWithdraw)
+            @if ($canWithdrawApplication)
                 <form method="POST" action="{{ route('site.borrower.application.withdraw', $application) }}" class="mt-5"
                       onsubmit="event.preventDefault(); confirmForm(this, {
                           title: @js(__('borrower.policy.withdraw_confirm_title')),

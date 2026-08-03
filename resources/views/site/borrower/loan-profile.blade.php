@@ -11,7 +11,6 @@
         $draft = $profile['draft'] ?? null;
         $isDraft = (bool) ($profile['is_draft'] ?? false);
         $statusCode = (string) ($status['code'] ?? '');
-        $editQuoteUrl = $profile['edit_quote_url'] ?? null;
         $underwritingActions = collect($profile['underwriting_actions'] ?? []);
         $underwritingActionKeys = $underwritingActions
             ->map(fn ($action) => 'request-'.($action['id'] ?? ''))
@@ -20,8 +19,6 @@
         $missingRequirements = collect($profile['missing_requirements'] ?? [])
             ->filter(fn ($item) => empty($item['complete']))
             ->reject(fn ($item) => in_array($item['key'] ?? '', $underwritingActionKeys, true));
-        $profilePercent = (int) ($progress['profile_percent'] ?? $progress['percent'] ?? 0);
-        $profileComplete = (bool) ($progress['profile_complete'] ?? $profilePercent >= 100);
         $completeProfileUrl = route('site.borrower.profile');
         $isRejected = $statusCode === 'rejected';
         $isDisbursed = in_array($statusCode, ['disbursed', 'closed'], true)
@@ -95,39 +92,11 @@
         </div>
     @endif
 
-    {{-- Draft / incomplete profile gate --}}
-    @if ($isDraft && ! $profileComplete)
-        <div class="glass-card p-5 mb-6">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div class="flex-1">
-                    <h2 class="font-semibold">{{ __('borrower.loan_profile.profile_completion') }}</h2>
-                    <div class="flex items-center gap-3 mt-3">
-                        <div class="flex-1 max-w-xs h-2 rounded-full bg-gray-100 overflow-hidden">
-                            <div class="h-full rounded-full bg-brand" style="width: {{ $profilePercent }}%"></div>
-                        </div>
-                        <span class="text-sm font-bold tabular-nums">{{ $profilePercent }}%</span>
-                    </div>
-                    <p class="text-sm text-gray-600 mt-2">{{ __('borrower.loan_profile.profile_completion_hint') }}</p>
-                </div>
-                <a href="{{ $completeProfileUrl }}"
-                   class="inline-flex items-center justify-center font-semibold px-6 py-2.5 rounded-xl text-sm shrink-0 bg-brand hover:bg-brand-light text-white">
-                    {{ __('borrower.loan_profile.complete_profile') }}
-                </a>
-            </div>
-        </div>
-    @endif
-
     {{-- 3. Compact summary (collapsed after submission when under review) --}}
     @if ($isDraft)
         <div class="glass-card p-5 mb-6">
-            <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+            <div class="mb-4">
                 <h2 class="font-semibold">{{ __('borrower.loan_profile.summary_title') }}</h2>
-                @if ($editQuoteUrl)
-                    <button type="button" onclick="document.querySelector('details')?.setAttribute('open',''); document.querySelector('details')?.scrollIntoView({behavior:'smooth',block:'center'});"
-                       class="inline-flex text-xs font-semibold text-brand bg-brand-muted/40 ring-1 ring-brand/20 hover:bg-brand-muted px-3 py-2 rounded-lg">
-                        {{ __('borrower.loan_profile.actions.edit_quote') }}
-                    </button>
-                @endif
             </div>
             <div class="grid sm:grid-cols-2 gap-4 text-sm">
                 <div>

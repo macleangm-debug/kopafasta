@@ -79,6 +79,11 @@ class LoanProfileResumeLinksFeatureTest extends TestCase
                     'requested_tenure_months' => 6,
                     'purpose'                 => 'business',
                 ],
+                'external_guarantor' => [
+                    'invitee_name'   => 'Amina Guarantor',
+                    'invitee_phone'  => '255712340099',
+                    'invitation_url' => 'https://example.test/g/abc',
+                ],
             ],
         ]);
 
@@ -124,6 +129,11 @@ class LoanProfileResumeLinksFeatureTest extends TestCase
                     'requested_tenure_months' => 3,
                     'purpose'                 => 'business',
                 ],
+                'external_guarantor' => [
+                    'invitee_name'   => 'Amina Guarantor',
+                    'invitee_phone'  => '255712340088',
+                    'invitation_url' => 'https://example.test/g/def',
+                ],
             ],
         ]);
 
@@ -162,8 +172,39 @@ class LoanProfileResumeLinksFeatureTest extends TestCase
             ->assertOk()
             ->assertSee(__('borrower.loan_profile.actions.edit_quote'), false)
             ->assertSee(__('borrower.loan_profile.actions.edit_guarantor'), false)
+            ->assertSee(__('borrower.loan_profile.actions.withdraw'), false)
             ->assertSee('step_key=quote', false)
             ->assertSee('step_key=guarantor', false);
+    }
+
+    public function test_edit_guarantor_hidden_until_guarantor_added_on_draft(): void
+    {
+        $customer = $this->borrower();
+        $product = $this->individualProduct();
+
+        $draft = LoanApplicationDraft::create([
+            'customer_id'      => $customer->id,
+            'loan_product_id'   => $product->id,
+            'phase'             => 'application',
+            'step'              => 2,
+            'draft_reference'   => 'DR-NO-G-'.random_int(1000, 9999),
+            'saved_at'          => now(),
+            'payload'           => [
+                'application_started' => true,
+                'step_key'            => 'guarantor',
+                'form'                => [
+                    'loan_product_id'         => $product->id,
+                    'requested_amount'        => 250_000,
+                    'requested_tenure_months' => 6,
+                    'purpose'                 => 'business',
+                ],
+            ],
+        ]);
+
+        $profile = app(LoanApplicationProfileService::class)->forDraft($customer, $draft);
+
+        $this->assertNotEmpty($profile['edit_quote_url']);
+        $this->assertNull($profile['edit_guarantor_url']);
     }
 
     public function test_group_asset_and_asset_backed_edit_quote_step_keys(): void
@@ -248,6 +289,11 @@ class LoanProfileResumeLinksFeatureTest extends TestCase
                     'requested_tenure_months' => 3,
                     'purpose'                 => 'business',
                 ],
+                'external_guarantor' => [
+                    'invitee_name'   => 'Amina Guarantor',
+                    'invitee_phone'  => '255712340077',
+                    'invitation_url' => 'https://example.test/g/inactive',
+                ],
             ],
         ]);
 
@@ -261,6 +307,7 @@ class LoanProfileResumeLinksFeatureTest extends TestCase
             ->get((string) $profile['edit_quote_url'])
             ->assertOk();
 
+        $this->assertNotEmpty($profile['edit_guarantor_url']);
         $this->actingAs($customer->user)
             ->get((string) $profile['edit_guarantor_url'])
             ->assertOk();
