@@ -1821,6 +1821,9 @@ class BorrowerController extends Controller
             ];
             $rules = [
                 'income_proof_method' => ['nullable', 'string', 'in:bank_statement,mobile_money_statement'],
+                'income_account_provider' => ['nullable', 'string', 'max:120'],
+                'income_account_number' => ['nullable', 'string', 'max:80'],
+                'income_account_name' => ['nullable', 'string', 'max:150'],
             ];
             foreach ($codes as $code) {
                 $rules[$code] = ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'];
@@ -1829,9 +1832,19 @@ class BorrowerController extends Controller
             }
             $request->validate($rules);
 
+            $details = $customer->activity_details ?? [];
             if ($request->filled('income_proof_method')) {
-                $details = $customer->activity_details ?? [];
                 $details['income_proof_method'] = $request->input('income_proof_method');
+            }
+            foreach (['income_account_provider', 'income_account_number', 'income_account_name'] as $detailKey) {
+                if ($request->has($detailKey)) {
+                    $value = trim((string) $request->input($detailKey, ''));
+                    if ($value !== '') {
+                        $details[$detailKey] = $value;
+                    }
+                }
+            }
+            if ($details !== ($customer->activity_details ?? [])) {
                 $customer->update(['activity_details' => $details]);
             }
 

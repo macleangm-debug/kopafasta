@@ -31,6 +31,9 @@
                             :read-only="true"
                         />
                     @endforeach
+                    <button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">
+                        {{ __('borrower.profile.add_another_document') }}
+                    </button>
                 </div>
             @else
                 <p class="text-sm text-gray-600">{{ __('borrower.profile.additional_documents_hint') }}</p>

@@ -115,6 +115,9 @@ if (! function_exists('loan_product_wizard_payload')) {
             'requires_guarantor' => (bool) $product->requires_guarantor,
             'guarantor_required_above' => (float) ($policy->settings()['guarantor_required_above'] ?? 0),
             'frequency'         => $groups->effectiveRepaymentCadence($product),
+            'interest_method'   => in_array(($product->interest_method ?? 'reducing'), ['flat', 'reducing'], true)
+                ? ($product->interest_method ?? 'reducing')
+                : 'reducing',
             'group_cadence_label' => $groups->groupRepaymentCadenceLabel($product),
             'is_group'          => is_group_loan_product($product),
         ];

@@ -261,6 +261,15 @@ export function applyWizard(config) {
                         }
                     });
                     this.$watch('steps', () => this.syncStepKey());
+                    this.$watch('form.requested_amount', () => {
+                        if (this.phase === 'application') this.scheduleDraftSave();
+                    });
+                    this.$watch('form.requested_tenure_months', () => {
+                        if (this.phase === 'application') this.scheduleDraftSave();
+                    });
+                    this.$watch('form.purpose', () => {
+                        if (this.phase === 'application') this.scheduleDraftSave();
+                    });
                     this.$watch('form.guarantor_mode', (mode) => {
                         if (mode === 'external') {
                             this.scheduleExternalInvitePrep();
@@ -1660,14 +1669,34 @@ export function applyWizard(config) {
 
                 estimateWeeklyInstallment(principal, rate, months) {
                     if (principal <= 0 || months <= 0) return 0;
-                    const periods = Math.max(1, Math.round(months * 4.33));
+                    const periods = Math.max(1, months * 4);
                     const periodRate = rate / 4;
-                    return Math.round((principal / periods) + (principal * periodRate));
+                    if (this.interestMethod() === 'flat') {
+                        return Math.round((principal / periods) + (principal * periodRate));
+                    }
+
+                    return this.estimateEmi(principal, periodRate, periods);
+                },
+
+                interestMethod() {
+                    const method = String(this.current?.interest_method || 'reducing').toLowerCase();
+
+                    return method === 'flat' ? 'flat' : 'reducing';
+                },
+
+                estimateFlatMonthly(principal, rate, months) {
+                    if (principal <= 0 || months <= 0) return 0;
+
+                    return Math.round((principal / months) + (principal * rate));
                 },
 
                 repaymentCadence() {
                     const freq = (this.current?.frequency || 'weekly').toLowerCase();
                     return freq === 'monthly' ? 'monthly' : 'weekly';
+                },
+
+                canShowQuoteRewards() {
+                    return this.hasActiveLoanReward() || !! this.feeLoyaltyOption?.can_redeem;
                 },
 
                 resolveMonthlyRate(product, amount) {
@@ -1698,10 +1727,13 @@ export function applyWizard(config) {
                     const months = this.form.requested_tenure_months;
                     const principal = this.form.requested_amount;
                     const cadence = this.repaymentCadence();
-                    const monthly = this.estimateEmi(principal, rate, months);
+                    const method = this.interestMethod();
+                    const monthly = method === 'flat'
+                        ? this.estimateFlatMonthly(principal, rate, months)
+                        : this.estimateEmi(principal, rate, months);
                     const weekly = this.estimateWeeklyInstallment(principal, rate, months);
                     const primary = cadence === 'monthly' ? monthly : weekly;
-                    const periods = cadence === 'monthly' ? months : Math.max(1, Math.round(months * 4.33));
+                    const periods = cadence === 'monthly' ? months : Math.max(1, months * 4);
                     const interest = Math.max(0, (primary * periods) - principal);
                     this.quote = {
                         monthly,
@@ -1710,7 +1742,8 @@ export function applyWizard(config) {
                         frequency: cadence,
                         interest,
                         fees: this.applicationFee,
-                        total: (primary * periods) + this.applicationFee,
+                        // Loan repayment only — application fee is shown on its own payment step.
+                        total: primary * periods,
                     };
                     if (this.phase === 'application') {
                         this.rebuildSteps();

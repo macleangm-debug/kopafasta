@@ -268,8 +268,6 @@
                                         />
                                     </div>
                                 </div>
-                                <p x-show="isGuarantor" x-cloak class="text-xs text-gray-500">{{ __('borrower.guarantor_invite.register_nida_later') }}</p>
-                                <p x-show="!isGuarantor" x-cloak class="text-xs text-gray-500">National ID and email can be added later in your profile.</p>
                             </div>
                         </div>
 

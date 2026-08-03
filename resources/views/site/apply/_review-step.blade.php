@@ -76,55 +76,49 @@
         </section>
 
         <div class="grid lg:grid-cols-2 gap-5">
-            <section class="rounded-2xl bg-gradient-to-b from-brand-muted/30 to-white ring-1 ring-brand/10 overflow-hidden">
-                <div class="px-5 py-3.5 flex items-center justify-between gap-3 border-b border-brand/10">
+            <section class="rounded-2xl bg-white ring-1 ring-brand/10 overflow-hidden">
+                <div class="px-5 py-3.5 border-b border-brand/10">
                     <h3 class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.review_step.product') }}</h3>
-                    <a :href="loanProductsUrl" class="text-xs font-semibold text-brand hover:underline shrink-0" x-show="! reservationMode">{{ __('borrower.apply.change') }}</a>
                 </div>
-                <dl class="px-5 py-4 space-y-4 text-sm">
-                    <div>
-                        <dt class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.apply.review_step.product') }}</dt>
-                        <dd class="mt-1 font-semibold text-gray-900" x-text="current ? current.name : '—'"></dd>
+                <dl class="px-5 py-4 space-y-3 text-sm">
+                    <div class="flex items-baseline justify-between gap-3">
+                        <dt class="text-gray-500">{{ __('borrower.apply.review_step.product') }}</dt>
+                        <dd class="font-semibold text-gray-900 text-right" x-text="current ? current.name : '—'"></dd>
                     </div>
                     <template x-if="assetApplication">
-                        <div>
-                            <dt class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.apply.review_step.asset') }}</dt>
-                            <dd class="mt-1 font-semibold text-gray-900" x-text="assetApplication.asset_title"></dd>
-                            <p class="text-xs text-gray-500 mt-1">
-                                <span x-text="formatTzs(assetApplication.asset_value)"></span>
-                                · {{ __('borrower.marketplace.deposit') }}
-                                <span x-text="formatTzs(assetApplication.deposit)"></span>
-                            </p>
+                        <div class="flex items-baseline justify-between gap-3">
+                            <dt class="text-gray-500">{{ __('borrower.apply.review_step.asset') }}</dt>
+                            <dd class="font-semibold text-gray-900 text-right" x-text="assetApplication.asset_title"></dd>
                         </div>
                     </template>
-                    <div x-show="hasStep('quote')">
-                        <dt class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.apply.review_step.purpose') }}</dt>
-                        <dd class="mt-1 font-semibold text-gray-900" x-text="purposeLabels[form.purpose] || form.purpose || '—'"></dd>
+                    <div x-show="hasStep('quote')" class="flex items-baseline justify-between gap-3">
+                        <dt class="text-gray-500">{{ __('borrower.apply.review_step.purpose') }}</dt>
+                        <dd class="font-semibold text-gray-900 text-right" x-text="purposeLabels[form.purpose] || form.purpose || '—'"></dd>
                     </div>
-                    <div x-show="hasStep('group_setup')">
-                        <dt class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.apply.group_setup.name') }}</dt>
-                        <dd class="mt-1 font-semibold text-gray-900" x-text="group.name || '—'"></dd>
+                    <div x-show="hasStep('group_setup')" class="flex items-baseline justify-between gap-3">
+                        <dt class="text-gray-500">{{ __('borrower.apply.group_setup.name') }}</dt>
+                        <dd class="font-semibold text-gray-900 text-right" x-text="group.name || '—'"></dd>
                     </div>
                 </dl>
             </section>
 
-            <section class="rounded-2xl bg-gradient-to-b from-slate-50 to-white ring-1 ring-gray-200/80 overflow-hidden">
+            <section class="rounded-2xl bg-white ring-1 ring-gray-200/80 overflow-hidden">
                 <div class="px-5 py-3.5 flex items-center justify-between gap-3 border-b border-gray-100">
                     <h3 class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.apply.review_step.borrower_section') }}</h3>
                     <a :href="profileUrl" class="text-xs font-semibold text-brand hover:underline shrink-0">{{ __('borrower.apply.edit_profile') }}</a>
                 </div>
-                <dl class="px-5 py-4 space-y-4 text-sm">
+                <dl class="px-5 py-4 space-y-3 text-sm">
                     <div>
                         <dt class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.apply.review_step.personal') }}</dt>
-                        <dd class="mt-1 font-semibold text-gray-900" x-text="review.personal"></dd>
+                        <dd class="mt-1 font-medium text-gray-900 leading-snug" x-text="review.personal"></dd>
                     </div>
-                    <div>
+                    <div class="pt-3 border-t border-gray-100">
                         <dt class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.apply.review_step.employment') }}</dt>
-                        <dd class="mt-1 font-semibold text-gray-900" x-text="review.employment"></dd>
+                        <dd class="mt-1 font-medium text-gray-900 leading-snug" x-text="review.employment"></dd>
                     </div>
-                    <div>
+                    <div class="pt-3 border-t border-gray-100">
                         <dt class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.apply.review_step.residence') }}</dt>
-                        <dd class="mt-1 font-semibold text-gray-900" x-text="review.residence"></dd>
+                        <dd class="mt-1 font-medium text-gray-900 leading-snug" x-text="review.residence"></dd>
                     </div>
                 </dl>
             </section>

@@ -1,8 +1,7 @@
 <div x-show="stepKey === 'guarantor'" class="p-6 sm:p-8">
     <x-site.wizard-step-header
-        :eyebrow="__('borrower.apply.steps.guarantor')"
         :title="__('borrower.apply.guarantor')"
-        :subtitle="__('borrower.apply.guarantor_required')"
+        :subtitle="null"
     />
 
     {{-- Field-level errors stay inline; summary feedback opens as modal via setGuarantorFieldErrors() --}}
@@ -20,10 +19,6 @@
         </div>
         <div x-show="form.guarantor_mode === 'external' && externalGuarantor?.invitation_url" x-cloak x-data="{ copied: false }"
              class="rounded-2xl bg-gradient-to-br from-brand via-brand to-brand-light text-white px-5 py-5 space-y-4 shadow-sm">
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.apply.guarantor_fields.share_via') }}</p>
-                <p class="text-sm text-white/90 mt-1">{{ __('borrower.apply.guarantor_fields.share_ready') }}</p>
-            </div>
             <p class="text-xs font-mono text-brand bg-brand-gold/90 rounded-xl px-3 py-2.5 break-all" x-text="externalGuarantor.short_url || externalGuarantor.invitation_url"></p>
             <div class="flex flex-wrap gap-2">
                 <a :href="externalGuarantor.whatsapp_url || '#'" :class="!externalGuarantor.whatsapp_url && 'pointer-events-none opacity-50'" target="_blank" rel="noopener"
@@ -44,7 +39,6 @@
                     <span x-text="copied ? @js(__('borrower.apply.guarantor_fields.link_copied')) : @js(__('borrower.apply.guarantor_fields.share_copy'))"></span>
                 </button>
             </div>
-            <p class="text-xs text-brand-gold/90">{{ __('borrower.apply.guarantor_fields.share_ready_continue') }}</p>
         </div>
         <button type="button"
                 @click="changeGuarantor()"
@@ -62,30 +56,31 @@
             <span class="text-lg leading-none">+</span>
             {{ __('borrower.apply.guarantor_fields.add_cta') }}
         </button>
-        <p x-show="!addGuarantorOpen" class="text-xs text-gray-500 mt-2">{{ __('borrower.apply.guarantor_fields.add_hint') }}</p>
     </div>
 
     <div x-show="addGuarantorOpen && !isGuarantorLocked()" x-cloak
-         class="glass-card rounded-2xl ring-1 ring-brand/15 p-5 sm:p-6 space-y-5 mb-5">
+         class="rounded-2xl ring-1 ring-brand/15 bg-white p-5 sm:p-6 space-y-5 mb-5">
             <div class="flex items-start justify-between gap-3">
-                <div>
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.guarantor') }}</p>
-                    <h3 class="text-lg font-bold text-gray-900 mt-0.5">{{ __('borrower.apply.guarantor_fields.add_cta') }}</h3>
-                </div>
+                <h3 class="text-lg font-bold text-gray-900">{{ __('borrower.apply.guarantor_fields.add_cta') }}</h3>
                 <button type="button" @click="addGuarantorOpen = false" class="text-gray-400 hover:text-gray-700 text-2xl leading-none px-1" aria-label="{{ __('borrower.profile.cancel') }}">×</button>
             </div>
 
-            <div x-show="previousGuarantors.length" x-cloak class="rounded-2xl bg-brand-muted/30 ring-1 ring-brand/15 px-4 py-4 space-y-3">
-                <p class="text-sm font-semibold text-gray-900">{{ __('borrower.apply.previous_guarantor.title') }}</p>
-                <div class="space-y-2">
-                    <template x-for="item in previousGuarantors" :key="item.id">
-                        <button type="button"
-                                @click="selectPreviousGuarantor(item.id)"
-                                class="w-full text-left rounded-xl bg-white ring-1 ring-brand/10 px-3 py-2.5 text-sm hover:bg-brand-muted/40 transition">
-                            <span class="font-medium text-gray-900" x-text="item.label"></span>
-                            <span class="block text-xs text-gray-500 mt-0.5" x-text="item.kyc_fresh ? @js(__('borrower.apply.previous_guarantor.kyc_fresh')) : @js(__('borrower.apply.previous_guarantor.new_request'))"></span>
-                        </button>
-                    </template>
+            <div x-show="previousGuarantors.length" x-cloak x-data="{ openPrev: false }" class="rounded-2xl bg-brand-muted/20 ring-1 ring-brand/10 overflow-hidden">
+                <button type="button"
+                        @click="openPrev = !openPrev"
+                        class="w-full flex items-center justify-between gap-3 px-4 py-3 text-left">
+                    <span class="text-sm font-semibold text-gray-900">{{ __('borrower.apply.previous_guarantor.title') }}</span>
+                    <svg class="w-4 h-4 text-gray-500 transition" :class="openPrev && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                </button>
+                <div x-show="openPrev" x-cloak class="px-4 pb-4 space-y-2">
+                    <select
+                        class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm bg-white"
+                        @change="if ($event.target.value) { selectPreviousGuarantor(Number($event.target.value)); $event.target.value = ''; }">
+                        <option value="">{{ __('borrower.apply.previous_guarantor.choose') }}</option>
+                        <template x-for="item in previousGuarantors" :key="item.id">
+                            <option :value="item.id" x-text="item.label"></option>
+                        </template>
+                    </select>
                 </div>
             </div>
 
@@ -321,11 +316,6 @@
                             class="w-full inline-flex justify-center bg-brand hover:bg-brand-light disabled:opacity-60 text-white font-semibold px-5 py-3 rounded-xl text-sm">
                         <span x-text="guarantorInvitePreparing ? @js(__('borrower.apply.guarantor_fields.generating_link')) : @js(__('borrower.apply.guarantor_fields.generate_link'))"></span>
                     </button>
-                </div>
-                <div class="sm:col-span-2 rounded-2xl bg-gradient-to-br from-brand-muted/50 to-white ring-1 ring-brand/15 px-5 py-4"
-                     x-show="!isExternalGuarantorComplete()">
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.guarantor_fields.share_via') }}</p>
-                    <p class="text-sm text-gray-700 mt-1">{{ __('borrower.apply.guarantor_fields.share_generate') }}</p>
                 </div>
             </div>
     </div>

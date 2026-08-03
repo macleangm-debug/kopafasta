@@ -12,6 +12,7 @@ class LoanProduct extends Model
     {
         return [
             'interest_rate' => 'decimal:4',
+            'interest_method' => 'string',
             'bot_regulated_rate' => 'decimal:4',
             'processing_fee_rate' => 'decimal:4',
             'service_fee_rate' => 'decimal:4',

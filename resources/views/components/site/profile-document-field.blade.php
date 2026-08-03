@@ -26,19 +26,19 @@
     $previewUrl = ($document && $document->file_path) ? asset('storage/'.$document->file_path) : null;
 @endphp
 
-<div x-data="{ replaceMode: false, expandedUrl: null }" class="space-y-3">
+<div x-data="{ replaceMode: false }" class="space-y-3">
     @if ($document)
         <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 p-4">
             <div class="flex items-start gap-4 flex-wrap">
                 <div class="shrink-0">
                     @if ($isImage && $previewUrl)
-                        <button type="button" @click="expandedUrl = @js($previewUrl)"
+                        <button type="button" onclick="window.kfSiteOpenDocumentPreview(@js($previewUrl), @js($label ?: __('borrower.profile.view_document')), 'image')"
                                 class="h-24 w-24 rounded-lg ring-1 ring-emerald-200 overflow-hidden bg-white cursor-zoom-in block"
                                 title="{{ __('borrower.profile.view_document') }}">
                             <img src="{{ $previewUrl }}" alt="" class="h-full w-full object-cover object-center">
                         </button>
                     @elseif ($isPdf)
-                        <button type="button" @click="expandedUrl = @js($previewUrl)"
+                        <button type="button" onclick="window.kfSiteOpenDocumentPreview(@js($previewUrl), @js($label ?: __('borrower.profile.view_document')), 'pdf')"
                                 class="h-24 w-24 rounded-lg ring-1 ring-emerald-200 bg-white flex flex-col items-center justify-center text-emerald-800 cursor-zoom-in"
                                 title="{{ __('borrower.profile.view_document') }}">
                             <svg class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
@@ -69,13 +69,9 @@
 
                 @if ($document->file_path)
                     <div class="flex items-center gap-2 shrink-0">
-                        @if ($isImage && $previewUrl)
-                            <button type="button" @click="expandedUrl = @js($previewUrl)"
-                                    class="inline-flex items-center rounded-full bg-white ring-1 ring-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100">
-                                {{ __('borrower.profile.view_document') }}
-                            </button>
-                        @elseif ($previewUrl)
-                            <button type="button" @click="expandedUrl = @js($previewUrl)"
+                        @if ($previewUrl)
+                            <button type="button"
+                                    onclick="window.kfSiteOpenDocumentPreview(@js($previewUrl), @js($label ?: __('borrower.profile.view_document')), @js($isPdf ? 'pdf' : 'image'))"
                                     class="inline-flex items-center rounded-full bg-white ring-1 ring-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100">
                                 {{ __('borrower.profile.view_document') }}
                             </button>
@@ -127,19 +123,6 @@
         @endif
     </div>
     @endunless
-
-    <div x-show="expandedUrl" x-cloak x-transition
-         class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"
-         @keydown.escape.window="expandedUrl = null"
-         @click.self="expandedUrl = null">
-        <button type="button" class="absolute top-4 right-4 text-white/90 text-sm font-semibold" @click="expandedUrl = null">{{ __('borrower.profile.cancel') }}</button>
-        <template x-if="expandedUrl && String(expandedUrl).toLowerCase().includes('.pdf')">
-            <iframe :src="expandedUrl" class="h-[85vh] w-[95vw] max-w-4xl rounded-xl bg-white shadow-2xl" title="Document"></iframe>
-        </template>
-        <template x-if="expandedUrl && !String(expandedUrl).toLowerCase().includes('.pdf')">
-            <img :src="expandedUrl" alt="" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
-        </template>
-    </div>
 
     @error($fieldName)<p class="text-xs text-red-600">{{ $message }}</p>@enderror
     @error($pagesName)<p class="text-xs text-red-600">{{ $message }}</p>@enderror

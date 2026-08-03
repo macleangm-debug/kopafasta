@@ -678,7 +678,7 @@ class AuthController extends Controller
         $digits = preg_replace('/\D/', '', $data['phone']) ?: Str::random(8);
         $email = $digits.'@phone.kopafasta.local';
 
-        $user = DB::transaction(function () use ($data, $email, $referrals) {
+        $user = DB::transaction(function () use ($data, $email, $referrals, $request) {
             $fullName = trim(collect([$data['first_name'], $data['middle_name'] ?? null, $data['last_name']])->filter()->implode(' '));
 
             $user = User::create([

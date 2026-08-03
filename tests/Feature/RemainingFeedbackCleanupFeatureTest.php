@@ -68,14 +68,15 @@ class RemainingFeedbackCleanupFeatureTest extends TestCase
             ]));
     }
 
-    public function test_quote_step_shows_processing_sla_copy(): void
+    public function test_quote_step_gates_rewards_to_redeemable_only(): void
     {
         $blade = file_get_contents(resource_path('views/site/apply/_quote-step.blade.php'));
 
         $this->assertNotFalse($blade);
-        $this->assertStringContainsString('processingSla', $blade);
-        $this->assertStringContainsString("borrower.apply.quote.engagement_sla", $blade);
-        $this->assertSame('Estimated review time', __('borrower.apply.quote.engagement_sla'));
+        $this->assertStringContainsString('canShowQuoteRewards()', $blade);
+        $this->assertStringNotContainsString('rate_disclosure', $blade);
+        $this->assertStringContainsString('formatAmount(quote.interest)', $blade);
+        $this->assertSame('Interest estimate (TZS)', __('borrower.apply.quote.interest_est_tzs'));
     }
 
     public function test_late_repayment_deducts_points_once(): void

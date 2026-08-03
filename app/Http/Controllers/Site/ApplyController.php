@@ -1303,12 +1303,19 @@ class ApplyController extends Controller
         $tenure = (int) $data['requested_tenure_months'];
         $rate = app(\App\Services\LoanRateTierService::class)->resolveRate($product, $amount, $customer);
         $cadence = app(GroupLendingService::class)->effectiveRepaymentCadence($product);
-        $rows = $schedules->preview($amount, $rate, $tenure, $cadence);
+        $method = in_array(($product->interest_method ?? 'reducing'), ['flat', 'reducing'], true)
+            ? (string) ($product->interest_method ?? 'reducing')
+            : 'reducing';
+        $rows = $schedules->preview($amount, $rate, $tenure, $cadence, null, $method);
 
         $balance = $amount;
         $schedule = [];
+        $interestFromSchedule = 0.0;
+        $totalFromSchedule = 0.0;
         foreach ($rows as $row) {
             $balance = max(0, round($balance - $row['principal_due'], 2));
+            $interestFromSchedule += (float) $row['interest_due'];
+            $totalFromSchedule += (float) $row['total_due'];
             $schedule[] = [
                 'installment_no'      => $row['installment_no'],
                 'due_date'            => null,
@@ -1320,13 +1327,14 @@ class ApplyController extends Controller
             ];
         }
 
-        $emi = $wizard->estimateEmi($amount, $rate, $tenure);
-        $weekly = $cadence === 'monthly'
-            ? 0
-            : (int) round(($amount / max(1, (int) round($tenure * 4.33))) + ($amount * ($rate / 4)));
-        $periods = $cadence === 'monthly' ? $tenure : max(1, (int) round($tenure * 4.33));
-        $installment = $cadence === 'monthly' ? round($emi, 2) : (float) $weekly;
-        $interestTotal = max(0, ($installment * $periods) - $amount);
+        $periods = $schedules->periodCount($tenure, $cadence);
+        $installment = $rows[0]['total_due'] ?? 0;
+        if (count($rows) > 1) {
+            // Prefer the regular instalment (last period may be adjusted on reducing).
+            $installment = $rows[0]['total_due'];
+        }
+        $emi = $cadence === 'monthly' ? round((float) $installment, 2) : round($wizard->estimateEmi($amount, $rate, $tenure), 2);
+        $weekly = $cadence === 'weekly' ? round((float) $installment, 2) : 0;
         $applicationFee = quoted_application_fee($customer, $product);
         $boosts = app(\App\Services\MemberEngagementRewardService::class)->underwritingBoosts($customer);
         $qualification = app(\App\Services\LoanQualificationService::class)->calculate($customer);
@@ -1341,12 +1349,14 @@ class ApplyController extends Controller
                 'monthly_rate_pct'    => round($rate * 100, 2),
                 'standard_rate_pct'   => round($standardRate * 100, 2),
                 'application_fee'     => $applicationFee,
-                'monthly_installment' => round($emi, 2),
+                'monthly_installment' => $emi,
                 'weekly_installment'  => $weekly,
-                'installment_amount'  => $installment,
+                'installment_amount'  => round((float) $installment, 2),
                 'repayment_cadence'   => $cadence,
-                'interest_total'      => round($interestTotal, 2),
-                'total_repayment'     => round(($installment * $periods) + $applicationFee, 2),
+                'interest_method'     => $method,
+                'interest_total'      => round($interestFromSchedule, 2),
+                'total_repayment'     => round($totalFromSchedule, 2),
+                'periods'             => $periods,
             ],
             'engagement'    => [
                 'limit_amount'          => (int) app(\App\Services\BorrowerCreditLimitService::class)->availableAmount($customer),

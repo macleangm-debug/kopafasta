@@ -17,6 +17,10 @@
     <x-admin.select name="repayment_cadence" label="Repayment cadence"
                     :options="['weekly' => 'Weekly (tenure × 4 instalments)', 'monthly' => 'Monthly']"
                     :value="$r?->repayment_cadence ?? 'weekly'" required />
+    <x-admin.select name="interest_method" label="Interest calculation method"
+                    :options="['reducing' => 'Reducing balance', 'flat' => 'Flat rate']"
+                    :value="old('interest_method', $r?->interest_method ?? 'reducing')" required
+                    help="Reducing balance is the default. Flat charges interest on the full principal each period." />
     <x-admin.money-input name="min_amount" label="Min amount (TZS)" :value="$r?->min_amount" required />
     <x-admin.money-input name="max_amount" label="Max amount (TZS)" :value="$r?->max_amount" required />
     <input type="hidden" name="interest_rate" value="{{ old('interest_rate', $r?->interest_rate ?? 0) }}">

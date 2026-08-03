@@ -97,25 +97,53 @@
                     </div>
 
                     @foreach ($primaryItems as $item)
-                        <div class="rounded-xl border border-gray-100 p-4 bg-white" x-show="incomeMethod === @js($item['key'])" x-cloak>
-                            <p class="text-sm font-semibold text-gray-900 mb-3">
-                                {{ __('borrower.profile.upload') }} {{ $item['label'] }}
-                                <span class="text-red-500">*</span>
-                            </p>
-                            <x-site.profile-document-field
-                                :document="$item['document'] ?? null"
-                                :field-name="$item['key']"
-                                :pages-field-name="$item['key'].'_pages'"
-                                :mode="($item['multi'] ?? false) ? 'multi' : 'single'"
-                                :label="$item['label']"
-                                :input-host-id="$item['key'].'-statement-upload'"
-                                :required="true"
-                                :labels="[
-                                    'hint' => __('borrower.profile.multi_page_hint'),
-                                    'uploadFile' => __('borrower.profile.capture_pages_upload'),
-                                    'capturePage' => __('borrower.profile.capture_pages'),
-                                ]"
-                            />
+                        <div class="rounded-xl border border-gray-100 p-4 bg-white space-y-4" x-show="incomeMethod === @js($item['key'])" x-cloak>
+                            <div>
+                                <p class="text-sm font-semibold text-gray-900 mb-3">{{ __('borrower.profile.income_account_details') }}</p>
+                                <div class="grid sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.income_account_provider') }}</label>
+                                        <input type="text" name="income_account_provider"
+                                               value="{{ old('income_account_provider', $customer->activity_details['income_account_provider'] ?? '') }}"
+                                               class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"
+                                               placeholder="{{ $item['key'] === 'bank_statement' ? __('borrower.profile.income_bank_placeholder') : __('borrower.profile.income_momo_placeholder') }}">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.income_account_number') }}</label>
+                                        <input type="text" name="income_account_number"
+                                               value="{{ old('income_account_number', $customer->activity_details['income_account_number'] ?? '') }}"
+                                               class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"
+                                               placeholder="{{ __('borrower.profile.income_account_number_placeholder') }}">
+                                    </div>
+                                    <div class="sm:col-span-2">
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.income_account_name') }}</label>
+                                        <input type="text" name="income_account_name"
+                                               value="{{ old('income_account_name', $customer->activity_details['income_account_name'] ?? '') }}"
+                                               class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"
+                                               placeholder="{{ __('borrower.profile.income_account_name_placeholder') }}">
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-gray-900 mb-3">
+                                    {{ __('borrower.profile.upload') }} {{ $item['label'] }}
+                                    <span class="text-red-500">*</span>
+                                </p>
+                                <x-site.profile-document-field
+                                    :document="$item['document'] ?? null"
+                                    :field-name="$item['key']"
+                                    :pages-field-name="$item['key'].'_pages'"
+                                    :mode="($item['multi'] ?? false) ? 'multi' : 'single'"
+                                    :label="$item['label']"
+                                    :input-host-id="$item['key'].'-statement-upload'"
+                                    :required="true"
+                                    :labels="[
+                                        'hint' => __('borrower.profile.multi_page_hint'),
+                                        'uploadFile' => __('borrower.profile.capture_pages_upload'),
+                                        'capturePage' => __('borrower.profile.capture_pages'),
+                                    ]"
+                                />
+                            </div>
                         </div>
                     @endforeach
                 @endif

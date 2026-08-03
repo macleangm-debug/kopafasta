@@ -39,6 +39,7 @@
             :title="__('borrower.profile.residence')"
             :complete="$residenceComplete"
             :empty="! $residenceComplete"
+            :allow-overflow="true"
             :default-open="($wizardMode ?? false) || ($editing ?? false) || $errors->any()">
             <x-slot:view>
                 <dl class="grid sm:grid-cols-2 gap-4 text-sm">
@@ -113,7 +114,8 @@
             </x-slot:view>
             <x-slot:form>
                 <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'residence']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
-                      enctype="multipart/form-data">
+                      enctype="multipart/form-data"
+                      @submit="document.querySelectorAll('[data-phone-input]').forEach((el) => window.syncSitePhoneInput?.(el))">
                     @csrf @method('PUT')
                     @if ($wizardMode ?? false)
                         <input type="hidden" name="wizard" value="1">
