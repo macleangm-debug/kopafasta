@@ -580,9 +580,12 @@ class LoanApplicationReviewService
             'score' => $crb['score'] ?? null,
             'profile_complete' => true,
             'status_label' => $primary['status_label'] ?? null,
-            'existing_loans' => $crb['existing_loans'] ?? 0,
-            'delinquencies' => $crb['delinquencies'] ?? 0,
+            'existing_loans' => (int) ($crb['existing_loans'] ?? 0),
+            'outstanding_balance' => (float) ($crb['outstanding_balance'] ?? 0),
+            'delinquencies' => (int) ($crb['delinquencies'] ?? 0),
             'freshness_label' => $crb['freshness_label'] ?? null,
+            'loan_history' => $crb['loan_history'] ?? [],
+            'affordability' => $primary['affordability'] ?? null,
             'link_id' => $primary['link_id'] ?? null,
         ];
     }

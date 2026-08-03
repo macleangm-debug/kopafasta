@@ -27,9 +27,9 @@
     ])>
         <div class="px-5 sm:px-6 py-4 border-b border-brand/10 bg-gradient-to-r from-brand-muted/50 to-white flex flex-wrap items-start justify-between gap-3">
             <div>
-                <p class="text-[10px] uppercase tracking-widest font-semibold text-brand">Step 1 · Credit analyst</p>
-                <h3 class="text-base font-bold text-gray-900 mt-0.5">Record your screening recommendation</h3>
-                <p class="text-xs text-gray-500 mt-0.5">Choose approve or counter, add notes, then push the file to committee.</p>
+                <p class="text-[10px] uppercase tracking-widest font-semibold text-brand">Step 1 · Screening team</p>
+                <h3 class="text-base font-bold text-gray-900 mt-0.5">Screening team recommendation</h3>
+                <p class="text-xs text-gray-500 mt-0.5">Choose approve or counter, add rationale and notes, then push the file to the committee queue.</p>
             </div>
             @if ($isCreditStage)
                 <span class="text-xs font-semibold rounded-full px-3 py-1 bg-brand-gold/40 text-brand ring-1 ring-brand-gold/50">Decide here</span>

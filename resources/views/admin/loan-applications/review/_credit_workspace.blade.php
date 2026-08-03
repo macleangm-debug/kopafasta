@@ -191,27 +191,41 @@
                     </span>
                 </div>
                 <p class="text-sm text-white/85 mt-3 leading-relaxed">{{ $crbExplain['summary'] ?? 'No CRB explanation available.' }}</p>
-                @if (! empty($crbExplain['reasons']))
-                    <ul class="mt-3 space-y-1 text-xs text-white/80">
-                        @foreach (array_slice($crbExplain['reasons'], 0, 3) as $reason)
-                            <li class="flex gap-2"><span class="opacity-60">•</span><span>{{ $reason }}</span></li>
-                        @endforeach
-                    </ul>
-                @endif
-                <div class="mt-4 grid grid-cols-3 gap-2 text-center">
-                    <div class="rounded-xl bg-white/10 px-2 py-2">
-                        <p class="text-[10px] uppercase tracking-wider text-white/60">Loans</p>
-                        <p class="text-sm font-bold">{{ $crb['existing_loans'] ?? 0 }}</p>
+
+                @php
+                    $bAffordVerdict = strtolower((string) ($afford['verdict'] ?? ($affordPass ? 'pass' : 'fail')));
+                    $bExternalLoans = (int) ($crb['existing_loans'] ?? 0);
+                    $bOutstanding = (float) ($crb['outstanding_balance'] ?? 0);
+                @endphp
+                <div class="mt-4 grid grid-cols-2 gap-2">
+                    <div class="rounded-xl bg-white/10 px-3 py-2.5">
+                        <p class="text-[10px] uppercase tracking-wider text-white/60">Affordability</p>
+                        <p class="text-sm font-bold mt-0.5 uppercase">
+                            @if ($bAffordVerdict === 'pass' && ! $affordWarn) Pass
+                            @elseif ($bAffordVerdict === 'warn' || $affordWarn) Near limit
+                            @else Fail
+                            @endif
+                        </p>
+                        <p class="text-[11px] text-white/75 mt-0.5 truncate">
+                            EMI {{ format_money($afford['proposed_installment'] ?? $afford['new_emi'] ?? 0) }}
+                        </p>
                     </div>
-                    <div class="rounded-xl bg-white/10 px-2 py-2">
-                        <p class="text-[10px] uppercase tracking-wider text-white/60">Delinq.</p>
-                        <p class="text-sm font-bold">{{ $crb['delinquencies'] ?? 0 }}</p>
-                    </div>
-                    <div class="rounded-xl bg-white/10 px-2 py-2">
-                        <p class="text-[10px] uppercase tracking-wider text-white/60">Fresh</p>
-                        <p class="text-sm font-bold truncate">{{ $crb['freshness_label'] ?? '—' }}</p>
+                    <div class="rounded-xl bg-white/10 px-3 py-2.5">
+                        <p class="text-[10px] uppercase tracking-wider text-white/60">Other institutions</p>
+                        <p class="text-sm font-bold mt-0.5">{{ $bExternalLoans }} loan{{ $bExternalLoans === 1 ? '' : 's' }}</p>
+                        <p class="text-[11px] text-white/75 mt-0.5 truncate">
+                            @if ($bOutstanding > 0)
+                                Outst. {{ format_money($bOutstanding) }}
+                            @else
+                                No outstanding reported
+                            @endif
+                        </p>
                     </div>
                 </div>
+                <a href="{{ route('admin.loan-applications.show', ['loan_application' => $record, 'person' => 'borrower', 'tab' => 'crb']) }}#borrower-file"
+                   class="mt-3 inline-flex text-xs font-semibold rounded-lg bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">
+                    Full borrower CRB →
+                </a>
             </div>
         </div>
 
@@ -245,18 +259,54 @@
                     <p class="text-xs text-white/70 mt-2 truncate">{{ $gSug['name'] }}</p>
                 @endif
                 <p class="text-sm text-white/85 mt-3 leading-relaxed">{{ $gSug['summary'] ?? 'No guarantor signal yet.' }}</p>
-                @if (! empty($gSug['reasons']))
-                    <ul class="mt-3 space-y-1 text-xs text-white/80">
-                        @foreach (array_slice($gSug['reasons'], 0, 2) as $reason)
-                            <li class="flex gap-2"><span class="opacity-60">•</span><span>{{ $reason }}</span></li>
-                        @endforeach
-                    </ul>
-                @endif
-                <div class="mt-4 flex flex-wrap gap-2">
+
+                @php
+                    $gAfford = $gSug['affordability'] ?? null;
+                    $gAffordVerdict = strtolower((string) ($gAfford['verdict'] ?? ''));
+                    $gExternalLoans = (int) ($gSug['existing_loans'] ?? 0);
+                    $gOutstanding = (float) ($gSug['outstanding_balance'] ?? 0);
+                @endphp
+                <div class="mt-4 grid grid-cols-2 gap-2">
+                    <div class="rounded-xl bg-white/10 px-3 py-2.5">
+                        <p class="text-[10px] uppercase tracking-wider text-white/60">Affordability</p>
+                        <p class="text-sm font-bold mt-0.5 uppercase">
+                            @if ($gRec === 'pending_profile' || $gRec === 'missing' || $gRec === 'not_required')
+                                —
+                            @elseif ($gAffordVerdict === 'pass') Pass
+                            @elseif ($gAffordVerdict === 'warn') Near limit
+                            @elseif ($gAffordVerdict === 'fail') Fail
+                            @else {{ $gAfford['status_label'] ?? '—' }}
+                            @endif
+                        </p>
+                        <p class="text-[11px] text-white/75 mt-0.5 truncate">
+                            {{ $gAfford['status_label'] ?? 'Capacity vs proposed EMI' }}
+                        </p>
+                    </div>
+                    <div class="rounded-xl bg-white/10 px-3 py-2.5">
+                        <p class="text-[10px] uppercase tracking-wider text-white/60">Other institutions</p>
+                        <p class="text-sm font-bold mt-0.5">
+                            @if ($gRec === 'pending_profile' || $gRec === 'missing')
+                                —
+                            @else
+                                {{ $gExternalLoans }} loan{{ $gExternalLoans === 1 ? '' : 's' }}
+                            @endif
+                        </p>
+                        <p class="text-[11px] text-white/75 mt-0.5 truncate">
+                            @if ($gOutstanding > 0)
+                                Outst. {{ format_money($gOutstanding) }}
+                            @elseif ($gRec === 'pending_profile' || $gRec === 'missing')
+                                Finish profile for CRB
+                            @else
+                                No outstanding reported
+                            @endif
+                        </p>
+                    </div>
+                </div>
+                <div class="mt-3 flex flex-wrap gap-2">
                     <a href="{{ route('admin.loan-applications.show', [
                             'loan_application' => $record,
                             'person' => 'guarantor',
-                            'tab' => 'overview',
+                            'tab' => 'affordability',
                             'g' => $gSug['link_id'] ?? null,
                         ]) }}#borrower-file"
                        class="inline-flex text-xs font-semibold rounded-lg bg-white/15 hover:bg-white/25 px-3 py-1.5 transition">
@@ -267,6 +317,33 @@
         </div>
     </div>
 
+    {{-- Clear jump to screening / committee decision --}}
+    @if ($isScreeningStage)
+        <a href="#review-recommendation"
+           class="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-brand-gold px-5 py-4 text-brand shadow-sm ring-1 ring-brand/20 hover:brightness-95 transition">
+            <div>
+                <p class="text-[10px] uppercase tracking-widest font-semibold opacity-80">Screening team</p>
+                <p class="text-sm font-bold mt-0.5">Record your recommendation — approve / counter + notes, then push to committee</p>
+            </div>
+            <span class="inline-flex items-center gap-1.5 text-sm font-bold shrink-0">
+                Go to recommendation
+                <svg class="size-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M7 5l5 5-5 5"/></svg>
+            </span>
+        </a>
+    @elseif ($isCommitteeStage)
+        <a href="#review-recommendation"
+           class="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-brand-gold px-5 py-4 text-brand shadow-sm ring-1 ring-brand/20 hover:brightness-95 transition">
+            <div>
+                <p class="text-[10px] uppercase tracking-widest font-semibold opacity-80">Credit committee</p>
+                <p class="text-sm font-bold mt-0.5">Record the committee decision — issue offer, approve, reject, or return</p>
+            </div>
+            <span class="inline-flex items-center gap-1.5 text-sm font-bold shrink-0">
+                Go to decision
+                <svg class="size-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M7 5l5 5-5 5"/></svg>
+            </span>
+        </a>
+    @endif
+
     {{-- Committee: dual CRB + screening recommendation --}}
     @if ($isCommitteeStage)
         @include('admin.loan-applications.review._committee_inputs')
@@ -276,79 +353,6 @@
     <div id="review-action-zone" class="scroll-mt-24">
         @include('admin.loan-applications.review._recommendation')
     </div>
-
-    {{-- Affordability (collapsed by default when pass) --}}
-    @if (! empty($afford))
-        <details class="group rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden" @if (! $affordPass || $affordWarn) open @endif>
-            <summary class="cursor-pointer list-none px-5 py-4 flex flex-wrap items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
-                <div class="flex items-center gap-3 min-w-0">
-                    <span @class([
-                        'inline-flex text-xs font-bold rounded-full px-3 py-1',
-                        'bg-emerald-100 text-emerald-800' => $affordPass && ! $affordWarn,
-                        'bg-amber-100 text-amber-900' => $affordWarn,
-                        'bg-rose-100 text-rose-800' => ! $affordPass && ! $affordWarn,
-                    ])>
-                        @if ($affordPass && ! $affordWarn) Affordability pass
-                        @elseif ($affordWarn) Near limit
-                        @else Affordability fail
-                        @endif
-                    </span>
-                    <p class="text-sm text-gray-700 truncate">
-                        Installment {{ format_money($afford['proposed_installment'] ?? $afford['new_emi'] ?? 0) }}
-                        · capacity {{ format_money($afford['available_capacity'] ?? 0) }}
-                    </p>
-                </div>
-                <span class="text-xs font-semibold text-brand flex items-center gap-1">
-                    Details
-                    <svg class="size-3.5 transition group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
-                </span>
-            </summary>
-            <div class="px-5 pb-5 border-t border-gray-100 pt-4">
-                @include('admin.loan-applications.review._affordability-summary', [
-                    'affordability' => $afford,
-                    'counterOffer' => $counterOffer ?? null,
-                    'embedded' => true,
-                ])
-            </div>
-        </details>
-    @endif
-
-    {{-- CRB detail accordion --}}
-    <details class="group rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
-        <summary class="cursor-pointer list-none px-5 py-4 flex flex-wrap items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
-            <div>
-                <p class="text-sm font-semibold text-gray-900">CRB report details</p>
-                <p class="text-xs text-gray-500 mt-0.5">Identity match, loan history, and bureau metadata</p>
-            </div>
-            <span class="text-xs font-semibold text-brand flex items-center gap-1">
-                Expand
-                <svg class="size-3.5 transition group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
-            </span>
-        </summary>
-        <div class="px-5 pb-5 border-t border-gray-100 pt-4">
-            @include('admin.loan-applications.review._crb_body')
-        </div>
-    </details>
-
-    {{-- Checklist chips --}}
-    @if (! empty($review['checklist']))
-        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-2">
-            @foreach ($review['checklist'] as $item)
-                @php
-                    $tone = match ($item['tone'] ?? 'gray') {
-                        'emerald' => 'bg-emerald-50 ring-emerald-200 text-emerald-900',
-                        'amber'   => 'bg-amber-50 ring-amber-200 text-amber-950',
-                        'red'     => 'bg-rose-50 ring-rose-200 text-rose-900',
-                        default   => 'bg-white ring-gray-200 text-gray-700',
-                    };
-                @endphp
-                <div class="rounded-xl ring-1 px-3.5 py-2.5 {{ $tone }}">
-                    <p class="text-[10px] uppercase tracking-widest font-semibold opacity-80">{{ $item['label'] }}</p>
-                    <p class="text-xs font-semibold mt-0.5">{{ $item['detail'] }}</p>
-                </div>
-            @endforeach
-        </div>
-    @endif
 </section>
 
 @include('admin.loan-applications.review._borrower_file_tabs')

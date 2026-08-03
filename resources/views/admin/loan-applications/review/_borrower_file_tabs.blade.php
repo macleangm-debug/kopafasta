@@ -17,8 +17,10 @@
         }
     }
 
-    $defaultTab = request('tab', $person === 'guarantor' ? 'overview' : 'personal');
+    $defaultTab = request('tab', 'affordability');
     $borrowerTabs = [
+        ['affordability', 'Affordability'],
+        ['crb', 'CRB'],
         ['personal', 'Personal'],
         ['face', 'Face'],
         ['residence', 'Residence'],
@@ -29,6 +31,8 @@
         $borrowerTabs[] = ['group', 'Group'];
     }
     $guarantorTabs = [
+        ['affordability', 'Affordability'],
+        ['crb', 'CRB'],
         ['overview', 'Overview'],
         ['personal', 'Personal'],
         ['face', 'Face'],
@@ -39,7 +43,7 @@
     $profileTabs = $person === 'guarantor' ? $guarantorTabs : $borrowerTabs;
     $allowedTabs = array_column($profileTabs, 0);
     if (! in_array($defaultTab, $allowedTabs, true)) {
-        $defaultTab = $allowedTabs[0] ?? 'personal';
+        $defaultTab = 'affordability';
     }
 
     $openDocRequestCount = 0;
@@ -65,7 +69,7 @@
         $params = [
             'loan_application' => $record,
             'person' => $who,
-            'tab' => $who === 'guarantor' ? 'overview' : 'personal',
+            'tab' => 'affordability',
         ];
         if ($who === 'guarantor' && $linkId) {
             $params['g'] = $linkId;
@@ -153,7 +157,7 @@
     </div>
 
     <div class="p-5">
-        @if ($person === 'guarantor' && $selectedGuarantor && empty($selectedGuarantor['file']) && $defaultTab !== 'overview')
+        @if ($person === 'guarantor' && $selectedGuarantor && empty($selectedGuarantor['file']) && ! in_array($defaultTab, ['overview', 'affordability', 'crb'], true))
             <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
                 <p class="text-sm font-semibold text-amber-950">Guarantor profile not complete yet</p>
                 <p class="text-xs text-amber-900/90 mt-1">
@@ -161,6 +165,14 @@
                     Open <a class="font-semibold underline" href="{{ $tabUrl('overview') }}">Overview</a> for status and change request.
                 </p>
             </div>
+        @elseif ($defaultTab === 'affordability')
+            @include('admin.loan-applications.review._subject_affordability', [
+                'review' => $subjectReview,
+                'affordability' => $affordability ?? ($review['affordability'] ?? null),
+                'counterOffer' => $counterOffer ?? ($review['counter_offer'] ?? null),
+            ])
+        @elseif ($defaultTab === 'crb')
+            @include('admin.loan-applications.review._subject_crb', ['review' => $subjectReview])
         @elseif ($defaultTab === 'overview' && $person === 'guarantor')
             @include('admin.loan-applications.review._guarantor_overview', [
                 'guarantor' => $selectedGuarantor,

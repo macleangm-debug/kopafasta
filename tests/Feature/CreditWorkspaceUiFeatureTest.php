@@ -93,9 +93,13 @@ class CreditWorkspaceUiFeatureTest extends TestCase
             ->assertOk()
             ->getContent();
         $this->assertStringContainsString('Screening workspace', $screening);
-        $this->assertStringContainsString('Record your screening recommendation', $screening);
+        $this->assertStringContainsString('Screening team recommendation', $screening);
+        $this->assertStringContainsString('Go to recommendation', $screening);
         $this->assertStringContainsString('Push recommendation to committee', $screening);
         $this->assertStringContainsString('data-open-dialog="recommend-'.$app->id.'"', $screening);
+        $this->assertStringContainsString('Other institutions', $screening);
+        $this->assertStringContainsString('Affordability', $screening);
+        $this->assertStringNotContainsString('Profile complete', $screening);
         $this->assertStringNotContainsString('Record the committee decision', $screening);
 
         $residence = $this->actingAs($admin, 'admin')
