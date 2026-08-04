@@ -79,6 +79,31 @@
 
     <div id="guarantor-progress" class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15"
          x-data="{ copied: false }">
+        @if ($allReady && ! $isDraft)
+            {{-- Submitted + ready: just guarantor details — no “ready” status chatter. --}}
+            <div class="px-5 sm:px-6 py-5">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.application.guarantor_section') }}</p>
+                        @foreach ($rows as $row)
+                            <p class="text-lg font-bold text-gray-900 mt-1 truncate">{{ $row->name }}</p>
+                            <p class="text-sm text-gray-500 mt-0.5">{{ $row->type }}</p>
+                        @endforeach
+                    </div>
+                    @if ($showChangeGuarantor)
+                        <a href="{{ $editGuarantorUrl }}"
+                           class="inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shrink-0 shadow-sm">
+                            {{ $guarantorSupplementOpen
+                                ? __('borrower.guarantor_supplement.cta')
+                                : __('borrower.loan_profile.actions.edit_guarantor') }}
+                        </a>
+                    @endif
+                </div>
+                @if ($guarantorSupplementOpen)
+                    <p class="text-xs text-amber-800 mt-3">{{ __('borrower.guarantor_supplement.borrower_banner') }}</p>
+                @endif
+            </div>
+        @else
         <div class="bg-gradient-to-br from-brand-muted/50 to-white px-5 sm:px-6 py-5 space-y-4">
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div class="min-w-0 flex-1">
@@ -88,12 +113,12 @@
                             @if ($rows->isEmpty())
                                 {{ __('borrower.loan_profile.guarantor_not_added') }}
                             @elseif ($allReady)
-                                {{ __('borrower.loan_profile.guarantor_ready_title_short') }}
+                                {{ $primary->name }}
                             @else
                                 {{ __('borrower.loan_profile.guarantor_waiting_title') }}
                             @endif
                         </h2>
-                        @if ($primary)
+                        @if ($primary && ! $allReady)
                             <span class="text-sm font-semibold text-gray-500 truncate max-w-full">· {{ $primary->name }}</span>
                         @endif
                     </div>
@@ -102,7 +127,7 @@
                     @elseif ($showWaitingCopy)
                         <p class="text-sm text-gray-600 mt-1">{{ __('borrower.loan_profile.guarantor_hold_body') }}</p>
                     @elseif ($showReadyBeforeSubmit)
-                        <p class="text-sm text-emerald-800 mt-1 font-semibold">{{ __('borrower.loan_profile.guarantor_ready_banner') }}</p>
+                        <p class="text-sm text-gray-600 mt-1">{{ $primary->type }}</p>
                     @endif
                 </div>
                 @if ($showChangeGuarantor)
@@ -165,7 +190,7 @@
             @endif
         </div>
 
-        @if ($rows->isNotEmpty())
+        @if ($rows->isNotEmpty() && ! $allReady)
             <div class="px-5 sm:px-6 py-5 border-t border-gray-100/80 space-y-4">
                 @foreach ($rows as $row)
                     @php
@@ -196,7 +221,6 @@
                             </span>
                         </div>
 
-                        {{-- Steps only while the guarantor is still finishing; ready = details card only. --}}
                         @if (! $done && ! empty($steps))
                             <ol class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                 @foreach ($steps as $step)
@@ -217,13 +241,14 @@
                     </div>
                 @endforeach
             </div>
-        @elseif ($isDraft && $editGuarantorUrl)
+        @elseif ($isDraft && $editGuarantorUrl && $rows->isEmpty())
             <div class="px-5 sm:px-6 py-4 border-t border-gray-100">
                 <a href="{{ $editGuarantorUrl }}"
                    class="inline-flex bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
                     {{ __('borrower.loan_profile.actions.complete_guarantor') }}
                 </a>
             </div>
+        @endif
         @endif
     </div>
 @endif
