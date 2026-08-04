@@ -192,7 +192,8 @@ class GuarantorOnboardingService
             'met'        => $checklist['can_apply'] && $percent >= 100,
             'percent'    => $percent,
             'checklist'  => $checklist,
-            'next_url'   => app(ProfileWizardService::class)->resumeUrl($customer),
+            // Hub shows major categories and completion — not the personal wizard.
+            'next_url'   => route('site.borrower.profile'),
         ];
     }
 
@@ -257,9 +258,8 @@ class GuarantorOnboardingService
 
         if (! $this->guarantorRequirementsMet($customer)) {
             $status = app(ProfileCompletionService::class)->calculate($customer);
-            $url = app(ProfileWizardService::class)->resumeUrl($customer);
 
-            return redirect()->to($url)
+            return redirect()->route('site.borrower.profile')
                 ->with('status', __('borrower.guarantor_invite.continue_after_profile', ['percent' => $status['percent'] ?? 0]));
         }
 

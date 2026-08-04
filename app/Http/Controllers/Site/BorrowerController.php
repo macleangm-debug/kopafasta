@@ -2612,10 +2612,8 @@ class BorrowerController extends Controller
             ]);
 
             if (! ($profileStatus['met'] ?? false)) {
-                $resumeUrl = $profileStatus['next_url'] ?? route('site.borrower.profile');
-
                 return redirect()
-                    ->to($resumeUrl)
+                    ->route('site.borrower.profile')
                     ->with('status', __('borrower.guarantor.accepted_finish_profile', [
                         'percent' => $profileStatus['percent'] ?? 0,
                     ]));

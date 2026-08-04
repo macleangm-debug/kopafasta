@@ -139,7 +139,7 @@ class GuaranteedLoanService
             'pending_hint'            => $pendingHint,
             'needs_guarantor_profile' => $needsGuarantorProfile,
             'profile_percent'         => (int) ($profileStatus['percent'] ?? 0),
-            'profile_url'             => $profileStatus['next_url'] ?? route('site.borrower.profile'),
+            'profile_url'             => route('site.borrower.profile'),
             'is_terminal'             => $isTerminal,
             'is_disbursed'            => $isDisbursed,
             'loan_status'             => $loan?->status,

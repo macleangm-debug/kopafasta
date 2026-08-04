@@ -468,7 +468,7 @@ class GuarantorInviteUxFeatureTest extends TestCase
             ->post(route('site.borrower.guarantor-requests.respond', $link), [
                 'action' => 'approve',
             ])
-            ->assertRedirect();
+            ->assertRedirect(route('site.borrower.profile'));
 
         $this->assertSame('approved', $link->fresh()->status);
         $this->assertSame('awaiting_guarantor', $application->fresh()->status);
