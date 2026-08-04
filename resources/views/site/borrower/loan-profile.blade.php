@@ -85,6 +85,14 @@
     {{-- 1. Status + next action (always first after submit) --}}
     @include('site.borrower.loan-profile._action_panel', ['profile' => $profile])
 
+    {{-- 1b. Requested documents — single card, directly under status when open --}}
+    @if (! $isDraft && $application)
+        @include('site.borrower.loan-profile._document_requests', [
+            'profile' => $profile,
+            'application' => $application,
+        ])
+    @endif
+
     {{-- 2. Post-approval progress only (fees → contract → disbursement) --}}
     @if ($showTimeline)
         <div class="mb-6">
