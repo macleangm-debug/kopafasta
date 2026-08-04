@@ -76,21 +76,25 @@
                         default => 'bg-sky-100 text-sky-800',
                     };
                 $cardClass = ($row->is_terminal ?? false)
-                    ? 'opacity-75 ring-1 ring-gray-200'
-                    : ($needsProfile ? 'ring-1 ring-amber-200 bg-amber-50/30' : 'hover:ring-2 hover:ring-brand/20');
+                    ? 'opacity-75'
+                    : ($needsProfile ? '' : 'hover:ring-brand/20');
             @endphp
-            <div class="glass-card p-6 transition-all {{ $cardClass }}">
+            <div class="glass-card p-6 transition-all ring-1 ring-brand/10 {{ $cardClass }}">
                 @if ($needsProfile)
-                    <div class="mb-4 rounded-xl bg-amber-100/80 ring-1 ring-amber-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div class="mb-4 rounded-2xl bg-gradient-to-br from-brand-muted/50 to-white ring-1 ring-brand/15 px-4 py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div>
-                            <p class="text-sm font-bold text-amber-950">{{ __('borrower.guaranteed.profile_block_title') }}</p>
-                            <p class="text-xs text-amber-900 mt-0.5">{{ __('borrower.guaranteed.profile_block_body', ['percent' => $row->profile_percent ?? 0]) }}</p>
-                            @if ($row->pending_hint)
-                                <p class="text-xs text-amber-800 mt-1">{{ $row->pending_hint }}</p>
-                            @endif
+                            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loan_profile.profile_completion') }}</p>
+                            <div class="flex items-center gap-3 mt-2 max-w-xs">
+                                <div class="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
+                                    <div class="h-full rounded-full bg-brand" style="width: {{ (int) ($row->profile_percent ?? 0) }}%"></div>
+                                </div>
+                                <span class="text-xs font-bold tabular-nums">{{ (int) ($row->profile_percent ?? 0) }}%</span>
+                            </div>
+                            <p class="text-sm font-bold text-gray-900 mt-2">{{ __('borrower.guaranteed.profile_block_title') }}</p>
+                            <p class="text-xs text-gray-600 mt-0.5">{{ __('borrower.guaranteed.profile_block_body', ['percent' => $row->profile_percent ?? 0]) }}</p>
                         </div>
                         <a href="{{ $row->profile_url }}"
-                           class="inline-flex shrink-0 justify-center rounded-xl bg-amber-500 hover:bg-amber-400 text-gray-900 font-bold px-4 py-2.5 text-sm shadow-sm">
+                           class="inline-flex shrink-0 justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 text-sm shadow-sm">
                             {{ __('borrower.guarantor.complete_profile') }}
                         </a>
                     </div>

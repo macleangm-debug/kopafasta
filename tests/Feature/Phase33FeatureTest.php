@@ -102,7 +102,7 @@ class Phase33FeatureTest extends TestCase
             ->assertSee(__('borrower.offer.suggested_product'), false);
     }
 
-    public function test_guaranteed_loan_detail_uses_wide_layout_and_translated_status_labels(): void
+    public function test_guaranteed_loan_detail_uses_loan_profile_layout_and_translated_status_labels(): void
     {
         $borrower = $this->completeBorrower('020');
         $guarantor = $this->completeBorrower('021');
@@ -175,7 +175,8 @@ class Phase33FeatureTest extends TestCase
         $this->actingAs($guarantor->user)
             ->get(route('site.borrower.guaranteed.show', $link))
             ->assertOk()
-            ->assertSee('max-w-7xl', false)
+            ->assertSee('max-w-3xl', false)
+            ->assertSee(__('borrower.guaranteed.detail_glance_title'), false)
             ->assertSee(__('borrower.guaranteed.repayment_progress'), false)
             ->assertSee(__('borrower.guaranteed.installment_statuses.overdue'), false);
     }

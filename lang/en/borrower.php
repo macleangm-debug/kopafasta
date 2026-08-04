@@ -2363,6 +2363,8 @@ return [
         'amount_updated' => 'Loan amount updated.',
         'guarantor_progress' => 'Guarantor progress: :accepted of :total accepted',
         'guarantor_ready_progress' => 'Guarantor ready: :ready of :total',
+        'guarantor_not_added' => 'Guarantor not added yet',
+        'guarantor_not_added_hint' => 'Add a guarantor in the application to unlock screening after you submit.',
         'guarantor_hold_banner' => 'Credit screening has not started yet',
         'guarantor_hold_body' => 'Your guarantor must accept and finish their profile before screening can begin.',
         'guarantor_ready_banner' => 'Your guarantor is ready — screening can proceed once the application is submitted.',
@@ -2983,6 +2985,8 @@ return [
 
     'guaranteed' => [
         'detail_title'            => 'Guaranteed loan',
+        'detail_eyebrow'          => 'Guarantee tracking',
+        'detail_glance_title'     => 'This guarantee at a glance',
         'back_to_list'            => 'Back to guaranteed loans',
         'back_to_requests'        => 'Back to guarantor requests',
         'view_details'            => 'View loan progress',

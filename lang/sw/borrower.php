@@ -2345,6 +2345,8 @@ return [
   'guaranteed' => 
 [
     'detail_title' => 'Mkopo unaodhamini',
+    'detail_eyebrow' => 'Ufuatiliaji wa dhamana',
+    'detail_glance_title' => 'Dhamana hii kwa muhtasari',
     'back_to_list' => 'Rudi kwenye mikopo unayodhamini',
     'back_to_requests' => 'Rudi kwenye maombi ya udhamini',
     'view_details' => 'Angalia maendeleo ya mkopo',
@@ -2927,6 +2929,8 @@ return [
     'amount_updated' => 'Kiasi cha mkopo kimesasishwa.',
     'guarantor_progress' => 'Maendeleo ya mdhamini: :accepted kati ya :total wamekubali',
     'guarantor_ready_progress' => 'Mdhamini tayari: :ready kati ya :total',
+    'guarantor_not_added' => 'Mdhamini bado hajaongezwa',
+    'guarantor_not_added_hint' => 'Ongeza mdhamini kwenye ombi ili ukaguzi uanze baada ya kuwasilisha.',
     'guarantor_hold_banner' => 'Ukaguzi wa mikopo bado haujaanza',
     'guarantor_hold_body' => 'Mwambie mdhamini akubali mwaliko na akamilishe wasifu wake. Ukaguzi utaanza moja kwa moja akimaliza.',
     'guarantor_ready_banner' => 'Mdhamini wako yuko tayari — ukaguzi unaweza kuendelea ombi likishawasilishwa.',

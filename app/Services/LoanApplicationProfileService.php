@@ -51,6 +51,8 @@ class LoanApplicationProfileService
             ? $this->drafts->wizardApplyUrlForStep($draft, 'guarantor', ['return_to' => 'profile'])
             : null;
 
+        $guarantorInvitations = $this->draftGuarantorInvitations($customer, $draft);
+
         return [
             'is_draft'             => true,
             'draft'                => $draft,
@@ -80,8 +82,13 @@ class LoanApplicationProfileService
             'product_details'      => $this->productDetailsForDraft($draft, $product),
             'document_requests'    => [],
             'underwriting_actions' => [],
-            'guarantor_invitations' => collect(),
+            'guarantor_invitations' => $guarantorInvitations,
             'customer_guarantors'  => collect(),
+            'requires_guarantor'   => (bool) ($product?->requires_guarantor
+                ?? app(LoanPolicyService::class)->requiresGuarantorForApplication(
+                    $product,
+                    (float) (($draft->payload['form']['requested_amount'] ?? 0) ?: ($product?->min_amount ?? 0)),
+                )),
             'product_requirements' => collect(),
             'requirement_uploads'  => collect(),
             'offer'                => null,
@@ -226,6 +233,7 @@ class LoanApplicationProfileService
                 ->openGuidedActionsForApplication($application),
             'guarantor_invitations' => $guarantorInvitations,
             'customer_guarantors'  => $application->customerGuarantors,
+            'requires_guarantor'   => (bool) ($application->product?->requires_guarantor ?? false),
             'product_requirements' => $requirements,
             'requirement_uploads'  => $uploads,
             'offer'                => $offer,
@@ -697,11 +705,17 @@ class LoanApplicationProfileService
         $payload = $draft->payload ?? [];
         $external = $payload['external_guarantor'] ?? null;
         if (is_array($external) && (
-            filled($external['invitation_url'] ?? null)
+            filled($external['invitation_id'] ?? null)
+            || filled($external['invitation_url'] ?? null)
             || filled($external['invitee_name'] ?? null)
             || filled($external['invitee_phone'] ?? null)
             || filled($external['phone'] ?? null)
         )) {
+            return true;
+        }
+
+        $internal = $payload['internal_guarantor'] ?? null;
+        if (is_array($internal) && filled($internal['invitation_id'] ?? null)) {
             return true;
         }
 
@@ -711,10 +725,32 @@ class LoanApplicationProfileService
             || filled($lookup['phone'] ?? null)
             || filled($lookup['nida'] ?? null)
             || ! empty($lookup['found'])
+            || ! empty($lookup['ok'])
         )) {
             return true;
         }
 
         return false;
+    }
+
+    /** @return \Illuminate\Support\Collection<int, \App\Models\GuarantorInvitation> */
+    private function draftGuarantorInvitations(Customer $customer, LoanApplicationDraft $draft)
+    {
+        $payload = $draft->payload ?? [];
+        $ids = collect([
+            (int) ($payload['internal_guarantor']['invitation_id'] ?? 0),
+            (int) ($payload['external_guarantor']['invitation_id'] ?? 0),
+        ])->filter(fn (int $id) => $id > 0)->unique()->values();
+
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        return \App\Models\GuarantorInvitation::query()
+            ->with('customerGuarantor')
+            ->where('customer_id', $customer->id)
+            ->whereIn('id', $ids->all())
+            ->latest('id')
+            ->get();
     }
 }

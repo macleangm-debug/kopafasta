@@ -30,11 +30,11 @@
                 'post_approval_fees',
             ], true);
         $showTimeline = ! $isDraft && ! $isRejected && $isPostApproval && ! empty($progress['timeline']);
-        $showGuarantorBlock = ! $isDraft
-            && $application
-            && (
-                ($application->product?->requires_guarantor ?? false)
-                || app(\App\Services\GuarantorSupplementService::class)->hasOpenRequest($application)
+        $showGuarantorBlock = (
+                ($profile['requires_guarantor'] ?? false)
+                || ($application?->product?->requires_guarantor ?? false)
+                || (($profile['guarantor_invitations'] ?? collect())->isNotEmpty())
+                || ($application && app(\App\Services\GuarantorSupplementService::class)->hasOpenRequest($application))
             );
         $showDisbursementChecklist = ! $isDraft && $isPostApproval && ! $isDisbursed && ! empty($profile['disbursement_checklist']);
         $showSchedule = false; // Repayment schedule lives on the active loan page only.
