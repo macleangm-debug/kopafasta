@@ -57,18 +57,41 @@
         </ul>
     </section>
 
-    {{-- Guarantor: compact status on submit; full remind UX after submit --}}
+    {{-- Guarantor: live status + progress on submit --}}
     <section x-show="hasStep('guarantor') && form.guarantor_mode && form.guarantor_mode !== 'none'" x-cloak
-             class="mb-6 rounded-2xl ring-1 ring-amber-200/80 bg-amber-50/80 px-4 py-3.5 flex items-center justify-between gap-3">
-        <div class="min-w-0 flex items-center gap-3">
-            <span class="shrink-0 size-9 rounded-full grid place-items-center bg-white ring-1 ring-amber-200 text-amber-800" aria-hidden="true">🤝</span>
-            <div class="min-w-0">
-                <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">{{ __('borrower.apply.submit_step.guarantor_hold_title') }}</p>
-                <p class="text-sm font-semibold text-amber-950 truncate mt-0.5"
-                   x-text="(review.guarantorName || guarantorSummaryText()) + ' · ' + (review.guarantorStatus || @js(__('borrower.apply.submit_step.guarantor_pending_title')))"></p>
+             class="mb-6 rounded-2xl ring-1 px-4 py-3.5 space-y-3"
+             :class="guarantorStatusCode() === 'ready' ? 'ring-emerald-200/80 bg-emerald-50/80' : 'ring-amber-200/80 bg-amber-50/80'">
+        <div class="flex items-center justify-between gap-3">
+            <div class="min-w-0 flex items-center gap-3">
+                <span class="shrink-0 size-9 rounded-full grid place-items-center bg-white ring-1 text-lg"
+                      :class="guarantorStatusCode() === 'ready' ? 'ring-emerald-200 text-emerald-800' : 'ring-amber-200 text-amber-800'"
+                      aria-hidden="true">🤝</span>
+                <div class="min-w-0">
+                    <p class="text-[10px] uppercase tracking-widest font-semibold"
+                       :class="guarantorStatusCode() === 'ready' ? 'text-emerald-800' : 'text-amber-800'"
+                       x-text="guarantorHoldTitle()"></p>
+                    <p class="text-sm font-semibold truncate mt-0.5"
+                       :class="guarantorStatusCode() === 'ready' ? 'text-emerald-950' : 'text-amber-950'"
+                       x-text="(review.guarantorName || guarantorSummaryText()) + ' · ' + guarantorStatusLabel()"></p>
+                </div>
             </div>
+            <p class="shrink-0 text-[11px] font-semibold hidden sm:block max-w-[14rem] text-right"
+               :class="guarantorStatusCode() === 'ready' ? 'text-emerald-800/90' : 'text-amber-800/90'"
+               x-text="guarantorHoldHint()"></p>
         </div>
-        <p class="shrink-0 text-[11px] font-semibold text-amber-800/90 hidden sm:block">{{ __('borrower.apply.submit_step.guarantor_hold_hint') }}</p>
+        <ol x-show="guarantorProgressSteps().length" x-cloak class="grid sm:grid-cols-4 gap-2">
+            <template x-for="step in guarantorProgressSteps()" :key="step.key">
+                <li class="rounded-xl bg-white/80 ring-1 px-3 py-2"
+                    :class="step.complete ? 'ring-emerald-200' : (step.current ? 'ring-amber-300' : 'ring-gray-200')">
+                    <p class="text-[10px] uppercase tracking-widest font-semibold"
+                       :class="step.complete ? 'text-emerald-700' : (step.current ? 'text-amber-800' : 'text-gray-400')"
+                       x-text="step.complete ? '✓' : (step.current ? '·' : '○')"></p>
+                    <p class="text-xs font-semibold mt-0.5"
+                       :class="step.current ? 'text-gray-900' : 'text-gray-600'"
+                       x-text="step.label"></p>
+                </li>
+            </template>
+        </ol>
     </section>
 
     {{-- Premium signature surface (leader / individual borrower) --}}

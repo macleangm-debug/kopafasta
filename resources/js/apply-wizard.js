@@ -251,15 +251,15 @@ export function applyWizard(config) {
                         if (key === 'application_fee') {
                             this.enterApplicationFeeStep();
                         }
+                        if (key === 'guarantor' || key === 'submit' || key === 'review') {
+                            this.refreshGuarantorStatus();
+                        }
                         if (key === 'guarantor') {
                             this.loadPreviousGuarantors();
                         }
                         if (key === 'group_members') {
                             this.loadPreviousGroupMembers();
                             this.refreshGroupMemberStatuses();
-                        }
-                        if (key === 'guarantor' && this.externalGuarantor?.invitation_id) {
-                            this.refreshExternalGuarantorStatus();
                         }
                         if (key === 'signature') {
                             this.$nextTick(() => this.restoreSignaturePad());
@@ -2197,9 +2197,13 @@ export function applyWizard(config) {
                         if (this.internalGuarantor?.borrower_status_label) {
                             return this.internalGuarantor.borrower_status_label;
                         }
+                        const code = this.internalGuarantor?.borrower_status_code;
+                        if (code && this.i18n.alerts.guarantorStatus?.[code]) {
+                            return this.i18n.alerts.guarantorStatus[code];
+                        }
                         if (this.internalGuarantor?.invitation_id) {
-                            return this.i18n.alerts.guarantorStatus?.invitation_sent
-                                || this.i18n.alerts.guarantorStatus.pending_acceptance
+                            return this.i18n.alerts.guarantorStatus?.pending_acceptance
+                                || this.i18n.alerts.guarantorStatus.invitation_sent
                                 || this.i18n.alerts.guarantorStatus.internal_validated;
                         }
                         return this.i18n.alerts.guarantorStatus?.pending_acceptance
@@ -2226,16 +2230,53 @@ export function applyWizard(config) {
                         return this.internalGuarantor.borrower_status_code;
                     }
 
-                    return this.internalGuarantor?.invitation_id ? 'invitation_sent' : 'pending_acceptance';
+                    return this.internalGuarantor?.invitation_id ? 'pending_acceptance' : 'pending_acceptance';
+                },
+
+                guarantorProgressSteps() {
+                    const steps = this.form.guarantor_mode === 'external'
+                        ? (this.externalGuarantor?.steps || [])
+                        : (this.internalGuarantor?.steps || []);
+                    return Array.isArray(steps) ? steps : [];
+                },
+
+                guarantorHoldTitle() {
+                    const code = this.guarantorStatusCode();
+                    if (code === 'ready') {
+                        return this.i18n.submitStep?.guarantor_ready_title
+                            || this.i18n.alerts.guarantorStatus?.ready
+                            || 'Guarantor ready';
+                    }
+                    if (code === 'pending_profile') {
+                        return this.i18n.submitStep?.guarantor_profile_title
+                            || this.i18n.alerts.guarantorStatus?.pending_profile
+                            || 'Guarantor finishing profile';
+                    }
+                    return this.i18n.submitStep?.guarantor_hold_title || 'Guarantor pending';
+                },
+
+                guarantorHoldHint() {
+                    const code = this.guarantorStatusCode();
+                    const percent = this.form.guarantor_mode === 'external'
+                        ? this.externalGuarantor?.profile_percent
+                        : this.internalGuarantor?.profile_percent;
+                    if (code === 'ready') {
+                        return this.i18n.submitStep?.guarantor_ready_hint || '';
+                    }
+                    if (code === 'pending_profile') {
+                        const tpl = this.i18n.submitStep?.guarantor_profile_hint || '';
+                        return tpl.replace(':percent', String(percent ?? 0));
+                    }
+                    return this.i18n.submitStep?.guarantor_hold_hint || '';
                 },
 
                 guarantorLockedSummaryText() {
                     const code = this.guarantorStatusCode();
                     if (code === 'rejected') {
-                        return this.i18n.guarantorLocked.declined;
+                        return this.i18n.guarantorLocked?.declined || 'Declined';
                     }
 
-                    return this.i18n.guarantorLocked.summary;
+                    return this.i18n.guarantorLocked?.summary || '';
                 },
 
                 guarantorLockedCardClass() {
@@ -2243,8 +2284,11 @@ export function applyWizard(config) {
                     if (code === 'rejected' || code === 'expired') {
                         return 'bg-rose-50 ring-rose-200';
                     }
-                    if (code === 'accepted' || code === 'guarantee_pending') {
+                    if (code === 'ready' || code === 'accepted') {
                         return 'bg-emerald-50 ring-emerald-200';
+                    }
+                    if (code === 'pending_profile' || code === 'guarantee_pending') {
+                        return 'bg-amber-50 ring-amber-200';
                     }
 
                     return 'bg-amber-50 ring-amber-200';
@@ -2255,7 +2299,7 @@ export function applyWizard(config) {
                     if (code === 'rejected' || code === 'expired') {
                         return 'text-rose-900';
                     }
-                    if (code === 'accepted' || code === 'guarantee_pending') {
+                    if (code === 'ready' || code === 'accepted') {
                         return 'text-emerald-900';
                     }
 
@@ -2267,7 +2311,7 @@ export function applyWizard(config) {
                     if (code === 'rejected' || code === 'expired') {
                         return 'text-rose-700';
                     }
-                    if (code === 'accepted' || code === 'guarantee_pending') {
+                    if (code === 'ready' || code === 'accepted') {
                         return 'text-emerald-700';
                     }
 
@@ -2279,7 +2323,7 @@ export function applyWizard(config) {
                     if (code === 'rejected' || code === 'expired') {
                         return 'text-rose-800';
                     }
-                    if (code === 'accepted' || code === 'guarantee_pending') {
+                    if (code === 'ready' || code === 'accepted') {
                         return 'text-emerald-800';
                     }
 
@@ -2287,23 +2331,19 @@ export function applyWizard(config) {
                 },
 
                 guarantorStatusBadgeClass() {
-                    if (this.form.guarantor_mode === 'internal') {
-                        return 'bg-amber-100 text-amber-900 ring-amber-200';
-                    }
-
                     const code = this.guarantorStatusCode();
 
-                    if (code === 'accepted') {
+                    if (code === 'ready' || code === 'accepted') {
                         return 'bg-emerald-100 text-emerald-900 ring-emerald-200';
                     }
                     if (code === 'rejected' || code === 'expired') {
                         return 'bg-rose-100 text-rose-900 ring-rose-200';
                     }
-                    if (code === 'guarantee_pending') {
-                        return 'bg-violet-100 text-violet-900 ring-violet-200';
-                    }
-                    if (code === 'kyc_in_progress' || code === 'registration_in_progress') {
+                    if (code === 'pending_profile' || code === 'guarantee_pending' || code === 'kyc_in_progress') {
                         return 'bg-amber-100 text-amber-900 ring-amber-200';
+                    }
+                    if (code === 'pending_acceptance' || code === 'invitation_sent') {
+                        return 'bg-sky-100 text-sky-900 ring-sky-200';
                     }
 
                     return 'bg-sky-100 text-sky-900 ring-sky-200';
@@ -2311,6 +2351,47 @@ export function applyWizard(config) {
 
                 guarantorReviewStatus() {
                     return this.guarantorStatusLabel();
+                },
+
+                async refreshGuarantorStatus() {
+                    const invitationId = this.form.guarantor_mode === 'external'
+                        ? this.externalGuarantor?.invitation_id
+                        : this.internalGuarantor?.invitation_id;
+                    if (! this.guarantorStatusUrl || ! invitationId) {
+                        return;
+                    }
+                    try {
+                        const params = new URLSearchParams({
+                            invitation_id: String(invitationId),
+                        });
+                        const res = await fetch(`${this.guarantorStatusUrl}?${params}`, {
+                            headers: { Accept: 'application/json' },
+                            credentials: 'same-origin',
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (! res.ok || ! data.ok || ! data.share) {
+                            return;
+                        }
+                        if (this.form.guarantor_mode === 'external') {
+                            this.externalGuarantor = {
+                                ...this.externalGuarantor,
+                                ...data.share,
+                            };
+                        } else {
+                            this.internalGuarantor = {
+                                ...(this.internalGuarantor || {}),
+                                ...data.share,
+                            };
+                        }
+                        this.review.guarantorStatus = this.guarantorReviewStatus();
+                        this.scheduleDraftSave();
+                    } catch {
+                        // Non-blocking refresh.
+                    }
+                },
+
+                async refreshExternalGuarantorStatus() {
+                    await this.refreshGuarantorStatus();
                 },
 
                 async loadRepaymentSchedule() {
@@ -2614,30 +2695,6 @@ export function applyWizard(config) {
                         this.scrollWizardIntoView();
                     } finally {
                         this.advancing = false;
-                    }
-                },
-
-                async refreshExternalGuarantorStatus() {
-                    if (! this.guarantorStatusUrl || ! this.externalGuarantor?.invitation_id) {
-                        return;
-                    }
-                    try {
-                        const params = new URLSearchParams({
-                            invitation_id: String(this.externalGuarantor.invitation_id),
-                        });
-                        const res = await fetch(`${this.guarantorStatusUrl}?${params}`, {
-                            headers: { Accept: 'application/json' },
-                            credentials: 'same-origin',
-                        });
-                        const data = await res.json().catch(() => ({}));
-                        if (res.ok && data.ok && data.share) {
-                            this.externalGuarantor = {
-                                ...this.externalGuarantor,
-                                ...data.share,
-                            };
-                        }
-                    } catch {
-                        // Non-blocking refresh.
                     }
                 },
 

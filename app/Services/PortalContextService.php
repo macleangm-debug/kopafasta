@@ -145,7 +145,7 @@ class PortalContextService
 
     public function hasGuaranteedLoans(Customer $customer): bool
     {
-        return app(GuaranteedLoanService::class)->linksForGuarantor($customer)->isNotEmpty();
+        return app(GuaranteedLoanService::class)->disbursedForGuarantor($customer)->isNotEmpty();
     }
 
     public function borrowerNotificationsQuery(Customer $customer): Builder

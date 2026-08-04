@@ -252,6 +252,14 @@
                           'medium' => __('borrower.apply.group.scoring.risk_band.medium'),
                           'high' => __('borrower.apply.group.scoring.risk_band.high'),
                       ],
+                      'submitStep' => [
+                          'guarantor_hold_title' => __('borrower.apply.submit_step.guarantor_hold_title'),
+                          'guarantor_hold_hint' => __('borrower.apply.submit_step.guarantor_hold_hint'),
+                          'guarantor_profile_title' => __('borrower.apply.submit_step.guarantor_profile_title'),
+                          'guarantor_profile_hint' => __('borrower.apply.submit_step.guarantor_profile_hint'),
+                          'guarantor_ready_title' => __('borrower.apply.submit_step.guarantor_ready_title'),
+                          'guarantor_ready_hint' => __('borrower.apply.submit_step.guarantor_ready_hint'),
+                      ],
                       'alerts' => [
                           'loadProduct' => __('borrower.apply.alerts.load_product'),
                           'selectPurpose' => __('borrower.apply.alerts.select_purpose'),
@@ -274,9 +282,12 @@
                           'purposeOtherRequired' => __('borrower.apply.alerts.purpose_other_required'),
                           'guarantorStatus' => [
                               'invitation_sent' => __('borrower.apply.guarantor_status.invitation_sent'),
+                              'pending_acceptance' => __('borrower.apply.guarantor_status.pending_acceptance'),
+                              'pending_profile' => __('borrower.apply.guarantor_status.pending_profile'),
                               'registration_in_progress' => __('borrower.apply.guarantor_status.registration_in_progress'),
                               'kyc_in_progress' => __('borrower.apply.guarantor_status.kyc_in_progress'),
                               'guarantee_pending' => __('borrower.apply.guarantor_status.guarantee_pending'),
+                              'ready' => __('borrower.apply.guarantor_status.ready'),
                               'accepted' => __('borrower.apply.guarantor_status.accepted'),
                               'rejected' => __('borrower.apply.guarantor_status.rejected'),
                               'expired' => __('borrower.apply.guarantor_status.expired'),

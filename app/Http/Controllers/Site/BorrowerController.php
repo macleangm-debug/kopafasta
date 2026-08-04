@@ -680,7 +680,9 @@ class BorrowerController extends Controller
 
         $portal = app(\App\Services\PortalContextService::class);
         $pendingGuarantorRequests = $portal->pendingGuarantorLinks($customer);
-        $guaranteedLinks = app(\App\Services\GuaranteedLoanService::class)->linksForGuarantor($customer);
+        $guaranteedService = app(\App\Services\GuaranteedLoanService::class);
+        $trackingGuarantees = $guaranteedService->trackingForGuarantor($customer);
+        $guaranteedLinks = $guaranteedService->disbursedForGuarantor($customer);
 
         $applicationsDashboard = app(\App\Services\BorrowerApplicationsDashboardService::class);
         $applicationRows = $applicationsDashboard->applicationsForCustomer($customer);
@@ -694,6 +696,7 @@ class BorrowerController extends Controller
         $allowedTabs = ['applications', 'active'];
         $hasGuarantorExposure = $portal->hasGuarantorWork($customer)
             || $pendingGuarantorRequests->isNotEmpty()
+            || $trackingGuarantees->isNotEmpty()
             || $guaranteedLinks->isNotEmpty();
         if ($hasGuarantorExposure) {
             $allowedTabs[] = 'guarantor';
@@ -704,14 +707,16 @@ class BorrowerController extends Controller
         if (! $activeTab) {
             if ($pendingGuarantorRequests->isNotEmpty() && empty($applicationRows)) {
                 $activeTab = 'guarantor';
-            } elseif ($guaranteedLinks->isNotEmpty() && empty($applicationRows) && $loans->isEmpty() && $pendingGuarantorRequests->isEmpty()) {
+            } elseif ($trackingGuarantees->isNotEmpty() && empty($applicationRows) && $loans->isEmpty() && $pendingGuarantorRequests->isEmpty()) {
+                $activeTab = 'guarantor';
+            } elseif ($guaranteedLinks->isNotEmpty() && empty($applicationRows) && $loans->isEmpty() && $pendingGuarantorRequests->isEmpty() && $trackingGuarantees->isEmpty()) {
                 $activeTab = 'guaranteed';
             } else {
                 $activeTab = 'applications';
             }
         }
         if (! in_array($activeTab, $allowedTabs, true)) {
-            if ($pendingGuarantorRequests->isNotEmpty()) {
+            if ($pendingGuarantorRequests->isNotEmpty() || $trackingGuarantees->isNotEmpty()) {
                 $activeTab = 'guarantor';
             } elseif ($guaranteedLinks->isNotEmpty()) {
                 $activeTab = 'guaranteed';
@@ -722,25 +727,33 @@ class BorrowerController extends Controller
 
         $user = Auth::user();
         $viewMode = $request->query('view');
+        $viewPrefKey = match ($activeTab) {
+            'active' => 'active_loans_view',
+            'guarantor' => 'guarantor_requests_view',
+            'guaranteed' => 'guaranteed_loans_view',
+            default => 'applications_view',
+        };
         if (in_array($viewMode, ['cards', 'table'], true)) {
             $prefs = $user->preferences ?? [];
-            if ($activeTab === 'active') {
-                $prefs['active_loans_view'] = $viewMode;
-            } else {
-                $prefs['applications_view'] = $viewMode;
-            }
+            $prefs[$viewPrefKey] = $viewMode;
             $user->update(['preferences' => $prefs]);
-        } elseif ($activeTab === 'active') {
-            $viewMode = $user->preferences['active_loans_view'] ?? 'cards';
         } else {
-            $viewMode = $user->preferences['applications_view'] ?? 'table';
+            $defaults = [
+                'active_loans_view' => 'cards',
+                'guarantor_requests_view' => 'cards',
+                'guaranteed_loans_view' => 'cards',
+                'applications_view' => 'table',
+            ];
+            $viewMode = $user->preferences[$viewPrefKey] ?? ($defaults[$viewPrefKey] ?? 'cards');
         }
 
-        $guarantorExposure = ($portal->hasGuarantorWork($customer) || $guaranteedLinks->isNotEmpty())
+        $guarantorExposure = ($portal->hasGuarantorWork($customer)
+            || $trackingGuarantees->isNotEmpty()
+            || $guaranteedLinks->isNotEmpty())
             ? app(\App\Services\LoanPolicyService::class)->guarantorExposureSummary($customer)
             : null;
 
-        $isGuarantorPortal = $pendingGuarantorRequests->isNotEmpty()
+        $isGuarantorPortal = ($pendingGuarantorRequests->isNotEmpty() || $trackingGuarantees->isNotEmpty())
             && empty($applicationRows)
             && $loans->isEmpty()
             && $guaranteedLinks->isEmpty();
@@ -752,6 +765,7 @@ class BorrowerController extends Controller
             'viewMode',
             'loans',
             'pendingGuarantorRequests',
+            'trackingGuarantees',
             'guaranteedLinks',
             'guarantorExposure',
             'isGuarantorPortal',
@@ -799,11 +813,11 @@ class BorrowerController extends Controller
             ])
         );
 
-        $timeline = $row->application
-            ? app(\App\Services\ApplicationBorrowerStatusService::class)->timeline($row->application)
-            : ['percent' => 0, 'steps' => []];
+        $guaranteedService = app(\App\Services\GuaranteedLoanService::class);
+        $timeline = $guaranteedService->progressTimeline($row);
+        $listTab = $row->is_disbursed ? 'guaranteed' : 'guarantor';
 
-        return view('site.borrower.guaranteed-show', compact('customer', 'row', 'timeline'));
+        return view('site.borrower.guaranteed-show', compact('customer', 'row', 'timeline', 'listTab'));
     }
 
     /* ---------------------------------------------------------------------
@@ -2581,7 +2595,7 @@ class BorrowerController extends Controller
             }
 
             return redirect()
-                ->route('site.borrower.loans', ['tab' => 'guaranteed'])
+                ->route('site.borrower.loans', ['tab' => 'guarantor'])
                 ->with('status', __('borrower.guaranteed.approved_track_message'));
         }
 

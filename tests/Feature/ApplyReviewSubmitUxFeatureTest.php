@@ -67,6 +67,11 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
             $this->assertNotEmpty(__('borrower.apply.quote.change_purpose', [], $locale));
             $this->assertNotEmpty(__('borrower.apply.submit_step.group_signatures_title', [], $locale));
             $this->assertNotEmpty(__('borrower.apply.submit_step.guarantor_pending_hint', [], $locale));
+            $this->assertNotEmpty(__('borrower.apply.submit_step.guarantor_profile_title', [], $locale));
+            $this->assertNotEmpty(__('borrower.apply.submit_step.guarantor_ready_title', [], $locale));
+            $this->assertNotEmpty(__('borrower.apply.guarantor_status.ready', [], $locale));
+            $this->assertNotEmpty(__('borrower.apply.guarantor_status.pending_profile', [], $locale));
+            $this->assertNotEmpty(__('borrower.apply.guarantor_progress.ready', [], $locale));
             $this->assertSame(
                 $locale === 'en' ? 'Complete profile before submission' : 'Kamilisha wasifu kabla ya kuwasilisha',
                 __('borrower.apply.complete_profile_to_submit', [], $locale),
@@ -118,7 +123,8 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
         $this->assertStringContainsString('purposeEditing', $quote);
         $this->assertStringContainsString('x-show="!form.purpose || purposeEditing"', $quote);
         $this->assertStringNotContainsString('template x-if="!form.purpose || purposeEditing"', $quote);
-        $this->assertStringContainsString('guarantor_hold_title', $submit);
+        $this->assertStringContainsString('guarantorHoldTitle()', $submit);
+        $this->assertStringContainsString('guarantorProgressSteps()', $submit);
         $this->assertStringContainsString('resigningOnSubmit', $submit);
         $this->assertStringContainsString('group_signatures_title', $submit);
         $this->assertStringNotContainsString('signed_hint_short', $submit);

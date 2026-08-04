@@ -6,7 +6,8 @@
         $loanSummary = [
             'applications' => collect($applicationRows ?? [])->reject($isClosedApplicationRow)->count(),
             'active' => ($loans ?? collect())->count(),
-            'guarantor' => ($pendingGuarantorRequests ?? collect())->count(),
+            'guarantor' => ($pendingGuarantorRequests ?? collect())->count()
+                + ($trackingGuarantees ?? collect())->count(),
             'guaranteed' => ($guaranteedLinks ?? collect())->count(),
         ];
         $sameProductBlock = session('same_product_block');
@@ -94,7 +95,7 @@
         :subtitle="(($showGuaranteedTab ?? false) && ($activeTab ?? '') === 'guaranteed')
             ? __('borrower.loans_page.guaranteed_hint')
             : ((($showGuarantorTab ?? false) && ($activeTab ?? '') === 'guarantor')
-                ? __('borrower.guarantor.pending_requests_hint')
+                ? __('borrower.guarantor.tab_hint')
                 : __('borrower.loans_page.subtitle'))">
         <x-slot:actions>
             <a href="{{ route('site.borrower.loan-products') }}"
@@ -168,12 +169,15 @@
     @elseif (($activeTab ?? 'applications') === 'guarantor')
         @include('site.borrower.loans._tab-guarantor-requests', [
             'pendingGuarantorRequests' => $pendingGuarantorRequests ?? collect(),
+            'trackingGuarantees' => $trackingGuarantees ?? collect(),
             'customer' => $customer,
             'guarantorExposure' => $guarantorExposure ?? null,
+            'viewMode' => $viewMode ?? 'cards',
         ])
     @elseif (($activeTab ?? 'applications') === 'guaranteed')
         @include('site.borrower.loans._tab-guaranteed', [
             'guaranteedLinks' => $guaranteedLinks ?? collect(),
+            'viewMode' => $viewMode ?? 'cards',
         ])
     @else
         @include('site.borrower.loans._tab-applications', [

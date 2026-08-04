@@ -35,6 +35,17 @@
                   :class="guarantorStatusBadgeClass()"
                   x-text="guarantorStatusLabel()"></span>
         </div>
+        <ol x-show="guarantorProgressSteps().length" x-cloak class="grid sm:grid-cols-4 gap-2">
+            <template x-for="step in guarantorProgressSteps()" :key="'g-' + step.key">
+                <li class="rounded-xl bg-white/80 ring-1 px-3 py-2"
+                    :class="step.complete ? 'ring-emerald-200' : (step.current ? 'ring-amber-300' : 'ring-gray-200')">
+                    <p class="text-[10px] font-semibold"
+                       :class="step.complete ? 'text-emerald-700' : (step.current ? 'text-amber-800' : 'text-gray-400')"
+                       x-text="step.complete ? '✓' : (step.current ? '·' : '○')"></p>
+                    <p class="text-xs font-semibold mt-0.5 text-gray-700" x-text="step.label"></p>
+                </li>
+            </template>
+        </ol>
         <div x-show="form.guarantor_mode === 'external' && externalGuarantor?.invitation_url" x-cloak x-data="{ copied: false }"
              class="rounded-2xl bg-gradient-to-br from-brand via-brand to-brand-light text-white px-5 py-5 space-y-4 shadow-sm">
             <p class="text-xs font-mono text-brand bg-brand-gold/90 rounded-xl px-3 py-2.5 break-all" x-text="externalGuarantor.short_url || externalGuarantor.invitation_url"></p>

@@ -243,60 +243,177 @@ class GuarantorInvitationService
         return null;
     }
 
-    /** @return array{code: string, label: string} */
+    /**
+     * Borrower-visible guarantor progress (member + non-member).
+     *
+     * Codes:
+     * - invitation_sent / pending_acceptance — waiting for Accept/Decline
+     * - registration_in_progress / kyc_in_progress — external onboarding
+     * - pending_profile — accepted, but guarantor profile not complete
+     * - ready — accepted and profile complete (guarantor side ready)
+     * - rejected / expired
+     *
+     * @return array{
+     *   code: string,
+     *   label: string,
+     *   profile_percent: int|null,
+     *   accepted: bool,
+     *   ready: bool,
+     *   steps: list<array{key: string, label: string, complete: bool, current: bool}>
+     * }
+     */
     public function borrowerInvitationStatus(GuarantorInvitation $invitation): array
     {
         $invitation->loadMissing('customerGuarantor');
-
-        if ($invitation->status === 'rejected') {
-            return ['code' => 'rejected', 'label' => __('borrower.apply.guarantor_status.rejected')];
-        }
-
-        if ($invitation->status === 'expired') {
-            return ['code' => 'expired', 'label' => __('borrower.apply.guarantor_status.expired')];
-        }
-
-        if ($invitation->customerGuarantor?->status === 'approved') {
-            return ['code' => 'accepted', 'label' => __('borrower.apply.guarantor_status.accepted')];
-        }
-
-        if ($invitation->status === 'pending' && ! $invitation->guarantor_customer_id) {
-            return ['code' => 'invitation_sent', 'label' => __('borrower.apply.guarantor_status.invitation_sent')];
-        }
-
-        if ($invitation->status === 'accepted' && ! $invitation->guarantor_customer_id) {
-            return ['code' => 'registration_in_progress', 'label' => __('borrower.apply.guarantor_status.registration_in_progress')];
-        }
-
+        $link = $invitation->customerGuarantor;
         $guarantorCustomer = $invitation->guarantor_customer_id
             ? Customer::find($invitation->guarantor_customer_id)
             : null;
 
+        if ($invitation->status === 'rejected' || $link?->status === 'rejected') {
+            return $this->borrowerStatusPayload('rejected', null, false, false);
+        }
+
+        if ($invitation->status === 'expired') {
+            return $this->borrowerStatusPayload('expired', null, false, false);
+        }
+
+        $accepted = $link?->status === 'approved'
+            || in_array((string) $invitation->status, ['accepted'], true);
+
+        $profilePercent = null;
+        $profileMet = false;
         if ($guarantorCustomer) {
+            $profile = app(GuarantorOnboardingService::class)->guarantorProfileStatus($guarantorCustomer);
+            $profilePercent = (int) ($profile['percent'] ?? 0);
+            $profileMet = (bool) ($profile['met'] ?? false);
+        }
+
+        // Accepted guarantee — profile is the next gate (internal + external).
+        if ($link?->status === 'approved') {
+            if (! $profileMet) {
+                return $this->borrowerStatusPayload('pending_profile', $profilePercent, true, false);
+            }
+
+            return $this->borrowerStatusPayload('ready', $profilePercent ?? 100, true, true);
+        }
+
+        // Still waiting for Accept / Decline.
+        if ($invitation->status === 'pending') {
+            return $this->borrowerStatusPayload(
+                $invitation->type === 'internal' ? 'pending_acceptance' : 'invitation_sent',
+                $profilePercent,
+                false,
+                false,
+            );
+        }
+
+        // External (or rare) mid-flow: invitation accepted but link not approved yet.
+        if ($invitation->status === 'accepted') {
+            if (! $guarantorCustomer) {
+                return $this->borrowerStatusPayload('registration_in_progress', null, true, false);
+            }
+
             if (! $guarantorCustomer->hasMembership()) {
-                return ['code' => 'registration_in_progress', 'label' => __('borrower.apply.guarantor_status.registration_in_progress')];
+                return $this->borrowerStatusPayload('registration_in_progress', $profilePercent, true, false);
             }
 
-            $checklist = app(ApplicationRequirementsService::class)->checklist($guarantorCustomer);
-            if (! $checklist['can_apply']) {
-                $incomplete = collect($checklist['items'])->first(fn (array $item) => ! ($item['complete'] ?? false));
-                $key = $incomplete['key'] ?? 'profile';
-
-                if (in_array($key, ['nida', 'face_submitted', 'face_approval', 'profile', 'kyc_freshness', 'income_proof'], true)) {
-                    return ['code' => 'kyc_in_progress', 'label' => __('borrower.apply.guarantor_status.kyc_in_progress')];
-                }
-
-                return ['code' => 'registration_in_progress', 'label' => __('borrower.apply.guarantor_status.registration_in_progress')];
+            if (! $profileMet) {
+                return $this->borrowerStatusPayload('pending_profile', $profilePercent, true, false);
             }
 
-            return ['code' => 'guarantee_pending', 'label' => __('borrower.apply.guarantor_status.guarantee_pending')];
+            return $this->borrowerStatusPayload('guarantee_pending', $profilePercent, true, false);
         }
 
-        if ($invitation->type === 'internal' && $invitation->status === 'pending') {
-            return ['code' => 'invitation_sent', 'label' => __('borrower.apply.guarantor_status.invitation_sent')];
+        return $this->borrowerStatusPayload('invitation_sent', $profilePercent, $accepted, false);
+    }
+
+    /**
+     * @return array{
+     *   code: string,
+     *   label: string,
+     *   profile_percent: int|null,
+     *   accepted: bool,
+     *   ready: bool,
+     *   steps: list<array{key: string, label: string, complete: bool, current: bool}>
+     * }
+     */
+    private function borrowerStatusPayload(string $code, ?int $profilePercent, bool $accepted, bool $ready): array
+    {
+        $labelKey = match ($code) {
+            'pending_acceptance' => 'pending_acceptance',
+            'pending_profile' => 'pending_profile',
+            'ready' => 'ready',
+            'guarantee_pending' => 'guarantee_pending',
+            'registration_in_progress' => 'registration_in_progress',
+            'kyc_in_progress' => 'kyc_in_progress',
+            'rejected' => 'rejected',
+            'expired' => 'expired',
+            'accepted' => 'accepted',
+            default => 'invitation_sent',
+        };
+
+        $invitedDone = true;
+        $acceptedDone = $accepted || $ready || in_array($code, ['pending_profile', 'guarantee_pending', 'ready'], true);
+        $profileDone = $ready || ($acceptedDone && $profilePercent !== null && $profilePercent >= 100 && $code === 'ready');
+        if ($code === 'ready') {
+            $profileDone = true;
+        }
+        if ($code === 'pending_profile') {
+            $profileDone = false;
         }
 
-        return ['code' => 'invitation_sent', 'label' => __('borrower.apply.guarantor_status.invitation_sent')];
+        $current = match ($code) {
+            'pending_acceptance', 'invitation_sent', 'registration_in_progress', 'kyc_in_progress' => 'accepted',
+            'pending_profile', 'guarantee_pending' => 'profile',
+            'ready' => 'ready',
+            'rejected', 'expired' => 'accepted',
+            default => 'accepted',
+        };
+
+        if (in_array($code, ['pending_acceptance', 'invitation_sent'], true)) {
+            $current = 'accepted';
+            $acceptedDone = false;
+            $profileDone = false;
+        }
+
+        $steps = [
+            [
+                'key'      => 'invited',
+                'label'    => __('borrower.apply.guarantor_progress.invited'),
+                'complete' => $invitedDone,
+                'current'  => false,
+            ],
+            [
+                'key'      => 'accepted',
+                'label'    => __('borrower.apply.guarantor_progress.accepted'),
+                'complete' => $acceptedDone,
+                'current'  => $current === 'accepted',
+            ],
+            [
+                'key'      => 'profile',
+                'label'    => $profilePercent !== null
+                    ? __('borrower.apply.guarantor_progress.profile_pct', ['percent' => $profilePercent])
+                    : __('borrower.apply.guarantor_progress.profile'),
+                'complete' => $profileDone || $ready,
+                'current'  => $current === 'profile',
+            ],
+            [
+                'key'      => 'ready',
+                'label'    => __('borrower.apply.guarantor_progress.ready'),
+                'complete' => $ready,
+                'current'  => $current === 'ready',
+            ],
+        ];
+
+        return [
+            'code'             => $code,
+            'label'            => __('borrower.apply.guarantor_status.'.$labelKey),
+            'profile_percent'  => $profilePercent,
+            'accepted'         => $acceptedDone,
+            'ready'            => $ready,
+            'steps'            => $steps,
+        ];
     }
 
     public function guarantorLinkStatusLabel(CustomerGuarantor $link): string
@@ -311,28 +428,7 @@ class GuarantorInvitationService
 
     public function invitationWorkflowStatusLabel(GuarantorInvitation $invitation): string
     {
-        if ($invitation->status === 'rejected') {
-            return __('borrower.apply.guarantor_status.rejected');
-        }
-
-        if ($link = $invitation->customerGuarantor) {
-            return $this->workflowStatusLabel($link, $invitation);
-        }
-
-        if ($invitation->type === 'external' && $invitation->status === 'accepted' && ! $invitation->guarantor_customer_id) {
-            return __('borrower.apply.guarantor_status.registration_pending');
-        }
-
-        if ($invitation->guarantor_customer_id) {
-            $guarantorCustomer = Customer::find($invitation->guarantor_customer_id);
-            if ($guarantorCustomer && ! app(ProfileCompletionService::class)->meetsThreshold($guarantorCustomer)) {
-                return __('borrower.apply.guarantor_status.kyc_in_progress');
-            }
-
-            return __('borrower.apply.guarantor_status.awaiting_decision');
-        }
-
-        return __('borrower.apply.guarantor_status.invitation_sent');
+        return $this->borrowerInvitationStatus($invitation)['label'];
     }
 
     /** @return array{code: string, label: string} */
@@ -343,38 +439,18 @@ class GuarantorInvitationService
             ->latest()
             ->first();
 
+        if ($invitation) {
+            $status = $this->borrowerInvitationStatus($invitation);
+
+            return ['code' => $status['code'], 'label' => $status['label']];
+        }
+
         if ($link->status === 'approved') {
-            return ['code' => 'accepted', 'label' => __('borrower.apply.guarantor_status.accepted')];
+            return ['code' => 'ready', 'label' => __('borrower.apply.guarantor_status.ready')];
         }
 
-        if ($link->status === 'rejected' || $invitation?->status === 'rejected') {
+        if ($link->status === 'rejected') {
             return ['code' => 'rejected', 'label' => __('borrower.apply.guarantor_status.rejected')];
-        }
-
-        if ($invitation?->type === 'external') {
-            if (! $invitation->guarantor_customer_id && $invitation->status === 'pending') {
-                return ['code' => 'invitation_sent', 'label' => __('borrower.apply.guarantor_status.invitation_sent')];
-            }
-
-            if ($invitation->status === 'accepted' && ! $invitation->guarantor_customer_id) {
-                return ['code' => 'registration_pending', 'label' => __('borrower.apply.guarantor_status.registration_pending')];
-            }
-
-            $guarantorCustomer = $invitation->guarantor_customer_id
-                ? Customer::find($invitation->guarantor_customer_id)
-                : null;
-
-            if ($guarantorCustomer && ! app(ProfileCompletionService::class)->meetsThreshold($guarantorCustomer)) {
-                return ['code' => 'kyc_in_progress', 'label' => __('borrower.apply.guarantor_status.kyc_in_progress')];
-            }
-
-            if ($invitation->status === 'accepted' || $link->status === 'pending') {
-                return ['code' => 'awaiting_decision', 'label' => __('borrower.apply.guarantor_status.awaiting_decision')];
-            }
-        }
-
-        if ($invitation?->status === 'pending') {
-            return ['code' => 'invitation_sent', 'label' => __('borrower.apply.guarantor_status.invitation_sent')];
         }
 
         return ['code' => 'invitation_sent', 'label' => __('borrower.apply.guarantor_status.invitation_sent')];
@@ -428,7 +504,7 @@ class GuarantorInvitationService
         return 'mailto:'.$email.'?subject='.rawurlencode($subject).'&body='.rawurlencode($body);
     }
 
-    /** @return array{invitation_id: int, invitation_url: string, short_url: string, whatsapp_url: string|null, sms_url: string|null, email_url: string|null, status: string, borrower_status_code: string, borrower_status_label: string} */
+    /** @return array{invitation_id: int, invitation_url: string, short_url: string, whatsapp_url: string|null, sms_url: string|null, email_url: string|null, status: string, borrower_status_code: string, borrower_status_label: string, profile_percent: int|null, accepted: bool, ready: bool, steps: list<array{key: string, label: string, complete: bool, current: bool}>} */
     public function sharePayload(GuarantorInvitation $invitation, ?Customer $borrower = null): array
     {
         $borrower ??= $invitation->borrower;
@@ -444,6 +520,10 @@ class GuarantorInvitationService
             'status'                 => (string) ($invitation->status ?? 'pending'),
             'borrower_status_code'   => $borrowerStatus['code'],
             'borrower_status_label'  => $borrowerStatus['label'],
+            'profile_percent'        => $borrowerStatus['profile_percent'],
+            'accepted'               => $borrowerStatus['accepted'],
+            'ready'                  => $borrowerStatus['ready'],
+            'steps'                  => $borrowerStatus['steps'],
         ];
     }
 
@@ -812,7 +892,9 @@ class GuarantorInvitationService
                     'channel'                 => 'in_app',
                     'contact'                 => $member->phone ?? '',
                     'expires_at'              => now()->addDays($this->invitationExpiryDays()),
-                    'status'                  => 'pending',
+                    'status'                  => ($link?->status === 'approved' || $invitation->status === 'accepted')
+                        ? 'accepted'
+                        : 'pending',
                 ]);
                 $link = $link ?? CustomerGuarantor::query()->find($invitation->customer_guarantor_id);
             } else {
@@ -859,7 +941,7 @@ class GuarantorInvitationService
                 });
             }
 
-            $status = $this->borrowerInvitationStatus($invitation->fresh());
+            $status = $this->borrowerInvitationStatus($invitation->fresh(['customerGuarantor']));
 
             return [
                 'invitation_id'         => (int) $invitation->id,
@@ -867,6 +949,10 @@ class GuarantorInvitationService
                 'status'                => (string) $invitation->status,
                 'borrower_status_code'  => $status['code'],
                 'borrower_status_label' => $status['label'],
+                'profile_percent'       => $status['profile_percent'],
+                'accepted'              => $status['accepted'],
+                'ready'                 => $status['ready'],
+                'steps'                 => $status['steps'],
                 'notified'              => $shouldNotify,
                 'invitee_name'          => (string) ($invitation->invitee_name ?: $member->full_name),
             ];

@@ -1,8 +1,10 @@
 <x-site.borrower-layout :title="brand_title(__('borrower.guaranteed.detail_title'))" active="loans" portalMode="guarantor" content-width="wide">
 
     <div>
-        <a href="{{ route('site.borrower.loans', ['tab' => 'guaranteed']) }}" class="inline-flex items-center gap-1 text-sm font-semibold text-amber-700 hover:underline mb-4">
-            ← {{ __('borrower.guaranteed.back_to_list') }}
+        <a href="{{ route('site.borrower.loans', ['tab' => $listTab ?? 'guaranteed']) }}" class="inline-flex items-center gap-1 text-sm font-semibold text-amber-700 hover:underline mb-4">
+            ← {{ ($listTab ?? 'guaranteed') === 'guarantor'
+                ? __('borrower.guaranteed.back_to_requests')
+                : __('borrower.guaranteed.back_to_list') }}
         </a>
 
         @if (session('status'))
@@ -27,8 +29,29 @@
                 <h1 class="text-2xl font-bold text-gray-900">{{ $borrowerName }}</h1>
                 <p class="text-sm text-gray-500 mt-1">{{ $productName }} · <span class="font-mono">{{ $row->reference }}</span></p>
             </div>
-            <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1.5 {{ $appBadge }}">{{ $appStatus['label'] ?? '—' }}</span>
+            <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1.5 {{ $appBadge }}">{{ $row->stage_label ?? ($appStatus['label'] ?? '—') }}</span>
         </div>
+
+        @if ($row->needs_guarantor_profile ?? false)
+            <div class="mb-6 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                    <p class="font-semibold text-amber-900">{{ __('borrower.guaranteed.profile_block_title') }}</p>
+                    <p class="text-sm text-amber-800 mt-1">{{ __('borrower.guaranteed.profile_block_body', ['percent' => $row->profile_percent ?? 0]) }}</p>
+                    @if ($row->pending_hint)
+                        <p class="text-xs text-amber-700 mt-2">{{ $row->pending_hint }}</p>
+                    @endif
+                </div>
+                <a href="{{ $row->profile_url }}"
+                   class="inline-flex shrink-0 justify-center rounded-xl bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-4 py-2.5 text-sm">
+                    {{ __('borrower.guarantor.complete_profile') }}
+                </a>
+            </div>
+        @elseif ($row->pending_hint && ! ($row->is_disbursed ?? false))
+            <div class="mb-6 rounded-2xl bg-sky-50 ring-1 ring-sky-200 px-5 py-4 text-sm text-sky-900">
+                <p class="font-semibold">{{ __('borrower.guaranteed.whats_pending_title') }}</p>
+                <p class="mt-1">{{ $row->pending_hint }}</p>
+            </div>
+        @endif
 
         @if ($row->in_arrears)
             <div class="mb-6 rounded-2xl bg-red-50 ring-1 ring-red-200 px-5 py-4 text-sm text-red-800">
