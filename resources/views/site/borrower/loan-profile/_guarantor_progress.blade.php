@@ -30,13 +30,22 @@
         $rows = collect();
         foreach ($guarantorInvitations as $invite) {
             $status = $inviteSvc->borrowerInvitationStatus($invite);
+            $gCustomer = $invite->guarantorCustomer
+                ?? ($invite->guarantor_customer_id
+                    ? \App\Models\Customer::query()->find($invite->guarantor_customer_id)
+                    : null);
+            $memberNo = $gCustomer?->member_no
+                ?? $invite->membership_id
+                ?? null;
             $rows->push((object) [
-                'name'   => $invite->invitee_name ?? $invite->contact ?? '—',
-                'type'   => $invite->type === 'internal'
-                    ? __('borrower.application.guarantor_member')
-                    : __('borrower.application.guarantor_external'),
-                'status' => $status,
-                'share'  => $inviteSvc->sharePayload($invite, $customer),
+                'name'      => $invite->invitee_name
+                    ?? $gCustomer?->legalDisplayName()
+                    ?? $invite->contact
+                    ?? '—',
+                'type'      => __('borrower.application.guarantor_role'),
+                'member_no' => $memberNo,
+                'status'    => $status,
+                'share'     => $inviteSvc->sharePayload($invite, $customer),
             ]);
         }
         foreach ($guarantorLinks as $link) {
@@ -44,16 +53,18 @@
                 continue;
             }
             $status = $inviteSvc->workflowStatus($link);
+            $gCustomer = app(\App\Services\GuarantorAccessService::class)->guarantorCustomerForLink($link);
             $rows->push((object) [
-                'name'   => $link->displayName(),
-                'type'   => __('borrower.application.guarantor_internal'),
-                'status' => array_merge($status, [
+                'name'      => $link->displayName(),
+                'type'      => __('borrower.application.guarantor_role'),
+                'member_no' => $gCustomer?->member_no,
+                'status'    => array_merge($status, [
                     'profile_percent' => null,
                     'accepted' => in_array($status['code'] ?? '', ['ready', 'pending_profile'], true),
                     'ready' => ($status['code'] ?? '') === 'ready',
                     'steps' => [],
                 ]),
-                'share'  => null,
+                'share'     => null,
             ]);
         }
 
@@ -80,28 +91,41 @@
     <div id="guarantor-progress" class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15"
          x-data="{ copied: false }">
         @if ($allReady && ! $isDraft)
-            {{-- Submitted + ready: just guarantor details — no “ready” status chatter. --}}
-            <div class="px-5 sm:px-6 py-5">
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                    <div class="min-w-0">
-                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.application.guarantor_section') }}</p>
-                        @foreach ($rows as $row)
-                            <p class="text-lg font-bold text-gray-900 mt-1 truncate">{{ $row->name }}</p>
-                            <p class="text-sm text-gray-500 mt-0.5">{{ $row->type }}</p>
-                        @endforeach
+            {{-- Submitted + ready: premium guarantor details card. --}}
+            <div class="relative overflow-hidden bg-gradient-to-br from-brand via-brand to-brand-light text-white">
+                <div class="absolute -right-10 -top-10 size-40 rounded-full bg-white/10 pointer-events-none"></div>
+                <div class="absolute -left-8 -bottom-12 size-32 rounded-full bg-white/10 pointer-events-none"></div>
+                <div class="relative px-5 sm:px-6 py-5 space-y-4">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold/90 font-semibold">{{ __('borrower.application.guarantor_section') }}</p>
+                            @foreach ($rows as $row)
+                                @php
+                                    $memberDisplay = \App\Support\MemberNumberFormatter::display($row->member_no ?? null);
+                                @endphp
+                                <p class="text-xl sm:text-2xl font-bold tracking-tight mt-2 truncate">{{ $row->name }}</p>
+                                <p class="text-sm text-white/75 mt-1">{{ $row->type }}</p>
+                                @if ($memberDisplay !== '—')
+                                    <div class="mt-4 rounded-xl bg-black/20 ring-1 ring-white/20 px-4 py-3">
+                                        <p class="text-[10px] uppercase tracking-[0.18em] text-white/60 mb-1.5">{{ __('borrower.apply.guarantor_fields.membership_no') }}</p>
+                                        <p class="font-mono text-base sm:text-lg font-bold tracking-[0.12em] break-all">{{ $memberDisplay }}</p>
+                                    </div>
+                                @endif
+                            @endforeach
+                        </div>
+                        @if ($showChangeGuarantor)
+                            <a href="{{ $editGuarantorUrl }}"
+                               class="inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shrink-0 shadow-sm">
+                                {{ $guarantorSupplementOpen
+                                    ? __('borrower.guarantor_supplement.cta')
+                                    : __('borrower.loan_profile.actions.edit_guarantor') }}
+                            </a>
+                        @endif
                     </div>
-                    @if ($showChangeGuarantor)
-                        <a href="{{ $editGuarantorUrl }}"
-                           class="inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shrink-0 shadow-sm">
-                            {{ $guarantorSupplementOpen
-                                ? __('borrower.guarantor_supplement.cta')
-                                : __('borrower.loan_profile.actions.edit_guarantor') }}
-                        </a>
+                    @if ($guarantorSupplementOpen)
+                        <p class="text-xs text-amber-100">{{ __('borrower.guarantor_supplement.borrower_banner') }}</p>
                     @endif
                 </div>
-                @if ($guarantorSupplementOpen)
-                    <p class="text-xs text-amber-800 mt-3">{{ __('borrower.guarantor_supplement.borrower_banner') }}</p>
-                @endif
             </div>
         @else
         <div class="bg-gradient-to-br from-brand-muted/50 to-white px-5 sm:px-6 py-5 space-y-4">

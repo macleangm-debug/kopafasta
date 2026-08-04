@@ -133,22 +133,23 @@
                     default   => 'ring-brand/15 bg-brand-muted/30',
                 };
                 $statHref = $stat['tab'] ? route('site.borrower.loans', ['tab' => $stat['tab']]) : null;
+                $statClass = 'glass-card h-full min-h-[5.5rem] p-4 ring-1 '.$toneRing.' flex flex-col justify-between';
             @endphp
             @if ($statHref)
-                <a href="{{ $statHref }}" class="glass-card p-4 ring-1 {{ $toneRing }} hover:ring-brand/30 transition block">
-                    <div class="flex items-center justify-between gap-2">
-                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $stat['label'] }}</p>
-                        <span class="text-lg" aria-hidden="true">{{ $stat['icon'] }}</span>
+                <a href="{{ $statHref }}" class="{{ $statClass }} hover:ring-brand/30 transition block">
+                    <div class="flex items-start justify-between gap-2">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold leading-snug line-clamp-2">{{ $stat['label'] }}</p>
+                        <span class="text-lg shrink-0 leading-none" aria-hidden="true">{{ $stat['icon'] }}</span>
                     </div>
-                    <p class="mt-2 text-2xl font-bold text-gray-900 tabular-nums">{{ $stat['value'] }}</p>
+                    <p class="mt-3 text-2xl font-bold text-gray-900 tabular-nums leading-none">{{ $stat['value'] }}</p>
                 </a>
             @else
-                <div class="glass-card p-4 ring-1 {{ $toneRing }}">
-                    <div class="flex items-center justify-between gap-2">
-                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $stat['label'] }}</p>
-                        <span class="text-lg" aria-hidden="true">{{ $stat['icon'] }}</span>
+                <div class="{{ $statClass }}">
+                    <div class="flex items-start justify-between gap-2">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold leading-snug line-clamp-2">{{ $stat['label'] }}</p>
+                        <span class="text-lg shrink-0 leading-none" aria-hidden="true">{{ $stat['icon'] }}</span>
                     </div>
-                    <p class="mt-2 text-2xl font-bold text-gray-900 tabular-nums">{{ $stat['value'] }}</p>
+                    <p class="mt-3 text-2xl font-bold text-gray-900 tabular-nums leading-none">{{ $stat['value'] }}</p>
                 </div>
             @endif
         @endforeach

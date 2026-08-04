@@ -17,7 +17,7 @@ class GuaranteedLoanService
         private readonly GuarantorAccessService $access,
     ) {}
 
-    /** All approved guarantee links for this member (tracking + disbursed). */
+    /** All accepted guarantee links for this member (in-progress + loan-approved). */
     public function linksForGuarantor(Customer $guarantor): Collection
     {
         return $this->approvedLinksQuery($guarantor)
@@ -26,19 +26,25 @@ class GuaranteedLoanService
             ->values();
     }
 
-    /** Accepted guarantees still in application / underwriting (not yet disbursed). */
+    /**
+     * Accepted guarantees still awaiting loan approval.
+     * These stay under Guarantor requests until the loan is approved (or closed/rejected).
+     */
     public function trackingForGuarantor(Customer $guarantor): Collection
     {
         return $this->linksForGuarantor($guarantor)
-            ->filter(fn (object $row) => ! $row->is_disbursed)
+            ->filter(fn (object $row) => ! ($row->is_loan_approved ?? false) && ! ($row->is_terminal ?? false))
             ->values();
     }
 
-    /** Guarantees that have become real loans (disbursed / servicing). */
+    /**
+     * Guarantees for loans that are approved (incl. disbursed/servicing) or terminal outcomes.
+     * Shown under Loans guaranteed.
+     */
     public function disbursedForGuarantor(Customer $guarantor): Collection
     {
         return $this->linksForGuarantor($guarantor)
-            ->filter(fn (object $row) => $row->is_disbursed)
+            ->filter(fn (object $row) => ($row->is_loan_approved ?? false) || ($row->is_terminal ?? false))
             ->values();
     }
 
@@ -94,6 +100,11 @@ class GuaranteedLoanService
         $isDisbursed = $loan !== null;
         $isTerminal = in_array($appCode, ['rejected', 'withdrawn', 'offer_declined', 'closed', 'expired'], true)
             || in_array((string) ($loan?->status ?? ''), ['closed', 'written_off'], true);
+        // Move from Guarantor requests → Loans guaranteed once UW approves (or funds).
+        $isLoanApproved = $isDisbursed
+            || in_array((string) ($application?->status ?? ''), ['approved', 'pre_approved', 'awaiting_offer', 'disbursed'], true)
+            || in_array((string) ($application?->current_stage ?? ''), ['approval', 'disbursement', 'pre_approval'], true)
+            || ($application?->offer_status === 'pending_borrower');
 
         // Any accepted, not-yet-disbursed guarantee stays blocked on the guarantor's
         // own profile until it is 100% — not only when the app is in awaiting_guarantor.
@@ -141,6 +152,7 @@ class GuaranteedLoanService
             'profile_percent'         => (int) ($profileStatus['percent'] ?? 0),
             'profile_url'             => route('site.borrower.profile'),
             'is_terminal'             => $isTerminal,
+            'is_loan_approved'        => $isLoanApproved,
             'is_disbursed'            => $isDisbursed,
             'loan_status'             => $loan?->status,
             'outstanding'             => $loan ? (float) $loan->outstanding_balance : null,

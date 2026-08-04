@@ -1,7 +1,5 @@
 @php
-    $tracking = $trackingGuarantees ?? collect();
-    $disbursed = $guaranteedLinks ?? collect();
-    $rows = $tracking->concat($disbursed)->values();
+    $rows = $guaranteedLinks ?? collect();
     $viewMode = $viewMode ?? 'cards';
 @endphp
 

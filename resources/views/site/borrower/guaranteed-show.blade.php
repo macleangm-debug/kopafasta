@@ -24,7 +24,9 @@
     <div class="mb-4">
         <a href="{{ route('site.borrower.loans', ['tab' => $listTab]) }}"
            class="text-sm font-semibold text-brand hover:underline">
-            ← {{ __('borrower.guaranteed.back_to_list') }}
+            ← {{ $listTab === 'guarantor'
+                ? __('borrower.guaranteed.back_to_requests')
+                : __('borrower.guaranteed.back_to_list') }}
         </a>
     </div>
 
