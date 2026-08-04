@@ -53,7 +53,8 @@ class CustomerProfileReadOnlyFeatureTest extends TestCase
 
         $this->assertStringContainsString('Member profile', $html);
         $this->assertStringContainsString('Read-only', $html);
-        $this->assertStringContainsString('Member standing', $html);
+        $this->assertStringContainsString('Profile sections', $html);
+        $this->assertStringContainsString('Trust · repayment', $html);
         $this->assertStringNotContainsString('Advanced edit', $html);
         $this->assertStringNotContainsString('Upload document', $html);
         $this->assertStringNotContainsString('Save personal details', $html);

@@ -38,10 +38,24 @@ class ExpenseController extends ResourceController
     protected function formData(?Model $record = null): array
     {
         return [
-            'branches' => Branch::orderBy('name')->pluck('name', 'id'),
-            'vendors'  => Vendor::orderBy('name')->pluck('name', 'id'),
-            'accounts' => ChartOfAccount::where('type', 'expense')->orderBy('code')->pluck('name', 'id'),
-            'statuses' => ['recorded' => 'Recorded', 'approved' => 'Approved', 'paid' => 'Paid', 'rejected' => 'Rejected'],
+            'branches'   => Branch::orderBy('name')->pluck('name', 'id'),
+            'vendors'    => Vendor::orderBy('name')->pluck('name', 'id'),
+            'accounts'   => ChartOfAccount::where('type', 'expense')->where('is_active', true)->orderBy('code')->get()
+                ->mapWithKeys(fn (ChartOfAccount $a) => [$a->id => $a->code.' · '.$a->name]),
+            'categories' => [
+                'rent'        => 'Rent',
+                'salaries'    => 'Salaries & wages',
+                'utilities'   => 'Utilities',
+                'marketing'   => 'Marketing',
+                'legal'       => 'Legal',
+                'insurance'   => 'Insurance',
+                'gps'         => 'GPS',
+                'office'      => 'Office & admin',
+                'travel'      => 'Travel',
+                'fuel'        => 'Fuel',
+                'other'       => 'Other',
+            ],
+            'statuses' => ['recorded' => 'Recorded', 'pending' => 'Pending', 'approved' => 'Approved', 'paid' => 'Paid', 'rejected' => 'Rejected'],
             'methods'  => ['cash' => 'Cash', 'bank_transfer' => 'Bank transfer', 'mobile_money' => 'Mobile money', 'cheque' => 'Cheque'],
         ];
     }
@@ -51,6 +65,26 @@ class ExpenseController extends ResourceController
         if (! $existing && empty($data['recorded_by']) && auth()->id()) {
             $data['recorded_by'] = auth()->id();
         }
+
+        if (empty($data['gl_account_id']) && ! empty($data['category'])) {
+            $code = match ((string) $data['category']) {
+                'rent' => '5060',
+                'salaries' => '5070',
+                'utilities' => '5080',
+                'marketing' => '5090',
+                'insurance' => '5100',
+                'office' => '5110',
+                'travel', 'fuel' => '5120',
+                'legal' => '5040',
+                'gps' => '5030',
+                default => '5050',
+            };
+            $accountId = ChartOfAccount::query()->where('code', $code)->value('id');
+            if ($accountId) {
+                $data['gl_account_id'] = $accountId;
+            }
+        }
+
         return $data;
     }
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\CustomerPayment;
 use App\Models\ChartOfAccount;
 use App\Models\Customer;
 use App\Models\Disbursement;
@@ -37,8 +38,12 @@ class FinanceReportsController extends Controller
 
         $interestIncome = (float) Repayment::where('paid_at', '>=', $start)->sum('interest_component');
         $penaltyIncome  = (float) Repayment::where('paid_at', '>=', $start)->sum('penalty_component');
-        $feeIncome      = 0.0;
-        $otherIncome    = 0.0;
+        $feeIncome = (float) CustomerPayment::query()
+            ->where('status', 'verified')
+            ->where('created_at', '>=', $start)
+            ->whereNotIn('payment_type', ['loan_repayment', 'penalty_payment'])
+            ->sum('amount');
+        $otherIncome = 0.0;
 
         $totalIncome = $interestIncome + $penaltyIncome + $feeIncome + $otherIncome;
 
@@ -91,9 +96,14 @@ class FinanceReportsController extends Controller
     {
         $start = now()->startOfMonth();
 
-        $inflows  = (float) Repayment::where('paid_at', '>=', $start)->sum('amount');
+        $inflows  = (float) Repayment::where('paid_at', '>=', $start)->sum('amount')
+                  + (float) CustomerPayment::query()
+                      ->where('status', 'verified')
+                      ->where('created_at', '>=', $start)
+                      ->whereNotIn('payment_type', ['loan_repayment', 'penalty_payment'])
+                      ->sum('amount');
         $outflows = (float) Disbursement::where('released_at', '>=', $start)->sum('amount')
-                  + (float) Expense::where('expense_date', '>=', $start)->sum('amount');
+                  + (float) Expense::where('expense_date', '>=', $start)->where('status', 'paid')->sum('amount');
 
         $net = $inflows - $outflows;
 

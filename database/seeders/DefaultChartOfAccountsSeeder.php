@@ -34,6 +34,13 @@ class DefaultChartOfAccountsSeeder extends Seeder
             ['code' => '5030', 'name' => 'GPS Expense', 'type' => 'expense'],
             ['code' => '5040', 'name' => 'Legal Expense', 'type' => 'expense'],
             ['code' => '5050', 'name' => 'Default Expense', 'type' => 'expense'],
+            ['code' => '5060', 'name' => 'Rent Expense', 'type' => 'expense'],
+            ['code' => '5070', 'name' => 'Salaries & Wages', 'type' => 'expense'],
+            ['code' => '5080', 'name' => 'Utilities Expense', 'type' => 'expense'],
+            ['code' => '5090', 'name' => 'Marketing Expense', 'type' => 'expense'],
+            ['code' => '5100', 'name' => 'Insurance Expense', 'type' => 'expense'],
+            ['code' => '5110', 'name' => 'Office & Admin Expense', 'type' => 'expense'],
+            ['code' => '5120', 'name' => 'Travel Expense', 'type' => 'expense'],
         ];
 
         foreach ($accounts as $row) {

@@ -1,10 +1,11 @@
-{{-- Expense form. Expects $record, $branches, $vendors, $statuses, $methods --}}
+{{-- Expense form. Expects $record, $branches, $vendors, $accounts, $categories, $statuses, $methods --}}
 @php($r = $record ?? null)
 
 <x-admin.step title="Details">
     <x-admin.select name="branch_id"      label="Branch"        :options="$branches" :value="$r?->branch_id" placeholder="— None —" />
-    <x-admin.select name="vendor_id"      label="Partner"        :options="$vendors"  :value="$r?->vendor_id" placeholder="— None —" />
-    <x-admin.input  name="category"       label="Category"      :value="$r?->category" required placeholder="e.g. Fuel, Rent, Towing" />
+    <x-admin.select name="vendor_id"      label="Partner / payee" :options="$vendors"  :value="$r?->vendor_id" placeholder="— None —" />
+    <x-admin.select name="category"       label="Category"      :options="$categories" :value="$r?->category" required placeholder="— Select category —" />
+    <x-admin.select name="gl_account_id"  label="Expense GL account" :options="$accounts" :value="$r?->gl_account_id" placeholder="— Default from category —" />
     <x-admin.select name="status"         label="Status"        :options="$statuses" :value="$r?->status ?? 'pending'" required />
     <div class="md:col-span-2">
         <x-admin.textarea name="description" label="Description" :value="$r?->description" rows="2" />
