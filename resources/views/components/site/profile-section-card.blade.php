@@ -25,8 +25,8 @@
     $startExpanded = $startOpen || (bool) $defaultOpen;
     $accordionId = $sectionId ?: ('section-'.substr(md5($title), 0, 8));
     $isStale = (bool) $stale;
-    // Tick only when complete AND fresh. Stale KYC sections always show Edit.
-    $isComplete = $complete === true && ! $isStale;
+    // Tick when complete AND fresh. Accept bool/int/string from Blade bindings.
+    $isComplete = ! $isStale && filter_var($complete, FILTER_VALIDATE_BOOLEAN);
     // Server-render the tick so complete cards never flash Edit before Alpine boots.
     $startWithTick = $isComplete && ! $startOpen;
 @endphp
@@ -76,36 +76,30 @@
 
         @if ($useInline)
             <div class="shrink-0 relative min-h-9 min-w-9 flex items-center justify-end">
-                {{-- Tick: visible in HTML for complete+fresh cards (no Alpine flash) --}}
-                <button type="button"
-                        @click.stop="revealEdit()"
-                        class="size-9 rounded-full grid place-items-center bg-gradient-to-br from-brand to-brand-light text-brand-gold shadow-sm shadow-brand/25 ring-2 ring-brand-gold/40 hover:ring-brand-gold/70 transition"
-                        @if ($startWithTick)
-                            x-show="showCompleteTick"
-                        @else
-                            x-show="showCompleteTick" x-cloak
-                        @endif
-                        title="{{ __('borrower.profile.section_complete_tap') }}"
-                        aria-label="{{ __('borrower.profile.section_complete_tap') }}">
-                    <svg class="size-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                        <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
-                    </svg>
-                </button>
+                {{-- Tick is server-visible for complete cards so a stale Alpine bundle cannot blank it. --}}
+                @if ($isComplete)
+                    <button type="button"
+                            @click.stop="typeof revealEdit === 'function' ? revealEdit() : openEdit()"
+                            class="size-9 rounded-full place-items-center bg-gradient-to-br from-brand to-brand-light text-brand-gold shadow-sm shadow-brand/25 ring-2 ring-brand-gold/40 hover:ring-brand-gold/70 transition {{ $startWithTick ? 'grid' : 'hidden' }}"
+                            :class="(typeof showCompleteTick === 'boolean' ? showCompleteTick : @js($startWithTick)) ? 'grid' : 'hidden'"
+                            title="{{ __('borrower.profile.section_complete_tap') }}"
+                            aria-label="{{ __('borrower.profile.section_complete_tap') }}">
+                        <svg class="size-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
+                @endif
 
-                {{-- Edit/Cancel: always available when not showing tick (incomplete or stale) --}}
                 <button type="button"
                         @click="open ? requestClose() : openEdit()"
-                        class="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full ring-1 transition"
-                        @if ($startWithTick)
-                            x-show="!showCompleteTick" x-cloak
-                        @else
-                            x-show="!showCompleteTick"
-                        @endif
-                        :class="open
-                            ? 'text-gray-700 ring-gray-200 bg-gray-50'
-                            : (@js($isStale)
-                                ? 'text-amber-800 ring-amber-300 bg-amber-50 hover:bg-amber-100'
-                                : 'text-amber-700 ring-amber-200 bg-amber-50 hover:text-amber-800')">
+                        class="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full ring-1 transition {{ $startWithTick ? 'hidden' : '' }} {{ $isStale ? 'text-amber-800 ring-amber-300 bg-amber-50 hover:bg-amber-100' : 'text-amber-700 ring-amber-200 bg-amber-50 hover:text-amber-800' }}"
+                        :class="(typeof showCompleteTick === 'boolean' ? showCompleteTick : @js($startWithTick))
+                            ? 'hidden'
+                            : (open
+                                ? 'inline-flex text-gray-700 ring-gray-200 bg-gray-50'
+                                : (@js($isStale)
+                                    ? 'inline-flex text-amber-800 ring-amber-300 bg-amber-50 hover:bg-amber-100'
+                                    : 'inline-flex text-amber-700 ring-amber-200 bg-amber-50 hover:text-amber-800'))">
                     <span x-show="!open" class="inline-flex items-center gap-1.5">
                         @if ($empty)
                             <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>

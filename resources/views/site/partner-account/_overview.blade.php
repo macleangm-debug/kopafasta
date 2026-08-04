@@ -43,8 +43,19 @@
                class="group rounded-2xl ring-1 ring-gray-200/80 hover:ring-brand/30 bg-white p-5 transition hover:shadow-md">
                 <div class="flex items-start justify-between gap-3">
                     <span class="text-2xl leading-none" aria-hidden="true">{{ $section['icon'] ?? '📋' }}</span>
-                    <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1 ring-1 {{ $tagClass }}">
-                        {{ $section['status_label'] ?? $status }}
+                    <span class="inline-flex items-center gap-1.5">
+                        @if (($section['status'] ?? '') === 'complete')
+                            <span class="size-7 rounded-full grid place-items-center bg-gradient-to-br from-brand to-brand-light text-brand-gold shadow-sm ring-2 ring-brand-gold/40"
+                                  title="{{ __('borrower.profile.section_complete') }}"
+                                  aria-label="{{ __('borrower.profile.section_complete') }}">
+                                <svg class="size-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
+                                </svg>
+                            </span>
+                        @endif
+                        <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1 ring-1 {{ $tagClass }}">
+                            {{ $section['status_label'] ?? $status }}
+                        </span>
                     </span>
                 </div>
                 <h3 class="mt-4 font-bold text-gray-900 group-hover:text-brand transition">{{ $section['label'] }}</h3>

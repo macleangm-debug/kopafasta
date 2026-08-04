@@ -28,7 +28,7 @@
                     @php
                         $isActive = $active === $key;
                         $status = $partner ? $service->sectionStatus($partner, $key) : null;
-                        $isComplete = $status['complete'] ?? null;
+                        $isComplete = (bool) ($status['complete'] ?? false);
                     @endphp
                     <a href="{{ route($profileRoute, ['section' => $key]) }}"
                        class="flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm font-semibold {{ $isActive ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : 'text-gray-800 hover:bg-gray-50' }}">
@@ -43,6 +43,8 @@
                         </span>
                         @if ($isActive)
                             <svg class="size-4 text-brand shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg>
+                        @elseif ($isComplete)
+                            <svg class="size-4 text-emerald-600 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-label="{{ __('borrower.profile.section_complete') }}"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg>
                         @endif
                     </a>
                 @endforeach
@@ -55,8 +57,8 @@
             @php
                 $isActive = $active === $key;
                 $status = $partner ? $service->sectionStatus($partner, $key) : null;
-                $isComplete = $status['complete'] ?? null;
-                $inactiveRing = $isComplete === true
+                $isComplete = (bool) ($status['complete'] ?? false);
+                $inactiveRing = $isComplete
                     ? 'ring-emerald-300/90 bg-emerald-50/90 text-emerald-900'
                     : 'bg-white/80 text-gray-600 ring-gray-200/80 hover:bg-brand-muted/40';
             @endphp
@@ -71,6 +73,9 @@
                     ])></span>
                 @endif
                 <span>{{ $label }}</span>
+                @if ($isComplete && ! $isActive)
+                    <svg class="size-3.5 text-emerald-600 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg>
+                @endif
             </a>
         @endforeach
     </nav>
