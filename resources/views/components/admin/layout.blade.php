@@ -89,7 +89,7 @@
             ['— Ledgers —', '__group__'],
             ['Payments ledger',           'admin.payments.ledger',              'finance.operations'],
             ['Payout ledger',             'admin.payouts.ledger',               'finance.operations'],
-            ['Expenses',                  'admin.expenses.index',               'finance.operations'],
+            ['Operational expenses',      'admin.expenses.index',               'finance.operations'],
             ['Journal Entries',           'admin.journal-entries.index',        'finance.operations'],
             ['Reconciliations',           'admin.reconciliations.index',        'finance.operations'],
             ['— Other money ops —', '__group__'],

@@ -31,7 +31,7 @@ class ExpensesTable extends Component
     public function render()
     {
         $rows = Expense::query()
-            ->with('vendor', 'branch')
+            ->with('branch')
             ->when($this->search !== '', function ($q) {
                 $term = '%'.$this->search.'%';
                 $q->where(function ($q) use ($term) {
@@ -44,7 +44,7 @@ class ExpensesTable extends Component
             ->orderBy($this->sort, $this->direction)
             ->paginate($this->perPage);
 
-        $statuses = ['recorded', 'approved', 'paid', 'rejected'];
+        $statuses = ['recorded', 'pending', 'approved', 'paid', 'rejected'];
 
         return view('livewire.admin.expenses-table', compact('rows', 'statuses'));
     }

@@ -1,7 +1,7 @@
 <x-admin.create-page
     title="New expense"
     heading="New expense"
-    subheading="Log an operational cost"
+    subheading="Log a manual operating cost (not partner payouts)"
     :action="route('admin.expenses.store')"
     :cancelUrl="route('admin.expenses.index')"
     submitLabel="Create expense">
