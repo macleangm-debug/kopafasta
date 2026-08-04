@@ -106,7 +106,7 @@
             </div>
         </div>
         <div class="px-6 py-5">
-            <p x-show="message" x-cloak class="text-sm text-gray-600 whitespace-pre-line leading-relaxed" x-text="message"></p>
+            <p x-show="message" x-cloak class="text-sm font-semibold text-gray-900 whitespace-pre-line leading-relaxed" x-text="message"></p>
             <ul x-show="lines.length" x-cloak class="mt-3 space-y-2 text-sm text-gray-700">
                 <template x-for="(line, i) in lines" :key="i">
                     <li class="flex gap-2 rounded-xl bg-brand-muted/30 ring-1 ring-brand/10 px-3 py-2">

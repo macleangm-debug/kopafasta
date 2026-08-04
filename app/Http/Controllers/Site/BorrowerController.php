@@ -1915,6 +1915,10 @@ class BorrowerController extends Controller
                 $details['income_proof_method'] = $request->input('income_proof_method');
             }
             foreach (['income_account_provider', 'income_account_number', 'income_account_name'] as $detailKey) {
+                if ($detailKey === 'income_account_name') {
+                    $details[$detailKey] = $customer->legalDisplayName();
+                    continue;
+                }
                 if ($request->has($detailKey)) {
                     $value = trim((string) $request->input($detailKey, ''));
                     if ($value !== '') {
@@ -3247,6 +3251,7 @@ class BorrowerController extends Controller
         $data = $request->validate([
             'notifications' => ['nullable', 'array'],
             'notifications.loan_updates' => ['nullable', 'boolean'],
+            'notifications.guarantor_updates' => ['nullable', 'boolean'],
             'notifications.payments'     => ['nullable', 'boolean'],
             'notifications.promotions'   => ['nullable', 'boolean'],
             'notifications.credit_limit_updates' => ['nullable', 'boolean'],
@@ -3256,6 +3261,7 @@ class BorrowerController extends Controller
         $incoming = $data['notifications'] ?? [];
         $notifications = [
             'loan_updates' => array_key_exists('loan_updates', $incoming),
+            'guarantor_updates' => array_key_exists('guarantor_updates', $incoming),
             'payments'     => array_key_exists('payments', $incoming),
             'promotions'   => array_key_exists('promotions', $incoming),
             'credit_limit_updates' => array_key_exists('credit_limit_updates', $incoming),

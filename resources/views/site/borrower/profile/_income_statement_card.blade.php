@@ -161,13 +161,10 @@
                                    x-bind:required="step === 2"
                                    placeholder="{{ __('borrower.profile.income_account_number_placeholder') }}">
                         </div>
-                        <div class="sm:col-span-2">
-                            <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ __('borrower.profile.income_account_name') }} <span class="text-red-500">*</span></label>
-                            <input type="text" name="income_account_name"
-                                   value="{{ old('income_account_name', $customer->activity_details['income_account_name'] ?? '') }}"
-                                   class="kf-field"
-                                   x-bind:required="step === 2"
-                                   placeholder="{{ __('borrower.profile.income_account_name_placeholder') }}">
+                        <div class="sm:col-span-2 rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3">
+                            <p class="text-xs text-gray-500">{{ __('borrower.profile.income_account_name') }}</p>
+                            <p class="text-sm font-semibold text-gray-900 mt-0.5">{{ $customer->legalDisplayName() }}</p>
+                            <input type="hidden" name="income_account_name" value="{{ old('income_account_name', $customer->legalDisplayName()) }}">
                         </div>
                     </div>
                 </div>

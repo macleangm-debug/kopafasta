@@ -12,6 +12,21 @@
         @if ($errors->any())
             <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ $errors->first() }}</div>
         @endif
+        @if (session('status'))
+            <div
+                x-data
+                x-init="
+                    $nextTick(() => window.showBorrowerFeedback({
+                        title: @js(__('borrower.feedback.saved_title')),
+                        message: @js(session('status')),
+                        tone: 'success',
+                        okLabel: @js(__('borrower.celebration.cta_continue')),
+                    }));
+                "
+                class="sr-only"
+                aria-hidden="true"
+            ></div>
+        @endif
 
         @php
             $editing = ($wizardMode ?? false) || ($editing ?? false) || request()->boolean('edit') || request()->boolean('add');
@@ -29,6 +44,7 @@
         <div class="glass-card overflow-hidden" x-data="{
             expanded: @js(request()->boolean('add') || request()->boolean('edit') || $errors->any() || (bool) ($wizardMode ?? false)),
             showEditAction: @js(! $paymentComplete || $showAdd),
+            adding: @js($showAdd),
             get showCompleteTick() { return @js($paymentComplete) && ! this.showEditAction && ! this.expanded; }
         }">
             <div class="px-5 sm:px-6 py-4 border-b border-gray-100/80 flex flex-wrap items-start justify-between gap-3">
@@ -46,7 +62,7 @@
                 <div class="shrink-0 relative min-h-9 min-w-9 flex items-center justify-end gap-2">
                     @if ($paymentComplete)
                         <button type="button"
-                                @click.stop="showEditAction = true; expanded = true"
+                                @click.stop="showEditAction = true; expanded = true; adding = true"
                                 x-show="showCompleteTick"
                                 class="size-9 rounded-full grid place-items-center bg-gradient-to-br from-brand to-brand-light text-brand-gold shadow-sm shadow-brand/25 ring-2 ring-brand-gold/40 hover:ring-brand-gold/70 transition"
                                 title="{{ __('borrower.profile.section_complete_tap') }}"
@@ -56,23 +72,24 @@
                             </svg>
                         </button>
                         <button type="button"
-                                @click.stop="expanded = true; showEditAction = true"
+                                @click.stop="expanded = true; showEditAction = true; adding = true"
                                 x-show="!showCompleteTick"
                                 x-cloak
                                 class="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 hover:text-amber-800 px-3 py-1.5 rounded-full ring-1 ring-amber-200 bg-amber-50">
                             <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
                             {{ __('borrower.profile.edit_section') }}
                         </button>
-                        <a href="{{ route('site.borrower.profile', array_filter(['section' => 'payment', 'add' => 1] + $returnQuery)) }}"
-                           x-show="!showCompleteTick"
-                           x-cloak
-                           class="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 hover:text-amber-800 px-3 py-1.5 rounded-full ring-1 ring-amber-200 bg-amber-50">
+                        <button type="button"
+                                @click.stop="expanded = true; showEditAction = true; adding = true"
+                                x-show="!showCompleteTick"
+                                x-cloak
+                                class="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 hover:text-amber-800 px-3 py-1.5 rounded-full ring-1 ring-amber-200 bg-amber-50">
                             <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
                             {{ __('borrower.payment_details.add_account') }}
-                        </a>
+                        </button>
                     @else
                         <button type="button"
-                                @click="expanded = true"
+                                @click="expanded = true; adding = true"
                                 class="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 hover:text-amber-800 px-3 py-1.5 rounded-full ring-1 ring-amber-200 bg-amber-50">
                             <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
                             {{ __('borrower.profile.add_details') }}
@@ -149,8 +166,7 @@
                     </div>
                 @endif
 
-                @if ($showAdd)
-                    <div class="{{ $paymentComplete ? 'border-t border-gray-100 pt-6' : '' }}"
+                <div x-show="adding" x-cloak class="{{ $paymentComplete ? 'border-t border-gray-100 pt-6' : '' }}"
                          x-data="{ step: @js($addType !== '' ? 2 : 1), type: @js($addType) }">
                         <h3 class="text-sm font-semibold text-gray-900 mb-1">{{ __('borrower.payment_details.add_account') }}</h3>
                         <p class="text-xs text-gray-500 mb-5">{{ __('borrower.payment_details.name_must_match', ['name' => $legalName]) }}</p>
@@ -278,7 +294,6 @@
                             </div>
                         </form>
                     </div>
-                @endif
             </div>
         </div>
     </div>

@@ -13,12 +13,6 @@
     <div>
         <h2 class="text-lg font-bold text-gray-900 mb-1">{{ __('borrower.loans_page.tab_guarantor_requests') }}</h2>
         <p class="text-sm text-gray-500">{{ __('borrower.guarantor.tab_hint') }}</p>
-        @if (! empty($guarantorExposure))
-            <div class="mt-3 rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3 text-xs text-gray-700 flex flex-wrap gap-4">
-                <span>{{ __('borrower.loan_actions.guarantee_exposure') }}: <strong>{{ $guarantorExposure['count'] }}/{{ $guarantorExposure['max'] }}</strong></span>
-                <span>{{ __('borrower.loan_actions.guarantee_total') }}: <strong>{{ format_money($guarantorExposure['exposure']) }}</strong></span>
-            </div>
-        @endif
     </div>
     <div class="inline-flex rounded-xl ring-1 ring-gray-200/80 bg-white/80 p-0.5 text-xs">
         <a href="{{ route('site.borrower.loans', ['tab' => 'guarantor', 'view' => 'cards']) }}"
@@ -52,27 +46,14 @@
         </div>
     @endif
 
-    @if ($needsProfile->isNotEmpty())
-        <div class="mb-8">
-            <div class="mb-4">
-                <h3 class="text-sm font-bold text-amber-900">{{ __('borrower.guarantor.section_needs_profile') }}</h3>
-                <p class="text-xs text-amber-800/80 mt-0.5">{{ __('borrower.guarantor.section_needs_profile_hint') }}</p>
-            </div>
-            @include('site.borrower.loans._guarantor-tracking-list', [
-                'rows' => $needsProfile,
-                'viewMode' => $viewMode,
-            ])
-        </div>
-    @endif
-
-    @if ($waitingOthers->isNotEmpty())
+    @if ($needsProfile->isNotEmpty() || $waitingOthers->isNotEmpty())
         <div class="mb-8">
             <div class="mb-4">
                 <h3 class="text-sm font-bold text-gray-900">{{ __('borrower.guarantor.section_in_progress') }}</h3>
                 <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.guarantor.section_in_progress_hint') }}</p>
             </div>
             @include('site.borrower.loans._guarantor-tracking-list', [
-                'rows' => $waitingOthers,
+                'rows' => $needsProfile->concat($waitingOthers)->values(),
                 'viewMode' => $viewMode,
             ])
         </div>

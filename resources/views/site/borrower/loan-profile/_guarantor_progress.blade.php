@@ -85,11 +85,10 @@
                     <h2 class="text-lg font-bold text-gray-900 mt-1">
                         @if ($rows->isEmpty())
                             {{ __('borrower.loan_profile.guarantor_not_added') }}
+                        @elseif ($allReady)
+                            {{ __('borrower.loan_profile.guarantor_ready_title_short') }}
                         @else
-                            {{ __('borrower.loan_profile.guarantor_ready_progress', [
-                                'ready' => $readyCount,
-                                'total' => $total,
-                            ]) }}
+                            {{ __('borrower.loan_profile.guarantor_waiting_title') }}
                         @endif
                     </h2>
                     @if ($rows->isEmpty())
@@ -99,11 +98,14 @@
                     @else
                         <p class="text-sm text-emerald-800 mt-1 font-semibold">{{ __('borrower.loan_profile.guarantor_ready_banner') }}</p>
                     @endif
-                    @if (! empty($deadline['label']))
-                        <p class="mt-2 inline-flex items-center gap-1.5 text-xs font-bold {{ ($deadline['days_left'] ?? 1) <= 2 ? 'text-red-700' : 'text-brand' }}">
-                            <span aria-hidden="true">⏱</span>
-                            {{ $deadline['label'] }}
-                        </p>
+                    @if (! empty($deadline['label']) || isset($deadline['days_left']))
+                        <x-site.deadline-badge
+                            :label="$deadline['label'] ?? null"
+                            :days-left="$deadline['days_left'] ?? null"
+                            :date="$deadline['date'] ?? null"
+                            :urgent="($deadline['days_left'] ?? 99) <= 2"
+                            :expired="(bool) ($deadline['expired'] ?? false)"
+                        />
                     @endif
                     @if ($guarantorSupplementOpen)
                         <p class="text-xs text-amber-800 mt-2">{{ __('borrower.guarantor_supplement.borrower_banner') }}</p>

@@ -103,6 +103,11 @@ class PartnerProfileService
             'payment'   => $this->savePayment($entity, $request),
             default     => throw new \InvalidArgumentException("Unknown partner profile section [{$section}]."),
         };
+
+        $entity->refresh();
+        if ($this->completionPercent($entity) >= 100) {
+            \App\Support\Celebration::flashOne('profile_complete');
+        }
     }
 
     /* ------------------------------------------------------------------ */

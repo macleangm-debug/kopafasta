@@ -1,13 +1,12 @@
 <x-site.borrower-layout
     :title="brand_title(__('borrower.guarantor.detail_title'))"
     active="loans"
-    portalMode="guarantor"
     content-width="narrow">
 
     @php
         $borrowerName = trim(($invitation->borrower->first_name ?? '').' '.($invitation->borrower->last_name ?? '')) ?: '—';
-        $productName = $invitation->application?->product?->name
-            ?? $invitation->product?->name
+        $productName = $invitation->application?->product?->localizedName()
+            ?? $invitation->product?->localizedName()
             ?? __('borrower.guarantor.loan');
         $amount = $invitation->application?->requested_amount ?? $invitation->requested_amount;
         $reference = $invitation->application?->application_number
@@ -119,9 +118,15 @@
             </div>
         </div>
         @if (! empty($guarantorExposure))
-            <div class="mt-4 rounded-xl bg-brand-muted/30 ring-1 ring-brand/10 px-4 py-3 text-xs text-gray-700 flex flex-wrap gap-4">
-                <span>{{ __('borrower.loan_actions.guarantee_exposure') }}: <strong>{{ $guarantorExposure['count'] }}/{{ $guarantorExposure['max'] }}</strong></span>
-                <span>{{ __('borrower.loan_actions.guarantee_total') }}: <strong>{{ format_money($guarantorExposure['exposure']) }}</strong></span>
+            <div class="mt-4 grid grid-cols-2 gap-3">
+                <div class="rounded-2xl bg-gradient-to-br from-brand-muted/50 to-white ring-1 ring-brand/10 px-4 py-3">
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loan_actions.guarantee_exposure') }}</p>
+                    <p class="mt-1 text-lg font-bold tabular-nums text-gray-900">{{ $guarantorExposure['count'] }}/{{ $guarantorExposure['max'] }}</p>
+                </div>
+                <div class="rounded-2xl bg-gradient-to-br from-brand-muted/50 to-white ring-1 ring-brand/10 px-4 py-3">
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loan_actions.guarantee_total') }}</p>
+                    <p class="mt-1 text-lg font-bold tabular-nums text-gray-900">{{ format_money($guarantorExposure['exposure']) }}</p>
+                </div>
             </div>
         @endif
     </div>

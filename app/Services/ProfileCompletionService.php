@@ -9,6 +9,17 @@ class ProfileCompletionService
 {
     public function isActivityComplete(Customer $customer): bool
     {
+        return $this->isActivityFieldsComplete($customer)
+            && app(ProfileValidationService::class)->employmentContractComplete($customer)
+            && app(IncomeProofService::class)->satisfiesRequirement($customer);
+    }
+
+    /**
+     * Activity section fields only (type, income, type-specific details) — used for UI ticks.
+     * Income proof / employment contract live on their own cards.
+     */
+    public function isActivityFieldsComplete(Customer $customer): bool
+    {
         if (! filled($customer->activity_type) || ! filled($customer->income_range)) {
             return false;
         }
@@ -31,8 +42,7 @@ class ProfileCompletionService
             }
         }
 
-        return $validation->employmentContractComplete($customer)
-            && app(IncomeProofService::class)->satisfiesRequirement($customer);
+        return true;
     }
 
     public function isResidenceComplete(Customer $customer): bool
@@ -70,7 +80,7 @@ class ProfileCompletionService
             [
                 'key'        => 'activity',
                 'label'      => __('borrower.profile.activity'),
-                'status'     => $this->isActivityComplete($customer) ? 'complete' : 'missing',
+                'status'     => $this->isActivityFieldsComplete($customer) ? 'complete' : 'missing',
                 'action_url' => route('site.borrower.profile', ['section' => 'activity']),
             ],
             [
@@ -247,7 +257,7 @@ class ProfileCompletionService
                 'url'      => route('site.borrower.profile', ['section' => 'personal']),
             ],
             'activity' => [
-                'complete' => $this->isActivityComplete($customer),
+                'complete' => $this->isActivityFieldsComplete($customer),
                 'required' => true,
                 'label'    => __('borrower.profile.activity'),
                 'url'      => route('site.borrower.profile', ['section' => 'activity']),

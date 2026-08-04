@@ -63,7 +63,7 @@ class GuarantorDeadlineService
         }
     }
 
-    /** @return array{deadline_at: ?Carbon, days_left: ?int, expired: bool, label: ?string} */
+    /** @return array{deadline_at: ?Carbon, days_left: ?int, expired: bool, label: ?string, date: ?string} */
     public function progress(LoanApplication $application): array
     {
         $deadline = $application->guarantor_deadline_at
@@ -76,20 +76,23 @@ class GuarantorDeadlineService
                 'days_left'   => null,
                 'expired'     => $application->status === 'expired',
                 'label'       => null,
+                'date'        => null,
             ];
         }
 
         $daysLeft = (int) now()->startOfDay()->diffInDays($deadline->copy()->startOfDay(), false);
+        $date = $deadline->timezone(config('app.timezone'))->format('d M Y');
 
         return [
             'deadline_at' => $deadline,
             'days_left'   => $daysLeft,
             'expired'     => $application->status === 'expired' || $daysLeft < 0,
+            'date'        => $date,
             'label'       => $daysLeft < 0
                 ? __('borrower.loan_profile.guarantor_deadline_passed')
                 : __('borrower.loan_profile.guarantor_deadline_days_left', [
                     'days' => max(0, $daysLeft),
-                    'date' => $deadline->timezone(config('app.timezone'))->format('d M Y'),
+                    'date' => $date,
                 ]),
         ];
     }
@@ -279,6 +282,12 @@ class GuarantorDeadlineService
         string $bodyKey,
         array $params,
     ): void {
+        $prefs = $customer->user?->preferences['notifications'] ?? [];
+        $wantsGuarantor = ! array_key_exists('guarantor_updates', $prefs) || ! empty($prefs['guarantor_updates']);
+        if (! $wantsGuarantor) {
+            return;
+        }
+
         try {
             $this->notifications->notifyInApp(
                 $customer,

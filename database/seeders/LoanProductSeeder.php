@@ -27,6 +27,7 @@ class LoanProductSeeder extends Seeder
             [
                 'code' => 'SAL-12',
                 'name' => 'Salary Advance 12',
+                'name_sw' => 'Mkopo wa Nivushe',
                 'description' => 'Payroll-deducted loan for salaried employees up to 12 months.',
                 'category' => 'salary_loan',
                 'interest_rate' => 0.0350,

@@ -11,7 +11,7 @@
         ])
 
         @php
-            $activityComplete = app(\App\Services\ProfileCompletionService::class)->isActivityComplete($customer);
+            $activityComplete = app(\App\Services\ProfileCompletionService::class)->isActivityFieldsComplete($customer);
             $activityStale = in_array('activity', app(\App\Services\KycFreshnessService::class)->sectionsDueForRefresh($customer), true);
             $activityLabel = activity_type_label($customer->activity_type ?? $customer->employment_type);
             $incomeLabel = income_range_label($customer->income_range);

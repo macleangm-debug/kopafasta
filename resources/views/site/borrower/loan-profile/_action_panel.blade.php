@@ -235,7 +235,7 @@
         </div>
 
         <div class="px-5 sm:px-6 py-5">
-            @if (! empty($next['url']) && ! in_array($next['code'] ?? '', ['under_review', 'view_application'], true))
+            @if (! empty($next['url']) && ! in_array($next['code'] ?? '', ['under_review', 'awaiting_guarantor', 'view_application'], true))
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
                         <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-1">{{ __('borrower.loan_profile.next_action_title') }}</p>

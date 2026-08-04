@@ -70,9 +70,9 @@
             </div>
         </div>
         <div x-show="(form.guarantor_mode === 'internal' || form.guarantor_mode === 'previous') && internalGuarantor?.invitation_id" x-cloak
-             class="rounded-xl bg-white/80 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
-            <p class="font-semibold">{{ __('borrower.apply.guarantor_fields.member_notified_title') }}</p>
-            <p class="mt-1 text-amber-900/90">{{ __('borrower.apply.guarantor_fields.member_notified_body') }}</p>
+             class="rounded-2xl bg-gradient-to-br from-brand via-brand to-brand-light text-white px-5 py-4 shadow-sm">
+            <p class="text-sm font-bold">{{ __('borrower.apply.guarantor_fields.member_notified_title') }}</p>
+            <p class="mt-1 text-sm text-white/85 leading-relaxed">{{ __('borrower.apply.guarantor_fields.member_notified_body') }}</p>
         </div>
         <button type="button"
                 @click="changeGuarantor()"

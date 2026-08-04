@@ -405,7 +405,7 @@ class GuarantorInviteUxFeatureTest extends TestCase
         $this->actingAs($member->user)
             ->get(route('site.borrower.loans', ['tab' => 'guarantor']))
             ->assertOk()
-            ->assertSee(__('borrower.guarantor.section_needs_profile'), false)
+            ->assertDontSee(__('borrower.guarantor.section_needs_profile'), false)
             ->assertSee(__('borrower.guaranteed.waiting_on_your_profile'), false)
             ->assertSee(__('borrower.guaranteed.view_request'), false)
             ->assertSee('Borrow Five', false)

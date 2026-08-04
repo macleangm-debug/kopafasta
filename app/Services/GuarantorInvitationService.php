@@ -154,20 +154,32 @@ class GuarantorInvitationService
 
     public function invitationMessage(GuarantorInvitation $invitation): string
     {
-        $invitation->loadMissing(['borrower', 'application.product']);
-        $context = $this->invitationLoanContext($invitation);
-        $url = $this->shortInvitationUrl($invitation);
-        $guarantorName = trim((string) ($invitation->invitee_name ?: 'there'));
-        $borrowerName = trim(($invitation->borrower->first_name ?? '').' '.($invitation->borrower->last_name ?? ''));
+        $invitation->loadMissing(['borrower.user', 'application.product']);
+        $locale = app()->getLocale();
+        $borrowerPrefs = $invitation->borrower?->user?->preferences ?? [];
+        if (filled($borrowerPrefs['preferred_locale'] ?? null)) {
+            $locale = (string) $borrowerPrefs['preferred_locale'];
+        }
 
-        return __('borrower.guarantor_invite.message', [
-            'guarantor_name' => $guarantorName,
-            'borrower_name'  => $borrowerName,
-            'product'        => $context['product_name'],
-            'amount'         => $context['amount_label'],
-            'duration'       => $context['duration_label'],
-            'link'           => $url,
-        ]);
+        $previous = app()->getLocale();
+        app()->setLocale($locale);
+        try {
+            $context = $this->invitationLoanContext($invitation);
+            $url = $this->shortInvitationUrl($invitation);
+            $guarantorName = trim((string) ($invitation->invitee_name ?: 'there'));
+            $borrowerName = trim(($invitation->borrower->first_name ?? '').' '.($invitation->borrower->last_name ?? ''));
+
+            return __('borrower.guarantor_invite.message', [
+                'guarantor_name' => $guarantorName,
+                'borrower_name'  => $borrowerName,
+                'product'        => $context['product_name'],
+                'amount'         => $context['amount_label'],
+                'duration'       => $context['duration_label'],
+                'link'           => $url,
+            ]);
+        } finally {
+            app()->setLocale($previous);
+        }
     }
 
     /** @return array{amount: int, amount_label: string, tenure_months: int, duration_label: string, product_name: string, installment_label: string} */
@@ -177,7 +189,7 @@ class GuarantorInvitationService
         $product = $this->resolveInvitationProduct($invitation);
         $amount = (int) ($invitation->application?->requested_amount ?? $invitation->requested_amount ?? 0);
         $tenure = (int) ($invitation->application?->requested_tenure_months ?? $invitation->requested_tenure_months ?? 0);
-        $productName = trim((string) ($product?->name ?? ''));
+        $productName = trim((string) ($product?->localizedName() ?? ''));
         $installmentLabel = __('borrower.guarantor_invite.installment_tbd');
 
         if ($amount > 0 && $tenure > 0 && $product) {
@@ -1049,11 +1061,12 @@ class GuarantorInvitationService
         GuarantorInvitation $invitation,
         ?LoanApplication $application,
     ): void {
-        $productName = $invitation->relationLoaded('product') && $invitation->product
-            ? $invitation->product->name
+        $product = $invitation->relationLoaded('product') && $invitation->product
+            ? $invitation->product
             : ($invitation->loan_product_id
-                ? LoanProduct::query()->find($invitation->loan_product_id)?->name
+                ? LoanProduct::query()->find($invitation->loan_product_id)
                 : null);
+        $productName = $product?->localizedName();
         $reference = $application?->application_number
             ?? $application?->draft_reference
             ?? $productName

@@ -46,6 +46,12 @@
     }
     $useModal = $shouldCelebrate && filled($message);
     $confettiCount = $isPointsProgress ? 56 : 160;
+    $okLabel = match (true) {
+        in_array('profile_complete', $reasons, true) => __('borrower.celebration.cta_apply'),
+        in_array('reward_redeemed', $reasons, true) => __('borrower.celebration.cta_rewards'),
+        $isPointsProgress => __('borrower.celebration.cta_keep_going'),
+        default => __('borrower.celebration.cta_continue'),
+    };
 @endphp
 
 @if ($shouldCelebrate)
@@ -58,6 +64,7 @@
                         tone: 'success',
                         title: @js($modalTitle),
                         message: @js($modalMessage),
+                        okLabel: @js($okLabel),
                     },
                 }));
             });
@@ -66,6 +73,12 @@
             if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
                 return;
             }
+
+            // Confetti must sit above feedback modal (z-10050) and its green blur.
+            var confettiLayer = document.createElement('div');
+            confettiLayer.setAttribute('aria-hidden', 'true');
+            confettiLayer.style.cssText = 'position:fixed;inset:0;z-index:10120;pointer-events:none;overflow:visible;';
+            document.body.appendChild(confettiLayer);
 
             var colors = ['#f5c842', '#10b981', '#004d40', '#0d9488', '#fbbf24', '#34d399', '#ffffff'];
             var count = {{ (int) $confettiCount }};
@@ -84,14 +97,13 @@
                 var isRound = Math.random() > 0.55;
 
                 piece.style.cssText = [
-                    'position:fixed',
+                    'position:absolute',
                     'top:' + originY + 'px',
                     'left:' + originX + 'px',
                     'width:' + size + 'px',
                     'height:' + (isRound ? size : (size * (1.2 + Math.random()))) + 'px',
                     'background:' + colors[i % colors.length],
                     'opacity:1',
-                    'z-index:9999',
                     'border-radius:' + (isRound ? '999px' : '2px'),
                     'pointer-events:none',
                     'will-change:transform,opacity',
@@ -99,7 +111,7 @@
                     'transition:transform ' + duration + 'ms cubic-bezier(0.15,0.75,0.25,1), opacity ' + duration + 'ms ease-out',
                 ].join(';');
 
-                document.body.appendChild(piece);
+                confettiLayer.appendChild(piece);
 
                 (function (el, dx, dy, dly, dur) {
                     setTimeout(function () {
@@ -109,6 +121,8 @@
                     setTimeout(function () { el.remove(); }, dly + dur + 80);
                 })(piece, driftX, driftY, delay, duration);
             }
+
+            setTimeout(function () { confettiLayer.remove(); }, 5200);
         })();
     </script>
 @endif

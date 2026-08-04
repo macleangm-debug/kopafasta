@@ -151,6 +151,7 @@ class GuaranteedLoanService
             'days_remaining'          => $servicing['days_remaining'] ?? null,
             'deadline_label'          => $deadline['label'],
             'deadline_days_left'      => $deadline['days_left'],
+            'deadline_date'           => $deadline['date'] ?? null,
             'deadline_urgent'         => $deadline['urgent'],
             'deadline_expired'        => $deadline['expired'],
             'servicing'               => $servicing,
@@ -268,17 +269,18 @@ class GuaranteedLoanService
     }
 
     /**
-     * @return array{label: ?string, days_left: ?int, urgent: bool, expired: bool}
+     * @return array{label: ?string, days_left: ?int, urgent: bool, expired: bool, date: ?string}
      */
     private function deadlinePayload(?\App\Models\LoanApplication $application, $invitation, bool $needsGuarantorProfile): array
     {
-        $empty = ['label' => null, 'days_left' => null, 'urgent' => false, 'expired' => false];
+        $empty = ['label' => null, 'days_left' => null, 'urgent' => false, 'expired' => false, 'date' => null];
 
         if ($application) {
             $progress = app(GuarantorDeadlineService::class)->progress($application);
             if (! empty($progress['label']) && ($needsGuarantorProfile || ($application->status === 'awaiting_guarantor') || ($progress['expired'] ?? false))) {
                 $daysLeft = $progress['days_left'];
-                $date = optional($progress['deadline_at'])->timezone(config('app.timezone'))?->format('d M Y');
+                $date = $progress['date']
+                    ?? optional($progress['deadline_at'])->timezone(config('app.timezone'))?->format('d M Y');
 
                 $label = match (true) {
                     ($progress['expired'] ?? false) => __('borrower.guaranteed.deadline_expired_for_you'),
@@ -292,6 +294,7 @@ class GuaranteedLoanService
                 return [
                     'label'     => $label,
                     'days_left' => $daysLeft,
+                    'date'      => $date,
                     'urgent'    => ($progress['expired'] ?? false) || ((int) ($daysLeft ?? 99) <= 2),
                     'expired'   => (bool) ($progress['expired'] ?? false),
                 ];
@@ -301,15 +304,17 @@ class GuaranteedLoanService
         $expiresAt = $invitation?->expires_at;
         if ($expiresAt && $needsGuarantorProfile) {
             $daysLeft = (int) now()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay(), false);
+            $date = $expiresAt->timezone(config('app.timezone'))->format('d M Y');
 
             return [
                 'label'     => $daysLeft < 0
                     ? __('borrower.guaranteed.invite_deadline_passed')
                     : __('borrower.guaranteed.invite_deadline_days_left', [
                         'days' => max(0, $daysLeft),
-                        'date' => $expiresAt->timezone(config('app.timezone'))->format('d M Y'),
+                        'date' => $date,
                     ]),
                 'days_left' => $daysLeft,
+                'date'      => $date,
                 'urgent'    => $daysLeft < 0 || $daysLeft <= 2,
                 'expired'   => $daysLeft < 0,
             ];

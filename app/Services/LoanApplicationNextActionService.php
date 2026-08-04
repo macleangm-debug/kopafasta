@@ -187,6 +187,16 @@ class LoanApplicationNextActionService
             );
         }
 
+        if ($status === 'awaiting_guarantor' || (string) ($application->current_stage ?? '') === 'awaiting_guarantor') {
+            return $this->action(
+                'awaiting_guarantor',
+                __('borrower.loan_profile.next_actions.awaiting_guarantor_detail'),
+                __('borrower.applications_list.view'),
+                $profileUrl.'#guarantor-progress',
+                tone: 'secondary',
+            );
+        }
+
         if (app(\App\Services\GuarantorSupplementService::class)->hasOpenRequest($application)) {
             return $this->action(
                 'add_guarantor',

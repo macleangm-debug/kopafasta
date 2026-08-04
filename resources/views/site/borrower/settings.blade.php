@@ -114,6 +114,7 @@
                         @csrf @method('PUT')
                         @foreach ([
                             'loan_updates' => __('borrower.security_tab.notif_loan_updates'),
+                            'guarantor_updates' => __('borrower.security_tab.notif_guarantor_updates'),
                             'payments'     => __('borrower.security_tab.notif_payments'),
                             'credit_limit_updates' => __('borrower.security_tab.notif_credit_limit'),
                             'promotions'   => __('borrower.security_tab.notif_promotions'),

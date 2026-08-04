@@ -1,12 +1,11 @@
 <x-site.borrower-layout
     :title="brand_title(__('borrower.guaranteed.detail_title'))"
     active="loans"
-    portalMode="guarantor"
     content-width="narrow">
 
     @php
         $borrowerName = $row->borrower?->legalDisplayName() ?? __('borrower.loans_page.borrower');
-        $productName = $row->product?->name ?? __('borrower.guarantor.loan');
+        $productName = $row->product?->localizedName() ?? __('borrower.guarantor.loan');
         $listTab = $listTab ?? ($row->is_disbursed ? 'guaranteed' : 'guarantor');
         $timeline = $timeline ?? ['percent' => 0, 'steps' => []];
         $needsProfile = $row->needs_guarantor_profile ?? false;
@@ -46,11 +45,14 @@
                 <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guaranteed.detail_eyebrow') }}</p>
                 <h2 class="text-lg sm:text-xl font-bold text-gray-900 mt-1">{{ __('borrower.guaranteed.detail_glance_title') }}</h2>
                 <p class="text-sm text-gray-600 mt-1">{{ $row->pending_hint ?? ($row->stage_label ?? '') }}</p>
-                @if (! empty($row->deadline_label))
-                    <p class="mt-2 inline-flex items-center gap-1.5 text-xs font-bold {{ ($row->deadline_urgent ?? false) ? 'text-red-700' : 'text-brand' }}">
-                        <span aria-hidden="true">⏱</span>
-                        {{ $row->deadline_label }}
-                    </p>
+                @if (! empty($row->deadline_label) || isset($row->deadline_days_left))
+                    <x-site.deadline-badge
+                        :label="$row->deadline_label"
+                        :days-left="$row->deadline_days_left ?? null"
+                        :date="$row->deadline_date ?? null"
+                        :urgent="(bool) ($row->deadline_urgent ?? false)"
+                        :expired="(bool) ($row->deadline_expired ?? false)"
+                    />
                 @endif
             </div>
 
