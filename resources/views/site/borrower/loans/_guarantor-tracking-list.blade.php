@@ -57,7 +57,7 @@
             <div class="glass-card p-5 ring-1 ring-brand/10 {{ $isTerminal ? 'opacity-80' : '' }}">
                 <div class="flex items-start justify-between gap-3 mb-3">
                     <div class="min-w-0">
-                        <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ $productName }}</p>
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $productName }}</p>
                         <p class="text-lg font-bold text-gray-900 tracking-tight mt-0.5 leading-snug">{{ $borrowerName }}</p>
                         <p class="font-mono text-xs text-gray-500 mt-1">{{ $row->reference }}</p>
                     </div>
@@ -75,11 +75,11 @@
 
                 <div class="grid grid-cols-2 gap-3 mb-4">
                     <div class="rounded-xl bg-gray-50 px-3 py-2.5">
-                        <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.loan_amount') }}</p>
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.loan_amount') }}</p>
                         <p class="font-semibold text-sm mt-0.5">{{ format_money($row->amount) }}</p>
                     </div>
                     <div class="rounded-xl bg-gray-50 px-3 py-2.5">
-                        <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.guaranteed.current_step') }}</p>
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guaranteed.current_step') }}</p>
                         <p class="font-semibold text-sm mt-0.5 leading-snug">{{ $row->stage_label }}</p>
                     </div>
                 </div>

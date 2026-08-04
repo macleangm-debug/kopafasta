@@ -29,15 +29,15 @@
 
                     <div class="grid sm:grid-cols-3 gap-4 mb-4 text-sm">
                         <div>
-                            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.outstanding') }}</p>
+                            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.outstanding') }}</p>
                             <p class="font-semibold">{{ format_money($loan->outstanding_balance) }}</p>
                         </div>
                         <div>
-                            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.next_payment') }}</p>
+                            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.next_payment') }}</p>
                             <p class="font-semibold">{{ $loan->next_due_date ? \Carbon\Carbon::parse($loan->next_due_date)->format('d M Y') : '—' }}</p>
                         </div>
                         <div>
-                            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.loan_status') }}</p>
+                            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.loan_status') }}</p>
                             <p class="font-semibold">{{ ucfirst($loan->status) }}</p>
                         </div>
                     </div>

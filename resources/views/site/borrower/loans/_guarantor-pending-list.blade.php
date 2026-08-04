@@ -69,7 +69,7 @@
             <div class="glass-card p-5 ring-1 ring-brand/10">
                 <div class="flex items-start justify-between gap-3 mb-3">
                     <div class="min-w-0">
-                        <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ $productName }}</p>
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $productName }}</p>
                         <p class="text-lg font-bold text-gray-900 tracking-tight mt-0.5 leading-snug">{{ $borrowerName }}</p>
                         <p class="font-mono text-xs text-gray-500 mt-1">{{ $reference }}</p>
                     </div>
@@ -79,11 +79,11 @@
                 </div>
                 <div class="grid grid-cols-2 gap-3 mb-4">
                     <div class="rounded-xl bg-gray-50 px-3 py-2.5">
-                        <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.guarantor_invite.amount_label') }}</p>
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guarantor_invite.amount_label') }}</p>
                         <p class="font-semibold text-sm mt-0.5">{{ $amount !== null ? format_money((float) $amount) : '—' }}</p>
                     </div>
                     <div class="rounded-xl bg-gray-50 px-3 py-2.5">
-                        <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.guaranteed.current_step') }}</p>
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guaranteed.current_step') }}</p>
                         <p class="font-semibold text-sm mt-0.5">{{ __('borrower.guarantor.awaiting_your_decision') }}</p>
                     </div>
                 </div>

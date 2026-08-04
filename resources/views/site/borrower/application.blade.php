@@ -35,15 +35,15 @@
     {{-- Application summary --}}
     <div class="grid sm:grid-cols-3 gap-3 mb-6">
         <div class="bg-white rounded-2xl border border-gray-200 p-4">
-            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.application.requested_amount') }}</p>
+            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.application.requested_amount') }}</p>
             <p class="text-lg font-bold">{{ format_money($application->requested_amount) }}</p>
         </div>
         <div class="bg-white rounded-2xl border border-gray-200 p-4">
-            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.application.tenure') }}</p>
+            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.application.tenure') }}</p>
             <p class="text-lg font-bold">{{ __('borrower.application.tenure_months', ['count' => $application->requested_tenure_months]) }}</p>
         </div>
         <div class="bg-white rounded-2xl border border-gray-200 p-4">
-            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.application.submitted') }}</p>
+            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.application.submitted') }}</p>
             <p class="text-lg font-bold">{{ optional($application->submitted_at)->format('d M Y') ?? '—' }}</p>
         </div>
     </div>
@@ -130,17 +130,17 @@
 
     <div class="grid sm:grid-cols-3 gap-3 mb-6">
         <div class="bg-white rounded-2xl border border-gray-200 p-4">
-            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.application.pending_uploads') }}</p>
+            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.application.pending_uploads') }}</p>
             <p class="text-2xl font-bold mt-1">{{ $pendingUploads }}</p>
             <p class="text-xs text-gray-500 mt-1">{{ __('borrower.application.pending_uploads_hint') }}</p>
         </div>
         <div class="bg-white rounded-2xl border border-gray-200 p-4">
-            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.application.under_review') }}</p>
+            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.application.under_review') }}</p>
             <p class="text-2xl font-bold mt-1">{{ $underReview }}</p>
             <p class="text-xs text-gray-500 mt-1">{{ __('borrower.application.under_review_hint') }}</p>
         </div>
         <div class="bg-white rounded-2xl border border-gray-200 p-4">
-            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.application.underwriting_requests') }}</p>
+            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.application.underwriting_requests') }}</p>
             <p class="text-2xl font-bold mt-1">{{ $openUnderwriting }}</p>
             <p class="text-xs text-gray-500 mt-1">{{ __('borrower.application.underwriting_requests_hint') }}</p>
         </div>

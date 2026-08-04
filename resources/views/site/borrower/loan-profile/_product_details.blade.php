@@ -23,7 +23,7 @@
                 ] as $key => $label)
                     @if (filled($details['asset'][$key] ?? null))
                         <div>
-                            <dt class="text-[10px] uppercase tracking-widest text-gray-400">{{ $label }}</dt>
+                            <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $label }}</dt>
                             <dd class="font-semibold mt-1 text-gray-900">
                                 @if (in_array($key, ['value', 'price', 'remaining'], true) && is_numeric($details['asset'][$key]))
                                     {{ format_money((float) $details['asset'][$key]) }}
@@ -77,25 +77,25 @@
         <dl class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
             @if (filled($details['group']['name'] ?? null))
                 <div>
-                    <dt class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loan_profile.special.group_name') }}</dt>
+                    <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_profile.special.group_name') }}</dt>
                     <dd class="font-semibold mt-1">{{ $details['group']['name'] }}</dd>
                 </div>
             @endif
             @if (filled($details['group']['purpose'] ?? null))
                 <div>
-                    <dt class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loan_profile.special.group_purpose') }}</dt>
+                    <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_profile.special.group_purpose') }}</dt>
                     <dd class="font-semibold mt-1">{{ $details['group']['purpose'] }}</dd>
                 </div>
             @endif
             @if (filled($details['group']['amount_per_member'] ?? null))
                 <div>
-                    <dt class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.apply.group.headline.per_member') }}</dt>
+                    <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.apply.group.headline.per_member') }}</dt>
                     <dd class="font-semibold mt-1">{{ format_money((float) $details['group']['amount_per_member']) }}</dd>
                 </div>
             @endif
             @if (filled($details['group']['target_member_count'] ?? null))
                 <div>
-                    <dt class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loan_profile.special.group_size') }}</dt>
+                    <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_profile.special.group_size') }}</dt>
                     <dd class="font-semibold mt-1">{{ $details['group']['target_member_count'] }}</dd>
                 </div>
             @endif

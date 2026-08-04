@@ -280,7 +280,7 @@
                                         <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
                                             @foreach ($cardDetails as $detail)
                                                 <div class="min-w-0">
-                                                    <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold truncate">{{ $detail['label'] }}</dt>
+                                                    <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold truncate">{{ $detail['label'] }}</dt>
                                                     <dd class="text-xs font-semibold text-gray-900 truncate" title="{{ $detail['value'] }}">{{ $detail['value'] }}</dd>
                                                 </div>
                                             @endforeach

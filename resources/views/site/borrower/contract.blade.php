@@ -127,12 +127,12 @@
                 </div>
                 <dl class="mt-4 grid sm:grid-cols-2 gap-4 text-sm">
                     <div>
-                        <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.disbursement_details.loan_amount') }}</dt>
+                        <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.disbursement_details.loan_amount') }}</dt>
                         <dd class="font-semibold text-gray-900 mt-1">{{ format_money($snap['principal'] ?? $application->requested_amount) }}</dd>
                     </div>
                     @foreach ($detailsService->displayLines($disbursementDetails) as $label => $value)
                         <div>
-                            <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ $label }}</dt>
+                            <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $label }}</dt>
                             <dd class="font-semibold text-gray-900 mt-1">{{ $value }}</dd>
                         </div>
                     @endforeach

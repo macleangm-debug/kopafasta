@@ -2859,6 +2859,8 @@ return [
     'profile_snapshot_title' => 'Muhtasari wa wasifu',
     'profile_snapshot_hint' => 'Taarifa zilizokusanywa hadi sasa. Kamilisha vilivyokosekana kutoka orodha hapo juu.',
     'interest_rate' => 'Kiwango cha riba',
+    'submitted_date' => 'Imewasilishwa',
+    'started_date' => 'Ilianza',
     'current_status' => 'Hali ya sasa',
     'next_action_title' => 'Hatua inayohitajika inayofuata',
     'application_ready' => 'Ombi liko tayari — kagua, saini, kisha wasilisha.',

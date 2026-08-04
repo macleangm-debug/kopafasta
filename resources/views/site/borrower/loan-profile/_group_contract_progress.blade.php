@@ -32,7 +32,7 @@
             </div>
             <div class="flex items-center gap-2">
                 <span x-show="progress.all_signed" x-cloak class="inline-flex text-xs font-semibold rounded-full px-3 py-1 bg-emerald-100 text-emerald-800">{{ __('borrower.apply.group.contract_all_signed') }}</span>
-                <span class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.apply.group.contract_auto_refresh') }}</span>
+                <span class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.apply.group.contract_auto_refresh') }}</span>
             </div>
         </div>
 

@@ -39,11 +39,11 @@
 
         <dl class="grid sm:grid-cols-2 gap-4 text-sm mb-6">
             <div>
-                <dt class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.offer.estimated_installment') }}</dt>
+                <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.offer.estimated_installment') }}</dt>
                 <dd class="font-semibold text-gray-900 mt-1">{{ format_money((float) $installment) }}</dd>
             </div>
             <div>
-                <dt class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.offer.product') }}</dt>
+                <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.offer.product') }}</dt>
                 <dd class="font-semibold text-gray-900 mt-1">{{ $application->product?->name ?? '—' }}</dd>
             </div>
         </dl>

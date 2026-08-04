@@ -101,19 +101,19 @@
         </div>
         <div class="grid sm:grid-cols-2 gap-4 text-sm">
             <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.borrower') }}</p>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.borrower') }}</p>
                 <p class="font-semibold mt-1">{{ $borrowerName }}</p>
             </div>
             <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.guarantor_invite.product_label') }}</p>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guarantor_invite.product_label') }}</p>
                 <p class="font-semibold mt-1">{{ $productName }}</p>
             </div>
             <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.amount') }}</p>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.applications_list.amount') }}</p>
                 <p class="font-semibold mt-1">{{ $amount !== null ? format_money((float) $amount) : '—' }}</p>
             </div>
             <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.reference') }}</p>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.reference') }}</p>
                 <p class="font-semibold mt-1 font-mono">{{ $reference }}</p>
             </div>
         </div>

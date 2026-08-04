@@ -112,11 +112,11 @@
             </div>
             <div class="grid sm:grid-cols-2 gap-4 text-sm">
                 <div>
-                    <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.amount') }}</p>
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.applications_list.amount') }}</p>
                     <p class="font-semibold mt-1">{{ $summary['requested_amount'] ? format_money($summary['requested_amount']) : '—' }}</p>
                 </div>
                 <div>
-                    <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.tenure') }}</p>
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.applications_list.tenure') }}</p>
                     <p class="font-semibold mt-1">
                         @if (! empty($summary['requested_tenure']))
                             {{ __('borrower.applications_list.tenure_months', ['count' => $summary['requested_tenure']]) }}
@@ -128,52 +128,43 @@
             </div>
         </div>
     @elseif (! $isRejected)
-        <details class="glass-card mb-6 group overflow-hidden ring-1 ring-brand/15" @if ($isPostApproval || $isDisbursed) open @endif>
-            <summary class="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-                <div class="relative overflow-hidden bg-gradient-to-br from-brand-muted/60 via-white to-white px-5 py-5">
-                    <div class="absolute -right-8 -top-8 size-28 rounded-full bg-brand/5 pointer-events-none"></div>
-                    <div class="relative flex items-start justify-between gap-3">
-                        <div class="min-w-0">
-                            <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">{{ __('borrower.loan_profile.summary_collapsed') }}</p>
-                            <p class="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 tabular-nums">
-                                {{ $summary['requested_amount'] ? format_money($summary['requested_amount']) : '—' }}
-                            </p>
-                            <p class="mt-1.5 text-sm text-gray-600">
-                                @if (! empty($summary['requested_tenure']))
-                                    {{ __('borrower.applications_list.tenure_months', ['count' => $summary['requested_tenure']]) }}
-                                @endif
-                                @if (! empty($summary['loan_type']))
-                                    <span class="text-gray-300 mx-1.5">·</span>{{ $summary['loan_type'] }}
-                                @endif
-                            </p>
-                        </div>
-                        <span class="shrink-0 inline-flex items-center justify-center size-9 rounded-xl bg-white ring-1 ring-brand/15 text-brand shadow-sm">
-                            <svg class="size-4 transition group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
-                        </span>
-                    </div>
-                    <div class="relative mt-4 grid grid-cols-2 gap-2.5">
-                        <div class="rounded-xl bg-white/80 ring-1 ring-brand/10 px-3 py-2.5">
-                            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loan_profile.interest_rate') }}</p>
-                            <p class="mt-0.5 text-sm font-bold text-gray-900">{{ $summary['interest_rate_label'] ?? '—' }}</p>
-                        </div>
-                        <div class="rounded-xl bg-white/80 ring-1 ring-brand/10 px-3 py-2.5">
-                            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.created') }}</p>
-                            <p class="mt-0.5 text-sm font-bold text-gray-900">{{ optional($summary['created_at'])->format('d M Y') ?? '—' }}</p>
-                        </div>
-                    </div>
+        <div class="glass-card mb-6 overflow-hidden ring-1 ring-brand/15">
+            <div class="relative overflow-hidden bg-gradient-to-br from-brand-muted/60 via-white to-white px-5 py-5">
+                <div class="absolute -right-8 -top-8 size-28 rounded-full bg-brand/5 pointer-events-none"></div>
+                <div class="relative">
+                    <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">{{ __('borrower.loan_profile.summary_collapsed') }}</p>
+                    <p class="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 tabular-nums">
+                        {{ $summary['requested_amount'] ? format_money($summary['requested_amount']) : '—' }}
+                    </p>
+                    <p class="mt-1.5 text-sm text-gray-600">
+                        @if (! empty($summary['requested_tenure']))
+                            {{ __('borrower.applications_list.tenure_months', ['count' => $summary['requested_tenure']]) }}
+                        @endif
+                        @if (! empty($summary['loan_type']))
+                            <span class="text-gray-300 mx-1.5">·</span>{{ $summary['loan_type'] }}
+                        @endif
+                    </p>
                 </div>
-            </summary>
-            <div class="px-5 pb-5 border-t border-gray-100/80 pt-4 grid sm:grid-cols-2 gap-4 text-sm">
-                <div>
-                    <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.loan_type') }}</p>
-                    <p class="font-semibold mt-1 text-gray-900">{{ $summary['loan_type'] }}</p>
-                </div>
-                <div>
-                    <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.last_updated') }}</p>
-                    <p class="font-semibold mt-1 text-gray-900">{{ optional($summary['updated_at'])->format('d M Y') ?? '—' }}</p>
+                <div class="relative mt-4 grid grid-cols-2 gap-2.5">
+                    <div class="rounded-xl bg-white/80 ring-1 ring-brand/10 px-3 py-2.5">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_profile.interest_rate') }}</p>
+                        <p class="mt-0.5 text-sm font-bold text-gray-900">{{ $summary['interest_rate_label'] ?? '—' }}</p>
+                    </div>
+                    <div class="rounded-xl bg-white/80 ring-1 ring-brand/10 px-3 py-2.5">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $summary['date_label'] ?? __('borrower.loan_profile.submitted_date') }}</p>
+                        <p class="mt-0.5 text-sm font-bold text-gray-900">{{ optional($summary['primary_date'] ?? $summary['created_at'] ?? null)->format('d M Y') ?? '—' }}</p>
+                    </div>
+                    <div class="rounded-xl bg-white/80 ring-1 ring-brand/10 px-3 py-2.5">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.applications_list.loan_type') }}</p>
+                        <p class="mt-0.5 text-sm font-bold text-gray-900">{{ $summary['loan_type'] ?? '—' }}</p>
+                    </div>
+                    <div class="rounded-xl bg-white/80 ring-1 ring-brand/10 px-3 py-2.5">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.applications_list.last_updated') }}</p>
+                        <p class="mt-0.5 text-sm font-bold text-gray-900">{{ optional($summary['updated_at'] ?? null)->format('d M Y') ?? '—' }}</p>
+                    </div>
                 </div>
             </div>
-        </details>
+        </div>
     @endif
 
     @if ($isDraft)

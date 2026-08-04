@@ -19,7 +19,7 @@
         <div class="glass-card p-5 {{ $isClosed ? 'opacity-90' : '' }}">
             <div class="flex items-start justify-between gap-3 mb-3">
                 <div class="min-w-0">
-                    <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ $row['loan_type'] }}</p>
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $row['loan_type'] }}</p>
                     <p class="text-lg sm:text-xl font-bold text-gray-900 tracking-tight mt-0.5 leading-snug">{{ $row['product_name'] }}</p>
                     <p class="font-mono text-xs text-gray-500 mt-1">{{ $row['application_number'] }}</p>
                 </div>
@@ -38,7 +38,7 @@
 
             <div class="grid grid-cols-2 gap-3 mb-4">
                 <div class="rounded-xl bg-gray-50 px-3 py-2.5">
-                    <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.profile') }}</p>
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.applications_list.profile') }}</p>
                     <p class="font-semibold text-sm mt-0.5">
                         @if ($row['profile_complete'] ?? false)
                             <span class="text-emerald-700">{{ __('borrower.applications_list.profile_complete_check') }}</span>
@@ -48,7 +48,7 @@
                     </p>
                 </div>
                 <div class="rounded-xl bg-gray-50 px-3 py-2.5">
-                    <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.application') }}</p>
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.applications_list.application') }}</p>
                     <p class="font-semibold text-sm mt-0.5">{{ $row['application_percent'] ?? 0 }}%</p>
                 </div>
             </div>

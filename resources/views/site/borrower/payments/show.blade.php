@@ -39,16 +39,16 @@
     <div class="max-w-2xl space-y-5">
         <dl class="grid sm:grid-cols-2 gap-5">
             <div>
-                <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.payments_page.show.type') }}</dt>
+                <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.payments_page.show.type') }}</dt>
                 <dd class="mt-1.5 text-sm font-semibold text-gray-900">{{ $payment->typeLabel() }}</dd>
             </div>
             <div>
-                <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.payments_page.show.method') }}</dt>
+                <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.payments_page.show.method') }}</dt>
                 <dd class="mt-1.5 text-sm font-semibold text-gray-900">{{ $payment->methodLabel() }}</dd>
             </div>
             @if ($payment->mobile_number)
                 <div class="sm:col-span-2">
-                    <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.payments_page.show.mobile_number') }}</dt>
+                    <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.payments_page.show.mobile_number') }}</dt>
                     <dd class="mt-1.5 font-mono text-sm font-semibold text-gray-900">{{ $payment->mobile_number }}</dd>
                 </div>
             @endif
@@ -78,7 +78,7 @@
         @endif
 
         <div>
-            <p class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold mb-1.5">{{ __('borrower.payments_page.show.proof_submitted') }}</p>
+            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1.5">{{ __('borrower.payments_page.show.proof_submitted') }}</p>
             @if ($payment->hasProof())
                 <p class="text-sm font-medium text-gray-800">{{ $payment->proof_original_name ?? __('borrower.payments_page.show.document_uploaded') }}</p>
             @else

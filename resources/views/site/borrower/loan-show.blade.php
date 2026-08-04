@@ -45,30 +45,30 @@
         <h2 class="font-semibold text-gray-900 mb-4">{{ __('borrower.loan_servicing.summary_title') }}</h2>
         <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
             <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loan_servicing.reference') }}</p>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_servicing.reference') }}</p>
                 <p class="font-mono font-semibold text-brand mt-1">{{ $servicing['loan_reference'] }}</p>
             </div>
             <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.loan_amount') }}</p>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.loan_amount') }}</p>
                 <p class="font-semibold text-gray-900 mt-1 tabular-nums">{{ format_money($servicing['principal']) }}</p>
             </div>
             <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.outstanding') }}</p>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.outstanding') }}</p>
                 <x-loan-balance-breakdown
                     :breakdown="$servicing['balance_breakdown'] ?? []"
                     :recovery-charges="$servicing['recovery_charges'] ?? null"
                 />
             </div>
             <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loan_servicing.disbursement_date') }}</p>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_servicing.disbursement_date') }}</p>
                 <p class="font-semibold text-gray-900 mt-1">{{ optional($servicing['disbursement_date'])->format('d M Y') ?? '—' }}</p>
             </div>
             <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loan_servicing.status') }}</p>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_servicing.status') }}</p>
                 <p class="font-semibold text-gray-900 mt-1">{{ $servicing['status_label'] }}</p>
             </div>
             <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loan_servicing.arrears_status') }}</p>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_servicing.arrears_status') }}</p>
                 <p class="font-semibold mt-1 {{ ($servicing['arrears_status'] ?? '') === 'in_arrears' ? 'text-red-700' : 'text-emerald-700' }}">
                     {{ ($servicing['arrears_status'] ?? '') === 'in_arrears'
                         ? __('borrower.loan_servicing.in_arrears')
@@ -83,15 +83,15 @@
         <h2 class="font-semibold text-gray-900 mb-4">{{ __('borrower.loan_servicing.repayment_title') }}</h2>
         <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm mb-4">
             <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loan_servicing.installments_paid') }}</p>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_servicing.installments_paid') }}</p>
                 <p class="font-semibold text-gray-900 mt-1">{{ $servicing['installments_paid'] ?? 0 }} / {{ $servicing['installments_total'] ?? 0 }}</p>
             </div>
             <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loan_servicing.installments_remaining') }}</p>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_servicing.installments_remaining') }}</p>
                 <p class="font-semibold text-gray-900 mt-1">{{ $servicing['installments_remaining'] ?? 0 }}</p>
             </div>
             <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.next_due') }}</p>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.next_due') }}</p>
                 <p class="font-semibold text-gray-900 mt-1">
                     @if ($servicing['next_due_date'])
                         {{ $servicing['next_due_date']->format('d M Y') }}
@@ -104,7 +104,7 @@
                 @endif
             </div>
             <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.repaid_pct', ['pct' => format_number($servicing['progress_pct'], 0)]) }}</p>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.repaid_pct', ['pct' => format_number($servicing['progress_pct'], 0)]) }}</p>
                 <div class="h-2 bg-gray-100 rounded-full overflow-hidden mt-2">
                     <div class="h-full {{ $servicing['in_arrears'] ? 'bg-red-500' : 'bg-brand' }}" style="width: {{ $servicing['progress_pct'] }}%"></div>
                 </div>

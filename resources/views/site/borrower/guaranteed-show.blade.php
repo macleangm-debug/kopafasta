@@ -51,19 +51,19 @@
         <p class="text-[10px] uppercase tracking-widest text-brand font-semibold mb-4">{{ __('borrower.loan_profile.summary_title') }}</p>
         <div class="grid sm:grid-cols-2 gap-4 text-sm">
             <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.amount') }}</p>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.applications_list.amount') }}</p>
                 <p class="font-semibold mt-1">{{ format_money($row->amount) }}</p>
             </div>
             <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.borrower') }}</p>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.borrower') }}</p>
                 <p class="font-semibold mt-1">{{ $borrowerName }}</p>
             </div>
             <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.guaranteed.current_step') }}</p>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guaranteed.current_step') }}</p>
                 <p class="font-semibold mt-1">{{ $statusLine }}</p>
             </div>
             <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.loan_status') }}</p>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.loan_status') }}</p>
                 <p class="font-semibold mt-1">
                     @if ($row->loan)
                         {{ ucfirst((string) $row->loan_status) }}
@@ -207,13 +207,13 @@
             <dl class="space-y-4 text-sm">
                 @if ($row->restructure)
                     <div class="rounded-xl bg-brand-muted/30 px-4 py-3">
-                        <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.loan_actions.restructure') }}</dt>
+                        <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_actions.restructure') }}</dt>
                         <dd class="mt-1 capitalize">{{ str_replace('_', ' ', $row->restructure->restructure_type) }} · <span class="font-semibold">{{ $modificationStatuses[$row->restructure->status] ?? ucfirst($row->restructure->status) }}</span></dd>
                     </div>
                 @endif
                 @if ($row->top_up)
                     <div class="rounded-xl bg-brand-muted/30 px-4 py-3">
-                        <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{{ __('borrower.loan_actions.top_up') }}</dt>
+                        <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_actions.top_up') }}</dt>
                         <dd class="mt-1">{{ format_money($row->top_up->requested_amount) }} · <span class="font-semibold">{{ $modificationStatuses[$row->top_up->status] ?? ucfirst($row->top_up->status) }}</span></dd>
                     </div>
                 @endif

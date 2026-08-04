@@ -29,7 +29,7 @@
                 <div class="bg-white rounded-2xl border border-gray-200 p-5">
                     <div class="flex items-start justify-between gap-3 mb-3">
                         <div class="min-w-0">
-                            <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ $row['loan_type'] }}</p>
+                            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $row['loan_type'] }}</p>
                             <p class="text-lg font-bold text-gray-900 tracking-tight mt-0.5">{{ $row['product_name'] }}</p>
                             @if (! empty($row['application_number']))
                                 <p class="font-mono text-xs text-gray-500 mt-1">{{ $row['application_number'] }}</p>

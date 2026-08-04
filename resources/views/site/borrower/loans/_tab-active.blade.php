@@ -76,19 +76,19 @@
 
                 <div class="grid sm:grid-cols-4 gap-4 mb-5">
                     <div>
-                        <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.loan_amount') }}</p>
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.loan_amount') }}</p>
                         <p class="font-semibold text-sm tabular-nums">{{ format_money($loan->principal_amount) }}</p>
                     </div>
                     <div>
-                        <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.outstanding') }}</p>
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.outstanding') }}</p>
                         <p class="font-semibold text-sm tabular-nums">{{ format_money($loan->outstanding_balance) }}</p>
                     </div>
                     <div>
-                        <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.monthly') }}</p>
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.monthly') }}</p>
                         <p class="font-semibold text-sm tabular-nums">{{ format_money($monthly) }}</p>
                     </div>
                     <div>
-                        <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.rate_tenure_label') }}</p>
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.rate_tenure_label') }}</p>
                         <p class="font-semibold text-sm">{{ __('borrower.loans_page.rate_tenure', ['rate' => format_number($loan->interest_rate * 100, 2), 'months' => $loan->tenure_months]) }}</p>
                     </div>
                 </div>

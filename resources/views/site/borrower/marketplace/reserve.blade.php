@@ -44,24 +44,24 @@
                 <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.marketplace.asset_summary') }}</p>
                 <dl class="mt-3 grid grid-cols-2 gap-3 text-sm">
                     <div>
-                        <dt class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.marketplace.asset_value') }}</dt>
+                        <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.marketplace.asset_value') }}</dt>
                         <dd class="font-bold text-gray-900 mt-0.5 tabular-nums">{{ format_money($asset['asset_value'] ?? 0) }}</dd>
                     </div>
                     <div>
-                        <dt class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.marketplace.loan_amount') }}</dt>
+                        <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.marketplace.loan_amount') }}</dt>
                         <dd class="font-bold text-gray-900 mt-0.5 tabular-nums">{{ format_money($asset['remaining_loan'] ?? 0) }}</dd>
                     </div>
                     <div>
-                        <dt class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.marketplace.deposit') }}</dt>
+                        <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.marketplace.deposit') }}</dt>
                         <dd class="font-bold text-brand mt-0.5 tabular-nums">{{ format_money($feeBreakdown['deposit'] ?? $asset['deposit'] ?? 0) }}</dd>
                     </div>
                     <div>
-                        <dt class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.marketplace.weekly_installment') }}</dt>
+                        <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.marketplace.weekly_installment') }}</dt>
                         <dd class="font-bold text-gray-900 mt-0.5 tabular-nums">{{ format_money($asset['weekly_installment'] ?? 0) }}</dd>
                     </div>
                     @if (! empty($asset['max_tenure_months']))
                         <div class="col-span-2">
-                            <dt class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.marketplace.max_tenure') }}</dt>
+                            <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.marketplace.max_tenure') }}</dt>
                             <dd class="font-semibold text-gray-900 mt-0.5">{{ $asset['max_tenure_months'] }} {{ __('borrower.apply.quote.months') }}</dd>
                         </div>
                     @endif

@@ -2194,6 +2194,8 @@ return [
         'profile_snapshot_title' => 'Profile snapshot',
         'profile_snapshot_hint' => 'Information captured so far. Complete missing items from the checklist above.',
         'interest_rate' => 'Interest rate',
+        'submitted_date' => 'Submitted',
+        'started_date' => 'Started',
         'current_status' => 'Current status',
         'next_action_title' => 'Next required action',
         'application_ready' => 'Application ready — review, sign, then submit.',

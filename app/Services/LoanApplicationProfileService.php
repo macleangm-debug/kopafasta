@@ -440,16 +440,21 @@ class LoanApplicationProfileService
     private function draftSummary(Customer $customer, LoanApplicationDraft $draft, ?LoanProduct $product): array
     {
         $form = ($draft->payload ?? [])['form'] ?? [];
+        $amount = (float) $this->drafts->requestedAmount($draft);
 
         return [
             'loan_type'           => $this->loanTypeLabel($product),
             'product_name'        => $product?->localizedName() ?? __('borrower.apply.title'),
-            'requested_amount'    => $this->drafts->requestedAmount($draft),
+            'requested_amount'    => $amount,
             'requested_tenure'    => (int) ($form['requested_tenure_months'] ?? 0),
             'interest_rate_label' => $product
-                ? $this->displayedRate->formatBorrowerRateRange($product)
+                ? $this->displayedRate->formatPercent(
+                    $this->displayedRate->displayedMonthlyRate($product, $amount > 0 ? $amount : null)
+                )
                 : null,
             'application_number'  => $draft->draft_reference ?: __('borrower.applications_list.draft_reference'),
+            'date_label'          => __('borrower.loan_profile.started_date'),
+            'primary_date'        => $draft->created_at,
             'created_at'          => $draft->created_at,
             'updated_at'          => $draft->saved_at ?? $draft->updated_at,
         ];
@@ -459,17 +464,25 @@ class LoanApplicationProfileService
     private function applicationSummary(LoanApplication $application, ?Loan $loan): array
     {
         $product = $application->product;
+        $amount = (float) $application->requested_amount;
+        $primaryDate = $application->submitted_at ?? $application->created_at;
 
         return [
             'loan_type'           => $this->loanTypeLabel($product),
             'product_name'        => $product?->localizedName() ?? '—',
-            'requested_amount'    => (float) $application->requested_amount,
+            'requested_amount'    => $amount,
             'requested_tenure'    => (int) $application->requested_tenure_months,
             'interest_rate_label' => $product
-                ? $this->displayedRate->formatBorrowerRateRange($product)
+                ? $this->displayedRate->formatPercent(
+                    $this->displayedRate->displayedMonthlyRate($product, $amount > 0 ? $amount : null)
+                )
                 : null,
             'application_number'  => $application->application_number,
             'loan_number'         => $loan?->loan_number,
+            'date_label'          => $application->submitted_at
+                ? __('borrower.loan_profile.submitted_date')
+                : __('borrower.loan_profile.started_date'),
+            'primary_date'        => $primaryDate,
             'created_at'          => $application->created_at,
             'updated_at'          => $application->updated_at,
         ];
