@@ -127,14 +127,11 @@ class SmartLoanApplicationWizardService
      */
     public function borrowerStepPlan(Customer $customer, ?LoanProduct $product = null, float $requestedAmount = 0): array
     {
-        $sections = collect($this->profileSections($customer))->keyBy('key');
         $policy = app(LoanPolicyService::class);
         $amount = $requestedAmount > 0 ? $requestedAmount : (float) ($product?->min_amount ?? 0);
         $requiresGuarantor = $product && $policy->requiresGuarantorForApplication($product, $amount);
         $productCode = $product?->code;
-        $hasProductQuestions = $productCode && ! empty(config('loan_product_questions.'.$productCode));
 
-        $profileKeys = ['personal', 'residence', 'kin', 'activity'];
         $isAssetLending = is_marketplace_loan_product($productCode);
         $isAssetBacked = $productCode && strtoupper((string) $productCode) === 'AB';
         $isGroupLending = $product && is_group_loan_product($product);
@@ -160,9 +157,8 @@ class SmartLoanApplicationWizardService
             $steps[] = ['key' => 'guarantor', 'label' => __('borrower.apply.steps.guarantor'), 'skippable' => false, 'skipped' => false];
         }
 
-        if ($hasProductQuestions) {
-            $steps[] = ['key' => 'product_questions', 'label' => __('borrower.apply.steps.product_questions'), 'skippable' => false, 'skipped' => false];
-        }
+        // Product-specific questions (e.g. Artisans workshop) live on the quote/amount
+        // step — never as a separate numbered step — so IL and FC share the same spine.
 
         $steps[] = ['key' => 'review', 'label' => __('borrower.apply.steps.review'), 'skippable' => false, 'skipped' => false];
         // Signature is collected on the borrower profile (submit redirects there if missing).

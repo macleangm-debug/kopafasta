@@ -1,6 +1,6 @@
 {{-- Quote / loan amount step. Keep simple for lay borrowers across all products. --}}
 {{-- Use $data.feeGateOpen so a stale JS bundle without feeGateOpen cannot ReferenceError-blank this step. --}}
-<div x-show="stepKey === 'quote' && ! $data.feeGateOpen" class="p-6 sm:p-8">
+<div x-show="stepKey === 'quote' && ! $data.feeGateOpen" class="p-6 sm:p-8" data-wizard-step="quote">
     <x-site.wizard-step-header
         :eyebrow="__('borrower.apply.quote.eyebrow')"
         :title="__('borrower.apply.quote.title')"
@@ -127,4 +127,48 @@
             </div>
         </div>
     </template>
+
+    @foreach (($productQuestions ?? []) as $code => $block)
+        <div x-show="stepKey === 'quote' && ! $data.feeGateOpen && current && current.code === @js($code)" x-cloak
+             class="mt-5" data-wizard-step="quote">
+            <div class="glass-card p-5 sm:p-6 ring-1 ring-brand/10">
+                <h3 class="text-sm font-bold text-gray-900 mb-4">{{ $block['title'] ?? __('borrower.apply.product_questions.additional') }}</h3>
+                <div class="grid sm:grid-cols-2 gap-4">
+                    @foreach ($block['fields'] as $field)
+                        @if (($field['type'] ?? 'text') === 'tz_address')
+                            <div class="sm:col-span-2">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">{{ $field['label'] }}</label>
+                                <x-site.address-fields
+                                    form-key="product_question"
+                                    :prefix="$field['prefix'] ?? ''"
+                                    :required="$field['required'] ?? true"
+                                />
+                            </div>
+                        @else
+                            <div class="{{ ($field['type'] ?? 'text') === 'textarea' ? 'sm:col-span-2' : '' }}">
+                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">{{ $field['label'] }}</label>
+                                @if (($field['type'] ?? 'text') === 'select')
+                                    <x-site.profile-select
+                                        :name="'product_question['.$field['key'].']'"
+                                        :options="$field['options'] ?? []"
+                                        :required="$field['required'] ?? false"
+                                        :placeholder="__('borrower.profile.select')"
+                                        select-class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-4 py-3 text-sm focus:ring-brand"
+                                    />
+                                @elseif (($field['type'] ?? 'text') === 'textarea')
+                                    <textarea name="product_question[{{ $field['key'] }}]" rows="3" placeholder="{{ $field['placeholder'] ?? '' }}"
+                                              @if (! empty($field['required'])) required @endif
+                                              class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-4 py-3 text-sm focus:ring-brand"></textarea>
+                                @else
+                                    <input type="text" name="product_question[{{ $field['key'] }}]" placeholder="{{ $field['placeholder'] ?? '' }}"
+                                           @if (! empty($field['required'])) required @endif
+                                           class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-4 py-3 text-sm focus:ring-brand">
+                                @endif
+                            </div>
+                        @endif
+                    @endforeach
+                </div>
+            </div>
+        </div>
+    @endforeach
 </div>

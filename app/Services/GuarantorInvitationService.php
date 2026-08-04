@@ -113,7 +113,9 @@ class GuarantorInvitationService
             ];
         }
 
-        if (! $this->namesMatch($name, $member)) {
+        // Name is optional on the wizard form — membership + phone identify the member.
+        // When a name is supplied (e.g. previous-guarantor re-verify), still check it.
+        if (trim($name) !== '' && ! $this->namesMatch($name, $member)) {
             return [
                 'ok'      => false,
                 'message' => __('borrower.apply.alerts.guarantor_name_mismatch'),
@@ -1070,12 +1072,6 @@ class GuarantorInvitationService
                 continue;
             }
 
-            $key = strtolower(trim($guarantor->phone ?: $guarantor->national_id ?: $guarantor->email ?: (string) $link->id));
-            if (isset($seen[$key])) {
-                continue;
-            }
-            $seen[$key] = true;
-
             $invitation = GuarantorInvitation::query()
                 ->where('customer_guarantor_id', $link->id)
                 ->latest('id')
@@ -1085,8 +1081,46 @@ class GuarantorInvitationService
                 ? Customer::find($invitation->guarantor_customer_id)
                 : null;
 
+            $dedupeKeys = ['g:'.$guarantor->id];
+            $phoneKey = $this->normalizePhone($guarantor->phone ?: ($member?->phone ?? ''));
+            if ($phoneKey !== '') {
+                $dedupeKeys[] = 'p:'.$phoneKey;
+            }
+            $nid = strtolower(trim((string) ($guarantor->national_id ?? '')));
+            if ($nid !== '') {
+                $dedupeKeys[] = 'n:'.$nid;
+            }
+            $memberNo = strtolower(trim((string) ($invitation?->membership_id ?: $member?->member_no ?: '')));
+            if ($memberNo !== '') {
+                $dedupeKeys[] = 'm:'.$memberNo;
+            }
+            $email = strtolower(trim((string) ($guarantor->email ?? '')));
+            if ($email !== '') {
+                $dedupeKeys[] = 'e:'.$email;
+            }
+
+            $alreadySeen = false;
+            foreach ($dedupeKeys as $key) {
+                if (isset($seen[$key])) {
+                    $alreadySeen = true;
+                    break;
+                }
+            }
+            if ($alreadySeen) {
+                continue;
+            }
+            foreach ($dedupeKeys as $key) {
+                $seen[$key] = true;
+            }
+
             $mode = $invitation?->type === 'internal' || $member ? 'internal' : 'external';
             $label = trim(($guarantor->first_name ?? '').' '.($guarantor->last_name ?? '')) ?: 'Guarantor';
+            if ($member) {
+                $memberLabel = trim(($member->first_name ?? '').' '.($member->last_name ?? ''));
+                if ($memberLabel !== '') {
+                    $label = $memberLabel;
+                }
+            }
             $kycFresh = $member
                 ? (bool) (collect(app(ApplicationRequirementsService::class)->checklist($member)['items'] ?? [])
                     ->firstWhere('key', 'kyc_freshness')['complete'] ?? false)
@@ -1097,7 +1131,7 @@ class GuarantorInvitationService
                 'label'         => $label,
                 'mode'          => $mode,
                 'membership_id' => $invitation?->membership_id,
-                'phone'         => $guarantor->phone ?? '',
+                'phone'         => $guarantor->phone ?: ($member?->phone ?? ''),
                 'name'          => $label,
                 'kyc_fresh'     => $kycFresh,
             ];

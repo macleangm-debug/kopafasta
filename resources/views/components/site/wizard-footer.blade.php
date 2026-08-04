@@ -20,7 +20,7 @@
         <button type="button"
                 @click.prevent="next()"
                 :disabled="advancing || resumeLoading || (guarantorInvitePreparing && stepKey === 'guarantor')"
-                x-show="!['signature', 'submit'].includes(stepKey) && isCurrentStepReady()"
+                x-show="!feeGateOpen && !['signature', 'submit', 'application_fee'].includes(stepKey) && isCurrentStepReady()"
                 class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 disabled:opacity-60 text-brand font-bold px-6 py-2.5 rounded-xl text-sm shadow-sm transition">
             <span x-text="(guarantorInvitePreparing && stepKey === 'guarantor')
                 ? @js(__('borrower.apply.application_fee.processing'))

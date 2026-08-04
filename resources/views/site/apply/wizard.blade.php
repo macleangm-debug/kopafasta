@@ -228,6 +228,8 @@
                       'guarantorFields' => [
                           'isRequired' => __('borrower.apply.guarantor_fields.is_required'),
                           'missingFieldsTitle' => __('borrower.apply.guarantor_fields.missing_fields_title'),
+                          'validationFailedTitle' => __('borrower.apply.guarantor_fields.validation_failed_title'),
+                          'validatedTitle' => __('borrower.apply.guarantor_fields.validated_title'),
                           'labels' => [
                               'external_first_name' => __('borrower.profile.fields.first_name'),
                               'external_last_name' => __('borrower.profile.fields.last_name'),
@@ -259,6 +261,7 @@
                           'guarantor_name' => __('borrower.apply.alerts.guarantor_name_required'),
                           'guarantor_validate_first' => __('borrower.apply.alerts.guarantor_validate_first'),
                           'guarantor_lookup_failed' => __('borrower.apply.alerts.guarantor_lookup_failed'),
+                          'guarantor_verified' => __('borrower.apply.alerts.guarantor_verified'),
                           'guarantor_external_incomplete' => __('borrower.apply.alerts.guarantor_external_incomplete'),
                           'guarantor_invite_failed' => __('borrower.apply.alerts.guarantor_invite_failed'),
                           'guarantor_external_invite_required' => __('borrower.apply.alerts.guarantor_external_invite_required'),

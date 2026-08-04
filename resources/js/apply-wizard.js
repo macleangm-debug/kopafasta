@@ -1737,22 +1737,20 @@ export function applyWizard(config) {
                         if (this.requiresGuarantor()) {
                             steps.push({ key: 'guarantor', label: this.i18n.steps.guarantor });
                         }
-                        if (this.current?.code && this.productQuestions[this.current.code]) {
-                            steps.push({ key: 'product_questions', label: stepLabels.product_questions });
-                        }
+                        // product_questions fold into quote (same spine as Individual)
                         steps.push({ key: 'review', label: this.i18n.steps.review });
                         steps.push({ key: 'submit', label: this.i18n.steps.submit });
                         this.steps = steps.map(s => this.withStepIcon(s));
                     }
 
-                    // Application fee / in-wizard signature are never numbered steps —
-                    // fee is a payment gate; signature lives on the borrower profile.
+                    // Application fee / in-wizard signature / product_questions are never numbered steps —
+                    // fee is a payment gate; artisan details live on Amount; signature on profile.
                     this.syncFeePaidState();
-                    this.steps = this.steps.filter(s => s.key !== 'application_fee' && s.key !== 'signature');
+                    this.steps = this.steps.filter(s => !['application_fee', 'signature', 'product_questions'].includes(s.key));
 
                     this.step = this.resolveStepIndex(
-                        (prevKey === 'application_fee' || prevKey === 'signature')
-                            ? (this.steps[0]?.key || '')
+                        (['application_fee', 'signature', 'product_questions'].includes(prevKey))
+                            ? (prevKey === 'product_questions' ? 'quote' : (this.steps[0]?.key || ''))
                             : prevKey,
                         this.step
                     );
@@ -2041,10 +2039,37 @@ export function applyWizard(config) {
                     return this.isGuarantorLocked();
                 },
 
+                /** Required artisan / product-specific fields on the Amount step. */
+                quoteProductQuestionsReady() {
+                    const code = this.current?.code;
+                    if (! code || ! this.productQuestions?.[code]?.fields?.length) {
+                        return true;
+                    }
+                    const root = this.formRoot?.() || document.getElementById('apply-wizard');
+                    if (! root || ! window.KopaFastaForm) {
+                        return true;
+                    }
+                    const panels = root.querySelectorAll('[data-wizard-step="quote"]');
+                    for (const panel of panels) {
+                        if (panel.offsetParent === null && getComputedStyle(panel).display === 'none') {
+                            continue;
+                        }
+                        const required = panel.querySelectorAll('[required]');
+                        if (required.length && ! window.KopaFastaForm.isComplete(panel, { onlyVisible: true, allowEmpty: false })) {
+                            return false;
+                        }
+                    }
+                    return true;
+                },
+
                 /** Silent completeness check — used to show Continue only when the step is ready. */
                 isCurrentStepReady() {
                     void this._gateTick;
                     if (this.advancing || this.resumeLoading) {
+                        return false;
+                    }
+                    // Payment gate: Pay CTA only — no footer Continue until payment auto-advances.
+                    if (this.feeGateOpen || this.stepKey === 'application_fee') {
                         return false;
                     }
                     if (this.stepKey === 'guarantor') {
@@ -2056,15 +2081,10 @@ export function applyWizard(config) {
                     if (this.stepKey === 'submit') {
                         return true;
                     }
-                    if (this.stepKey === 'application_fee') {
-                        return this.feeGateSatisfied?.() ?? true;
-                    }
-                    if (this.needsFeeGateBefore?.(this.stepKey) && ! this.feeGateSatisfied?.()) {
-                        return false;
-                    }
                     if (this.stepKey === 'quote' && this.hasStep('quote')) {
                         if (! this.form.purpose) return false;
                         if (this.form.purpose === 'other' && ! String(this.form.purpose_other || '').trim()) return false;
+                        if (! this.quoteProductQuestionsReady()) return false;
                         return true;
                     }
                     if (this.stepKey === 'group_setup' && this.hasStep('group_setup')) {
@@ -2673,6 +2693,10 @@ export function applyWizard(config) {
                             showWizardFeedback(this.i18n.alerts?.purposeOtherRequired || this.i18n.apply?.quote?.purpose_other_required);
                             return false;
                         }
+                        if (! this.quoteProductQuestionsReady()) {
+                            showWizardFeedback(this.i18n.productQuestions?.complete || this.i18n.alerts?.productQuestionsRequired || 'Complete the loan details on this step before continuing.');
+                            return false;
+                        }
                     }
                     if (this.stepKey === 'group_setup' && this.hasStep('group_setup')) {
                         if (! (this.group.name || '').trim()) {
@@ -2857,28 +2881,22 @@ export function applyWizard(config) {
                     this.syncGuarantorFormFromDom();
                     const member = this.readFormField('internal_member_no');
                     const phone = this.readFormField('internal_guarantor_phone');
-                    const name = this.readFormField('internal_guarantor_name');
 
                     return this.guarantorLookup.ok
                         && this.guarantorLookup.memberKey === member
-                        && this.guarantorLookup.phone === phone
-                        && this.guarantorLookup.name === name;
+                        && this.guarantorLookup.phone === phone;
                 },
 
                 async validateInternalGuarantor() {
                     this.syncGuarantorFormFromDom();
                     const member = this.readFormField('internal_member_no');
                     const phone = this.readFormField('internal_guarantor_phone');
-                    const name = this.readFormField('internal_guarantor_name');
                     const errors = {};
                     if (! member) {
                         errors.internal_member_no = this.i18n.alerts.guarantor_membership;
                     }
                     if (! phone) {
                         errors.internal_guarantor_phone = this.i18n.alerts.guarantor_phone;
-                    }
-                    if (! name) {
-                        errors.internal_guarantor_name = this.i18n.alerts.guarantor_name;
                     }
                     if (Object.keys(errors).length) {
                         this.setGuarantorFieldErrors(errors);
@@ -2887,7 +2905,7 @@ export function applyWizard(config) {
                     }
                     this.guarantorErrors = {};
                     this.guarantorValidating = true;
-                    this.guarantorLookup = { ok: false, label: '', error: '', memberKey: member, phone, name };
+                    this.guarantorLookup = { ok: false, label: '', error: '', memberKey: member, phone, name: '' };
                     try {
                         const res = await fetch(this.guarantorLookupUrl, {
                             method: 'POST',
@@ -2898,24 +2916,51 @@ export function applyWizard(config) {
                                 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
                             },
                             credentials: 'same-origin',
-                            body: JSON.stringify({ membership_no: member, phone, name }),
+                            body: JSON.stringify({
+                                membership_no: member,
+                                phone,
+                                loan_product_id: this.form.loan_product_id || null,
+                            }),
                         });
                         const data = await res.json().catch(() => ({}));
                         if (! res.ok || ! data.ok) {
-                            this.guarantorLookup.error = data.message || this.i18n.alerts.guarantor_lookup_failed;
+                            const message = data.message || this.i18n.alerts.guarantor_lookup_failed;
+                            this.guarantorLookup.error = message;
+                            showWizardFeedback({
+                                tone: 'error',
+                                title: this.i18n.guarantorFields?.validationFailedTitle
+                                    || 'Could not validate guarantor',
+                                message,
+                            });
                             return;
                         }
+                        const resolvedName = data.name || data.label || '';
+                        this.form.internal_guarantor_name = resolvedName;
                         this.guarantorLookup = {
                             ok: true,
-                            label: data.label || data.name,
+                            label: data.label || resolvedName,
                             error: '',
                             memberKey: member,
                             phone,
-                            name,
+                            name: resolvedName,
                         };
                         this.addGuarantorOpen = false;
+                        showWizardFeedback({
+                            tone: 'success',
+                            title: this.i18n.guarantorFields?.validatedTitle || 'Guarantor verified',
+                            message: data.message
+                                || this.i18n.alerts?.guarantor_verified
+                                || 'Guarantor verified successfully.',
+                        });
                     } catch {
-                        this.guarantorLookup.error = this.i18n.alerts.guarantor_lookup_failed;
+                        const message = this.i18n.alerts.guarantor_lookup_failed;
+                        this.guarantorLookup.error = message;
+                        showWizardFeedback({
+                            tone: 'error',
+                            title: this.i18n.guarantorFields?.validationFailedTitle
+                                || 'Could not validate guarantor',
+                            message,
+                        });
                     } finally {
                         this.guarantorValidating = false;
                     }

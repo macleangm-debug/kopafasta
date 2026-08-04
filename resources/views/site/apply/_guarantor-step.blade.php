@@ -124,22 +124,10 @@
                     </div>
                     <p x-show="guarantorErrors.internal_guarantor_phone" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.internal_guarantor_phone"></p>
                 </div>
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">{{ __('borrower.apply.guarantor_fields.guarantor_name') }}</label>
-                    <input name="internal_guarantor_name" x-model="form.internal_guarantor_name" @input="delete guarantorErrors.internal_guarantor_name; guarantorLookup.ok = false"
-                           :class="guarantorErrors.internal_guarantor_name ? 'ring-rose-400' : 'ring-gray-200'"
-                           class="w-full rounded-xl border-gray-300 ring-1 px-3 py-2.5 text-sm bg-white" placeholder="{{ __('borrower.apply.guarantor_fields.name_placeholder') }}" autocomplete="off">
-                    <p x-show="guarantorErrors.internal_guarantor_name" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.internal_guarantor_name"></p>
-                    <p class="mt-1 text-xs text-gray-500">{{ __('borrower.apply.guarantor_fields.guarantor_name_hint') }}</p>
-                </div>
+                <input type="hidden" name="internal_guarantor_name" :value="form.internal_guarantor_name || guarantorLookup.label || ''">
                 <div x-show="guarantorValidating" x-cloak class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-sm text-sky-900">
                     <p class="font-semibold">{{ __('borrower.apply.guarantor_fields.validating') }}</p>
                     <p class="mt-1 text-sky-800">{{ __('borrower.apply.guarantor_fields.validating_hint') }}</p>
-                </div>
-                <div x-show="guarantorLookup.error && !guarantorLookup.ok && !guarantorValidating" x-cloak
-                     class="rounded-xl bg-rose-50 ring-1 ring-rose-200 px-4 py-3 text-sm text-rose-900">
-                    <p class="font-semibold">{{ __('borrower.apply.guarantor_fields.validation_failed_title') }}</p>
-                    <p class="mt-1" x-text="guarantorLookup.error"></p>
                 </div>
                 <p class="text-xs text-gray-500">{{ __('borrower.apply.guarantor_fields.membership_hint_short') }}</p>
                 <button type="button"

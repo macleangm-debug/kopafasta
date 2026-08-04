@@ -466,7 +466,7 @@ class ApplyController extends Controller
         $data = $request->validate([
             'membership_no'   => ['required', 'string', 'max:32'],
             'phone'           => ['required', 'string', 'max:20'],
-            'name'            => ['required', 'string', 'max:120'],
+            'name'            => ['nullable', 'string', 'max:120'],
             'loan_product_id' => ['nullable', 'integer', 'exists:loan_products,id'],
         ]);
 
@@ -474,7 +474,7 @@ class ApplyController extends Controller
             $borrower,
             $data['membership_no'],
             $data['phone'],
-            $data['name'],
+            $data['name'] ?? '',
         );
 
         if (! $result['ok']) {
