@@ -104,8 +104,11 @@ class UserController extends ResourceController
     {
         abort_unless(auth()->user()?->hasPermission('users.manage'), 403);
 
-        $data = $this->transform($request->validate($this->rules()));
+        $validated = $request->validate($this->rules());
         $departmentIds = $this->resolvedDepartmentIds($request);
+        app(\App\Services\CreditDeskAssignmentService::class)
+            ->assertCompatible((string) $validated['role'], $departmentIds);
+        $data = $this->transform($validated);
         $record = User::create($data);
         $record->departments()->sync($departmentIds);
         $this->auditAdminCreated($record);
@@ -142,8 +145,11 @@ class UserController extends ResourceController
 
         $record = User::findOrFail($id);
         $before = app(\App\Services\AuditService::class)->snapshot($record);
-        $data = $this->transform($request->validate($this->rules($record)), $record);
+        $validated = $request->validate($this->rules($record));
         $departmentIds = $this->resolvedDepartmentIds($request);
+        app(\App\Services\CreditDeskAssignmentService::class)
+            ->assertCompatible((string) $validated['role'], $departmentIds, $record);
+        $data = $this->transform($validated, $record);
         $record->update($data);
         $record->departments()->sync($departmentIds);
         $record->refresh();

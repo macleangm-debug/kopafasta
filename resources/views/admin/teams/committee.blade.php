@@ -1,23 +1,34 @@
-<x-admin.layout title="Credit committee" heading="Credit committee" subheading="Final credit decisions — approve, counter-offer, or reject">
+<x-admin.layout title="Credit committee" heading="" subheading="">
 
-    <div class="grid sm:grid-cols-2 gap-4 mb-6">
-        <div class="rounded-xl bg-white ring-1 ring-gray-200 p-5">
-            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Pre-approval queue</p>
-            <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ $counts['pre_approval'] }}</p>
+    <section class="mb-8">
+        <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 shadow-sm">
+            <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-7 text-white">
+                <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">Credit desk</p>
+                <h1 class="text-2xl sm:text-3xl font-bold mt-1">Credit committee</h1>
+                <p class="text-sm text-white/75 mt-2 max-w-2xl">
+                    Validate screening or record a different decision — approve, counter-offer, or reject. Capital and funding source are decided here.
+                </p>
+            </div>
+            <div class="bg-white px-6 py-5 grid sm:grid-cols-2 gap-4">
+                <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/10 px-4 py-4">
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Pre-approval queue</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ $counts['pre_approval'] }}</p>
+                </div>
+                <div class="rounded-xl bg-amber-50 ring-1 ring-amber-100 px-4 py-4">
+                    <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">With recommendation</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ $counts['awaiting_decision'] }}</p>
+                </div>
+            </div>
         </div>
-        <div class="rounded-xl bg-white ring-1 ring-brand/20 bg-brand-muted/20 p-5">
-            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">With recommendation</p>
-            <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ $counts['awaiting_decision'] }}</p>
-        </div>
-    </div>
+    </section>
 
-    <div class="flex flex-wrap gap-3">
+    <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5 sm:p-6 flex flex-wrap gap-3">
         <a href="{{ route('admin.loan-applications.pre-approvals') }}"
-           class="inline-flex bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2.5 rounded-xl">
+           class="inline-flex items-center gap-2 bg-brand-gold hover:brightness-95 text-brand font-bold text-sm px-5 py-2.5 rounded-xl shadow-sm ring-1 ring-brand/15">
             Open committee queue
         </a>
         <a href="{{ route('admin.credit-team.index') }}"
-           class="inline-flex text-sm font-semibold text-gray-600 hover:text-gray-900 px-4 py-2.5">
+           class="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-gray-900 px-4 py-2.5">
             Team roster →
         </a>
     </div>

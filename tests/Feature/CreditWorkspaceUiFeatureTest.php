@@ -166,7 +166,10 @@ class CreditWorkspaceUiFeatureTest extends TestCase
         $this->assertStringContainsString('Credit management workspace', $html);
         $this->assertStringContainsString('Approved facility', $html);
         $this->assertStringContainsString('Release readiness', $html);
-        $this->assertStringContainsString('Profile sections', $html);
+        $this->assertStringContainsString('Post-approval spine', $html);
+        $this->assertStringContainsString('Offer · Fees · Contract · Disbursement', $html);
+        $this->assertStringNotContainsString('Profile sections', $html);
         $this->assertStringNotContainsString('Borrower CRB', $html);
+        $this->assertStringNotContainsString('Verify disbursement destination', $html);
     }
 }

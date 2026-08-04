@@ -23,6 +23,10 @@
     <div class="sm:col-span-2">
         <label class="block text-sm font-medium text-gray-700 mb-1">Teams <span class="text-gray-400 font-normal">(multi-team)</span></label>
         <p class="text-xs text-gray-500 mb-2">Assign every team this person works in. Nav access is the union of all selected teams. Marketing (MKT) unlocks promotions &amp; offers.</p>
+        <div class="mb-3 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-xs text-amber-950">
+            <p class="font-semibold">Credit desk separation</p>
+            <p class="mt-1">A user cannot be on both <span class="font-semibold">Screening (UND)</span> and <span class="font-semibold">Committee (CRC)</span>. Committee + Management is allowed. Admin / Super admin may hold any combination.</p>
+        </div>
         <div class="grid sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto rounded-xl ring-1 ring-gray-200 p-3 bg-white">
             @foreach ($departments as $deptId => $deptName)
                 <label class="inline-flex items-center gap-2 text-sm text-gray-800">

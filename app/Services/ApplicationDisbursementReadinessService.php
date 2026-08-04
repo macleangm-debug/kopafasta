@@ -76,19 +76,8 @@ class ApplicationDisbursementReadinessService
 
     public function needsDisbursementDetailsConfirmation(LoanApplication $application): bool
     {
-        if ($this->isAssetLendingApplication($application)) {
-            return false;
-        }
-
-        if (! $this->offerSigned($application)) {
-            return false;
-        }
-
-        if ($this->hasPostApprovalFees($application) && ! $this->feesPaid($application)) {
-            return false;
-        }
-
-        return ! $this->disbursementDetailsConfirmed($application);
+        // Destination is already on the borrower profile — not a post-approval wait step.
+        return false;
     }
 
     public function isAssetLendingApplication(LoanApplication $application): bool
@@ -197,10 +186,6 @@ class ApplicationDisbursementReadinessService
             return false;
         }
 
-        if (! $this->disbursementDetailsConfirmed($application)) {
-            return false;
-        }
-
         if (! $this->contractSigned($application)) {
             return false;
         }
@@ -209,7 +194,8 @@ class ApplicationDisbursementReadinessService
             return false;
         }
 
-        return $this->capitalAvailable($application);
+        // Capital is approved at committee — management does not wait on funding pool gates.
+        return true;
     }
 
     public function capitalAvailable(LoanApplication $application): bool
@@ -266,10 +252,6 @@ class ApplicationDisbursementReadinessService
             }
         }
 
-        if ($this->contractSigned($application) && ! $this->isAssetLendingApplication($application) && ! $this->disbursementDetailsConfirmed($application)) {
-            $messages[] = 'Borrower must confirm disbursement destination.';
-        }
-
         if ($this->isAssetLendingApplication($application) && $this->contractSigned($application) && ! $this->canMarkAssetHandover($application)) {
             $messages[] = 'Complete asset readiness (GPS, insurance) before handover.';
         }
@@ -284,11 +266,6 @@ class ApplicationDisbursementReadinessService
             if ($payoutBlock) {
                 $messages[] = $payoutBlock;
             }
-        }
-
-        $capital = $this->capitalReadiness($application);
-        if ($capital && ! $capital['ok'] && $capital['message']) {
-            $messages[] = $capital['message'];
         }
 
         return $messages;
@@ -406,7 +383,6 @@ class ApplicationDisbursementReadinessService
         $hasFees = $this->hasPostApprovalFees($application);
         $feesPaid = $this->feesPaid($application);
         $feesComplete = $offerSigned && (! $hasFees || $feesPaid);
-        $detailsConfirmed = $this->disbursementDetailsConfirmed($application);
         $contract = $this->loanContract($application);
         $contractSigned = $this->contractSigned($application);
         $canDisburse = $this->canMarkDisbursement($application);
@@ -420,14 +396,8 @@ class ApplicationDisbursementReadinessService
             default => 'pending',
         };
 
-        $destinationStatus = match (true) {
-            ! $feesComplete => 'locked',
-            $detailsConfirmed => 'accepted',
-            default => 'pending',
-        };
-
         $contractStatus = match (true) {
-            ! $feesComplete || ! $detailsConfirmed => 'locked',
+            ! $feesComplete => 'locked',
             $contractSigned => 'accepted',
             $contract => 'pending',
             default => 'not_generated',
@@ -447,11 +417,6 @@ class ApplicationDisbursementReadinessService
                 'status'   => $feeStatus,
                 'complete' => $feesComplete,
             ],
-            'destination' => [
-                'label'    => __('borrower.contract.checklist.destination'),
-                'status'   => $destinationStatus,
-                'complete' => $detailsConfirmed,
-            ],
             'contract' => [
                 'label'    => __('borrower.contract.checklist.contract'),
                 'status'   => $contractStatus,
@@ -469,11 +434,21 @@ class ApplicationDisbursementReadinessService
 
         $checklist['disbursement'] = [
             'label'    => __('borrower.contract.checklist.disbursement'),
-            'status'   => $disbursed ? 'complete' : ($canDisburse ? 'pending' : 'locked'),
+            'status'   => $disbursed ? 'complete' : ($canDisburse ? 'ready' : 'locked'),
             'complete' => $disbursed,
         ];
 
         return $checklist;
+    }
+
+    /**
+     * Credit management desk spine — offer → fees → contract → disbursement only.
+     *
+     * @return array<string, array{label: string, status: string, complete: bool}>
+     */
+    public function managementReleaseChecklist(LoanApplication $application): array
+    {
+        return $this->borrowerDisbursementChecklist($application);
     }
 
     public function resolveBorrowerStageAfterOfferAcceptance(LoanApplication $application): string
@@ -492,10 +467,6 @@ class ApplicationDisbursementReadinessService
             }
 
             return 'asset_readiness';
-        }
-
-        if ($this->needsDisbursementDetailsConfirmation($application)) {
-            return LoanApplication::BORROWER_STAGE_AWAITING_DISBURSEMENT_DETAILS;
         }
 
         if ($this->isReadyForDisbursement($application)) {
@@ -525,10 +496,6 @@ class ApplicationDisbursementReadinessService
             }
 
             return 'awaiting_asset_readiness';
-        }
-
-        if ($this->needsDisbursementDetailsConfirmation($application)) {
-            return 'confirm_disbursement_details';
         }
 
         if ($this->isReadyForDisbursement($application)) {
