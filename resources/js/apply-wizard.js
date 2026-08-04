@@ -107,6 +107,7 @@ export function applyWizard(config) {
                 guarantorValidating: false,
                 guarantorChanging: false,
                 externalGuarantor: config.savedDraft?.external_guarantor || null,
+                internalGuarantor: config.savedDraft?.internal_guarantor || null,
                 guarantorInvitePreparing: false,
                 advancing: false,
                 submitting: false,
@@ -380,6 +381,7 @@ export function applyWizard(config) {
                         valuation_fee: this.valuationFeeState,
                         asset_documents: this.assetDocuments,
                         external_guarantor: this.externalGuarantor,
+                        internal_guarantor: this.internalGuarantor,
                         borrower_signature: this.borrowerSignature,
                         declaration_accepted: this.declarationAccepted,
                         group: this.group,
@@ -943,6 +945,7 @@ export function applyWizard(config) {
                                 guarantor_lookup: this.guarantorLookup.ok ? this.guarantorLookup : null,
                                 application_fee: this.applicationFeeState,
                                 external_guarantor: this.externalGuarantor,
+                        internal_guarantor: this.internalGuarantor,
                                 borrower_signature: this.borrowerSignature,
                                 declaration_accepted: this.declarationAccepted,
                             };
@@ -1032,6 +1035,7 @@ export function applyWizard(config) {
                     if (draft.valuation_fee) this.valuationFeeState = draft.valuation_fee;
                     if (draft.asset_documents) this.assetDocuments = draft.asset_documents;
                     if (draft.external_guarantor) this.externalGuarantor = draft.external_guarantor;
+                    if (draft.internal_guarantor) this.internalGuarantor = draft.internal_guarantor;
                     if (draft.borrower_signature) this.borrowerSignature = draft.borrower_signature;
                     if (draft.declaration_accepted || draft.borrower_signature) this.declarationAccepted = true;
                     if (draft.group) {
@@ -2161,6 +2165,7 @@ export function applyWizard(config) {
                         }
                         this.guarantorLookup = { ok: false, label: '', error: '', memberKey: '', phone: '', name: '' };
                         this.externalGuarantor = null;
+                        this.internalGuarantor = null;
                         this.guarantorErrors = {};
                         this.form.internal_member_no = '';
                         this.form.internal_guarantor_phone = '';
@@ -2188,8 +2193,16 @@ export function applyWizard(config) {
                 },
 
                 guarantorStatusLabel() {
-                    if (this.form.guarantor_mode === 'internal') {
-                        return this.i18n.alerts.guarantorStatus?.internal_validated
+                    if (this.form.guarantor_mode === 'internal' || this.form.guarantor_mode === 'previous') {
+                        if (this.internalGuarantor?.borrower_status_label) {
+                            return this.internalGuarantor.borrower_status_label;
+                        }
+                        if (this.internalGuarantor?.invitation_id) {
+                            return this.i18n.alerts.guarantorStatus?.invitation_sent
+                                || this.i18n.alerts.guarantorStatus.pending_acceptance
+                                || this.i18n.alerts.guarantorStatus.internal_validated;
+                        }
+                        return this.i18n.alerts.guarantorStatus?.pending_acceptance
                             || this.i18n.alerts.guarantorStatus.internal_validated;
                     }
                     if (this.form.guarantor_mode === 'external') {
@@ -2209,8 +2222,11 @@ export function applyWizard(config) {
                         return this.externalGuarantor?.borrower_status_code
                             || (this.externalGuarantor?.status === 'accepted' ? 'registration_in_progress' : 'invitation_sent');
                     }
+                    if (this.internalGuarantor?.borrower_status_code) {
+                        return this.internalGuarantor.borrower_status_code;
+                    }
 
-                    return 'pending_acceptance';
+                    return this.internalGuarantor?.invitation_id ? 'invitation_sent' : 'pending_acceptance';
                 },
 
                 guarantorLockedSummaryText() {
@@ -2944,14 +2960,20 @@ export function applyWizard(config) {
                             phone,
                             name: resolvedName,
                         };
+                        if (data.invite) {
+                            this.internalGuarantor = data.invite;
+                            this.externalGuarantor = null;
+                        }
                         this.addGuarantorOpen = false;
                         showWizardFeedback({
                             tone: 'success',
                             title: this.i18n.guarantorFields?.validatedTitle || 'Guarantor verified',
                             message: data.message
+                                || this.i18n.alerts?.guarantor_notified_in_app?.replace(':name', resolvedName)
                                 || this.i18n.alerts?.guarantor_verified
                                 || 'Guarantor verified successfully.',
                         });
+                        this.scheduleDraftSave();
                     } catch {
                         const message = this.i18n.alerts.guarantor_lookup_failed;
                         this.guarantorLookup.error = message;

@@ -549,4 +549,59 @@ class GuarantorInviteUxFeatureTest extends TestCase
         $templates = collect($preview['items'] ?? [])->pluck('template')->all();
         $this->assertContains('guarantor_loan_arrears', $templates);
     }
+
+    public function test_validating_member_guarantor_sends_in_app_accept_decline_request(): void
+    {
+        $borrower = $this->makeCustomer('80', [
+            'first_name' => 'Borrow',
+            'last_name'  => 'Eight',
+        ]);
+        $member = $this->makeCustomer('81', [
+            'first_name' => 'Upendo',
+            'last_name'  => 'Ketto',
+            'member_no'  => 'KPF-TZ-000081',
+            'phone'      => '255700880081',
+        ]);
+        $product = $this->loanProduct();
+
+        $response = $this->actingAs($borrower->user)
+            ->postJson(route('site.borrower.apply.guarantor-lookup'), [
+                'membership_no'   => '000081',
+                'phone'           => '0700880081',
+                'loan_product_id' => $product->id,
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('invite.notified', true);
+
+        $invitationId = (int) $response->json('invite.invitation_id');
+        $linkId = (int) $response->json('invite.customer_guarantor_id');
+        $this->assertGreaterThan(0, $invitationId);
+        $this->assertGreaterThan(0, $linkId);
+
+        $this->assertDatabaseHas('guarantor_invitations', [
+            'id'                    => $invitationId,
+            'customer_id'           => $borrower->id,
+            'guarantor_customer_id' => $member->id,
+            'type'                  => 'internal',
+            'status'                => 'pending',
+            'loan_application_id'   => null,
+        ]);
+
+        $log = NotificationLog::query()
+            ->where('customer_id', $member->id)
+            ->where('template', 'guarantor_request')
+            ->first();
+
+        $this->assertNotNull($log);
+        $this->assertStringContainsString('/borrower/guarantor-requests/'.$linkId, (string) $log->recipient);
+
+        $this->actingAs($member->user)
+            ->get(route('site.borrower.dashboard'))
+            ->assertOk()
+            ->assertSee(__('borrower.guarantor_notifications.accept_cta'), false)
+            ->assertSee(__('borrower.guarantor_notifications.decline_cta'), false)
+            ->assertSee('Borrow Eight', false);
+    }
 }

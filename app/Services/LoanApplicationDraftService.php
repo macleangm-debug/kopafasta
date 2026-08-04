@@ -96,6 +96,7 @@ class LoanApplicationDraftService
             'valuation_fee'        => $payload['valuation_fee'] ?? null,
             'asset_documents'      => $payload['asset_documents'] ?? [],
             'external_guarantor'   => $this->refreshExternalGuarantorPayload($customer, $payload['external_guarantor'] ?? null),
+            'internal_guarantor'   => $payload['internal_guarantor'] ?? null,
             'borrower_signature'   => $payload['borrower_signature'] ?? null,
             'declaration_accepted' => (bool) ($payload['declaration_accepted'] ?? false),
             'group'                => $payload['group'] ?? null,
@@ -276,7 +277,12 @@ class LoanApplicationDraftService
             'application_fee'      => $data['application_fee'] ?? ($existing?->payload['application_fee'] ?? null),
             'valuation_fee'      => $data['valuation_fee'] ?? ($existing?->payload['valuation_fee'] ?? null),
             'asset_documents'      => $data['asset_documents'] ?? ($existing?->payload['asset_documents'] ?? []),
-            'external_guarantor'   => $data['external_guarantor'] ?? ($existing?->payload['external_guarantor'] ?? null),
+            'external_guarantor'   => array_key_exists('external_guarantor', $data)
+                ? $data['external_guarantor']
+                : ($existing?->payload['external_guarantor'] ?? null),
+            'internal_guarantor'   => array_key_exists('internal_guarantor', $data)
+                ? $data['internal_guarantor']
+                : ($existing?->payload['internal_guarantor'] ?? null),
             'borrower_signature'   => $data['borrower_signature'] ?? ($existing?->payload['borrower_signature'] ?? null),
             'declaration_accepted' => array_key_exists('declaration_accepted', $data)
                 ? (bool) $data['declaration_accepted']

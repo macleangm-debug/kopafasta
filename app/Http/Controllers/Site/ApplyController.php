@@ -488,6 +488,9 @@ class ApplyController extends Controller
             ? app(LoanApplicationDraftService::class)->find($borrower, (int) $data['loan_product_id'])
             : null;
         $draftAmount = (float) ($draft?->payload['form']['requested_amount'] ?? 0);
+        $draftTenure = isset($draft?->payload['form']['requested_tenure_months'])
+            ? (int) $draft->payload['form']['requested_tenure_months']
+            : null;
 
         if ($message = app(\App\Services\LoanPolicyService::class)->canAcceptGuarantee($result['member'], $draftAmount > 0 ? $draftAmount : null)) {
             return response()->json([
@@ -496,10 +499,58 @@ class ApplyController extends Controller
             ], 422);
         }
 
+        $invite = null;
+        if (! empty($data['loan_product_id'])) {
+            try {
+                $existingId = (int) ($draft?->payload['internal_guarantor']['invitation_id'] ?? 0) ?: null;
+                $invite = $guarantors->prepareWizardInternalInvitation(
+                    $borrower,
+                    $data['membership_no'],
+                    $data['phone'],
+                    $result['name'] ?? ($data['name'] ?? ''),
+                    $existingId,
+                    $draftAmount > 0 ? (int) $draftAmount : null,
+                    $draftTenure,
+                    (int) $data['loan_product_id'],
+                );
+
+                app(LoanApplicationDraftService::class)->save($borrower, [
+                    'phase'           => $draft?->phase ?? 'application',
+                    'step'            => $draft?->step ?? 0,
+                    'loan_product_id' => (int) $data['loan_product_id'],
+                    'form'            => array_merge($draft?->payload['form'] ?? [], [
+                        'guarantor_mode'           => 'internal',
+                        'internal_member_no'       => $data['membership_no'],
+                        'internal_guarantor_phone' => $data['phone'],
+                        'internal_guarantor_name'  => $result['name'],
+                    ]),
+                    'inputs'             => $draft?->payload['inputs'] ?? [],
+                    'internal_guarantor' => $invite,
+                    'external_guarantor' => null,
+                ]);
+            } catch (\InvalidArgumentException $e) {
+                return response()->json([
+                    'ok'      => false,
+                    'message' => $e->getMessage(),
+                ], 422);
+            } catch (\Throwable $e) {
+                report($e);
+
+                return response()->json([
+                    'ok'      => false,
+                    'message' => __('borrower.apply.alerts.guarantor_invite_failed'),
+                ], 500);
+            }
+        }
+
         return response()->json([
-            'ok'    => true,
-            'name'  => $result['name'],
-            'label' => $result['label'],
+            'ok'      => true,
+            'name'    => $result['name'],
+            'label'   => $result['label'],
+            'message' => $invite
+                ? __('borrower.apply.alerts.guarantor_notified_in_app', ['name' => $result['name']])
+                : ($result['message'] ?? null),
+            'invite'  => $invite,
         ]);
     }
 
@@ -890,7 +941,7 @@ class ApplyController extends Controller
         if ($draft) {
             $payload = $draft->payload ?? [];
             $form = $payload['form'] ?? [];
-            unset($payload['external_guarantor'], $payload['guarantor_lookup']);
+            unset($payload['external_guarantor'], $payload['guarantor_lookup'], $payload['internal_guarantor']);
             $form['guarantor_mode'] = null;
             $form['internal_member_no'] = null;
             $form['internal_guarantor_phone'] = null;
@@ -1934,7 +1985,11 @@ class ApplyController extends Controller
             try {
                 if (($data['guarantor_mode'] ?? '') === 'internal') {
                     $memberKey = \App\Support\MemberNumberFormatter::lookupKey($data['internal_member_no'] ?? '');
-                    if ($memberKey && filled($data['internal_guarantor_name'] ?? null)) {
+                    $inviteId = (int) ($data['internal_invitation_id']
+                        ?? ($draft?->payload['internal_guarantor']['invitation_id'] ?? 0));
+                    if ($inviteId > 0) {
+                        $guarantors->finalizeWizardInternalInvitation($customer, $app, $inviteId);
+                    } elseif ($memberKey && filled($data['internal_guarantor_name'] ?? null)) {
                         $guarantors->attachInternal(
                             $customer,
                             $app,
@@ -2190,6 +2245,7 @@ class ApplyController extends Controller
             'external_region',
             'external_district',
             'external_invitation_id',
+            'internal_invitation_id',
         ] as $field) {
             if (! $request->filled($field) && filled($form[$field] ?? null)) {
                 $request->merge([$field => $form[$field]]);
@@ -2199,6 +2255,11 @@ class ApplyController extends Controller
         $externalDraft = $payload['external_guarantor'] ?? [];
         if (! $request->filled('external_invitation_id') && filled($externalDraft['invitation_id'] ?? null)) {
             $request->merge(['external_invitation_id' => $externalDraft['invitation_id']]);
+        }
+
+        $internalDraft = $payload['internal_guarantor'] ?? [];
+        if (! $request->filled('internal_invitation_id') && filled($internalDraft['invitation_id'] ?? null)) {
+            $request->merge(['internal_invitation_id' => $internalDraft['invitation_id']]);
         }
 
         $storedSignature = $payload['borrower_signature'] ?? null;
