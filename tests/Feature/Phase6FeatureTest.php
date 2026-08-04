@@ -119,8 +119,8 @@ class Phase6FeatureTest extends TestCase
         $this->assertStringContainsString('signature', $actions[0]['url']);
         $this->assertSame('face', $actions[1]['kind']);
         $this->assertStringContainsString('face', $actions[1]['url']);
-        $this->assertSame('document', $actions[2]['kind']);
-        $this->assertStringContainsString('#request-', $actions[2]['url']);
+        $this->assertSame('income', $actions[2]['kind']);
+        $this->assertStringContainsString('income', $actions[2]['url']);
 
         $next = app(\App\Services\LoanApplicationNextActionService::class)
             ->forApplication($customer, $application->fresh());
@@ -136,7 +136,8 @@ class Phase6FeatureTest extends TestCase
         $row = app(\App\Services\BorrowerApplicationsDashboardService::class)
             ->formatSubmitted($application->fresh()->load(['product', 'documentRequests', 'loan']));
         $this->assertNotEmpty($row['underwriting_actions']);
-        $this->assertSame($actions[0]['url'], $row['action_url']);
+        $this->assertSame(route('site.borrower.application', $application->id), $row['action_url']);
+        $this->assertSame(__('borrower.applications_list.view'), $row['action_label']);
     }
 
     public function test_public_marketplace_hides_internal_deposit_breakdown(): void

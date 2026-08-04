@@ -66,28 +66,18 @@
                 <p class="text-xs {{ $isClosed ? 'text-red-600' : 'text-gray-600' }} mb-3">{{ $row['detail'] }}</p>
             @endif
 
-            @if (! empty($row['underwriting_actions']))
-                <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200/80 px-3 py-2.5 flex items-center justify-between gap-2">
-                    <p class="text-xs text-amber-950 font-semibold">{{ __('borrower.loan_profile.uw_feedback_title') }}</p>
-                    <a href="{{ route('site.borrower.application', $row['id']) }}" class="text-xs font-bold text-brand hover:underline shrink-0">
-                        {{ __('borrower.applications_list.view') }} →
-                    </a>
-                </div>
-            @endif
-
             <div class="flex items-center gap-2 text-xs flex-wrap">
-                <a href="{{ $row['action_url'] }}" class="inline-flex bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2 rounded-xl text-sm">
-                    {{ $row['action_label'] }}
-                </a>
                 @if ($row['is_draft'] ?? false)
+                    <a href="{{ $row['action_url'] }}" class="inline-flex bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2 rounded-xl text-sm">
+                        {{ $row['action_label'] }}
+                    </a>
                     @if (! empty($row['preview_url']))
                         <a href="{{ $row['preview_url'] }}" class="inline-flex bg-white hover:bg-brand-muted/30 text-gray-800 font-semibold px-4 py-2 rounded-xl text-sm ring-1 ring-gray-200/80">
-                            {{ $row['preview_label'] ?? __('borrower.applications_list.view_application') }}
+                            {{ $row['preview_label'] ?? __('borrower.applications_list.view') }}
                         </a>
                     @endif
-                @elseif (! empty($row['underwriting_actions']))
-                    <a href="{{ route('site.borrower.application', $row['id']) }}"
-                       class="inline-flex bg-white hover:bg-brand-muted/30 text-gray-800 font-semibold px-4 py-2 rounded-xl text-sm ring-1 ring-gray-200/80">
+                @else
+                    <a href="{{ $row['action_url'] }}" class="inline-flex bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2 rounded-xl text-sm">
                         {{ __('borrower.applications_list.view') }}
                     </a>
                 @endif

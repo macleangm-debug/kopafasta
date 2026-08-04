@@ -52,6 +52,31 @@ class ProfileDocumentService
         return $this->latestProfileDocument($customer, $code) !== null;
     }
 
+    /**
+     * Soft-delete the latest profile-scoped document for a code (and aliases).
+     * Used when underwriting asks the borrower to re-upload a profile document.
+     */
+    public function deleteProfileDocument(Customer $customer, string $code): bool
+    {
+        $resolvedCodes = $this->expandCodes([$code]);
+        $docs = $this->queryDocuments($customer, $resolvedCodes, profileOnly: true);
+
+        if ($docs->isEmpty()) {
+            return false;
+        }
+
+        $deleted = false;
+        foreach ($docs as $document) {
+            if ($document->file_path) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($document->file_path);
+            }
+            $document->delete();
+            $deleted = true;
+        }
+
+        return $deleted;
+    }
+
     public function statusLabel(CustomerDocument $document): string
     {
         return match ($document->status) {

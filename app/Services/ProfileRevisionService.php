@@ -20,24 +20,37 @@ class ProfileRevisionService
 
     public function applyForDocumentRequest(LoanApplication $application, LoanApplicationDocumentRequest $request): void
     {
-        $targets = $this->targetsForLabel($request->label);
-        if ($targets === []) {
-            return;
-        }
-
         $application->loadMissing('customer');
         $customer = $application->customer;
         if (! $customer) {
             return;
         }
 
-        $this->markRevisionRequired($customer, $targets);
+        // Always clear linked profile source docs so the borrower replaces, not stacks.
+        $this->clearProfileDocumentsForLabel($customer, (string) $request->label);
+
+        $targets = $this->targetsForLabel($request->label);
+        if ($targets === []) {
+            return;
+        }
+
+        $this->markRevisionRequired($customer->fresh(), $targets);
         $this->notifyBorrower($application, $request);
     }
 
     /** @param  list<string>  $labels */
     public function applyForLabels(LoanApplication $application, array $labels): void
     {
+        $application->loadMissing('customer');
+        $customer = $application->customer;
+        if (! $customer) {
+            return;
+        }
+
+        foreach ($labels as $label) {
+            $this->clearProfileDocumentsForLabel($customer, (string) $label);
+        }
+
         $targets = collect($labels)
             ->flatMap(fn (string $label) => $this->targetsForLabel($label))
             ->unique()
@@ -48,13 +61,60 @@ class ProfileRevisionService
             return;
         }
 
-        $application->loadMissing('customer');
+        $this->markRevisionRequired($customer->fresh(), $targets);
+    }
+
+    /**
+     * For already-open requests, ensure profile source docs are cleared once
+     * so the borrower replaces them instead of stacking another upload.
+     */
+    public function ensureClearedForOpenRequests(LoanApplication $application): void
+    {
+        $application->loadMissing(['customer', 'documentRequests']);
         $customer = $application->customer;
         if (! $customer) {
             return;
         }
 
-        $this->markRevisionRequired($customer, $targets);
+        foreach ($application->documentRequests as $request) {
+            if (! $request->needsBorrowerAction()) {
+                continue;
+            }
+            $this->clearProfileDocumentsForLabel($customer, (string) $request->label);
+            $targets = $this->targetsForLabel((string) $request->label);
+            if ($targets !== []) {
+                $this->markRevisionRequired($customer->fresh(), $targets);
+            }
+        }
+    }
+
+    public function clearProfileDocumentsForLabel(Customer $customer, string $label): void
+    {
+        $codes = $this->documentCodesForLabel($label);
+        if ($codes === []) {
+            return;
+        }
+
+        $docs = app(ProfileDocumentService::class);
+        foreach ($codes as $code) {
+            $docs->deleteProfileDocument($customer, $code);
+        }
+    }
+
+    /** @return list<string> */
+    public function documentCodesForLabel(string $label): array
+    {
+        $lower = mb_strtolower(trim($label));
+
+        return match (true) {
+            str_contains($lower, 'bank statement') => ['bank_statement'],
+            str_contains($lower, 'mobile money') || str_contains($lower, 'mpesa') => ['mobile_money_statement', 'mpesa_statement'],
+            str_contains($lower, 'salary slip') => ['salary_slip'],
+            str_contains($lower, 'employment contract') => ['employment_contract'],
+            str_contains($lower, 'national id') || str_contains($lower, 'nida') => ['national_id_front', 'national_id_back'],
+            str_contains($lower, 'residence') => ['residence_letter'],
+            default => [],
+        };
     }
 
     public function hasOpenRevision(Customer $customer, string $target): bool
@@ -117,6 +177,10 @@ class ProfileRevisionService
             str_contains($lower, 'signature') => ['signature'],
             str_contains($lower, 'national id') || str_contains($lower, 'nida') => ['nida', 'nida_docs'],
             str_contains($lower, 'face') || str_contains($lower, 'selfie') => ['face'],
+            str_contains($lower, 'bank statement')
+                || str_contains($lower, 'mobile money')
+                || str_contains($lower, 'salary slip')
+                || str_contains($lower, 'income proof') => ['income'],
             default => [],
         };
     }
@@ -209,6 +273,10 @@ class ProfileRevisionService
 
         if (in_array('nida', $targets, true) || in_array('nida_docs', $targets, true)) {
             return route('site.borrower.profile', ['section' => 'personal']).'?focus=identity#profile-identity';
+        }
+
+        if (in_array('income', $targets, true)) {
+            return route('site.borrower.profile', ['section' => 'activity']).'?focus=income#profile-income-statement';
         }
 
         return route('site.borrower.profile', ['section' => 'personal']);

@@ -114,12 +114,37 @@
 @endphp
 
 @if ($actionDocs->isNotEmpty() || $otherDocs->isNotEmpty())
+    @php
+        $earliestDue = $actionDocs
+            ->filter(fn ($r) => $r->due_at)
+            ->sortBy('due_at')
+            ->first();
+        $headerDueAt = $earliestDue?->due_at;
+        $headerDaysLeft = $headerDueAt ? (int) now()->startOfDay()->diffInDays($headerDueAt->copy()->startOfDay(), false) : null;
+        $headerDueDate = $headerDueAt?->timezone(config('app.timezone'))->format('d M Y');
+        $headerDueExpired = $headerDaysLeft !== null && $headerDaysLeft < 0;
+    @endphp
     <div id="documents" class="mb-6 space-y-3">
         @if ($actionDocs->isNotEmpty())
             <div class="glass-card overflow-hidden ring-1 ring-amber-200/80">
                 <div class="px-5 py-4 border-b border-amber-100 bg-amber-50/80">
-                    <h2 class="font-semibold text-amber-950">{{ __('borrower.loan_profile.documents_collapsed') }}</h2>
-                    <p class="text-xs text-amber-900/80 mt-0.5">{{ __('borrower.loan_profile.documents_open_count', ['count' => $openDocCount]) }}</p>
+                    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                        <div class="min-w-0">
+                            <h2 class="font-semibold text-amber-950">{{ __('borrower.loan_profile.documents_collapsed') }}</h2>
+                            <p class="text-xs text-amber-900/80 mt-0.5">{{ __('borrower.loan_profile.documents_open_count', ['count' => $openDocCount]) }}</p>
+                        </div>
+                        @if ($headerDueAt)
+                            <x-site.deadline-badge
+                                :days-left="$headerDaysLeft"
+                                :date="$headerDueDate"
+                                :purpose="__('borrower.loan_profile.document_deadline_purpose')"
+                                :label="$headerDueExpired ? __('borrower.loan_profile.document_deadline_expired') : null"
+                                :urgent="$headerDaysLeft !== null && $headerDaysLeft <= 2"
+                                :expired="$headerDueExpired"
+                                class="shrink-0"
+                            />
+                        @endif
+                    </div>
                 </div>
                 <ul class="divide-y divide-amber-100">
                     @foreach ($actionDocs as $docReq)
@@ -131,10 +156,6 @@
                             $reqLabel = $docReq->status === 'rejected'
                                 ? __('borrower.application.request_status_rejected')
                                 : __('borrower.application.request_status_pending');
-                            $dueAt = $docReq->due_at;
-                            $daysLeft = $dueAt ? (int) now()->startOfDay()->diffInDays($dueAt->copy()->startOfDay(), false) : null;
-                            $dueDate = $dueAt?->timezone(config('app.timezone'))->format('d M Y');
-                            $dueExpired = $daysLeft !== null && $daysLeft < 0;
                         @endphp
                         <li id="request-{{ $docReq->id }}" class="p-5 bg-white scroll-mt-24">
                             <div class="flex items-start justify-between gap-3 mb-2 flex-wrap">
@@ -149,17 +170,6 @@
                                 </div>
                                 <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $reqBadge }}">{{ $reqLabel }}</span>
                             </div>
-
-                            @if ($dueAt)
-                                <x-site.deadline-badge
-                                    :days-left="$daysLeft"
-                                    :date="$dueDate"
-                                    :purpose="__('borrower.loan_profile.document_deadline_purpose')"
-                                    :label="$dueExpired ? __('borrower.loan_profile.document_deadline_expired') : null"
-                                    :urgent="$daysLeft !== null && $daysLeft <= 2"
-                                    :expired="$dueExpired"
-                                />
-                            @endif
 
                             @if ($docReq->uploads->isNotEmpty())
                                 <div class="flex flex-wrap gap-2 mt-3 mb-3">

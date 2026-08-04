@@ -288,7 +288,8 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         abort_if($application->customer_id !== $customer->id, 404);
 
-        $profile = app(\App\Services\LoanApplicationProfileService::class)->forApplication($customer, $application);
+        app(\App\Services\ProfileRevisionService::class)->ensureClearedForOpenRequests($application);
+        $profile = app(\App\Services\LoanApplicationProfileService::class)->forApplication($customer->fresh(), $application);
         $groupFeedback = app(\App\Services\GroupLoanMemberReviewService::class)->leaderFeedbackSummary($application);
         $groupContract = app(\App\Services\GroupMemberReplacementService::class)->leaderDashboard($application, $customer);
         $groupPayout = null;

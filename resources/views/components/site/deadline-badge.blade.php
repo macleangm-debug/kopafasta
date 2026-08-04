@@ -17,11 +17,12 @@
             ? __('borrower.loan_profile.deadline_by', ['date' => $date])
             : null;
     @endphp
-    <div @class([
-        'mt-3 inline-flex items-center gap-3 rounded-2xl px-4 py-3.5 ring-2 shadow-sm max-w-full',
+    <div {{ $attributes->class([
+        'inline-flex items-center gap-3 rounded-2xl px-4 py-3.5 ring-2 shadow-sm max-w-full',
+        'mt-3' => ! $attributes->has('class'),
         'bg-red-50 ring-red-300 text-red-900' => $urgent || $expired,
         'bg-brand-gold/25 ring-brand-gold/60 text-brand' => ! $urgent && ! $expired,
-    ])>
+    ]) }}>
         <span class="text-2xl leading-none shrink-0" aria-hidden="true">⏱</span>
         @if ($showCountdown)
             <div class="min-w-0">

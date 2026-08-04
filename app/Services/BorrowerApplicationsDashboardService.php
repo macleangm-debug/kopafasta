@@ -180,17 +180,9 @@ class BorrowerApplicationsDashboardService
                 && ! in_array($statusCode, [
                     'disbursed', 'withdrawn', 'offer_declined', 'approved', 'pre_approved',
                 ], true),
-            'action_url'         => match (true) {
-                $isRejected => route('site.borrower.application', $application->id).'#rejection',
-                $isClosed => route('site.borrower.application', $application->id),
-                $firstUw !== null => $firstUw['url'],
-                default => route('site.borrower.application', $application->id),
-            },
+            'action_url'         => route('site.borrower.application', $application->id),
             'action_label'       => match (true) {
                 $isRejected => __('borrower.loan_profile.actions.view_reason'),
-                $isClosed => __('borrower.applications_list.view'),
-                $firstUw !== null => $firstUw['cta_label'],
-                $needsDocuments => __('borrower.loan_profile.actions.upload_documents'),
                 default => __('borrower.applications_list.view'),
             },
             'receipt_url'        => $isClosed ? null : route('site.apply.success', $application->id),
