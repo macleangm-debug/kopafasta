@@ -31,19 +31,19 @@
 
             <div class="grid grid-cols-2 gap-3 mt-6">
                 <div class="rounded-xl bg-gray-50 p-4">
-                    <p class="text-[10px] uppercase text-gray-400">{{ __('borrower.marketplace.asset_value') }}</p>
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.marketplace.asset_value') }}</p>
                     <p class="text-lg font-bold">{{ format_money($asset['asset_value'] ?? 0) }}</p>
                 </div>
                 <div class="rounded-xl bg-gray-50 p-4">
-                    <p class="text-[10px] uppercase text-gray-400">{{ __('borrower.marketplace.deposit') }}</p>
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.marketplace.deposit') }}</p>
                     <p class="text-lg font-bold">{{ format_money($asset['deposit']) }}</p>
                 </div>
                 <div class="rounded-xl bg-gray-50 p-4">
-                    <p class="text-[10px] uppercase text-gray-400">{{ __('borrower.marketplace.loan_amount') }}</p>
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.marketplace.loan_amount') }}</p>
                     <p class="text-lg font-bold">{{ format_money($asset['remaining_loan'] ?? 0) }}</p>
                 </div>
                 <div class="rounded-xl bg-gray-50 p-4">
-                    <p class="text-[10px] uppercase text-gray-400">{{ __('borrower.marketplace.weekly_installment') }}</p>
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.marketplace.weekly_installment') }}</p>
                     <p class="text-lg font-bold">{{ format_money($asset['weekly_installment']) }}</p>
                 </div>
                 @if (! empty($asset['max_tenure_months']))
