@@ -196,7 +196,8 @@
                             </span>
                         </div>
 
-                        @if (! empty($steps))
+                        {{-- Steps only while the guarantor is still finishing; ready = details card only. --}}
+                        @if (! $done && ! empty($steps))
                             <ol class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                 @foreach ($steps as $step)
                                     <li @class([

@@ -124,17 +124,24 @@
                 <ul class="divide-y divide-amber-100">
                     @foreach ($actionDocs as $docReq)
                         @php
+                            $docSvc = app(\App\Services\ApplicationDocumentRequestService::class);
+                            $profileGuided = $docSvc->isProfileGuidedRequest($docReq);
+                            $profileUrl = $docSvc->borrowerActionUrl($docReq);
                             $reqBadge = $docReq->status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-sky-100 text-sky-700';
                             $reqLabel = $docReq->status === 'rejected'
-                                ? __('borrower.application.request_status_pending')
+                                ? __('borrower.application.request_status_rejected')
                                 : __('borrower.application.request_status_pending');
+                            $dueAt = $docReq->due_at;
+                            $daysLeft = $dueAt ? (int) now()->startOfDay()->diffInDays($dueAt->copy()->startOfDay(), false) : null;
+                            $dueDate = $dueAt?->timezone(config('app.timezone'))->format('d M Y');
+                            $dueExpired = $daysLeft !== null && $daysLeft < 0;
                         @endphp
-                        <li id="request-{{ $docReq->id }}" class="p-5 bg-white">
-                            <div class="flex items-start justify-between gap-3 mb-3 flex-wrap">
-                                <div>
+                        <li id="request-{{ $docReq->id }}" class="p-5 bg-white scroll-mt-24">
+                            <div class="flex items-start justify-between gap-3 mb-2 flex-wrap">
+                                <div class="min-w-0">
                                     <p class="font-semibold text-gray-900">{{ $docReq->label }}</p>
                                     @if ($docReq->instructions)
-                                        <p class="text-sm text-gray-600 mt-2">{{ $docReq->instructions }}</p>
+                                        <p class="text-sm text-gray-600 mt-1.5">{{ $docReq->instructions }}</p>
                                     @endif
                                     @if ($docReq->admin_notes && $docReq->status === 'rejected')
                                         <p class="text-xs text-red-700 bg-red-50 ring-1 ring-red-200 rounded-lg px-3 py-2 mt-2">{{ $docReq->admin_notes }}</p>
@@ -143,8 +150,19 @@
                                 <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $reqBadge }}">{{ $reqLabel }}</span>
                             </div>
 
+                            @if ($dueAt)
+                                <x-site.deadline-badge
+                                    :days-left="$daysLeft"
+                                    :date="$dueDate"
+                                    :purpose="__('borrower.loan_profile.document_deadline_purpose')"
+                                    :label="$dueExpired ? __('borrower.loan_profile.document_deadline_expired') : null"
+                                    :urgent="$daysLeft !== null && $daysLeft <= 2"
+                                    :expired="$dueExpired"
+                                />
+                            @endif
+
                             @if ($docReq->uploads->isNotEmpty())
-                                <div class="flex flex-wrap gap-2 mb-3">
+                                <div class="flex flex-wrap gap-2 mt-3 mb-3">
                                     @foreach ($docReq->uploads as $upload)
                                         <x-site.document-thumb :url="asset('storage/'.$upload->file_path)" />
                                     @endforeach
@@ -152,23 +170,36 @@
                             @endif
 
                             @if ($docReq->needsBorrowerAction())
-                                @php
-                                    $docSvc = app(\App\Services\ApplicationDocumentRequestService::class);
-                                    $profileGuided = $docSvc->isProfileGuidedRequest($docReq);
-                                    $profileUrl = $docSvc->borrowerActionUrl($docReq);
-                                @endphp
-                                @if ($profileGuided)
-                                    <a href="{{ $profileUrl }}"
-                                       class="inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm">
-                                        {{ __('borrower.notifications.profile_revision_cta') }}
-                                    </a>
-                                @else
-                                    <x-site.document-upload
-                                        :action="route('site.borrower.application.document-requests.store', [$application, $docReq])"
-                                        :show-clarification="$docReq->type === 'clarification'"
-                                        :multiple="true"
-                                    />
-                                @endif
+                                <div class="mt-4">
+                                    @if ($profileGuided)
+                                        <a href="{{ $profileUrl }}"
+                                           class="inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm">
+                                            {{ __('borrower.loan_profile.document_go_to_profile') }}
+                                        </a>
+                                    @else
+                                        <form method="POST"
+                                              action="{{ route('site.borrower.application.document-requests.store', [$application, $docReq]) }}"
+                                              enctype="multipart/form-data"
+                                              class="space-y-4">
+                                            @csrf
+                                            <x-site.multi-page-document-upload
+                                                name="files"
+                                                :input-host-id="'doc-req-pages-'.$docReq->id"
+                                                :max-pages="12"
+                                            />
+                                            @if ($docReq->type === 'clarification')
+                                                <div>
+                                                    <label class="block text-xs font-semibold text-gray-600 mb-1">{{ __('borrower.document_upload.your_response') }}</label>
+                                                    <textarea name="response" rows="3" class="w-full rounded-xl border-gray-200 text-sm" placeholder="{{ __('borrower.document_upload.response_placeholder') }}"></textarea>
+                                                </div>
+                                            @endif
+                                            <button type="submit"
+                                                    class="w-full bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-3 rounded-xl text-sm">
+                                                {{ __('borrower.document_upload.submit') }}
+                                            </button>
+                                        </form>
+                                    @endif
+                                </div>
                             @endif
                         </li>
                     @endforeach

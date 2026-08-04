@@ -50,7 +50,6 @@
                 <div class="rounded-xl bg-gray-50 px-3 py-2.5">
                     <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.application') }}</p>
                     <p class="font-semibold text-sm mt-0.5">{{ $row['application_percent'] ?? 0 }}%</p>
-                    <p class="text-[11px] text-gray-500 mt-0.5">{{ $row['application_status'] ?? $row['status_label'] }}</p>
                 </div>
             </div>
 
@@ -73,11 +72,6 @@
                     <a href="{{ route('site.borrower.application', $row['id']) }}" class="text-xs font-bold text-brand hover:underline shrink-0">
                         {{ __('borrower.applications_list.view') }} →
                     </a>
-                </div>
-            @elseif (! empty($row['underwriting_active']))
-                <div class="mb-4 rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 px-3 py-3">
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.dashboard.hero.under_review_title') }}</p>
-                    <p class="text-xs text-gray-600 mt-1">{{ __('borrower.dashboard.hero.under_review_subtitle') }}</p>
                 </div>
             @endif
 

@@ -107,10 +107,20 @@ class ApplicationDocumentRequestService
         if (str_contains($label, 'face') || str_contains($label, 'selfie') || str_contains($label, 'identity verification photo')) {
             return route('site.borrower.profile', ['section' => 'personal']).'?focus=face#profile-face';
         }
+        if (
+            str_contains($label, 'bank statement')
+            || str_contains($label, 'mobile money')
+            || str_contains($label, 'salary slip')
+            || str_contains($label, 'income proof')
+            || str_contains($label, 'employment confirmation')
+            || str_contains($label, 'employment contract')
+        ) {
+            return route('site.borrower.profile', ['section' => 'activity']).'?focus=income#profile-income-statement';
+        }
         if (str_contains($label, 'collateral') || str_contains($label, 'add collateral')) {
             return route('site.borrower.profile', ['section' => 'assets', 'add' => 1]);
         }
-        if (str_contains($label, 'asset photo') || str_contains($label, 'ownership document')) {
+        if (str_contains($label, 'asset photo') || str_contains($label, 'ownership document') || str_contains($label, 'insurance')) {
             return route('site.borrower.profile', ['section' => 'assets']);
         }
 
@@ -123,7 +133,7 @@ class ApplicationDocumentRequestService
 
     public function isProfileGuidedRequest(LoanApplicationDocumentRequest $request): bool
     {
-        return in_array($this->borrowerActionKind($request), ['signature', 'face', 'identity', 'collateral'], true);
+        return in_array($this->borrowerActionKind($request), ['signature', 'face', 'identity', 'collateral', 'income'], true);
     }
 
     /** Classify UW requests for borrower CTAs (docs, signature, face, identity, clarification). */
@@ -140,8 +150,19 @@ class ApplicationDocumentRequestService
         if (str_contains($label, 'national id') || str_contains($label, 'nida')) {
             return 'identity';
         }
+        if (
+            str_contains($label, 'bank statement')
+            || str_contains($label, 'mobile money')
+            || str_contains($label, 'salary slip')
+            || str_contains($label, 'income proof')
+            || str_contains($label, 'employment confirmation')
+            || str_contains($label, 'employment contract')
+        ) {
+            return 'income';
+        }
         if (str_contains($label, 'collateral') || str_contains($label, 'add collateral')
-            || str_contains($label, 'asset photo') || str_contains($label, 'ownership document')) {
+            || str_contains($label, 'asset photo') || str_contains($label, 'ownership document')
+            || str_contains($label, 'insurance')) {
             return 'collateral';
         }
         if ($request->type === 'clarification') {
@@ -166,6 +187,7 @@ class ApplicationDocumentRequestService
             'face' => __('borrower.loan_profile.uw_cta.recapture_face'),
             'identity' => __('borrower.loan_profile.uw_cta.update_identity'),
             'collateral' => __('borrower.loan_profile.uw_cta.add_collateral'),
+            'income' => __('borrower.loan_profile.uw_cta.update_income'),
             'clarification' => __('borrower.loan_profile.uw_cta.respond'),
             default => $rejected
                 ? __('borrower.loan_profile.reupload')
