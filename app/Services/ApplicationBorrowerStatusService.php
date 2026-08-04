@@ -183,10 +183,13 @@ class ApplicationBorrowerStatusService
         $offerSigned = $readiness->offerSigned($application);
         $hasFees = $readiness->hasPostApprovalFees($application);
         $feesPaid = $readiness->feesPaid($application);
+        $feesComplete = $offerSigned && (! $hasFees || $feesPaid);
+        $destinationConfirmed = $readiness->isAssetLendingApplication($application)
+            || $readiness->disbursementDetailsConfirmed($application);
+        $destinationComplete = $feesComplete && $destinationConfirmed;
         $contractSigned = $readiness->contractSigned($application);
         $disbursed = $this->isDisbursed($application);
         $activeLoan = $disbursed && ! $this->isClosed($application);
-        $feesComplete = $offerSigned && (! $hasFees || $feesPaid);
 
         $steps = [
             ['key' => 'submitted', 'label' => __('borrower.loan_progress.submitted'), 'complete' => true, 'current' => false],
@@ -201,6 +204,12 @@ class ApplicationBorrowerStatusService
                 'key'      => 'post_approval_fee',
                 'label'    => __('borrower.loan_progress.post_approval_fee'),
                 'complete' => $feesComplete,
+                'current'  => false,
+            ],
+            [
+                'key'      => 'destination',
+                'label'    => __('borrower.loan_progress.destination'),
+                'complete' => $destinationComplete,
                 'current'  => false,
             ],
             [
@@ -232,6 +241,7 @@ class ApplicationBorrowerStatusService
             $disbursed => 'active_loan',
             $readiness->isReadyForDisbursement($application) => 'disbursement',
             $readiness->needsContractSignature($application) => 'contract',
+            $readiness->needsDisbursementDetailsConfirmation($application) => 'destination',
             $readiness->needsPostApprovalFees($application) => 'post_approval_fee',
             $readiness->needsBorrowerSignature($application) => 'accept_offer',
             default => 'accept_offer',
@@ -352,6 +362,10 @@ class ApplicationBorrowerStatusService
 
             if ($readiness->needsPostApprovalFees($application)) {
                 return 'offer_accepted';
+            }
+
+            if ($readiness->needsDisbursementDetailsConfirmation($application)) {
+                return 'awaiting_disbursement_details';
             }
 
             if ($readiness->needsContractSignature($application)) {

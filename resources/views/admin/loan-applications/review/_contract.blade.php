@@ -10,8 +10,20 @@
     $canDisburse = $disbursementReadiness->canMarkDisbursement($record);
 @endphp
 
-<x-admin.review-section id="review-contract" title="Loan contract & disbursement readiness" subtitle="Post-approval fees, contract acceptance, and disbursement gates">
-    @if (in_array($record->current_stage, ['approval', 'disbursement'], true))
+<x-admin.review-section id="review-contract" title="Loan contract & disbursement readiness" subtitle="Offer acceptance, destination confirmation, contract, and release gates">
+    @if (in_array($record->current_stage, ['approval', 'disbursement', 'post_approval_fees', 'awaiting_disbursement_details', 'contract_generation'], true))
+        @php
+            $lifecycleLabel = $disbursementReadiness->managementLifecycleLabel($record);
+        @endphp
+        <div class="mb-5 rounded-xl bg-gradient-to-r from-amber-50 to-white ring-1 ring-amber-200 px-4 py-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Current status</p>
+                <p class="text-base font-bold text-gray-900 mt-0.5">{{ $lifecycleLabel }}</p>
+                <p class="text-xs text-gray-500 mt-0.5">Management lifecycle — not the raw loan payout status.</p>
+            </div>
+            <span class="text-xs font-semibold rounded-full px-3 py-1.5 bg-amber-100 text-amber-900 ring-1 ring-amber-200">{{ $lifecycleLabel }}</span>
+        </div>
+
         <div class="mb-5 rounded-lg ring-1 ring-gray-200 overflow-hidden">
             <div class="bg-gray-50 px-4 py-2 border-b border-gray-200">
                 <p class="text-xs font-semibold uppercase tracking-widest text-gray-600">{{ $record->application_number }} — Disbursement prerequisites</p>
@@ -20,14 +32,14 @@
                 @foreach ($checklist as $key => $item)
                     @php
                         $statusText = match ($item['status']) {
-                            'paid', 'accepted', 'complete', 'not_required', 'available' => '✓ '.ucfirst($item['status'] === 'not_required' ? 'N/A' : ($item['status'] === 'paid' ? 'Paid' : ($item['status'] === 'accepted' ? 'Accepted' : ($item['status'] === 'available' ? 'Available' : 'Complete')))),
+                            'paid', 'accepted', 'complete', 'not_required', 'available', 'ready' => '✓ '.ucfirst($item['status'] === 'not_required' ? 'N/A' : ($item['status'] === 'paid' ? 'Paid' : ($item['status'] === 'accepted' ? 'Verified' : ($item['status'] === 'available' ? 'Available' : ($item['status'] === 'ready' ? 'Ready' : 'Complete'))))),
                             'pending' => 'Pending',
                             'insufficient' => 'Insufficient',
                             'locked' => 'Locked',
                             'not_generated' => 'Not generated',
                             default => ucfirst($item['status']),
                         };
-                        $tone = ($item['complete'] ?? false) ? 'text-emerald-700' : (($item['status'] ?? '') === 'locked' ? 'text-gray-500' : 'text-amber-700');
+                        $tone = ($item['complete'] ?? false) || ($item['status'] ?? '') === 'ready' ? 'text-emerald-700' : (($item['status'] ?? '') === 'locked' ? 'text-gray-500' : 'text-amber-700');
                     @endphp
                     <li class="px-4 py-3 flex items-center justify-between text-sm">
                         <span class="font-medium text-gray-900">{{ $item['label'] }}</span>
@@ -66,10 +78,6 @@
                 @endif
             </div>
             <dl class="grid sm:grid-cols-2 gap-4 px-4 py-4 text-sm">
-                <div>
-                    <dt class="text-[10px] uppercase tracking-widest text-gray-500">Method</dt>
-                    <dd class="font-semibold text-gray-900 mt-1">{{ $detailsService->methodLabel($disbursementDestination['method'] ?? null) }}</dd>
-                </div>
                 @foreach ($detailsService->displayLines($disbursementDestination) as $label => $value)
                     <div>
                         <dt class="text-[10px] uppercase tracking-widest text-gray-500">{{ $label }}</dt>
@@ -272,48 +280,32 @@
         <p class="text-sm text-gray-500 mb-6">Loan contract is generated after post-approval fees are paid.</p>
     @endif
 
-    <h4 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Post-approval fees</h4>
+    <h4 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Fee breakdown</h4>
     @if ($hasFees)
-        @php $record->loadMissing('postApprovalFees'); @endphp
+        @php
+            $record->loadMissing('postApprovalFees');
+            $feeRows = $record->postApprovalFees
+                ->sortBy('id')
+                ->unique(fn ($fee) => strtoupper(trim((string) $fee->code)) ?: 'id-'.$fee->id)
+                ->values();
+            $feeTotal = $feeRows->reject(fn ($fee) => $fee->isWaived())->sum(fn ($fee) => (float) $fee->calculated_amount);
+        @endphp
         <ul class="divide-y divide-gray-100 rounded-lg ring-1 ring-gray-200 overflow-hidden mb-4">
-            @foreach ($record->postApprovalFees as $fee)
-                <li class="px-4 py-3 text-sm space-y-2">
-                    <div class="flex items-center justify-between gap-3">
-                        <span>{{ $fee->name }}</span>
-                        <span class="font-semibold {{ $fee->isPaid() ? 'text-emerald-700' : ($fee->isWaived() ? 'text-gray-500 line-through' : 'text-amber-700') }}">
-                            {{ format_money($fee->calculated_amount) }} · {{ ucfirst($fee->status) }}
-                        </span>
-                    </div>
-                    @if ($fee->override_reason)
-                        <p class="text-xs text-gray-500">Note: {{ $fee->override_reason }}</p>
-                    @endif
-                    @if (! $fee->isPaid() && ! $fee->isWaived() && in_array($record->current_stage, ['approval', 'disbursement'], true))
-                        <form method="POST" action="{{ route('admin.loan-applications.post-approval-fees.update', [$record, $fee]) }}" class="flex flex-wrap items-end gap-2 pt-1">
-                            @csrf
-                            <input type="hidden" name="action" value="update">
-                            <div>
-                                <label class="block text-[10px] uppercase text-gray-500">Override amount</label>
-                                <input type="number" name="amount" step="0.01" min="0" value="{{ $fee->calculated_amount }}" class="w-32 rounded border-gray-300 text-xs">
-                            </div>
-                            <div class="flex-1 min-w-[140px]">
-                                <label class="block text-[10px] uppercase text-gray-500">Reason</label>
-                                <input type="text" name="reason" maxlength="500" placeholder="Optional" class="w-full rounded border-gray-300 text-xs">
-                            </div>
-                            <button type="submit" class="text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg">Update</button>
-                        </form>
-                        <form method="POST" action="{{ route('admin.loan-applications.post-approval-fees.update', [$record, $fee]) }}" class="inline"
-                              onsubmit="return confirm('Waive this fee for the borrower?');">
-                            @csrf
-                            <input type="hidden" name="action" value="waive">
-                            <input type="hidden" name="reason" value="Waived by loan officer">
-                            <button type="submit" class="text-xs font-semibold text-gray-600 hover:text-red-700 underline">Waive fee</button>
-                        </form>
-                    @endif
+            @foreach ($feeRows as $fee)
+                <li class="px-4 py-3 text-sm flex items-center justify-between gap-3">
+                    <span class="text-gray-800">{{ $fee->name }}</span>
+                    <span class="font-semibold {{ $fee->isPaid() ? 'text-emerald-700' : ($fee->isWaived() ? 'text-gray-500 line-through' : 'text-amber-700') }}">
+                        {{ format_money($fee->calculated_amount) }} · {{ ucfirst($fee->status) }}
+                    </span>
                 </li>
             @endforeach
+            <li class="px-4 py-3 text-sm flex items-center justify-between gap-3 bg-gray-50">
+                <span class="font-semibold text-gray-900">Total due</span>
+                <span class="font-bold text-gray-900">{{ format_money($feeTotal) }}</span>
+            </li>
         </ul>
         <p class="text-sm {{ $feesPaid ? 'text-emerald-700 font-semibold' : 'text-amber-800' }}">
-            {{ $feesPaid ? 'All post-approval fees recorded as paid.' : 'Awaiting borrower payment confirmation.' }}
+            {{ $feesPaid ? 'All fees paid.' : 'Amounts come from product settings. Awaiting borrower payment after offer acceptance.' }}
         </p>
     @else
         <p class="text-sm text-gray-500">No post-approval fees configured for this product.</p>

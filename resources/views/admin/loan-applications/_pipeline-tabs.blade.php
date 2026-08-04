@@ -3,8 +3,8 @@
     $tabs = [
         'under_review' => ['Credit screening', 'admin.loan-applications.pipeline.under-review'],
         'committee'    => ['Credit committee', 'admin.loan-applications.pre-approvals'],
-        'approved'     => ['Post-approval', 'admin.loan-applications.pipeline.approved'],
-        'disbursement' => ['Disbursement', 'admin.loan-applications.pipeline.disbursement'],
+        'approved'     => ['Management queue', 'admin.loan-applications.pipeline.approved'],
+        'disbursement' => ['Release queue', 'admin.loan-applications.pipeline.disbursement'],
     ];
 @endphp
 <nav class="flex flex-wrap gap-2 mb-4 border-b border-gray-200 pb-3">

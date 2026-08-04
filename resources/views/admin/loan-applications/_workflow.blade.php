@@ -15,7 +15,7 @@
     <div class="flex flex-wrap items-start justify-between gap-3 mb-5">
         <div>
             <h3 class="text-sm font-semibold text-gray-900">
-                {{ $isOpsStage ? 'Post-approval progress' : 'Application workflow' }}
+                {{ $isOpsStage ? 'Management progress' : 'Application workflow' }}
             </h3>
             <p class="text-xs text-gray-500 mt-0.5">
                 Current stage:

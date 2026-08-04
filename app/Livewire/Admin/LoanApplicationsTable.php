@@ -48,7 +48,7 @@ class LoanApplicationsTable extends Component
         $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
 
         $rows = LoanApplication::query()
-            ->with(['customer', 'product', 'loan', 'assignedAnalyst'])
+            ->with(['customer', 'product', 'loan', 'assignedAnalyst', 'recommendedByUser'])
             ->when($this->search !== '', function ($q) {
                 $term = '%'.$this->search.'%';
                 $q->where(function ($q) use ($term) {

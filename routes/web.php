@@ -783,8 +783,10 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::post('top-up-requests/{topUpRequest}/reject', [LoanTopUpRequestController::class, 'reject'])->name('top-up-requests.reject');
         Route::post('top-up-requests/{topUpRequest}/disburse', [LoanTopUpRequestController::class, 'disburse'])->name('top-up-requests.disburse');
 
-        // Payment verification queue
+        // Payment verification queue + ledgers
         Route::middleware('permission:finance.operations')->group(function (): void {
+            Route::get('payments/ledger', [\App\Http\Controllers\Admin\LedgerController::class, 'payments'])->name('payments.ledger');
+            Route::get('payouts/ledger', [\App\Http\Controllers\Admin\LedgerController::class, 'payouts'])->name('payouts.ledger');
             Route::get('payments', [PaymentVerificationController::class, 'index'])->name('payments.index');
             Route::get('payments/{payment}', [PaymentVerificationController::class, 'show'])->name('payments.show');
             Route::post('payments/{payment}/verify', [PaymentVerificationController::class, 'verify'])->name('payments.verify');

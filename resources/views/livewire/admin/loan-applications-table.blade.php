@@ -1,3 +1,12 @@
+@php
+    $contextHeader = match ($pipeline) {
+        'under_review' => 'Product',
+        'committee' => 'Recommended by',
+        'approved' => 'Next step',
+        'disbursement' => 'Release',
+        default => 'Analyst',
+    };
+@endphp
 <div>
 <div class="mb-3 flex flex-wrap items-center gap-2">
     <label class="inline-flex items-center gap-2 text-xs font-semibold text-gray-700 bg-white ring-1 ring-gray-200 rounded-lg px-3 py-2">
@@ -10,13 +19,21 @@
         <x-admin.th :sort="$sort" :direction="$direction" col="application_number" label="App #" />
         <x-admin.th :sort="$sort" :direction="$direction" col="customer_id"        label="Customer" />
         <x-admin.th :sort="$sort" :direction="$direction" col="requested_amount"   label="Amount" />
-        <th class="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Analyst</th>
+        <th class="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ $contextHeader }}</th>
         <x-admin.th :sort="$sort" :direction="$direction" col="status"             label="Status" />
         <x-admin.th :sort="$sort" :direction="$direction" col="created_at"         label="Submitted" />
         <th class="px-5 py-2.5 text-right">Actions</th>
     </x-slot:headers>
     <x-slot:rows>
         @forelse ($rows as $r)
+            @php
+                $contextValue = match ($pipeline) {
+                    'under_review' => $r->product?->name ?? '—',
+                    'committee' => $r->recommendedByUser?->name ?? '—',
+                    'approved', 'disbursement' => $pipelineStages[$r->id] ?? '—',
+                    default => $r->assignedAnalyst?->name ?? '—',
+                };
+            @endphp
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3 font-mono text-xs">{{ $r->application_number ?? '—' }}</td>
                 <td class="px-5 py-3">
@@ -24,7 +41,7 @@
                     <div class="text-xs text-gray-500">{{ $r->customer?->phone }}</div>
                 </td>
                 <td class="px-5 py-3">{{ format_money( ($r->requested_amount ?? 0)) }}</td>
-                <td class="px-5 py-3 text-xs text-gray-600">{{ $r->assignedAnalyst?->name ?? '—' }}</td>
+                <td class="px-5 py-3 text-xs text-gray-600">{{ $contextValue }}</td>
                 <td class="px-5 py-3">
                     <x-admin.badge :value="$r->status" group="application_status" :map="[
                         'approved'     => 'bg-emerald-100 text-emerald-800',
@@ -36,13 +53,11 @@
                         'awaiting_guarantor' => 'bg-purple-100 text-purple-800',
                         'expired'            => 'bg-gray-200 text-gray-700',
                     ]" />
-                    <div class="text-[10px] text-gray-400 mt-0.5">
-                        @if (! empty($pipelineStages[$r->id] ?? null))
-                            {{ $pipelineStages[$r->id] }}
-                        @else
+                    @if (! in_array($pipeline, ['approved', 'disbursement'], true))
+                        <div class="text-[10px] text-gray-400 mt-0.5">
                             {{ display_label($r->current_stage, 'application_stage') }}
-                        @endif
-                    </div>
+                        </div>
+                    @endif
                 </td>
                 <td class="px-5 py-3 text-gray-500">{{ $r->created_at?->format('Y-m-d') }}</td>
                 <td class="px-5 py-3 text-right">
@@ -50,7 +65,7 @@
                 </td>
             </tr>
         @empty
-            <tr><td colspan="6" class="px-5 py-12 text-center text-gray-500">No applications found.</td></tr>
+            <tr><td colspan="7" class="px-5 py-12 text-center text-gray-500">No applications found.</td></tr>
         @endforelse
     </x-slot:rows>
 </x-admin.table-shell>

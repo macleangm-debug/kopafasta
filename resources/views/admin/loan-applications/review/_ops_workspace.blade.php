@@ -32,14 +32,14 @@
         <div>
             <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Credit management workspace</p>
             <h2 class="text-lg font-bold text-gray-900 mt-0.5">
-                {{ $isActiveLoan ? 'Active facility' : ($isDisbursementStage ? 'Release this facility' : 'Post-approval desk') }}
+                {{ $isActiveLoan ? 'Active facility' : ($isDisbursementStage ? 'Release this facility' : 'Management desk') }}
             </h2>
             <p class="text-sm text-gray-500 mt-0.5">
-                Offer → fees → contract → disbursement. Destination and capital were settled at committee — this desk tracks borrower completion and release.
+                Offer → fees → destination → contract → disbursement. Capital was settled at committee — this desk tracks borrower completion and release.
             </p>
         </div>
         <span class="text-xs font-semibold rounded-full px-3 py-1.5 bg-brand-gold text-brand ring-1 ring-brand/20">
-            {{ $workflow->stageLabel($stage) }}
+            {{ $readiness->managementLifecycleLabel($record) }}
         </span>
     </div>
 
@@ -121,9 +121,9 @@
     <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
         <div class="px-5 py-4 border-b border-brand-gold/30 bg-gradient-to-r from-brand-gold/20 to-white flex flex-wrap items-start justify-between gap-3">
             <div>
-                <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Post-approval spine</p>
-                <h3 class="text-base font-bold text-gray-900 mt-0.5">Offer · Fees · Contract · Disbursement</h3>
-                <p class="text-xs text-gray-500 mt-0.5">Fees come from product settings — paid / unpaid only. No destination or capital wait here.</p>
+                <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Management spine</p>
+                <h3 class="text-base font-bold text-gray-900 mt-0.5">Offer · Fees · Destination · Contract · Disbursement</h3>
+                <p class="text-xs text-gray-500 mt-0.5">Fee amounts come from product settings (paid / unpaid). Borrower confirms destination after accepting the offer.</p>
             </div>
             @if ($canPushDisburse)
                 <span class="text-xs font-semibold rounded-full px-3 py-1 bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200">Ready to push</span>

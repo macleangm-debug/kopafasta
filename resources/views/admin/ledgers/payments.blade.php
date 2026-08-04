@@ -1,0 +1,142 @@
+<x-admin.layout
+    title="Payments ledger"
+    heading=""
+    subheading="">
+
+    <section class="mb-6">
+        <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 shadow-sm">
+            <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-6 text-white">
+                <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">Inbound money</p>
+                <h1 class="text-2xl font-bold mt-1">Payments ledger</h1>
+                <p class="text-sm text-white/75 mt-2 max-w-2xl">
+                    All borrower payments in one place — registration, application, post-approval fees, membership, and loan repayments. Verified rows post to the journal.
+                </p>
+            </div>
+            <div class="bg-white px-6 py-4 grid sm:grid-cols-4 gap-3">
+                <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-4 py-3">
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">All payments</p>
+                    <p class="text-2xl font-bold text-gray-900 mt-1 tabular-nums">{{ $counts['all'] }}</p>
+                </div>
+                <div class="rounded-xl bg-amber-50 ring-1 ring-amber-100 px-4 py-3">
+                    <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Pending verify</p>
+                    <p class="text-2xl font-bold text-gray-900 mt-1 tabular-nums">{{ $counts['pending'] }}</p>
+                </div>
+                <div class="rounded-xl bg-sky-50 ring-1 ring-sky-100 px-4 py-3">
+                    <p class="text-[10px] uppercase tracking-widest text-sky-800 font-semibold">Membership queue</p>
+                    <p class="text-2xl font-bold text-gray-900 mt-1 tabular-nums">{{ $counts['membership_pending'] }}</p>
+                </div>
+                <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-100 px-4 py-3">
+                    <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">Repayments pending</p>
+                    <p class="text-2xl font-bold text-gray-900 mt-1 tabular-nums">{{ $counts['repayments_pending'] }}</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="mb-4 flex flex-wrap gap-2">
+        @foreach ([
+            'all' => 'All payments',
+            'fees' => 'Fees',
+            'repayments' => 'Loan repayments',
+        ] as $key => $label)
+            <a href="{{ route('admin.payments.ledger', array_filter(['tab' => $key, 'status' => $status !== 'all' ? $status : null])) }}"
+               class="px-3 py-1.5 rounded-lg text-sm font-medium {{ $tab === $key ? 'bg-brand-gold text-brand' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
+                {{ $label }}
+            </a>
+        @endforeach
+        <a href="{{ route('admin.membership-payments.index') }}"
+           class="px-3 py-1.5 rounded-lg text-sm font-medium bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50">
+            Membership & renewals →
+        </a>
+        <a href="{{ route('admin.repayments.index') }}"
+           class="px-3 py-1.5 rounded-lg text-sm font-medium bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50">
+            Repayment queue →
+        </a>
+        <a href="{{ route('admin.payouts.ledger') }}"
+           class="ml-auto px-3 py-1.5 rounded-lg text-sm font-semibold text-brand bg-white ring-1 ring-brand/20 hover:bg-brand-muted/30">
+            Payout ledger →
+        </a>
+    </div>
+
+    <div class="mb-4 flex flex-wrap gap-2">
+        @foreach (['pending' => 'Pending', 'verified' => 'Verified', 'rejected' => 'Rejected', 'all' => 'Any status'] as $key => $label)
+            <a href="{{ route('admin.payments.ledger', array_filter(['tab' => $tab !== 'all' ? $tab : null, 'status' => $key, 'type' => $type ?: null])) }}"
+               class="px-2.5 py-1 rounded-md text-xs font-semibold {{ $status === $key ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 ring-1 ring-gray-200' }}">
+                {{ $label }}
+            </a>
+        @endforeach
+    </div>
+
+    <form method="GET" action="{{ route('admin.payments.ledger') }}" class="mb-4 flex flex-wrap items-end gap-3">
+        <input type="hidden" name="tab" value="{{ $tab }}">
+        <input type="hidden" name="status" value="{{ $status }}">
+        <div>
+            <label class="block text-[11px] font-medium text-gray-500 mb-1">Payment type</label>
+            <select name="type" class="rounded-lg border-gray-300 text-sm min-w-[12rem]" onchange="this.form.submit()">
+                <option value="">All types</option>
+                @foreach ($types as $key => $meta)
+                    <option value="{{ $key }}" @selected(($type ?? '') === $key)>{{ $meta['label'] ?? $key }}</option>
+                @endforeach
+            </select>
+        </div>
+    </form>
+
+    <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
+                    <tr>
+                        <th class="px-5 py-3">Reference</th>
+                        <th class="px-5 py-3">Borrower</th>
+                        <th class="px-5 py-3">Type</th>
+                        <th class="px-5 py-3">Amount</th>
+                        <th class="px-5 py-3">Status</th>
+                        <th class="px-5 py-3">Journal</th>
+                        <th class="px-5 py-3">Date</th>
+                        <th class="px-5 py-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    @forelse ($payments as $payment)
+                        @php
+                            $customer = $payment->customer;
+                            $name = trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
+                        @endphp
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-5 py-3 font-mono text-xs font-semibold">
+                                <a href="{{ route('admin.payments.show', $payment) }}" class="text-brand hover:text-brand-light">{{ $payment->reference }}</a>
+                            </td>
+                            <td class="px-5 py-3">
+                                <div class="font-medium">{{ $name ?: '—' }}</div>
+                                @if ($customer)
+                                    <a href="{{ route('admin.customers.show', $customer) }}" class="text-xs text-gray-500 hover:text-brand">Profile →</a>
+                                @endif
+                            </td>
+                            <td class="px-5 py-3">{{ config("payment_types.types.{$payment->payment_type}.label", $payment->payment_type) }}</td>
+                            <td class="px-5 py-3 font-semibold tabular-nums">{{ format_money((float) $payment->amount) }}</td>
+                            <td class="px-5 py-3">
+                                <x-admin.badge :value="$payment->status" group="payment_status" />
+                            </td>
+                            <td class="px-5 py-3 text-xs text-gray-500">
+                                @if ($payment->journalEntry)
+                                    <a href="{{ route('admin.journal-entries.show', $payment->journalEntry) }}" class="text-brand hover:underline">
+                                        {{ $payment->journalEntry->entry_number ?? '#'.$payment->journalEntry->id }}
+                                    </a>
+                                @else
+                                    —
+                                @endif
+                            </td>
+                            <td class="px-5 py-3 text-gray-500">{{ $payment->created_at?->format('d M Y') }}</td>
+                            <td class="px-5 py-3 text-right">
+                                <a href="{{ route('admin.payments.show', $payment) }}" class="text-xs font-semibold text-brand hover:text-brand-light">Open →</a>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="8" class="px-5 py-12 text-center text-gray-500">No payments in this filter.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        <div class="px-5 py-3 border-t border-gray-100">{{ $payments->links() }}</div>
+    </div>
+</x-admin.layout>

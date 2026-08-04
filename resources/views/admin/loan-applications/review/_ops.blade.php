@@ -23,10 +23,10 @@
                     {{ $isDisbursementStage ? 'Disbursement desk' : 'Credit management' }}
                 </p>
                 <h3 class="text-sm font-semibold text-gray-900 mt-0.5">
-                    {{ $isDisbursementStage ? 'Release checklist' : 'Post-approval checklist' }}
+                    {{ $isDisbursementStage ? 'Release checklist' : 'Management checklist' }}
                 </h3>
                 <p class="text-xs text-gray-500 mt-0.5">
-                    Screening and CRB review are complete. This desk only handles post-approval: fees, contract, payout details, and release.
+                    Screening and CRB review are complete. This desk handles offer, fees, destination confirmation, contract, and release.
                 </p>
             </div>
             <span class="text-xs font-semibold rounded-full px-3 py-1 bg-brand-gold/30 text-brand">

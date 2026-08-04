@@ -76,8 +76,20 @@ class ApplicationDisbursementReadinessService
 
     public function needsDisbursementDetailsConfirmation(LoanApplication $application): bool
     {
-        // Destination is already on the borrower profile — not a post-approval wait step.
-        return false;
+        if ($this->isAssetLendingApplication($application)) {
+            return false;
+        }
+
+        if (! $this->offerSigned($application)) {
+            return false;
+        }
+
+        if ($this->hasPostApprovalFees($application) && ! $this->feesPaid($application)) {
+            return false;
+        }
+
+        // After accepting the offer, borrower confirms which payout account to use.
+        return ! $this->disbursementDetailsConfirmed($application);
     }
 
     public function isAssetLendingApplication(LoanApplication $application): bool
@@ -186,6 +198,10 @@ class ApplicationDisbursementReadinessService
             return false;
         }
 
+        if (! $this->disbursementDetailsConfirmed($application)) {
+            return false;
+        }
+
         if (! $this->contractSigned($application)) {
             return false;
         }
@@ -194,7 +210,7 @@ class ApplicationDisbursementReadinessService
             return false;
         }
 
-        // Capital is approved at committee — management does not wait on funding pool gates.
+        // Capital is a committee gate — not waited on at management.
         return true;
     }
 
@@ -240,6 +256,13 @@ class ApplicationDisbursementReadinessService
 
         if ($this->hasPostApprovalFees($application) && ! $this->feesPaid($application)) {
             $messages[] = 'Post-approval fees must be paid.';
+        }
+
+        if ($this->offerSigned($application)
+            && ($this->feesPaid($application) || ! $this->hasPostApprovalFees($application))
+            && ! $this->isAssetLendingApplication($application)
+            && ! $this->disbursementDetailsConfirmed($application)) {
+            $messages[] = 'Borrower must confirm disbursement destination.';
         }
 
         if (($this->feesPaid($application) || ! $this->hasPostApprovalFees($application)) && ! $this->contractSigned($application)) {
@@ -306,6 +329,10 @@ class ApplicationDisbursementReadinessService
             return false;
         }
 
+        if ($this->needsDisbursementDetailsConfirmation($application)) {
+            return false;
+        }
+
         return ! $this->contractSigned($application);
     }
 
@@ -319,22 +346,15 @@ class ApplicationDisbursementReadinessService
      */
     public function disbursementChecklist(LoanApplication $application): array
     {
-        $hasFees = $this->hasPostApprovalFees($application);
-        $feesPaid = $this->feesPaid($application);
         $detailsConfirmed = $this->disbursementDetailsConfirmed($application);
         $contract = $this->loanContract($application);
         $contractSigned = $this->contractSigned($application);
         $canDisburse = $this->canMarkDisbursement($application);
         $disbursed = (string) $application->status === 'disbursed'
             || in_array((string) ($application->loan?->status ?? ''), ['active', 'disbursed'], true);
-        $capital = $this->capitalReadiness($application);
 
-        $checklist = [
-            'post_approval_fee' => [
-                'label'    => __('borrower.contract.checklist.post_approval_fee'),
-                'status'   => ! $hasFees ? 'not_required' : ($feesPaid ? 'paid' : 'pending'),
-                'complete' => ! $hasFees || $feesPaid,
-            ],
+        // Fees are shown as a settings breakdown elsewhere — not as a prerequisite row.
+        return [
             'destination' => [
                 'label'    => __('borrower.contract.checklist.destination'),
                 'status'   => $detailsConfirmed ? 'accepted' : 'pending',
@@ -345,27 +365,12 @@ class ApplicationDisbursementReadinessService
                 'status'   => $contractSigned ? 'accepted' : ($contract ? 'pending' : 'not_generated'),
                 'complete' => $contractSigned,
             ],
+            'disbursement' => [
+                'label'    => __('borrower.contract.checklist.disbursement'),
+                'status'   => $disbursed ? 'complete' : ($canDisburse ? 'ready' : 'locked'),
+                'complete' => $disbursed,
+            ],
         ];
-
-        if ($capital) {
-            $checklist['capital'] = [
-                'label'    => __('borrower.contract.checklist.capital'),
-                'status'   => match (true) {
-                    $capital['ok'] => 'available',
-                    ! empty($capital['manual_required']) => 'pending',
-                    default => 'insufficient',
-                },
-                'complete' => $capital['ok'],
-            ];
-        }
-
-        $checklist['disbursement'] = [
-            'label'    => __('borrower.contract.checklist.disbursement'),
-            'status'   => $disbursed ? 'complete' : ($canDisburse ? 'pending' : 'locked'),
-            'complete' => $disbursed,
-        ];
-
-        return $checklist;
     }
 
     /**
@@ -383,6 +388,9 @@ class ApplicationDisbursementReadinessService
         $hasFees = $this->hasPostApprovalFees($application);
         $feesPaid = $this->feesPaid($application);
         $feesComplete = $offerSigned && (! $hasFees || $feesPaid);
+        $detailsConfirmed = $this->isAssetLendingApplication($application)
+            || $this->disbursementDetailsConfirmed($application);
+        $destinationComplete = $feesComplete && $detailsConfirmed;
         $contract = $this->loanContract($application);
         $contractSigned = $this->contractSigned($application);
         $canDisburse = $this->canMarkDisbursement($application);
@@ -396,8 +404,15 @@ class ApplicationDisbursementReadinessService
             default => 'pending',
         };
 
-        $contractStatus = match (true) {
+        $destinationStatus = match (true) {
             ! $feesComplete => 'locked',
+            $this->isAssetLendingApplication($application) => 'not_required',
+            $detailsConfirmed => 'accepted',
+            default => 'pending',
+        };
+
+        $contractStatus = match (true) {
+            ! $destinationComplete => 'locked',
             $contractSigned => 'accepted',
             $contract => 'pending',
             default => 'not_generated',
@@ -416,6 +431,11 @@ class ApplicationDisbursementReadinessService
                 'label'    => __('borrower.contract.checklist.post_approval_fee'),
                 'status'   => $feeStatus,
                 'complete' => $feesComplete,
+            ],
+            'destination' => [
+                'label'    => __('borrower.contract.checklist.destination'),
+                'status'   => $destinationStatus,
+                'complete' => $destinationComplete || $destinationStatus === 'not_required',
             ],
             'contract' => [
                 'label'    => __('borrower.contract.checklist.contract'),
@@ -442,7 +462,7 @@ class ApplicationDisbursementReadinessService
     }
 
     /**
-     * Credit management desk spine — offer → fees → contract → disbursement only.
+     * Credit management desk spine — offer → fees → destination → contract → disbursement.
      *
      * @return array<string, array{label: string, status: string, complete: bool}>
      */
@@ -455,6 +475,10 @@ class ApplicationDisbursementReadinessService
     {
         if ($this->needsPostApprovalFees($application)) {
             return LoanApplication::BORROWER_STAGE_POST_APPROVAL_FEES;
+        }
+
+        if ($this->needsDisbursementDetailsConfirmation($application)) {
+            return LoanApplication::BORROWER_STAGE_AWAITING_DISBURSEMENT_DETAILS;
         }
 
         if ($this->needsContractSignature($application)) {
@@ -484,6 +508,10 @@ class ApplicationDisbursementReadinessService
 
         if ($this->needsPostApprovalFees($application)) {
             return 'pay_post_approval_fees';
+        }
+
+        if ($this->needsDisbursementDetailsConfirmation($application)) {
+            return 'confirm_disbursement_details';
         }
 
         if ($this->needsContractSignature($application)) {
@@ -579,42 +607,42 @@ class ApplicationDisbursementReadinessService
         ];
     }
 
-    /** Post-approval pipeline stage label for admin underwriting tabs. */
+    /** Management queue stage label for admin underwriting tabs. */
     public function approvedPipelineStage(LoanApplication $application): string
     {
         if ($application->offer_status === 'declined'
             || app(ApplicationOfferService::class)->offerDeclinedByBorrower($application)) {
-            return 'Offer Declined';
+            return 'Offer declined';
         }
 
         $offer = $this->offerLetter($application);
 
         if (! $offer || (! $offer->isSigned() && $offer->status !== 'cancelled')) {
-            return 'Offer Sent';
+            return 'Awaiting offer acceptance';
         }
 
         if (! $this->offerSigned($application)) {
-            return 'Offer Sent';
+            return 'Awaiting offer acceptance';
         }
 
         if (($application->current_stage ?? '') === LoanApplication::BORROWER_STAGE_POST_APPROVAL_FEES
             || $this->needsPostApprovalFees($application)) {
-            return 'Post Approval Fee';
+            return 'Awaiting fee payment';
         }
 
         if ($this->needsDisbursementDetailsConfirmation($application)) {
-            return 'Awaiting Disbursement Details';
+            return 'Awaiting destination confirmation';
         }
 
         if ($this->needsContractSignature($application)) {
-            return 'Contract';
+            return 'Awaiting contract';
         }
 
         if ($this->isReadyForDisbursement($application)) {
-            return 'Ready For Disbursement';
+            return 'Ready for disbursement';
         }
 
-        return 'Offer Accepted';
+        return 'Offer accepted';
     }
 
     /** Disbursement queue status for admin operations. */
@@ -629,23 +657,38 @@ class ApplicationDisbursementReadinessService
             return 'Ready';
         }
 
-        if ($this->needsContractSignature($application)) {
-            return 'Awaiting Contract';
-        }
-
         if ($this->needsPostApprovalFees($application)) {
-            return 'Awaiting Fee';
+            return 'Awaiting fee';
         }
 
         if ($this->needsDisbursementDetailsConfirmation($application)) {
-            return 'Awaiting Destination';
+            return 'Awaiting destination';
+        }
+
+        if ($this->needsContractSignature($application)) {
+            return 'Awaiting contract';
         }
 
         if ($this->needsBorrowerSignature($application)) {
-            return 'Awaiting Offer';
+            return 'Awaiting offer';
         }
 
-        return 'In Progress';
+        return 'In progress';
+    }
+
+    /** Lifecycle label for the linked loan card while payout is still gated by management steps. */
+    public function managementLifecycleLabel(LoanApplication $application): string
+    {
+        if ((string) $application->status === 'disbursed'
+            || in_array((string) ($application->loan?->status ?? ''), ['active', 'disbursed'], true)) {
+            return 'Active loan';
+        }
+
+        if ($this->isReadyForDisbursement($application)) {
+            return 'Ready for disbursement';
+        }
+
+        return $this->approvedPipelineStage($application);
     }
 
     /** Disbursement pipeline stage label for admin underwriting tabs. */

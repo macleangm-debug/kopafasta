@@ -38,6 +38,8 @@ class PostApprovalFeeService
 
             if (! $hasTemplateFees) {
                 $this->createTemplateFees($application);
+            } else {
+                $this->dedupeTemplateFees($application);
             }
 
             $this->syncManualFees($application);
@@ -86,7 +88,17 @@ class PostApprovalFeeService
             ->orderBy('sort_order')
             ->get();
 
+        $seenCodes = [];
+
         foreach ($templates as $fee) {
+            $code = strtoupper(trim((string) $fee->code));
+            if ($code !== '' && isset($seenCodes[$code])) {
+                continue;
+            }
+            if ($code !== '') {
+                $seenCodes[$code] = true;
+            }
+
             $calculated = $this->calculateAmount($fee, $principal, $application);
             LoanApplicationPostApprovalFee::create([
                 'loan_application_id'               => $application->id,
@@ -99,6 +111,35 @@ class PostApprovalFeeService
                 'status'                            => 'pending',
             ]);
         }
+    }
+
+    /** Drop unpaid duplicate template fee rows that share the same code. */
+    public function dedupeTemplateFees(LoanApplication $application): int
+    {
+        $fees = LoanApplicationPostApprovalFee::query()
+            ->where('loan_application_id', $application->id)
+            ->whereNull('manual_post_approval_fee_id')
+            ->where('status', '!=', 'paid')
+            ->orderBy('id')
+            ->get();
+
+        $seen = [];
+        $removed = 0;
+
+        foreach ($fees as $fee) {
+            $code = strtoupper(trim((string) $fee->code));
+            if ($code === '') {
+                continue;
+            }
+            if (isset($seen[$code])) {
+                $fee->delete();
+                $removed++;
+                continue;
+            }
+            $seen[$code] = true;
+        }
+
+        return $removed;
     }
 
     public function amountDue(LoanApplicationPostApprovalFee $fee): float
@@ -270,13 +311,21 @@ class PostApprovalFeeService
 
     public function totalDue(LoanApplication $application): float
     {
-        return (float) LoanApplicationPostApprovalFee::where('loan_application_id', $application->id)
+        $this->dedupeTemplateFees($application);
+
+        $pending = LoanApplicationPostApprovalFee::where('loan_application_id', $application->id)
             ->where('status', 'pending')
-            ->sum('calculated_amount');
+            ->orderBy('id')
+            ->get()
+            ->unique(fn (LoanApplicationPostApprovalFee $f) => strtoupper(trim((string) $f->code)) ?: 'id-'.$f->id);
+
+        return (float) $pending->sum('calculated_amount');
     }
 
     public function allPaid(LoanApplication $application): bool
     {
+        $this->dedupeTemplateFees($application);
+
         $fees = LoanApplicationPostApprovalFee::where('loan_application_id', $application->id)->get();
         if ($fees->isEmpty()) {
             return true;
@@ -289,6 +338,8 @@ class PostApprovalFeeService
     {
         $application->loadMissing('postApprovalFees', 'customer');
         $payer ??= $application->customer;
+
+        $this->dedupeTemplateFees($application);
 
         $pendingFees = LoanApplicationPostApprovalFee::where('loan_application_id', $application->id)
             ->where('status', 'pending')
