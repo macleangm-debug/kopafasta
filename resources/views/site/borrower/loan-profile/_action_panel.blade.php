@@ -225,7 +225,7 @@
             </div>
             <p class="text-lg sm:text-xl font-bold mt-2">
                 @if ($underwritingActions->isNotEmpty())
-                    {{ __('borrower.applications_list.detail.documents_requested') }}
+                    {{ __('borrower.applications_list.documents_required') }}
                 @else
                     {{ $next['label'] ?? __('borrower.loan_profile.next_actions.under_review', ['time' => '']) }}
                 @endif
