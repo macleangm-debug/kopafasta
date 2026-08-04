@@ -449,6 +449,35 @@
 
 @livewireScripts
 <script>
+window.kfLockBodyScroll = function () {
+    if (document.body.dataset.kfScrollLocked === '1') return;
+    var y = window.scrollY || window.pageYOffset || 0;
+    document.body.dataset.kfScrollY = String(y);
+    document.body.dataset.kfScrollLocked = '1';
+    document.body.style.position = 'fixed';
+    document.body.style.top = '-' + y + 'px';
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
+};
+
+window.kfUnlockBodyScroll = function () {
+    if (document.body.dataset.kfScrollLocked !== '1') {
+        document.body.classList.remove('overflow-hidden');
+        return;
+    }
+    var y = parseInt(document.body.dataset.kfScrollY || '0', 10) || 0;
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.width = '';
+    delete document.body.dataset.kfScrollLocked;
+    delete document.body.dataset.kfScrollY;
+    document.body.classList.remove('overflow-hidden');
+    window.scrollTo(0, y);
+};
+
 window.kfOpenDocumentPreview = function (url, title, type) {
     var drawer = document.getElementById('kf-doc-drawer');
     var frame = document.getElementById('kf-doc-drawer-frame');
@@ -476,7 +505,7 @@ window.kfOpenDocumentPreview = function (url, title, type) {
 
     drawer.classList.remove('hidden');
     drawer.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('overflow-hidden');
+    window.kfLockBodyScroll();
 };
 
 window.kfCloseDocumentPreview = function () {
@@ -488,7 +517,7 @@ window.kfCloseDocumentPreview = function () {
     if (frame) {
         frame.removeAttribute('src');
     }
-    document.body.classList.remove('overflow-hidden');
+    window.kfUnlockBodyScroll();
 };
 
 document.addEventListener('click', function (event) {

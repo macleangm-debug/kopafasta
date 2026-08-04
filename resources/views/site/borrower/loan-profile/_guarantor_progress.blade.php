@@ -71,7 +71,10 @@
         $deadline = $application
             ? app(\App\Services\GuarantorDeadlineService::class)->progress($application)
             : null;
-        $toneHeld = $isHeld || $pending;
+        // Hold / nudge copy only while UW is blocked on the guarantor (awaiting_guarantor),
+        // or while the draft still needs a ready guarantor. Once submitted + ready, under review.
+        $showWaitingCopy = $isHeld || ($pending && $isDraft);
+        $showReadyBeforeSubmit = $allReady && $isDraft && ! $isHeld;
     @endphp
 
     <div id="guarantor-progress" class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15"
@@ -96,9 +99,9 @@
                     </div>
                     @if ($rows->isEmpty())
                         <p class="text-sm text-gray-600 mt-1">{{ __('borrower.loan_profile.guarantor_not_added_hint') }}</p>
-                    @elseif ($toneHeld)
+                    @elseif ($showWaitingCopy)
                         <p class="text-sm text-gray-600 mt-1">{{ __('borrower.loan_profile.guarantor_hold_body') }}</p>
-                    @else
+                    @elseif ($showReadyBeforeSubmit)
                         <p class="text-sm text-emerald-800 mt-1 font-semibold">{{ __('borrower.loan_profile.guarantor_ready_banner') }}</p>
                     @endif
                 </div>
@@ -126,7 +129,7 @@
                 @endif
             </div>
 
-            @if (! empty($deadline['label']) || isset($deadline['days_left']))
+            @if ($isHeld && (! empty($deadline['label']) || isset($deadline['days_left'])))
                 <x-site.deadline-badge
                     :label="$deadline['label'] ?? null"
                     :days-left="$deadline['days_left'] ?? null"

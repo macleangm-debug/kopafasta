@@ -14,6 +14,35 @@
 </div>
 
 <script>
+window.kfSiteLockBodyScroll = function () {
+    if (document.body.dataset.kfSiteScrollLocked === '1') return;
+    var y = window.scrollY || window.pageYOffset || 0;
+    document.body.dataset.kfSiteScrollY = String(y);
+    document.body.dataset.kfSiteScrollLocked = '1';
+    document.body.style.position = 'fixed';
+    document.body.style.top = '-' + y + 'px';
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
+};
+
+window.kfSiteUnlockBodyScroll = function () {
+    if (document.body.dataset.kfSiteScrollLocked !== '1') {
+        document.body.classList.remove('overflow-hidden');
+        return;
+    }
+    var y = parseInt(document.body.dataset.kfSiteScrollY || '0', 10) || 0;
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.width = '';
+    delete document.body.dataset.kfSiteScrollLocked;
+    delete document.body.dataset.kfSiteScrollY;
+    document.body.classList.remove('overflow-hidden');
+    window.scrollTo(0, y);
+};
+
 window.kfSiteOpenDocumentPreview = function (url, title, type) {
     var root = document.getElementById('kf-site-doc-lightbox');
     var frame = document.getElementById('kf-site-doc-frame');
@@ -39,7 +68,7 @@ window.kfSiteOpenDocumentPreview = function (url, title, type) {
 
     root.classList.remove('hidden');
     root.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('overflow-hidden');
+    window.kfSiteLockBodyScroll();
 };
 
 window.kfSiteCloseDocumentPreview = function () {
@@ -51,7 +80,7 @@ window.kfSiteCloseDocumentPreview = function () {
     root.setAttribute('aria-hidden', 'true');
     if (frame) frame.removeAttribute('src');
     if (image) image.removeAttribute('src');
-    document.body.classList.remove('overflow-hidden');
+    window.kfSiteUnlockBodyScroll();
 };
 
 document.addEventListener('click', function (event) {

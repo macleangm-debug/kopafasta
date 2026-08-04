@@ -82,10 +82,13 @@
                 </div>
 
                 <div class="mt-4 pt-4 border-t border-white/15 grid sm:grid-cols-2 gap-x-6 gap-y-2.5 text-sm">
-                    <div x-show="hasStep('quote') || hasStep('asset_details') || hasStep('group_setup')" class="flex items-baseline justify-between gap-3 sm:block">
+                    <div x-show="hasStep('quote') || hasStep('asset_details') || hasStep('group_setup')" class="flex items-baseline justify-between gap-3 sm:block sm:col-span-2">
                         <p class="text-[10px] uppercase tracking-widest text-white/55">{{ __('borrower.apply.review_step.purpose') }}</p>
                         <p class="font-semibold text-white/95 sm:mt-0.5 text-right sm:text-left"
                            x-text="purposeLabels[form.purpose] || form.purpose || (group.purpose ? (purposeLabels[group.purpose] || group.purpose) : '—')"></p>
+                        <p x-show="form.purpose === 'other' && form.purpose_other"
+                           class="text-sm text-white/75 sm:mt-0.5 text-right sm:text-left"
+                           x-text="form.purpose_other"></p>
                     </div>
                     <template x-if="assetApplication">
                         <div class="flex items-baseline justify-between gap-3 sm:block">

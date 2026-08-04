@@ -106,6 +106,9 @@
                     </div>
                     <p class="text-base font-bold text-gray-900"
                        x-text="purposeLabels[form.purpose] || form.purpose"></p>
+                    <p x-show="form.purpose === 'other' && form.purpose_other"
+                       class="text-sm text-gray-600"
+                       x-text="form.purpose_other"></p>
                 </div>
                 <div x-show="!form.purpose || purposeEditing" x-cloak>
                     <x-site.sheet-select
@@ -116,6 +119,23 @@
                         :required="true"
                         :placeholder="__('borrower.apply.quote.select_purpose')"
                     />
+                    <div x-show="form.purpose === 'other'" x-cloak class="mt-4">
+                        <label class="block text-sm font-semibold text-gray-800 mb-1.5">{{ __('borrower.apply.quote.purpose_other_label') }} <span class="text-red-500">*</span></label>
+                        <input type="text"
+                               x-model="form.purpose_other"
+                               @input="syncPurposeHidden(); scheduleDraftSave()"
+                               maxlength="120"
+                               class="kf-field"
+                               :required="form.purpose === 'other'"
+                               placeholder="{{ __('borrower.apply.quote.purpose_other_placeholder') }}">
+                        <button type="button"
+                                x-show="form.purpose_other && String(form.purpose_other).trim()"
+                                x-cloak
+                                @click="purposeEditing = false; scheduleDraftSave()"
+                                class="mt-3 inline-flex text-xs font-semibold text-brand hover:underline">
+                            {{ __('borrower.apply.quote.purpose_other_done') }}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

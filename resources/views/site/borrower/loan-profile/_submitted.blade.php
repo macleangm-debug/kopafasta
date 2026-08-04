@@ -101,59 +101,6 @@
     @include('site.borrower.loan-profile._schedule_preview', ['profile' => $profile])
 @endif
 
-{{-- Guarantor list: only when product requires and invites exist; collapsed by default --}}
-@if (($application->product?->requires_guarantor ?? false) && ($guarantorInvitations->isNotEmpty() || ($application->customerGuarantors ?? collect())->isNotEmpty()))
-    <details class="glass-card overflow-hidden mb-6 group">
-        <summary class="cursor-pointer list-none px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
-            <div>
-                <h2 class="font-semibold">{{ __('borrower.application.guarantor_section') }}</h2>
-                <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.application.guarantor_section_hint') }}</p>
-            </div>
-            <svg class="size-4 text-gray-400 transition group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
-        </summary>
-        <ul class="divide-y divide-gray-100">
-            @foreach ($guarantorInvitations as $invite)
-                @php
-                    $status = app(\App\Services\GuarantorInvitationService::class)->invitationWorkflowStatusLabel($invite);
-                    $gBadge = match (true) {
-                        str_contains(strtolower($status), 'accepted') => 'bg-emerald-100 text-emerald-700',
-                        str_contains(strtolower($status), 'rejected') => 'bg-red-100 text-red-700',
-                        default => 'bg-amber-100 text-amber-700',
-                    };
-                @endphp
-                <li class="px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
-                    <div>
-                        <p class="text-sm text-gray-700">
-                            <span class="font-medium text-gray-900">{{ $invite->invitee_name ?? __('borrower.application.guarantor_external') }}</span>
-                        </p>
-                        <p class="text-xs text-gray-500 mt-0.5">{{ $status }}</p>
-                    </div>
-                    <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $gBadge }}">{{ $status }}</span>
-                </li>
-            @endforeach
-            @foreach ($application->customerGuarantors as $link)
-                @if ($guarantorInvitations->contains('customer_guarantor_id', $link->id))
-                    @continue
-                @endif
-                @php
-                    $status = app(\App\Services\GuarantorInvitationService::class)->guarantorLinkStatusLabel($link);
-                    $gBadge = match (true) {
-                        str_contains(strtolower($status), 'accepted') => 'bg-emerald-100 text-emerald-700',
-                        str_contains(strtolower($status), 'rejected') => 'bg-red-100 text-red-700',
-                        default => 'bg-amber-100 text-amber-700',
-                    };
-                @endphp
-                <li class="px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
-                    <div>
-                        <p class="text-sm font-medium text-gray-900">{{ $link->displayName() }}</p>
-                    </div>
-                    <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $gBadge }}">{{ $status }}</span>
-                </li>
-            @endforeach
-        </ul>
-    </details>
-@endif
-
 @php
     $documentGroups = $profile['document_request_groups'] ?? [
         'pending' => collect(),

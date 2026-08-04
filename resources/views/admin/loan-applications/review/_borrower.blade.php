@@ -71,7 +71,18 @@
                 @if ($review['business_name'])
                     <div class="sm:col-span-2"><dt class="text-xs text-gray-500">Business / employer</dt><dd class="font-medium mt-0.5">{{ $review['business_name'] }}</dd></div>
                 @endif
-                <div class="sm:col-span-2"><dt class="text-xs text-gray-500">Loan purpose</dt><dd class="font-medium mt-0.5">{{ $record->purpose ?? '—' }}</dd></div>
+                <div class="sm:col-span-2"><dt class="text-xs text-gray-500">Loan purpose</dt>
+                    <dd class="font-medium mt-0.5">
+                        @php
+                            $purposeOther = data_get($record->screening_payload, 'purpose_other');
+                            $purposeValue = $record->purpose ?? '—';
+                            if (filled($purposeOther) && ! str_contains((string) $purposeValue, (string) $purposeOther)) {
+                                $purposeValue = trim(($record->purpose ?: 'Other').': '.$purposeOther);
+                            }
+                        @endphp
+                        {{ $purposeValue }}
+                    </dd>
+                </div>
             </dl>
         </div>
 

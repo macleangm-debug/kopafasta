@@ -506,6 +506,9 @@ export function applyWizard(config) {
                     if (next && next !== 'other') {
                         this.form.purpose_other = '';
                         this.purposeEditing = false;
+                    } else if (next === 'other') {
+                        // Keep the free-text field open until they describe the purpose.
+                        this.purposeEditing = true;
                     }
                     this.syncPurposeHidden();
                     this.scheduleDraftSave();
@@ -526,6 +529,12 @@ export function applyWizard(config) {
                     const el = this.formRoot()?.querySelector('[data-submit-purpose]');
                     if (el) {
                         el.value = this.form.purpose || '';
+                    }
+                    const otherEl = this.formRoot()?.querySelector('[data-submit-purpose-other]');
+                    if (otherEl) {
+                        otherEl.value = this.form.purpose === 'other'
+                            ? String(this.form.purpose_other || '').trim()
+                            : '';
                     }
                 },
 
@@ -2117,6 +2126,7 @@ export function applyWizard(config) {
                         if (this.current && this.form.requested_amount > this.current.max) return false;
                         if (! this.form.requested_tenure_months || this.form.requested_tenure_months < (this.current?.tmin || 1)) return false;
                         if (! this.form.purpose) return false;
+                        if (this.form.purpose === 'other' && ! String(this.form.purpose_other || '').trim()) return false;
                         return true;
                     }
                     // Generic DOM check for other wizard panels (product questions, etc.)
@@ -2845,6 +2855,10 @@ export function applyWizard(config) {
                             showWizardFeedback(this.i18n.alerts.selectPurpose || this.i18n.assetDetails.purposeRequired);
                             return false;
                         }
+                        if (this.form.purpose === 'other' && ! String(this.form.purpose_other || '').trim()) {
+                            showWizardFeedback(this.i18n.alerts?.purposeOtherRequired || this.i18n.apply?.quote?.purpose_other_required);
+                            return false;
+                        }
                     }
                     if (this.stepKey === 'guarantor' && this.hasStep('guarantor')) {
                         this.syncGuarantorFormFromDom();
@@ -3204,6 +3218,12 @@ export function applyWizard(config) {
                     set('[data-submit-amount]', this.form.requested_amount);
                     set('[data-submit-tenure]', this.form.requested_tenure_months);
                     set('[data-submit-purpose]', this.form.purpose);
+                    const purposeOtherEl = form.querySelector('[data-submit-purpose-other]');
+                    if (purposeOtherEl) {
+                        purposeOtherEl.value = this.form.purpose === 'other'
+                            ? String(this.form.purpose_other || '').trim()
+                            : '';
+                    }
                     set('[data-submit-guarantor-mode]', this.form.guarantor_mode);
                     [
                         'external_first_name', 'external_middle_name', 'external_last_name',

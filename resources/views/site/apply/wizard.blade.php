@@ -341,6 +341,7 @@
                     <input type="hidden" name="requested_amount" data-submit-amount>
                     <input type="hidden" name="requested_tenure_months" data-submit-tenure>
                     <input type="hidden" name="purpose" data-submit-purpose>
+                    <input type="hidden" name="purpose_other" data-submit-purpose-other value="">
                     <input type="hidden" name="guarantor_mode" data-submit-guarantor-mode value="">
                     @if ($reservation ?? null)
                         <input type="hidden" name="asset_reservation_id" value="{{ $reservation->id }}">

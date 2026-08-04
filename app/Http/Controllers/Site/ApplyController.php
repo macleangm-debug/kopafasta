@@ -1567,6 +1567,7 @@ class ApplyController extends Controller
             'requested_amount'        => ['required', 'numeric', 'min:1000'],
             'requested_tenure_months' => ['required', 'integer', 'min:1', 'max:60'],
             'purpose'                 => [$isMarketplaceProduct || $isGroupProduct ? 'nullable' : 'required', 'string', 'max:100'],
+            'purpose_other'           => ['nullable', 'string', 'max:255'],
             'asset_type'              => [$isAssetBackedProduct ? 'required' : 'nullable', 'string', 'max:40'],
             'asset_description'       => ['nullable', 'string', 'max:500'],
             'first_name'              => ['required', 'string', 'max:60'],
@@ -1630,6 +1631,28 @@ class ApplyController extends Controller
         if ($isMarketplaceProduct && blank($data['purpose'] ?? null)) {
             $data['purpose'] = 'asset_financing';
         }
+
+        $purposeOther = trim((string) ($data['purpose_other'] ?? ''));
+        if (
+            ! $isMarketplaceProduct
+            && ! $isGroupProduct
+            && ($data['purpose'] ?? '') === 'other'
+            && $purposeOther === ''
+        ) {
+            // Prefer draft free-text if the hidden field was omitted from the POST.
+            $purposeOther = trim((string) ($draftPayload['form']['purpose_other'] ?? ''));
+            if ($purposeOther !== '') {
+                $data['purpose_other'] = $purposeOther;
+            } else {
+                return $this->wizardSubmitRedirect($request, $draft)
+                    ->withInput()
+                    ->withErrors(['purpose_other' => __('borrower.apply.alerts.purpose_other_required')]);
+            }
+        }
+        if (($data['purpose'] ?? '') !== 'other') {
+            $purposeOther = '';
+        }
+        $data['purpose_other'] = $purposeOther;
 
         if ($isGroupProduct) {
             $groupDraft = $draftPayload['group'] ?? [];
@@ -1777,7 +1800,12 @@ class ApplyController extends Controller
         $user = Auth::user();
         $customer = Customer::firstOrNew(['user_id' => $user->id]);
         $addressLine = trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', '));
-        $purposeLabel = loan_purpose_label($data['purpose']) ?? $data['purpose'];
+        $purposeKey = (string) ($data['purpose'] ?? '');
+        $purposeOther = trim((string) ($data['purpose_other'] ?? ''));
+        $purposeLabel = loan_purpose_label($purposeKey) ?? $purposeKey;
+        $purposeStored = ($purposeKey === 'other' && $purposeOther !== '')
+            ? $purposeLabel.': '.$purposeOther
+            : $purposeLabel;
 
         if (! $customer->identity_locked) {
             $customer->fill([
@@ -1882,11 +1910,13 @@ class ApplyController extends Controller
             'requested_tenure_months'    => $data['requested_tenure_months'],
             'status'                     => $status,
             'current_stage'              => 'screening',
-            'purpose'                    => $purposeLabel,
+            'purpose'                    => $purposeStored,
             'screening_payload'          => [
                 'product_code'      => $loanProduct->code,
                 'product_questions' => array_filter($data['product_question'] ?? []),
                 'engagement'        => $engagementBoosts,
+                'purpose_key'       => $purposeKey !== '' ? $purposeKey : null,
+                'purpose_other'     => ($purposeKey === 'other' && $purposeOther !== '') ? $purposeOther : null,
             ],
             'engagement_priority'        => (int) ($engagementBoosts['processing_priority'] ?? 0),
             'registration_fee_amount'    => 0,
@@ -2028,7 +2058,7 @@ class ApplyController extends Controller
         }
 
         $guarantorPending = $guarantorRequired
-            && ! $guarantors->hasApprovedGuarantor($app);
+            && ! $guarantors->hasReadyGuarantor($app);
 
         if ($guarantorPending && app(\App\Services\UnderwritingSettingsService::class)->holdApplicationsUntilGuarantorApproved()) {
             // Hold outside credit screening until guarantor accepts + completes profile.
@@ -2232,6 +2262,7 @@ class ApplyController extends Controller
             'requested_amount',
             'requested_tenure_months',
             'purpose',
+            'purpose_other',
             'guarantor_mode',
             'internal_member_no',
             'internal_guarantor_phone',

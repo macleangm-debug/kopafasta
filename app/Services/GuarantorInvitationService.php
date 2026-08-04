@@ -1403,6 +1403,33 @@ class GuarantorInvitationService
             ->exists();
     }
 
+    /**
+     * True when at least one approved guarantor has a complete profile (same bar as release from hold).
+     */
+    public function hasReadyGuarantor(LoanApplication $application): bool
+    {
+        $approvedLinks = CustomerGuarantor::query()
+            ->where('loan_application_id', $application->id)
+            ->where('status', 'approved')
+            ->get();
+
+        if ($approvedLinks->isEmpty()) {
+            return false;
+        }
+
+        $onboarding = app(GuarantorOnboardingService::class);
+        $access = app(GuarantorAccessService::class);
+
+        foreach ($approvedLinks as $approvedLink) {
+            $guarantorCustomer = $access->guarantorCustomerForLink($approvedLink);
+            if (! $guarantorCustomer || ! ($onboarding->guarantorProfileStatus($guarantorCustomer)['met'] ?? false)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     protected function ensureShortCode(GuarantorInvitation $invitation): string
     {
         if ($invitation->short_code) {

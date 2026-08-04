@@ -1,5 +1,10 @@
 @php
     $customer = $review['customer'];
+    $purposeOther = data_get($record->screening_payload, 'purpose_other');
+    $purposeValue = $record->purpose;
+    if (filled($purposeOther) && ! str_contains((string) $purposeValue, (string) $purposeOther)) {
+        $purposeValue = trim(($purposeValue ?: 'Other').': '.$purposeOther);
+    }
 @endphp
 
 <div class="rounded-2xl ring-1 ring-brand/10 bg-white p-5">
@@ -10,7 +15,7 @@
             ['label' => 'Activity type', 'value' => $review['activity_label'] ?? null],
             ['label' => 'Income range', 'value' => $review['income_label'] ?? null],
             ['label' => 'Business / employer', 'value' => $review['business_name'] ?? null, 'span' => true],
-            ['label' => 'Loan purpose', 'value' => $record->purpose, 'span' => true],
+            ['label' => 'Loan purpose', 'value' => $purposeValue, 'span' => true],
             ['label' => 'Monthly income (midpoint)', 'value' => $customer->monthly_income ? format_money((float) $customer->monthly_income) : null],
         ],
     ])

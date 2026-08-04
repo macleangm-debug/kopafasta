@@ -148,4 +148,25 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
         $this->assertStringContainsString('resigningOnSubmit: false', $js);
         $this->assertStringContainsString('startResignOnSubmit()', $js);
     }
+
+    public function test_purpose_other_is_synced_on_submit_and_shown_in_activity_tab(): void
+    {
+        $js = file_get_contents(resource_path('js/apply-wizard.js'));
+        $wizard = file_get_contents(resource_path('views/site/apply/wizard.blade.php'));
+        $activity = file_get_contents(resource_path('views/admin/loan-applications/review/_profile_activity.blade.php'));
+        $progress = file_get_contents(resource_path('views/site/borrower/loan-profile/_guarantor_progress.blade.php'));
+        $submitted = file_get_contents(resource_path('views/site/borrower/loan-profile/_submitted.blade.php'));
+        $adminLayout = file_get_contents(resource_path('views/components/admin/layout.blade.php'));
+
+        $this->assertStringContainsString('data-submit-purpose-other', $wizard);
+        $this->assertStringContainsString("name=\"purpose_other\"", $wizard);
+        $this->assertStringContainsString('[data-submit-purpose-other]', $js);
+        $this->assertStringContainsString("purpose_other", $js);
+        $this->assertStringContainsString('purpose_other', $activity);
+        $this->assertStringContainsString('showReadyBeforeSubmit', $progress);
+        $this->assertStringContainsString('showWaitingCopy', $progress);
+        $this->assertStringNotContainsString('guarantor_section_hint', $submitted);
+        $this->assertStringContainsString('kfLockBodyScroll', $adminLayout);
+        $this->assertStringContainsString('kfUnlockBodyScroll', $adminLayout);
+    }
 }

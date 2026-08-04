@@ -59,9 +59,10 @@
                             <label class="block text-sm font-semibold text-gray-800 mb-1.5">{{ __('borrower.apply.quote.purpose_other_label') }} <span class="text-red-500">*</span></label>
                             <input type="text"
                                    x-model="form.purpose_other"
-                                   @input="scheduleDraftSave()"
+                                   @input="syncPurposeHidden(); scheduleDraftSave()"
                                    maxlength="120"
                                    class="kf-field"
+                                   :required="form.purpose === 'other'"
                                    placeholder="{{ __('borrower.apply.quote.purpose_other_placeholder') }}">
                             <button type="button"
                                     x-show="form.purpose_other && String(form.purpose_other).trim()"
