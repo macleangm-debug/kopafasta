@@ -731,7 +731,7 @@ class BorrowerController extends Controller
             if ($pendingGuarantorRequests->isNotEmpty() && empty($applicationRows)) {
                 $activeTab = 'guarantor';
             } elseif ($trackingGuarantees->isNotEmpty() && empty($applicationRows) && $loans->isEmpty() && $pendingGuarantorRequests->isEmpty()) {
-                $activeTab = 'guarantor';
+                $activeTab = 'guaranteed';
             } elseif ($guaranteedLinks->isNotEmpty() && empty($applicationRows) && $loans->isEmpty() && $pendingGuarantorRequests->isEmpty() && $trackingGuarantees->isEmpty()) {
                 $activeTab = 'guaranteed';
             } else {
@@ -739,9 +739,9 @@ class BorrowerController extends Controller
             }
         }
         if (! in_array($activeTab, $allowedTabs, true)) {
-            if ($pendingGuarantorRequests->isNotEmpty() || $trackingGuarantees->isNotEmpty()) {
+            if ($pendingGuarantorRequests->isNotEmpty()) {
                 $activeTab = 'guarantor';
-            } elseif ($guaranteedLinks->isNotEmpty()) {
+            } elseif ($trackingGuarantees->isNotEmpty() || $guaranteedLinks->isNotEmpty()) {
                 $activeTab = 'guaranteed';
             } else {
                 $activeTab = 'applications';
@@ -838,7 +838,7 @@ class BorrowerController extends Controller
 
         $guaranteedService = app(\App\Services\GuaranteedLoanService::class);
         $timeline = $guaranteedService->progressTimeline($row);
-        $listTab = $row->is_disbursed ? 'guaranteed' : 'guarantor';
+        $listTab = 'guaranteed';
 
         return view('site.borrower.guaranteed-show', compact('customer', 'row', 'timeline', 'listTab'));
     }
@@ -2622,7 +2622,7 @@ class BorrowerController extends Controller
             }
 
             return redirect()
-                ->route('site.borrower.loans', ['tab' => 'guarantor'])
+                ->route('site.borrower.loans', ['tab' => 'guaranteed'])
                 ->with('status', __('borrower.guaranteed.approved_track_message'));
         }
 

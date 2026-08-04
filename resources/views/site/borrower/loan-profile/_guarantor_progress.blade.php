@@ -21,7 +21,6 @@
             $editGuarantorUrl = app(\App\Services\GuarantorSupplementService::class)->borrowerWizardUrl($application);
         }
         if (! $isDraft && ! $guarantorSupplementOpen) {
-            // After submit, only allow change when UW requested a supplement.
             $editGuarantorUrl = $guarantorSupplementOpen ? $editGuarantorUrl : null;
         }
 
@@ -59,7 +58,6 @@
         }
 
         $readyCount = $rows->filter(fn ($row) => ($row->status['ready'] ?? false) || ($row->status['code'] ?? '') === 'ready')->count();
-        $total = max(1, $rows->count());
         $allReady = $rows->isNotEmpty() && $readyCount >= $rows->count();
         $primary = $rows->first();
         $share = $primary?->share;
@@ -78,39 +76,30 @@
 
     <div id="guarantor-progress" class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15"
          x-data="{ copied: false }">
-        <div class="bg-gradient-to-br from-brand-muted/50 to-white px-5 sm:px-6 py-5 border-b border-gray-100/80 space-y-4">
+        <div class="bg-gradient-to-br from-brand-muted/50 to-white px-5 sm:px-6 py-5 space-y-4">
             <div class="flex flex-wrap items-start justify-between gap-3">
-                <div class="min-w-0">
+                <div class="min-w-0 flex-1">
                     <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.application.guarantor_section') }}</p>
-                    <h2 class="text-lg font-bold text-gray-900 mt-1">
-                        @if ($rows->isEmpty())
-                            {{ __('borrower.loan_profile.guarantor_not_added') }}
-                        @elseif ($allReady)
-                            {{ __('borrower.loan_profile.guarantor_ready_title_short') }}
-                        @else
-                            {{ __('borrower.loan_profile.guarantor_waiting_title') }}
+                    <div class="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        <h2 class="text-lg font-bold text-gray-900">
+                            @if ($rows->isEmpty())
+                                {{ __('borrower.loan_profile.guarantor_not_added') }}
+                            @elseif ($allReady)
+                                {{ __('borrower.loan_profile.guarantor_ready_title_short') }}
+                            @else
+                                {{ __('borrower.loan_profile.guarantor_waiting_title') }}
+                            @endif
+                        </h2>
+                        @if ($primary)
+                            <span class="text-sm font-semibold text-gray-500 truncate max-w-full">· {{ $primary->name }}</span>
                         @endif
-                    </h2>
+                    </div>
                     @if ($rows->isEmpty())
                         <p class="text-sm text-gray-600 mt-1">{{ __('borrower.loan_profile.guarantor_not_added_hint') }}</p>
                     @elseif ($toneHeld)
                         <p class="text-sm text-gray-600 mt-1">{{ __('borrower.loan_profile.guarantor_hold_body') }}</p>
                     @else
                         <p class="text-sm text-emerald-800 mt-1 font-semibold">{{ __('borrower.loan_profile.guarantor_ready_banner') }}</p>
-                    @endif
-                    @if (! empty($deadline['label']) || isset($deadline['days_left']))
-                        <x-site.deadline-badge
-                            :label="$deadline['label'] ?? null"
-                            :days-left="$deadline['days_left'] ?? null"
-                            :date="$deadline['date'] ?? null"
-                            :urgent="($deadline['days_left'] ?? 99) <= 2"
-                            :expired="(bool) ($deadline['expired'] ?? false)"
-                        />
-                    @endif
-                    @if ($guarantorSupplementOpen)
-                        <p class="text-xs text-amber-800 mt-2">{{ __('borrower.guarantor_supplement.borrower_banner') }}</p>
-                    @elseif ($canChangeWhileHeld)
-                        <p class="text-xs text-gray-500 mt-2">{{ __('borrower.guarantor_supplement.borrower_change_hint') }}</p>
                     @endif
                 </div>
                 @if ($showChangeGuarantor)
@@ -137,6 +126,23 @@
                 @endif
             </div>
 
+            @if (! empty($deadline['label']) || isset($deadline['days_left']))
+                <x-site.deadline-badge
+                    :label="$deadline['label'] ?? null"
+                    :days-left="$deadline['days_left'] ?? null"
+                    :date="$deadline['date'] ?? null"
+                    :purpose="__('borrower.loan_profile.deadline_purpose_guarantor_profile')"
+                    :urgent="($deadline['days_left'] ?? 99) <= 2"
+                    :expired="(bool) ($deadline['expired'] ?? false)"
+                />
+            @endif
+
+            @if ($guarantorSupplementOpen)
+                <p class="text-xs text-amber-800">{{ __('borrower.guarantor_supplement.borrower_banner') }}</p>
+            @elseif ($canChangeWhileHeld)
+                <p class="text-xs text-gray-500">{{ __('borrower.guarantor_supplement.borrower_change_hint') }}</p>
+            @endif
+
             @if ($pending && $share && empty($share['ready']))
                 <div class="flex flex-wrap gap-2">
                     @if (! empty($share['whatsapp_url']))
@@ -157,7 +163,7 @@
         </div>
 
         @if ($rows->isNotEmpty())
-            <div class="px-5 sm:px-6 py-4 space-y-4">
+            <div class="px-5 sm:px-6 py-5 border-t border-gray-100/80 space-y-4">
                 @foreach ($rows as $row)
                     @php
                         $code = $row->status['code'] ?? '';
@@ -165,8 +171,8 @@
                         $steps = $row->status['steps'] ?? [];
                         $percent = $row->status['profile_percent'] ?? null;
                     @endphp
-                    <div class="rounded-2xl bg-white ring-1 ring-brand/10 overflow-hidden">
-                        <div class="px-4 py-3.5 flex items-center justify-between gap-3">
+                    <div class="rounded-2xl bg-gradient-to-br from-white to-brand-muted/20 ring-1 ring-brand/10 px-4 py-4">
+                        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
                             <div class="min-w-0">
                                 <p class="text-sm font-bold text-gray-900 truncate">{{ $row->name }}</p>
                                 <p class="text-xs text-gray-500 mt-0.5">{{ $row->type }} · {{ $row->status['label'] ?? '—' }}</p>
@@ -188,30 +194,21 @@
                         </div>
 
                         @if (! empty($steps))
-                            <div class="px-4 pb-4">
-                                <div class="rounded-xl bg-brand-muted/30 ring-1 ring-brand/10 px-3 py-3">
-                                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold mb-2">{{ __('borrower.guaranteed.progress_title') }}</p>
-                                    <ol class="space-y-2">
-                                        @foreach ($steps as $step)
-                                            <li class="flex items-start gap-2.5 text-sm">
-                                                <span @class([
-                                                    'mt-0.5 shrink-0 size-5 rounded-full grid place-items-center text-[10px] font-bold',
-                                                    'bg-brand text-brand-gold' => $step['complete'] ?? false,
-                                                    'bg-brand-gold text-brand' => ! ($step['complete'] ?? false) && ($step['current'] ?? false),
-                                                    'bg-gray-100 text-gray-400' => ! ($step['complete'] ?? false) && ! ($step['current'] ?? false),
-                                                ])>
-                                                    {{ ($step['complete'] ?? false) ? '✓' : '·' }}
-                                                </span>
-                                                <span @class([
-                                                    'leading-snug',
-                                                    'font-semibold text-gray-900' => $step['current'] ?? false,
-                                                    'text-gray-600' => ! ($step['current'] ?? false),
-                                                ])>{{ $step['label'] }}</span>
-                                            </li>
-                                        @endforeach
-                                    </ol>
-                                </div>
-                            </div>
+                            <ol class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                @foreach ($steps as $step)
+                                    <li @class([
+                                        'rounded-xl px-3 py-2.5 ring-1',
+                                        'bg-brand text-white ring-brand' => $step['complete'] ?? false,
+                                        'bg-brand-gold/30 text-brand ring-brand-gold/50' => ! ($step['complete'] ?? false) && ($step['current'] ?? false),
+                                        'bg-white text-gray-500 ring-gray-200' => ! ($step['complete'] ?? false) && ! ($step['current'] ?? false),
+                                    ])>
+                                        <p class="text-[10px] font-bold uppercase tracking-wider opacity-80">
+                                            {{ ($step['complete'] ?? false) ? '✓' : (($step['current'] ?? false) ? '·' : '○') }}
+                                        </p>
+                                        <p class="text-xs font-semibold mt-0.5 leading-snug">{{ $step['label'] }}</p>
+                                    </li>
+                                @endforeach
+                            </ol>
                         @endif
                     </div>
                 @endforeach

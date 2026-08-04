@@ -1,12 +1,6 @@
 @php
     $pending = $pendingGuarantorRequests ?? collect();
-    $tracking = $trackingGuarantees ?? collect();
-    $activeTracking = $tracking->reject(fn ($row) => $row->is_terminal ?? false)->values();
-    $needsProfile = $activeTracking->filter(fn ($row) => $row->needs_guarantor_profile ?? false)->values();
-    $waitingOthers = $activeTracking->reject(fn ($row) => $row->needs_guarantor_profile ?? false)->values();
-    $closedTracking = $tracking->filter(fn ($row) => $row->is_terminal ?? false)->values();
     $viewMode = $viewMode ?? 'cards';
-    $isEmpty = $pending->isEmpty() && $tracking->isEmpty();
 @endphp
 
 <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -26,54 +20,15 @@
     </div>
 </div>
 
-@if ($isEmpty)
+@if ($pending->isEmpty())
     <x-site.empty-state
         icon="🤝"
         :title="__('borrower.guarantor_requests_page.empty_title')"
         :description="__('borrower.guarantor_requests_page.empty_desc')"
     />
 @else
-    @if ($pending->isNotEmpty())
-        <div class="mb-8">
-            <div class="mb-4">
-                <h3 class="text-sm font-bold text-gray-900">{{ __('borrower.guarantor.section_needs_decision') }}</h3>
-                <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.guarantor.section_needs_decision_hint') }}</p>
-            </div>
-            @include('site.borrower.loans._guarantor-pending-list', [
-                'rows' => $pending,
-                'viewMode' => $viewMode,
-            ])
-        </div>
-    @endif
-
-    @if ($needsProfile->isNotEmpty() || $waitingOthers->isNotEmpty())
-        <div class="mb-8">
-            <div class="mb-4">
-                <h3 class="text-sm font-bold text-gray-900">{{ __('borrower.guarantor.section_in_progress') }}</h3>
-                <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.guarantor.section_in_progress_hint') }}</p>
-            </div>
-            @include('site.borrower.loans._guarantor-tracking-list', [
-                'rows' => $needsProfile->concat($waitingOthers)->values(),
-                'viewMode' => $viewMode,
-            ])
-        </div>
-    @endif
-
-    @if ($closedTracking->isNotEmpty())
-        <details class="mt-2 group rounded-2xl ring-1 ring-gray-200/80 bg-white/70 overflow-hidden">
-            <summary class="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-3 [&::-webkit-details-marker]:hidden hover:bg-gray-50/80 transition">
-                <div>
-                    <p class="text-sm font-bold text-gray-900">{{ __('borrower.guarantor.section_closed') }}</p>
-                    <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.guarantor.section_closed_hint') }}</p>
-                </div>
-                <svg class="size-4 text-gray-400 transition group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
-            </summary>
-            <div class="px-5 pb-5 border-t border-gray-100 pt-4">
-                @include('site.borrower.loans._guarantor-tracking-list', [
-                    'rows' => $closedTracking,
-                    'viewMode' => $viewMode,
-                ])
-            </div>
-        </details>
-    @endif
+    @include('site.borrower.loans._guarantor-pending-list', [
+        'rows' => $pending,
+        'viewMode' => $viewMode,
+    ])
 @endif

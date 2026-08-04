@@ -10,7 +10,7 @@ class PublicLoanProductsSeeder extends Seeder
     public function run(): void
     {
         $products = [
-            ['code' => 'IL', 'name' => 'Individual Loan', 'name_sw' => 'Mkopo wa Mtu Binafsi', 'category' => 'individual',  'interest_rate' => 0.19,  'min_amount' => 500_000,  'max_amount' => 50000000, 'tenure_min_months' => 1, 'tenure_max_months' => 36, 'description' => 'Fast personal capital for any verified individual. No collateral for small tiers.'],
+            ['code' => 'IL', 'name' => 'Individual Loan', 'name_sw' => 'Mkopo wa Mdau', 'category' => 'individual',  'interest_rate' => 0.19,  'min_amount' => 500_000,  'max_amount' => 50000000, 'tenure_min_months' => 1, 'tenure_max_months' => 36, 'description' => 'Fast personal capital for any verified individual. No collateral for small tiers.'],
             // Group: min 3 members × 200,000 per member = 600,000 total floor.
             ['code' => 'GL', 'name' => 'Group Loan', 'name_sw' => 'Mkopo wa Umoja', 'category' => 'group',       'interest_rate' => 0.18,  'min_amount' => 600_000,   'max_amount' => 10000000, 'tenure_min_months' => 3, 'tenure_max_months' => 12, 'repayment_cadence' => 'monthly', 'application_fee_amount' => 10_000, 'description' => 'Borrow together with shared liability. Best for chamas and savings circles.'],
             ['code' => 'AL', 'name' => 'Asset Lending', 'name_sw' => 'Mkopo wa Mali', 'category' => 'asset',       'interest_rate' => 0.155, 'min_amount' => 500_000,  'max_amount' => 100000000,'tenure_min_months' => 3, 'tenure_max_months' => 60, 'description' => 'Own the asset over time. Pay monthly. Title transfers when fully paid.'],

@@ -191,9 +191,6 @@ class GuaranteedLoanService
                 'label'    => __('borrower.guaranteed.timeline_your_profile'),
                 'complete' => $profileDone,
                 'current'  => $needsProfile,
-                'hint'     => $needsProfile
-                    ? __('borrower.guaranteed.timeline_your_profile_hint')
-                    : null,
             ],
             [
                 'key'      => 'borrower_submit',
@@ -202,11 +199,6 @@ class GuaranteedLoanService
                     : __('borrower.guaranteed.timeline_borrower_submit'),
                 'complete' => $borrowerSubmitted,
                 'current'  => false,
-                'hint'     => ! $borrowerSubmitted
-                    ? __('borrower.guaranteed.timeline_borrower_submit_hint')
-                    : ($needsProfile
-                        ? __('borrower.guaranteed.timeline_borrower_submitted_waiting_you')
-                        : null),
             ],
         ];
 
@@ -243,24 +235,17 @@ class GuaranteedLoanService
                 'label'    => __('borrower.guaranteed.timeline_review'),
                 'complete' => false,
                 'current'  => $readyForReview,
-                'hint'     => $readyForReview
-                    ? null
-                    : __('borrower.guaranteed.timeline_review_waiting_hint'),
             ];
             $steps[] = [
                 'key'      => 'decision',
                 'label'    => __('borrower.guaranteed.timeline_decision'),
                 'complete' => false,
                 'current'  => false,
-                'hint'     => __('borrower.guaranteed.timeline_decision_hint'),
             ];
         }
 
         $completeCount = collect($steps)->where('complete', true)->count();
         $percent = (int) round(($completeCount / max(1, count($steps))) * 100);
-        if ($needsProfile) {
-            $percent = min($percent, 20);
-        }
 
         return [
             'percent' => $percent,

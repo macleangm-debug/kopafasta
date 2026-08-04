@@ -19,7 +19,7 @@
                 @foreach ($rows as $row)
                     @php
                         $borrowerName = $row->borrower?->legalDisplayName() ?? __('borrower.loans_page.borrower');
-                        $productName = $row->product?->name ?? __('borrower.guarantor.loan');
+                        $productName = $row->product?->localizedName() ?? __('borrower.guarantor.loan');
                         $needsProfile = $row->needs_guarantor_profile ?? false;
                         $detailUrl = route('site.borrower.guaranteed.show', $row->link);
                     @endphp
@@ -37,7 +37,7 @@
                             @endif
                         </td>
                         <td class="px-4 py-3 text-right whitespace-nowrap">
-                            <a href="{{ $detailUrl }}" class="text-brand font-semibold hover:underline">{{ __('borrower.guaranteed.view_request') }}</a>
+                            <a href="{{ $detailUrl }}" class="text-brand font-semibold hover:underline">{{ __('borrower.guaranteed.view_details') }}</a>
                         </td>
                     </tr>
                 @endforeach
@@ -49,7 +49,7 @@
         @foreach ($rows as $row)
             @php
                 $borrowerName = $row->borrower?->legalDisplayName() ?? __('borrower.loans_page.borrower');
-                $productName = $row->product?->name ?? __('borrower.guarantor.loan');
+                $productName = $row->product?->localizedName() ?? __('borrower.guarantor.loan');
                 $needsProfile = (bool) ($row->needs_guarantor_profile ?? false);
                 $detailUrl = route('site.borrower.guaranteed.show', $row->link);
                 $isTerminal = (bool) ($row->is_terminal ?? false);
@@ -94,7 +94,7 @@
 
                 <a href="{{ $detailUrl }}"
                    class="inline-flex items-center justify-center w-full sm:w-auto font-bold px-5 py-2.5 rounded-xl text-sm bg-brand-gold hover:bg-yellow-400 text-brand shadow-sm">
-                    {{ __('borrower.guaranteed.view_request') }}
+                    {{ __('borrower.guaranteed.view_details') }}
                 </a>
             </div>
         @endforeach

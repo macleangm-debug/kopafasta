@@ -405,17 +405,16 @@ class GuarantorInviteUxFeatureTest extends TestCase
         $this->actingAs($member->user)
             ->get(route('site.borrower.loans', ['tab' => 'guarantor']))
             ->assertOk()
-            ->assertDontSee(__('borrower.guarantor.section_needs_profile'), false)
-            ->assertSee(__('borrower.guaranteed.waiting_on_your_profile'), false)
-            ->assertSee(__('borrower.guaranteed.view_request'), false)
-            ->assertSee('Borrow Five', false)
-            ->assertSee('APP-GUX-50', false);
+            ->assertDontSee('APP-GUX-50', false);
 
         $this->actingAs($member->user)
             ->get(route('site.borrower.loans', ['tab' => 'guaranteed']))
             ->assertOk()
-            ->assertSee(__('borrower.loans_page.no_guaranteed'), false)
-            ->assertDontSee('APP-GUX-50', false);
+            ->assertDontSee(__('borrower.loans_page.no_guaranteed'), false)
+            ->assertSee(__('borrower.guaranteed.waiting_on_your_profile'), false)
+            ->assertSee(__('borrower.guaranteed.view_details'), false)
+            ->assertSee('Borrow Five', false)
+            ->assertSee('APP-GUX-50', false);
     }
 
     public function test_member_can_accept_guarantee_without_signature(): void
