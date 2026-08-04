@@ -25,8 +25,8 @@ return [
             ['label' => 'Admission or fee letter', 'detail' => 'Upload or reference during application'],
         ],
         'FC' => [
-            ['label' => 'Craft / trade type', 'detail' => 'Provided during application'],
-            ['label' => 'Workshop information', 'detail' => 'Location, tools and customers'],
+            ['label' => 'Craft / trade type', 'detail' => 'From Profile → Activity (Artisan / Craftsman)'],
+            ['label' => 'Workshop location', 'detail' => 'From Profile → Activity'],
         ],
         'AL' => [
             ['label' => 'Deposit confirmation', 'detail' => 'Collected before asset release'],

@@ -27,18 +27,12 @@
         @endif
 
         @if (! ($profileStatus['met'] ?? false))
-            <div class="rounded-2xl bg-amber-50 ring-1 ring-amber-200 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div class="min-w-0">
-                    <p class="font-semibold text-amber-900">{{ __('borrower.guarantor.profile_required_title') }}</p>
-                    <p class="text-sm text-amber-900 mt-1">{{ __('borrower.guarantor.profile_required_body', ['percent' => $profileStatus['percent'] ?? 0]) }}</p>
-                    <div class="mt-3 h-2 rounded-full bg-amber-200 overflow-hidden max-w-xs">
-                        <div class="h-full bg-amber-500 rounded-full transition-all" style="width: {{ min(100, max(0, (int) ($profileStatus['percent'] ?? 0))) }}%"></div>
-                    </div>
+            <div class="rounded-2xl bg-amber-50 ring-1 ring-amber-200 p-5">
+                <p class="font-semibold text-amber-900">{{ __('borrower.guarantor.profile_after_accept_title') }}</p>
+                <p class="text-sm text-amber-900 mt-1">{{ __('borrower.guarantor.profile_after_accept_body', ['percent' => $profileStatus['percent'] ?? 0]) }}</p>
+                <div class="mt-3 h-2 rounded-full bg-amber-200 overflow-hidden max-w-xs">
+                    <div class="h-full bg-amber-500 rounded-full transition-all" style="width: {{ min(100, max(0, (int) ($profileStatus['percent'] ?? 0))) }}%"></div>
                 </div>
-                <a href="{{ route('site.borrower.profile') }}"
-                   class="inline-flex shrink-0 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                    {{ __('borrower.guarantor.complete_profile') }}
-                </a>
             </div>
         @endif
 
@@ -76,7 +70,6 @@
             @endif
         </section>
 
-        {{-- Premium disclaimer decision block --}}
         <section class="relative overflow-hidden rounded-3xl ring-2 ring-amber-400/70 bg-gradient-to-br from-amber-50 via-white to-brand-muted/30 shadow-md">
             <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-amber-500"></div>
             <div class="px-5 sm:px-7 py-6 sm:py-7">
@@ -86,36 +79,22 @@
                     {{ __('borrower.guarantor.disclaimer_body') }}
                 </p>
 
-                <div class="mt-6 space-y-4">
-                    @if ($profileStatus['met'] ?? false)
-                        <form method="POST" action="{{ route('site.borrower.guarantor-requests.respond', $customerGuarantor) }}" class="space-y-4"
-                              @submit.prevent="
-                                const pad = $el.querySelector('[data-signature-pad]');
-                                const dataUrl = pad?._x_dataStack?.[0]?.dataUrl || '';
-                                const sig = $el.querySelector('[name=signature_data]');
-                                if (dataUrl && sig) sig.value = dataUrl;
-                                if (! (dataUrl || sig?.value)) { alert(@js(__('borrower.guarantor.draw_signature'))); return; }
-                                window.confirmForm($el, { title: @js(__('borrower.guarantor.approve_title')), message: @js(__('borrower.guarantor.approve_message')), confirmLabel: @js(__('borrower.guarantor.approve_sign')), confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white' });
-                              ">
-                            @csrf
-                            <input type="hidden" name="action" value="approve">
-                            <x-site.signature-pad
-                                :default-name="trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''))"
-                                :readonly-name="true"
-                                :verified="true"
-                            />
-                            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-full text-sm">{{ __('borrower.guarantor.approve_sign') }}</button>
-                        </form>
-                    @else
-                        <p class="text-sm text-amber-950 rounded-xl bg-amber-100/80 ring-1 ring-amber-300 px-4 py-3 font-medium">{{ __('borrower.guarantor.sign_after_profile') }}</p>
-                    @endif
-
-                    <form method="POST" action="{{ route('site.borrower.guarantor-requests.respond', $customerGuarantor) }}" class="flex flex-wrap gap-3 items-end pt-2 border-t border-amber-200/70"
+                <div class="mt-6 flex flex-col-reverse sm:flex-row gap-3 sm:items-center sm:justify-end">
+                    <form method="POST" action="{{ route('site.borrower.guarantor-requests.respond', $customerGuarantor) }}"
                           @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.guarantor.decline_title')), message: @js(__('borrower.guarantor.decline_message')), confirmLabel: @js(__('borrower.loans_page.decline')), confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">
                         @csrf
                         <input type="hidden" name="action" value="reject">
-                        <input name="notes" placeholder="{{ __('borrower.loans_page.optional_reason') }}" class="rounded-xl border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm flex-1 min-w-[200px] bg-white">
-                        <button class="bg-white ring-1 ring-gray-300 hover:bg-gray-50 text-gray-800 font-semibold px-4 py-2.5 rounded-full text-sm">{{ __('borrower.loans_page.decline') }}</button>
+                        <button type="submit" class="w-full sm:w-auto bg-white ring-1 ring-gray-300 hover:bg-gray-50 text-gray-800 font-semibold px-5 py-2.5 rounded-full text-sm">
+                            {{ __('borrower.loans_page.decline') }}
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ route('site.borrower.guarantor-requests.respond', $customerGuarantor) }}"
+                          @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.guarantor.approve_title')), message: @js(__('borrower.guarantor.approve_message')), confirmLabel: @js(__('borrower.guarantor.approve_cta')), confirmClass: 'bg-emerald-600 hover:bg-emerald-700 text-white' })">
+                        @csrf
+                        <input type="hidden" name="action" value="approve">
+                        <button type="submit" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
+                            {{ __('borrower.guarantor.approve_cta') }}
+                        </button>
                     </form>
                 </div>
             </div>

@@ -211,6 +211,20 @@ class LoanProductReadinessService
             ],
         ]);
 
+        if (strtoupper((string) $product->code) === 'FC') {
+            $activityComplete = (bool) ($profileSections['activity']['complete'] ?? false);
+            $isArtisan = ($customer->activity_type ?? '') === 'artisan' && $activityComplete;
+            $checks[] = [
+                'key'        => 'artisan_activity',
+                'label'      => __('borrower.apply.readiness.requirements.artisan_activity.label'),
+                'complete'   => $isArtisan,
+                'detail'     => $isArtisan
+                    ? __('borrower.apply.readiness.requirements.artisan_activity.on_file')
+                    : __('borrower.apply.readiness.requirements.artisan_activity.complete_profile'),
+                'action_url' => $isArtisan ? null : route('site.borrower.profile', ['section' => 'activity']),
+            ];
+        }
+
         if ($profileValidation->requiresResidenceLetter()) {
             $hasLetter = $profileValidation->hasResidenceLetter($customer);
             $checks[] = [

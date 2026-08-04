@@ -5,8 +5,24 @@
     $title = $n->displayTitle();
     $body = $n->displayBody();
     $displayCategory = $center->normalizeCategory($n->category);
+    $meta = is_array($n->meta) ? $n->meta : [];
+    $linkId = (int) ($meta['customer_guarantor_id'] ?? 0);
+    if ($linkId <= 0 && $n->template === 'guarantor_request' && $actionUrl) {
+        if (preg_match('#/guarantor-requests/(\d+)#', $actionUrl, $m)) {
+            $linkId = (int) $m[1];
+        }
+    }
+    $acceptUrl = ($n->template === 'guarantor_request' && $linkId > 0)
+        ? route('site.borrower.guarantor-requests.show', $linkId)
+        : null;
+    $declineUrl = ($n->template === 'guarantor_request' && $linkId > 0)
+        ? route('site.borrower.guarantor-requests.respond', $linkId)
+        : null;
     $actionLabel = match ($n->template) {
-        'guarantor_request' => __('borrower.guarantor_notifications.view_request'),
+        'guarantor_request' => $acceptUrl
+            ? __('borrower.guarantor_notifications.accept_cta')
+            : __('borrower.guarantor_notifications.view_request'),
+        'guarantor_loan_arrears' => __('borrower.guarantor_notifications.view_loan'),
         'guarantor_supplement_request' => __('borrower.guarantor_supplement.cta'),
         'loyalty_points_earned' => __('borrower.rewards.points_earned_cta'),
         'document_request', 'document_requests', 'application_document_request' => __('borrower.dashboard.document_requests_cta'),
@@ -33,7 +49,22 @@
         <p class="text-sm font-semibold text-gray-900">{{ $title }}</p>
         <p class="text-sm text-gray-800 mt-0.5">{{ $body }}</p>
         <p class="text-[11px] text-gray-400 mt-1">{{ \Carbon\Carbon::parse($n->created_at)->format('d M Y, H:i') }}</p>
-        @if ($actionUrl)
+        @if ($acceptUrl && $declineUrl)
+            <div class="mt-2 flex flex-wrap gap-2">
+                <a href="{{ $acceptUrl }}"
+                   class="inline-flex items-center rounded-lg bg-brand-gold px-3 py-1.5 text-xs font-bold text-brand">
+                    {{ __('borrower.guarantor_notifications.accept_cta') }}
+                </a>
+                <form method="POST" action="{{ $declineUrl }}" class="inline">
+                    @csrf
+                    <input type="hidden" name="action" value="reject">
+                    <button type="submit"
+                            class="inline-flex items-center rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-50">
+                        {{ __('borrower.guarantor_notifications.decline_cta') }}
+                    </button>
+                </form>
+            </div>
+        @elseif ($actionUrl)
             <a href="{{ $actionUrl }}" class="inline-flex mt-2 text-xs font-semibold text-brand hover:underline">
                 {{ $actionLabel }}
             </a>

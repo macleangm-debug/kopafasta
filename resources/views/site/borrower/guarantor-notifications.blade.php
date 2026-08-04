@@ -31,11 +31,32 @@
                     $actionUrl = ($n->channel === 'in_app' && filled($n->recipient) && str_starts_with($n->recipient, '/'))
                         ? $n->recipient
                         : null;
-                    $lines = preg_split("/\r\n|\n|\r/", (string) ($n->message ?: '')) ?: [];
-                    $title = $lines[0] ?? __('borrower.guarantor_notifications.fallback_title');
-                    $body = trim(implode(' ', array_slice($lines, 1))) ?: ($n->message ?: $n->template);
+                    if (method_exists($n, 'displayTitle')) {
+                        $title = $n->displayTitle();
+                        $body = $n->displayBody();
+                    } else {
+                        $lines = preg_split("/\r\n|\n|\r/", (string) ($n->message ?: '')) ?: [];
+                        $title = $lines[0] ?? __('borrower.guarantor_notifications.fallback_title');
+                        $body = trim(implode(' ', array_slice($lines, 1))) ?: ($n->message ?: $n->template);
+                    }
+                    $meta = is_array($n->meta) ? $n->meta : [];
+                    $linkId = (int) ($meta['customer_guarantor_id'] ?? 0);
+                    if ($linkId <= 0 && $n->template === 'guarantor_request' && $actionUrl) {
+                        if (preg_match('#/guarantor-requests/(\d+)#', $actionUrl, $m)) {
+                            $linkId = (int) $m[1];
+                        }
+                    }
+                    $acceptUrl = ($n->template === 'guarantor_request' && $linkId > 0)
+                        ? route('site.borrower.guarantor-requests.show', $linkId)
+                        : null;
+                    $declineUrl = ($n->template === 'guarantor_request' && $linkId > 0)
+                        ? route('site.borrower.guarantor-requests.respond', $linkId)
+                        : null;
                     $actionLabel = match ($n->template) {
-                        'guarantor_request' => __('borrower.guarantor_notifications.view_request'),
+                        'guarantor_request' => $acceptUrl
+                            ? __('borrower.guarantor_notifications.accept_cta')
+                            : __('borrower.guarantor_notifications.view_request'),
+                        'guarantor_loan_arrears' => __('borrower.guarantor_notifications.view_loan'),
                         default => __('borrower.notifications.view_application'),
                     };
                 @endphp
@@ -49,7 +70,22 @@
                         </div>
                         <p class="font-semibold text-gray-900">{{ $title }}</p>
                         <p class="text-sm text-gray-600 mt-1">{{ $body }}</p>
-                        @if ($actionUrl)
+                        @if ($acceptUrl && $declineUrl)
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                <a href="{{ $acceptUrl }}"
+                                   class="inline-flex items-center rounded-xl bg-brand-gold px-4 py-2 text-sm font-bold text-brand">
+                                    {{ __('borrower.guarantor_notifications.accept_cta') }}
+                                </a>
+                                <form method="POST" action="{{ $declineUrl }}">
+                                    @csrf
+                                    <input type="hidden" name="action" value="reject">
+                                    <button type="submit"
+                                            class="inline-flex items-center rounded-xl bg-white px-4 py-2 text-sm font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-50">
+                                        {{ __('borrower.guarantor_notifications.decline_cta') }}
+                                    </button>
+                                </form>
+                            </div>
+                        @elseif ($actionUrl)
                             <a href="{{ url($actionUrl) }}" class="inline-flex mt-3 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ $actionLabel }}</a>
                         @endif
                     </div>

@@ -21,24 +21,5 @@ return [
             ['key' => 'admission_letter', 'label' => 'Admission or fee letter reference', 'type' => 'text', 'required' => true, 'placeholder' => 'Letter number or summary'],
         ],
     ],
-    'FC' => [
-        'title' => 'Artisan / workshop details',
-        'fields' => [
-            ['key' => 'craft_type', 'label' => 'Craft / trade type', 'type' => 'select', 'required' => true, 'options' => [
-                'tailor'        => 'Tailor',
-                'barber'        => 'Barber',
-                'hair_stylist'  => 'Hair stylist',
-                'painter'       => 'Painter',
-                'potter'        => 'Potter',
-                'sculptor'      => 'Sculptor',
-                'carpenter'     => 'Carpenter',
-                'welder'        => 'Welder',
-                'mason'         => 'Mason',
-                'mechanic'      => 'Mechanic',
-                'electrician'   => 'Electrician',
-                'other'         => 'Other',
-            ]],
-            ['key' => 'workshop_location', 'label' => 'Workshop location', 'type' => 'tz_address', 'prefix' => 'workshop', 'required' => true],
-        ],
-    ],
+    // FC (Artisans) details live on Profile → Activity (activity_type = artisan).
 ];

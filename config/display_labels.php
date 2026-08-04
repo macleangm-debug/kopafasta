@@ -174,7 +174,7 @@ return [
         'activity_type' => [
             'business_owner'     => 'Business owner',
             'farmer'             => 'Farmer',
-            'artisan'            => 'Artisan',
+            'artisan'            => 'Artisan / Craftsman',
             'trader'             => 'Trader',
             'employed'           => 'Employed',
             'student'            => 'Student',

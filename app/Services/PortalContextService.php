@@ -150,12 +150,10 @@ class PortalContextService
 
     public function borrowerNotificationsQuery(Customer $customer): Builder
     {
+        // Include guarantor inbox templates so members see Accept/Decline invites
+        // and arrears alerts in the main bell (same person is often borrower + guarantor).
         return NotificationLog::query()
-            ->where('customer_id', $customer->id)
-            ->where(function ($query) {
-                $query->whereNull('template')
-                    ->orWhereNotIn('template', self::GUARANTOR_INBOX_TEMPLATES);
-            });
+            ->where('customer_id', $customer->id);
     }
 
     public function guarantorNotificationsQuery(Customer $customer): Builder
@@ -163,5 +161,11 @@ class PortalContextService
         return NotificationLog::query()
             ->where('customer_id', $customer->id)
             ->whereIn('template', array_merge(self::GUARANTOR_INBOX_TEMPLATES, ['guarantor_action']));
+    }
+
+    /** @return list<string> */
+    public function guarantorInboxTemplates(): array
+    {
+        return self::GUARANTOR_INBOX_TEMPLATES;
     }
 }

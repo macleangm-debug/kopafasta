@@ -307,6 +307,10 @@ class ApplicationBorrowerStatusService
             return 'rejected';
         }
 
+        if ($status === 'awaiting_guarantor' || $stage === 'awaiting_guarantor') {
+            return 'awaiting_guarantor';
+        }
+
         if ($application->offer_status === 'declined' || $this->offerCancelledByBorrower($application)) {
             return 'offer_declined';
         }
@@ -397,6 +401,7 @@ class ApplicationBorrowerStatusService
         return match ($code) {
             'draft'                 => __('borrower.applications_list.statuses.draft'),
             'submitted'             => __('borrower.applications_list.statuses.under_review'),
+            'awaiting_guarantor'    => __('borrower.applications_list.statuses.awaiting_guarantor'),
             'under_review'          => __('borrower.applications_list.statuses.under_review'),
             'screening'             => __('borrower.applications_list.statuses.under_review'),
             'documents_requested'   => __('borrower.applications_list.statuses.documents_requested'),
@@ -424,6 +429,7 @@ class ApplicationBorrowerStatusService
         return match ($code) {
             'rejected' => 'red',
             'offer_declined', 'withdrawn' => 'red',
+            'awaiting_guarantor' => 'amber',
             'awaiting_offer' => 'amber',
             'offer_accepted', 'post_approval_fees' => 'sky',
             'awaiting_signature', 'awaiting_disbursement_details', 'awaiting_contract' => 'sky',

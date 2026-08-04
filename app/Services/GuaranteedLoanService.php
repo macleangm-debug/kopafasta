@@ -35,6 +35,7 @@ class GuaranteedLoanService
             ->latest()
             ->get()
             ->map(fn (CustomerGuarantor $link) => $this->formatLink($link))
+            ->sortBy(fn (object $row) => $row->is_terminal ? 1 : 0)
             ->values();
     }
 
@@ -62,6 +63,22 @@ class GuaranteedLoanService
             ? LoanTopUpRequest::query()->where('loan_id', $loan->id)->latest()->first()
             : null;
 
+        $guarantorCustomer = $this->access->guarantorCustomerForLink($link);
+        $profileStatus = $guarantorCustomer
+            ? app(GuarantorOnboardingService::class)->guarantorProfileStatus($guarantorCustomer)
+            : ['met' => true, 'percent' => 100, 'next_url' => null];
+        $needsGuarantorProfile = ! ($profileStatus['met'] ?? false)
+            && in_array((string) ($application?->status ?? ''), ['awaiting_guarantor', 'submitted', 'pending'], true);
+        $appCode = (string) ($appStatus['code'] ?? '');
+        $isTerminal = in_array($appCode, ['rejected', 'withdrawn', 'offer_declined', 'closed'], true)
+            || in_array((string) ($loan?->status ?? ''), ['closed', 'written_off'], true);
+
+        $stageLabel = match (true) {
+            $needsGuarantorProfile => __('borrower.guaranteed.waiting_on_your_profile'),
+            $appCode === 'awaiting_guarantor' => __('borrower.guaranteed.waiting_on_guarantor_step'),
+            default => $appStatus['label'] ?? '—',
+        };
+
         return (object) [
             'link'                => $link,
             'invitation'          => $invitation,
@@ -72,6 +89,11 @@ class GuaranteedLoanService
             'amount'              => $amount,
             'reference'           => $application?->application_number ?? $application?->draft_reference ?? '—',
             'application_status'  => $appStatus,
+            'stage_label'         => $stageLabel,
+            'needs_guarantor_profile' => $needsGuarantorProfile,
+            'profile_percent'     => (int) ($profileStatus['percent'] ?? 0),
+            'profile_url'         => $profileStatus['next_url'] ?? route('site.borrower.profile'),
+            'is_terminal'         => $isTerminal,
             'loan_status'         => $loan?->status,
             'outstanding'         => $loan ? (float) $loan->outstanding_balance : null,
             'repaid_percent'      => $progress['percent'],

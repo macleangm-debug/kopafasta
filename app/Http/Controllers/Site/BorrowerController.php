@@ -32,7 +32,6 @@ use App\Services\CrbService;
 use App\Services\FaceVerificationService;
 use App\Services\GuarantorInvitationService;
 use App\Services\GuarantorOnboardingService;
-use App\Services\GuarantorSignatureService;
 use App\Services\KycFreshnessService;
 use App\Services\LoanQualificationService;
 use App\Services\NidaVerificationService;
@@ -693,10 +692,11 @@ class BorrowerController extends Controller
             ->get();
 
         $allowedTabs = ['applications', 'active'];
-        if ($portal->hasGuarantorWork($customer) || $pendingGuarantorRequests->isNotEmpty()) {
+        $hasGuarantorExposure = $portal->hasGuarantorWork($customer)
+            || $pendingGuarantorRequests->isNotEmpty()
+            || $guaranteedLinks->isNotEmpty();
+        if ($hasGuarantorExposure) {
             $allowedTabs[] = 'guarantor';
-        }
-        if ($guaranteedLinks->isNotEmpty()) {
             $allowedTabs[] = 'guaranteed';
         }
 
@@ -1284,6 +1284,20 @@ class BorrowerController extends Controller
                     : null;
                 $center = app(\App\Services\NotificationCenterService::class);
                 $category = $center->normalizeCategory((string) ($n->category ?: 'general'));
+                $meta = is_array($n->meta) ? $n->meta : [];
+                $linkId = (int) ($meta['customer_guarantor_id'] ?? 0);
+                if ($linkId <= 0 && $n->template === 'guarantor_request' && $actionUrl) {
+                    if (preg_match('#/guarantor-requests/(\d+)#', $actionUrl, $m)) {
+                        $linkId = (int) $m[1];
+                    }
+                }
+
+                $acceptUrl = null;
+                $declineUrl = null;
+                if ($n->template === 'guarantor_request' && $linkId > 0) {
+                    $acceptUrl = route('site.borrower.guarantor-requests.show', $linkId);
+                    $declineUrl = route('site.borrower.guarantor-requests.respond', $linkId);
+                }
 
                 return [
                     'id'         => $n->id,
@@ -1292,17 +1306,24 @@ class BorrowerController extends Controller
                     'message'    => trim($n->displayTitle().' '.$n->displayBody()),
                     'category'   => $category,
                     'category_label' => $center->categoryLabel($category),
+                    'template'   => $n->template,
                     'read'       => (bool) $n->read_at,
                     'when'       => $n->created_at?->diffForHumans(),
                     'action_url' => $actionUrl,
                     'action_label' => $actionUrl
                         ? match ($n->template) {
-                            'guarantor_request' => __('borrower.guarantor_notifications.view_request'),
+                            'guarantor_request' => $acceptUrl
+                                ? __('borrower.guarantor_notifications.accept_cta')
+                                : __('borrower.guarantor_notifications.view_request'),
+                            'guarantor_loan_arrears' => __('borrower.guarantor_notifications.view_loan'),
                             'loyalty_points_earned' => __('borrower.rewards.points_earned_cta'),
                             'application_document_request', 'document_request' => __('borrower.notifications.document_request_cta'),
                             default => __('borrower.notifications.view_application'),
                         }
                         : null,
+                    'accept_url' => $acceptUrl,
+                    'decline_url' => $declineUrl,
+                    'decline_label' => $declineUrl ? __('borrower.guarantor_notifications.decline_cta') : null,
                 ];
             });
 
@@ -1947,6 +1968,8 @@ class BorrowerController extends Controller
         // Confetti only when compulsory hub profile is complete (collateral never required).
         if (app(\App\Services\ProfileCompletionService::class)->isFullyComplete($customer->fresh())) {
             \App\Support\Celebration::flashOne('profile_complete');
+            app(\App\Services\GuarantorInvitationService::class)
+                ->releaseHeldApplicationsForGuarantor($customer->fresh());
         }
 
         return $redirect;
@@ -2522,7 +2545,7 @@ class BorrowerController extends Controller
         return view('site.borrower.guarantor-requests', compact('customer', 'requests'));
     }
 
-    public function respondGuarantorRequest(Request $request, CustomerGuarantor $customerGuarantor, GuarantorInvitationService $guarantors, GuarantorSignatureService $signatures, GuarantorOnboardingService $guarantorOnboarding): RedirectResponse
+    public function respondGuarantorRequest(Request $request, CustomerGuarantor $customerGuarantor, GuarantorInvitationService $guarantors, GuarantorOnboardingService $guarantorOnboarding): RedirectResponse
     {
         $customer = $this->customer();
 
@@ -2535,57 +2558,42 @@ class BorrowerController extends Controller
         abort_unless($customerGuarantor->status === 'pending', 422);
 
         $data = $request->validate([
-            'action'         => ['required', 'in:approve,reject'],
-            'notes'          => ['nullable', 'string', 'max:500'],
-            'signer_name'    => ['nullable', 'string', 'max:120'],
-            'signature_data' => ['required_if:action,approve', 'nullable', 'string', 'starts_with:data:image/png;base64,'],
+            'action' => ['required', 'in:approve,reject'],
+            'notes'  => ['nullable', 'string', 'max:500'],
         ]);
 
         if ($data['action'] === 'approve') {
+            $guarantors->approve($customerGuarantor);
             $profileStatus = $guarantorOnboarding->guarantorProfileStatus($customer);
-            if (! $profileStatus['met']) {
+
+            $this->auditBorrower('guarantor_request.approve', $customerGuarantor, [
+                'invitation_id' => $invitation?->id,
+            ]);
+
+            if (! ($profileStatus['met'] ?? false)) {
+                $resumeUrl = $profileStatus['next_url'] ?? route('site.borrower.profile');
+
                 return redirect()
-                    ->route('site.borrower.guarantor-requests.show', $customerGuarantor)
-                    ->with('error', __('borrower.guarantor.profile_incomplete', [
-                        'percent' => $profileStatus['percent'],
+                    ->to($resumeUrl)
+                    ->with('status', __('borrower.guarantor.accepted_finish_profile', [
+                        'percent' => $profileStatus['percent'] ?? 0,
                     ]));
             }
 
-            $application = $customerGuarantor->application ?? $invitation->application;
-
-            $signerName = trim($data['signer_name'] ?? '') ?: trim($customer->first_name.' '.$customer->last_name);
-
-            if ($application) {
-                $signatures->record(
-                    $application,
-                    $signerName,
-                    $data['signature_data'],
-                    $customerGuarantor,
-                    $invitation,
-                );
-            } else {
-                $signatures->recordForInvitation(
-                    $invitation,
-                    $signerName,
-                    $data['signature_data'],
-                );
-            }
-            $guarantors->approve($customerGuarantor);
-            $msg = __('borrower.guarantor.approved_success');
-        } else {
-            $guarantors->reject($customerGuarantor, $data['notes'] ?? null);
-            $msg = __('borrower.guarantor.declined_success');
+            return redirect()
+                ->route('site.borrower.loans', ['tab' => 'guaranteed'])
+                ->with('status', __('borrower.guaranteed.approved_track_message'));
         }
 
-        $this->auditBorrower('guarantor_request.'.$data['action'], $customerGuarantor, [
+        $guarantors->reject($customerGuarantor, $data['notes'] ?? null);
+
+        $this->auditBorrower('guarantor_request.reject', $customerGuarantor, [
             'invitation_id' => $invitation?->id,
         ]);
 
         return redirect()
-            ->route('site.borrower.loans', ['tab' => $data['action'] === 'approve' ? 'guaranteed' : 'guarantor'])
-            ->with('status', $data['action'] === 'approve'
-                ? __('borrower.guaranteed.approved_track_message')
-                : $msg);
+            ->route('site.borrower.loans', ['tab' => 'guarantor'])
+            ->with('status', __('borrower.guarantor.declined_success'));
     }
 
     public function showGuarantorRequest(CustomerGuarantor $customerGuarantor, GuarantorOnboardingService $guarantorOnboarding): View

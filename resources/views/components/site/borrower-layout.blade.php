@@ -42,6 +42,9 @@
     $unreadNotifications = $notificationQuery
         ? $notificationQuery->whereNull('read_at')->count()
         : 0;
+    $pendingGuarantorPopup = $borrowerCustomer
+        ? $portalContext->pendingGuarantorLinks($borrowerCustomer)
+        : collect();
 
     $icon = function (string $name) {
         return match ($name) {
@@ -139,7 +142,21 @@
                                     <p class="text-sm font-semibold text-gray-900 mt-0.5" x-show="item.title" x-text="item.title"></p>
                                     <p class="text-sm text-gray-800 mt-0.5" x-text="item.body || item.message"></p>
                                     <p class="text-[11px] text-gray-400 mt-1" x-text="item.when"></p>
-                                    <template x-if="item.action_url">
+                                    <template x-if="item.accept_url && item.decline_url">
+                                        <div class="mt-2 flex flex-wrap gap-2">
+                                            <a :href="item.accept_url"
+                                               class="inline-flex items-center rounded-lg bg-brand-gold px-3 py-1.5 text-xs font-bold text-brand"
+                                               x-text="item.action_label || @js(__('borrower.guarantor_notifications.accept_cta'))"></a>
+                                            <form :action="item.decline_url" method="POST" class="inline">
+                                                <input type="hidden" name="_token" :value="document.querySelector('meta[name=csrf-token]')?.content || ''">
+                                                <input type="hidden" name="action" value="reject">
+                                                <button type="submit"
+                                                        class="inline-flex items-center rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-50"
+                                                        x-text="item.decline_label || @js(__('borrower.guarantor_notifications.decline_cta'))"></button>
+                                            </form>
+                                        </div>
+                                    </template>
+                                    <template x-if="item.action_url && !(item.accept_url && item.decline_url)">
                                         <a :href="item.action_url" class="inline-flex mt-2 text-xs font-semibold text-brand hover:underline" x-text="item.action_label || @js(__('borrower.notifications.view_application'))"></a>
                                     </template>
                                 </div>
@@ -273,6 +290,7 @@
     </div>
 </div>
 
+<x-site.guarantor-request-popup :pending="$pendingGuarantorPopup" />
 <x-site.confirm-modal name="default" />
 <x-site.feedback-modal name="default" />
 <x-site.borrower-help-hub />

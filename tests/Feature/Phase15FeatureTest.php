@@ -162,14 +162,15 @@ class Phase15FeatureTest extends TestCase
         $this->assertStringContainsString(route('site.borrower.application', $application->id), $message);
     }
 
-    public function test_fc_product_questions_use_tz_address_for_workshop(): void
+    public function test_fc_artisan_details_live_on_profile_activity_not_loan_questions(): void
     {
-        $fields = config('loan_product_questions.FC.fields', []);
-        $workshopField = collect($fields)->firstWhere('key', 'workshop_location');
+        $this->assertArrayNotHasKey('FC', config('loan_product_questions', []));
 
-        $this->assertNotNull($workshopField);
-        $this->assertSame('tz_address', $workshopField['type']);
-        $this->assertSame('workshop', $workshopField['prefix']);
+        $artisanFields = collect(config('activity_profiles.fields.artisan', []));
+        $this->assertNotNull($artisanFields->firstWhere('key', 'skill_type'));
+        $this->assertNotNull($artisanFields->firstWhere('key', 'region'));
+        $this->assertNotNull($artisanFields->firstWhere('key', 'district'));
+        $this->assertNotNull($artisanFields->firstWhere('key', 'street'));
     }
 
     public function test_borrower_layout_supports_content_width_prop(): void

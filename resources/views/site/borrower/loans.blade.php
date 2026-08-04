@@ -119,10 +119,10 @@
 
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         @foreach ([
-            ['key' => 'applications', 'label' => __('borrower.loans_page.summary_applications'), 'value' => $loanSummary['applications'], 'tone' => 'brand', 'icon' => '📋'],
-            ['key' => 'active', 'label' => __('borrower.loans_page.summary_active'), 'value' => $loanSummary['active'], 'tone' => 'emerald', 'icon' => '💰'],
-            ['key' => 'guarantor', 'label' => __('borrower.loans_page.summary_guarantor'), 'value' => $loanSummary['guarantor'], 'tone' => 'amber', 'icon' => '🤝'],
-            ['key' => 'guaranteed', 'label' => __('borrower.loans_page.summary_guaranteed'), 'value' => $loanSummary['guaranteed'], 'tone' => 'sky', 'icon' => '🛡'],
+            ['key' => 'applications', 'label' => __('borrower.loans_page.summary_applications'), 'value' => $loanSummary['applications'], 'tone' => 'brand', 'icon' => '📋', 'tab' => 'applications'],
+            ['key' => 'active', 'label' => __('borrower.loans_page.summary_active'), 'value' => $loanSummary['active'], 'tone' => 'emerald', 'icon' => '💰', 'tab' => 'active'],
+            ['key' => 'guarantor', 'label' => __('borrower.loans_page.summary_guarantor'), 'value' => $loanSummary['guarantor'], 'tone' => 'amber', 'icon' => '🤝', 'tab' => ($showGuarantorTab ?? false) ? 'guarantor' : null],
+            ['key' => 'guaranteed', 'label' => __('borrower.loans_page.summary_guaranteed'), 'value' => $loanSummary['guaranteed'], 'tone' => 'sky', 'icon' => '🛡', 'tab' => ($showGuaranteedTab ?? false) ? 'guaranteed' : null],
         ] as $stat)
             @php
                 $toneRing = match ($stat['tone']) {
@@ -131,14 +131,25 @@
                     'sky'     => 'ring-sky-200/80 bg-sky-50/40',
                     default   => 'ring-brand/15 bg-brand-muted/30',
                 };
+                $statHref = $stat['tab'] ? route('site.borrower.loans', ['tab' => $stat['tab']]) : null;
             @endphp
-            <div class="glass-card p-4 ring-1 {{ $toneRing }}">
-                <div class="flex items-center justify-between gap-2">
-                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $stat['label'] }}</p>
-                    <span class="text-lg" aria-hidden="true">{{ $stat['icon'] }}</span>
+            @if ($statHref)
+                <a href="{{ $statHref }}" class="glass-card p-4 ring-1 {{ $toneRing }} hover:ring-brand/30 transition block">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $stat['label'] }}</p>
+                        <span class="text-lg" aria-hidden="true">{{ $stat['icon'] }}</span>
+                    </div>
+                    <p class="mt-2 text-2xl font-bold text-gray-900 tabular-nums">{{ $stat['value'] }}</p>
+                </a>
+            @else
+                <div class="glass-card p-4 ring-1 {{ $toneRing }}">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $stat['label'] }}</p>
+                        <span class="text-lg" aria-hidden="true">{{ $stat['icon'] }}</span>
+                    </div>
+                    <p class="mt-2 text-2xl font-bold text-gray-900 tabular-nums">{{ $stat['value'] }}</p>
                 </div>
-                <p class="mt-2 text-2xl font-bold text-gray-900 tabular-nums">{{ $stat['value'] }}</p>
-            </div>
+            @endif
         @endforeach
     </div>
 

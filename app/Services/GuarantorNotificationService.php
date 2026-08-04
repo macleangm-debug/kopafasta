@@ -61,6 +61,15 @@ class GuarantorNotificationService
                 'reference' => $loan->loan_number,
                 'balance'   => format_money((float) $loan->outstanding_balance),
             ]),
+            'i18n' => [
+                'title_key' => 'borrower.guaranteed.notify.arrears_title',
+                'body_key'  => 'borrower.guaranteed.notify.arrears_message',
+                'params'    => [
+                    'borrower'  => $application->customer?->legalDisplayName() ?? 'Borrower',
+                    'reference' => $loan->loan_number,
+                    'balance'   => format_money((float) $loan->outstanding_balance),
+                ],
+            ],
         ]);
     }
 
@@ -171,7 +180,7 @@ class GuarantorNotificationService
         ]);
     }
 
-    /** @param array{title: string, message: string} $copy */
+    /** @param array{title: string, message: string, i18n?: array} $copy */
     private function notifyGuarantors(LoanApplication $application, string $template, array $copy): void
     {
         $link = $this->primaryLinkForApplication($application);
@@ -181,6 +190,13 @@ class GuarantorNotificationService
                 ? route('site.borrower.guaranteed.show', $link)
                 : route('site.borrower.loans', ['tab' => 'guaranteed']);
 
+            $i18n = $copy['i18n'] ?? null;
+            if ($link && is_array($i18n)) {
+                $i18n['customer_guarantor_id'] = $link->id;
+            } elseif ($link) {
+                $i18n = ['customer_guarantor_id' => $link->id];
+            }
+
             $this->notifications->notifyInApp(
                 $guarantor,
                 $copy['message'],
@@ -188,6 +204,8 @@ class GuarantorNotificationService
                 $template,
                 $copy['title'],
                 $url,
+                null,
+                $i18n,
             );
         }
     }

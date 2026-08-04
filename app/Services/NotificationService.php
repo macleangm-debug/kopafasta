@@ -198,12 +198,13 @@ class NotificationService
             'sent_at'     => now(),
         ];
 
-        if (is_array($i18n) && (filled($i18n['title_key'] ?? null) || filled($i18n['body_key'] ?? null))) {
-            $payload['meta'] = [
+        if (is_array($i18n) && (filled($i18n['title_key'] ?? null) || filled($i18n['body_key'] ?? null) || isset($i18n['customer_guarantor_id']))) {
+            $payload['meta'] = array_filter([
                 'title_key' => $i18n['title_key'] ?? null,
                 'body_key'  => $i18n['body_key'] ?? null,
                 'params'    => is_array($i18n['params'] ?? null) ? $i18n['params'] : [],
-            ];
+                'customer_guarantor_id' => $i18n['customer_guarantor_id'] ?? null,
+            ], static fn ($v) => $v !== null && $v !== []);
         }
 
         return NotificationLog::create($payload);

@@ -152,13 +152,11 @@ class SmartLoanApplicationWizardService
 
         // Profile/KYC/income are completed in Profile — never duplicated in the apply wizard.
         // Application fee is a payment gate (not a numbered step) — enforced in the wizard JS.
+        // Artisan workshop details live on Profile → Activity (not on the loan spine).
 
         if ($requiresGuarantor) {
             $steps[] = ['key' => 'guarantor', 'label' => __('borrower.apply.steps.guarantor'), 'skippable' => false, 'skipped' => false];
         }
-
-        // Product-specific questions (e.g. Artisans workshop) live on the quote/amount
-        // step — never as a separate numbered step — so IL and FC share the same spine.
 
         $steps[] = ['key' => 'review', 'label' => __('borrower.apply.steps.review'), 'skippable' => false, 'skipped' => false];
         // Signature is collected on the borrower profile (submit redirects there if missing).

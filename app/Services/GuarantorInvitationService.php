@@ -744,6 +744,7 @@ class GuarantorInvitationService
                         'borrower'  => $borrowerName,
                         'reference' => $application->application_number ?? $application->draft_reference ?? '—',
                     ],
+                    'customer_guarantor_id' => $link->id,
                 ],
             );
 
@@ -896,23 +897,75 @@ class GuarantorInvitationService
                     'responded_at' => now(),
                 ]);
 
-            $application = $link->application;
-            if ($application && $application->status === 'awaiting_guarantor') {
-                $hasApproved = CustomerGuarantor::query()
-                    ->where('loan_application_id', $application->id)
-                    ->where('status', 'approved')
-                    ->exists();
-
-                if ($hasApproved) {
-                    $application->update([
-                        'status'                => 'submitted',
-                        'current_stage'         => 'screening',
-                        'submitted_at'          => $application->submitted_at ?? now(),
-                        'guarantor_deadline_at' => null,
-                    ]);
-                }
-            }
+            $this->tryReleaseApplicationFromGuarantorHold($link->application ?? $link->fresh()->application);
         });
+    }
+
+    /**
+     * Move awaiting_guarantor → screening only when every approved guarantor has a complete profile.
+     */
+    public function tryReleaseApplicationFromGuarantorHold(?LoanApplication $application): bool
+    {
+        if (! $application || $application->status !== 'awaiting_guarantor') {
+            return false;
+        }
+
+        $approvedLinks = CustomerGuarantor::query()
+            ->with('invitation')
+            ->where('loan_application_id', $application->id)
+            ->where('status', 'approved')
+            ->get();
+
+        if ($approvedLinks->isEmpty()) {
+            return false;
+        }
+
+        $onboarding = app(GuarantorOnboardingService::class);
+        $access = app(GuarantorAccessService::class);
+
+        foreach ($approvedLinks as $approvedLink) {
+            $guarantorCustomer = $access->guarantorCustomerForLink($approvedLink);
+            if (! $guarantorCustomer || ! ($onboarding->guarantorProfileStatus($guarantorCustomer)['met'] ?? false)) {
+                return false;
+            }
+        }
+
+        $application->update([
+            'status'                => 'submitted',
+            'current_stage'         => 'screening',
+            'submitted_at'          => $application->submitted_at ?? now(),
+            'guarantor_deadline_at' => null,
+        ]);
+
+        return true;
+    }
+
+    /** After a guarantor finishes their profile, release any held applications they already accepted. */
+    public function releaseHeldApplicationsForGuarantor(Customer $guarantor): int
+    {
+        $onboarding = app(GuarantorOnboardingService::class);
+        if (! ($onboarding->guarantorProfileStatus($guarantor)['met'] ?? false)) {
+            return 0;
+        }
+
+        $released = 0;
+        $linkIds = GuarantorInvitation::query()
+            ->where('guarantor_customer_id', $guarantor->id)
+            ->whereNotNull('customer_guarantor_id')
+            ->pluck('customer_guarantor_id');
+
+        CustomerGuarantor::query()
+            ->with('application')
+            ->whereIn('id', $linkIds)
+            ->where('status', 'approved')
+            ->get()
+            ->each(function (CustomerGuarantor $link) use (&$released): void {
+                if ($this->tryReleaseApplicationFromGuarantorHold($link->application)) {
+                    $released++;
+                }
+            });
+
+        return $released;
     }
 
     public function reject(CustomerGuarantor $link, ?string $notes = null): void
