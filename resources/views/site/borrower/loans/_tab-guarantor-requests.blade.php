@@ -40,7 +40,11 @@
     />
 @else
     @if ($pending->isNotEmpty())
-        <div class="mb-10 space-y-10">
+        <div class="mb-8">
+            <div class="mb-4">
+                <h3 class="text-sm font-bold text-gray-900">{{ __('borrower.guarantor.section_needs_decision') }}</h3>
+                <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.guarantor.section_needs_decision_hint') }}</p>
+            </div>
             @include('site.borrower.loans._guarantor-pending-list', [
                 'rows' => $pending,
                 'viewMode' => $viewMode,
@@ -49,7 +53,11 @@
     @endif
 
     @if ($needsProfile->isNotEmpty())
-        <div class="mb-10 space-y-10">
+        <div class="mb-8">
+            <div class="mb-4">
+                <h3 class="text-sm font-bold text-amber-900">{{ __('borrower.guarantor.section_needs_profile') }}</h3>
+                <p class="text-xs text-amber-800/80 mt-0.5">{{ __('borrower.guarantor.section_needs_profile_hint') }}</p>
+            </div>
             @include('site.borrower.loans._guarantor-tracking-list', [
                 'rows' => $needsProfile,
                 'viewMode' => $viewMode,
@@ -58,7 +66,11 @@
     @endif
 
     @if ($waitingOthers->isNotEmpty())
-        <div class="mb-10 space-y-10">
+        <div class="mb-8">
+            <div class="mb-4">
+                <h3 class="text-sm font-bold text-gray-900">{{ __('borrower.guarantor.section_in_progress') }}</h3>
+                <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.guarantor.section_in_progress_hint') }}</p>
+            </div>
             @include('site.borrower.loans._guarantor-tracking-list', [
                 'rows' => $waitingOthers,
                 'viewMode' => $viewMode,

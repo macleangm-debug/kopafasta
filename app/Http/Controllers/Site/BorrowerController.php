@@ -332,6 +332,29 @@ class BorrowerController extends Controller
             ]));
     }
 
+    public function changeGuarantorWhileHeld(Request $request, LoanApplication $application): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_if($application->customer_id !== $customer->id, 404);
+
+        try {
+            $url = app(\App\Services\GuarantorSupplementService::class)
+                ->startBorrowerChangeWhileHeld($application, $customer);
+        } catch (\InvalidArgumentException $e) {
+            return redirect()
+                ->route('site.borrower.application', $application)
+                ->with('error', $e->getMessage());
+        }
+
+        $this->auditBorrower('loan_application.guarantor_change_while_held', $application, [
+            'application_number' => $application->application_number,
+        ]);
+
+        return redirect()
+            ->to($url)
+            ->with('status', __('borrower.guarantor_supplement.borrower_change_started'));
+    }
+
     public function discardDraft(Request $request, \App\Models\LoanApplicationDraft $draft): RedirectResponse
     {
         $customer = $this->customer();

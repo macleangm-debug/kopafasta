@@ -11,6 +11,7 @@
         $timeline = $timeline ?? ['percent' => 0, 'steps' => []];
         $needsProfile = $row->needs_guarantor_profile ?? false;
         $profilePercent = (int) ($row->profile_percent ?? 0);
+        $progressPercent = (int) ($timeline['percent'] ?? 0);
     @endphp
 
     <div class="mb-4">
@@ -28,8 +29,8 @@
 
     <x-site.borrower-page-header
         :eyebrow="__('borrower.loans_page.guarantor_badge')"
-        :title="$borrowerName"
-        :subtitle="$productName.' · '.$row->reference"
+        :title="$productName"
+        :subtitle="$borrowerName.' · '.$row->reference"
     >
         <x-slot:actions>
             <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1.5 {{ $needsProfile ? 'bg-amber-100 text-amber-900' : 'bg-sky-100 text-sky-800' }}">
@@ -38,26 +39,38 @@
         </x-slot:actions>
     </x-site.borrower-page-header>
 
-    {{-- Glance card (mirrors loan profile draft summary) --}}
-    <div class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15">
+    {{-- At a glance — status only; single profile CTA lives below --}}
+    <div class="mb-6 glass-card overflow-hidden">
         <div class="bg-gradient-to-br from-brand-muted/50 to-white px-5 sm:px-6 py-5 border-b border-gray-100/80">
-            <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guaranteed.detail_eyebrow') }}</p>
-            <h2 class="text-lg sm:text-xl font-bold text-gray-900 mt-1">{{ __('borrower.guaranteed.detail_glance_title') }}</h2>
-            <p class="text-sm text-gray-600 mt-1">{{ $row->pending_hint ?? ($row->stage_label ?? '') }}</p>
+            <div class="min-w-0">
+                <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guaranteed.detail_eyebrow') }}</p>
+                <h2 class="text-lg sm:text-xl font-bold text-gray-900 mt-1">{{ __('borrower.guaranteed.detail_glance_title') }}</h2>
+                <p class="text-sm text-gray-600 mt-1">{{ $row->pending_hint ?? ($row->stage_label ?? '') }}</p>
+                @if (! empty($row->deadline_label))
+                    <p class="mt-2 inline-flex items-center gap-1.5 text-xs font-bold {{ ($row->deadline_urgent ?? false) ? 'text-red-700' : 'text-brand' }}">
+                        <span aria-hidden="true">⏱</span>
+                        {{ $row->deadline_label }}
+                    </p>
+                @endif
+            </div>
 
-            <div class="mt-5 grid sm:grid-cols-3 gap-3">
-                <div class="rounded-xl bg-white ring-1 ring-gray-200/80 px-4 py-3">
-                    <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.loan_amount') }}</p>
-                    <p class="text-lg font-bold mt-1">{{ format_money($row->amount) }}</p>
+            <div class="mt-5 rounded-xl bg-white ring-1 ring-gray-200/80 px-4 py-3">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guaranteed.progress_title') }}</p>
+                <div class="flex items-center gap-3 mt-2">
+                    <div class="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
+                        <div class="h-full rounded-full bg-brand" style="width: {{ min(100, max(0, $progressPercent)) }}%"></div>
+                    </div>
+                    <span class="text-sm font-bold tabular-nums text-gray-900">{{ $progressPercent }}%</span>
                 </div>
-                <div class="rounded-xl bg-white ring-1 ring-gray-200/80 px-4 py-3">
-                    <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.outstanding') }}</p>
-                    <p class="text-lg font-bold mt-1">{{ $row->loan ? format_money($row->outstanding) : '—' }}</p>
-                </div>
-                <div class="rounded-xl bg-white ring-1 ring-gray-200/80 px-4 py-3">
-                    <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.next_due') }}</p>
-                    <p class="text-lg font-bold mt-1">{{ $row->next_due_date ? \Illuminate\Support\Carbon::parse($row->next_due_date)->format('d M Y') : '—' }}</p>
-                </div>
+                <p class="text-xs text-gray-500 mt-1">{{ $row->stage_label }}</p>
+            </div>
+
+            <div class="mt-4 rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-gradient-to-br from-brand-muted/40 via-white to-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loans_page.loan_amount') }}</p>
+                <p class="text-sm text-gray-700 mt-0.5">
+                    {{ format_money($row->amount) }}
+                    · {{ $row->loan ? (__('borrower.loans_page.outstanding').': '.format_money($row->outstanding ?? 0)) : __('borrower.loans_page.not_disbursed') }}
+                </p>
             </div>
         </div>
     </div>
@@ -91,6 +104,30 @@
         </div>
     @endif
 
+    <div class="glass-card p-5 mb-6 ring-1 ring-brand/15">
+        <div class="mb-4">
+            <h2 class="font-semibold">{{ __('borrower.loan_profile.summary_title') }}</h2>
+        </div>
+        <div class="grid sm:grid-cols-2 gap-4 text-sm">
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.applications_list.amount') }}</p>
+                <p class="font-semibold mt-1">{{ format_money($row->amount) }}</p>
+            </div>
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.borrower') }}</p>
+                <p class="font-semibold mt-1">{{ $borrowerName }}</p>
+            </div>
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.guaranteed.current_step') }}</p>
+                <p class="font-semibold mt-1">{{ $row->stage_label }}</p>
+            </div>
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-400">{{ __('borrower.loans_page.loan_status') }}</p>
+                <p class="font-semibold mt-1">{{ $row->loan ? ucfirst((string) $row->loan_status) : __('borrower.loans_page.not_disbursed') }}</p>
+            </div>
+        </div>
+    </div>
+
     @if ($row->in_arrears)
         <div class="mb-6 rounded-2xl bg-red-50 ring-1 ring-red-200 px-5 py-4 text-sm text-red-800">
             <p class="font-semibold">{{ __('borrower.guaranteed.arrears_alert_title') }}</p>
@@ -101,13 +138,8 @@
     @if (! empty($timeline['steps']))
         <div class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15">
             <div class="bg-gradient-to-br from-brand-muted/40 to-white px-5 sm:px-6 py-5">
-                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.guaranteed.progress_title') }}</p>
-                <div class="flex items-center gap-3 mt-3">
-                    <div class="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
-                        <div class="h-full rounded-full bg-brand" style="width: {{ min(100, max(0, (int) ($timeline['percent'] ?? 0))) }}%"></div>
-                    </div>
-                    <span class="text-sm font-bold tabular-nums text-gray-900">{{ (int) ($timeline['percent'] ?? 0) }}%</span>
-                </div>
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.guaranteed.status_checklist_title') }}</p>
+                <p class="text-sm text-gray-600 mt-1">{{ __('borrower.guaranteed.status_checklist_hint') }}</p>
                 <ol class="mt-5 space-y-3">
                     @foreach ($timeline['steps'] as $step)
                         <li class="flex items-start gap-3 text-sm">
@@ -119,11 +151,16 @@
                             ])>
                                 {{ ($step['complete'] ?? false) ? '✓' : '·' }}
                             </span>
-                            <span @class([
-                                'leading-snug',
-                                'font-semibold text-gray-900' => $step['current'] ?? false,
-                                'text-gray-600' => ! ($step['current'] ?? false),
-                            ])>{{ $step['label'] }}</span>
+                            <div class="min-w-0">
+                                <span @class([
+                                    'leading-snug block',
+                                    'font-semibold text-gray-900' => $step['current'] ?? false,
+                                    'text-gray-600' => ! ($step['current'] ?? false),
+                                ])>{{ $step['label'] }}</span>
+                                @if (! empty($step['hint']))
+                                    <span class="block text-xs text-gray-500 mt-0.5">{{ $step['hint'] }}</span>
+                                @endif
+                            </div>
                         </li>
                     @endforeach
                 </ol>

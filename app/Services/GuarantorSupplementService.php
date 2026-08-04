@@ -153,6 +153,59 @@ class GuarantorSupplementService
         }
     }
 
+    /**
+     * Borrower self-service: while the application is held awaiting guarantor completion,
+     * drop current pending/approved guarantors and open the guarantor step to pick someone else.
+     * Keeps awaiting_guarantor + existing deadline (does not restart screening).
+     */
+    public function startBorrowerChangeWhileHeld(LoanApplication $application, Customer $borrower): string
+    {
+        if ((int) $application->customer_id !== (int) $borrower->id) {
+            throw new \InvalidArgumentException('Application does not belong to this borrower.');
+        }
+
+        if ((string) $application->status !== 'awaiting_guarantor'
+            && (string) $application->current_stage !== 'awaiting_guarantor') {
+            throw new \InvalidArgumentException('Guarantor can only be changed while the application is waiting for guarantor completion.');
+        }
+
+        if ($this->hasOpenRequest($application)) {
+            return $this->borrowerWizardUrl($application);
+        }
+
+        $inviteSvc = app(GuarantorInvitationService::class);
+        $activeLinks = \App\Models\CustomerGuarantor::query()
+            ->where('loan_application_id', $application->id)
+            ->whereIn('status', ['pending', 'approved'])
+            ->get();
+
+        foreach ($activeLinks as $link) {
+            $inviteSvc->rejectByUnderwriting(
+                $link,
+                'Replaced by borrower while awaiting guarantor completion'
+            );
+        }
+
+        DB::transaction(function () use ($application, $borrower): void {
+            $payload = $application->screening_payload ?? [];
+            $payload['guarantor_supplement'] = [
+                'requested_at' => now()->toIso8601String(),
+                'requested_by' => $borrower->user_id,
+                'notes'        => 'Borrower-initiated change while awaiting guarantor profile',
+                'satisfied_at' => null,
+                'kind'         => 'change',
+                'initiated_by' => 'borrower',
+            ];
+            $application->update([
+                'screening_payload' => $payload,
+                'status'            => 'awaiting_guarantor',
+                'current_stage'     => 'awaiting_guarantor',
+            ]);
+        });
+
+        return $this->borrowerWizardUrl($application);
+    }
+
     public function markSatisfied(LoanApplication $application): void
     {
         $payload = $application->screening_payload ?? [];

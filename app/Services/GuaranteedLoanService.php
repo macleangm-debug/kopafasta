@@ -92,7 +92,7 @@ class GuaranteedLoanService
 
         $appCode = (string) ($appStatus['code'] ?? '');
         $isDisbursed = $loan !== null;
-        $isTerminal = in_array($appCode, ['rejected', 'withdrawn', 'offer_declined', 'closed'], true)
+        $isTerminal = in_array($appCode, ['rejected', 'withdrawn', 'offer_declined', 'closed', 'expired'], true)
             || in_array((string) ($loan?->status ?? ''), ['closed', 'written_off'], true);
 
         // Any accepted, not-yet-disbursed guarantee stays blocked on the guarantor's
@@ -121,6 +121,8 @@ class GuaranteedLoanService
             default => $appStatus['label'] ?? '—',
         };
 
+        $deadline = $this->deadlinePayload($application, $invitation, $needsGuarantorProfile);
+
         return (object) [
             'link'                    => $link,
             'invitation'              => $invitation,
@@ -147,6 +149,10 @@ class GuaranteedLoanService
             'in_arrears'              => $servicing['in_arrears'] ?? ($loan && $loan->status === 'arrears'),
             'amount_in_arrears'       => $servicing['amount_in_arrears'] ?? 0,
             'days_remaining'          => $servicing['days_remaining'] ?? null,
+            'deadline_label'          => $deadline['label'],
+            'deadline_days_left'      => $deadline['days_left'],
+            'deadline_urgent'         => $deadline['urgent'],
+            'deadline_expired'        => $deadline['expired'],
             'servicing'               => $servicing,
             'restructure'             => $restructure,
             'top_up'                  => $topUp,
@@ -157,71 +163,159 @@ class GuaranteedLoanService
     }
 
     /**
-     * Timeline for the guarantor detail page — application pipeline, or a
-     * simple invitation path when the borrower has not submitted yet.
+     * Guarantor-facing status checklist — facts only, no promised disbursement.
+     * Profile and borrower submission can advance independently.
      *
-     * @return array{percent: int, steps: list<array{key: string, label: string, complete: bool, current: bool}>}
+     * @return array{percent: int, steps: list<array{key: string, label: string, complete: bool, current: bool, hint?: string}>}
      */
     public function progressTimeline(object $row): array
     {
-        if ($row->application) {
-            $timeline = $this->borrowerStatus->timeline($row->application);
+        $needsProfile = (bool) ($row->needs_guarantor_profile ?? false);
+        $profileDone = ! $needsProfile;
+        $appCode = (string) ($row->application_status['code'] ?? '');
+        $isDisbursed = (bool) ($row->is_disbursed ?? false);
+        $isTerminal = (bool) ($row->is_terminal ?? false);
+        $borrowerSubmitted = $row->application !== null
+            && ! in_array($appCode, ['pending_submission', ''], true);
 
-            if (($row->needs_guarantor_profile ?? false) && ! empty($timeline['steps'])) {
-                foreach ($timeline['steps'] as &$step) {
-                    $step['current'] = false;
-                }
-                unset($step);
-
-                array_unshift($timeline['steps'], [
-                    'key'      => 'guarantor_profile',
-                    'label'    => __('borrower.guaranteed.timeline_your_profile'),
-                    'complete' => false,
-                    'current'  => true,
-                ]);
-                $timeline['percent'] = min(25, (int) ($timeline['percent'] ?? 0));
-            }
-
-            return $timeline;
-        }
-
-        $profileDone = ! ($row->needs_guarantor_profile ?? false);
-
-        return [
-            'percent' => $profileDone ? 35 : 15,
-            'steps'   => [
-                [
-                    'key'      => 'accepted',
-                    'label'    => __('borrower.guaranteed.timeline_accepted'),
-                    'complete' => true,
-                    'current'  => false,
-                ],
-                [
-                    'key'      => 'guarantor_profile',
-                    'label'    => __('borrower.guaranteed.timeline_your_profile'),
-                    'complete' => $profileDone,
-                    'current'  => ! $profileDone,
-                ],
-                [
-                    'key'      => 'borrower_submit',
-                    'label'    => __('borrower.guaranteed.timeline_borrower_submit'),
-                    'complete' => false,
-                    'current'  => $profileDone,
-                ],
-                [
-                    'key'      => 'review',
-                    'label'    => __('borrower.guaranteed.timeline_review'),
-                    'complete' => false,
-                    'current'  => false,
-                ],
-                [
-                    'key'      => 'disbursed',
-                    'label'    => __('borrower.guaranteed.timeline_disbursed'),
-                    'complete' => false,
-                    'current'  => false,
-                ],
+        $steps = [
+            [
+                'key'      => 'accepted',
+                'label'    => __('borrower.guaranteed.timeline_accepted'),
+                'complete' => true,
+                'current'  => false,
+            ],
+            [
+                'key'      => 'guarantor_profile',
+                'label'    => __('borrower.guaranteed.timeline_your_profile'),
+                'complete' => $profileDone,
+                'current'  => $needsProfile,
+                'hint'     => $needsProfile
+                    ? __('borrower.guaranteed.timeline_your_profile_hint')
+                    : null,
+            ],
+            [
+                'key'      => 'borrower_submit',
+                'label'    => $borrowerSubmitted
+                    ? __('borrower.guaranteed.timeline_borrower_submitted')
+                    : __('borrower.guaranteed.timeline_borrower_submit'),
+                'complete' => $borrowerSubmitted,
+                'current'  => false,
+                'hint'     => ! $borrowerSubmitted
+                    ? __('borrower.guaranteed.timeline_borrower_submit_hint')
+                    : ($needsProfile
+                        ? __('borrower.guaranteed.timeline_borrower_submitted_waiting_you')
+                        : null),
             ],
         ];
+
+        if ($isDisbursed) {
+            $steps[] = [
+                'key'      => 'review',
+                'label'    => __('borrower.guaranteed.timeline_review'),
+                'complete' => true,
+                'current'  => false,
+            ];
+            $steps[] = [
+                'key'      => 'disbursed',
+                'label'    => __('borrower.guaranteed.timeline_disbursed'),
+                'complete' => true,
+                'current'  => false,
+            ];
+        } elseif ($isTerminal) {
+            $outcomeLabel = match ($appCode) {
+                'rejected' => __('borrower.guaranteed.timeline_outcome_rejected'),
+                'withdrawn', 'offer_declined' => __('borrower.guaranteed.timeline_outcome_withdrawn'),
+                'expired' => __('borrower.guaranteed.timeline_outcome_expired'),
+                default => __('borrower.guaranteed.timeline_outcome_closed'),
+            };
+            $steps[] = [
+                'key'      => 'outcome',
+                'label'    => $outcomeLabel,
+                'complete' => true,
+                'current'  => false,
+            ];
+        } else {
+            $readyForReview = $profileDone && $borrowerSubmitted;
+            $steps[] = [
+                'key'      => 'review',
+                'label'    => __('borrower.guaranteed.timeline_review'),
+                'complete' => false,
+                'current'  => $readyForReview,
+                'hint'     => $readyForReview
+                    ? null
+                    : __('borrower.guaranteed.timeline_review_waiting_hint'),
+            ];
+            $steps[] = [
+                'key'      => 'decision',
+                'label'    => __('borrower.guaranteed.timeline_decision'),
+                'complete' => false,
+                'current'  => false,
+                'hint'     => __('borrower.guaranteed.timeline_decision_hint'),
+            ];
+        }
+
+        $completeCount = collect($steps)->where('complete', true)->count();
+        $percent = (int) round(($completeCount / max(1, count($steps))) * 100);
+        if ($needsProfile) {
+            $percent = min($percent, 20);
+        }
+
+        return [
+            'percent' => $percent,
+            'steps'   => $steps,
+        ];
+    }
+
+    /**
+     * @return array{label: ?string, days_left: ?int, urgent: bool, expired: bool}
+     */
+    private function deadlinePayload(?\App\Models\LoanApplication $application, $invitation, bool $needsGuarantorProfile): array
+    {
+        $empty = ['label' => null, 'days_left' => null, 'urgent' => false, 'expired' => false];
+
+        if ($application) {
+            $progress = app(GuarantorDeadlineService::class)->progress($application);
+            if (! empty($progress['label']) && ($needsGuarantorProfile || ($application->status === 'awaiting_guarantor') || ($progress['expired'] ?? false))) {
+                $daysLeft = $progress['days_left'];
+                $date = optional($progress['deadline_at'])->timezone(config('app.timezone'))?->format('d M Y');
+
+                $label = match (true) {
+                    ($progress['expired'] ?? false) => __('borrower.guaranteed.deadline_expired_for_you'),
+                    $needsGuarantorProfile && $date => __('borrower.guaranteed.deadline_for_you', [
+                        'days' => max(0, (int) ($daysLeft ?? 0)),
+                        'date' => $date,
+                    ]),
+                    default => $progress['label'],
+                };
+
+                return [
+                    'label'     => $label,
+                    'days_left' => $daysLeft,
+                    'urgent'    => ($progress['expired'] ?? false) || ((int) ($daysLeft ?? 99) <= 2),
+                    'expired'   => (bool) ($progress['expired'] ?? false),
+                ];
+            }
+        }
+
+        $expiresAt = $invitation?->expires_at;
+        if ($expiresAt && $needsGuarantorProfile) {
+            $daysLeft = (int) now()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay(), false);
+
+            return [
+                'label'     => $daysLeft < 0
+                    ? __('borrower.guaranteed.invite_deadline_passed')
+                    : __('borrower.guaranteed.invite_deadline_days_left', [
+                        'days' => max(0, $daysLeft),
+                        'date' => $expiresAt->timezone(config('app.timezone'))->format('d M Y'),
+                    ]),
+                'days_left' => $daysLeft,
+                'urgent'    => $daysLeft < 0 || $daysLeft <= 2,
+                'expired'   => $daysLeft < 0,
+            ];
+        }
+
+        return $empty;
     }
 
     /** @return array{percent: float, paid: float, outstanding: float} */

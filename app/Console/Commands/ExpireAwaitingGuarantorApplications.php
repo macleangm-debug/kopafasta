@@ -9,7 +9,7 @@ class ExpireAwaitingGuarantorApplications extends Command
 {
     protected $signature = 'applications:expire-awaiting-guarantor {--remind : Also send approaching-deadline reminders}';
 
-    protected $description = 'Close applications stuck awaiting guarantor past the configured deadline';
+    protected $description = 'Remind at 7/5/3/1 days then close applications stuck waiting for guarantor profile';
 
     public function handle(GuarantorDeadlineService $deadlines): int
     {

@@ -3,12 +3,16 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\CustomerGuarantor;
 use App\Models\LoanApplication;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 class GuarantorDeadlineService
 {
+    /** Reminder milestones (days remaining) before the guarantor window closes. */
+    public const REMINDER_DAYS = [7, 5, 3, 1];
+
     public function __construct(
         private readonly UnderwritingSettingsService $settings,
         private readonly NotificationService $notifications,
@@ -23,25 +27,32 @@ class GuarantorDeadlineService
     {
         $days = $this->deadlineDays();
         $application->update([
-            'status'               => 'awaiting_guarantor',
-            'current_stage'        => 'awaiting_guarantor',
-            'guarantor_deadline_at'=> now()->addDays($days),
+            'status'                => 'awaiting_guarantor',
+            'current_stage'         => 'awaiting_guarantor',
+            'guarantor_deadline_at' => now()->addDays($days),
         ]);
 
-        $this->notifyBorrower(
+        $application->refresh();
+        $date = optional($application->guarantor_deadline_at)->timezone(config('app.timezone'))->format('d M Y');
+
+        $this->notifyParties(
             $application,
             'guarantor_deadline_started',
             __('borrower.loan_profile.guarantor_deadline_started_title'),
             __('borrower.loan_profile.guarantor_deadline_started_body', [
                 'days' => $days,
-                'date' => optional($application->guarantor_deadline_at)->timezone(config('app.timezone'))->format('d M Y'),
+                'date' => $date,
             ]),
             'borrower.loan_profile.guarantor_deadline_started_title',
             'borrower.loan_profile.guarantor_deadline_started_body',
-            [
+            ['days' => $days, 'date' => $date],
+            __('borrower.loan_profile.guarantor_deadline_started_guarantor_title'),
+            __('borrower.loan_profile.guarantor_deadline_started_guarantor_body', [
                 'days' => $days,
-                'date' => optional($application->guarantor_deadline_at)->timezone(config('app.timezone'))->format('d M Y'),
-            ],
+                'date' => $date,
+            ]),
+            'borrower.loan_profile.guarantor_deadline_started_guarantor_title',
+            'borrower.loan_profile.guarantor_deadline_started_guarantor_body',
         );
     }
 
@@ -101,7 +112,7 @@ class GuarantorDeadlineService
                         'current_stage' => 'expired',
                     ]);
 
-                    $this->notifyBorrower(
+                    $this->notifyParties(
                         $application,
                         'guarantor_deadline_expired',
                         __('borrower.loan_profile.guarantor_deadline_expired_title'),
@@ -111,6 +122,12 @@ class GuarantorDeadlineService
                         'borrower.loan_profile.guarantor_deadline_expired_title',
                         'borrower.loan_profile.guarantor_deadline_expired_body',
                         ['number' => $application->application_number],
+                        __('borrower.loan_profile.guarantor_deadline_expired_guarantor_title'),
+                        __('borrower.loan_profile.guarantor_deadline_expired_guarantor_body', [
+                            'number' => $application->application_number,
+                        ]),
+                        'borrower.loan_profile.guarantor_deadline_expired_guarantor_title',
+                        'borrower.loan_profile.guarantor_deadline_expired_guarantor_body',
                     );
 
                     $expired->push($application);
@@ -120,12 +137,14 @@ class GuarantorDeadlineService
         return $expired;
     }
 
-    /** Remind borrowers approaching the deadline (3 days and 1 day left). */
+    /**
+     * Remind borrower and guarantor(s) at 7, 5, 3, and 1 day(s) remaining.
+     */
     public function sendReminders(): int
     {
         $sent = 0;
 
-        foreach ([3, 1] as $daysLeft) {
+        foreach (self::REMINDER_DAYS as $daysLeft) {
             $start = now()->addDays($daysLeft)->startOfDay();
             $end = now()->addDays($daysLeft)->endOfDay();
 
@@ -137,20 +156,28 @@ class GuarantorDeadlineService
                 ->orderBy('id')
                 ->chunkById(100, function ($rows) use (&$sent, $daysLeft): void {
                     foreach ($rows as $application) {
-                        $this->notifyBorrower(
+                        $date = optional($application->guarantor_deadline_at)
+                            ->timezone(config('app.timezone'))
+                            ->format('d M Y');
+
+                        $this->notifyParties(
                             $application,
                             'guarantor_deadline_reminder_'.$daysLeft,
                             __('borrower.loan_profile.guarantor_deadline_reminder_title'),
                             __('borrower.loan_profile.guarantor_deadline_reminder_body', [
                                 'days' => $daysLeft,
-                                'date' => optional($application->guarantor_deadline_at)->timezone(config('app.timezone'))->format('d M Y'),
+                                'date' => $date,
                             ]),
                             'borrower.loan_profile.guarantor_deadline_reminder_title',
                             'borrower.loan_profile.guarantor_deadline_reminder_body',
-                            [
+                            ['days' => $daysLeft, 'date' => $date],
+                            __('borrower.loan_profile.guarantor_deadline_reminder_guarantor_title'),
+                            __('borrower.loan_profile.guarantor_deadline_reminder_guarantor_body', [
                                 'days' => $daysLeft,
-                                'date' => optional($application->guarantor_deadline_at)->timezone(config('app.timezone'))->format('d M Y'),
-                            ],
+                                'date' => $date,
+                            ]),
+                            'borrower.loan_profile.guarantor_deadline_reminder_guarantor_title',
+                            'borrower.loan_profile.guarantor_deadline_reminder_guarantor_body',
                         );
                         $sent++;
                     }
@@ -160,20 +187,98 @@ class GuarantorDeadlineService
         return $sent;
     }
 
-    private function notifyBorrower(
+    /**
+     * @param  array<string, mixed>  $params
+     */
+    private function notifyParties(
         LoanApplication $application,
         string $template,
-        string $title,
+        string $borrowerTitle,
+        string $borrowerBody,
+        string $borrowerTitleKey,
+        string $borrowerBodyKey,
+        array $params,
+        string $guarantorTitle,
+        string $guarantorBody,
+        string $guarantorTitleKey,
+        string $guarantorBodyKey,
+    ): void {
+        $borrower = $application->customer;
+        if ($borrower instanceof Customer) {
+            $this->safeNotify(
+                $borrower,
+                $borrowerBody,
+                $template,
+                $borrowerTitle,
+                route('site.borrower.application', $application),
+                __('borrower.loan_profile.guarantor_deadline_cta'),
+                $borrowerTitleKey,
+                $borrowerBodyKey,
+                $params,
+            );
+        }
+
+        foreach ($this->activeGuarantorTargets($application) as $target) {
+            $this->safeNotify(
+                $target['customer'],
+                $guarantorBody,
+                $template.'_guarantor',
+                $guarantorTitle,
+                $target['url'],
+                __('borrower.loan_profile.guarantor_deadline_guarantor_cta'),
+                $guarantorTitleKey,
+                $guarantorBodyKey,
+                $params,
+            );
+        }
+    }
+
+    /**
+     * @return list<array{customer: Customer, url: string}>
+     */
+    private function activeGuarantorTargets(LoanApplication $application): array
+    {
+        $access = app(GuarantorAccessService::class);
+        $targets = [];
+        $seen = [];
+
+        $links = CustomerGuarantor::query()
+            ->with('invitation')
+            ->where('loan_application_id', $application->id)
+            ->whereIn('status', ['pending', 'approved'])
+            ->get();
+
+        foreach ($links as $link) {
+            $customer = $access->guarantorCustomerForLink($link);
+            if (! $customer instanceof Customer || isset($seen[$customer->id])) {
+                continue;
+            }
+            $seen[$customer->id] = true;
+            $targets[] = [
+                'customer' => $customer,
+                'url'      => $link->status === 'approved'
+                    ? route('site.borrower.guaranteed.show', $link)
+                    : route('site.borrower.guarantor-requests.show', $link),
+            ];
+        }
+
+        return $targets;
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     */
+    private function safeNotify(
+        Customer $customer,
         string $body,
+        string $template,
+        string $title,
+        string $actionUrl,
+        string $actionLabel,
         string $titleKey,
         string $bodyKey,
         array $params,
     ): void {
-        $customer = $application->customer;
-        if (! $customer instanceof Customer) {
-            return;
-        }
-
         try {
             $this->notifications->notifyInApp(
                 $customer,
@@ -181,8 +286,8 @@ class GuarantorDeadlineService
                 'loan_updates',
                 $template,
                 $title,
-                route('site.borrower.application', $application),
-                __('borrower.loan_profile.guarantor_deadline_cta'),
+                $actionUrl,
+                $actionLabel,
                 [
                     'title_key' => $titleKey,
                     'body_key'  => $bodyKey,

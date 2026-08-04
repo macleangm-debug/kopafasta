@@ -64,6 +64,7 @@
         $primary = $rows->first();
         $share = $primary?->share;
         $showChangeGuarantor = ($isDraft && $editGuarantorUrl) || ($guarantorSupplementOpen && $editGuarantorUrl);
+        $canChangeWhileHeld = ! $isDraft && ! $showChangeGuarantor && (bool) ($profile['can_change_guarantor_while_held'] ?? false);
         $isHeld = $application && (
             ($application->status ?? '') === 'awaiting_guarantor'
             || ($application->current_stage ?? '') === 'awaiting_guarantor'
@@ -106,6 +107,8 @@
                     @endif
                     @if ($guarantorSupplementOpen)
                         <p class="text-xs text-amber-800 mt-2">{{ __('borrower.guarantor_supplement.borrower_banner') }}</p>
+                    @elseif ($canChangeWhileHeld)
+                        <p class="text-xs text-gray-500 mt-2">{{ __('borrower.guarantor_supplement.borrower_change_hint') }}</p>
                     @endif
                 </div>
                 @if ($showChangeGuarantor)
@@ -115,6 +118,20 @@
                             ? __('borrower.guarantor_supplement.cta')
                             : __('borrower.loan_profile.actions.edit_guarantor') }}
                     </a>
+                @elseif ($canChangeWhileHeld && $application)
+                    <form method="POST" action="{{ route('site.borrower.application.change-guarantor', $application) }}"
+                          @submit.prevent="window.confirmForm($el, {
+                              title: @js(__('borrower.guarantor_supplement.borrower_change_confirm_title')),
+                              message: @js(__('borrower.guarantor_supplement.borrower_change_confirm_body')),
+                              confirmLabel: @js(__('borrower.loan_profile.actions.edit_guarantor')),
+                              confirmClass: 'bg-brand-gold hover:bg-yellow-400 text-brand'
+                          })">
+                        @csrf
+                        <button type="submit"
+                                class="inline-flex bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shrink-0 shadow-sm">
+                            {{ __('borrower.loan_profile.actions.edit_guarantor') }}
+                        </button>
+                    </form>
                 @endif
             </div>
 

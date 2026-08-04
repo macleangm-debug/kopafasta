@@ -10,7 +10,7 @@ return [
 
         'application_status' => [
             'draft'               => 'Draft',
-            'awaiting_guarantor'  => 'Submitted – Awaiting Guarantor Completion',
+            'awaiting_guarantor'  => 'Waiting for guarantor profile',
             'expired'             => 'Closed – Guarantor not completed',
             'submitted'           => 'Submitted',
             'pending'             => 'Pending',
