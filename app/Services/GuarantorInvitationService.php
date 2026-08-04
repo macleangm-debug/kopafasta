@@ -1249,6 +1249,8 @@ class GuarantorInvitationService
 
             $this->tryReleaseApplicationFromGuarantorHold($link->application ?? $link->fresh()->application);
         });
+
+        app(NotificationCtaService::class)->consumeGuarantorRequestCtas($link);
     }
 
     /**
@@ -1372,6 +1374,8 @@ class GuarantorInvitationService
                 );
             }
         });
+
+        app(NotificationCtaService::class)->consumeGuarantorRequestCtas($link);
     }
 
     /**

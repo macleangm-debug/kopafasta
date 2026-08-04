@@ -18,6 +18,9 @@
     }
 
     $defaultTab = request('tab', 'affordability');
+    if ($defaultTab === 'overview') {
+        $defaultTab = 'affordability';
+    }
     $borrowerTabs = [
         ['affordability', 'Affordability'],
         ['crb', 'CRB'],
@@ -26,6 +29,7 @@
         ['residence', 'Residence'],
         ['activity', 'Activity'],
         ['documents', 'Documents'],
+        ['collateral', 'Collateral'],
     ];
     if ($groupReview ?? null) {
         $borrowerTabs[] = ['group', 'Group'];
@@ -33,12 +37,12 @@
     $guarantorTabs = [
         ['affordability', 'Affordability'],
         ['crb', 'CRB'],
-        ['overview', 'Overview'],
         ['personal', 'Personal'],
         ['face', 'Face'],
         ['residence', 'Residence'],
         ['activity', 'Activity'],
         ['documents', 'Documents'],
+        ['collateral', 'Collateral'],
     ];
     $profileTabs = $person === 'guarantor' ? $guarantorTabs : $borrowerTabs;
     $allowedTabs = array_column($profileTabs, 0);
@@ -145,7 +149,7 @@
                    'bg-transparent text-gray-600 hover:bg-brand-muted/50' => $defaultTab !== $key,
                ])>
                 {{ $label }}
-                @if ($person === 'borrower' && $key === 'documents' && $openDocRequestCount > 0)
+                @if ($person === 'borrower' && in_array($key, ['documents', 'collateral'], true) && $openDocRequestCount > 0 && $key === 'documents')
                     <span @class([
                         'inline-flex min-w-[1.25rem] justify-center rounded-full text-[10px] font-bold px-1.5 py-0.5',
                         'bg-white/20 text-white' => $defaultTab === $key,
@@ -157,12 +161,12 @@
     </div>
 
     <div class="p-5">
-        @if ($person === 'guarantor' && $selectedGuarantor && empty($selectedGuarantor['file']) && ! in_array($defaultTab, ['overview', 'affordability', 'crb'], true))
+        @if ($person === 'guarantor' && $selectedGuarantor && empty($selectedGuarantor['file']) && ! in_array($defaultTab, ['affordability', 'crb'], true))
             <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
                 <p class="text-sm font-semibold text-amber-950">Guarantor profile not complete yet</p>
                 <p class="text-xs text-amber-900/90 mt-1">
-                    Personal, face, residence, activity and documents unlock after onboarding finishes.
-                    Open <a class="font-semibold underline" href="{{ $tabUrl('overview') }}">Overview</a> for status and change request.
+                    Personal, face, residence, activity, documents and collateral unlock after onboarding finishes.
+                    Use Affordability / CRB for status while waiting.
                 </p>
             </div>
         @elseif ($defaultTab === 'affordability')
@@ -171,13 +175,16 @@
                 'affordability' => $affordability ?? ($review['affordability'] ?? null),
                 'counterOffer' => $counterOffer ?? ($review['counter_offer'] ?? null),
             ])
+            @if ($person === 'guarantor' && $selectedGuarantor)
+                <div class="mt-5">
+                    @include('admin.loan-applications.review._guarantor_overview', [
+                        'guarantor' => $selectedGuarantor,
+                        'single' => true,
+                    ])
+                </div>
+            @endif
         @elseif ($defaultTab === 'crb')
             @include('admin.loan-applications.review._subject_crb', ['review' => $subjectReview])
-        @elseif ($defaultTab === 'overview' && $person === 'guarantor')
-            @include('admin.loan-applications.review._guarantor_overview', [
-                'guarantor' => $selectedGuarantor,
-                'single' => true,
-            ])
         @elseif ($defaultTab === 'personal')
             <div class="space-y-5">
                 @include('admin.loan-applications.review._profile_personal', ['review' => $subjectReview])
@@ -189,20 +196,25 @@
         @elseif ($defaultTab === 'activity')
             @include('admin.loan-applications.review._profile_activity', ['review' => $subjectReview])
         @elseif ($defaultTab === 'documents')
-            @if ($person === 'guarantor')
-                <div class="space-y-5">
+            <div class="space-y-5">
+                @if ($person === 'guarantor')
                     @include('admin.loan-applications.review._subject_documents', ['review' => $subjectReview])
-                </div>
-            @else
-                <div class="space-y-5">
-                    {{-- Uploaded docs first; request form is a collapsed CTA at the bottom --}}
+                @else
                     @include('admin.loan-applications.review._documents')
-                    @include('admin.loan-applications._asset-backed')
-                    @include('admin.loan-applications._asset-lending')
-                    @include('admin.loan-applications.review._asset')
-                    @include('admin.loan-applications.review._document-requests')
-                </div>
-            @endif
+                @endif
+                @include('admin.loan-applications.review._document-requests')
+            </div>
+        @elseif ($defaultTab === 'collateral')
+            <div class="space-y-5">
+                @include('admin.loan-applications._asset-backed')
+                @include('admin.loan-applications._asset-lending')
+                @include('admin.loan-applications.review._asset')
+                @include('admin.loan-applications.review._collateral_tab', [
+                    'review' => $subjectReview,
+                    'person' => $person,
+                    'selectedGuarantor' => $selectedGuarantor ?? null,
+                ])
+            </div>
         @elseif ($defaultTab === 'group' && ($groupReview ?? null))
             @include('admin.loan-applications.review._group')
         @endif

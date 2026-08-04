@@ -1,34 +1,12 @@
 @php
-    $actionUrl = ($n->channel === 'in_app' && filled($n->recipient) && str_starts_with($n->recipient, '/'))
-        ? $n->recipient
-        : null;
+    $ctas = app(\App\Services\NotificationCtaService::class)->resolve($n);
+    $acceptUrl = $ctas['accept_url'];
+    $declineUrl = $ctas['decline_url'];
+    $actionUrl = $ctas['action_url'];
+    $actionLabel = $ctas['action_label'];
     $title = $n->displayTitle();
     $body = $n->displayBody();
     $displayCategory = $center->normalizeCategory($n->category);
-    $meta = is_array($n->meta) ? $n->meta : [];
-    $linkId = (int) ($meta['customer_guarantor_id'] ?? 0);
-    if ($linkId <= 0 && $n->template === 'guarantor_request' && $actionUrl) {
-        if (preg_match('#/guarantor-requests/(\d+)#', $actionUrl, $m)) {
-            $linkId = (int) $m[1];
-        }
-    }
-    $acceptUrl = ($n->template === 'guarantor_request' && $linkId > 0)
-        ? route('site.borrower.guarantor-requests.show', $linkId)
-        : null;
-    $declineUrl = ($n->template === 'guarantor_request' && $linkId > 0)
-        ? route('site.borrower.guarantor-requests.respond', $linkId)
-        : null;
-    $actionLabel = match ($n->template) {
-        'guarantor_request' => $acceptUrl
-            ? __('borrower.guarantor_notifications.accept_cta')
-            : __('borrower.guarantor_notifications.view_request'),
-        'guarantor_loan_arrears' => __('borrower.guarantor_notifications.view_loan'),
-        'guarantor_supplement_request' => __('borrower.guarantor_supplement.cta'),
-        'loyalty_points_earned' => __('borrower.rewards.points_earned_cta'),
-        'document_request', 'document_requests', 'application_document_request' => __('borrower.dashboard.document_requests_cta'),
-        'profile_revision_requested' => __('borrower.notifications.profile_revision_cta'),
-        default => __('borrower.notifications.view_application'),
-    };
     $compact = $compact ?? false;
 @endphp
 <div @class([
@@ -53,14 +31,14 @@
             <div class="mt-2 flex flex-wrap gap-2">
                 <a href="{{ $acceptUrl }}"
                    class="inline-flex items-center rounded-lg bg-brand-gold px-3 py-1.5 text-xs font-bold text-brand">
-                    {{ __('borrower.guarantor_notifications.accept_cta') }}
+                    {{ $actionLabel ?: __('borrower.guarantor_notifications.accept_cta') }}
                 </a>
                 <form method="POST" action="{{ $declineUrl }}" class="inline">
                     @csrf
                     <input type="hidden" name="action" value="reject">
                     <button type="submit"
                             class="inline-flex items-center rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-50">
-                        {{ __('borrower.guarantor_notifications.decline_cta') }}
+                        {{ $ctas['decline_label'] ?: __('borrower.guarantor_notifications.decline_cta') }}
                     </button>
                 </form>
             </div>

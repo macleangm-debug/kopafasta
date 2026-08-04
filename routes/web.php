@@ -303,6 +303,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/guarantor-notifications/clear-all', [\App\Http\Controllers\Site\BorrowerController::class, 'guarantorClearAllNotifications'])->name('borrower.guarantor-notifications.clear-all');
             Route::get('/borrower/notifications',                  [\App\Http\Controllers\Site\BorrowerController::class, 'notifications'])->name('borrower.notifications');
             Route::get('/borrower/notifications/preview',          [\App\Http\Controllers\Site\BorrowerController::class, 'notificationPreview'])->name('borrower.notifications.preview');
+            Route::get('/borrower/notifications/{notification}/go', [\App\Http\Controllers\Site\BorrowerController::class, 'followNotificationCta'])->name('borrower.notifications.go');
             Route::post('/borrower/notifications/read',            [\App\Http\Controllers\Site\BorrowerController::class, 'markNotificationsRead'])->name('borrower.notifications.read');
             Route::post('/borrower/notifications/{notification}/read', [\App\Http\Controllers\Site\BorrowerController::class, 'markNotificationRead'])->name('borrower.notifications.item.read');
             Route::delete('/borrower/notifications/{notification}', [\App\Http\Controllers\Site\BorrowerController::class, 'clearNotification'])->name('borrower.notifications.item.clear');

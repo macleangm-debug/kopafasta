@@ -1312,30 +1312,15 @@ class BorrowerController extends Controller
     {
         $customer = $this->customer();
         $portal = app(\App\Services\PortalContextService::class);
+        $ctaService = app(\App\Services\NotificationCtaService::class);
         $items = $portal->borrowerNotificationsQuery($customer)
             ->latest()
             ->limit(8)
             ->get()
-            ->map(function (NotificationLog $n) {
-                $actionUrl = ($n->channel === 'in_app' && filled($n->recipient) && str_starts_with($n->recipient, '/'))
-                    ? $n->recipient
-                    : null;
+            ->map(function (NotificationLog $n) use ($ctaService) {
                 $center = app(\App\Services\NotificationCenterService::class);
                 $category = $center->normalizeCategory((string) ($n->category ?: 'general'));
-                $meta = is_array($n->meta) ? $n->meta : [];
-                $linkId = (int) ($meta['customer_guarantor_id'] ?? 0);
-                if ($linkId <= 0 && $n->template === 'guarantor_request' && $actionUrl) {
-                    if (preg_match('#/guarantor-requests/(\d+)#', $actionUrl, $m)) {
-                        $linkId = (int) $m[1];
-                    }
-                }
-
-                $acceptUrl = null;
-                $declineUrl = null;
-                if ($n->template === 'guarantor_request' && $linkId > 0) {
-                    $acceptUrl = route('site.borrower.guarantor-requests.show', $linkId);
-                    $declineUrl = route('site.borrower.guarantor-requests.respond', $linkId);
-                }
+                $ctas = $ctaService->resolve($n);
 
                 return [
                     'id'         => $n->id,
@@ -1347,21 +1332,11 @@ class BorrowerController extends Controller
                     'template'   => $n->template,
                     'read'       => (bool) $n->read_at,
                     'when'       => $n->created_at?->diffForHumans(),
-                    'action_url' => $actionUrl,
-                    'action_label' => $actionUrl
-                        ? match ($n->template) {
-                            'guarantor_request' => $acceptUrl
-                                ? __('borrower.guarantor_notifications.accept_cta')
-                                : __('borrower.guarantor_notifications.view_request'),
-                            'guarantor_loan_arrears' => __('borrower.guarantor_notifications.view_loan'),
-                            'loyalty_points_earned' => __('borrower.rewards.points_earned_cta'),
-                            'application_document_request', 'document_request' => __('borrower.notifications.document_request_cta'),
-                            default => __('borrower.notifications.view_application'),
-                        }
-                        : null,
-                    'accept_url' => $acceptUrl,
-                    'decline_url' => $declineUrl,
-                    'decline_label' => $declineUrl ? __('borrower.guarantor_notifications.decline_cta') : null,
+                    'action_url' => $ctas['action_url'],
+                    'action_label' => $ctas['action_label'],
+                    'accept_url' => $ctas['accept_url'],
+                    'decline_url' => $ctas['decline_url'],
+                    'decline_label' => $ctas['decline_label'],
                 ];
             });
 
@@ -1369,6 +1344,22 @@ class BorrowerController extends Controller
             'unread' => $portal->borrowerNotificationsQuery($customer)->whereNull('read_at')->count(),
             'items'  => $items,
         ]);
+    }
+
+    public function followNotificationCta(NotificationLog $notification): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_unless($notification->customer_id === $customer->id, 404);
+
+        $target = ($notification->channel === 'in_app'
+            && filled($notification->recipient)
+            && str_starts_with((string) $notification->recipient, '/'))
+            ? (string) $notification->recipient
+            : route('site.borrower.notifications');
+
+        app(\App\Services\NotificationCtaService::class)->consume($notification);
+
+        return redirect()->to($target);
     }
 
     public function markNotificationRead(NotificationLog $notification): RedirectResponse

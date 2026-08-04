@@ -421,6 +421,7 @@ class ApplicationDocumentRequestService
         ]);
 
         $this->syncApplicationStatus($application->fresh());
+        app(NotificationCtaService::class)->consumeDocumentRequestCtas((int) $application->id, (int) $request->id);
 
         return $stored;
     }
@@ -459,6 +460,10 @@ class ApplicationDocumentRequestService
         ]);
 
         $this->syncApplicationStatus($request->application->fresh());
+        app(NotificationCtaService::class)->consumeDocumentRequestCtas(
+            (int) $request->loan_application_id,
+            (int) $request->id,
+        );
 
         return $request->fresh();
     }

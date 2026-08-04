@@ -98,14 +98,27 @@ class NotificationLog extends Model
             }
             $title = (string) __($templateMap[$template]['title'], $params);
             $bodyKey = $templateMap[$template]['body'] ?? null;
+            $unresolved = static fn (string $text): bool => (bool) preg_match('/:\w+/', $text);
+
             if ($bodyKey) {
                 $translated = (string) __($bodyKey, $params);
-                if ($translated !== $bodyKey || $params !== []) {
-                    return [$title, $translated !== $bodyKey ? $translated : $this->legacyBody()];
+                if ($translated !== $bodyKey && ! $unresolved($translated) && ! $unresolved($title)) {
+                    return [$title, $translated];
                 }
             }
 
-            return [$title, $this->legacyBody()];
+            $legacy = $this->legacyBody();
+            if ($legacy !== '' && ! $unresolved($legacy)) {
+                return [
+                    $unresolved($title) ? __('borrower.notifications.fallback_title') : $title,
+                    $legacy,
+                ];
+            }
+
+            return [
+                $unresolved($title) ? __('borrower.notifications.fallback_title') : $title,
+                $legacy !== '' ? $legacy : ($bodyKey ? (string) __($bodyKey, $params) : ''),
+            ];
         }
 
         $lines = preg_split("/\r\n|\n|\r/", (string) ($this->message ?: '')) ?: [];

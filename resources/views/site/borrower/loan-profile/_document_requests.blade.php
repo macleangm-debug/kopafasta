@@ -115,25 +115,34 @@
         @endif
 
         @if ($otherDocs->isNotEmpty())
-            <details class="glass-card overflow-hidden group">
-                <summary class="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
-                    <div>
-                        <p class="text-sm font-semibold text-gray-900">{{ __('borrower.application.doc_group_completed') }} / {{ __('borrower.application.doc_group_uploaded') }}</p>
-                        <p class="text-xs text-gray-500 mt-0.5">{{ $otherDocs->count() }} {{ __('borrower.loan_profile.documents_collapsed') }}</p>
-                    </div>
-                    <svg class="size-4 text-gray-400 transition group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
-                </summary>
-                <ul class="divide-y divide-gray-100 border-t border-gray-100">
+            <div class="glass-card overflow-hidden ring-1 ring-brand/10">
+                <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-brand-muted/40 to-white">
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loan_profile.documents_submitted_eyebrow') }}</p>
+                    <h2 class="font-semibold text-gray-900 mt-0.5">{{ __('borrower.loan_profile.documents_submitted_title') }}</h2>
+                    <p class="text-xs text-gray-500 mt-0.5">{{ __('borrower.loan_profile.documents_submitted_hint') }}</p>
+                </div>
+                <ul class="divide-y divide-gray-100">
                     @foreach ($otherDocs as $docReq)
-                        <li class="px-5 py-3 flex items-center justify-between gap-3 text-sm">
-                            <span class="font-medium text-gray-800">{{ $docReq->label }}</span>
-                            <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $docReq->status === 'satisfied' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700' }}">
-                                {{ $docReq->status === 'satisfied' ? __('borrower.application.request_status_completed') : __('borrower.application.request_status_uploaded') }}
-                            </span>
+                        <li class="px-5 py-4 flex flex-wrap items-start justify-between gap-3">
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <p class="font-semibold text-gray-900">{{ $docReq->label }}</p>
+                                    <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $docReq->status === 'satisfied' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-800' }}">
+                                        {{ $docReq->status === 'satisfied' ? __('borrower.application.request_status_completed') : __('borrower.application.request_status_uploaded') }}
+                                    </span>
+                                </div>
+                                @if ($docReq->uploads->isNotEmpty())
+                                    <div class="flex flex-wrap gap-2 mt-3">
+                                        @foreach ($docReq->uploads as $upload)
+                                            <x-site.document-thumb :url="asset('storage/'.$upload->file_path)" />
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </div>
                         </li>
                     @endforeach
                 </ul>
-            </details>
+            </div>
         @endif
     </div>
 @endif

@@ -29,21 +29,85 @@
         + $profileOpen->filter(fn ($r) => $r->needsBorrowerAction() || $r->status === 'uploaded')->count();
 @endphp
 
-{{-- Loan-specific uploads from underwriting requests (not profile identity/face/signature/collateral) --}}
-@if ($loanReady->isNotEmpty() || $loanCompleted->filter(fn ($r) => $r->uploads->isNotEmpty())->isNotEmpty())
-    <section id="review-loan-request-uploads" class="scroll-mt-24 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
-        <div class="px-5 sm:px-6 py-4 border-b border-brand/10 bg-gradient-to-r from-brand-muted/40 to-white">
-            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">This application</p>
-            <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Submitted for this loan</h2>
-            <p class="text-xs text-gray-500 mt-0.5">
-                Extra files the borrower uploaded for this file — not profile KYC (those stay under Personal / Face / the library above).
-            </p>
-        </div>
-        <div class="p-5 sm:p-6 space-y-4">
-            @if ($loanReady->isNotEmpty())
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-widest text-amber-700 mb-3">Ready for review · {{ $loanReady->count() }}</p>
-                    <div class="space-y-3">
+{{-- Lifecycle: Requested → Received → Accepted (same for screening & committee) --}}
+@if ($loanReady->isNotEmpty() || $loanCompleted->filter(fn ($r) => $r->uploads->isNotEmpty())->isNotEmpty() || $loanAwaiting->isNotEmpty() || $profileOpen->isNotEmpty())
+    <section id="review-document-pipeline" class="scroll-mt-24 space-y-5">
+        @if ($loanAwaiting->isNotEmpty() || $profileOpen->isNotEmpty())
+            <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
+                <div class="px-5 sm:px-6 py-4 border-b border-brand/10 bg-gradient-to-r from-amber-50/80 to-white flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">1 · Requested</p>
+                        <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Waiting on {{ $person === 'guarantor' ? 'guarantor / borrower' : 'borrower' }}</h2>
+                        <p class="text-xs text-gray-500 mt-0.5">
+                            Open requests. Profile-linked items (ID, face, income, collateral) are fulfilled on the profile — loan-file uploads appear under Received when submitted.
+                        </p>
+                    </div>
+                    @if ($openRequestCount > 0)
+                        <span class="inline-flex items-center rounded-full bg-amber-100 text-amber-900 text-xs font-semibold px-3 py-1 ring-1 ring-amber-200">
+                            {{ $openRequestCount }} open
+                        </span>
+                    @endif
+                </div>
+                <div class="p-5 sm:p-6 space-y-5">
+                    @if ($loanAwaiting->isNotEmpty())
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Loan file uploads · {{ $loanAwaiting->count() }}</p>
+                            <div class="grid md:grid-cols-2 gap-3">
+                                @foreach ($loanAwaiting as $docReq)
+                                    <div class="rounded-xl ring-1 ring-gray-200 bg-white px-4 py-3 flex items-start justify-between gap-2">
+                                        <div class="min-w-0">
+                                            <p class="font-medium text-gray-900 text-sm">{{ $docReq->label }}</p>
+                                            @if ($docReq->instructions)
+                                                <p class="text-xs text-gray-500 mt-0.5">{{ $docReq->instructions }}</p>
+                                            @endif
+                                        </div>
+                                        <span @class([
+                                            'shrink-0 inline-flex px-2 py-0.5 rounded text-xs font-semibold',
+                                            'bg-red-100 text-red-800' => $docReq->status === 'rejected',
+                                            'bg-amber-100 text-amber-900' => $docReq->status !== 'rejected',
+                                        ])>{{ $docReq->status === 'rejected' ? 'Re-upload' : 'Requested' }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
+                    @if ($profileOpen->isNotEmpty())
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-widest text-sky-700 mb-3">Profile updates · {{ $profileOpen->count() }}</p>
+                            <div class="grid md:grid-cols-2 gap-3">
+                                @foreach ($profileOpen as $docReq)
+                                    @php $kind = $docService->borrowerActionKind($docReq); @endphp
+                                    <div class="rounded-xl ring-1 ring-sky-100 bg-sky-50/40 px-4 py-3 flex items-start justify-between gap-2">
+                                        <div class="min-w-0">
+                                            <p class="font-medium text-gray-900 text-sm">{{ $docReq->label }}</p>
+                                            <p class="text-xs text-sky-800/80 mt-0.5">
+                                                Updated in profile ({{ $kind }}) — review under Personal / Face / Collateral.
+                                            </p>
+                                        </div>
+                                        <span class="shrink-0 inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-sky-100 text-sky-900">
+                                            {{ $docReq->status === 'uploaded' ? 'Done in profile' : ($docReq->status === 'rejected' ? 'Retry' : 'Requested') }}
+                                        </span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        @endif
+
+        @if ($loanReady->isNotEmpty())
+            <div id="review-loan-request-uploads" class="scroll-mt-24 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
+                <div class="px-5 sm:px-6 py-4 border-b border-brand/10 bg-gradient-to-r from-sky-50/80 to-white">
+                    <p class="text-[10px] uppercase tracking-widest text-sky-800 font-semibold">2 · Received</p>
+                    <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Ready for review</h2>
+                    <p class="text-xs text-gray-500 mt-0.5">
+                        Loan-file uploads stay here for screening and committee until you accept or reject them.
+                    </p>
+                </div>
+                <div class="p-5 sm:p-6">
+                    <div class="grid md:grid-cols-2 gap-3">
                         @foreach ($loanReady as $docReq)
                             <div class="rounded-xl ring-1 ring-amber-200 bg-amber-50/40 p-4">
                                 <div class="flex flex-wrap items-start gap-4">
@@ -57,7 +121,7 @@
                                     <div class="min-w-0 flex-1">
                                         <div class="flex flex-wrap items-center gap-2">
                                             <p class="font-semibold text-gray-900">{{ $docReq->label }}</p>
-                                            <span class="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800">Uploaded</span>
+                                            <span class="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800">Received</span>
                                         </div>
                                         @if ($docReq->instructions)
                                             <p class="text-sm text-gray-600 mt-1">{{ $docReq->instructions }}</p>
@@ -72,13 +136,13 @@
                                                 <form method="POST" action="{{ route('admin.loan-application-document-requests.satisfy', $docReq) }}">
                                                     @csrf
                                                     <button type="submit" class="text-xs font-semibold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded-lg">
-                                                        Approve
+                                                        Accept
                                                     </button>
                                                 </form>
                                                 <form method="POST" action="{{ route('admin.loan-application-document-requests.reject', $docReq) }}" class="flex items-center gap-2 flex-wrap">
                                                     @csrf
                                                     <input type="text" name="notes" required maxlength="500" placeholder="Reason for rejection"
-                                                           class="rounded-lg border-gray-300 text-xs ring-1 ring-gray-200 px-3 py-2 w-48 max-w-full">
+                                                           class="rounded-lg border-gray-300 text-xs ring-1 ring-gray-200 px-3 py-2 w-40 max-w-full">
                                                     <button type="submit" class="text-xs font-semibold text-red-800 bg-red-100 hover:bg-red-200 px-3 py-1.5 rounded-lg">
                                                         Reject
                                                     </button>
@@ -91,15 +155,21 @@
                         @endforeach
                     </div>
                 </div>
-            @endif
+            </div>
+        @endif
 
-            @php $closedWithFiles = $loanCompleted->filter(fn ($r) => $r->uploads->isNotEmpty()); @endphp
-            @if ($closedWithFiles->isNotEmpty())
-                <details class="rounded-xl ring-1 ring-gray-100 overflow-hidden" @if ($loanReady->isEmpty()) open @endif>
-                    <summary class="cursor-pointer px-4 py-3 text-xs font-semibold uppercase tracking-widest text-gray-500 bg-gray-50">
-                        Completed / rejected · {{ $closedWithFiles->count() }}
-                    </summary>
-                    <ul class="divide-y divide-gray-50 bg-white">
+        @php $closedWithFiles = $loanCompleted->filter(fn ($r) => $r->uploads->isNotEmpty()); @endphp
+        @if ($closedWithFiles->isNotEmpty())
+            <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
+                <div class="px-5 sm:px-6 py-4 border-b border-brand/10 bg-gradient-to-r from-emerald-50/70 to-white">
+                    <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">3 · Accepted</p>
+                    <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Reviewed for this loan</h2>
+                    <p class="text-xs text-gray-500 mt-0.5">
+                        Accepted uploads remain visible for committee — they do not leave this file.
+                    </p>
+                </div>
+                <div class="p-5 sm:p-6">
+                    <div class="grid md:grid-cols-2 gap-3">
                         @foreach ($closedWithFiles as $docReq)
                             @php
                                 $statusClass = match ($docReq->status) {
@@ -109,13 +179,13 @@
                                 };
                                 $latestUpload = $docReq->uploads->sortByDesc('id')->first();
                             @endphp
-                            <li class="px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+                            <div class="rounded-xl ring-1 ring-gray-200 bg-white px-4 py-3 flex items-center justify-between gap-3">
                                 <div class="min-w-0 flex items-center gap-3">
                                     @if ($latestUpload?->file_path)
                                         <x-admin.document-preview
                                             :url="asset('storage/'.$latestUpload->file_path)"
                                             label="View"
-                                            variant="link" />
+                                            variant="thumbnail" />
                                     @endif
                                     <div>
                                         <p class="text-sm font-medium text-gray-900">{{ $docReq->label }}</p>
@@ -124,79 +194,15 @@
                                         @endif
                                     </div>
                                 </div>
-                                <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $statusClass }}">{{ ucfirst($docReq->status === 'satisfied' ? 'completed' : $docReq->status) }}</span>
-                            </li>
-                        @endforeach
-                    </ul>
-                </details>
-            @endif
-        </div>
-    </section>
-@endif
-
-{{-- Open tracking: loan uploads still pending + profile-guided (no loan file gallery) --}}
-@if ($loanAwaiting->isNotEmpty() || $profileOpen->isNotEmpty())
-    <section id="review-document-requests" class="scroll-mt-24 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
-        <div class="px-5 sm:px-6 py-4 border-b border-brand/10 bg-gradient-to-r from-brand-muted/40 to-white flex flex-wrap items-start justify-between gap-3">
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Outstanding</p>
-                <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Open document requests</h2>
-                <p class="text-xs text-gray-500 mt-0.5">
-                    Waiting on the borrower. Profile updates (ID, face, signature, collateral) stay on their profile — they will not appear as loan uploads here.
-                </p>
-            </div>
-            @if ($openRequestCount > 0)
-                <span class="inline-flex items-center rounded-full bg-amber-100 text-amber-900 text-xs font-semibold px-3 py-1 ring-1 ring-amber-200">
-                    {{ $openRequestCount }} open
-                </span>
-            @endif
-        </div>
-        <div class="p-5 sm:p-6 space-y-5">
-            @if ($loanAwaiting->isNotEmpty())
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Loan file uploads · {{ $loanAwaiting->count() }}</p>
-                    <ul class="divide-y divide-gray-100 rounded-xl ring-1 ring-gray-200 bg-white overflow-hidden">
-                        @foreach ($loanAwaiting as $docReq)
-                            <li class="px-4 py-3 flex flex-wrap items-center justify-between gap-2">
-                                <div class="min-w-0">
-                                    <p class="font-medium text-gray-900 text-sm">{{ $docReq->label }}</p>
-                                    @if ($docReq->instructions)
-                                        <p class="text-xs text-gray-500 mt-0.5">{{ $docReq->instructions }}</p>
-                                    @endif
-                                </div>
-                                <span @class([
-                                    'inline-flex px-2 py-0.5 rounded text-xs font-semibold',
-                                    'bg-red-100 text-red-800' => $docReq->status === 'rejected',
-                                    'bg-gray-100 text-gray-600' => $docReq->status !== 'rejected',
-                                ])>{{ $docReq->status === 'rejected' ? 'Re-upload needed' : 'Pending' }}</span>
-                            </li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
-
-            @if ($profileOpen->isNotEmpty())
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-widest text-sky-700 mb-3">Profile updates · {{ $profileOpen->count() }}</p>
-                    <ul class="divide-y divide-sky-50 rounded-xl ring-1 ring-sky-100 bg-sky-50/40 overflow-hidden">
-                        @foreach ($profileOpen as $docReq)
-                            @php $kind = $docService->borrowerActionKind($docReq); @endphp
-                            <li class="px-4 py-3 flex flex-wrap items-center justify-between gap-2">
-                                <div class="min-w-0">
-                                    <p class="font-medium text-gray-900 text-sm">{{ $docReq->label }}</p>
-                                    <p class="text-xs text-sky-800/80 mt-0.5">
-                                        Borrower updates this in their profile ({{ $kind }}) — review it under Personal / Face / Assets, not as a loan upload.
-                                    </p>
-                                </div>
-                                <span class="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-sky-100 text-sky-900">
-                                    {{ $docReq->status === 'uploaded' ? 'Done in profile' : ($docReq->status === 'rejected' ? 'Retry' : 'Awaiting') }}
+                                <span class="shrink-0 text-xs font-semibold rounded-full px-2.5 py-1 {{ $statusClass }}">
+                                    {{ $docReq->status === 'satisfied' ? 'Accepted' : ucfirst($docReq->status) }}
                                 </span>
-                            </li>
+                            </div>
                         @endforeach
-                    </ul>
+                    </div>
                 </div>
-            @endif
-        </div>
+            </div>
+        @endif
     </section>
 @endif
 
@@ -204,9 +210,9 @@
     <section class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden" x-data="{ open: {{ $errors->hasAny(['presets', 'label', 'instructions', 'type']) ? 'true' : 'false' }} }">
         <div class="px-5 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3">
             <div>
-                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Need more?</p>
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Request more</p>
                 <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Request documents</h2>
-                <p class="text-xs text-gray-500 mt-0.5">Same for screening and committee — borrower is notified and the file moves to pending documents.</p>
+                <p class="text-xs text-gray-500 mt-0.5">Same for screening and committee — the member is notified and the file moves to Requested.</p>
             </div>
             <button type="button"
                     @click="open = !open"
@@ -247,7 +253,7 @@
                 @else
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">Collateral</p>
-                        <p class="text-xs text-gray-500 mb-2">Borrower is deep-linked to My Collaterals — fulfilment stays on the profile.</p>
+                        <p class="text-xs text-gray-500 mb-2">Prefer the Collateral tab for collateral-only requests. Presets here also deep-link to My Collaterals.</p>
                         <div class="grid sm:grid-cols-2 gap-2">
                             @foreach ($collateralPresets as $preset)
                                 <label class="flex items-start gap-2 text-sm text-gray-700 bg-emerald-50/80 rounded-xl px-3 py-2 ring-1 ring-brand/10">
@@ -272,7 +278,7 @@
                 </div>
 
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">Income &amp; other <span class="font-normal normal-case text-gray-400">(shown under Submitted for this loan)</span></p>
+                    <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">Income &amp; other <span class="font-normal normal-case text-gray-400">(shown under Received when uploaded)</span></p>
                     <div class="grid sm:grid-cols-2 gap-2">
                         @foreach ($generalPresets as $preset)
                             <label class="flex items-start gap-2 text-sm text-gray-700 bg-gray-50 rounded-xl px-3 py-2 ring-1 ring-gray-100">
@@ -290,7 +296,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">Reason (shown to borrower)</label>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Reason (shown to member)</label>
                     <textarea name="instructions" rows="2" maxlength="2000" placeholder="e.g. Image not clear — please re-upload a sharper photo"
                               class="w-full rounded-lg border-gray-300 text-sm ring-1 ring-gray-200 px-3 py-2"></textarea>
                 </div>
