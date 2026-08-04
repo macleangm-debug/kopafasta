@@ -186,6 +186,7 @@ class LoanApplicationReviewService
             'checklist'          => $checklist,
             'kyc_documents'      => $kycDocuments,
             'profile_documents'  => $profileDocuments,
+            'customer_assets'    => app(CustomerAssetService::class)->forCustomer($customer),
             'activity_label'     => display_label($customer->activity_type, 'activity_type')
                 ?: activity_type_label($customer->activity_type) ?? $customer->activity_type,
             'income_label'       => income_range_label($customer->income_range) ?? $customer->income_range,
@@ -507,6 +508,7 @@ class LoanApplicationReviewService
             'alternate_id_notes' => $customer->alternate_id_notes,
             'kyc_documents'      => $kycDocuments,
             'profile_documents'  => $profileDocuments,
+            'customer_assets'    => app(CustomerAssetService::class)->forCustomer($customer),
             'activity_label'     => display_label($customer->activity_type, 'activity_type')
                 ?: activity_type_label($customer->activity_type) ?? $customer->activity_type,
             'income_label'       => income_range_label($customer->income_range) ?? $customer->income_range,

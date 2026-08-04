@@ -168,4 +168,52 @@ class GuarantorCreditReviewFeatureTest extends TestCase
         // Guarantor customer account remains active / reusable
         $this->assertSame('active', $guarantorCustomer->fresh()->status);
     }
+
+    public function test_dossier_and_guarantor_file_include_customer_assets(): void
+    {
+        $admin = $this->staff();
+        [$app, $link, $guarantorCustomer] = $this->applicationWithGuarantor($admin, profileComplete: false);
+
+        $borrowerAsset = \App\Models\CustomerAsset::create([
+            'customer_id'         => $app->customer_id,
+            'asset_type'          => 'vehicle',
+            'label'               => 'Borrower Vitz',
+            'registration_number' => 'B-100',
+            'is_active'           => true,
+        ]);
+
+        $guarantorAsset = \App\Models\CustomerAsset::create([
+            'customer_id'         => $guarantorCustomer->id,
+            'asset_type'          => 'vehicle',
+            'label'               => 'Vitz',
+            'registration_number' => '1234',
+            'is_active'           => true,
+        ]);
+
+        $review = app(\App\Services\LoanApplicationReviewService::class)->dossier($app->fresh([
+            'customer.kyc',
+            'product.requirements',
+            'customerGuarantors.guarantor',
+        ]));
+
+        $this->assertTrue(
+            collect($review['customer_assets'])->contains(fn ($a) => (int) $a->id === (int) $borrowerAsset->id)
+        );
+        $this->assertFalse(
+            collect($review['customer_assets'])->contains(fn ($a) => (int) $a->id === (int) $guarantorAsset->id)
+        );
+
+        $method = new \ReflectionMethod(\App\Services\LoanApplicationReviewService::class, 'subjectFile');
+        $guarantorFile = $method->invoke(
+            app(\App\Services\LoanApplicationReviewService::class),
+            $guarantorCustomer
+        );
+
+        $this->assertTrue(
+            collect($guarantorFile['customer_assets'])->contains(fn ($a) => (int) $a->id === (int) $guarantorAsset->id)
+        );
+        $this->assertFalse(
+            collect($guarantorFile['customer_assets'])->contains(fn ($a) => (int) $a->id === (int) $borrowerAsset->id)
+        );
+    }
 }

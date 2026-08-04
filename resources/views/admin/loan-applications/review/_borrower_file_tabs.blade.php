@@ -206,9 +206,14 @@
             </div>
         @elseif ($defaultTab === 'collateral')
             <div class="space-y-5">
-                @include('admin.loan-applications._asset-backed')
-                @include('admin.loan-applications._asset-lending')
-                @include('admin.loan-applications.review._asset')
+                @if ($person === 'borrower')
+                    {{-- Application-level blocks: only render for asset-backed / asset-lending products (partials self-gate). --}}
+                    @include('admin.loan-applications._asset-backed')
+                    @include('admin.loan-applications._asset-lending')
+                    @if (! empty($review['asset']) || app(\App\Services\AssetLendingService::class)->isAssetLendingApplication($record))
+                        @include('admin.loan-applications.review._asset')
+                    @endif
+                @endif
                 @include('admin.loan-applications.review._collateral_tab', [
                     'review' => $subjectReview,
                     'person' => $person,
