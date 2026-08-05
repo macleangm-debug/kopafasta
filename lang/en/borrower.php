@@ -49,6 +49,7 @@ return [
         'step_password' => 'Secure access',
         'step_password_hint' => 'Choose a strong password',
         'step_of' => 'Step :current of :total',
+        'step_label' => 'Step',
         'already' => 'Already registered?',
         'login' => 'Log in',
         'country_phone_title' => 'Country & phone',

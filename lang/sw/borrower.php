@@ -46,6 +46,7 @@ return [
     'step_password' => 'Usalama',
     'step_password_hint' => 'Chagua nenosiri imara',
     'step_of' => 'Hatua :current kati ya :total',
+    'step_label' => 'Hatua',
     'already' => 'Tayari umesajiliwa?',
     'login' => 'Ingia',
     'country_phone_title' => 'Nchi na simu',
