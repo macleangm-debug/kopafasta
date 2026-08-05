@@ -1,136 +1,93 @@
 <x-site.borrower-layout :title="brand_title($isFirstTime ? __('borrower.membership.registration_fee') : __('borrower.membership.renewal_fee'))" active="profile" content-width="wide">
-    <div x-data="{ channel: '{{ old('channel', 'mobile_money') }}', phone: '{{ old('payment_phone', $customer->phone ?? '') }}', useWallet: {{ old('use_wallet') ? 'true' : 'false' }} }">
-        <div class="mb-6">
-            <p class="text-xs uppercase tracking-widest text-brand mb-1">{{ $isFirstTime ? __('borrower.membership.first_time') : __('borrower.membership.renewal') }}</p>
-            <h1 class="text-2xl sm:text-3xl font-bold">
-                {{ $isFirstTime ? __('borrower.membership.registration_title') : __('borrower.membership.renew_title') }}
-            </h1>
-            <p class="text-sm text-gray-500 mt-1">
-                @if ($isFirstTime)
-                    {{ __('borrower.membership.duration_first', ['days' => $config['duration_days']]) }}
-                @else
-                    {{ __('borrower.membership.duration_renew', ['days' => $config['duration_days']]) }}
-                @endif
-            </p>
-        </div>
+    @php
+        $cashDue = (int) ($isFirstTime && $feeQuote
+            ? ($feeQuote['cash_due'] ?? $feeQuote['after_discount'] ?? $feeAmount)
+            : $feeAmount);
+    @endphp
 
-        <div class="glass-card overflow-hidden ring-1 ring-brand/15 mb-6">
-            <div class="bg-gradient-to-br from-brand to-brand-light text-white px-6 py-5">
-                <p class="text-[10px] uppercase tracking-widest text-white/80">{{ $isFirstTime ? __('borrower.membership.registration_fee') : __('borrower.membership.renewal_fee') }}</p>
-                @if ($isFirstTime && $feeQuote)
-                    <p class="mt-2 text-3xl font-extrabold tabular-nums">{{ $config['currency'] }} {{ format_number($feeQuote['cash_due'] ?? $feeQuote['after_discount']) }}</p>
-                @else
-                    <p class="mt-2 text-3xl font-extrabold tabular-nums">{{ $config['currency'] }} {{ format_number($feeAmount) }}</p>
-                @endif
-                <p class="mt-3 text-xs text-white/90">{{ __('borrower.membership.payment_reference_label') }}</p>
-                <p class="mt-1 font-mono text-sm bg-white/15 inline-block px-3 py-1 rounded-lg">{{ $paymentReference }}</p>
-            </div>
-            @if ($isFirstTime && $feeQuote)
-                <div class="px-6 py-4 bg-white border-t border-gray-100">
-                    <x-site.payment-gate-breakdown
-                        :label="$isFirstTime ? __('borrower.membership.registration_fee') : __('borrower.membership.renewal_fee')"
-                        :currency="$config['currency']"
-                        :quote="$feeQuote"
-                        variant="light"
-                    />
-                </div>
+    <div class="mb-6">
+        <p class="text-xs uppercase tracking-widest text-brand mb-1">{{ $isFirstTime ? __('borrower.membership.first_time') : __('borrower.membership.renewal') }}</p>
+        <h1 class="text-2xl sm:text-3xl font-bold">
+            {{ $isFirstTime ? __('borrower.membership.registration_title') : __('borrower.membership.renew_title') }}
+        </h1>
+        <p class="text-sm text-gray-500 mt-1">
+            @if ($isFirstTime)
+                {{ __('borrower.membership.duration_first', ['days' => $config['duration_days']]) }}
+            @else
+                {{ __('borrower.membership.duration_renew', ['days' => $config['duration_days']]) }}
             @endif
-        </div>
-
-        @if ($isFirstTime)
-            <x-site.promo-code-toggle
-                :action="route('site.membership.renew')"
-                :value="old('promo_code', request('promo_code'))"
-                :quote="$feeQuote"
-            />
-        @endif
-
-        @if ($isFirstTime && $feeQuote && ($referralWallet->balance ?? 0) > 0)
-            <div class="mb-6 rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 py-4 text-sm text-brand">
-                <label class="flex items-start gap-3 cursor-pointer">
-                    <input type="checkbox" name="use_wallet" value="1" x-model="useWallet" form="membership-renew-form" class="mt-1 rounded border-brand/30 text-brand focus:ring-brand">
-                    <span>
-                        {{ __('borrower.membership.use_wallet_label', [
-                            'balance' => $config['currency'].' '.format_number($referralWallet->balance),
-                            'percent' => rtrim(rtrim(format_number($referralSettings['wallet_max_fee_percent'], 2), '0'), '.'),
-                        ]) }}
-                    </span>
-                </label>
-                @if ($feeQuote['wallet_applied'] > 0)
-                    <p class="mt-3 text-xs">{{ __('borrower.membership.wallet_credit_hint', [
-                        'wallet' => $config['currency'].' '.format_number($feeQuote['wallet_applied']),
-                        'cash' => $config['currency'].' '.format_number($feeQuote['cash_due']),
-                    ]) }}</p>
-                @endif
-            </div>
-        @endif
-
-        @if ($errors->any())
-            <div class="mb-4 rounded-lg bg-rose-50 ring-1 ring-rose-200 px-4 py-3 text-sm text-rose-700">
-                @foreach ($errors->all() as $e)<div>{{ $e }}</div>@endforeach
-            </div>
-        @endif
-
-        <form id="membership-renew-form" method="POST" action="{{ route('site.membership.renew.post') }}" class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-5">
-            @csrf
-            @if ($isFirstTime && filled(request('promo_code')))
-                <input type="hidden" name="promo_code" value="{{ request('promo_code') }}">
-            @endif
-
-            <div>
-                <p class="text-xs uppercase tracking-wider text-gray-500 mb-3">{{ __('borrower.membership.payment_method') }}</p>
-                <div class="grid sm:grid-cols-2 gap-3">
-                    <label class="cursor-pointer">
-                        <input type="radio" name="channel" value="mobile_money" x-model="channel" class="sr-only peer">
-                        <div class="rounded-xl border-2 border-gray-200 peer-checked:border-brand peer-checked:bg-brand-muted/30 p-4">
-                            <p class="font-semibold text-sm">{{ __('borrower.membership.mobile_money') }}</p>
-                            <p class="text-xs text-gray-500 mt-1">{{ __('borrower.membership.mobile_hint') }}</p>
-                        </div>
-                    </label>
-                    <label class="cursor-pointer">
-                        <input type="radio" name="channel" value="bank" x-model="channel" class="sr-only peer">
-                        <div class="rounded-xl border-2 border-gray-200 peer-checked:border-brand peer-checked:bg-brand-muted/30 p-4">
-                            <p class="font-semibold text-sm">{{ __('borrower.membership.bank') }}</p>
-                            <p class="text-xs text-gray-500 mt-1">{{ __('borrower.membership.bank_hint') }}</p>
-                        </div>
-                    </label>
-                </div>
-            </div>
-
-            <div x-show="channel === 'mobile_money'" x-transition class="space-y-3">
-                @if (! empty($mobileDetails['number']))
-                    <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 py-3 text-xs text-brand">
-                        <p class="font-semibold">{{ __('borrower.membership.pay_to', ['provider' => $mobileDetails['provider'] ?? __('borrower.membership.mobile_money')]) }}</p>
-                        <p class="font-mono mt-1">{{ $mobileDetails['number'] }}</p>
-                        <p class="mt-2">{{ $mobileDetails['instructions'] }}</p>
-                    </div>
-                @endif
-                <div>
-                    <label class="block text-xs uppercase tracking-wider text-gray-500 mb-1">{{ __('borrower.membership.mobile_number_label') }}</label>
-                    <input type="tel" name="payment_phone" x-model="phone" required
-                           class="w-full rounded-lg border-gray-300 focus:border-brand focus:ring-brand text-sm">
-                    <p class="mt-2 text-xs text-gray-500">{{ __('borrower.membership.mobile_ussd_hint') }}</p>
-                </div>
-            </div>
-
-            <div x-show="channel === 'bank'" x-cloak x-transition class="rounded-xl bg-brand-muted/30 ring-1 ring-brand/15 p-4 text-sm">
-                <p class="font-semibold text-brand mb-2">{{ __('borrower.membership.bank_instructions_title') }}</p>
-                <p class="text-gray-700 text-xs mb-3">{{ __('borrower.membership.bank_reference_hint', ['ref' => $paymentReference]) }}</p>
-                @foreach ($bankAccounts as $acct)
-                    <div class="mb-2 last:mb-0">
-                        <p class="font-medium">{{ $acct['bank'] }}</p>
-                        <p class="text-xs text-gray-700">{{ $acct['account_name'] }} · {{ $acct['account_number'] }}@if (! empty($acct['branch'])) · {{ $acct['branch'] }}@endif</p>
-                        @if (! empty($acct['instructions']))
-                            <p class="text-xs text-gray-600 mt-1">{{ $acct['instructions'] }}</p>
-                        @endif
-                    </div>
-                @endforeach
-                <p class="mt-3 text-xs text-amber-800 font-medium">⏳ {{ __('borrower.membership.bank_waiting_hint') }}</p>
-            </div>
-
-            <button type="submit" class="w-full bg-brand hover:bg-brand-light text-white font-semibold px-5 py-3 rounded-xl text-sm">
-                <span x-text="channel === 'mobile_money' ? @js(__('borrower.membership.pay_now')) : @js(__('borrower.membership.submit_bank'))"></span>
-            </button>
-        </form>
+        </p>
     </div>
+
+    <div class="glass-card overflow-hidden ring-1 ring-brand/15 mb-6">
+        <div class="bg-gradient-to-br from-brand to-brand-light text-white px-6 py-5">
+            <p class="text-[10px] uppercase tracking-widest text-white/80">{{ $isFirstTime ? __('borrower.membership.registration_fee') : __('borrower.membership.renewal_fee') }}</p>
+            <p class="mt-2 text-3xl font-extrabold tabular-nums">{{ $config['currency'] }} {{ format_number($cashDue) }}</p>
+            <p class="mt-3 text-xs text-white/90">{{ __('borrower.membership.payment_reference_label') }}</p>
+            <p class="mt-1 font-mono text-sm bg-white/15 inline-block px-3 py-1 rounded-lg">{{ $paymentReference }}</p>
+        </div>
+        @if ($isFirstTime && $feeQuote)
+            <div class="px-6 py-4 bg-white border-t border-gray-100">
+                <x-site.payment-gate-breakdown
+                    :label="$isFirstTime ? __('borrower.membership.registration_fee') : __('borrower.membership.renewal_fee')"
+                    :currency="$config['currency']"
+                    :quote="$feeQuote"
+                    variant="light"
+                />
+            </div>
+        @endif
+    </div>
+
+    @if ($isFirstTime)
+        <x-site.promo-code-toggle
+            :action="route('site.membership.renew')"
+            :value="old('promo_code', request('promo_code'))"
+            :quote="$feeQuote"
+        />
+    @endif
+
+    @if ($isFirstTime && $feeQuote && ($referralWallet->balance ?? 0) > 0)
+        <div class="mb-6 rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 py-4 text-sm text-brand">
+            <label class="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" name="use_wallet" value="1" form="membership-renew-form" @checked(old('use_wallet')) class="mt-1 rounded border-brand/30 text-brand focus:ring-brand">
+                <span>
+                    {{ __('borrower.membership.use_wallet_label', [
+                        'balance' => $config['currency'].' '.format_number($referralWallet->balance),
+                        'percent' => rtrim(rtrim(format_number($referralSettings['wallet_max_fee_percent'], 2), '0'), '.'),
+                    ]) }}
+                </span>
+            </label>
+            @if (($feeQuote['wallet_applied'] ?? 0) > 0)
+                <p class="mt-3 text-xs">{{ __('borrower.membership.wallet_credit_hint', [
+                    'wallet' => $config['currency'].' '.format_number($feeQuote['wallet_applied']),
+                    'cash' => $config['currency'].' '.format_number($feeQuote['cash_due']),
+                ]) }}</p>
+            @endif
+        </div>
+    @endif
+
+    <form id="membership-renew-form" method="POST" action="{{ route('site.membership.renew.post') }}" class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-5">
+        @csrf
+        @if ($isFirstTime && filled(request('promo_code')))
+            <input type="hidden" name="promo_code" value="{{ request('promo_code') }}">
+        @endif
+
+        <x-site.payment-method-picker
+            :amount="$cashDue"
+            form-id="membership-renew-form"
+            method-field="channel"
+            mobile-field="payment_phone"
+            mobile-value="mobile_money"
+            bank-value="bank"
+            :default-method="old('channel', 'mobile_money')"
+            :mobile-details="$mobileDetails ?? []"
+            :bank-accounts="$bankAccounts ?? []"
+            :bank-reference="$paymentReference"
+            :mobile-input-value="old('payment_phone', $customer->phone ?? '')"
+        />
+
+        <button type="submit" class="w-full bg-brand hover:bg-brand-light text-white font-semibold px-5 py-3 rounded-xl text-sm">
+            {{ __('borrower.membership.pay_now') }}
+        </button>
+    </form>
 </x-site.borrower-layout>

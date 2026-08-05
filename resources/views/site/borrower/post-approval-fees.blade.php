@@ -1,7 +1,7 @@
 <x-site.borrower-layout :title="brand_title(__('borrower.post_approval_fees.page_title'))" active="loans" content-width="wide">
-    <div x-data="{ channel: @js(old('channel', 'mobile_money')) }">
+    <div>
         <div class="mb-6">
-            <a href="{{ route('site.borrower.application', $application) }}" class="text-sm text-amber-700 hover:text-amber-800">&larr; {{ __('borrower.post_approval_fees.back') }}</a>
+            <a href="{{ route('site.borrower.application', $application) }}" class="text-sm text-brand hover:text-brand-light">&larr; {{ __('borrower.post_approval_fees.back') }}</a>
             <h1 class="text-2xl font-bold mt-2">{{ __('borrower.post_approval_fees.page_title') }}</h1>
             <p class="text-sm text-gray-500 mt-1">{{ $application->product?->name }}</p>
         </div>
@@ -81,57 +81,37 @@
                     :inline="true"
                 />
 
-                <div>
-                    <p class="text-xs uppercase tracking-wider text-gray-500 mb-2">{{ __('borrower.membership.payment_method') }}</p>
-                    <div class="grid sm:grid-cols-2 gap-3">
-                        <label class="cursor-pointer">
-                            <input type="radio" name="channel" value="mobile_money" x-model="channel" class="sr-only peer" @checked(old('channel', 'mobile_money') === 'mobile_money')>
-                            <div class="rounded-xl border-2 border-gray-200 peer-checked:border-amber-500 peer-checked:bg-amber-50 p-3 text-sm">
-                                <p class="font-semibold">{{ __('borrower.membership.mobile_money') }}</p>
-                            </div>
-                        </label>
-                        <label class="cursor-pointer">
-                            <input type="radio" name="channel" value="bank" x-model="channel" class="sr-only peer" @checked(old('channel') === 'bank')>
-                            <div class="rounded-xl border-2 border-gray-200 peer-checked:border-amber-500 peer-checked:bg-amber-50 p-3 text-sm">
-                                <p class="font-semibold">{{ __('borrower.membership.bank') }}</p>
-                            </div>
+                <x-site.payment-method-picker
+                    :amount="(int) ($feeQuote['cash_due'] ?? $feeQuote['after_discount'] ?? 0)"
+                    method-field="channel"
+                    mobile-field="mobile_number"
+                    mobile-value="mobile_money"
+                    bank-value="bank"
+                    :default-method="old('channel', 'mobile_money')"
+                    :mobile-details="$mobileDetails ?? []"
+                    :bank-accounts="collect($bankAccounts ?? [])->map(fn ($a) => [
+                        'bank' => $a['bank_name'] ?? $a['bank'] ?? 'Bank',
+                        'account_name' => $a['account_name'] ?? '',
+                        'account_number' => $a['account_number'] ?? '',
+                        'branch' => $a['branch'] ?? '',
+                    ])->all()"
+                    :bank-reference="$paymentReference"
+                    :mobile-input-value="old('mobile_number', $customer->phone)"
+                >
+                    <div x-show="method === 'bank'" x-cloak class="space-y-3">
+                        <x-site.date-input
+                            name="payment_date"
+                            :label="__('borrower.membership.payment_date')"
+                            :value="old('payment_date', now()->toDateString())"
+                            :max="now()->toDateString()"
+                            input-class="mt-1 w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-base"
+                        />
+                        <label class="block">
+                            <span class="text-xs font-medium text-gray-600">{{ __('borrower.membership.proof_optional') }}</span>
+                            <input type="file" name="proof" accept=".jpg,.jpeg,.png,.pdf" class="mt-1 w-full text-sm">
                         </label>
                     </div>
-                </div>
-
-                <div x-show="channel === 'mobile_money'" x-cloak>
-                    @if (! empty($mobileDetails))
-                        <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 p-4 text-sm space-y-1 mb-3">
-                            <p class="font-semibold">{{ $mobileDetails['provider'] ?? 'Mobile money' }}</p>
-                            <p class="font-mono">{{ $mobileDetails['paybill'] ?? $mobileDetails['number'] ?? '—' }}</p>
-                        </div>
-                    @endif
-                    <label class="block">
-                        <span class="text-xs font-medium text-gray-600">{{ __('borrower.membership.mobile_number') }}</span>
-                        <input type="text" name="mobile_number" value="{{ old('mobile_number', $customer->phone) }}" class="mt-1 w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2 text-sm" placeholder="255712345678">
-                    </label>
-                </div>
-
-                <div x-show="channel === 'bank'" x-cloak class="space-y-3">
-                    @foreach ($bankAccounts as $account)
-                        <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 p-4 text-sm">
-                            <p class="font-semibold">{{ $account['bank_name'] ?? $account['bank'] ?? 'Bank' }}</p>
-                            <p class="font-mono text-xs mt-1">{{ $account['account_number'] ?? '—' }}</p>
-                            <p class="text-xs text-gray-600 mt-1">{{ $account['account_name'] ?? '' }}</p>
-                        </div>
-                    @endforeach
-                    <x-site.date-input
-                        name="payment_date"
-                        :label="__('borrower.membership.payment_date')"
-                        :value="old('payment_date', now()->toDateString())"
-                        :max="now()->toDateString()"
-                        input-class="mt-1 w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-base"
-                    />
-                    <label class="block">
-                        <span class="text-xs font-medium text-gray-600">{{ __('borrower.membership.proof_optional') }}</span>
-                        <input type="file" name="proof" accept=".jpg,.jpeg,.png,.pdf" class="mt-1 w-full text-sm">
-                    </label>
-                </div>
+                </x-site.payment-method-picker>
 
                 @if (($feeQuote['wallet_allowed'] ?? false) && $wallet->balance > 0 && ($maxWalletQuote['wallet_usable'] ?? 0) > 0)
                     <label class="flex items-start gap-3 rounded-xl bg-indigo-50 ring-1 ring-indigo-200 px-4 py-3 text-sm cursor-pointer">
@@ -140,15 +120,7 @@
                     </label>
                 @endif
 
-                @if ($errors->any())
-                    <div class="rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-700">
-                        @foreach ($errors->all() as $error)
-                            <p>{{ $error }}</p>
-                        @endforeach
-                    </div>
-                @endif
-
-                <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-6 py-3 rounded-full text-sm w-full sm:w-auto">
+                <button type="submit" class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3 rounded-xl text-sm w-full sm:w-auto">
                     {{ __('borrower.post_approval_fees.pay_now') }}
                 </button>
             </form>

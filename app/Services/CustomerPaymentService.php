@@ -296,6 +296,36 @@ class CustomerPaymentService
             }
         }
 
+        if ($payment->payment_type === 'registration_fee' && $payment->customer) {
+            $alreadyApplied = \App\Models\MembershipHistory::query()
+                ->where('payment_reference', $payment->reference)
+                ->whereIn('event', ['issued', 'renewed'])
+                ->exists();
+
+            if (! $alreadyApplied) {
+                $customer = $payment->customer->fresh();
+                $membership = app(MembershipService::class);
+                $channel = $payment->payment_method === 'mobile_money' ? 'mobile_money' : 'bank';
+                if (! $customer->hasMembership()) {
+                    $membership->issue(
+                        $customer,
+                        null,
+                        $payment->reference,
+                        $payment->verified_by,
+                        (float) $payment->amount,
+                        $channel,
+                    );
+                } else {
+                    $membership->renew(
+                        $customer,
+                        $payment->reference,
+                        $channel,
+                        $payment->verified_by,
+                    );
+                }
+            }
+        }
+
         $this->postLedger($payment);
     }
 

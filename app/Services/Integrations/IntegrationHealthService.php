@@ -16,7 +16,7 @@ class IntegrationHealthService
         protected IntegrationCatalog $catalog,
     ) {}
 
-    /** @return array{ok: bool, message: string, checked_at: ?string, provider: ?string} */
+    /** @return array{ok: bool, message: string, checked_at: ?string, provider: ?string, guidance: list<string>, unknown?: bool} */
     public function lastStatus(string $partnerKey): array
     {
         $raw = Setting::get("integrations.health.{$partnerKey}");
@@ -26,21 +26,28 @@ class IntegrationHealthService
                 'message' => 'Not checked yet',
                 'checked_at' => null,
                 'provider' => $partnerKey,
+                'guidance' => $this->guidanceFor($partnerKey, false, 'Not checked yet'),
                 'unknown' => true,
             ];
         }
 
+        $ok = (bool) ($raw['ok'] ?? false);
+        $message = (string) ($raw['message'] ?? '');
+
         return [
-            'ok' => (bool) ($raw['ok'] ?? false),
-            'message' => (string) ($raw['message'] ?? ''),
+            'ok' => $ok,
+            'message' => $message,
             'checked_at' => $raw['checked_at'] ?? null,
             'provider' => $raw['provider'] ?? $partnerKey,
+            'guidance' => is_array($raw['guidance'] ?? null)
+                ? $raw['guidance']
+                : $this->guidanceFor($partnerKey, $ok, $message),
             'unknown' => false,
         ];
     }
 
     /**
-     * @return array{ok: bool, message: string, checked_at: string, provider: string}
+     * @return array{ok: bool, message: string, checked_at: string, provider: string, guidance: list<string>}
      */
     public function check(string $partnerKey, bool $notifyOnFailure = true): array
     {
@@ -54,7 +61,10 @@ class IntegrationHealthService
             'unitxt' => app(SmsManager::class)->healthCheck(),
             'email_smtp' => $this->checkEmail(),
             'crb' => $this->checkCrb(),
-            default => ['ok' => false, 'message' => 'No health probe registered for this partner.'],
+            default => [
+                'ok' => false,
+                'message' => 'No automated health probe yet — open Configure and verify credentials manually.',
+            ],
         };
 
         $stored = $this->store(
@@ -112,7 +122,7 @@ class IntegrationHealthService
     }
 
     /**
-     * @return array{ok: bool, message: string, checked_at: string, provider: string}
+     * @return array{ok: bool, message: string, checked_at: string, provider: string, guidance: list<string>}
      */
     protected function store(string $partnerKey, bool $ok, string $message, ?string $provider = null): array
     {
@@ -121,11 +131,48 @@ class IntegrationHealthService
             'message' => $message,
             'checked_at' => now()->toIso8601String(),
             'provider' => $provider ?: $partnerKey,
+            'guidance' => $this->guidanceFor($partnerKey, $ok, $message),
         ];
 
         Setting::set("integrations.health.{$partnerKey}", $payload);
 
         return $payload;
+    }
+
+    /** @return list<string> */
+    public function guidanceFor(string $partnerKey, bool $ok, string $message): array
+    {
+        if ($ok) {
+            return match ($partnerKey) {
+                'payin' => [
+                    'Set Payment gateway mode to Live (not Dummy) so borrowers get USSD prompts.',
+                    'Confirm the PayIn dashboard callback URL matches this app’s /webhooks/payin endpoint.',
+                ],
+                default => ['Integration is healthy.'],
+            };
+        }
+
+        $lower = strtolower($message);
+        $tips = [];
+
+        if (str_contains($lower, 'disabled') || str_contains($lower, 'missing') || str_contains($lower, 'incomplete')) {
+            $tips[] = 'Open Configure, enable the partner, paste API credentials, then use Save & test connection.';
+        }
+        if (str_contains($lower, 'ip') || str_contains($lower, 'forbidden') || str_contains($lower, '401') || str_contains($lower, '403')) {
+            $tips[] = 'In the partner dashboard, whitelist this server’s public IP and wait for approval.';
+        }
+        if (str_contains($lower, 'timeout') || str_contains($lower, 'connection failed') || str_contains($lower, 'could not resolve')) {
+            $tips[] = 'Check outbound HTTPS from the server and that the partner environment (sandbox vs production) matches your keys.';
+        }
+
+        $tips[] = match ($partnerKey) {
+            'payin' => 'Review Settings → Integrations → PayIn payments, then PayIn Dashboard → Webhook & API Keys.',
+            'unitxt', 'email_smtp' => 'Review Settings → Integrations → SMS / Email.',
+            'crb' => 'Review Settings → Integrations → CRB integration.',
+            default => 'Open the partner’s Configure page and re-check credentials.',
+        };
+
+        return array_values(array_unique($tips));
     }
 
     /** @return array{ok: bool, message: string} */

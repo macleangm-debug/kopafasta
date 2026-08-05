@@ -3,6 +3,7 @@
 namespace App\Services\Integrations;
 
 use App\Models\Setting;
+use Illuminate\Support\Str;
 
 class IntegrationCatalog
 {
@@ -12,10 +13,51 @@ class IntegrationCatalog
         return config('integrations.categories', []);
     }
 
+    /** @return array<string, string> */
+    public function channelOptions(): array
+    {
+        return config('integrations.channel_options', [
+            'mobile_money' => 'Mobile money',
+            'bank' => 'Bank transfer',
+        ]);
+    }
+
     /** @return array<string, array<string, mixed>> */
     public function partners(): array
     {
-        return config('integrations.partners', []);
+        $builtin = config('integrations.partners', []);
+        $custom = Setting::get('integrations.custom_partners');
+        if (! is_array($custom)) {
+            $custom = [];
+        }
+
+        $merged = $builtin;
+        foreach ($custom as $key => $partner) {
+            if (! is_array($partner) || ! is_string($key) || $key === '') {
+                continue;
+            }
+            $merged[$key] = array_merge([
+                'builtin' => false,
+                'status' => 'available',
+                'channels' => [],
+            ], $partner, ['builtin' => false]);
+        }
+
+        // Channel overrides saved by admin (which rails this partner serves).
+        $channelOverrides = Setting::get('integrations.partner_channels');
+        if (is_array($channelOverrides)) {
+            foreach ($channelOverrides as $key => $channels) {
+                if (! isset($merged[$key]) || ! is_array($channels)) {
+                    continue;
+                }
+                $merged[$key]['channels'] = array_values(array_intersect(
+                    array_keys($this->channelOptions()),
+                    $channels
+                ));
+            }
+        }
+
+        return $merged;
     }
 
     public function partner(string $key): ?array
@@ -26,8 +68,6 @@ class IntegrationCatalog
     }
 
     /**
-     * Partners grouped by category, with primary + last health overlay.
-     *
      * @return array<string, array{meta: array, partners: list<array<string, mixed>>}>
      */
     public function grouped(): array
@@ -44,10 +84,12 @@ class IntegrationCatalog
                     continue;
                 }
 
+                $status = $health->lastStatus($key);
                 $partners[] = array_merge($partner, [
                     'key' => $key,
                     'is_primary' => $primary === $key,
-                    'health' => $health->lastStatus($key),
+                    'health' => $status,
+                    'guidance' => $status['guidance'] ?? [],
                 ]);
             }
 
@@ -64,11 +106,12 @@ class IntegrationCatalog
     public function primaryKey(string $category): ?string
     {
         $stored = Setting::get("integrations.primary.{$category}");
-        if (is_string($stored) && $stored !== '' && isset($this->partners()[$stored])) {
+        $all = $this->partners();
+        if (is_string($stored) && $stored !== '' && isset($all[$stored])) {
             return $stored;
         }
 
-        foreach ($this->partners() as $key => $partner) {
+        foreach ($all as $key => $partner) {
             if (($partner['category'] ?? null) === $category && ($partner['status'] ?? '') === 'available') {
                 return $key;
             }
@@ -87,12 +130,88 @@ class IntegrationCatalog
         Setting::set("integrations.primary.{$category}", $partnerKey);
     }
 
+    /**
+     * @param  list<string>  $channels
+     */
+    public function setPartnerChannels(string $partnerKey, array $channels): void
+    {
+        if (! $this->partner($partnerKey)) {
+            throw new \InvalidArgumentException("Unknown partner {$partnerKey}.");
+        }
+
+        $allowed = array_keys($this->channelOptions());
+        $channels = array_values(array_intersect($allowed, $channels));
+        if ($channels === []) {
+            throw new \InvalidArgumentException('Select at least one channel (mobile money and/or bank).');
+        }
+
+        $all = Setting::get('integrations.partner_channels');
+        if (! is_array($all)) {
+            $all = [];
+        }
+        $all[$partnerKey] = $channels;
+        Setting::set('integrations.partner_channels', $all);
+    }
+
+    /**
+     * @param  array{label: string, category: string, description?: string, channels?: list<string>, docs_url?: string}  $data
+     */
+    public function addCustomPartner(array $data): string
+    {
+        $label = trim((string) ($data['label'] ?? ''));
+        $category = (string) ($data['category'] ?? '');
+        if ($label === '' || ! isset($this->categories()[$category])) {
+            throw new \InvalidArgumentException('Partner name and category are required.');
+        }
+
+        $key = Str::slug($label, '_');
+        if ($key === '') {
+            $key = 'partner_'.Str::lower(Str::random(6));
+        }
+        if (isset($this->partners()[$key])) {
+            $key .= '_'.Str::lower(Str::random(4));
+        }
+
+        $channels = array_values(array_intersect(
+            array_keys($this->channelOptions()),
+            $data['channels'] ?? []
+        ));
+        if ($category === 'payment' && $channels === []) {
+            $channels = ['mobile_money'];
+        }
+
+        $custom = Setting::get('integrations.custom_partners');
+        if (! is_array($custom)) {
+            $custom = [];
+        }
+
+        $custom[$key] = [
+            'label' => $label,
+            'category' => $category,
+            'description' => (string) ($data['description'] ?? ''),
+            'docs_url' => (string) ($data['docs_url'] ?? ''),
+            'settings_route' => null,
+            'health_route' => null,
+            'status' => 'available',
+            'channels' => $channels,
+            'builtin' => false,
+        ];
+
+        Setting::set('integrations.custom_partners', $custom);
+
+        return $key;
+    }
+
     /** @return list<array<string, mixed>> */
     public function availableForHealthCheck(): array
     {
         $list = [];
         foreach ($this->partners() as $key => $partner) {
             if (($partner['status'] ?? '') !== 'available') {
+                continue;
+            }
+            // Custom partners without a probe skip automated health.
+            if (empty($partner['builtin']) && empty($partner['settings_route'])) {
                 continue;
             }
             $list[] = array_merge($partner, ['key' => $key]);

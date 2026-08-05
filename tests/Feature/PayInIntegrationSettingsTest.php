@@ -25,9 +25,12 @@ class PayInIntegrationSettingsTest extends TestCase
                 'webhook_secret' => 'whsec_test',
                 'default_callback_url' => '',
                 'gateway_mode' => 'live',
-                'mobile_money_threshold' => '3000000',
+                'mobile_money_threshold' => '3,000,000',
+                'channels' => ['mobile_money', 'bank'],
+                'intent' => 'save',
             ])
-            ->assertRedirect();
+            ->assertRedirect()
+            ->assertSessionHas('feedback');
 
         $this->assertTrue((bool) Setting::get('payin.enabled'));
         $this->assertSame('sandbox', Setting::get('payin.environment'));
@@ -35,6 +38,7 @@ class PayInIntegrationSettingsTest extends TestCase
         $this->assertSame('live', Setting::get('payments.gateway_mode'));
         $this->assertSame(3000000, (int) Setting::get('payments.mobile_money_threshold'));
         $this->assertSame(3000000, payment_mobile_money_threshold());
+        $this->assertSame(['mobile_money', 'bank'], Setting::get('integrations.partner_channels')['payin'] ?? null);
         $channels = payment_channels_for_amount(2_500_000);
         $this->assertTrue($channels['mobile_money_allowed']);
         $this->assertFalse(payment_channels_for_amount(3_000_001)['mobile_money_allowed']);
@@ -43,6 +47,54 @@ class PayInIntegrationSettingsTest extends TestCase
         $this->assertTrue($service->isConfigured());
         $this->assertTrue($service->isLiveCollectionEnabled());
         $this->assertStringContainsString('sandbox.payin.co.tz', $service->baseUrl());
+    }
+
+    public function test_save_and_test_persists_settings_before_health_check(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        $response = $this->actingAs($admin, 'admin')
+            ->put(route('admin.settings.payin.save'), [
+                'enabled' => '1',
+                'environment' => 'sandbox',
+                'api_key' => 'pk_keep_me',
+                'api_secret' => 'sk_keep_me',
+                'webhook_secret' => 'whsec_keep',
+                'default_callback_url' => '',
+                'gateway_mode' => 'live',
+                'mobile_money_threshold' => '3000000',
+                'channels' => ['mobile_money'],
+                'intent' => 'save_and_test',
+            ]);
+
+        $response->assertRedirect(route('admin.settings.payin'));
+        $this->assertSame('pk_keep_me', Setting::get('payin.api_key'));
+        $this->assertSame('sk_keep_me', Setting::get('payin.api_secret'));
+        $this->assertTrue((bool) Setting::get('payin.enabled'));
+        $this->assertSame('error', session('feedback.tone'));
+        $this->assertStringContainsString('saved', strtolower((string) session('feedback.message')));
+    }
+
+    public function test_admin_can_add_custom_payment_partner(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.settings.integrations.partners.store'), [
+                'label' => 'Selcom Live',
+                'category' => 'payment',
+                'description' => 'Second PSP',
+                'channels' => ['mobile_money', 'bank'],
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('feedback');
+
+        $custom = Setting::get('integrations.custom_partners');
+        $this->assertIsArray($custom);
+        $this->assertNotEmpty($custom);
+        $first = reset($custom);
+        $this->assertSame('Selcom Live', $first['label']);
+        $this->assertSame(['mobile_money', 'bank'], $first['channels']);
     }
 
     public function test_integrations_hub_lists_payment_partners(): void
@@ -95,7 +147,8 @@ class PayInIntegrationSettingsTest extends TestCase
             ->get(route('admin.settings.payin'))
             ->assertOk()
             ->assertSee('PayIn payments')
-            ->assertSee('webhooks/payin');
+            ->assertSee('webhooks/payin')
+            ->assertSee('Save &amp; test connection', false);
     }
 
     public function test_payin_webhook_rejects_bad_signature(): void

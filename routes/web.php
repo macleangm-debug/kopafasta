@@ -884,6 +884,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::put('settings/auth-portal',      [SettingsController::class, 'saveAuthPortal'])->name('settings.auth-portal.save');
         Route::get('settings/integrations', [SettingsController::class, 'integrations'])->name('settings.integrations');
         Route::put('settings/integrations/primary', [SettingsController::class, 'saveIntegrationsPrimary'])->name('settings.integrations.primary');
+        Route::put('settings/integrations/channels', [SettingsController::class, 'saveIntegrationChannels'])->name('settings.integrations.channels');
+        Route::post('settings/integrations/partners', [SettingsController::class, 'storeIntegrationPartner'])->name('settings.integrations.partners.store');
         Route::post('settings/integrations/health', [SettingsController::class, 'checkIntegrationHealth'])->name('settings.integrations.health');
         Route::get('settings/gateways',         [SettingsController::class, 'gateways'])      ->name('settings.gateways');
         Route::put('settings/gateways',         [SettingsController::class, 'saveGateways'])  ->name('settings.gateways.save');

@@ -86,16 +86,28 @@ class MembershipController extends Controller
                 ->with('error', 'Membership payment requires a customer profile.');
         }
 
-        $paymentReference = $request->session()->pull('membership_payment_ref')
-            ?? $service->generatePaymentReference($customer);
-
         $isFirstTime = ! $customer->hasMembership();
         $cfg = MembershipService::config();
         $baseFee = $isFirstTime ? $cfg['registration_fee'] : $cfg['renewal_fee'];
         $useWallet = $isFirstTime && $request->boolean('use_wallet');
         $promoCode = $data['promo_code'] ?? null;
-        $paymentBreakdown = null;
         $gate = app(\App\Services\PaymentGateService::class);
+        $cashDue = $isFirstTime
+            ? (int) ($gate->quote($customer, (float) $baseFee, 'registration_fee', $useWallet, $promoCode)['cash_due'] ?? $baseFee)
+            : (int) $baseFee;
+
+        if ($data['channel'] === 'mobile_money' && ! payment_channels_for_amount($cashDue)['mobile_money_allowed']) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'channel' => [__('borrower.payments_page.create.bank_only', [
+                    'threshold' => format_money(payment_mobile_money_threshold()),
+                ])],
+            ]);
+        }
+
+        $paymentReference = $request->session()->pull('membership_payment_ref')
+            ?? $service->generatePaymentReference($customer);
+
+        $paymentBreakdown = null;
 
         if ($isFirstTime) {
             $quote = $gate->quote($customer, (float) $baseFee, 'registration_fee', $useWallet, $promoCode);
@@ -138,7 +150,7 @@ class MembershipController extends Controller
         }
 
         if ($data['channel'] === 'mobile_money') {
-            app(\App\Services\CustomerPaymentService::class)->create([
+            $payment = app(\App\Services\CustomerPaymentService::class)->create([
                 'customer'       => $customer,
                 'payment_type'   => 'registration_fee',
                 'payment_method' => 'mobile_money',
@@ -148,11 +160,15 @@ class MembershipController extends Controller
                 'auto_verify'    => payment_gateway_is_dummy(),
             ]);
 
+            if ($payment->status === 'processing') {
+                return redirect()->route('site.borrower.dashboard')->with('status',
+                    'Confirm the payment prompt on your phone. Membership activates when PayIn confirms.');
+            }
+
+            // Dummy / already-verified payments activate membership in CustomerPaymentService::finalizePayment.
             if ($isFirstTime) {
-                $service->issue($customer, null, $paymentReference, $request->user()?->id, null, 'mobile_money', $paymentBreakdown);
                 $message = 'Registration fee received. Your membership is now active!';
             } else {
-                $service->renew($customer, $paymentReference, 'mobile_money', $request->user()?->id);
                 $message = 'Membership renewed successfully!';
             }
 

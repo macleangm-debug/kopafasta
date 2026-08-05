@@ -390,11 +390,26 @@
     };
     window.confirmAction = (detail = {}) => window.confirmForm(null, detail);
     document.addEventListener('DOMContentLoaded', () => {
-        @if (session('status'))
+        @if (session('feedback'))
+            @php $feedback = session('feedback'); @endphp
             window.showAdminFeedback({
-                tone: 'success',
-                title: @js(__('borrower.feedback.tones.success')),
-                message: @js(session('status')),
+                tone: @js($feedback['tone'] ?? 'info'),
+                title: @js($feedback['title'] ?? 'Console'),
+                message: @js($feedback['message'] ?? ''),
+                lines: @js($feedback['lines'] ?? []),
+            });
+        @elseif (session('status'))
+            @php
+                $statusMessage = (string) session('status');
+                $statusTone = str_contains(strtolower($statusMessage), 'fail')
+                    || str_contains(strtolower($statusMessage), 'error')
+                    ? 'error'
+                    : 'success';
+            @endphp
+            window.showAdminFeedback({
+                tone: @js($statusTone),
+                title: @js($statusTone === 'error' ? __('borrower.feedback.tones.error') : __('borrower.feedback.tones.success')),
+                message: @js($statusMessage),
             });
         @endif
         @if (session('error'))

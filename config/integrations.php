@@ -3,14 +3,15 @@
 /**
  * Integration catalog — Settings → Integrations.
  *
- * Multiple partners can share a category (e.g. payment). One partner per
- * category can be marked primary via Setting key integrations.primary.{category}.
+ * Built-in partners merge with admin-added custom partners
+ * (Setting key: integrations.custom_partners).
+ * Payment partners declare supported channels: mobile_money, bank, or both.
  */
 return [
     'categories' => [
         'payment' => [
             'label' => 'Payments',
-            'description' => 'Mobile money collections, disbursements, and PSP rails.',
+            'description' => 'Mobile money collections, disbursements, and bank rails.',
         ],
         'messaging' => [
             'label' => 'SMS & Email',
@@ -22,6 +23,11 @@ return [
         ],
     ],
 
+    'channel_options' => [
+        'mobile_money' => 'Mobile money',
+        'bank' => 'Bank transfer',
+    ],
+
     'partners' => [
         'payin' => [
             'label' => 'PayIn',
@@ -31,8 +37,9 @@ return [
             'health_route' => 'admin.settings.payin.health',
             'docs_url' => 'https://docs.payin.co.tz/',
             'status' => 'available',
+            'channels' => ['mobile_money', 'bank'],
+            'builtin' => true,
         ],
-        // Placeholders — configure later without changing the hub layout.
         'selcom' => [
             'label' => 'Selcom',
             'category' => 'payment',
@@ -41,6 +48,8 @@ return [
             'health_route' => null,
             'docs_url' => null,
             'status' => 'coming_soon',
+            'channels' => ['mobile_money', 'bank'],
+            'builtin' => true,
         ],
         'unitxt' => [
             'label' => 'Unitxt SMS',
@@ -50,6 +59,8 @@ return [
             'health_route' => 'admin.settings.gateways.health',
             'docs_url' => null,
             'status' => 'available',
+            'channels' => [],
+            'builtin' => true,
         ],
         'email_smtp' => [
             'label' => 'Email (SMTP)',
@@ -59,6 +70,8 @@ return [
             'health_route' => null,
             'docs_url' => null,
             'status' => 'available',
+            'channels' => [],
+            'builtin' => true,
         ],
         'crb' => [
             'label' => 'CRB (D&B)',
@@ -68,6 +81,8 @@ return [
             'health_route' => 'admin.settings.crb.test',
             'docs_url' => null,
             'status' => 'available',
+            'channels' => [],
+            'builtin' => true,
         ],
     ],
 ];

@@ -201,7 +201,56 @@ class SettingsController extends Controller
 
         $catalog->setPrimary($data['category'], $data['partner']);
 
-        return back()->with('status', 'Primary '.($catalog->categories()[$data['category']]['label'] ?? $data['category']).' partner updated.');
+        return back()->with('feedback', [
+            'tone' => 'success',
+            'title' => 'Primary partner updated',
+            'message' => 'Primary '.($catalog->categories()[$data['category']]['label'] ?? $data['category']).' partner updated.',
+        ]);
+    }
+
+    public function saveIntegrationChannels(Request $request, \App\Services\Integrations\IntegrationCatalog $catalog)
+    {
+        $data = $request->validate([
+            'partner' => ['required', 'string', 'max:60'],
+            'channels' => ['required', 'array', 'min:1'],
+            'channels.*' => ['in:mobile_money,bank'],
+        ]);
+
+        $catalog->setPartnerChannels($data['partner'], $data['channels']);
+
+        return back()->with('feedback', [
+            'tone' => 'success',
+            'title' => 'Channels saved',
+            'message' => 'Payment channels updated for this partner.',
+        ]);
+    }
+
+    public function storeIntegrationPartner(Request $request, \App\Services\Integrations\IntegrationCatalog $catalog)
+    {
+        $data = $request->validate([
+            'label' => ['required', 'string', 'max:80'],
+            'category' => ['required', 'string', 'max:40'],
+            'description' => ['nullable', 'string', 'max:255'],
+            'docs_url' => ['nullable', 'url', 'max:255'],
+            'channels' => ['nullable', 'array'],
+            'channels.*' => ['in:mobile_money,bank'],
+        ]);
+
+        try {
+            $key = $catalog->addCustomPartner($data);
+        } catch (\InvalidArgumentException $e) {
+            return back()->withInput()->with('feedback', [
+                'tone' => 'error',
+                'title' => 'Could not add partner',
+                'message' => $e->getMessage(),
+            ]);
+        }
+
+        return back()->with('feedback', [
+            'tone' => 'success',
+            'title' => 'Partner added',
+            'message' => "Added {$data['label']} ({$key}). Set it as primary when ready.",
+        ]);
     }
 
     public function checkIntegrationHealth(
@@ -214,28 +263,37 @@ class SettingsController extends Controller
 
         if (filled($data['partner'] ?? null)) {
             $result = $health->check($data['partner'], notifyOnFailure: true);
+            $ok = (bool) ($result['ok'] ?? false);
 
-            return back()
-                ->with('integration_health', [$data['partner'] => $result])
-                ->with('status', ($result['ok'] ?? false)
-                    ? ucfirst($data['partner']).' connection healthy.'
-                    : ucfirst($data['partner']).' connection failed.');
+            return back()->with('feedback', [
+                'tone' => $ok ? 'success' : 'error',
+                'title' => $ok ? 'Connection healthy' : 'Connection failed',
+                'message' => (string) ($result['message'] ?? ''),
+                'lines' => $result['guidance'] ?? [],
+            ]);
         }
 
         $results = $health->checkAll(notifyOnFailure: true);
-        $failed = collect($results)->where('ok', false)->count();
+        $failed = collect($results)->where('ok', false)->values();
 
-        return back()
-            ->with('integration_health', collect($results)->keyBy('key')->all())
-            ->with('status', $failed === 0
+        return back()->with('feedback', [
+            'tone' => $failed->isEmpty() ? 'success' : 'error',
+            'title' => $failed->isEmpty() ? 'All integrations healthy' : 'Some integrations failed',
+            'message' => $failed->isEmpty()
                 ? 'All available integrations passed health checks.'
-                : "{$failed} integration(s) failed — admins were notified.");
+                : $failed->count().' integration(s) need attention.',
+            'lines' => $failed->map(fn ($row) => strtoupper($row['key']).': '.$row['message'])->all(),
+        ]);
     }
 
     // ---------------- PayIn payments ----------------
     public function payin(\App\Services\PayInService $payIn)
     {
         $values = Setting::group('payin');
+        $catalog = app(\App\Services\Integrations\IntegrationCatalog::class);
+        $partner = $catalog->partner('payin');
+        $channels = $partner['channels'] ?? ['mobile_money', 'bank'];
+        $configured = ! empty($values['enabled']) && filled($values['api_key'] ?? null) && filled($values['api_secret'] ?? null);
 
         return view('admin.settings.payin', [
             'values' => array_merge([
@@ -249,11 +307,19 @@ class SettingsController extends Controller
             'gatewayMode' => Setting::get('payments.gateway_mode') ?? config('payments.gateway_mode', 'dummy'),
             'mobileMoneyThreshold' => payment_mobile_money_threshold(),
             'defaultWebhookUrl' => route('webhooks.payin'),
+            'payinChannels' => $channels,
+            'channelOptions' => $catalog->channelOptions(),
+            'isConfigured' => $configured,
+            'health' => app(\App\Services\Integrations\IntegrationHealthService::class)->lastStatus('payin'),
         ]);
     }
 
     public function savePayin(Request $request)
     {
+        $request->merge([
+            'mobile_money_threshold' => (int) round(\App\Support\MoneyFormat::toNumber($request->input('mobile_money_threshold'))),
+        ]);
+
         $data = $request->validate([
             'enabled' => ['nullable', 'boolean'],
             'environment' => ['required', 'in:sandbox,production'],
@@ -263,32 +329,84 @@ class SettingsController extends Controller
             'default_callback_url' => ['nullable', 'url', 'max:255'],
             'gateway_mode' => ['required', 'in:dummy,live'],
             'mobile_money_threshold' => ['required', 'integer', 'min:0', 'max:100000000'],
+            'channels' => ['required', 'array', 'min:1'],
+            'channels.*' => ['in:mobile_money,bank'],
+            'intent' => ['nullable', 'in:save,save_and_test'],
         ]);
+
+        $intent = $data['intent'] ?? 'save';
+        unset($data['intent']);
 
         $data['enabled'] = (bool) ($data['enabled'] ?? false);
         $gatewayMode = $data['gateway_mode'];
         $threshold = (int) $data['mobile_money_threshold'];
-        unset($data['gateway_mode'], $data['mobile_money_threshold']);
+        $channels = array_values($data['channels']);
+        unset($data['gateway_mode'], $data['mobile_money_threshold'], $data['channels']);
 
         Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["payin.$k" => $v])->all());
         Setting::set('payments.gateway_mode', $gatewayMode);
         Setting::set('payments.mobile_money_threshold', $threshold);
+        app(\App\Services\Integrations\IntegrationCatalog::class)->setPartnerChannels('payin', $channels);
         config([
             'payments.gateway_mode' => $gatewayMode,
             'payments.mobile_money_threshold' => $threshold,
         ]);
 
-        return back()->with('status', 'PayIn settings saved.');
+        if ($intent === 'save_and_test') {
+            $result = app(\App\Services\Integrations\IntegrationHealthService::class)
+                ->check('payin', notifyOnFailure: true);
+
+            $ok = (bool) ($result['ok'] ?? false);
+            $lines = array_values(array_filter([
+                $result['message'] ?? null,
+            ]));
+            foreach ($result['guidance'] ?? [] as $tip) {
+                $lines[] = $tip;
+            }
+            if ($ok && $gatewayMode !== 'live') {
+                $lines[] = 'Gateway mode is still Dummy — switch to Live and save before real USSD payments.';
+            }
+
+            return redirect()
+                ->route('admin.settings.payin')
+                ->with('feedback', [
+                    'tone' => $ok ? ($gatewayMode === 'live' ? 'success' : 'warning') : 'error',
+                    'title' => $ok ? 'PayIn connected' : 'PayIn connection failed',
+                    'message' => $ok
+                        ? 'Settings saved and PayIn responded successfully.'
+                        : 'Settings were saved, but the connection check failed.',
+                    'lines' => $lines,
+                ]);
+        }
+
+        $lines = [];
+        if ($gatewayMode !== 'live') {
+            $lines[] = 'Gateway mode is Dummy — borrowers will not get live USSD. Switch to Live for real payments.';
+        }
+
+        return redirect()
+            ->route('admin.settings.payin')
+            ->with('feedback', [
+                'tone' => $gatewayMode === 'live' ? 'success' : 'warning',
+                'title' => 'Settings saved',
+                'message' => 'PayIn settings saved.',
+                'lines' => $lines,
+            ]);
     }
 
     public function payinHealth(\App\Services\Integrations\IntegrationHealthService $health)
     {
         $result = $health->check('payin', notifyOnFailure: true);
+        $ok = (bool) ($result['ok'] ?? false);
 
         return redirect()
             ->route('admin.settings.payin')
-            ->with('payin_health', $result)
-            ->with('status', ($result['ok'] ?? false) ? 'PayIn connection check completed.' : 'PayIn connection check failed.');
+            ->with('feedback', [
+                'tone' => $ok ? 'success' : 'error',
+                'title' => $ok ? 'PayIn connected' : 'PayIn connection failed',
+                'message' => (string) ($result['message'] ?? ($ok ? 'Connection healthy.' : 'Connection failed.')),
+                'lines' => $result['guidance'] ?? [],
+            ]);
     }
 
     // ---------------- Transactional messaging ----------------
