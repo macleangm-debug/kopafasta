@@ -62,6 +62,26 @@
             </div>
         </div>
 
+        <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 p-4 space-y-3">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-800">Channel rules (all payment gates)</h3>
+                <p class="text-xs text-gray-500 mt-1">Applies to application fees, membership, valuation, deposits, repayments, and other borrower payments.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <x-admin.input
+                    name="mobile_money_threshold"
+                    type="number"
+                    label="Mobile money max (TZS)"
+                    :value="$mobileMoneyThreshold"
+                    help="Amounts from 0 up to this limit can use mobile money (PayIn). Above this, bank transfer only."
+                />
+                <div class="rounded-lg bg-white ring-1 ring-gray-200 px-3 py-2 text-xs text-gray-600">
+                    <p><span class="font-semibold text-gray-800">Mobile money:</span> 0 – {{ format_money($mobileMoneyThreshold) }}</p>
+                    <p class="mt-1"><span class="font-semibold text-gray-800">Bank transfer:</span> above {{ format_money($mobileMoneyThreshold) }}</p>
+                </div>
+            </div>
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1">Environment</label>

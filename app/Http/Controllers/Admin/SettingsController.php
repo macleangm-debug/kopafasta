@@ -247,6 +247,7 @@ class SettingsController extends Controller
                 'default_callback_url' => '',
             ], $values),
             'gatewayMode' => Setting::get('payments.gateway_mode') ?? config('payments.gateway_mode', 'dummy'),
+            'mobileMoneyThreshold' => payment_mobile_money_threshold(),
             'defaultWebhookUrl' => route('webhooks.payin'),
         ]);
     }
@@ -261,15 +262,21 @@ class SettingsController extends Controller
             'webhook_secret' => ['nullable', 'string', 'max:255'],
             'default_callback_url' => ['nullable', 'url', 'max:255'],
             'gateway_mode' => ['required', 'in:dummy,live'],
+            'mobile_money_threshold' => ['required', 'integer', 'min:0', 'max:100000000'],
         ]);
 
         $data['enabled'] = (bool) ($data['enabled'] ?? false);
         $gatewayMode = $data['gateway_mode'];
-        unset($data['gateway_mode']);
+        $threshold = (int) $data['mobile_money_threshold'];
+        unset($data['gateway_mode'], $data['mobile_money_threshold']);
 
         Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["payin.$k" => $v])->all());
         Setting::set('payments.gateway_mode', $gatewayMode);
-        config(['payments.gateway_mode' => $gatewayMode]);
+        Setting::set('payments.mobile_money_threshold', $threshold);
+        config([
+            'payments.gateway_mode' => $gatewayMode,
+            'payments.mobile_money_threshold' => $threshold,
+        ]);
 
         return back()->with('status', 'PayIn settings saved.');
     }

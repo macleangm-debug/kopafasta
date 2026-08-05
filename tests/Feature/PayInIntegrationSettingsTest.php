@@ -25,6 +25,7 @@ class PayInIntegrationSettingsTest extends TestCase
                 'webhook_secret' => 'whsec_test',
                 'default_callback_url' => '',
                 'gateway_mode' => 'live',
+                'mobile_money_threshold' => '3000000',
             ])
             ->assertRedirect();
 
@@ -32,6 +33,11 @@ class PayInIntegrationSettingsTest extends TestCase
         $this->assertSame('sandbox', Setting::get('payin.environment'));
         $this->assertSame('pk_test_abc', Setting::get('payin.api_key'));
         $this->assertSame('live', Setting::get('payments.gateway_mode'));
+        $this->assertSame(3000000, (int) Setting::get('payments.mobile_money_threshold'));
+        $this->assertSame(3000000, payment_mobile_money_threshold());
+        $channels = payment_channels_for_amount(2_500_000);
+        $this->assertTrue($channels['mobile_money_allowed']);
+        $this->assertFalse(payment_channels_for_amount(3_000_001)['mobile_money_allowed']);
 
         $service = app(PayInService::class);
         $this->assertTrue($service->isConfigured());

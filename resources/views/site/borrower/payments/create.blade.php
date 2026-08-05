@@ -18,7 +18,7 @@
         />
     @else
         @php
-            $paymentThreshold = config('payments.mobile_money_threshold', 3_000_000);
+            $paymentThreshold = payment_mobile_money_threshold();
             $accounts = app(\App\Services\PaymentAccountService::class);
             $bankResolved = $accounts->resolve('loan_repayment', 'bank_transfer', $selectedLoan?->product);
             $mobileResolved = $accounts->resolve('loan_repayment', 'mobile_money', $selectedLoan?->product);

@@ -20,13 +20,25 @@ if (! function_exists('payment_gateway_is_dummy')) {
     }
 }
 
+if (! function_exists('payment_mobile_money_threshold')) {
+    function payment_mobile_money_threshold(): int
+    {
+        $stored = \App\Models\Setting::get('payments.mobile_money_threshold');
+        if ($stored !== null && $stored !== '') {
+            return max(0, (int) $stored);
+        }
+
+        return (int) config('payments.mobile_money_threshold', 3_000_000);
+    }
+}
+
 if (! function_exists('payment_channels_for_amount')) {
     /**
      * @return array{mobile_money_allowed: bool, channels: list<string>, threshold: int}
      */
     function payment_channels_for_amount(float|int $amount): array
     {
-        $threshold = (int) config('payments.mobile_money_threshold', 3_000_000);
+        $threshold = payment_mobile_money_threshold();
         $allowed = $amount <= $threshold;
 
         return [

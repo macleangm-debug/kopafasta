@@ -23,7 +23,7 @@ return [
     'mobile_money_threshold' => (int) env('PAYMENT_MOBILE_MONEY_THRESHOLD', 3_000_000),
 
     'channels' => [
-        'mobile_money' => ['M-Pesa', 'Tigo Pesa', 'Airtel Money'],
+        'mobile_money' => ['M-Pesa', 'Tigo Pesa', 'Airtel Money', 'Halo Pesa'],
         'bank' => ['Bank transfer'],
     ],
 ];

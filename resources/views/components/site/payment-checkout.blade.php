@@ -15,7 +15,7 @@
 ])
 
 @php
-    $threshold = $mobileThreshold ?? config('payments.mobile_money_threshold', 3_000_000);
+    $threshold = $mobileThreshold ?? payment_mobile_money_threshold();
     $bankOnlyMessage = __('borrower.payments_page.create.bank_only', ['threshold' => format_money($threshold)]);
 @endphp
 
