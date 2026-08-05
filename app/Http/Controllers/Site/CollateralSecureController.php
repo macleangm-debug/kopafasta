@@ -115,7 +115,7 @@ class CollateralSecureController extends Controller
             $phone = $customer->phone;
             abort_unless(filled($phone) || ! app(\App\Services\PayInService::class)->isLiveCollectionEnabled(), 422);
 
-            app(CustomerPaymentService::class)->create([
+            $payment = app(CustomerPaymentService::class)->create([
                 'customer'       => $customer,
                 'payment_type'   => 'application_fee',
                 'payment_method' => 'mobile_money',
@@ -126,6 +126,12 @@ class CollateralSecureController extends Controller
                 'mobile_number'  => $phone,
                 'auto_verify'    => ! app(\App\Services\PayInService::class)->isLiveCollectionEnabled(),
             ]);
+
+            if ($payment->status === 'processing') {
+                return redirect()
+                    ->route('site.borrower.payments.show', $payment)
+                    ->with('status', __('borrower.payment_waiting.prompt'));
+            }
         }
 
         // When PayIn is live, fee is confirmed via webhook — only mark paid in dummy/instant mode.
