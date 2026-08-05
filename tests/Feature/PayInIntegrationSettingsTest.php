@@ -104,13 +104,12 @@ class PayInIntegrationSettingsTest extends TestCase
             ->assertOk()
             ->assertSee('Configuration')
             ->assertSee('Usage &amp; billing', false)
-            ->assertSee('Supported rails')
             ->assertDontSee('Enable PayIn for mobile money');
 
         $this->actingAs($admin, 'admin')
             ->get(route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'usage']))
             ->assertOk()
-            ->assertSee('Charge model')
+            ->assertSee('Pricing (optional)')
             ->assertSee('Monthly usage');
 
         $this->actingAs($admin, 'admin')
@@ -212,9 +211,14 @@ class PayInIntegrationSettingsTest extends TestCase
 
         $this->actingAs($admin, 'admin')
             ->get(route('admin.settings.payin'))
+            ->assertRedirect(route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration']));
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.settings.integrations.partner', ['partner' => 'payin']))
             ->assertOk()
-            ->assertSee('PayIn payments')
-            ->assertSee('webhooks/payin')
+            ->assertSee('Configuration')
+            ->assertSee('Usage &amp; billing', false)
+            ->assertSee('Supported rails')
             ->assertSee('Save &amp; test connection', false);
     }
 

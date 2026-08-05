@@ -38,13 +38,19 @@
             </p>
         </div>
         <div class="rounded-xl bg-white ring-1 ring-gray-200 p-4">
-            <p class="text-xs uppercase tracking-widest text-gray-500">Rails</p>
+            <p class="text-xs uppercase tracking-widest text-gray-500">
+                {{ ($partner['category'] ?? '') === 'payment' ? 'Rails' : 'Workspace' }}
+            </p>
             <p class="mt-1 text-sm font-semibold text-gray-900">
-                @forelse (($partner['channels'] ?? []) as $ch)
-                    {{ $ch === 'mobile_money' ? 'Mobile money' : 'Bank' }}@if (! $loop->last), @endif
-                @empty
-                    —
-                @endforelse
+                @if (($partner['category'] ?? '') === 'payment')
+                    @forelse (($partner['channels'] ?? []) as $ch)
+                        {{ $ch === 'mobile_money' ? 'Mobile money' : 'Bank' }}@if (! $loop->last), @endif
+                    @empty
+                        —
+                    @endforelse
+                @else
+                    Configuration + Usage
+                @endif
             </p>
         </div>
     </div>
@@ -64,11 +70,10 @@
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-6">
             @if ($partnerKey === 'payin' && is_array($payin ?? null))
                 @include('admin.settings._payin-form', $payin + ['embedded' => true])
-            @elseif ($partnerKey === 'crb')
-                <p class="text-sm text-gray-600">CRB credentials and bureau options live on the dedicated CRB page. Use Usage &amp; billing here for package / overage recon.</p>
-                <a href="{{ route('admin.settings.crb') }}" class="inline-flex rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-2.5">Open CRB settings</a>
+            @elseif ($partnerKey === 'crb' && is_array($crb ?? null))
+                @include('admin.settings._crb-form', $crb + ['embedded' => true])
             @elseif (in_array($partnerKey, ['unitxt', 'email_smtp'], true) || ($partner['category'] ?? '') === 'messaging')
-                <p class="text-sm text-gray-600">SMS / email gateway credentials are managed on the messaging gateways page. Set per-message rates under Usage &amp; billing.</p>
+                <p class="text-sm text-gray-600">SMS / email gateway credentials are managed on the messaging gateways page. Set per-message rates under Usage &amp; billing if this provider charges you.</p>
                 <a href="{{ route('admin.settings.gateways') }}" class="inline-flex rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-2.5">Open SMS / Email</a>
             @elseif (($partner['category'] ?? '') === 'payment')
                 <div>
@@ -86,9 +91,9 @@
                         <button type="submit" class="rounded-xl bg-brand text-white text-xs font-semibold px-4 py-2.5">Save rails</button>
                     </form>
                 </div>
-                <p class="text-sm text-gray-600">API credentials for this partner can be wired when their integration adapter is ready. Rails and billing are available now.</p>
+                <p class="text-sm text-gray-600">API credentials for this partner can be wired when their integration adapter is ready. Rails and Usage &amp; billing are available now.</p>
             @else
-                <p class="text-sm text-gray-600">Configure this partner’s credentials when the adapter is ready. Usage &amp; billing is available for recon.</p>
+                <p class="text-sm text-gray-600">Configure this partner’s credentials when the adapter is ready. Usage &amp; billing is available for recon if they charge you.</p>
             @endif
 
             @if (! empty($health['guidance']) && empty($health['ok']) && empty($health['unknown']))
@@ -117,7 +122,10 @@
             </div>
 
             <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
-                <h3 class="text-sm font-semibold text-gray-900 mb-4">Charge model</h3>
+                <div class="mb-4">
+                    <h3 class="text-sm font-semibold text-gray-900">Pricing (optional)</h3>
+                    <p class="text-xs text-gray-500 mt-1">Only fill this in if the partner charges you. Leave zeros / blank when there is no fee — usage is still tracked.</p>
+                </div>
                 <form method="POST" action="{{ route('admin.settings.integrations.billing', $partnerKey) }}" class="space-y-4">
                     @csrf @method('PUT')
                     @if (($partner['category'] ?? '') === 'payment')
@@ -146,13 +154,13 @@
                         </div>
                     @else
                         <div class="grid md:grid-cols-3 gap-4">
-                            <x-admin.input name="included_units" label="Included calls in package" type="number" :value="$billing['included_units'] ?? '200'" />
+                            <x-admin.input name="included_units" label="Included calls in package" type="number" :value="$billing['included_units'] ?? '0'" />
                             <x-admin.input name="package_price" label="Package price (TZS)" type="number" step="0.01" :value="$billing['package_price'] ?? '0'" />
                             <x-admin.input name="overage_fee" label="Overage per call (TZS)" type="number" step="0.01" :value="$billing['overage_fee'] ?? '0'" />
                         </div>
                     @endif
                     <div class="flex justify-end">
-                        <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2.5 rounded-xl">Save charge model</button>
+                        <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2.5 rounded-xl">Save pricing</button>
                     </div>
                 </form>
             </div>

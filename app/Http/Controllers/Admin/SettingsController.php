@@ -223,8 +223,12 @@ class SettingsController extends Controller
             : false;
 
         $payinView = null;
+        $crbView = null;
         if ($partner === 'payin') {
             $payinView = $this->payinViewData();
+        }
+        if ($partner === 'crb') {
+            $crbView = $this->crbViewData();
         }
 
         return view('admin.settings.integrations-partner', [
@@ -236,6 +240,7 @@ class SettingsController extends Controller
             'billing' => $usage->billing($partner),
             'channelOptions' => $catalog->channelOptions(),
             'payin' => $payinView,
+            'crb' => $crbView,
         ]);
     }
 
@@ -389,7 +394,10 @@ class SettingsController extends Controller
     // ---------------- PayIn payments ----------------
     public function payin(\App\Services\PayInService $payIn)
     {
-        return view('admin.settings.payin', $this->payinViewData());
+        return redirect()->route('admin.settings.integrations.partner', [
+            'partner' => 'payin',
+            'tab' => 'configuration',
+        ]);
     }
 
     /** @return array<string, mixed> */
@@ -602,19 +610,25 @@ class SettingsController extends Controller
 
     public function crb()
     {
+        return redirect()->route('admin.settings.integrations.partner', [
+            'partner' => 'crb',
+            'tab' => 'configuration',
+        ]);
+    }
+
+    /** @return array<string, mixed> */
+    protected function crbViewData(): array
+    {
         $values = Setting::group('kyc');
         $sample = config('crb_samples.scenarios.verified', []);
-        $billing = app(\App\Services\CrbBillingService::class);
 
-        return view('admin.settings.crb', [
-            'values'        => $values,
-            'driver'        => config('crb.driver'),
-            'usesStub'      => app(\App\Services\CrbService::class)->usesStub(),
-            'sampleNida'    => $sample['nida'] ?? '19810713-00001-23456-78',
-            'sampleLabel'   => $sample['label'] ?? 'Single hit (verified)',
-            'billingSummary'=> $billing->monthlySummary(),
-            'billingHistory'=> $billing->recentMonths(6),
-        ]);
+        return [
+            'values' => $values,
+            'driver' => config('crb.driver'),
+            'usesStub' => app(\App\Services\CrbService::class)->usesStub(),
+            'sampleNida' => $sample['nida'] ?? '19810713-00001-23456-78',
+            'sampleLabel' => $sample['label'] ?? 'Single hit (verified)',
+        ];
     }
 
     public function saveCrb(Request $request)
@@ -634,7 +648,13 @@ class SettingsController extends Controller
 
         Setting::setMany(collect($data)->mapWithKeys(fn ($value, $key) => ["kyc.$key" => $value])->all());
 
-        return back()->with('status', 'CRB settings saved.');
+        return redirect()
+            ->route('admin.settings.integrations.partner', ['partner' => 'crb', 'tab' => 'configuration'])
+            ->with('feedback', [
+                'tone' => 'success',
+                'title' => 'CRB settings saved',
+                'message' => 'Fields are locked — click Edit settings to change. Usage & billing tracks requests and package pricing.',
+            ]);
     }
 
     public function testCrbConnection()
@@ -649,14 +669,24 @@ class SettingsController extends Controller
         );
 
         if ($result->success) {
-            $driverLabel = $result->raw['driver'] ?? ($usesStub ? 'stub' : 'live');
+            $driverLabel = $result->raw['driver'] ?? (app(\App\Services\CrbService::class)->usesStub() ? 'stub' : 'live');
 
-            return back()->with('status', 'CRB test succeeded ('.$driverLabel.'): '.$result->fullName);
+            return redirect()
+                ->route('admin.settings.integrations.partner', ['partner' => 'crb', 'tab' => 'configuration'])
+                ->with('feedback', [
+                    'tone' => 'success',
+                    'title' => 'CRB test succeeded',
+                    'message' => $driverLabel.': '.$result->fullName,
+                ]);
         }
 
-        return back()->withErrors([
-            'crb_test' => $result->message ?? 'CRB test failed.',
-        ]);
+        return redirect()
+            ->route('admin.settings.integrations.partner', ['partner' => 'crb', 'tab' => 'configuration'])
+            ->with('feedback', [
+                'tone' => 'error',
+                'title' => 'CRB test failed',
+                'message' => $result->message ?? 'CRB test failed.',
+            ]);
     }
 
     public function identityVerification()

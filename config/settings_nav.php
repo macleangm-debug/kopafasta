@@ -36,9 +36,9 @@ return [
     ],
     'Integrations' => [
         ['Integrations hub', 'admin.settings.integrations', 'integrations'],
-        ['PayIn payments', 'admin.settings.payin', 'payin'],
+        ['PayIn', 'admin.settings.payin', 'payin'],
         ['SMS / Email', 'admin.settings.gateways', 'gateways'],
-        ['CRB integration', 'admin.settings.crb', 'crb'],
+        ['CRB', 'admin.settings.crb', 'crb'],
     ],
     'Legal' => [
         ['Contracts & clauses', 'admin.settings.legal', 'legal'],

@@ -8,6 +8,24 @@
     $mobileMoneyThreshold = $mobileMoneyThreshold ?? payment_mobile_money_threshold();
     $defaultWebhookUrl = $defaultWebhookUrl ?? route('webhooks.payin');
     $embedded = $embedded ?? false;
+
+    $maskSecret = static function (?string $value): string {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return '—';
+        }
+        $len = strlen($value);
+        if ($len <= 8) {
+            return str_repeat('•', $len);
+        }
+
+        return substr($value, 0, 4).str_repeat('•', min(12, $len - 8)).substr($value, -4);
+    };
+
+    $railsLabel = collect($payinChannels)
+        ->map(fn ($ch) => $channelOptions[$ch] ?? $ch)
+        ->filter()
+        ->implode(', ') ?: '—';
 @endphp
 
 <div
@@ -23,7 +41,7 @@
                 </p>
             @endunless
             @if ($lockedStart)
-                <p class="text-xs text-amber-700 mt-1" x-show="!editing" x-cloak>Settings are locked. Click Edit to change credentials or rails.</p>
+                <p class="text-xs text-gray-500 mt-1" x-show="!editing" x-cloak>Configuration is locked. Click Edit settings to make changes.</p>
             @endif
         </div>
         <div class="flex gap-2">
@@ -38,9 +56,53 @@
         </div>
     </div>
 
-    <form method="POST" action="{{ route('admin.settings.payin.save') }}" class="space-y-6">
+    {{-- Read-only summary (not styled as inputs) --}}
+    <div x-show="!editing" x-cloak class="space-y-6">
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+            <div>
+                <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">Payment gateway mode</dt>
+                <dd class="mt-1.5 text-lg font-bold {{ $gatewayMode === 'live' ? 'text-emerald-700' : 'text-amber-700' }}">
+                    {{ $gatewayMode === 'live' ? 'Live (PayIn USSD / real rails)' : 'Dummy (instant test, no USSD)' }}
+                </dd>
+            </div>
+            <div>
+                <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">Environment</dt>
+                <dd class="mt-1.5 text-lg font-bold text-gray-900">{{ strtoupper($values['environment'] ?? 'sandbox') }}</dd>
+            </div>
+            <div>
+                <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">Supported rails</dt>
+                <dd class="mt-1.5 text-base font-semibold text-gray-900">{{ $railsLabel }}</dd>
+            </div>
+            <div>
+                <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">Mobile money max</dt>
+                <dd class="mt-1.5 text-base font-semibold text-gray-900 tabular-nums">{{ format_money($mobileMoneyThreshold) }}</dd>
+                <p class="mt-1 text-xs text-gray-500">Bank transfer above this amount</p>
+            </div>
+            <div>
+                <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">API key</dt>
+                <dd class="mt-1.5 font-mono text-sm font-semibold text-gray-800 tracking-tight">{{ $maskSecret($values['api_key'] ?? '') }}</dd>
+            </div>
+            <div>
+                <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">API secret</dt>
+                <dd class="mt-1.5 font-mono text-sm font-semibold text-gray-800 tracking-tight">{{ $maskSecret($values['api_secret'] ?? '') }}</dd>
+            </div>
+            <div>
+                <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">Webhook secret</dt>
+                <dd class="mt-1.5 font-mono text-sm font-semibold text-gray-800 tracking-tight">{{ $maskSecret($values['webhook_secret'] ?? '') }}</dd>
+            </div>
+            <div>
+                <dt class="text-[10px] uppercase tracking-[0.18em] font-semibold text-gray-500">Callback URL</dt>
+                <dd class="mt-1.5 text-sm font-medium text-gray-900 break-all">
+                    {{ filled($values['default_callback_url'] ?? null) ? $values['default_callback_url'] : $defaultWebhookUrl }}
+                </dd>
+            </div>
+        </dl>
+    </div>
+
+    {{-- Edit form --}}
+    <form method="POST" action="{{ route('admin.settings.payin.save') }}" class="space-y-6" x-show="editing" x-cloak>
         @csrf @method('PUT')
-        <fieldset :disabled="!editing" class="space-y-6 disabled:opacity-70">
+        <div class="space-y-6">
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1">Payment gateway mode</label>
                 <select name="gateway_mode" class="w-full md:w-80 rounded-xl border-gray-200 text-sm">
@@ -102,9 +164,9 @@
                     <p class="mt-1 text-xs text-gray-500">Default: <code class="text-[11px]">{{ $defaultWebhookUrl }}</code></p>
                 </div>
             </div>
-        </fieldset>
+        </div>
 
-        <div class="flex flex-wrap justify-end gap-3" x-show="editing" x-cloak>
+        <div class="flex flex-wrap justify-end gap-3">
             <button type="submit" name="intent" value="save"
                     class="rounded-xl ring-1 ring-gray-200 bg-white text-gray-800 font-semibold text-sm px-5 py-2.5 hover:bg-gray-50">
                 Save settings
