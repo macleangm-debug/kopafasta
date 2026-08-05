@@ -119,7 +119,7 @@ class CustomerPaymentService
                     (string) $data['mobile_number'],
                     $amount,
                     $reference,
-                    ($data['description'] ?? null) ?: ($type.' '.$reference),
+                    $this->payInDescription($type, $reference, $data['description'] ?? null),
                     $data['operator'] ?? null,
                 );
 
@@ -431,5 +431,18 @@ class CustomerPaymentService
         $normalized = preg_replace('/\s+/', '', $number);
 
         return (bool) preg_match('/^[1-9]\d{8,14}$/', $normalized);
+    }
+
+    /**
+     * Human-readable PayIn description — never send raw payment_type keys (underscores are rejected).
+     */
+    public function payInDescription(string $type, string $reference, ?string $custom = null): string
+    {
+        $label = filled($custom)
+            ? trim((string) $custom)
+            : (string) (config("payment_types.types.{$type}.label")
+                ?: ucwords(str_replace('_', ' ', $type)));
+
+        return trim($label.' '.$reference);
     }
 }

@@ -183,7 +183,7 @@ class MembershipController extends Controller
 
             // Dummy / already-verified payments activate membership in CustomerPaymentService::finalizePayment.
             if ($isFirstTime) {
-                $message = 'Registration fee received. Your membership is now active!';
+                $message = 'Membership fee received. Your membership is now active!';
             } else {
                 $message = 'Membership renewed successfully!';
             }

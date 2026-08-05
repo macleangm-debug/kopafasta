@@ -318,7 +318,7 @@ return [
             'apply'          => 'To apply, register or log in, choose a product, and complete our guided application wizard. Most applications take under 15 minutes.',
             'marketplace'    => 'Our Asset Marketplace lets you finance vehicles and equipment with transparent deposits and weekly instalments. Browse assets at the Marketplace page.',
             'repayment'      => 'Repayments can be made from your borrower dashboard under Payments. Your schedule is available under Loans.',
-            'membership'     => 'Membership is valid for one year. Pay the registration fee once, then renew before expiry to keep applying for loans.',
+            'membership'     => 'Membership is valid for one year. Pay the membership fee once, then renew before expiry to keep applying for loans.',
             'affiliate'      => 'Our affiliate programme pays commission for referred borrowers. Visit the Affiliates page to apply.',
             'contact'        => 'You can reach us by phone, email, or WhatsApp. Visit our Support center or send feedback through the feedback form.',
             'default'        => 'I can help with products, applications, the marketplace, repayments, and affiliates. Try one of the suggested questions below.',
@@ -393,7 +393,7 @@ return [
             'membership' => [
                 'title' => 'Membership & account',
                 'items' => [
-                    ['q' => 'What is the membership fee?', 'a' => 'A one-time registration fee when you join, then annual renewal after your membership period expires (typically 1 year).'],
+                    ['q' => 'What is the membership fee?', 'a' => 'A one-time membership fee when you join, then annual renewal after your membership period expires (typically 1 year).'],
                     ['q' => 'What if my membership expires?', 'a' => 'Renew from your dashboard before applying for new loans. You can still view history while expired.'],
                     ['q' => 'How do I reset my PIN?', 'a' => 'Use the Forgot PIN link on the login page. We will send an OTP to your registered phone number.'],
                 ],

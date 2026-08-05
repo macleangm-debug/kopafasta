@@ -49,7 +49,7 @@ return [
             'keywords' => ['member', 'uanachama', 'registration fee'],
             'question_en' => 'How does membership work?',
             'question_sw' => 'Uanachama unafanyaje kazi?',
-            'answer_en'   => 'Membership is valid for one year. Pay the registration fee once, then renew before expiry to keep applying for loans.',
+            'answer_en'   => 'Membership is valid for one year. Pay the membership fee once, then renew before expiry to keep applying for loans.',
             'answer_sw'   => 'Uanachama una uhalali wa mwaka mmoja. Lipa ada ya usajili mara moja, kisha fanya upyaishaji kabla ya kuisha.',
         ],
         [

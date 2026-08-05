@@ -40,7 +40,7 @@ class BankAccountController extends ResourceController
                 'collection'          => 'Collection',
                 'reserve'             => 'Reserve',
                 'escrow'              => 'Escrow',
-                'registration_fee'    => 'Registration fee',
+                'registration_fee'    => 'Membership fee',
                 'application_fee'     => 'Application fee',
                 'post_approval_fee'   => 'Post-approval fee',
                 'penalty'             => 'Penalty',

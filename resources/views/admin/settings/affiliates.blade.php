@@ -62,7 +62,7 @@
                 <div class="grid md:grid-cols-2 gap-4">
                     <x-admin.input name="fixed_commission_default" label="Default" type="number" step="1" min="0"
                                    :value="$values['fixed_commission_amounts']['default'] ?? 0" money />
-                    <x-admin.input name="fixed_commission_registration_fee" label="Registration fee" type="number" step="1" min="0"
+                    <x-admin.input name="fixed_commission_registration_fee" label="Membership fee" type="number" step="1" min="0"
                                    :value="$values['fixed_commission_amounts']['registration_fee'] ?? 0" money />
                     <x-admin.input name="fixed_commission_application_fee" label="Application fee" type="number" step="1" min="0"
                                    :value="$values['fixed_commission_amounts']['application_fee'] ?? 0" money />
@@ -150,7 +150,7 @@
             <p class="text-xs text-gray-500 mb-4">Choose which fee types accept affiliate discounts and accrue commission.</p>
             @php
                 $feeLabels = [
-                    'registration_fee'  => 'Registration fee',
+                    'registration_fee'  => 'Membership fee',
                     'application_fee'   => 'Application fee',
                     'post_approval_fee' => 'Post approval fee',
                     'interest'          => 'Interest',

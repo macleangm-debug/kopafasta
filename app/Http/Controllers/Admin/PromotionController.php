@@ -39,7 +39,7 @@ class PromotionController extends ResourceController
         return [
             'types' => [
                 'birthday'                  => 'Birthday',
-                'registration_fee_discount' => 'Registration fee discount',
+                'registration_fee_discount' => 'Membership fee discount',
                 'application_fee_discount'  => 'Application fee discount',
                 'referral'                  => 'Referral',
                 'promo_code'                => 'Promo code',
@@ -64,7 +64,7 @@ class PromotionController extends ResourceController
                 'ended'  => 'Ended',
             ],
             'appliesTo' => [
-                'registration_fee'  => 'Registration fee',
+                'registration_fee'  => 'Membership fee',
                 'application_fee'   => 'Application fee',
                 'post_approval_fee' => 'Post-approval fees',
                 'valuation_fee'     => 'Valuation fee',

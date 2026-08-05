@@ -243,7 +243,7 @@ $this->notify($customer, 'membership_issued');
             'payment_reference'        => $paymentReference,
             'channel'                  => $channel,
             'actor_user_id'            => $actorUserId,
-            'notes'                    => $isFirstTime ? 'Registration fee awaiting verification' : 'Renewal fee awaiting verification',
+            'notes'                    => $isFirstTime ? 'Membership fee awaiting verification' : 'Renewal fee awaiting verification',
         ]);
 
         app(CustomerPaymentService::class)->create([

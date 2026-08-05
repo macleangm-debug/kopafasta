@@ -30,7 +30,7 @@ return [
     ],
 
     'auth' => [
-        'login_promo_hint' => 'Optional — applied to your registration fee if you have not paid yet.',
+        'login_promo_hint' => 'Optional — applied to your membership fee if you have not paid yet.',
         'phone_invalid' => 'Enter a valid mobile number (at least 9 digits).',
         'phone_taken' => 'This phone number is already registered. Log in instead.',
         'phone_required_title' => 'Mobile number',
@@ -178,9 +178,9 @@ return [
         'kyc_section_residence_detail' => 'Add your residence details on your profile',
         'kyc_section_activity_detail' => 'Add your activity and income details on your profile',
         'checklist' => [
-            'registration_fee' => 'Registration fee paid',
+            'registration_fee' => 'Membership fee paid',
             'registration_issued' => 'Membership issued',
-            'registration_pay' => 'Pay registration fee to activate membership',
+            'registration_pay' => 'Pay membership fee to activate membership',
             'membership' => 'Membership active',
             'membership_valid_until' => 'Valid until :date',
             'membership_renew' => 'Renew membership to apply',
@@ -1483,7 +1483,7 @@ return [
         'status_missing' => 'missing',
         'status_update_requested' => 'requested to be updated',
         'cta' => 'Complete requirements',
-        'registration_fee' => 'Registration fee paid',
+        'registration_fee' => 'Membership fee paid',
         'nida' => 'NIDA verified',
         'face' => 'Face photos',
         'activity' => 'Activity information',
@@ -2440,7 +2440,7 @@ return [
 
     'payments_page' => [
         'title' => 'Payments',
-        'subtitle' => 'Registration fees, application fees, deposits, repayments, and refunds.',
+        'subtitle' => 'Membership fees, application fees, deposits, repayments, and refunds.',
         'make_repayment' => 'Make repayment →',
         'hero_due_title' => 'Next payment due',
         'hero_arrears_title' => 'Payment overdue',
@@ -3020,7 +3020,7 @@ return [
         'onboarding_title'   => 'Complete your guarantor role',
         'onboarding_intro'   => 'You accepted an invitation from :borrower for their :product application.',
         'next_steps'         => 'What happens next',
-        'step_membership'    => 'Your registration fee is paid and your profile is complete.',
+        'step_membership'    => 'Your membership fee is paid and your profile is complete.',
         'step_sign'          => 'Sign below to become an approved guarantor for this loan.',
         'step_agreement'     => 'Your signature will appear on the loan agreement when issued.',
         'consent'            => 'I agree to guarantee this loan if the borrower defaults.',
@@ -3370,7 +3370,7 @@ return [
         'already_responded' => 'This guarantor invitation has already been :status.',
         'accept_recorded_continue' => 'Your agreement has been recorded. Continue the guarantor process below.',
         'continue_after_pin' => 'Create your PIN, then continue the guarantor process.',
-        'continue_after_membership' => 'Pay your registration fee to continue as a guarantor.',
+        'continue_after_membership' => 'Pay your membership fee to continue as a guarantor.',
         'continue_after_profile' => 'Complete your profile to 100% before you can guarantee a loan. You are at :percent%.',
         'continue_final_step' => 'Complete the final guarantor agreement step.',
         'continue_in_portal' => 'Continue the guarantor process from your dashboard.',
@@ -3404,7 +3404,7 @@ return [
         'chat_send' => 'Send',
         'chat' => [
             'greeting' => 'Hi! How can I help you today?',
-            'membership' => 'Membership is valid for one year. Pay the registration fee once, then renew before expiry to keep applying for loans.',
+            'membership' => 'Membership is valid for one year. Pay the membership fee once, then renew before expiry to keep applying for loans.',
             'loan' => 'Go to Dashboard → pick a product → Apply. You stay inside your borrower account the whole time.',
             'guarantor' => 'Guarantors are collected during loan application when your product requires them—not as a separate menu item.',
             'repayment' => 'Open Payments to record a repayment, or view your schedule under Loans.',
@@ -3413,7 +3413,7 @@ return [
         ],
         'faq_title' => 'Frequently asked questions',
         'faq' => [
-            ['q' => 'What is the membership fee?', 'a' => 'A one-time registration fee when you join, then annual renewal after your membership period expires (typically 1 year).'],
+            ['q' => 'What is the membership fee?', 'a' => 'A one-time membership fee when you join, then annual renewal after your membership period expires (typically 1 year).'],
             ['q' => 'How do I apply for a loan?', 'a' => 'From your dashboard, choose a loan product, complete the in-portal application, and upload required documents.'],
             ['q' => 'Do I need guarantors?', 'a' => 'Some products require guarantors. You will be prompted during the loan application if your selected product needs them.'],
             ['q' => 'How do repayments work?', 'a' => 'View your schedule under Loans and make payments from the Payments section. Late payments may incur penalties per your loan terms.'],

@@ -3,7 +3,7 @@
 return [
     'types' => [
         'registration_fee' => [
-            'label'       => 'Registration Fee',
+            'label'       => 'Membership Fee',
             'credit_gl'   => 'registration_fee_income_gl_account_id',
             'fallback_gl' => 'fee_income_gl_account_id',
         ],

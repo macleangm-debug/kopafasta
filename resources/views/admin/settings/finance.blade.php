@@ -33,7 +33,7 @@
                 ['gps_revenue_gl_account_id',               'GPS revenue',                      'Company markup on GPS device and monitoring fees.'],
                 ['asset_lending_revenue_gl_account_id',     'Asset lending revenue',            'Deposit markup and asset-lending fees (not interest income).'],
                 ['capital_partner_pool_gl_account_id',      'Capital partner pool account',     'Credited instead of cash when a loan is funded from partner pools.'],
-                ['registration_fee_income_gl_account_id',   'Registration fee income',          'Credited when registration fees are verified.'],
+                ['registration_fee_income_gl_account_id',   'Membership fee income',          'Credited when membership fees are verified.'],
                 ['application_fee_income_gl_account_id',    'Application fee income',           'Credited when application fees are verified.'],
                 ['fee_income_gl_account_id',                'Default fee income account',       'Fallback when a specific fee income account is not set.'],
                 ['interest_income_gl_account_id',           'Interest income account',          'Credited when interest accrues / is collected.'],

@@ -821,9 +821,9 @@ return [
     'kyc_section_residence_detail' => 'Ongeza taarifa za makazi kwenye wasifu',
     'kyc_section_activity_detail' => 'Ongeza taarifa za shughuli na mapato kwenye wasifu',
     'checklist' => [
-      'registration_fee' => 'Ada ya usajili imelipwa',
+      'registration_fee' => 'Ada ya uanachama imelipwa',
       'registration_issued' => 'Uanachama umetolewa',
-      'registration_pay' => 'Lipa ada ya usajili ili kuamilisha uanachama',
+      'registration_pay' => 'Lipa ada ya uanachama ili kuamilisha uanachama',
       'membership' => 'Uanachama hai',
       'membership_valid_until' => 'Halali hadi :date',
       'membership_renew' => 'Fanya upya uanachama ili kuomba',
@@ -1577,7 +1577,7 @@ return [
     'chat' => 
 [
       'greeting' => 'Habari! Naweza kukusaidia nini leo?',
-      'membership' => 'Uanachama una uhalali wa mwaka mmoja. Lipa ada ya usajili mara moja, kisha fanya upyaishaji kabla ya kuisha ili uendelee kuomba mikopo.',
+      'membership' => 'Uanachama una uhalali wa mwaka mmoja. Lipa ada ya uanachama mara moja, kisha fanya upyaishaji kabla ya kuisha ili uendelee kuomba mikopo.',
       'loan' => 'Nenda Dashibodi → chagua bidhaa → Omba. Unabaki kwenye akaunti yako ya mkopaji muda wote.',
       'guarantor' => 'Wadhamini hukusanywa wakati wa ombi la mkopo bidhaa yako inapohitaji — si kipengele tofauti kwenye menyu.',
       'repayment' => 'Fungua Malipo kurekodi malipo, au angalia ratiba yako chini ya Mikopo.',
@@ -1590,7 +1590,7 @@ return [
       0 => 
 [
         'q' => 'Ada ya uanachama ni nini?',
-        'a' => 'Ada ya usajili ya mara moja unapojiunga, kisha upyaishaji wa kila mwaka baada ya kipindi chako cha uanachama kuisha (kawaida mwaka 1].',
+        'a' => 'Ada ya uanachama ya mara moja unapojiunga, kisha upyaishaji wa kila mwaka baada ya kipindi chako cha uanachama kuisha (kawaida mwaka 1].',
 ],
       1 => 
 [
@@ -4013,7 +4013,7 @@ Asante.',
     'status_missing' => 'inakosekana',
     'status_update_requested' => 'imeombwa kusasishwa',
     'cta' => 'Kamilisha mahitaji',
-    'registration_fee' => 'Ada ya usajili imelipwa',
+    'registration_fee' => 'Ada ya uanachama imelipwa',
     'nida' => 'NIDA imethibitishwa',
     'face' => 'Picha za uso',
     'activity' => 'Taarifa za shughuli',

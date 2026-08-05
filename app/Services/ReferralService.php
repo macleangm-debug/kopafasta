@@ -180,7 +180,7 @@ class ReferralService
     public function walletRules(): array
     {
         $allowedLabels = [
-            'registration_fee'  => 'Registration fee',
+            'registration_fee'  => 'Membership fee',
             'application_fee'   => 'Loan application fees',
             'post_approval_fee' => 'Post-approval fees (GPS, insurance, etc.)',
         ];
