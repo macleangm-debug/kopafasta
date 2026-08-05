@@ -13,6 +13,9 @@ class CustomerPayment extends Model
         'customer_id',
         'payment_type',
         'payment_method',
+        'provider',
+        'provider_ref',
+        'provider_meta',
         'amount',
         'currency',
         'status',
@@ -36,10 +39,11 @@ class CustomerPayment extends Model
     ];
 
     protected $casts = [
-        'amount'       => 'decimal:2',
-        'verified_at'  => 'datetime',
-        'paid_at'      => 'datetime',
-        'payment_date' => 'date',
+        'amount'        => 'decimal:2',
+        'provider_meta' => 'array',
+        'verified_at'   => 'datetime',
+        'paid_at'       => 'datetime',
+        'payment_date'  => 'date',
     ];
 
     public function customer(): BelongsTo
@@ -104,7 +108,7 @@ class CustomerPayment extends Model
 
     public function isPending(): bool
     {
-        return in_array($this->status, ['pending_verification', 'clarification_requested'], true);
+        return in_array($this->status, ['pending_verification', 'clarification_requested', 'processing'], true);
     }
 
     public function isVerified(): bool
@@ -119,6 +123,6 @@ class CustomerPayment extends Model
 
     public function scopePending($query)
     {
-        return $query->whereIn('status', ['pending_verification', 'clarification_requested']);
+        return $query->whereIn('status', ['pending_verification', 'clarification_requested', 'processing']);
     }
 }

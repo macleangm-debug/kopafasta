@@ -104,6 +104,27 @@ class MobileMoneyDisbursementService
      */
     protected function dispatchLive(MobileMoneyAccount $account, string $phone, float $amount, string $refundReference): array
     {
+        $payIn = app(PayInService::class);
+        if ($payIn->isConfigured() && ! $this->usesDummyGateway()) {
+            $result = $payIn->disburse($phone, $amount, $refundReference, 'Borrower refund '.$refundReference);
+
+            if ($result['ok']) {
+                return [
+                    'success'   => true,
+                    'reference' => (string) ($result['request_ref'] ?: $refundReference),
+                    'account'   => $account,
+                    'error'     => null,
+                ];
+            }
+
+            return [
+                'success'   => false,
+                'reference' => '',
+                'account'   => $account,
+                'error'     => $result['message'] ?: 'PayIn disbursement failed.',
+            ];
+        }
+
         logger()->info('Mobile money disbursement queued (live API not yet integrated)', [
             'account_id' => $account->id,
             'provider'   => $account->provider,
@@ -116,7 +137,7 @@ class MobileMoneyDisbursementService
             'success'   => false,
             'reference' => '',
             'account'   => $account,
-            'error'     => 'Live mobile money disbursement API is not connected yet. Pay manually and enter the provider reference.',
+            'error'     => 'Live mobile money disbursement API is not connected yet. Configure PayIn under Settings → Integrations, or pay manually.',
         ];
     }
 }

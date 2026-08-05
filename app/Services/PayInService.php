@@ -1,0 +1,220 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Setting;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+
+/**
+ * PayIn Tanzania mobile-money API (docs.payin.co.tz).
+ */
+class PayInService
+{
+    public function settings(): array
+    {
+        $group = Setting::group('payin');
+
+        return [
+            'enabled' => (bool) ($group['enabled'] ?? config('payin.enabled', false)),
+            'environment' => (string) ($group['environment'] ?? config('payin.environment', 'sandbox')),
+            'api_key' => (string) ($group['api_key'] ?? config('payin.api_key', '')),
+            'api_secret' => (string) ($group['api_secret'] ?? config('payin.api_secret', '')),
+            'webhook_secret' => (string) ($group['webhook_secret'] ?? config('payin.webhook_secret', '')),
+            'default_callback_url' => (string) ($group['default_callback_url'] ?? config('payin.default_callback_url', '')),
+        ];
+    }
+
+    public function isConfigured(): bool
+    {
+        $s = $this->settings();
+
+        return $s['enabled']
+            && filled($s['api_key'])
+            && filled($s['api_secret']);
+    }
+
+    /** Live mobile-money collections via PayIn (USSD push). */
+    public function isLiveCollectionEnabled(): bool
+    {
+        return $this->isConfigured() && ! payment_gateway_is_dummy();
+    }
+
+    public function baseUrl(): string
+    {
+        $env = $this->settings()['environment'] === 'production' ? 'production' : 'sandbox';
+
+        return rtrim((string) config("payin.base_urls.{$env}"), '/');
+    }
+
+    public function callbackUrl(): string
+    {
+        $configured = trim($this->settings()['default_callback_url']);
+        if ($configured !== '') {
+            return $configured;
+        }
+
+        return route('webhooks.payin');
+    }
+
+    /**
+     * @return array{ok: bool, request_ref: ?string, status: ?string, operator: ?string, message: string, raw: array<string, mixed>}
+     */
+    public function collect(string $phone, float $amount, string $reference, ?string $description = null, ?string $operator = null): array
+    {
+        $this->assertReady();
+
+        $phone = $this->normalizePhone($phone);
+        $payload = array_filter([
+            'phone' => $phone,
+            'amount' => (int) round($amount),
+            'reference' => Str::limit($reference, 100, ''),
+            'description' => $description ? Str::limit($description, 255, '') : null,
+            'operator' => $operator,
+            'currency' => 'TZS',
+            'callback_url' => $this->callbackUrl(),
+        ], fn ($v) => $v !== null && $v !== '');
+
+        try {
+            $response = $this->http()
+                ->withHeaders(['X-Idempotency-Key' => $reference])
+                ->post($this->baseUrl().'/collection', $payload)
+                ->throw()
+                ->json();
+        } catch (RequestException $e) {
+            $body = $e->response?->json() ?? [];
+            $message = (string) ($body['message'] ?? $e->getMessage());
+
+            throw ValidationException::withMessages([
+                'mobile_number' => [$message ?: 'PayIn collection failed.'],
+            ]);
+        }
+
+        return [
+            'ok' => (bool) ($response['success'] ?? false),
+            'request_ref' => $response['request_ref'] ?? null,
+            'status' => $response['status'] ?? null,
+            'operator' => $response['operator'] ?? null,
+            'message' => (string) ($response['message'] ?? 'Collection request sent.'),
+            'raw' => is_array($response) ? $response : [],
+        ];
+    }
+
+    /**
+     * @return array{ok: bool, request_ref: ?string, status: ?string, message: string, raw: array<string, mixed>}
+     */
+    public function disburse(string $phone, float $amount, string $reference, ?string $description = null, ?string $operator = null): array
+    {
+        $this->assertReady();
+
+        $payload = array_filter([
+            'phone' => $this->normalizePhone($phone),
+            'amount' => (int) round($amount),
+            'reference' => Str::limit($reference, 100, ''),
+            'description' => $description ? Str::limit($description, 255, '') : null,
+            'operator' => $operator,
+            'currency' => 'TZS',
+            'callback_url' => $this->callbackUrl(),
+        ], fn ($v) => $v !== null && $v !== '');
+
+        try {
+            $response = $this->http()
+                ->withHeaders(['X-Idempotency-Key' => $reference])
+                ->post($this->baseUrl().'/disbursement', $payload)
+                ->throw()
+                ->json();
+        } catch (RequestException $e) {
+            $body = $e->response?->json() ?? [];
+
+            return [
+                'ok' => false,
+                'request_ref' => null,
+                'status' => null,
+                'message' => (string) ($body['message'] ?? $e->getMessage()),
+                'raw' => is_array($body) ? $body : [],
+            ];
+        }
+
+        return [
+            'ok' => (bool) ($response['success'] ?? false),
+            'request_ref' => $response['request_ref'] ?? null,
+            'status' => $response['status'] ?? null,
+            'message' => (string) ($response['message'] ?? 'Disbursement submitted.'),
+            'raw' => is_array($response) ? $response : [],
+        ];
+    }
+
+    /** @return array{ok: bool, message: string, balance: ?array} */
+    public function healthCheck(): array
+    {
+        if (! $this->isConfigured()) {
+            return [
+                'ok' => false,
+                'message' => 'PayIn is disabled or API keys are missing.',
+                'balance' => null,
+            ];
+        }
+
+        try {
+            $balance = $this->http()->get($this->baseUrl().'/balance')->throw()->json();
+
+            return [
+                'ok' => true,
+                'message' => 'Connected to PayIn ('.$this->settings()['environment'].').',
+                'balance' => is_array($balance) ? $balance : null,
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'ok' => false,
+                'message' => 'PayIn connection failed: '.$e->getMessage(),
+                'balance' => null,
+            ];
+        }
+    }
+
+    public function verifyWebhookSignature(string $rawBody, ?string $signature, ?string $timestamp): bool
+    {
+        $secret = $this->settings()['webhook_secret'];
+        if ($secret === '' || ! filled($signature) || ! filled($timestamp)) {
+            return false;
+        }
+
+        $expected = hash_hmac('sha256', $timestamp.'.'.$rawBody, $secret);
+
+        return hash_equals($expected, $signature);
+    }
+
+    public function normalizePhone(string $phone): string
+    {
+        $digits = preg_replace('/\D+/', '', $phone) ?: '';
+        if (str_starts_with($digits, '0') && strlen($digits) === 10) {
+            $digits = '255'.substr($digits, 1);
+        }
+
+        return $digits;
+    }
+
+    private function assertReady(): void
+    {
+        if (! $this->isConfigured()) {
+            throw ValidationException::withMessages([
+                'payment_method' => ['PayIn is not configured. Add API keys under Settings → Integrations → PayIn.'],
+            ]);
+        }
+    }
+
+    private function http()
+    {
+        $s = $this->settings();
+
+        return Http::acceptJson()
+            ->asJson()
+            ->timeout(30)
+            ->withHeaders([
+                'X-API-Key' => $s['api_key'],
+                'X-API-Secret' => $s['api_secret'],
+            ]);
+    }
+}

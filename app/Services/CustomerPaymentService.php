@@ -62,8 +62,18 @@ class CustomerPaymentService
             $reference = $data['reference'] ?? $this->generateReference();
             $autoVerify = (bool) ($data['auto_verify'] ?? false);
             $isBank = $method === 'bank_transfer';
+            $payIn = app(PayInService::class);
+            $usePayIn = $method === 'mobile_money'
+                && $payIn->isLiveCollectionEnabled()
+                && filled($data['mobile_number'] ?? null);
 
-            $status = $autoVerify ? 'verified' : ($isBank ? 'pending_verification' : 'paid');
+            if ($usePayIn) {
+                $autoVerify = false;
+            }
+
+            $status = $autoVerify
+                ? 'verified'
+                : ($usePayIn ? 'processing' : ($isBank ? 'pending_verification' : 'paid'));
 
             $proofPath = null;
             $proofName = null;
@@ -76,6 +86,9 @@ class CustomerPaymentService
             if ($isBank && $resolved['bank_account']) {
                 $details = $this->accounts->bankTransferDetails($resolved['bank_account'], $reference);
                 $instructions = trim(($instructions ?? '')."\n".'Use reference: '.$reference);
+            }
+            if ($usePayIn) {
+                $instructions = trim(($instructions ?? '')."\nConfirm the payment prompt on your phone.");
             }
 
             $payment = CustomerPayment::create([
@@ -92,7 +105,7 @@ class CustomerPaymentService
                 'payment_instructions'    => $instructions,
                 'proof_path'              => $proofPath,
                 'proof_original_name'     => $proofName,
-                'paid_at'                 => $autoVerify || ! $isBank ? now() : null,
+                'paid_at'                 => $autoVerify || (! $isBank && ! $usePayIn) ? now() : null,
                 'payment_date'            => $data['payment_date'] ?? ($isBank ? now()->toDateString() : null),
                 'source_type'             => isset($data['source']) ? $data['source']::class : null,
                 'source_id'               => ($data['source'] ?? null)?->getKey(),
@@ -100,6 +113,30 @@ class CustomerPaymentService
                 'loan_product_id'         => $product?->id,
                 'created_by'              => auth()->id(),
             ]);
+
+            if ($usePayIn) {
+                $collection = $payIn->collect(
+                    (string) $data['mobile_number'],
+                    $amount,
+                    $reference,
+                    ($data['description'] ?? null) ?: ($type.' '.$reference),
+                    $data['operator'] ?? null,
+                );
+
+                $payment->update([
+                    'provider' => 'payin',
+                    'provider_ref' => $collection['request_ref'],
+                    'provider_meta' => [
+                        'initiated_at' => now()->toIso8601String(),
+                        'operator' => $collection['operator'],
+                        'message' => $collection['message'],
+                        'raw' => $collection['raw'],
+                    ],
+                    'payment_instructions' => trim(($payment->payment_instructions ?? '')."\n".$collection['message']),
+                ]);
+
+                return $payment->fresh(['customer', 'bankAccount', 'mobileMoneyAccount']);
+            }
 
             if ($autoVerify || ! $isBank) {
                 $this->finalizePayment($payment);

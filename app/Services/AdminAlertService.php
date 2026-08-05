@@ -13,6 +13,15 @@ class AdminAlertService
     /** @return Collection<int, array{key: string, label: string, count: int, url: string, category: string}> */
     public function alerts(): Collection
     {
+        $integrationAlerts = collect(app(\App\Services\Integrations\IntegrationHealthService::class)->unhealthyPartners())
+            ->map(fn (array $item) => [
+                'key'      => 'integration_'.$item['key'],
+                'label'    => 'Integration issue: '.$item['label'],
+                'count'    => 1,
+                'url'      => $item['url'],
+                'category' => 'integrations',
+            ]);
+
         $items = collect([
             [
                 'key'      => 'registrations',
@@ -56,7 +65,7 @@ class AdminAlertService
                 'url'      => route('admin.partner-applications.index'),
                 'category' => 'partners',
             ],
-        ]);
+        ])->concat($integrationAlerts);
 
         return $items->filter(fn (array $item) => $item['count'] > 0)->values();
     }

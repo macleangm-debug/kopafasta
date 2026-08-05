@@ -11,7 +11,12 @@ use App\Services\ReferralService;
 if (! function_exists('payment_gateway_is_dummy')) {
     function payment_gateway_is_dummy(): bool
     {
-        return config('payments.gateway_mode', 'dummy') !== 'live';
+        $mode = \App\Models\Setting::get('payments.gateway_mode');
+        if ($mode === null || $mode === '') {
+            $mode = config('payments.gateway_mode', 'dummy');
+        }
+
+        return $mode !== 'live';
     }
 }
 

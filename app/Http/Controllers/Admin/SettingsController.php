@@ -174,14 +174,114 @@ class SettingsController extends Controller
         return back()->with('status', 'Gateway settings saved.');
     }
 
-    public function smsHealth(\App\Services\Sms\SmsManager $sms)
+    public function smsHealth(\App\Services\Integrations\IntegrationHealthService $health)
     {
-        $result = $sms->healthCheck();
+        $result = $health->check('unitxt', notifyOnFailure: true);
 
         return redirect()
             ->route('admin.settings.gateways')
             ->with('sms_health', $result)
             ->with('status', ($result['ok'] ?? false) ? 'SMS connection check completed.' : 'SMS connection check failed.');
+    }
+
+    // ---------------- Integrations hub ----------------
+    public function integrations(\App\Services\Integrations\IntegrationCatalog $catalog)
+    {
+        return view('admin.settings.integrations', [
+            'groups' => $catalog->grouped(),
+        ]);
+    }
+
+    public function saveIntegrationsPrimary(Request $request, \App\Services\Integrations\IntegrationCatalog $catalog)
+    {
+        $data = $request->validate([
+            'category' => ['required', 'string', 'max:40'],
+            'partner' => ['required', 'string', 'max:40'],
+        ]);
+
+        $catalog->setPrimary($data['category'], $data['partner']);
+
+        return back()->with('status', 'Primary '.($catalog->categories()[$data['category']]['label'] ?? $data['category']).' partner updated.');
+    }
+
+    public function checkIntegrationHealth(
+        Request $request,
+        \App\Services\Integrations\IntegrationHealthService $health,
+    ) {
+        $data = $request->validate([
+            'partner' => ['nullable', 'string', 'max:40'],
+        ]);
+
+        if (filled($data['partner'] ?? null)) {
+            $result = $health->check($data['partner'], notifyOnFailure: true);
+
+            return back()
+                ->with('integration_health', [$data['partner'] => $result])
+                ->with('status', ($result['ok'] ?? false)
+                    ? ucfirst($data['partner']).' connection healthy.'
+                    : ucfirst($data['partner']).' connection failed.');
+        }
+
+        $results = $health->checkAll(notifyOnFailure: true);
+        $failed = collect($results)->where('ok', false)->count();
+
+        return back()
+            ->with('integration_health', collect($results)->keyBy('key')->all())
+            ->with('status', $failed === 0
+                ? 'All available integrations passed health checks.'
+                : "{$failed} integration(s) failed — admins were notified.");
+    }
+
+    // ---------------- PayIn payments ----------------
+    public function payin(\App\Services\PayInService $payIn)
+    {
+        $values = Setting::group('payin');
+
+        return view('admin.settings.payin', [
+            'values' => array_merge([
+                'enabled' => false,
+                'environment' => 'sandbox',
+                'api_key' => '',
+                'api_secret' => '',
+                'webhook_secret' => '',
+                'default_callback_url' => '',
+            ], $values),
+            'gatewayMode' => Setting::get('payments.gateway_mode') ?? config('payments.gateway_mode', 'dummy'),
+            'defaultWebhookUrl' => route('webhooks.payin'),
+        ]);
+    }
+
+    public function savePayin(Request $request)
+    {
+        $data = $request->validate([
+            'enabled' => ['nullable', 'boolean'],
+            'environment' => ['required', 'in:sandbox,production'],
+            'api_key' => ['nullable', 'string', 'max:255'],
+            'api_secret' => ['nullable', 'string', 'max:255'],
+            'webhook_secret' => ['nullable', 'string', 'max:255'],
+            'default_callback_url' => ['nullable', 'url', 'max:255'],
+            'gateway_mode' => ['required', 'in:dummy,live'],
+        ]);
+
+        $data['enabled'] = (bool) ($data['enabled'] ?? false);
+        $gatewayMode = $data['gateway_mode'];
+        unset($data['gateway_mode']);
+
+        Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["payin.$k" => $v])->all());
+        Setting::set('payments.gateway_mode', $gatewayMode);
+        config(['payments.gateway_mode' => $gatewayMode]);
+
+        return back()->with('status', 'PayIn settings saved.');
+    }
+
+    public function payinHealth(\App\Services\Integrations\IntegrationHealthService $health)
+    {
+        $result = $health->check('payin', notifyOnFailure: true);
+
+        return redirect()
+            ->route('admin.settings.payin')
+            ->with('payin_health', $result)
+            ->with('status', ($result['ok'] ?? false) ? 'PayIn connection check completed.' : 'PayIn connection check failed.');
     }
 
     // ---------------- Transactional messaging ----------------

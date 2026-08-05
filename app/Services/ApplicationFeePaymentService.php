@@ -93,6 +93,7 @@ class ApplicationFeePaymentService
         ?string $promoCode = null,
         ?int $groupMemberCount = null,
         ?string $affiliateCode = null,
+        ?string $mobileNumber = null,
     ): array {
         $quote = $this->quote($customer, $product, $useWallet, $promoCode, $groupMemberCount, $affiliateCode);
         $cashDue = (int) ($quote['cash_due'] ?? $quote['after_discount']);
@@ -109,7 +110,19 @@ class ApplicationFeePaymentService
             ];
         }
 
-        app(PaymentGateService::class)->settle($customer, $quote, 'application_fee', null, null, $useWallet);
+        $payInLive = app(\App\Services\PayInService::class)->isLiveCollectionEnabled();
+        $phone = $mobileNumber ?: $customer->phone;
+
+        if ($payInLive && ! filled($phone)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'mobile_number' => ['Enter the mobile money number that will confirm the payment.'],
+            ]);
+        }
+
+        // Don't settle wallet/promo until PayIn confirms — only settle when not awaiting USSD.
+        if (! $payInLive) {
+            app(PaymentGateService::class)->settle($customer, $quote, 'application_fee', null, null, $useWallet);
+        }
 
         $payment = app(CustomerPaymentService::class)->create([
             'customer'       => $customer,
@@ -118,15 +131,18 @@ class ApplicationFeePaymentService
             'amount'         => $cashDue,
             'loan_product'   => $product,
             'reference'      => $paymentReference,
-            'auto_verify'    => true,
+            'mobile_number'  => $phone,
+            'auto_verify'    => ! $payInLive,
         ]);
 
+        $pending = in_array($payment->status, ['processing', 'pending_verification'], true);
+
         return [
-            'status'    => 'paid',
+            'status'    => $pending ? 'processing' : 'paid',
             'reference' => $payment->reference,
             'channel'   => $this->usesDummyGateway() ? 'dummy_mobile_money' : 'mobile_money',
             'amount'    => $cashDue,
-            'paid_at'   => now()->toIso8601String(),
+            'paid_at'   => $pending ? null : now()->toIso8601String(),
         ];
     }
 

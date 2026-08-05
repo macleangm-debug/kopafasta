@@ -69,6 +69,13 @@ use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
+| PSP webhooks (CSRF excluded in bootstrap/app.php)
+|--------------------------------------------------------------------------
+*/
+Route::post('/webhooks/payin', \App\Http\Controllers\PayInWebhookController::class)->name('webhooks.payin');
+
+/*
+|--------------------------------------------------------------------------
 | Public site (kopafasta.com style)
 |--------------------------------------------------------------------------
 */
@@ -875,9 +882,15 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('settings.account-security.regenerate');
         Route::get('settings/auth-portal',      [SettingsController::class, 'authPortal'])   ->name('settings.auth-portal');
         Route::put('settings/auth-portal',      [SettingsController::class, 'saveAuthPortal'])->name('settings.auth-portal.save');
+        Route::get('settings/integrations', [SettingsController::class, 'integrations'])->name('settings.integrations');
+        Route::put('settings/integrations/primary', [SettingsController::class, 'saveIntegrationsPrimary'])->name('settings.integrations.primary');
+        Route::post('settings/integrations/health', [SettingsController::class, 'checkIntegrationHealth'])->name('settings.integrations.health');
         Route::get('settings/gateways',         [SettingsController::class, 'gateways'])      ->name('settings.gateways');
         Route::put('settings/gateways',         [SettingsController::class, 'saveGateways'])  ->name('settings.gateways.save');
         Route::get('settings/gateways/health',  [SettingsController::class, 'smsHealth'])     ->name('settings.gateways.health');
+        Route::get('settings/payin',            [SettingsController::class, 'payin'])         ->name('settings.payin');
+        Route::put('settings/payin',            [SettingsController::class, 'savePayin'])     ->name('settings.payin.save');
+        Route::get('settings/payin/health',     [SettingsController::class, 'payinHealth'])   ->name('settings.payin.health');
         Route::get('settings/messaging',        [SettingsController::class, 'messaging'])     ->name('settings.messaging');
         Route::put('settings/messaging',        [SettingsController::class, 'saveMessaging'])->name('settings.messaging.save');
         Route::get('settings/kyc',              [SettingsController::class, 'kyc'])           ->name('settings.kyc');

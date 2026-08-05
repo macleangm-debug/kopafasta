@@ -75,6 +75,7 @@ return [
     'statuses' => [
         'pending_verification'    => 'Pending Verification',
         'clarification_requested' => 'Clarification Requested',
+        'processing'              => 'Awaiting phone confirmation',
         'verified'                  => 'Verified',
         'rejected'                  => 'Rejected',
         'paid'                      => 'Paid',

@@ -33,6 +33,11 @@ return [
         ['KYC rules', 'admin.settings.kyc', 'kyc'],
         ['Identity verification', 'admin.settings.identity', 'identity'],
         ['AML thresholds', 'admin.settings.aml', 'aml'],
+    ],
+    'Integrations' => [
+        ['Integrations hub', 'admin.settings.integrations', 'integrations'],
+        ['PayIn payments', 'admin.settings.payin', 'payin'],
+        ['SMS / Email', 'admin.settings.gateways', 'gateways'],
         ['CRB integration', 'admin.settings.crb', 'crb'],
     ],
     'Legal' => [
@@ -64,7 +69,6 @@ return [
         ['Recovery policy', 'admin.settings.recovery', 'recovery'],
     ],
     'Communications' => [
-        ['SMS / Email', 'admin.settings.gateways', 'gateways'],
         ['Transactional messaging', 'admin.settings.messaging', 'messaging'],
         ['Notification templates', 'admin.notification-templates.index', 'notification-templates'],
         ['Chatbot', 'admin.settings.chatbot', 'chatbot'],
