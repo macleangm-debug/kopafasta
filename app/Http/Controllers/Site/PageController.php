@@ -89,11 +89,26 @@ class PageController extends Controller
 
     public function terms(): View
     {
-        return view('site.legal.terms');
+        return view('site.legal.show', ['document' => 'terms']);
     }
 
     public function privacy(): View
     {
-        return view('site.legal.privacy');
+        return view('site.legal.show', ['document' => 'privacy']);
+    }
+
+    public function aml(): View
+    {
+        return view('site.legal.show', ['document' => 'aml']);
+    }
+
+    public function complaints(): View
+    {
+        return view('site.legal.show', ['document' => 'complaints']);
+    }
+
+    public function cookies(): View
+    {
+        return view('site.legal.show', ['document' => 'cookies']);
     }
 }

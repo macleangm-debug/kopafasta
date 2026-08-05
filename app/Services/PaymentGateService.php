@@ -73,14 +73,12 @@ class PaymentGateService
                 $appliedPromo = strtoupper(trim($promoCode));
                 $promoDiscount += (float) $promo['promotion_discount'];
                 $afterPartner = (float) $promo['after_discount'];
-            }
-        } elseif (! $hasReferrer && ! $useWallet) {
-            $autoPromo = $promotions->applyAfter($feeType, $afterPartner);
-            if ($autoPromo['promotion_discount'] > 0) {
-                $promoDiscount = (float) $autoPromo['promotion_discount'];
-                $afterPartner = (float) $autoPromo['after_discount'];
+            } else {
+                $appliedPromo = strtoupper(trim($promoCode));
+                $promoValid = false;
             }
         }
+        // Promo / campaign discounts apply only when a code is entered — no silent auto-discount.
 
         $loyaltyDiscount = 0.0;
         $loyaltyRedemptionId = null;

@@ -303,9 +303,13 @@
                                     <p x-show="errors.password_confirmation" x-cloak class="mt-1 text-xs text-red-600" x-text="errors.password_confirmation"></p>
                                 </div>
 
-                                <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/15 p-4 text-sm text-gray-800 flex items-start gap-2">
-                                    <svg class="w-4 h-4 mt-0.5 flex-shrink-0 text-brand" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
-                                    By creating an account, you agree to our <a href="{{ route('site.legal.terms') }}" target="_blank" class="underline font-medium text-brand">Terms</a> and <a href="{{ route('site.legal.privacy') }}" target="_blank" class="underline font-medium text-brand">Privacy Policy</a>.
+                                <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-4 py-3.5 text-sm text-gray-800 leading-relaxed">
+                                    <p>
+                                        By creating an account, you agree to our
+                                        <a href="{{ route('site.legal.terms') }}" target="_blank" class="underline font-semibold text-brand whitespace-nowrap">Terms of Service</a>
+                                        and
+                                        <a href="{{ route('site.legal.privacy') }}" target="_blank" class="underline font-semibold text-brand whitespace-nowrap">Privacy Policy</a>.
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -319,13 +323,12 @@
                             <div x-show="step === 1"></div>
 
                             <button type="button" @click="next()" x-show="step === 1 && canContinueStep1" x-cloak
-                                    class="ml-auto inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold py-3 px-7 rounded-xl transition shadow-sm">
-                                Continue
-                                <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
+                                    :disabled="checkingPhone"
+                                    class="ml-auto inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold py-3 px-7 rounded-xl transition shadow-sm disabled:opacity-60">
+                                <span x-show="!checkingPhone">Continue</span>
+                                <span x-cloak x-show="checkingPhone">Checking…</span>
+                                <svg x-show="!checkingPhone" class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
                             </button>
-                            <p x-show="step === 1 && !canContinueStep1" x-cloak class="ml-auto text-xs text-gray-500 max-w-[14rem] text-right">
-                                Enter a valid mobile number to continue.
-                            </p>
                             <button type="button" @click="next()" x-show="step === 2"
                                     class="ml-auto inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold py-3 px-7 rounded-xl transition shadow-sm">
                                 Continue
@@ -377,6 +380,7 @@
                 },
                 countries: @js($registrationCountries ?? []),
                 countryOpen: false,
+                checkingPhone: false,
                 errors: { phone: '', email: '', password: '', password_confirmation: '' },
                 get activeCountry() {
                     return this.countries.find(c => c.code === this.form.country) ?? this.countries[0];
@@ -385,14 +389,18 @@
                     const digits = (this.form.local_phone || '').replace(/\D/g, '').replace(/^0+/, '');
                     return this.activeCountry.active && digits.length >= 9;
                 },
+                fullPhone() {
+                    const prefix = (this.activeCountry.prefix || '').replace(/\D/g, '');
+                    const local = (this.form.local_phone || '').replace(/\D/g, '').replace(/^0+/, '');
+                    return prefix + local;
+                },
                 onPhoneInput() {
-                    // Strip non-digits while typing; no inline error spam.
                     this.form.local_phone = (this.form.local_phone || '').replace(/[^\d\s]/g, '');
                     this.errors.phone = '';
                 },
                 validatePhone() {
                     const digits = (this.form.local_phone || '').replace(/\D/g, '').replace(/^0+/, '');
-                    this.errors.phone = digits.length >= 9 ? '' : 'Enter a valid phone number (at least 9 digits).';
+                    this.errors.phone = digits.length >= 9 ? '' : @js(__('borrower.auth.phone_invalid'));
                     return ! this.errors.phone;
                 },
                 promptPhone() {
@@ -400,13 +408,13 @@
                         return this.showNotice('KopaFasta is not yet operational in this country. Please join the waitlist.');
                     }
                     this.validatePhone();
-                    this.showNotice(this.errors.phone || 'Enter a valid mobile number to continue.');
+                    this.showNotice(this.errors.phone || @js(__('borrower.auth.phone_invalid')));
                 },
                 showNotice(message) {
                     window.dispatchEvent(new CustomEvent('open-feedback-default', {
                         detail: {
                             tone: 'warning',
-                            title: 'Mobile number required',
+                            title: @js(__('borrower.auth.phone_required_title')),
                             message: message,
                         },
                     }));
@@ -428,10 +436,30 @@
                         this.form.local_phone = '';
                     }
                 },
-                next() {
+                async next() {
                     if (this.step === 1) {
                         if (! this.canContinueStep1) {
                             return this.promptPhone();
+                        }
+                        this.checkingPhone = true;
+                        try {
+                            const response = await fetch(@js(route('site.register.check-phone')), {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
+                                },
+                                body: JSON.stringify({ phone: this.fullPhone() }),
+                            });
+                            const data = await response.json();
+                            if (! data.available) {
+                                return this.showNotice(data.message || @js(__('borrower.auth.phone_taken')));
+                            }
+                        } catch (e) {
+                            return this.showNotice(@js(__('borrower.auth.phone_check_failed')));
+                        } finally {
+                            this.checkingPhone = false;
                         }
                     }
                     if (this.step === 2) {

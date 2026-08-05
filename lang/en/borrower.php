@@ -31,6 +31,10 @@ return [
 
     'auth' => [
         'login_promo_hint' => 'Optional — applied to your registration fee if you have not paid yet.',
+        'phone_invalid' => 'Enter a valid mobile number (at least 9 digits).',
+        'phone_taken' => 'This phone number is already registered. Log in instead.',
+        'phone_required_title' => 'Mobile number',
+        'phone_check_failed' => 'Could not verify this number. Please try again.',
     ],
 
     'nav' => [
@@ -2895,7 +2899,13 @@ return [
         'membership_fee'     => 'Membership fee',
         'renewal_fee'        => 'Renewal fee',
         'duration_first'     => 'One-time membership fee. Valid for :days days once activated.',
+        'duration_short'     => 'Valid for :days days after payment.',
         'duration_renew'     => 'Extend your membership for another :days days after payment is confirmed.',
+        'promo_inline_label' => 'Have a promo or affiliate code?',
+        'promo_discount_label' => 'Promo discount',
+        'amount_due'         => 'Amount due',
+        'applying_promo'     => 'Applying…',
+        'paying'             => 'Starting payment…',
         'payment_method'     => 'Payment method',
         'mobile_money'       => 'Mobile money',
         'mobile_hint'        => 'USSD push · instant activation',

@@ -71,7 +71,7 @@ class PayInService
             'phone' => $phone,
             'amount' => (int) round($amount),
             'reference' => Str::limit($reference, 100, ''),
-            'description' => $description ? Str::limit($description, 255, '') : null,
+            'description' => $this->sanitizeDescription($description),
             'operator' => $operator,
             'currency' => 'TZS',
             'callback_url' => $this->callbackUrl(),
@@ -85,7 +85,7 @@ class PayInService
                 ->json();
         } catch (RequestException $e) {
             $body = $e->response?->json() ?? [];
-            $message = (string) ($body['message'] ?? $e->getMessage());
+            $message = $this->formatErrorMessage($body, $e->getMessage());
             \Illuminate\Support\Facades\Log::warning('PayIn collection failed', [
                 'status' => $e->response?->status(),
                 'message' => $message,
@@ -93,22 +93,23 @@ class PayInService
             ]);
 
             throw ValidationException::withMessages([
-                'mobile_number' => [$message ?: 'PayIn collection failed.'],
-                'payment_phone' => [$message ?: 'PayIn collection failed.'],
+                'payment_phone' => [$message],
             ]);
         }
 
         $ok = (bool) ($response['success'] ?? false);
         $requestRef = $response['request_ref'] ?? null;
         if (! $ok || blank($requestRef)) {
-            $message = (string) ($response['message'] ?? 'PayIn did not accept this collection request.');
+            $message = $this->formatErrorMessage(
+                is_array($response) ? $response : [],
+                'PayIn did not accept this collection request.'
+            );
             \Illuminate\Support\Facades\Log::warning('PayIn collection rejected', [
                 'message' => $message,
                 'body' => is_array($response) ? $response : [],
             ]);
 
             throw ValidationException::withMessages([
-                'mobile_number' => [$message],
                 'payment_phone' => [$message],
             ]);
         }
@@ -134,7 +135,7 @@ class PayInService
             'phone' => $this->normalizePhone($phone),
             'amount' => (int) round($amount),
             'reference' => Str::limit($reference, 100, ''),
-            'description' => $description ? Str::limit($description, 255, '') : null,
+            'description' => $this->sanitizeDescription($description),
             'operator' => $operator,
             'currency' => 'TZS',
             'callback_url' => $this->callbackUrl(),
@@ -251,6 +252,39 @@ class PayInService
         }
 
         return $digits;
+    }
+
+    /** PayIn rejects underscores and most punctuation in description. */
+    public function sanitizeDescription(?string $description): ?string
+    {
+        if ($description === null || trim($description) === '') {
+            return null;
+        }
+
+        $clean = preg_replace('/[^A-Za-z0-9\s\-]/', ' ', $description) ?? '';
+        $clean = trim(preg_replace('/\s+/', ' ', $clean) ?? '');
+
+        return $clean !== '' ? Str::limit($clean, 255, '') : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $body
+     */
+    private function formatErrorMessage(array $body, string $fallback): string
+    {
+        $fieldErrors = collect($body['errors'] ?? [])
+            ->flatten()
+            ->filter(fn ($v) => filled($v))
+            ->unique()
+            ->values();
+
+        if ($fieldErrors->isNotEmpty()) {
+            return (string) $fieldErrors->first();
+        }
+
+        $message = trim((string) ($body['message'] ?? ''));
+
+        return $message !== '' ? $message : ($fallback ?: 'PayIn collection failed.');
     }
 
     private function assertReady(): void

@@ -92,6 +92,9 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
     Route::get('/legal',            [\App\Http\Controllers\Site\PageController::class, 'legalIndex'])->name('legal');
     Route::get('/legal/terms',      [\App\Http\Controllers\Site\PageController::class, 'terms'])->name('legal.terms');
     Route::get('/legal/privacy',    [\App\Http\Controllers\Site\PageController::class, 'privacy'])->name('legal.privacy');
+    Route::get('/legal/aml-kyc',    [\App\Http\Controllers\Site\PageController::class, 'aml'])->name('legal.aml');
+    Route::get('/legal/complaints', [\App\Http\Controllers\Site\PageController::class, 'complaints'])->name('legal.complaints');
+    Route::get('/legal/cookies',    [\App\Http\Controllers\Site\PageController::class, 'cookies'])->name('legal.cookies');
     Route::get('/support',         [\App\Http\Controllers\Site\SupportCenterController::class, 'index'])->name('support');
     Route::get('/feedback',        [\App\Http\Controllers\Site\FeedbackController::class, 'index'])->name('feedback');
     Route::post('/feedback',       [\App\Http\Controllers\Site\FeedbackController::class, 'store'])->name('feedback.post');
@@ -144,6 +147,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
         Route::get('/register/options',  fn () => view('site.auth.register-choose'))->name('register.options');
         Route::get('/register/borrower', [\App\Http\Controllers\Site\AuthController::class, 'showRegisterBorrower'])->name('register.borrower');
         Route::post('/register/borrower',[\App\Http\Controllers\Site\AuthController::class, 'registerBorrower'])->name('register.borrower.post');
+        Route::post('/register/check-phone', [\App\Http\Controllers\Site\AuthController::class, 'checkBorrowerPhone'])->name('register.check-phone');
 
         Route::post('/waitlist',          [\App\Http\Controllers\Site\AuthController::class, 'storeWaitlistRequest'])->name('waitlist.store');
         Route::get('/register/vendor',   [\App\Http\Controllers\Site\AuthController::class, 'showRegisterVendor'])->name('register.vendor');

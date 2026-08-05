@@ -587,6 +587,47 @@ class AuthController extends Controller
         ]);
     }
 
+    public function checkBorrowerPhone(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->validate([
+            'phone' => ['required', 'string', 'max:20'],
+        ]);
+
+        $phoneDigits = preg_replace('/\D/', '', $data['phone']) ?: '';
+        if (strlen($phoneDigits) < 11) {
+            return response()->json([
+                'available' => false,
+                'message' => __('borrower.auth.phone_invalid'),
+            ]);
+        }
+
+        $userTaken = \App\Models\User::query()
+            ->where('role', 'borrower')
+            ->where(function ($query) use ($data, $phoneDigits) {
+                $query->where('phone', $data['phone'])
+                    ->orWhere('phone', $phoneDigits)
+                    ->when(strlen($phoneDigits) >= 9, fn ($q) => $q->orWhere('phone', 'like', '%'.substr($phoneDigits, -9)));
+            })
+            ->exists();
+
+        $customerTaken = \App\Models\Customer::query()
+            ->where(function ($query) use ($data, $phoneDigits) {
+                $query->where('phone', $data['phone'])
+                    ->orWhere('phone', $phoneDigits)
+                    ->when(strlen($phoneDigits) >= 9, fn ($q) => $q->orWhere('phone', 'like', '%'.substr($phoneDigits, -9)));
+            })
+            ->exists();
+
+        if ($userTaken || $customerTaken) {
+            return response()->json([
+                'available' => false,
+                'message' => __('borrower.auth.phone_taken'),
+            ]);
+        }
+
+        return response()->json(['available' => true]);
+    }
+
     public function registerBorrower(Request $request, ReferralService $referrals): RedirectResponse
     {
         $guarantorOnboarding = app(\App\Services\GuarantorOnboardingService::class);

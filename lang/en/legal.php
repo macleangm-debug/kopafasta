@@ -1,0 +1,91 @@
+<?php
+
+return [
+    'hub' => [
+        'eyebrow' => 'Legal centre',
+        'title' => 'Documents & policies',
+        'subtitle' => 'Standard documents that govern your relationship with :brand as a microfinance borrower, member, or visitor.',
+        'effective' => 'Effective :date',
+        'locale_hint' => 'Switch language in the header to read these documents in English or Kiswahili.',
+        'read' => 'Read',
+        'in_product' => 'In product',
+    ],
+    'nav' => [
+        'documents' => 'Documents',
+        'hub' => 'All documents',
+        'terms' => 'Terms of Service',
+        'privacy' => 'Privacy Policy',
+        'aml' => 'AML / KYC notice',
+        'complaints' => 'Complaints policy',
+        'cookies' => 'Cookies & e-comms',
+    ],
+    'cards' => [
+        'terms' => 'Membership, loan applications, repayments, and platform use.',
+        'privacy' => 'How we collect, use, share, and protect personal data.',
+        'loan' => 'Issued per product after approval — signed in your portal.',
+        'disclosure' => 'Provided with each loan offer (APR, fees, schedule).',
+        'consent' => 'NIDA, CRB, and face verification consents at profile time.',
+        'complaints' => 'How to escalate service or repayment concerns.',
+        'aml' => 'Identity and source-of-funds checks required by law.',
+        'cookies' => 'Website cookies and transactional SMS / email.',
+    ],
+    'terms' => [
+        'title' => 'Terms of Service',
+        'intro' => 'These Terms govern use of the Kopafasta digital microfinance platform operated by :brand (“Kopafasta”, “we”, “us”). By registering, paying a membership fee, applying for credit, or using our website, app, USSD, SMS, or partner channels, you agree to these Terms and our Privacy Policy.',
+        'sections' => [
+            ['Parties and scope', 'These Terms form a binding agreement between you (an individual borrower, guarantor, group member, or visitor) and :brand. They cover membership, loan applications, repayments, payments, marketplace browsing, referrals/affiliates, and related digital services. Product-specific terms in offer letters, key facts statements, and signed loan agreements prevail for that loan where they conflict with these general Terms.'],
+            ['Eligibility and accurate information', 'You must be at least 18 years old, legally capable of contracting in your country of residence, and provide true, complete, and current information (including national ID / NIDA where required). You authorise us to verify identity, contact details, employment/business, collateral, and creditworthiness through internal checks and licensed third parties. We may refuse, suspend, or terminate accounts that fail KYC, AML, sanctions, fraud, or eligibility checks.'],
+            ['Account security', 'You are responsible for safeguarding your password, PIN, OTP codes, and devices. Do not share credentials. After repeated failed PIN attempts your account may lock temporarily. Notify Support immediately if you suspect unauthorised access.'],
+            ['Membership fee', 'Borrower membership is a platform access product. Paying the membership fee (or renewal fee) unlocks loan applications and related services for the membership period disclosed at checkout. Membership is not a deposit, savings product, investment, insurance policy, or guarantee of loan approval or disbursement. Fees are generally non-refundable once paid, except where required by applicable law.'],
+            ['Loan applications and credit decisions', 'Submitting an application does not create a binding loan. We may approve, decline, counter-offer, request documents, revalue collateral, or cancel incomplete applications. Decisions may use credit bureau (CRB) data, internal scoring, face/NIDA verification, guarantor information, group rules, and partner valuations. Interest, fees, and repayment schedules appear in your offer / key facts statement before acceptance.'],
+            ['Collateral, insurance, and partners', 'Where a product requires collateral, GPS, insurance, yard storage, valuation, or recovery partners, you authorise engagement of those partners on the terms disclosed in the product flow. Partner fees may be payable separately.'],
+            ['Repayments, arrears, and default', 'You must repay according to the signed agreement and schedule. Late payment may trigger contractual charges, collection notices, field visits by authorised agents, restructuring discussions, and reporting to credit bureaus.'],
+            ['Payments and mobile money', 'Mobile money and bank rails are provided via licensed payment service providers (PSPs). You authorise us and our PSPs to initiate collection requests (including USSD prompts) for amounts you confirm. Always verify merchant name and amount before entering your PIN.'],
+            ['Promotions, referrals, and affiliates', 'Campaign discounts, promo codes, and affiliate offers apply only when a valid code is entered as stated, may be withdrawn or capped, and usually cannot be stacked unless we say so. Misuse may void discounts and commissions.'],
+            ['Acceptable use', 'You must not misuse the platform, circumvent controls, submit forged documents, harass staff or partners, scrape the service, or use Kopafasta for illegal activity.'],
+            ['Liability', 'To the fullest extent permitted by applicable microfinance and consumer law, we are not liable for indirect or consequential losses, network/PSP outages outside our control, or decisions of independent valuers, insurers, or guarantors. Nothing excludes liability that cannot lawfully be excluded.'],
+            ['Governing law and contact', 'These Terms are governed by the laws of the United Republic of Tanzania (or the country module under which your membership is issued). Support: :email. Legal notices: :brand.'],
+        ],
+    ],
+    'privacy' => [
+        'title' => 'Privacy Policy',
+        'intro' => 'This Policy explains how :brand (“Kopafasta”, “we”, “us”) processes personal data for microfinance membership, lending, payments, and related services.',
+        'sections' => [
+            ['Who we are', 'We are the data controller for borrower and member accounts on the Kopafasta platform. Contact: :email.'],
+            ['Personal data we collect', 'Identity and contact details; financial and credit information; payment transaction data; usage and support records; and optional marketing preferences where you opt in.'],
+            ['Purposes', 'We process data to create and secure accounts, assess credit and AML risk, service loans and membership, send transactional messages (OTP, USSD, reminders), and improve service safety. Marketing only where allowed.'],
+            ['Sharing', 'We share data with PSPs, credit bureaus, identity providers, loan-related partners, regulators when required, and infrastructure vendors under confidentiality terms. We do not sell personal data.'],
+            ['Retention and security', 'We retain records for the relationship and statutory periods, then delete or anonymise where feasible. We use access controls, encryption in transit, and PIN/password protections.'],
+            ['Your rights', 'Subject to local law, you may request access, correction, deletion, restriction, or objection, and withdraw consent where processing is consent-based. Use Support or email :email.'],
+            ['Children', 'Our services are not directed to anyone under 18.'],
+            ['Changes', 'We may update this Policy and will post the revised version with a new effective date.'],
+        ],
+    ],
+    'aml' => [
+        'title' => 'AML / KYC notice',
+        'intro' => 'Kopafasta complies with anti-money-laundering and know-your-customer obligations applicable to microfinance providers.',
+        'sections' => [
+            ['Identity verification', 'We may require national ID / NIDA, face verification, proof of address, and source-of-funds or employment information before activating membership or disbursing a loan.'],
+            ['Ongoing monitoring', 'We monitor transactions and may request additional information or suspend services where risk indicators appear.'],
+            ['Reporting', 'Where required by law, we report suspicious activity to competent authorities without prior notice to you.'],
+        ],
+    ],
+    'complaints' => [
+        'title' => 'Complaints & dispute handling',
+        'intro' => 'We aim to resolve concerns quickly and fairly.',
+        'sections' => [
+            ['How to complain', 'Use in-app Support or email :email with your member number, phone, and a clear description of the issue.'],
+            ['What happens next', 'We acknowledge complaints, investigate, and respond with an outcome or next steps. Complex cases involving partners or PSPs may take longer.'],
+            ['Escalation', 'If unresolved, you may escalate to the relevant regulator or dispute-resolution body under Tanzanian (or local) consumer/microfinance rules.'],
+        ],
+    ],
+    'cookies' => [
+        'title' => 'Cookies & electronic communications',
+        'intro' => 'This notice explains website cookies and how we send transactional messages.',
+        'sections' => [
+            ['Essential cookies', 'We use essential cookies for session security, language, and country preferences.'],
+            ['Analytics', 'Limited analytics cookies may be used to improve the site. You can control non-essential cookies in your browser.'],
+            ['SMS and email', 'We send transactional OTP, payment prompts, membership reminders, and loan notices. Marketing messages require opt-in where required by law.'],
+        ],
+    ],
+];

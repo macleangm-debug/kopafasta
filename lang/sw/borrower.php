@@ -27,6 +27,13 @@ return [
     'cta_apply'        => 'Endelea kuomba',
     'cta_rewards'      => 'Angalia zawadi zangu',
   ],
+  'auth' => [
+    'login_promo_hint' => 'Si lazima — hutumika kwenye ada ya uanachama ikiwa bado hujalipa.',
+    'phone_invalid' => 'Weka nambari sahihi ya simu (angalau tarakimu 9).',
+    'phone_taken' => 'Nambari hii tayari imesajiliwa. Ingia badala yake.',
+    'phone_required_title' => 'Nambari ya simu',
+    'phone_check_failed' => 'Hatukuweza kuthibitisha nambari. Jaribu tena.',
+  ],
   'nav' => 
 [
     'dashboard' => 'Dashibodi',
@@ -2699,7 +2706,13 @@ return [
     'membership_fee' => 'Ada ya uanachama',
     'renewal_fee' => 'Ada ya upyaishaji',
     'duration_first' => 'Ada ya uanachama ya mara moja. Ina uhalali wa siku :days baada ya kuamilishwa.',
+    'duration_short' => 'Ina uhalali wa siku :days baada ya malipo.',
     'duration_renew' => 'Ongeza uanachama wako kwa siku :days zaidi baada ya malipo kuthibitishwa.',
+    'promo_inline_label' => 'Una msimbo wa ofa au affiliate?',
+    'promo_discount_label' => 'Punguzo la ofa',
+    'amount_due' => 'Kiasi kinachodaiwa',
+    'applying_promo' => 'Inatumika…',
+    'paying' => 'Inaanza malipo…',
     'payment_method' => 'Njia ya malipo',
     'mobile_money' => 'Pesa ya simu',
     'mobile_hint' => 'USSD push · uamilishaji wa papo hapo',
