@@ -308,6 +308,31 @@
         @endif
 
         @if ($canRequestDocs)
+            @php
+                $csSvc = app(\App\Services\CollateralSecureService::class);
+                $csState = $csSvc->state($record);
+                $csBlocking = $csSvc->isOpen($record) || in_array($csState['status'] ?? '', ['secured'], true);
+            @endphp
+            @unless ($csBlocking)
+                <form method="POST" action="{{ route('admin.loan-applications.request-collateral-secure', $record) }}" class="rounded-xl bg-brand-muted/30 ring-1 ring-brand/15 px-4 py-4 space-y-2">
+                    @csrf
+                    <p class="text-xs font-semibold uppercase tracking-widest text-brand">{{ __('borrower.collateral_secure.admin_start') }}</p>
+                    <p class="text-xs text-gray-600">{{ __('borrower.collateral_secure.admin_start_hint') }}</p>
+                    <textarea name="notes" rows="2" maxlength="1000" placeholder="Optional internal note"
+                              class="w-full rounded-xl border-brand/15 text-sm ring-1 ring-brand/10 px-3 py-2.5"></textarea>
+                    <button type="submit" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2.5 rounded-xl">
+                        {{ __('borrower.collateral_secure.admin_start') }}
+                    </button>
+                </form>
+            @else
+                <div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-sm text-slate-700">
+                    Collateral secure status:
+                    <span class="font-semibold">{{ str_replace('_', ' ', $csState['status'] ?? '—') }}</span>
+                </div>
+            @endunless
+        @endif
+
+        @if ($canRequestDocs)
             <form method="POST" action="{{ route('admin.loan-applications.document-requests.store', $record) }}" class="space-y-3 {{ $assets->isNotEmpty() ? 'pt-2 border-t border-brand/10' : '' }}">
                 @csrf
                 <input type="hidden" name="type" value="document">

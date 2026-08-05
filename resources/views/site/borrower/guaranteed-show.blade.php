@@ -77,6 +77,65 @@
         </div>
     </div>
 
+    @php
+        $cs = $collateralSecure ?? null;
+        $csStatus = $cs['status'] ?? null;
+        $csOpen = (bool) ($cs['open'] ?? false);
+        $csAssets = $cs['assets'] ?? collect();
+    @endphp
+    @if (! empty($cs['active']) && in_array($csStatus, ['awaiting_guarantor_consent', 'awaiting_borrower_add', 'awaiting_insurance', 'secured'], true)
+        && (int) ($cs['state']['guarantor_customer_id'] ?? 0) === (int) $customer->id)
+        <div class="mb-6 overflow-hidden rounded-2xl ring-1 ring-brand/15 bg-gradient-to-br from-brand-muted/40 via-white to-white">
+            <div class="px-5 sm:px-6 py-5 border-b border-brand/10">
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.collateral_secure.eyebrow') }}</p>
+                <h2 class="text-lg font-bold text-gray-900 mt-1">{{ __('borrower.collateral_secure.guarantor_title') }}</h2>
+                <p class="text-sm text-gray-600 mt-1">{{ __('borrower.collateral_secure.guarantor_why') }}</p>
+            </div>
+            <div class="px-5 sm:px-6 py-5 space-y-4">
+                @if ($csStatus === 'awaiting_guarantor_consent')
+                    <div class="flex flex-wrap gap-3">
+                        <form method="POST" action="{{ route('site.borrower.collateral-secure.guarantor-respond', $customerGuarantor) }}">
+                            @csrf
+                            <input type="hidden" name="accept" value="1">
+                            <button type="submit" class="inline-flex font-bold px-6 py-3 rounded-xl text-sm bg-brand-gold hover:brightness-95 text-brand shadow-sm">
+                                {{ __('borrower.collateral_secure.guarantor_agree') }}
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ route('site.borrower.collateral-secure.guarantor-respond', $customerGuarantor) }}">
+                            @csrf
+                            <input type="hidden" name="accept" value="0">
+                            <button type="submit" class="inline-flex font-semibold px-6 py-3 rounded-xl text-sm bg-white ring-1 ring-gray-200 text-gray-800 hover:bg-gray-50">
+                                {{ __('borrower.collateral_secure.guarantor_decline') }}
+                            </button>
+                        </form>
+                    </div>
+                @elseif ($csStatus === 'awaiting_borrower_add' && ($cs['state']['source'] ?? '') === 'guarantor')
+                    <a href="{{ $cs['add_collateral_url'] }}"
+                       class="inline-flex font-bold px-5 py-2.5 rounded-xl text-sm bg-brand-gold hover:brightness-95 text-brand shadow-sm">
+                        {{ __('borrower.collateral_secure.add_collateral') }}
+                    </a>
+                    @if ($csAssets->isNotEmpty())
+                        <form method="POST" action="{{ route('site.borrower.collateral-secure.guarantor-link', $customerGuarantor) }}" class="space-y-3">
+                            @csrf
+                            <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500">{{ __('borrower.collateral_secure.select_saved') }}</label>
+                            <select name="customer_asset_id" required class="w-full rounded-xl border-0 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                <option value="">{{ __('borrower.collateral_secure.select_placeholder') }}</option>
+                                @foreach ($csAssets as $asset)
+                                    <option value="{{ $asset->id }}">{{ $asset->label }} · {{ $asset->asset_type }}</option>
+                                @endforeach
+                            </select>
+                            <button type="submit" class="inline-flex font-bold px-5 py-2.5 rounded-xl text-sm bg-brand text-white hover:bg-brand-light">
+                                {{ __('borrower.collateral_secure.use_this') }}
+                            </button>
+                        </form>
+                    @endif
+                @elseif ($csStatus === 'secured')
+                    <p class="text-sm text-emerald-800">{{ __('borrower.collateral_secure.secured_body') }}</p>
+                @endif
+            </div>
+        </div>
+    @endif
+
     @if ($needsProfile)
         <div class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15">
             <div class="px-5 sm:px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

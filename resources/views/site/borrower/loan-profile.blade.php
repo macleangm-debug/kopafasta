@@ -85,6 +85,10 @@
     {{-- 1. Status + next action (always first after submit) --}}
     @include('site.borrower.loan-profile._action_panel', ['profile' => $profile])
 
+    @if (! $isDraft && $application)
+        @include('site.borrower.loan-profile._collateral_secure', ['profile' => $profile])
+    @endif
+
     {{-- 1b. Requested documents — single card, directly under status when open --}}
     @if (! $isDraft && $application)
         @include('site.borrower.loan-profile._document_requests', [

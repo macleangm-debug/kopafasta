@@ -237,6 +237,12 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::get('/borrower/applications/{application}/asset-conversion', [\App\Http\Controllers\Site\BorrowerController::class, 'assetConversion'])->name('borrower.application.asset-conversion');
             Route::post('/borrower/applications/{application}/asset-conversion', [\App\Http\Controllers\Site\BorrowerController::class, 'respondToAssetConversion'])->name('borrower.application.asset-conversion.respond');
             Route::post('/borrower/applications/{application}/asset-conversion/pay', [\App\Http\Controllers\Site\BorrowerController::class, 'payAssetConversionFee'])->name('borrower.application.asset-conversion.pay');
+            Route::post('/borrower/applications/{application}/collateral-secure/has-collateral', [\App\Http\Controllers\Site\CollateralSecureController::class, 'borrowerHasCollateral'])->name('borrower.collateral-secure.has');
+            Route::post('/borrower/applications/{application}/collateral-secure/ask-guarantor', [\App\Http\Controllers\Site\CollateralSecureController::class, 'borrowerAskGuarantor'])->name('borrower.collateral-secure.ask-guarantor');
+            Route::post('/borrower/applications/{application}/collateral-secure/link-asset', [\App\Http\Controllers\Site\CollateralSecureController::class, 'linkAsset'])->name('borrower.collateral-secure.link');
+            Route::post('/borrower/applications/{application}/collateral-secure/pay', [\App\Http\Controllers\Site\CollateralSecureController::class, 'payFee'])->name('borrower.collateral-secure.pay');
+            Route::post('/borrower/guaranteed/{customerGuarantor}/collateral-secure/respond', [\App\Http\Controllers\Site\CollateralSecureController::class, 'guarantorRespond'])->name('borrower.collateral-secure.guarantor-respond');
+            Route::post('/borrower/guaranteed/{customerGuarantor}/collateral-secure/link-asset', [\App\Http\Controllers\Site\CollateralSecureController::class, 'guarantorLinkAsset'])->name('borrower.collateral-secure.guarantor-link');
             Route::get('/borrower/loan-profile/draft/{draft}',     [\App\Http\Controllers\Site\BorrowerController::class, 'loanProfileDraft'])->name('borrower.loan-profile.draft');
             Route::post('/borrower/loan-profile/draft/{draft}/amount', [\App\Http\Controllers\Site\BorrowerController::class, 'updateDraftAmount'])->name('borrower.draft.amount');
             Route::post('/borrower/applications/{application}/documents', [\App\Http\Controllers\Site\BorrowerController::class, 'uploadApplicationDocument'])->name('borrower.application.documents.store');
@@ -556,6 +562,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('loan-applications.document-requests.store');
         Route::post('loan-applications/{loan_application}/request-guarantor-supplement', [LoanApplicationController::class, 'requestGuarantorSupplement'])
             ->name('loan-applications.request-guarantor-supplement');
+        Route::post('loan-applications/{loan_application}/request-collateral-secure', [LoanApplicationController::class, 'requestCollateralSecure'])
+            ->name('loan-applications.request-collateral-secure');
         Route::post('loan-applications/{loan_application}/guarantors/{customerGuarantor}/change', [LoanApplicationController::class, 'requestGuarantorChange'])
             ->name('loan-applications.guarantor-change');
         Route::post('loan-applications/{loan_application}/workflow', [LoanApplicationController::class, 'runWorkflow'])

@@ -314,6 +314,28 @@ class LoanApplicationController extends ResourceController
         return back()->with('status', __('borrower.guarantor_supplement.admin_success'));
     }
 
+    public function requestCollateralSecure(Request $request, LoanApplication $loan_application): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.request_documents')
+            || auth()->user()?->hasPermission('applications.review'), 403);
+
+        $data = $request->validate([
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        try {
+            app(\App\Services\CollateralSecureService::class)->request(
+                $loan_application,
+                $request->user(),
+                $data['notes'] ?? null,
+            );
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('status', 'Collateral request sent to the borrower loan profile.');
+    }
+
     public function requestGuarantorChange(
         Request $request,
         LoanApplication $loan_application,

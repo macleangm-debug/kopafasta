@@ -248,6 +248,7 @@ class LoanApplicationProfileService
             'disbursement_checklist' => $disbursementChecklist,
             'handover_milestones'    => app(AssetHandoverMilestoneService::class)->forApplication($application),
             'product_details'        => $this->productDetailsForApplication($application),
+            'collateral_secure'      => app(\App\Services\CollateralSecureService::class)->viewModel($application),
         ];
     }
 

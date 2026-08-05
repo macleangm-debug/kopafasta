@@ -90,6 +90,21 @@
             </div>
         </div>
 
+        <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+            <h3 class="text-sm font-semibold text-gray-700 mb-1">Collateral to secure a loan</h3>
+            <p class="text-xs text-gray-500 mb-4">
+                Post-submit flow on the loan profile when screening asks for collateral. Product name and interest stay the same; application fee follows the asset-backed schedule.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <x-admin.input name="collateral_secure_decision_days" label="Decision window (days)" type="number"
+                               :value="$values['collateral_secure_decision_days'] ?? 3" required />
+                <x-admin.input name="insurance_expiry_buffer_months" label="Insurance must outlast tenure by (months)" type="number"
+                               :value="$values['insurance_expiry_buffer_months'] ?? 2" required />
+                <x-admin.input name="insurance_renewal_decision_days" label="Insurance renewal window (days)" type="number"
+                               :value="$values['insurance_renewal_decision_days'] ?? 5" required />
+            </div>
+        </div>
+
         <div class="flex justify-end">
             <button type="submit" class="bg-brand-gold hover:brightness-95 text-brand font-semibold text-sm px-5 py-2 rounded-lg shadow-sm">
                 Save underwriting settings

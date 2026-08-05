@@ -96,4 +96,19 @@ class UnderwritingSettingsService
     {
         return (bool) $this->get('enable_automatic_rejection', true);
     }
+
+    public function collateralSecureDecisionDays(): int
+    {
+        return max(1, (int) $this->get('collateral_secure_decision_days', 3));
+    }
+
+    public function insuranceExpiryBufferMonths(): int
+    {
+        return max(0, (int) $this->get('insurance_expiry_buffer_months', 2));
+    }
+
+    public function insuranceRenewalDecisionDays(): int
+    {
+        return max(1, (int) $this->get('insurance_renewal_decision_days', 5));
+    }
 }

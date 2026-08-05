@@ -527,6 +527,9 @@ class SettingsController extends Controller
             'enable_counter_offers'                  => ['nullable', 'boolean'],
             'enable_asset_backed_alternative'        => ['nullable', 'boolean'],
             'enable_automatic_rejection'             => ['nullable', 'boolean'],
+            'collateral_secure_decision_days'        => ['required', 'integer', 'min:1', 'max:30'],
+            'insurance_expiry_buffer_months'         => ['required', 'integer', 'min:0', 'max:24'],
+            'insurance_renewal_decision_days'        => ['required', 'integer', 'min:1', 'max:30'],
         ]);
 
         foreach ([

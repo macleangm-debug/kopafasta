@@ -841,7 +841,15 @@ class BorrowerController extends Controller
             ? 'guaranteed'
             : 'guarantor';
 
-        return view('site.borrower.guaranteed-show', compact('customer', 'row', 'timeline', 'listTab'));
+        $collateralSecure = null;
+        if ($customerGuarantor->loan_application_id) {
+            $app = \App\Models\LoanApplication::query()->find($customerGuarantor->loan_application_id);
+            if ($app) {
+                $collateralSecure = app(\App\Services\CollateralSecureService::class)->viewModel($app);
+            }
+        }
+
+        return view('site.borrower.guaranteed-show', compact('customer', 'row', 'timeline', 'listTab', 'collateralSecure', 'customerGuarantor'));
     }
 
     /* ---------------------------------------------------------------------
