@@ -834,6 +834,10 @@ export function applyWizard(config) {
                         if (! res.ok || ! data.ok) {
                             throw new Error(data.message || this.i18n.applicationFee.failed);
                         }
+                        if (data.processing && data.wait_url) {
+                            window.location.href = data.wait_url;
+                            return;
+                        }
                         this.applicationFeeState = data.fee;
                         if (this.isAssetBackedProduct(this.current) && data.fee) {
                             this.valuationFeeState = data.fee;

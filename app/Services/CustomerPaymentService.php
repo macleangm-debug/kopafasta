@@ -146,6 +146,60 @@ class CustomerPaymentService
         });
     }
 
+    /**
+     * Sync a processing PayIn payment from the provider status API (webhook backup).
+     */
+    public function refreshFromProvider(CustomerPayment $payment): CustomerPayment
+    {
+        $payment = $payment->fresh();
+        if ($payment->status !== 'processing'
+            || $payment->provider !== 'payin'
+            || ! filled($payment->provider_ref)
+        ) {
+            return $payment;
+        }
+
+        $result = app(PayInService::class)->status((string) $payment->provider_ref);
+        $remote = strtolower((string) ($result['status'] ?? ''));
+
+        $meta = array_merge((array) ($payment->provider_meta ?? []), [
+            'last_poll_at' => now()->toIso8601String(),
+            'last_poll_status' => $remote ?: null,
+            'last_poll_message' => $result['message'] ?? null,
+        ]);
+        $payment->update(['provider_meta' => $meta]);
+        $payment = $payment->fresh();
+
+        if (in_array($remote, ['completed', 'success', 'paid'], true)) {
+            try {
+                return $this->verify($payment, null, 'PayIn status poll: '.$remote);
+            } catch (\InvalidArgumentException) {
+                return $payment->fresh();
+            }
+        }
+
+        if (in_array($remote, ['failed', 'cancelled', 'canceled', 'expired', 'rejected'], true)) {
+            try {
+                return $this->reject($payment, null, 'PayIn status poll: '.$remote);
+            } catch (\InvalidArgumentException) {
+                return $payment->fresh();
+            }
+        }
+
+        return $payment;
+    }
+
+    /** Where the borrower should go after a successful live payment. */
+    public function successRedirectUrl(CustomerPayment $payment, ?string $fallback = null): string
+    {
+        return match ($payment->payment_type) {
+            'registration_fee' => route('site.borrower.dashboard'),
+            'application_fee', 'valuation_fee' => route('site.borrower.apply'),
+            'loan_repayment' => route('site.borrower.payments.show', $payment),
+            default => $fallback ?: route('site.borrower.payments.show', $payment),
+        };
+    }
+
     public function uploadProof(CustomerPayment $payment, UploadedFile $file): CustomerPayment
     {
         if ($payment->customer_id !== auth()->user()?->customer?->id) {

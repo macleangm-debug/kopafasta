@@ -1077,6 +1077,7 @@ class ApplyController extends Controller
                 $data['promo_code'] ?? null,
                 $groups->isGroupProduct($product) ? $memberCount : null,
                 $data['affiliate_code'] ?? $data['promo_code'] ?? null,
+                $data['payment_phone'] ?? null,
             );
             $drafts->saveApplicationFee($customer, $product->id, $feeState);
             if (product_includes_valuation_fee($product)) {
@@ -1086,7 +1087,9 @@ class ApplyController extends Controller
 
             $message = $dummyGateway
                 ? __('borrower.apply.application_fee.dummy_paid')
-                : __('borrower.apply.application_fee.paid');
+                : (($feeState['status'] ?? '') === 'processing'
+                    ? __('borrower.payment_waiting.prompt')
+                    : __('borrower.apply.application_fee.paid'));
 
             if ($request->expectsJson()) {
                 return response()->json([
@@ -1095,7 +1098,15 @@ class ApplyController extends Controller
                     'message' => $message,
                     'dummy' => $dummyGateway,
                     'loyalty_redeemed' => $loyaltyRedeemed,
+                    'wait_url' => $feeState['wait_url'] ?? null,
+                    'processing' => ($feeState['status'] ?? '') === 'processing',
                 ]);
+            }
+
+            if (($feeState['status'] ?? '') === 'processing' && ! empty($feeState['payment_id'])) {
+                return redirect()
+                    ->route('site.borrower.payments.show', $feeState['payment_id'])
+                    ->with('status', $message);
             }
 
             return back()->with('status', $message);

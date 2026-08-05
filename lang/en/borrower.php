@@ -2956,6 +2956,28 @@ return [
         'bank_waiting_hint'  => 'Waiting for verification after you submit.',
     ],
 
+    'payment_waiting' => [
+        'eyebrow' => 'Mobile money',
+        'title' => 'Confirm on your phone',
+        'prompt' => 'Check your phone for the USSD prompt and enter your PIN. This page updates automatically.',
+        'waiting' => 'Waiting for PayIn to confirm your payment…',
+        'retry' => 'Could not refresh status. Trying again…',
+        'paid' => 'Payment confirmed. Continuing…',
+        'failed' => 'Payment was not completed. You can try again.',
+        'failed_title' => 'Payment failed',
+        'timeout' => 'Still waiting for confirmation. If you already paid, stay on this page or check again — we will activate as soon as PayIn confirms.',
+        'timeout_title' => 'Still waiting',
+        'pending' => 'Payment is being reviewed.',
+        'amount' => 'Amount',
+        'phone' => 'Phone',
+        'reference' => 'Reference',
+        'step_ussd' => 'Open the USSD prompt on your phone',
+        'step_pin' => 'Enter your PIN to approve',
+        'step_auto' => 'This page updates when payment succeeds',
+        'back_payments' => 'Back to payments',
+        'check_again' => 'Check again',
+    ],
+
     'kyc' => [
         'reconfirm_title' => 'Reconfirm your details',
         'reconfirm_intro' => 'Your profile information is older than the allowed freshness period. Confirm or update your details to apply for new loans.',

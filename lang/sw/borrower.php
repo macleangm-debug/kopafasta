@@ -2747,7 +2747,30 @@ return [
     'bank_waiting_hint' => 'Inasubiri uthibitisho baada ya kuwasilisha.',
     'payment_reference' => 'Rejea ya malipo',
 ],
-  'kyc' => 
+
+'payment_waiting' => [
+    'eyebrow' => 'Pesa kwa simu',
+    'title' => 'Thibitisha kwenye simu yako',
+    'prompt' => 'Angalia simu yako kwa USSD na weka PIN. Ukurasa huu unasasishwa kiotomatiki.',
+    'waiting' => 'Inasubiri PayIn kuthibitisha malipo yako…',
+    'retry' => 'Imeshindwa kusasisha hali. Inajaribu tena…',
+    'paid' => 'Malipo yamethibitishwa. Inaendelea…',
+    'failed' => 'Malipo hayajakamilika. Unaweza kujaribu tena.',
+    'failed_title' => 'Malipo yameshindikana',
+    'timeout' => 'Bado inasubiri uthibitisho. Ukilipa tayari, baki hapa au angalia tena — tutaamilisha PayIn inapothibitisha.',
+    'timeout_title' => 'Bado inasubiri',
+    'pending' => 'Malipo yanaangaliwa.',
+    'amount' => 'Kiasi',
+    'phone' => 'Simu',
+    'reference' => 'Rejea',
+    'step_ussd' => 'Fungua USSD kwenye simu yako',
+    'step_pin' => 'Weka PIN yako kuidhinisha',
+    'step_auto' => 'Ukurasa huu unasasishwa malipo yanapofaulu',
+    'back_payments' => 'Rudi kwenye malipo',
+    'check_again' => 'Angalia tena',
+],
+
+'kyc' =>
 [
     'reconfirm_title' => 'Thibitisha tena maelezo yako',
     'reconfirm_intro' => 'Taarifa zako za wasifu ni za zamani kuliko kipindi cha uhalali. Tafadhali thibitisha au sasisha ili uendelee kuomba mikopo.',

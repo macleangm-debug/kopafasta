@@ -146,6 +146,42 @@ class PayInService
         ];
     }
 
+    /**
+     * Poll PayIn for a collection/disbursement status (docs: GET /v1/status/{request_ref}).
+     * Prefer webhooks; poll no more than once every 5 seconds from the client.
+     *
+     * @return array{ok: bool, request_ref: ?string, status: ?string, message: string, raw: array<string, mixed>}
+     */
+    public function status(string $requestRef): array
+    {
+        $this->assertReady();
+
+        try {
+            $response = $this->http()
+                ->get($this->baseUrl().'/status/'.rawurlencode($requestRef))
+                ->throw()
+                ->json();
+        } catch (RequestException $e) {
+            $body = $e->response?->json() ?? [];
+
+            return [
+                'ok' => false,
+                'request_ref' => $requestRef,
+                'status' => null,
+                'message' => (string) ($body['message'] ?? $e->getMessage()),
+                'raw' => is_array($body) ? $body : [],
+            ];
+        }
+
+        return [
+            'ok' => true,
+            'request_ref' => $response['request_ref'] ?? $requestRef,
+            'status' => isset($response['status']) ? (string) $response['status'] : null,
+            'message' => (string) ($response['message'] ?? 'Status retrieved.'),
+            'raw' => is_array($response) ? $response : [],
+        ];
+    }
+
     /** @return array{ok: bool, message: string, balance: ?array} */
     public function healthCheck(): array
     {

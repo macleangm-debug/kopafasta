@@ -161,8 +161,9 @@ class MembershipController extends Controller
             ]);
 
             if ($payment->status === 'processing') {
-                return redirect()->route('site.borrower.dashboard')->with('status',
-                    'Confirm the payment prompt on your phone. Membership activates when PayIn confirms.');
+                return redirect()
+                    ->route('site.borrower.payments.show', $payment)
+                    ->with('status', __('borrower.payment_waiting.prompt'));
             }
 
             // Dummy / already-verified payments activate membership in CustomerPaymentService::finalizePayment.

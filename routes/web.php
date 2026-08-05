@@ -280,6 +280,7 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
             Route::post('/borrower/payments',                      [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'store'])       ->name('borrower.payments.store');
             Route::get('/borrower/payments/refund/{borrowerRefund}', [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'showRefund'])->name('borrower.payments.refund');
             Route::get('/borrower/payments/{payment}',             [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'show'])        ->name('borrower.payments.show');
+            Route::get('/borrower/payments/{payment}/status',      [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'status'])      ->name('borrower.payments.status');
             Route::post('/borrower/payments/{payment}/proof',      [\App\Http\Controllers\Site\BorrowerPaymentController::class, 'uploadProof']) ->name('borrower.payments.proof');
             Route::get('/borrower/documents',                      [\App\Http\Controllers\Site\BorrowerController::class, 'documents'])    ->name('borrower.documents');
             Route::post('/borrower/documents',                     [\App\Http\Controllers\Site\BorrowerController::class, 'uploadDocument'])->name('borrower.documents.store');

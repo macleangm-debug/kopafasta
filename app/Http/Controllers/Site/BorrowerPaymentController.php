@@ -158,6 +158,45 @@ class BorrowerPaymentController extends Controller
             ->when($payment->isVerified(), fn ($r) => $r->with(\App\Support\Celebration::SESSION_KEY, ['payment']));
     }
 
+    public function status(CustomerPayment $payment, CustomerPaymentService $payments): \Illuminate\Http\JsonResponse
+    {
+        $customer = $this->customer();
+        abort_unless($payment->customer_id === $customer->id, 403);
+
+        if ($payment->status === 'processing' && $payment->provider === 'payin') {
+            $payment = $payments->refreshFromProvider($payment);
+        } else {
+            $payment = $payment->fresh();
+        }
+
+        $state = match (true) {
+            $payment->isVerified() || in_array($payment->status, ['paid', 'verified'], true) => 'paid',
+            $payment->status === 'rejected' => 'failed',
+            $payment->status === 'processing' => 'waiting',
+            default => 'pending',
+        };
+
+        $redirect = null;
+        if ($state === 'paid') {
+            $redirect = $payments->successRedirectUrl($payment);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'state' => $state,
+            'status' => $payment->status,
+            'reference' => $payment->reference,
+            'message' => match ($state) {
+                'paid' => __('borrower.payment_waiting.paid'),
+                'failed' => __('borrower.payment_waiting.failed'),
+                'waiting' => __('borrower.payment_waiting.waiting'),
+                default => __('borrower.payment_waiting.pending'),
+            },
+            'redirect_url' => $redirect,
+            'poll_after_ms' => $state === 'waiting' ? 5000 : null,
+        ]);
+    }
+
     public function show(CustomerPayment $payment): View
     {
         $customer = $this->customer();

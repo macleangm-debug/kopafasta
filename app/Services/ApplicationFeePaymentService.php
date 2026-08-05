@@ -138,11 +138,15 @@ class ApplicationFeePaymentService
         $pending = in_array($payment->status, ['processing', 'pending_verification'], true);
 
         return [
-            'status'    => $pending ? 'processing' : 'paid',
-            'reference' => $payment->reference,
-            'channel'   => $this->usesDummyGateway() ? 'dummy_mobile_money' : 'mobile_money',
-            'amount'    => $cashDue,
-            'paid_at'   => $pending ? null : now()->toIso8601String(),
+            'status'     => $pending ? 'processing' : 'paid',
+            'reference'  => $payment->reference,
+            'payment_id' => $payment->id,
+            'channel'    => $this->usesDummyGateway() ? 'dummy_mobile_money' : 'mobile_money',
+            'amount'     => $cashDue,
+            'paid_at'    => $pending ? null : now()->toIso8601String(),
+            'wait_url'   => $pending
+                ? route('site.borrower.payments.show', $payment)
+                : null,
         ];
     }
 
