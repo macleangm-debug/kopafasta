@@ -207,6 +207,30 @@ class LoanApplicationNextActionService
             );
         }
 
+        $collateralSecure = app(\App\Services\CollateralSecureService::class);
+        if ($collateralSecure->isOpen($application)) {
+            $statusCode = data_get($collateralSecure->state($application), 'status');
+            $label = match ($statusCode) {
+                \App\Services\CollateralSecureService::STATUS_AWAITING_FEE => __('borrower.collateral_secure.fee_title'),
+                \App\Services\CollateralSecureService::STATUS_AWAITING_GUARANTOR => __('borrower.collateral_secure.waiting_guarantor'),
+                \App\Services\CollateralSecureService::STATUS_AWAITING_INSURANCE => __('borrower.collateral_secure.insurance_needed'),
+                default => __('borrower.collateral_secure.why'),
+            };
+            $button = match ($statusCode) {
+                \App\Services\CollateralSecureService::STATUS_AWAITING_FEE => __('borrower.collateral_secure.pay_now'),
+                \App\Services\CollateralSecureService::STATUS_AWAITING_BORROWER_ADD => __('borrower.collateral_secure.add_collateral'),
+                default => __('borrower.collateral_secure.cta_open'),
+            };
+
+            return $this->action(
+                'collateral_secure',
+                $label,
+                $button,
+                $profileUrl,
+                tone: 'primary',
+            );
+        }
+
         $groupDashboard = app(\App\Services\GroupMemberReplacementService::class)
             ->leaderDashboard($application, $customer);
         if ($groupDashboard && ($groupDashboard['can_replace'] ?? false)) {
