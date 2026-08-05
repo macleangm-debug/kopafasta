@@ -65,8 +65,9 @@ class ProfileRevisionService
     }
 
     /**
-     * For already-open requests, ensure profile source docs are cleared once
-     * so the borrower replaces them instead of stacking another upload.
+     * For already-open requests, refresh revision flags so hub CTAs stay accurate.
+     * Do NOT re-delete profile documents — that wiped re-uploads every time the
+     * borrower opened the loan profile (bank statement / income loop).
      */
     public function ensureClearedForOpenRequests(LoanApplication $application): void
     {
@@ -80,7 +81,6 @@ class ProfileRevisionService
             if (! $request->needsBorrowerAction()) {
                 continue;
             }
-            $this->clearProfileDocumentsForLabel($customer, (string) $request->label);
             $targets = $this->targetsForLabel((string) $request->label);
             if ($targets !== []) {
                 $this->markRevisionRequired($customer->fresh(), $targets);

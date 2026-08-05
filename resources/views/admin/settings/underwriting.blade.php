@@ -102,7 +102,12 @@
                                :value="$values['insurance_expiry_buffer_months'] ?? 2" required />
                 <x-admin.input name="insurance_renewal_decision_days" label="Insurance renewal window (days)" type="number"
                                :value="$values['insurance_renewal_decision_days'] ?? 5" required />
+                <x-admin.input name="collateral_insurance_rate_percent" label="Comprehensive rate (% of insured value)" type="number" step="0.1"
+                               :value="$values['collateral_insurance_rate_percent'] ?? 3.5" required />
+                <x-admin.input name="collateral_insurance_markup_percent" label="Kopafasta markup on premium (%)" type="number" step="0.1"
+                               :value="$values['collateral_insurance_markup_percent'] ?? 0" required />
             </div>
+            <p class="text-xs text-gray-500 mt-3">Premium = insured value × rate, then optional markup. Asset owner enters the value to insure; insurer case updates that asset’s expiry.</p>
         </div>
 
         <div class="flex justify-end">

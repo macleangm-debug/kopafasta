@@ -1939,6 +1939,20 @@ class BorrowerController extends Controller
                 );
             }
 
+            $uploadedIncomeCodes = collect($codes)
+                ->filter(fn (string $code) => $request->file($code) || ! empty(array_filter($request->file($code.'_pages', []) ?? [])))
+                ->values()
+                ->all();
+
+            if ($uploadedIncomeCodes !== []) {
+                try {
+                    app(\App\Services\ApplicationDocumentRequestService::class)
+                        ->markIncomeRequestsUploadedFromProfile($customer->fresh(), $uploadedIncomeCodes);
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
+
             app(KycFreshnessService::class)->markSectionConfirmed($customer->fresh(), 'documents');
         }
 

@@ -126,9 +126,139 @@ class CollateralSecureController extends Controller
 
         $service->markFeePaid($application->fresh());
 
-        return redirect()
+        $state = $service->state($application->fresh());
+        $flash = match ($state['status'] ?? '') {
+            CollateralSecureService::STATUS_AWAITING_INSURANCE => [
+                'title' => __('borrower.collateral_secure.linked_insurance_title'),
+                'message' => __('borrower.collateral_secure.linked_insurance_body', [
+                    'date' => data_get($state, 'insurance.expiry') ?: '—',
+                ]),
+                'tone' => 'warning',
+            ],
+            CollateralSecureService::STATUS_SECURED => [
+                'title' => __('borrower.collateral_secure.linked_secured_title'),
+                'message' => __('borrower.collateral_secure.linked_secured_body'),
+                'tone' => 'success',
+            ],
+            default => null,
+        };
+
+        $redirect = redirect()
             ->route('site.borrower.application', $application)
             ->with('status', __('borrower.collateral_secure.fee_paid'));
+
+        return $flash
+            ? $redirect->with('collateral_secure_flash', array_merge($flash, [
+                'confirm' => __('borrower.feedback.ok'),
+            ]))
+            : $redirect;
+    }
+
+    public function buyInsurance(Request $request, LoanApplication $application, CollateralSecureService $service): RedirectResponse
+    {
+        $customer = $this->customer();
+        $state = $service->state($application);
+        abort_unless(($state['status'] ?? '') === CollateralSecureService::STATUS_AWAITING_INSURANCE, 422);
+
+        $asset = CustomerAsset::query()->findOrFail((int) ($state['customer_asset_id'] ?? 0));
+        abort_unless((int) $asset->customer_id === (int) $customer->id, 403);
+
+        $data = $request->validate([
+            'insured_value' => ['required', 'integer', 'min:100000'],
+        ]);
+
+        $insurance = app(\App\Services\CollateralInsurancePartnerService::class);
+        $quote = $insurance->quote((int) $data['insured_value']);
+        abort_unless($quote['premium'] > 0, 422);
+
+        app(CustomerPaymentService::class)->create([
+            'customer' => $customer,
+            'payment_type' => 'insurance_premium',
+            'payment_method' => 'mobile_money',
+            'amount' => $quote['premium'],
+            'reference' => 'INS-'.strtoupper(uniqid()),
+            'source' => $application,
+            'auto_verify' => true,
+        ]);
+
+        $opened = $insurance->openCoverCase($application, $asset, (int) $data['insured_value'], $customer);
+        $service->recordInsurancePurchase($application, [
+            'insured_value' => $quote['insured_value'],
+            'premium' => $quote['premium'],
+            'rate_percent' => $quote['rate_percent'],
+            'markup_percent' => $quote['markup_percent'],
+            'partner_task_id' => $opened['task']?->id,
+            'partner_id' => $opened['partner']?->id,
+            'paid_at' => now()->toIso8601String(),
+        ]);
+
+        return redirect()
+            ->route('site.borrower.application', $application)
+            ->with('collateral_secure_flash', [
+                'title' => __('borrower.collateral_secure.insurance_paid_title'),
+                'message' => $opened['task']
+                    ? __('borrower.collateral_secure.insurance_paid_body_partner')
+                    : __('borrower.collateral_secure.insurance_paid_body_manual'),
+                'confirm' => __('borrower.feedback.ok'),
+                'tone' => 'success',
+            ]);
+    }
+
+    public function guarantorBuyInsurance(Request $request, CustomerGuarantor $customerGuarantor, CollateralSecureService $service): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_unless(app(\App\Services\GuarantorAccessService::class)->canViewGuarantee($customer, $customerGuarantor), 404);
+
+        $application = $customerGuarantor->application
+            ?? LoanApplication::query()->find($customerGuarantor->loan_application_id);
+        abort_unless($application, 404);
+
+        $state = $service->state($application);
+        abort_unless(($state['status'] ?? '') === CollateralSecureService::STATUS_AWAITING_INSURANCE, 422);
+        abort_unless(($state['source'] ?? '') === 'guarantor', 403);
+
+        $asset = CustomerAsset::query()->findOrFail((int) ($state['customer_asset_id'] ?? 0));
+        abort_unless((int) $asset->customer_id === (int) $customer->id, 403);
+
+        $data = $request->validate([
+            'insured_value' => ['required', 'integer', 'min:100000'],
+        ]);
+
+        $insurance = app(\App\Services\CollateralInsurancePartnerService::class);
+        $quote = $insurance->quote((int) $data['insured_value']);
+        abort_unless($quote['premium'] > 0, 422);
+
+        app(CustomerPaymentService::class)->create([
+            'customer' => $customer,
+            'payment_type' => 'insurance_premium',
+            'payment_method' => 'mobile_money',
+            'amount' => $quote['premium'],
+            'reference' => 'INS-'.strtoupper(uniqid()),
+            'source' => $application,
+            'auto_verify' => true,
+        ]);
+
+        $opened = $insurance->openCoverCase($application, $asset, (int) $data['insured_value'], $customer);
+        $service->recordInsurancePurchase($application, [
+            'insured_value' => $quote['insured_value'],
+            'premium' => $quote['premium'],
+            'rate_percent' => $quote['rate_percent'],
+            'markup_percent' => $quote['markup_percent'],
+            'partner_task_id' => $opened['task']?->id,
+            'partner_id' => $opened['partner']?->id,
+            'paid_at' => now()->toIso8601String(),
+        ]);
+
+        return redirect()
+            ->route('site.borrower.guaranteed.show', $customerGuarantor)
+            ->with('collateral_secure_flash', [
+                'title' => __('borrower.collateral_secure.insurance_paid_title'),
+                'message' => $opened['task']
+                    ? __('borrower.collateral_secure.insurance_paid_body_partner')
+                    : __('borrower.collateral_secure.insurance_paid_body_manual'),
+                'confirm' => __('borrower.feedback.ok'),
+                'tone' => 'success',
+            ]);
     }
 
     public function guarantorRespond(Request $request, CustomerGuarantor $customerGuarantor, CollateralSecureService $service): RedirectResponse

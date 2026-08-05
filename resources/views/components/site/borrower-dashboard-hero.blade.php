@@ -5,8 +5,8 @@
     $shell = match ($variant) {
         'arrears' => 'bg-red-600 text-white ring-red-700',
         'active_loan' => 'bg-gray-900 text-white ring-gray-800',
-        'under_review' => 'bg-amber-500 text-gray-900 ring-amber-600',
-        'guarantor_request' => 'bg-amber-500 text-gray-900 ring-amber-600',
+        // Standard brand green for review / guarantor states (not amber).
+        'under_review', 'guarantor_request', 'applications', 'no_loan' => 'bg-gradient-to-br from-brand to-brand-light text-white ring-brand/30',
         'settled' => 'bg-emerald-600 text-white ring-emerald-700',
         default => 'bg-gradient-to-br from-brand to-brand-light text-white ring-brand/30',
     };
@@ -16,7 +16,7 @@
         'settled' => 'wallet',
         default => 'individual',
     };
-    $lightText = ! in_array($variant, ['under_review', 'guarantor_request'], true);
+    $lightText = true;
     $cleanHome = in_array($variant, ['applications'], true)
         || (($variant === 'no_loan') && empty($hero['title']) && empty($hero['subtitle']));
 @endphp
@@ -77,12 +77,7 @@
         @if (! empty($hero['cta_url']) && ! empty($hero['cta_label']))
             <div class="flex flex-wrap gap-2">
                 <a href="{{ $hero['cta_url'] }}"
-                   @class([
-                       'inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition',
-                       in_array($variant, ['under_review', 'guarantor_request'], true)
-                           ? 'bg-gray-900 text-white hover:bg-gray-800'
-                           : 'bg-white text-brand hover:bg-white/90 shadow-sm',
-                   ])>
+                   class="inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-white text-brand hover:bg-white/90 shadow-sm">
                     {{ $hero['cta_label'] }}
                 </a>
                 @if (! $cleanHome && ! empty($hero['secondary_cta_url']) && ! empty($hero['secondary_cta_label']))

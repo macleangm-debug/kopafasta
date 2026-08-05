@@ -130,23 +130,35 @@
                     $detailRows = collect(\App\Models\CustomerAsset::detailFieldsFor($asset->asset_type))
                         ->map(function ($field) use ($asset) {
                             $val = ($field['column'] ?? false) ? $asset->{$field['key']} : $asset->detail($field['key']);
+                            $display = filled($val) ? $val : '—';
+                            if (($field['key'] ?? '') === 'insurance_type' && filled($val)) {
+                                $display = \App\Models\CustomerAsset::insuranceTypeOptions()[(string) $val] ?? $val;
+                            }
 
-                            return filled($val) ? [
+                            return [
                                 'label' => __('borrower.profile.collateral_fields.'.$field['key']),
-                                'value' => $val,
-                            ] : null;
+                                'value' => $display,
+                                'missing' => ! filled($val),
+                            ];
                         })
-                        ->filter()
                         ->values();
                     if ($asset->asset_type === 'vehicle') {
-                        foreach (['insurance_policy_number', 'insurance_expires_at'] as $insKey) {
-                            $insVal = $asset->detail($insKey);
-                            if (filled($insVal)) {
-                                $detailRows->push([
-                                    'label' => __('borrower.profile.collateral_fields.'.$insKey),
-                                    'value' => $insVal,
-                                ]);
+                        foreach (['insurance_type', 'insurance_policy_number', 'insurance_expires_at'] as $insKey) {
+                            if ($detailRows->contains(fn ($row) => ($row['label'] ?? '') === __('borrower.profile.collateral_fields.'.$insKey))) {
+                                continue;
                             }
+                            $insVal = $insKey === 'insurance_type'
+                                ? $asset->insuranceType()
+                                : $asset->detail($insKey);
+                            $display = filled($insVal) ? $insVal : '—';
+                            if ($insKey === 'insurance_type' && filled($insVal)) {
+                                $display = \App\Models\CustomerAsset::insuranceTypeOptions()[(string) $insVal] ?? $insVal;
+                            }
+                            $detailRows->push([
+                                'label' => __('borrower.profile.collateral_fields.'.$insKey),
+                                'value' => $display,
+                                'missing' => ! filled($insVal),
+                            ]);
                         }
                     }
                     $gallerySlides = collect($asset->photo_paths ?? [])
@@ -185,27 +197,36 @@
                                     </div>
                                     @foreach ($detailRows as $row)
                                         <div>
-                                            <dt class="text-[11px] font-medium text-gray-600 mb-0.5">{{ $row['label'] }}</dt>
-                                            <dd class="text-sm font-semibold text-gray-900 break-words">{{ $row['value'] }}</dd>
+                                            <dt class="text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-0.5">{{ $row['label'] }}</dt>
+                                            <dd @class([
+                                                'text-sm font-extrabold break-words',
+                                                'text-gray-900' => empty($row['missing']),
+                                                'text-gray-400 font-semibold' => ! empty($row['missing']),
+                                            ])>{{ $row['value'] }}</dd>
                                         </div>
                                     @endforeach
                                     @if (filled($asset->description))
                                         <div class="sm:col-span-2">
-                                            <dt class="text-[11px] font-medium text-gray-600 mb-0.5">Description</dt>
-                                            <dd class="text-sm text-gray-800 whitespace-pre-wrap">{{ $asset->description }}</dd>
+                                            <dt class="text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-0.5">Description</dt>
+                                            <dd class="text-sm font-semibold text-gray-800 whitespace-pre-wrap">{{ $asset->description }}</dd>
                                         </div>
-                                    @endif
-                                    @if ($asset->estimated_value)
-                                        <div>
-                                            <dt class="text-[11px] font-medium text-gray-600 mb-0.5">Valuation</dt>
-                                            <dd class="text-sm font-semibold text-brand tabular-nums">{{ format_money($asset->estimated_value) }}</dd>
-                                        </div>
-                                    @elseif (! $isGuarantor)
+                                    @else
                                         <div class="sm:col-span-2">
-                                            <p class="text-[11px] text-gray-500">Valuation is set by the team after review when this asset is pledged to a loan.</p>
+                                            <dt class="text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-0.5">Description</dt>
+                                            <dd class="text-sm font-semibold text-gray-400">—</dd>
                                         </div>
                                     @endif
-                                </dl>
+                                    <div>
+                                        <dt class="text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-0.5">Valuation</dt>
+                                        @if ($asset->estimated_value)
+                                            <dd class="text-sm font-extrabold text-brand tabular-nums">{{ format_money($asset->estimated_value) }}</dd>
+                                        @else
+                                            <dd class="text-sm font-semibold text-gray-400">—</dd>
+                                            @unless ($isGuarantor)
+                                                <p class="text-[11px] text-gray-500 mt-1">Set by the team after this collateral is pledged.</p>
+                                            @endunless
+                                        @endif
+                                    </div>                                </dl>
                             </div>
 
                             <div>

@@ -564,4 +564,65 @@ class ApplicationDocumentRequestService
     {
         return LoanApplicationDocumentRequest::where('status', 'uploaded')->count();
     }
+
+    /**
+     * When the borrower uploads profile-guided income docs, mark matching open
+     * underwriting requests as uploaded so the loan profile stops showing Pending.
+     *
+     * @param  list<string>  $uploadedCodes
+     */
+    public function markIncomeRequestsUploadedFromProfile(Customer $customer, array $uploadedCodes): int
+    {
+        $uploadedCodes = array_values(array_filter(array_map('strval', $uploadedCodes)));
+        if ($uploadedCodes === []) {
+            return 0;
+        }
+
+        $revision = app(ProfileRevisionService::class);
+        $marked = 0;
+
+        $requests = LoanApplicationDocumentRequest::query()
+            ->whereHas('application', function ($q) use ($customer) {
+                $q->where('customer_id', $customer->id)
+                    ->whereNotIn('status', ['withdrawn', 'rejected', 'disbursed']);
+            })
+            ->whereIn('status', ['pending', 'rejected'])
+            ->with('application')
+            ->get();
+
+        foreach ($requests as $request) {
+            if ($this->borrowerActionKind($request) !== 'income') {
+                continue;
+            }
+
+            $labelCodes = $revision->documentCodesForLabel((string) $request->label);
+            $matches = $labelCodes === []
+                ? true
+                : count(array_intersect($labelCodes, $uploadedCodes)) > 0;
+
+            if (! $matches) {
+                continue;
+            }
+
+            $request->update([
+                'status' => 'uploaded',
+                'admin_notes' => null,
+            ]);
+            $marked++;
+
+            if ($application = $request->application) {
+                $this->syncApplicationStatus($application->fresh());
+                app(NotificationCtaService::class)->consumeDocumentRequestCtas(
+                    (int) $application->id,
+                    (int) $request->id,
+                );
+            }
+        }
+
+        if ($marked > 0) {
+            $revision->clearForTarget($customer->fresh(), 'income');
+        }
+
+        return $marked;
+    }
 }

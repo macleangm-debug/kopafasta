@@ -128,6 +128,13 @@
                     ])
                 @endif
             @elseif ($status === 'awaiting_insurance')
+                @php
+                    $purchase = $secure['insurance_purchase'] ?? null;
+                    $quoteDefaults = $secure['insurance_quote_defaults'] ?? [];
+                    $ratePct = (float) ($quoteDefaults['rate_percent'] ?? 3.5);
+                    $suggested = (int) ($quoteDefaults['suggested_value'] ?? 0);
+                    $isOwner = (int) auth()->user()?->customer?->id === (int) ($secure['owner_customer_id'] ?? 0);
+                @endphp
                 <p class="text-base font-extrabold text-gray-900">{{ __('borrower.collateral_secure.insurance_needed') }}</p>
                 @if (! empty($insurance['expiry']))
                     <p class="text-sm font-bold text-amber-900">
@@ -137,17 +144,52 @@
                             · {{ __('borrower.collateral_secure.insurance_required_by', ['date' => $insurance['required_by']]) }}
                         @endif
                     </p>
-                @endif
-                <p class="text-sm font-semibold text-gray-700">{{ __('borrower.collateral_secure.insurance_hint') }}</p>
-                @if ($isGuarantorSource)
-                    <p class="text-sm font-bold text-brand">{{ __('borrower.collateral_secure.insurance_guarantor_owns') }}</p>
                 @else
+                    <p class="text-sm font-bold text-amber-900">{{ __('borrower.collateral_secure.insurance_missing') }}</p>
+                @endif
+
+                @if ($purchase)
+                    <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 space-y-1">
+                        <p class="text-sm font-extrabold text-emerald-950">{{ __('borrower.collateral_secure.insurance_purchase_pending') }}</p>
+                        <p class="text-sm font-semibold text-emerald-900">
+                            {{ __('borrower.collateral_secure.insurance_purchase_summary', [
+                                'value' => format_money($purchase['insured_value'] ?? 0),
+                                'premium' => format_money($purchase['premium'] ?? 0),
+                            ]) }}
+                        </p>
+                    </div>
+                @elseif ($isGuarantorSource && ! $isOwner)
+                    <p class="text-sm font-bold text-brand">{{ __('borrower.collateral_secure.insurance_guarantor_owns') }}</p>
+                @elseif ($isOwner)
+                    <p class="text-sm font-semibold text-gray-700">{{ __('borrower.collateral_secure.insurance_buy_hint', ['rate' => rtrim(rtrim(number_format($ratePct, 2), '0'), '.')]) }}</p>
+                    <form method="POST" action="{{ route('site.borrower.collateral-secure.buy-insurance', $application) }}"
+                          class="rounded-2xl ring-1 ring-brand/15 bg-brand-muted/20 p-4 space-y-3"
+                          x-data="{
+                              value: {{ $suggested > 0 ? $suggested : 1000000 }},
+                              rate: {{ $ratePct }},
+                              premium() { return Math.round(Number(this.value || 0) * (this.rate / 100)); }
+                          }">
+                        @csrf
+                        <label class="block">
+                            <span class="text-xs font-bold uppercase tracking-widest text-gray-600">{{ __('borrower.collateral_secure.insured_value_label') }}</span>
+                            <input type="number" name="insured_value" x-model.number="value" min="100000" step="1000" required
+                                   class="mt-1.5 w-full rounded-xl border-gray-200 text-base font-extrabold tabular-nums">
+                        </label>
+                        <p class="text-sm font-bold text-gray-800">
+                            {{ __('borrower.collateral_secure.premium_label') }}:
+                            <span class="text-brand text-lg tabular-nums" x-text="new Intl.NumberFormat().format(premium())"></span>
+                        </p>
+                        <button type="submit" class="inline-flex font-extrabold px-6 py-3 rounded-xl text-sm bg-brand-gold hover:brightness-95 text-brand shadow-sm">
+                            {{ __('borrower.collateral_secure.pay_premium') }}
+                        </button>
+                    </form>
+                    <p class="text-sm font-semibold text-gray-600">{{ __('borrower.collateral_secure.insurance_or_manual') }}</p>
                     <a href="{{ $secure['owner_assets_url'] }}"
-                       class="inline-flex font-extrabold px-6 py-3 rounded-xl text-sm bg-brand-gold hover:brightness-95 text-brand shadow-sm">
+                       class="inline-flex font-bold px-5 py-2.5 rounded-xl text-sm bg-white ring-1 ring-gray-200 text-gray-900 hover:bg-gray-50">
                         {{ __('borrower.collateral_secure.update_insurance') }}
                     </a>
                     @if ($selected)
-                        <form method="POST" action="{{ route('site.borrower.collateral-secure.link', $application) }}" class="pt-2">
+                        <form method="POST" action="{{ route('site.borrower.collateral-secure.link', $application) }}" class="pt-1">
                             @csrf
                             <input type="hidden" name="customer_asset_id" value="{{ $selected['id'] }}">
                             <button type="submit" class="inline-flex font-bold px-5 py-2.5 rounded-xl text-sm bg-brand text-white hover:bg-brand-light">

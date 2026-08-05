@@ -187,4 +187,29 @@ class CollateralSecureFeatureTest extends TestCase
             'customer_asset_id' => $asset->id,
         ]);
     }
+
+    public function test_fee_gate_runs_before_insurance_on_vehicle(): void
+    {
+        $admin = $this->staff();
+        [$app, $borrower] = $this->applicationWithGuarantor($admin);
+        $service = app(CollateralSecureService::class);
+
+        $asset = CustomerAsset::create([
+            'customer_id' => $borrower->id,
+            'asset_type' => 'vehicle',
+            'label' => 'Vitz',
+            'registration_number' => 'T123',
+            'is_active' => true,
+            'metadata' => ['details' => []],
+        ]);
+
+        $service->request($app, $admin);
+        $service->borrowerHasCollateral($app->fresh(), $borrower, true);
+        $state = $service->linkAsset($app->fresh(), $borrower, $asset);
+
+        $this->assertSame(CollateralSecureService::STATUS_AWAITING_FEE, $state['status']);
+
+        $afterFee = $service->markFeePaid($app->fresh());
+        $this->assertSame(CollateralSecureService::STATUS_AWAITING_INSURANCE, $afterFee['status']);
+    }
 }

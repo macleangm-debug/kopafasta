@@ -272,16 +272,12 @@ class CollateralSecureService
             abort_unless((int) $actor->id === (int) $application->customer_id, 403);
         }
 
-        $insurance = $this->insuranceCheck($application, $asset);
         $state['customer_asset_id'] = $asset->id;
-        $state['insurance'] = $insurance;
+        $state['insurance'] = $this->insuranceCheck($application, $asset);
 
-        if (! ($insurance['ok'] ?? false)) {
-            $state['status'] = self::STATUS_AWAITING_INSURANCE;
-            $state['insurance_due_at'] = now()->addDays($this->insuranceRenewalDays())->toIso8601String();
-            $this->saveState($application, $state);
-
-            return $state;
+        // Fee delta is due as soon as collateral is accepted — insurance comes after payment.
+        if (($state['status'] ?? '') === self::STATUS_AWAITING_INSURANCE || filled($state['fee_paid_at'] ?? null)) {
+            return $this->advanceAfterFee($application, $state, $asset);
         }
 
         return $this->advanceAfterAsset($application, $state, $asset);
@@ -292,15 +288,49 @@ class CollateralSecureService
         $state = $this->requireOpen($application);
         abort_unless(($state['status'] ?? '') === self::STATUS_AWAITING_FEE, 422);
 
-        $quote = $this->feeQuote($application);
-        $ab = $this->assetBackedFeeProduct();
         $asset = CustomerAsset::query()->find($state['customer_asset_id'] ?? 0);
-        abort_unless($asset && $ab, 422);
+        abort_unless($asset && $this->assetBackedFeeProduct(), 422);
 
         $state['fee_paid_at'] = now()->toIso8601String();
         $state['fee_due'] = 0;
 
-        return $this->finalizeSecured($application, $state, $asset, $ab, $quote);
+        return $this->advanceAfterFee($application, $state, $asset);
+    }
+
+    /**
+     * After insurance is updated on the pledged asset (owner profile or partner case), continue.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function recheckAfterInsuranceUpdate(LoanApplication $application, CustomerAsset $asset): ?array
+    {
+        $state = $this->state($application);
+        if (! $state || ($state['status'] ?? '') !== self::STATUS_AWAITING_INSURANCE) {
+            return $state;
+        }
+
+        if ((int) ($state['customer_asset_id'] ?? 0) !== (int) $asset->id) {
+            return $state;
+        }
+
+        return $this->advanceAfterFee($application, $state, $asset);
+    }
+
+    /**
+     * Persist insurance purchase / partner case onto collateral_secure state.
+     *
+     * @param  array<string, mixed>  $purchase
+     * @return array<string, mixed>
+     */
+    public function recordInsurancePurchase(LoanApplication $application, array $purchase): array
+    {
+        $state = $this->requireOpen($application);
+        abort_unless(($state['status'] ?? '') === self::STATUS_AWAITING_INSURANCE, 422);
+
+        $state['insurance_purchase'] = $purchase;
+        $this->saveState($application, $state);
+
+        return $state;
     }
 
     public function expireIfNeeded(LoanApplication $application): ?array
@@ -436,6 +466,14 @@ class CollateralSecureService
             'assets' => $this->selectableAssets($application, $state)->map(fn (CustomerAsset $a) => $this->assetCard($a))->values(),
             'selected_asset' => $selected,
             'insurance' => $state['insurance'] ?? null,
+            'insurance_purchase' => $state['insurance_purchase'] ?? null,
+            'insurance_quote_defaults' => [
+                'rate_percent' => app(CollateralInsurancePartnerService::class)->ratePercent(),
+                'markup_percent' => app(CollateralInsurancePartnerService::class)->markupPercent(),
+                'suggested_value' => $selected
+                    ? (int) round((float) (CustomerAsset::query()->find($selected['id'] ?? 0)?->estimated_value ?? 0))
+                    : 0,
+            ],
             'is_guarantor_source' => ($state['source'] ?? '') === 'guarantor',
             'owner_customer_id' => $ownerId,
         ];
@@ -478,6 +516,8 @@ class CollateralSecureService
     private function advanceAfterAsset(LoanApplication $application, array $state, CustomerAsset $asset): array
     {
         $ab = $this->assetBackedFeeProduct();
+        abort_unless($ab, 422, 'Asset-backed fee product (AB) is not configured.');
+
         $quote = $this->feeQuote($application);
         $due = (int) ($quote['due'] ?? 0);
         $state['fee_due'] = $due;
@@ -503,13 +543,35 @@ class CollateralSecureService
             return $state;
         }
 
+        $state['fee_paid_at'] = $state['fee_paid_at'] ?? now()->toIso8601String();
+
+        return $this->advanceAfterFee($application, $state, $asset);
+    }
+
+    /**
+     * After the AB fee delta is settled (or already covered), check insurance then secure.
+     *
+     * @param  array<string, mixed>  $state
+     * @return array<string, mixed>
+     */
+    private function advanceAfterFee(LoanApplication $application, array $state, CustomerAsset $asset): array
+    {
+        $ab = $this->assetBackedFeeProduct();
         abort_unless($ab, 422, 'Asset-backed fee product (AB) is not configured.');
 
-        return $this->finalizeSecured($application, $state, $asset, $ab, $quote ?? [
-            'quoted' => 0,
-            'credit' => 0,
-            'due' => 0,
-        ]);
+        $quote = $this->feeQuote($application);
+        $insurance = $this->insuranceCheck($application, $asset);
+        $state['insurance'] = $insurance;
+
+        if (! ($insurance['ok'] ?? false)) {
+            $state['status'] = self::STATUS_AWAITING_INSURANCE;
+            $state['insurance_due_at'] = now()->addDays($this->insuranceRenewalDays())->toIso8601String();
+            $this->saveState($application, $state);
+
+            return $state;
+        }
+
+        return $this->finalizeSecured($application, $state, $asset, $ab, $quote);
     }
 
     /** @param array{quoted?: int, credit?: int, due?: int} $quote */

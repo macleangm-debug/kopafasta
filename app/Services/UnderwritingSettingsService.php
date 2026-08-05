@@ -111,4 +111,14 @@ class UnderwritingSettingsService
     {
         return max(1, (int) $this->get('insurance_renewal_decision_days', 5));
     }
+
+    public function collateralInsuranceRatePercent(): float
+    {
+        return max(0, (float) $this->get('collateral_insurance_rate_percent', 3.5));
+    }
+
+    public function collateralInsuranceMarkupPercent(): float
+    {
+        return max(0, (float) $this->get('collateral_insurance_markup_percent', 0));
+    }
 }

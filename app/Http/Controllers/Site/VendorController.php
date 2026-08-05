@@ -353,6 +353,9 @@ class VendorController extends Controller
             'notes'             => ['nullable', 'string', 'max:1000'],
             'market_value'      => ['nullable', 'numeric', 'min:0'],
             'forced_sale_value' => ['nullable', 'numeric', 'min:0'],
+            'insurance_expires_at' => ['nullable', 'date'],
+            'insurance_policy_number' => ['nullable', 'string', 'max:120'],
+            'insurance_type' => ['nullable', 'in:comprehensive,third_party'],
         ]);
 
         if ($task->task_type === 'asset_valuation') {
@@ -377,6 +380,20 @@ class VendorController extends Controller
 
             return redirect()->route('site.partner.task', $task)
                 ->with('status', 'Valuation submitted.');
+        }
+
+        if ($task->task_type === \App\Services\CollateralInsurancePartnerService::TASK_TYPE) {
+            abort_unless(filled($data['insurance_expires_at'] ?? null), 422);
+
+            app(\App\Services\CollateralInsurancePartnerService::class)->completeCover(
+                $task,
+                (string) $data['insurance_expires_at'],
+                $data['insurance_policy_number'] ?? null,
+                (string) ($data['insurance_type'] ?? 'comprehensive'),
+            );
+
+            return redirect()->route('site.partner.task', $task)
+                ->with('status', 'Insurance cover recorded on the collateral asset.');
         }
 
         $task->update([

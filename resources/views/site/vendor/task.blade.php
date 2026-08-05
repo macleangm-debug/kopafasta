@@ -147,9 +147,19 @@
 
                 {{-- Complete task --}}
                 <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
-                    <h2 class="font-bold mb-3">{{ $task->task_type === 'asset_valuation' ? 'Submit valuation report' : 'Mark complete' }}</h2>
+                    <h2 class="font-bold mb-3">
+                        @if ($task->task_type === 'asset_valuation')
+                            Submit valuation report
+                        @elseif ($task->task_type === 'vehicle_insurance')
+                            Record insurance cover
+                        @else
+                            Mark complete
+                        @endif
+                    </h2>
                     @if ($task->task_type === 'asset_valuation')
                         <p class="text-xs text-gray-500 mb-4">Upload photos above, then enter market and forced sale values from your physical inspection.</p>
+                    @elseif ($task->task_type === 'vehicle_insurance')
+                        <p class="text-xs text-gray-500 mb-4">Enter policy details for this specific collateral. Expiry updates the owner’s asset profile automatically.</p>
                     @endif
                     <form method="POST" action="{{ route('site.partner.task.complete', $task) }}" class="space-y-3">
                         @csrf
@@ -161,6 +171,23 @@
                             <div>
                                 <label class="block text-xs text-gray-500 mb-1">Forced sale value (TZS)</label>
                                 <input name="forced_sale_value" type="number" min="0" step="1000" required class="w-full rounded-lg border-gray-300 text-sm">
+                            </div>
+                        @endif
+                        @if ($task->task_type === 'vehicle_insurance')
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Insurance type</label>
+                                <select name="insurance_type" class="w-full rounded-lg border-gray-300 text-sm" required>
+                                    <option value="comprehensive">Comprehensive</option>
+                                    <option value="third_party">Third-party</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Policy number</label>
+                                <input name="insurance_policy_number" class="w-full rounded-lg border-gray-300 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Expiry date</label>
+                                <input name="insurance_expires_at" type="date" required class="w-full rounded-lg border-gray-300 text-sm">
                             </div>
                         @endif
                         @if (str_contains($task->task_type, 'gps'))

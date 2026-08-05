@@ -1,0 +1,224 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Customer;
+use App\Models\CustomerAsset;
+use App\Models\LoanApplication;
+use App\Models\Vendor;
+use App\Models\VendorTask;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+/**
+ * Collateral insurance cover via insurance partners.
+ * Premium = insured value × rate (default 3.5%) + optional Kopafasta markup (default 0).
+ */
+class CollateralInsurancePartnerService
+{
+    public const TASK_TYPE = 'vehicle_insurance';
+
+    public function ratePercent(): float
+    {
+        return max(0, (float) app(UnderwritingSettingsService::class)
+            ->get('collateral_insurance_rate_percent', 3.5));
+    }
+
+    public function markupPercent(): float
+    {
+        return max(0, (float) app(UnderwritingSettingsService::class)
+            ->get('collateral_insurance_markup_percent', 0));
+    }
+
+    /**
+     * @return array{insured_value: int, rate_percent: float, markup_percent: float, base_premium: int, markup_amount: int, premium: int}
+     */
+    public function quote(int $insuredValue): array
+    {
+        $insuredValue = max(0, $insuredValue);
+        $rate = $this->ratePercent();
+        $markupPct = $this->markupPercent();
+        $base = (int) round($insuredValue * ($rate / 100));
+        $markup = (int) round($base * ($markupPct / 100));
+
+        return [
+            'insured_value' => $insuredValue,
+            'rate_percent' => $rate,
+            'markup_percent' => $markupPct,
+            'base_premium' => $base,
+            'markup_amount' => $markup,
+            'premium' => $base + $markup,
+        ];
+    }
+
+    /** @return \Illuminate\Support\Collection<int, Vendor> */
+    public function insurersForRegion(?string $region)
+    {
+        $query = Vendor::query()
+            ->where('status', 'active')
+            ->where(function ($q): void {
+                $q->where('category', 'insurance')->orWhere('roles', 'like', '%"insurance"%');
+            });
+
+        if (blank($region)) {
+            return $query->orderBy('name')->get();
+        }
+
+        $matches = $query->get()->filter(function (Vendor $vendor) use ($region): bool {
+            if (($vendor->coverage_type ?? 'regions') === 'nationwide') {
+                return true;
+            }
+
+            $regions = $vendor->regions ?? [];
+
+            return $regions === [] || in_array($region, $regions, true);
+        });
+
+        if ($matches->isNotEmpty()) {
+            return $matches->sortBy('name')->values();
+        }
+
+        return $query->orderBy('name')->get();
+    }
+
+    public function suggestInsurer(LoanApplication $application): ?Vendor
+    {
+        $application->loadMissing('customer');
+
+        return $this->insurersForRegion($application->customer?->region)->first();
+    }
+
+    /**
+     * Open an insurance partner case for a specific customer asset after premium is collected.
+     *
+     * @return array{task: VendorTask, quote: array<string, mixed>, partner: ?Vendor}
+     */
+    public function openCoverCase(
+        LoanApplication $application,
+        CustomerAsset $asset,
+        int $insuredValue,
+        Customer $payer,
+    ): array {
+        abort_unless((int) $asset->customer_id === (int) $payer->id
+            || (int) $application->customer_id === (int) $payer->id, 403);
+
+        $quote = $this->quote($insuredValue);
+        if ($quote['premium'] <= 0) {
+            throw ValidationException::withMessages([
+                'insured_value' => __('borrower.collateral_secure.insurance_value_required'),
+            ]);
+        }
+
+        $partner = $this->suggestInsurer($application);
+
+        return DB::transaction(function () use ($application, $asset, $quote, $partner, $payer) {
+            $customer = $asset->customer ?? $application->customer;
+            $details = collect([
+                $asset->label,
+                $asset->registration_number,
+                $asset->detail('make'),
+                $asset->detail('year') ? 'Year '.$asset->detail('year') : null,
+                $asset->detail('chassis_number') ? 'Chassis '.$asset->detail('chassis_number') : null,
+            ])->filter()->implode(' · ');
+
+            $instructions = implode("\n", array_filter([
+                'Issue comprehensive cover for this collateral asset.',
+                'Insured value: '.format_money($quote['insured_value']),
+                'Premium collected: '.format_money($quote['premium']).' (rate '.$quote['rate_percent'].'%'
+                    .($quote['markup_percent'] > 0 ? ' + markup '.$quote['markup_percent'].'%' : '').').',
+                'On completion enter policy number and expiry — the asset profile updates automatically.',
+            ]));
+
+            $task = null;
+            if ($partner) {
+                $task = VendorTask::create([
+                    'vendor_id' => $partner->id,
+                    'loan_id' => $application->loan_id,
+                    'loan_application_id' => $application->id,
+                    'task_type' => self::TASK_TYPE,
+                    'status' => 'assigned',
+                    'due_at' => now()->addDays(max(1, app(UnderwritingSettingsService::class)->insuranceRenewalDecisionDays())),
+                    'customer_name' => $customer?->legalDisplayName() ?? trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
+                    'customer_phone' => $customer?->phone,
+                    'vehicle_details' => $details ?: $asset->label,
+                    'location' => trim(collect([
+                        $customer?->street,
+                        $customer?->district,
+                        $customer?->region,
+                    ])->filter()->implode(', ')) ?: null,
+                    'instructions' => $instructions,
+                    'notes' => json_encode([
+                        'customer_asset_id' => $asset->id,
+                        'insured_value' => $quote['insured_value'],
+                        'premium' => $quote['premium'],
+                        'rate_percent' => $quote['rate_percent'],
+                        'markup_percent' => $quote['markup_percent'],
+                        'payer_customer_id' => $payer->id,
+                        'insurance_type' => 'comprehensive',
+                    ]),
+                    'fee_amount' => (int) round((float) ($partner->partner_cost ?? 0)),
+                ]);
+            }
+
+            return [
+                'task' => $task,
+                'quote' => $quote,
+                'partner' => $partner,
+            ];
+        });
+    }
+
+    /**
+     * Partner (or ops) confirms cover — writes expiry onto the specific CustomerAsset.
+     */
+    public function completeCover(
+        VendorTask $task,
+        string $expiresAt,
+        ?string $policyNumber = null,
+        string $insuranceType = 'comprehensive',
+    ): CustomerAsset {
+        abort_unless($task->task_type === self::TASK_TYPE, 422);
+
+        $meta = [];
+        if (is_string($task->notes)) {
+            $decoded = json_decode($task->notes, true);
+            $meta = is_array($decoded) ? $decoded : [];
+        }
+
+        $assetId = (int) ($meta['customer_asset_id'] ?? 0);
+        $asset = CustomerAsset::query()->findOrFail($assetId);
+
+        $details = $asset->details();
+        $details['insurance_type'] = in_array($insuranceType, ['comprehensive', 'third_party'], true)
+            ? $insuranceType
+            : 'comprehensive';
+        $details['insurance_expires_at'] = \Carbon\Carbon::parse($expiresAt)->toDateString();
+        if (filled($policyNumber)) {
+            $details['insurance_policy_number'] = $policyNumber;
+        }
+
+        $assetMeta = $asset->metadata ?? [];
+        $assetMeta['details'] = $details;
+        $asset->update(['metadata' => $assetMeta]);
+
+        $task->update([
+            'status' => 'completed',
+            'completed_at' => now(),
+            'notes' => json_encode(array_merge($meta, [
+                'insurance_expires_at' => $details['insurance_expires_at'],
+                'insurance_policy_number' => $details['insurance_policy_number'] ?? null,
+                'insurance_type' => $details['insurance_type'],
+                'completed_at' => now()->toIso8601String(),
+            ])),
+        ]);
+
+        if ($task->loan_application_id) {
+            $application = LoanApplication::query()->find($task->loan_application_id);
+            if ($application) {
+                app(CollateralSecureService::class)->recheckAfterInsuranceUpdate($application, $asset->fresh());
+            }
+        }
+
+        return $asset->fresh();
+    }
+}
