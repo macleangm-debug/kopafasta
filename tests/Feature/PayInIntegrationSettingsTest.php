@@ -18,7 +18,6 @@ class PayInIntegrationSettingsTest extends TestCase
 
         $this->actingAs($admin, 'admin')
             ->put(route('admin.settings.payin.save'), [
-                'enabled' => '1',
                 'environment' => 'sandbox',
                 'api_key' => 'pk_test_abc',
                 'api_secret' => 'sk_test_xyz',
@@ -55,7 +54,6 @@ class PayInIntegrationSettingsTest extends TestCase
 
         $response = $this->actingAs($admin, 'admin')
             ->put(route('admin.settings.payin.save'), [
-                'enabled' => '1',
                 'environment' => 'sandbox',
                 'api_key' => 'pk_keep_me',
                 'api_secret' => 'sk_keep_me',
@@ -67,12 +65,79 @@ class PayInIntegrationSettingsTest extends TestCase
                 'intent' => 'save_and_test',
             ]);
 
-        $response->assertRedirect(route('admin.settings.payin'));
+        $response->assertRedirect(route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration']));
         $this->assertSame('pk_keep_me', Setting::get('payin.api_key'));
         $this->assertSame('sk_keep_me', Setting::get('payin.api_secret'));
         $this->assertTrue((bool) Setting::get('payin.enabled'));
         $this->assertSame('error', session('feedback.tone'));
         $this->assertStringContainsString('saved', strtolower((string) session('feedback.message')));
+    }
+
+    public function test_disabling_mobile_money_rail_disables_payin(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.settings.payin.save'), [
+                'environment' => 'sandbox',
+                'api_key' => 'pk_bank_only',
+                'api_secret' => 'sk_bank_only',
+                'webhook_secret' => '',
+                'default_callback_url' => '',
+                'gateway_mode' => 'live',
+                'mobile_money_threshold' => '3000000',
+                'channels' => ['bank'],
+                'intent' => 'save',
+            ])
+            ->assertRedirect();
+
+        $this->assertFalse((bool) Setting::get('payin.enabled'));
+        $this->assertSame(['bank'], Setting::get('integrations.partner_channels')['payin'] ?? null);
+    }
+
+    public function test_partner_workspace_shows_configuration_and_usage_tabs(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.settings.integrations.partner', ['partner' => 'payin']))
+            ->assertOk()
+            ->assertSee('Configuration')
+            ->assertSee('Usage &amp; billing', false)
+            ->assertSee('Supported rails')
+            ->assertDontSee('Enable PayIn for mobile money');
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'usage']))
+            ->assertOk()
+            ->assertSee('Charge model')
+            ->assertSee('Monthly usage');
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.settings.integrations.partner', ['partner' => 'selcom']))
+            ->assertOk()
+            ->assertSee('Supported rails')
+            ->assertSee('Mobile money')
+            ->assertSee('Bank transfer');
+    }
+
+    public function test_admin_can_save_payment_billing_model(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.settings.integrations.billing', 'payin'), [
+                'collection_fee_type' => 'percent',
+                'collection_fee_value' => '1.5',
+                'disbursement_fee_type' => 'fixed',
+                'disbursement_fee_value' => '500',
+            ])
+            ->assertRedirect(route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'usage']));
+
+        $billing = Setting::get('integrations.billing.payin');
+        $this->assertSame('percent', $billing['collection_fee_type'] ?? null);
+        $this->assertEquals(1.5, (float) ($billing['collection_fee_value'] ?? 0));
+        $this->assertSame('fixed', $billing['disbursement_fee_type'] ?? null);
     }
 
     public function test_admin_can_add_custom_payment_partner(): void
@@ -105,10 +170,12 @@ class PayInIntegrationSettingsTest extends TestCase
             ->get(route('admin.settings.integrations'))
             ->assertOk()
             ->assertSee('PayIn')
+            ->assertSee('Selcom')
             ->assertSee('Unitxt SMS')
-            ->assertSee('Check all health');
+            ->assertSee('Add partner')
+            ->assertSee('Check all health')
+            ->assertSee('Open');
     }
-
     public function test_admin_can_set_primary_payment_partner(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);

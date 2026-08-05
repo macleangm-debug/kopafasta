@@ -114,7 +114,9 @@ class IntegrationHealthService
                 'key' => $partner['key'],
                 'label' => (string) $partner['label'],
                 'message' => (string) ($status['message'] ?: 'Integration unhealthy'),
-                'url' => route($route),
+                'url' => $route === 'admin.settings.integrations.partner'
+                    ? route($route, $partner['key'])
+                    : route($route),
             ];
         }
 
@@ -156,7 +158,7 @@ class IntegrationHealthService
         $tips = [];
 
         if (str_contains($lower, 'disabled') || str_contains($lower, 'missing') || str_contains($lower, 'incomplete')) {
-            $tips[] = 'Open Configure, enable the partner, paste API credentials, then use Save & test connection.';
+            $tips[] = 'Open Configuration, select Mobile money under Supported rails, paste API credentials, then Save & test connection.';
         }
         if (str_contains($lower, 'ip') || str_contains($lower, 'forbidden') || str_contains($lower, '401') || str_contains($lower, '403')) {
             $tips[] = 'In the partner dashboard, whitelist this server’s public IP and wait for approval.';
@@ -166,10 +168,10 @@ class IntegrationHealthService
         }
 
         $tips[] = match ($partnerKey) {
-            'payin' => 'Review Settings → Integrations → PayIn payments, then PayIn Dashboard → Webhook & API Keys.',
-            'unitxt', 'email_smtp' => 'Review Settings → Integrations → SMS / Email.',
-            'crb' => 'Review Settings → Integrations → CRB integration.',
-            default => 'Open the partner’s Configure page and re-check credentials.',
+            'payin' => 'Review Settings → Integrations → PayIn → Configuration, then PayIn Dashboard → Webhook & API Keys.',
+            'unitxt', 'email_smtp' => 'Review Settings → Integrations → partner workspace → SMS / Email gateways.',
+            'crb' => 'Review Settings → Integrations → CRB → Configuration (or CRB settings).',
+            default => 'Open the partner workspace Configuration tab and re-check credentials.',
         };
 
         return array_values(array_unique($tips));

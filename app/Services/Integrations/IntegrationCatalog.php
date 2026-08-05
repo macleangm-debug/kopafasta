@@ -202,6 +202,9 @@ class IntegrationCatalog
         return $key;
     }
 
+    /** Partners with an automated health probe (excludes stubs like Selcom until wired). */
+    private const HEALTH_PROBE_KEYS = ['payin', 'unitxt', 'email_smtp', 'crb'];
+
     /** @return list<array<string, mixed>> */
     public function availableForHealthCheck(): array
     {
@@ -210,8 +213,7 @@ class IntegrationCatalog
             if (($partner['status'] ?? '') !== 'available') {
                 continue;
             }
-            // Custom partners without a probe skip automated health.
-            if (empty($partner['builtin']) && empty($partner['settings_route'])) {
+            if (! in_array($key, self::HEALTH_PROBE_KEYS, true)) {
                 continue;
             }
             $list[] = array_merge($partner, ['key' => $key]);

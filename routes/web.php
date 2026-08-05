@@ -883,10 +883,13 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('settings/auth-portal',      [SettingsController::class, 'authPortal'])   ->name('settings.auth-portal');
         Route::put('settings/auth-portal',      [SettingsController::class, 'saveAuthPortal'])->name('settings.auth-portal.save');
         Route::get('settings/integrations', [SettingsController::class, 'integrations'])->name('settings.integrations');
+        Route::get('settings/integrations/partners/create', [SettingsController::class, 'createIntegrationPartner'])->name('settings.integrations.partners.create');
+        Route::post('settings/integrations/partners', [SettingsController::class, 'storeIntegrationPartner'])->name('settings.integrations.partners.store');
         Route::put('settings/integrations/primary', [SettingsController::class, 'saveIntegrationsPrimary'])->name('settings.integrations.primary');
         Route::put('settings/integrations/channels', [SettingsController::class, 'saveIntegrationChannels'])->name('settings.integrations.channels');
-        Route::post('settings/integrations/partners', [SettingsController::class, 'storeIntegrationPartner'])->name('settings.integrations.partners.store');
         Route::post('settings/integrations/health', [SettingsController::class, 'checkIntegrationHealth'])->name('settings.integrations.health');
+        Route::put('settings/integrations/{partner}/billing', [SettingsController::class, 'saveIntegrationBilling'])->name('settings.integrations.billing');
+        Route::get('settings/integrations/{partner}', [SettingsController::class, 'showIntegrationPartner'])->name('settings.integrations.partner');
         Route::get('settings/gateways',         [SettingsController::class, 'gateways'])      ->name('settings.gateways');
         Route::put('settings/gateways',         [SettingsController::class, 'saveGateways'])  ->name('settings.gateways.save');
         Route::get('settings/gateways/health',  [SettingsController::class, 'smsHealth'])     ->name('settings.gateways.health');

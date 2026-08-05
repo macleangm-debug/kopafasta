@@ -189,7 +189,99 @@ class SettingsController extends Controller
     {
         return view('admin.settings.integrations', [
             'groups' => $catalog->grouped(),
+            'categories' => $catalog->categories(),
+            'channelOptions' => $catalog->channelOptions(),
         ]);
+    }
+
+    public function createIntegrationPartner(\App\Services\Integrations\IntegrationCatalog $catalog)
+    {
+        return view('admin.settings.integrations-partner-create', [
+            'categories' => $catalog->categories(),
+            'channelOptions' => $catalog->channelOptions(),
+        ]);
+    }
+
+    public function showIntegrationPartner(
+        string $partner,
+        Request $request,
+        \App\Services\Integrations\IntegrationCatalog $catalog,
+        \App\Services\Integrations\IntegrationUsageService $usage,
+        \App\Services\Integrations\IntegrationHealthService $health,
+    ) {
+        $meta = $catalog->partner($partner);
+        abort_unless($meta, 404);
+
+        $tab = $request->query('tab', 'configuration');
+        if (! in_array($tab, ['configuration', 'usage'], true)) {
+            $tab = 'configuration';
+        }
+
+        $category = $meta['category'] ?? null;
+        $meta['is_primary'] = $category
+            ? $catalog->primaryKey($category) === $partner
+            : false;
+
+        $payinView = null;
+        if ($partner === 'payin') {
+            $payinView = $this->payinViewData();
+        }
+
+        return view('admin.settings.integrations-partner', [
+            'partnerKey' => $partner,
+            'partner' => $meta,
+            'tab' => $tab,
+            'health' => $health->lastStatus($partner),
+            'usage' => $usage->usage($partner, $meta['category'] ?? null),
+            'billing' => $usage->billing($partner),
+            'channelOptions' => $catalog->channelOptions(),
+            'payin' => $payinView,
+        ]);
+    }
+
+    public function saveIntegrationBilling(
+        string $partner,
+        Request $request,
+        \App\Services\Integrations\IntegrationCatalog $catalog,
+        \App\Services\Integrations\IntegrationUsageService $usage,
+    ) {
+        abort_unless($catalog->partner($partner), 404);
+
+        $category = $catalog->partner($partner)['category'] ?? 'payment';
+
+        $data = match ($category) {
+            'payment' => $request->validate([
+                'collection_fee_type' => ['required', 'in:percent,fixed'],
+                'collection_fee_value' => ['required', 'numeric', 'min:0', 'max:1000000'],
+                'disbursement_fee_type' => ['required', 'in:percent,fixed'],
+                'disbursement_fee_value' => ['required', 'numeric', 'min:0', 'max:1000000'],
+            ]),
+            'messaging' => $request->validate([
+                'sms_fee' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+                'email_fee' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            ]),
+            'compliance' => $request->validate([
+                'included_units' => ['nullable', 'integer', 'min:0', 'max:1000000'],
+                'package_price' => ['nullable', 'numeric', 'min:0', 'max:100000000'],
+                'overage_fee' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
+            ]),
+            default => [],
+        };
+
+        if ($category === 'payment') {
+            $data['collection_fee_value'] = \App\Support\MoneyFormat::toNumber($request->input('collection_fee_value'));
+            $data['disbursement_fee_value'] = \App\Support\MoneyFormat::toNumber($request->input('disbursement_fee_value'));
+        }
+
+        $usage->saveBilling($partner, $data);
+
+        return redirect()
+            ->route('admin.settings.integrations.partner', ['partner' => $partner, 'tab' => 'usage'])
+            ->with('feedback', [
+                'tone' => 'success',
+                'title' => 'Billing saved',
+                'message' => 'Partner charge model updated for usage estimates.',
+            ]);
     }
 
     public function saveIntegrationsPrimary(Request $request, \App\Services\Integrations\IntegrationCatalog $catalog)
@@ -236,6 +328,12 @@ class SettingsController extends Controller
             'channels.*' => ['in:mobile_money,bank'],
         ]);
 
+        if (($data['category'] ?? '') === 'payment' && empty($data['channels'])) {
+            return back()->withInput()->withErrors([
+                'channels' => 'Select at least one rail (mobile money and/or bank transfer).',
+            ]);
+        }
+
         try {
             $key = $catalog->addCustomPartner($data);
         } catch (\InvalidArgumentException $e) {
@@ -246,11 +344,13 @@ class SettingsController extends Controller
             ]);
         }
 
-        return back()->with('feedback', [
-            'tone' => 'success',
-            'title' => 'Partner added',
-            'message' => "Added {$data['label']} ({$key}). Set it as primary when ready.",
-        ]);
+        return redirect()
+            ->route('admin.settings.integrations.partner', ['partner' => $key, 'tab' => 'configuration'])
+            ->with('feedback', [
+                'tone' => 'success',
+                'title' => 'Partner added',
+                'message' => "Added {$data['label']}. Configure credentials and billing next.",
+            ]);
     }
 
     public function checkIntegrationHealth(
@@ -289,13 +389,19 @@ class SettingsController extends Controller
     // ---------------- PayIn payments ----------------
     public function payin(\App\Services\PayInService $payIn)
     {
+        return view('admin.settings.payin', $this->payinViewData());
+    }
+
+    /** @return array<string, mixed> */
+    protected function payinViewData(): array
+    {
         $values = Setting::group('payin');
         $catalog = app(\App\Services\Integrations\IntegrationCatalog::class);
         $partner = $catalog->partner('payin');
-        $channels = $partner['channels'] ?? ['mobile_money', 'bank'];
-        $configured = ! empty($values['enabled']) && filled($values['api_key'] ?? null) && filled($values['api_secret'] ?? null);
+        $channels = $partner['channels'] ?? ['mobile_money'];
+        $configured = filled($values['api_key'] ?? null) && filled($values['api_secret'] ?? null);
 
-        return view('admin.settings.payin', [
+        return [
             'values' => array_merge([
                 'enabled' => false,
                 'environment' => 'sandbox',
@@ -311,7 +417,7 @@ class SettingsController extends Controller
             'channelOptions' => $catalog->channelOptions(),
             'isConfigured' => $configured,
             'health' => app(\App\Services\Integrations\IntegrationHealthService::class)->lastStatus('payin'),
-        ]);
+        ];
     }
 
     public function savePayin(Request $request)
@@ -321,7 +427,6 @@ class SettingsController extends Controller
         ]);
 
         $data = $request->validate([
-            'enabled' => ['nullable', 'boolean'],
             'environment' => ['required', 'in:sandbox,production'],
             'api_key' => ['nullable', 'string', 'max:255'],
             'api_secret' => ['nullable', 'string', 'max:255'],
@@ -337,11 +442,13 @@ class SettingsController extends Controller
         $intent = $data['intent'] ?? 'save';
         unset($data['intent']);
 
-        $data['enabled'] = (bool) ($data['enabled'] ?? false);
         $gatewayMode = $data['gateway_mode'];
         $threshold = (int) $data['mobile_money_threshold'];
         $channels = array_values($data['channels']);
         unset($data['gateway_mode'], $data['mobile_money_threshold'], $data['channels']);
+
+        // Supported rails replace the old "enable" toggle: mobile money rail = PayIn collections on.
+        $data['enabled'] = in_array('mobile_money', $channels, true);
 
         Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["payin.$k" => $v])->all());
         Setting::set('payments.gateway_mode', $gatewayMode);
@@ -368,7 +475,7 @@ class SettingsController extends Controller
             }
 
             return redirect()
-                ->route('admin.settings.payin')
+                ->route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration'])
                 ->with('feedback', [
                     'tone' => $ok ? ($gatewayMode === 'live' ? 'success' : 'warning') : 'error',
                     'title' => $ok ? 'PayIn connected' : 'PayIn connection failed',
@@ -385,11 +492,11 @@ class SettingsController extends Controller
         }
 
         return redirect()
-            ->route('admin.settings.payin')
+            ->route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration'])
             ->with('feedback', [
                 'tone' => $gatewayMode === 'live' ? 'success' : 'warning',
                 'title' => 'Settings saved',
-                'message' => 'PayIn settings saved.',
+                'message' => 'PayIn settings saved. Fields are locked — click Edit to change.',
                 'lines' => $lines,
             ]);
     }
@@ -400,7 +507,7 @@ class SettingsController extends Controller
         $ok = (bool) ($result['ok'] ?? false);
 
         return redirect()
-            ->route('admin.settings.payin')
+            ->route('admin.settings.integrations.partner', ['partner' => 'payin', 'tab' => 'configuration'])
             ->with('feedback', [
                 'tone' => $ok ? 'success' : 'error',
                 'title' => $ok ? 'PayIn connected' : 'PayIn connection failed',
