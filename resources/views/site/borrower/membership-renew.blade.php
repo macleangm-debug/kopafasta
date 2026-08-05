@@ -70,11 +70,29 @@
 
         <div class="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-5 sm:p-6 space-y-5">
             @if ($promoAllows)
+                @if ($promoAttempted)
+                    <div
+                        x-data
+                        x-init="
+                            window.dispatchEvent(new CustomEvent('open-feedback-default', {
+                                detail: {
+                                    tone: @js($promoValid ? 'success' : 'error'),
+                                    title: @js($promoValid ? __('borrower.membership.promo_ok_title') : __('borrower.membership.promo_bad_title')),
+                                    message: @js($promoValid
+                                        ? __('borrower.membership.promo_applied', ['code' => strtoupper((string) $promoCode)])
+                                        : __('borrower.membership.promo_invalid')),
+                                }
+                            }));
+                        "
+                        class="hidden"
+                        aria-hidden="true"
+                    ></div>
+                @endif
                 <form method="GET" action="{{ route('site.membership.renew') }}" class="space-y-3"
                       x-data="{ applying: false }" @submit="applying = true">
                     <label class="block text-sm font-semibold text-gray-900">{{ __('borrower.membership.promo_inline_label') }}</label>
                     <div class="flex gap-2">
-                        <input type="text" name="promo_code" value="{{ $promoCode }}" maxlength="40"
+                        <input type="text" name="promo_code" value="{{ $promoValid ? $promoCode : '' }}" maxlength="40"
                                class="flex-1 rounded-xl border-gray-200 text-sm font-mono uppercase"
                                placeholder="{{ __('borrower.membership.promo_code_placeholder') }}"
                                autocomplete="off">
@@ -84,13 +102,6 @@
                             <span x-cloak x-show="applying">{{ __('borrower.membership.applying_promo') }}</span>
                         </button>
                     </div>
-                    @if ($promoAttempted)
-                        <p @class(['text-xs font-medium', $promoValid ? 'text-emerald-700' : 'text-rose-700'])>
-                            {{ $promoValid
-                                ? __('borrower.membership.promo_applied', ['code' => strtoupper((string) $promoCode)])
-                                : __('borrower.membership.promo_invalid') }}
-                        </p>
-                    @endif
                 </form>
                 <div class="border-t border-gray-100"></div>
             @endif
@@ -98,7 +109,7 @@
             <form method="POST" action="{{ route('site.membership.renew.post') }}" class="space-y-5"
                   x-data="{ paying: false }" @submit="paying = true">
                 @csrf
-                @if ($promoAllows && filled($promoCode))
+                @if ($promoAllows && $promoValid && filled($promoCode))
                     <input type="hidden" name="promo_code" value="{{ $promoCode }}">
                 @endif
 

@@ -13,7 +13,7 @@
     $optionsList = is_array($options) ? $options : [];
 @endphp
 
-<div x-data="{
+<div class="w-full min-w-0" x-data="{
     pickerOpen: false,
     selected: @js($selected),
     options: @js($optionsList),
@@ -28,7 +28,7 @@
     }
 }">
     @if ($label)
-        <label class="block text-xs font-medium text-gray-600 mb-1">
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">
             {{ $label }}
             @if ($required)<span class="text-red-500">*</span>@endif
         </label>

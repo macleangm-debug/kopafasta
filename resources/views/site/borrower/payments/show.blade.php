@@ -1,14 +1,14 @@
-<x-site.borrower-layout :title="brand_title($payment->reference)" active="payments" content-width="wide">
+<x-site.borrower-layout :title="brand_title($payment->reference)" active="payments">
 
-    <div class="mb-5">
+    <div class="mb-5 max-w-xl mx-auto">
         <a href="{{ route('site.borrower.payments') }}" class="text-sm font-semibold text-brand hover:underline">{{ __('borrower.payments_page.back_history') }}</a>
     </div>
 
     @if (session('status'))
-        <div class="mb-5 rounded-2xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
+        <div class="mb-5 max-w-xl mx-auto rounded-2xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
     @endif
     @if (session('error'))
-        <div class="mb-5 rounded-2xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ session('error') }}</div>
+        <div class="mb-5 max-w-xl mx-auto rounded-2xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ session('error') }}</div>
     @endif
 
     @php
@@ -20,18 +20,17 @@
         };
     @endphp
 
+    <div class="max-w-xl mx-auto space-y-5">
     @if ($payment->status === 'processing' && $payment->provider === 'payin')
-        <div class="mb-6">
-            <x-site.payment-waiting :payment="$payment" />
-        </div>
+        <x-site.payment-waiting :payment="$payment" />
     @else
-    <section class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand via-brand to-brand/90 text-white shadow-lg shadow-brand/20 mb-6">
+    <section class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand via-brand to-brand/90 text-white shadow-lg shadow-brand/20">
         <div class="absolute inset-0 opacity-[0.14]" style="background-image: radial-gradient(circle at 18% 20%, #fff 0, transparent 42%), radial-gradient(circle at 88% 0%, #fbbf24 0, transparent 38%);"></div>
-        <div class="relative px-5 sm:px-8 py-7 sm:py-8">
+        <div class="relative px-5 sm:px-7 py-7">
             <p class="text-[10px] uppercase tracking-[0.22em] font-semibold text-white/70">{{ __('borrower.payments_page.show.payment_reference') }}</p>
-            <p class="mt-2 font-mono text-lg sm:text-xl font-bold tracking-tight">{{ $payment->reference }}</p>
+            <p class="mt-2 font-mono text-lg font-bold tracking-tight">{{ $payment->reference }}</p>
             <p class="mt-4 text-[10px] uppercase tracking-widest text-white/60">{{ __('borrower.payments_page.show.amount') }}</p>
-            <p class="mt-1 text-3xl sm:text-4xl font-extrabold tabular-nums tracking-tight text-amber-300">
+            <p class="mt-1 text-3xl font-extrabold tabular-nums tracking-tight text-amber-300">
                 {{ format_money((float) $payment->amount) }}
             </p>
             <div class="mt-4 flex flex-wrap items-center gap-2">
@@ -42,7 +41,6 @@
     </section>
     @endif
 
-    <div class="max-w-2xl space-y-5">
         <dl class="grid sm:grid-cols-2 gap-5">
             <div>
                 <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.payments_page.show.type') }}</dt>

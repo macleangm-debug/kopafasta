@@ -66,7 +66,7 @@
             return y + '-' + m + '-' + d;
         },
         display(str) {
-            if (! str) return 'Select date';
+            if (! str) return @js(__('borrower.register.dob_select'));
             const date = this.parse(str);
             return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
         },

@@ -6,7 +6,7 @@
     $initialStep = $isInviteRegistration && ! empty($prefill['local_phone']) ? 2 : (int) old('step', 1);
 @endphp
 {{-- Professional 3-step borrower registration wizard --}}
-<x-site.layout :title="$isGuarantorRegistration ? brand_title(__('borrower.guarantor_invite.create_account')) : ($isGroupInviteRegistration ? brand_title(__('borrower.apply.group.register_title')) : 'Register as borrower — Kopafasta')">
+<x-site.layout :title="$isGuarantorRegistration ? brand_title(__('borrower.guarantor_invite.create_account')) : ($isGroupInviteRegistration ? brand_title(__('borrower.apply.group.register_title')) : brand_title(__('borrower.register.title')))">
     <section class="min-h-[calc(100dvh-4rem)] md:min-h-[calc(100dvh-6.5rem)] grid lg:grid-cols-2 premium-gradient">
         <aside class="hidden lg:flex relative overflow-hidden bg-brand text-white p-12 flex-col justify-between">
             <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_bottom_left,_#f5c842,_transparent_50%)]"></div>
@@ -22,13 +22,17 @@
                     <h2 class="mt-2 text-4xl font-bold tracking-tight leading-tight">{{ __('borrower.apply.group.register_welcome') }}</h2>
                     <p class="mt-4 text-white/70 max-w-md">{{ __('borrower.apply.group.register_welcome_hint', ['leader' => $prefill['borrower_name'] ?? brand_name()]) }}</p>
                 @else
-                    <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">Borrower onboarding</p>
-                    <h2 class="mt-2 text-4xl font-bold tracking-tight leading-tight">Create your account in three quick steps.</h2>
-                    <p class="mt-4 text-white/70 max-w-md">Choose your country, confirm your phone number, then add your details and password.</p>
+                    <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.register.aside_eyebrow') }}</p>
+                    <h2 class="mt-2 text-4xl font-bold tracking-tight leading-tight">{{ __('borrower.register.aside_title') }}</h2>
+                    <p class="mt-4 text-white/70 max-w-md">{{ __('borrower.register.aside_body') }}</p>
                 @endif
 
                 <ol class="mt-10 space-y-4">
-                    @foreach ([['Country & phone', 'Where you live and how we reach you'], ['Your details', 'Name, gender and date of birth'], ['Secure access', 'Choose a strong password']] as $i => [$label, $hint])
+                    @foreach ([
+                        [__('borrower.register.step_country'), __('borrower.register.step_country_hint')],
+                        [__('borrower.register.step_details'), __('borrower.register.step_details_hint')],
+                        [__('borrower.register.step_password'), __('borrower.register.step_password_hint')],
+                    ] as $i => [$label, $hint])
                         <li class="flex items-start gap-3">
                             <span class="size-8 grid place-items-center rounded-full text-xs font-bold flex-shrink-0 bg-white/10 text-white/70">{{ $i + 1 }}</span>
                             <div>
@@ -41,7 +45,7 @@
             </div>
 
             <p class="relative text-xs text-white/50">
-                Already registered? <a href="{{ route('site.login') }}" class="text-brand-gold hover:underline">Log in</a>
+                {{ __('borrower.register.already') }} <a href="{{ route('site.login') }}" class="text-brand-gold hover:underline">{{ __('borrower.register.login') }}</a>
                 @if ($isGuarantorRegistration)
                     · <a href="{{ route('site.login', ['clear_guarantor' => 1]) }}" class="text-brand-gold hover:underline">{{ __('borrower.guarantor_invite.login_different_account') }}</a>
                 @elseif ($isGroupInviteRegistration)
@@ -72,8 +76,8 @@
 
                 <div class="lg:hidden mb-6">
                     <div class="flex items-center justify-between text-xs font-medium text-gray-500">
-                        <span>Step <span x-text="step"></span> of 3</span>
-                        <span x-text="['Country & phone', 'Your details', 'Password'][step-1]"></span>
+                        <span><span x-text="@js(__('borrower.register.step_label')) + ' ' + step + '/3'"></span></span>
+                        <span x-text="[@js(__('borrower.register.step_country')), @js(__('borrower.register.step_details')), @js(__('borrower.register.step_password'))][step-1]"></span>
                     </div>
                     <div class="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
                         <div class="h-full bg-brand transition-all duration-300" :style="`width: ${(step/3)*100}%`"></div>
@@ -91,7 +95,7 @@
                     @endif
                     @if ($errors->any())
                         <div class="mb-6 p-3.5 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
-                            <p class="font-medium mb-1">Please fix the following:</p>
+                            <p class="font-medium mb-1">{{ __('borrower.register.form_errors') }}</p>
                             <ul class="list-disc ml-5 space-y-0.5">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
                         </div>
                     @endif
@@ -107,12 +111,12 @@
 
                         {{-- Step 1: Country & phone --}}
                         <div x-show="step === 1" x-transition>
-                            <h2 class="text-2xl font-bold text-gray-900">Country & phone</h2>
-                            <p class="mt-1 text-sm text-gray-600">Select where you live, then enter your mobile number.</p>
+                            <h2 class="text-2xl font-bold text-gray-900">{{ __('borrower.register.country_phone_title') }}</h2>
+                            <p class="mt-1 text-sm text-gray-600">{{ __('borrower.register.country_phone_body') }}</p>
 
                             <div class="mt-6 space-y-5" x-data="{ countryOpen: false }">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Country</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.country') }}</label>
                                     <button type="button" @click="countryOpen = true"
                                             class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition lg:hidden">
                                         <span class="text-xl leading-none" x-text="activeCountry.emoji || '🌍'"></span>
@@ -163,7 +167,7 @@
                                 </div>
 
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Mobile number</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.mobile') }}</label>
                                     <div class="flex gap-2">
                                         <span class="inline-flex items-center px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-semibold text-brand tabular-nums shrink-0" x-text="activeCountry.prefix"></span>
                                         <input type="tel" inputmode="numeric" name="local_phone" x-model="form.local_phone"
@@ -175,18 +179,18 @@
                                                placeholder="712 345 678"
                                                class="flex-1 px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-base outline-none transition">
                                     </div>
-                                    <p class="mt-1.5 text-xs text-gray-500">Enter your number without the leading zero.</p>
+                                    <p class="mt-1.5 text-xs text-gray-500">{{ __('borrower.register.mobile_hint') }}</p>
                                 </div>
 
                                 <div class="rounded-xl border p-4"
                                      :class="activeCountry.active ? 'border-emerald-200 bg-emerald-50/80' : 'border-rose-200 bg-rose-50/80'">
                                     <div class="flex items-center justify-between gap-3">
-                                        <p class="text-sm font-semibold text-gray-900" x-text="activeCountry.active ? 'Ready to register' : 'Not available in this country yet'"></p>
+                                        <p class="text-sm font-semibold text-gray-900" x-text="activeCountry.active ? @js(__('borrower.register.ready_title')) : @js(__('borrower.register.unavailable_title'))"></p>
                                         <span class="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase"
                                               :class="activeCountry.active ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'"
-                                              x-text="activeCountry.active ? 'Live' : 'Waitlist'"></span>
+                                              x-text="activeCountry.active ? @js(__('borrower.register.live')) : @js(__('borrower.register.waitlist'))"></span>
                                     </div>
-                                    <p class="mt-2 text-sm text-gray-600" x-text="activeCountry.active ? 'Continue to enter your personal details.' : 'Join the waitlist and we will notify you when we launch.'"></p>
+                                    <p class="mt-2 text-sm text-gray-600" x-text="activeCountry.active ? @js(__('borrower.register.ready_body')) : @js(__('borrower.register.unavailable_body'))"></p>
 
                                     <template x-if="!activeCountry.active">
                                         <form method="POST" action="{{ route('site.waitlist.store') }}" class="mt-4 space-y-3">
@@ -202,7 +206,7 @@
                                             </div>
                                             <input type="hidden" name="phone" :value="waitlist_local_phone ? activeCountry.prefix.replace(/\D/g, '') + waitlist_local_phone.replace(/\D/g, '').replace(/^0+/, '') : ''">
                                             <button type="submit" class="w-full rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-4 py-3 transition">
-                                                Notify me when available
+                                                {{ __('borrower.register.notify_me') }}
                                             </button>
                                         </form>
                                     </template>
@@ -221,64 +225,64 @@
 
                         {{-- Step 2: Personal --}}
                         <div x-show="step === 2" x-cloak x-transition>
-                            <h2 class="text-2xl font-bold text-gray-900" x-text="isGuarantor ? @js(__('borrower.guarantor_invite.register_step_details')) : 'Tell us who you are'"></h2>
-                            <p class="mt-1 text-sm text-gray-600" x-text="isGuarantor ? @js(__('borrower.guarantor_invite.register_step_details_hint')) : 'We\'ll use these details to build your borrower profile.'"></p>
+                            <h2 class="text-2xl font-bold text-gray-900" x-text="isGuarantor ? @js(__('borrower.guarantor_invite.register_step_details')) : @js(__('borrower.register.details_title'))"></h2>
+                            <p class="mt-1 text-sm text-gray-600" x-text="isGuarantor ? @js(__('borrower.guarantor_invite.register_step_details_hint')) : @js(__('borrower.register.details_body'))"></p>
 
                             <div class="mt-6 space-y-5">
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">First name <span class="text-red-500">*</span></label>
+                                    <div class="min-w-0">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.first_name') }} <span class="text-red-500">*</span></label>
                                         <input name="first_name" x-model="form.first_name" required autocomplete="given-name"
                                                class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
                                     </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Last name <span class="text-red-500">*</span></label>
+                                    <div class="min-w-0">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.last_name') }} <span class="text-red-500">*</span></label>
                                         <input name="last_name" x-model="form.last_name" required autocomplete="family-name"
                                                class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
                                     </div>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Middle name <span class="text-gray-400 font-normal">(optional)</span></label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.middle_name') }} <span class="text-gray-400 font-normal">{{ __('borrower.register.optional') }}</span></label>
                                     <input name="middle_name" x-model="form.middle_name" autocomplete="additional-name"
                                            class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
                                 </div>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                                    <div class="min-w-0">
                                         <x-site.profile-select
                                             name="gender"
-                                            label="Gender"
-                                            :options="['male' => 'Male', 'female' => 'Female']"
+                                            :label="__('borrower.register.gender')"
+                                            :options="['male' => __('borrower.register.male'), 'female' => __('borrower.register.female')]"
                                             :value="old('gender')"
                                             :required="true"
-                                            placeholder="Select gender"
+                                            :placeholder="__('borrower.register.gender_placeholder')"
                                             select-class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition"
                                         />
                                     </div>
-                                    <div>
+                                    <div class="min-w-0">
                                         <x-site.date-input
                                             name="date_of_birth"
-                                            label="Date of birth"
+                                            :label="__('borrower.register.dob')"
                                             :value="old('date_of_birth')"
                                             :required="true"
                                             :max="now()->subYears(18)->format('Y-m-d')"
                                         />
-                                        <div class="mt-2 inline-flex items-start gap-2 rounded-xl bg-brand-muted/50 ring-1 ring-brand/10 px-3 py-2 text-xs text-brand">
-                                            <svg class="w-3.5 h-3.5 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
-                                            <span>Borrowers must be <strong>18 or older</strong>. Pick a date on or before {{ now()->subYears(18)->format('d M Y') }}.</span>
-                                        </div>
                                     </div>
+                                </div>
+                                <div class="flex items-start gap-2 rounded-xl bg-brand-muted/50 ring-1 ring-brand/10 px-3.5 py-2.5 text-xs text-brand">
+                                    <svg class="w-3.5 h-3.5 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                                    <span>{{ __('borrower.register.age_notice', ['age' => 18, 'date' => now()->subYears(18)->format('d M Y')]) }}</span>
                                 </div>
                             </div>
                         </div>
 
                         {{-- Step 3: Password --}}
                         <div x-show="step === 3" x-cloak x-transition>
-                            <h2 class="text-2xl font-bold text-gray-900">Secure your account</h2>
-                            <p class="mt-1 text-sm text-gray-600">Choose a strong password. At least 8 characters.</p>
+                            <h2 class="text-2xl font-bold text-gray-900">{{ __('borrower.register.password_title') }}</h2>
+                            <p class="mt-1 text-sm text-gray-600">{{ __('borrower.register.password_body') }}</p>
 
                             <div class="mt-6 space-y-4" x-data="{ show: false }">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Password <span class="text-red-500">*</span></label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.password') }} <span class="text-red-500">*</span></label>
                                     <div class="relative">
                                         <input :type="show ? 'text' : 'password'" name="password" x-model="form.password" @input="validatePasswords()" required minlength="8"
                                                autocomplete="new-password" value=""
@@ -287,13 +291,13 @@
                                                class="w-full pr-14 px-3.5 py-3 rounded-xl bg-white border text-sm outline-none transition"
                                                :class="errors.password ? 'border-red-400' : 'border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10'">
                                         <button type="button" @click="show = !show" class="absolute inset-y-0 right-0 grid place-items-center pr-3 text-xs text-gray-500 font-medium">
-                                            <span x-text="show ? 'Hide' : 'Show'"></span>
+                                            <span x-text="show ? @js(__('borrower.register.hide')) : @js(__('borrower.register.show'))"></span>
                                         </button>
                                     </div>
                                     <p x-show="errors.password" x-cloak class="mt-1 text-xs text-red-600" x-text="errors.password"></p>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Confirm password <span class="text-red-500">*</span></label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.password_confirm') }} <span class="text-red-500">*</span></label>
                                     <input :type="show ? 'text' : 'password'" name="password_confirmation" x-model="form.password_confirmation" @input="validatePasswords()" required minlength="8"
                                            autocomplete="new-password" value=""
                                            readonly onfocus="this.removeAttribute('readonly')"
@@ -305,10 +309,10 @@
 
                                 <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-4 py-3.5 text-sm text-gray-800 leading-relaxed">
                                     <p>
-                                        By creating an account, you agree to our
-                                        <a href="{{ route('site.legal.terms') }}" target="_blank" class="underline font-semibold text-brand whitespace-nowrap">Terms of Service</a>
-                                        and
-                                        <a href="{{ route('site.legal.privacy') }}" target="_blank" class="underline font-semibold text-brand whitespace-nowrap">Privacy Policy</a>.
+                                        {!! __('borrower.register.terms_agree', [
+                                            'terms' => '<a href="'.route('site.legal.terms').'" target="_blank" class="underline font-semibold text-brand whitespace-nowrap">'.e(__('borrower.register.terms')).'</a>',
+                                            'privacy' => '<a href="'.route('site.legal.privacy').'" target="_blank" class="underline font-semibold text-brand whitespace-nowrap">'.e(__('borrower.register.privacy')).'</a>',
+                                        ]) !!}
                                     </p>
                                 </div>
                             </div>
@@ -318,20 +322,20 @@
                         <div class="mt-8 flex items-center justify-between gap-3">
                             <button type="button" @click="prev()" x-show="step > 1" x-cloak
                                     class="px-5 py-2.5 rounded-full text-sm font-semibold text-gray-700 hover:bg-gray-100 transition">
-                                ← Back
+                                {{ __('borrower.register.back') }}
                             </button>
                             <div x-show="step === 1"></div>
 
                             <button type="button" @click="next()" x-show="step === 1 && canContinueStep1" x-cloak
                                     :disabled="checkingPhone"
                                     class="ml-auto inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold py-3 px-7 rounded-xl transition shadow-sm disabled:opacity-60">
-                                <span x-show="!checkingPhone">Continue</span>
-                                <span x-cloak x-show="checkingPhone">Checking…</span>
+                                <span x-show="!checkingPhone">{{ __('borrower.register.continue') }}</span>
+                                <span x-cloak x-show="checkingPhone">{{ __('borrower.register.checking') }}</span>
                                 <svg x-show="!checkingPhone" class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
                             </button>
                             <button type="button" @click="next()" x-show="step === 2"
                                     class="ml-auto inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold py-3 px-7 rounded-xl transition shadow-sm">
-                                Continue
+                                {{ __('borrower.register.continue') }}
                                 <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
                             </button>
 
@@ -339,7 +343,7 @@
                                 <x-site.turnstile action="register" />
                                 <button type="submit"
                                         class="w-full bg-brand-gold hover:bg-yellow-400 text-brand font-bold py-3 px-7 rounded-xl transition shadow-sm">
-                                    Create account →
+                                    {{ __('borrower.register.create') }}
                                 </button>
                             </div>
                         </div>
@@ -347,7 +351,7 @@
                 </div>
 
                 <p class="mt-6 text-center text-sm text-gray-600 lg:hidden">
-                    Already registered? <a href="{{ route('site.login') }}" class="text-amber-600 font-semibold hover:underline">Log in</a>
+                    {{ __('borrower.register.already') }} <a href="{{ route('site.login') }}" class="text-amber-600 font-semibold hover:underline">{{ __('borrower.register.login') }}</a>
                 </p>
                 @if ($isGuarantorRegistration)
                     <p class="mt-3 text-center text-sm text-gray-600 lg:hidden">
@@ -405,7 +409,7 @@
                 },
                 promptPhone() {
                     if (! this.activeCountry.active) {
-                        return this.showNotice('KopaFasta is not yet operational in this country. Please join the waitlist.');
+                        return this.showNotice(@js(__('borrower.register.country_unavailable')));
                     }
                     this.validatePhone();
                     this.showNotice(this.errors.phone || @js(__('borrower.auth.phone_invalid')));
@@ -426,8 +430,8 @@
                 validatePasswords() {
                     const password = this.form.password || '';
                     const confirm = this.form.password_confirmation || '';
-                    this.errors.password = password.length === 0 ? '' : (password.length >= 8 ? '' : 'Password must be at least 8 characters.');
-                    this.errors.password_confirmation = confirm.length === 0 ? '' : (password === confirm ? '' : 'Passwords do not match.');
+                    this.errors.password = password.length === 0 ? '' : (password.length >= 8 ? '' : @js(__('borrower.register.password_min')));
+                    this.errors.password_confirmation = confirm.length === 0 ? '' : (password === confirm ? '' : @js(__('borrower.register.password_mismatch')));
                 },
                 chooseCountry(country) {
                     this.form.country = country.code;
@@ -464,7 +468,7 @@
                     }
                     if (this.step === 2) {
                         if (!this.form.first_name || !this.form.last_name) {
-                            return this.showNotice('Please enter your first and last name.');
+                            return this.showNotice(@js(__('borrower.register.name_required')));
                         }
                     }
                     if (this.step < 3) this.step++;

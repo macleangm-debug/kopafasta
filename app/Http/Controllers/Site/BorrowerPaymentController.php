@@ -189,7 +189,9 @@ class BorrowerPaymentController extends Controller
             'message' => match ($state) {
                 'paid' => __('borrower.payment_waiting.paid'),
                 'failed' => __('borrower.payment_waiting.failed'),
-                'waiting' => __('borrower.payment_waiting.waiting'),
+                'waiting' => $payment->mobile_number
+                    ? __('borrower.payment_waiting.waiting_phone', ['phone' => $payment->mobile_number])
+                    : __('borrower.payment_waiting.waiting'),
                 default => __('borrower.payment_waiting.pending'),
             },
             'redirect_url' => $redirect,
