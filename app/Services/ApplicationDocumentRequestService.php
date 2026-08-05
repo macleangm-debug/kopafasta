@@ -566,6 +566,37 @@ class ApplicationDocumentRequestService
     }
 
     /**
+     * Files to show for a request: loan uploads first, else profile-linked docs.
+     *
+     * @return Collection<int, CustomerDocument>
+     */
+    public function displayDocumentsForRequest(LoanApplicationDocumentRequest $request, Customer $customer): Collection
+    {
+        $request->loadMissing('uploads');
+        if ($request->uploads->isNotEmpty()) {
+            return $request->uploads->values();
+        }
+
+        if ($this->borrowerActionKind($request) !== 'income'
+            && ! $this->isProfileGuidedRequest($request)) {
+            return collect();
+        }
+
+        $codes = app(ProfileRevisionService::class)->documentCodesForLabel((string) $request->label);
+        if ($codes === []) {
+            if ($this->borrowerActionKind($request) === 'income') {
+                $codes = ['bank_statement', 'mobile_money_statement', 'salary_slip', 'employment_contract'];
+            } else {
+                return collect();
+            }
+        }
+
+        return app(ProfileDocumentService::class)
+            ->latestByCodes($customer, $codes)
+            ->values();
+    }
+
+    /**
      * When the borrower uploads profile-guided income docs, mark matching open
      * underwriting requests as uploaded so the loan profile stops showing Pending.
      *

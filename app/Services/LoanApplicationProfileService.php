@@ -231,6 +231,7 @@ class LoanApplicationProfileService
             'document_request_groups' => $this->borrowerStatus->groupedDocumentRequests(
                 $application->documentRequests()->with('uploads')->latest()->get()
             ),
+            'customer'             => $customer,
             'underwriting_actions' => app(ApplicationDocumentRequestService::class)
                 ->openGuidedActionsForApplication($application),
             'guarantor_invitations' => $guarantorInvitations,
