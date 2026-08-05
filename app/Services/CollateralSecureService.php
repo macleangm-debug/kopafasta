@@ -368,6 +368,7 @@ class CollateralSecureService
                 'required_by' => $requiredBy->toDateString(),
                 'reason' => 'expiring_soon',
                 'renewal_days' => $renewalDays,
+                'insurance_type' => $asset->insuranceType(),
             ];
         }
 
@@ -378,6 +379,7 @@ class CollateralSecureService
                 'required_by' => $requiredBy->toDateString(),
                 'reason' => 'buffer',
                 'renewal_days' => $renewalDays,
+                'insurance_type' => $asset->insuranceType(),
             ];
         }
 
@@ -387,6 +389,7 @@ class CollateralSecureService
             'required_by' => $requiredBy->toDateString(),
             'reason' => null,
             'renewal_days' => $renewalDays,
+            'insurance_type' => $asset->insuranceType(),
         ];
     }
 
@@ -406,6 +409,18 @@ class CollateralSecureService
             $daysLeft = $due->isPast() ? 0 : (int) now()->startOfDay()->diffInDays($due->copy()->startOfDay());
         }
 
+        $selected = null;
+        if (! empty($state['customer_asset_id'])) {
+            $asset = CustomerAsset::query()->find($state['customer_asset_id']);
+            if ($asset) {
+                $selected = $this->assetCard($asset);
+            }
+        }
+
+        $ownerId = ($state['source'] ?? 'borrower') === 'guarantor'
+            ? (int) ($state['guarantor_customer_id'] ?? 0)
+            : (int) $application->customer_id;
+
         return [
             'active' => $this->isOpen($application) || ($state['status'] ?? '') === self::STATUS_SECURED,
             'open' => $this->isOpen($application),
@@ -414,7 +429,33 @@ class CollateralSecureService
             'days_left' => $daysLeft,
             'fee_quote' => $this->feeQuote($application),
             'add_collateral_url' => route('site.borrower.profile', ['section' => 'assets', 'add' => 1]),
-            'assets' => $this->selectableAssets($application, $state),
+            'owner_assets_url' => route('site.borrower.profile', [
+                'section' => 'assets',
+                'edit' => $state['customer_asset_id'] ?? null,
+            ]),
+            'assets' => $this->selectableAssets($application, $state)->map(fn (CustomerAsset $a) => $this->assetCard($a))->values(),
+            'selected_asset' => $selected,
+            'insurance' => $state['insurance'] ?? null,
+            'is_guarantor_source' => ($state['source'] ?? '') === 'guarantor',
+            'owner_customer_id' => $ownerId,
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function assetCard(CustomerAsset $asset): array
+    {
+        $typeOptions = CustomerAsset::typeOptions();
+
+        return [
+            'id' => $asset->id,
+            'label' => $asset->label,
+            'asset_type' => $asset->asset_type,
+            'type_label' => $typeOptions[$asset->asset_type] ?? $asset->asset_type,
+            'registration_number' => $asset->registration_number,
+            'thumbnail' => $asset->thumbnailPath() ? asset('storage/'.$asset->thumbnailPath()) : null,
+            'insurance_type' => $asset->insuranceType(),
+            'insurance_expires_at' => $asset->detail('insurance_expires_at'),
+            'has_insurance_doc' => $asset->hasVehicleInsurance(),
         ];
     }
 

@@ -220,10 +220,10 @@
     <div class="mb-6 glass-card overflow-hidden ring-1 ring-brand/10">
         <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-5 sm:px-6 py-5 text-white">
             <div class="flex flex-wrap items-center gap-2">
-                <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">{{ __('borrower.loan_profile.current_status') }}</p>
-                <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1 bg-white/15 text-white ring-1 ring-white/25">{{ $status['label'] ?? '—' }}</span>
+                <p class="text-[11px] uppercase tracking-widest text-white/80 font-bold">{{ __('borrower.loan_profile.current_status') }}</p>
+                <span class="inline-flex text-xs font-bold rounded-full px-3 py-1 bg-white/15 text-white ring-1 ring-white/25">{{ $status['label'] ?? '—' }}</span>
             </div>
-            <p class="text-lg sm:text-xl font-bold mt-2">
+            <p class="text-xl sm:text-2xl font-extrabold mt-2 tracking-tight">
                 @if ($underwritingActions->isNotEmpty())
                     {{ __('borrower.applications_list.documents_required') }}
                 @else
@@ -244,11 +244,11 @@
             @if (! empty($next['url']) && $underwritingActions->isEmpty() && ! in_array($next['code'] ?? '', ['under_review', 'awaiting_guarantor', 'view_application'], true))
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
-                        <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-1">{{ __('borrower.loan_profile.next_action_title') }}</p>
-                        <p class="text-sm font-semibold text-gray-900">{{ $next['label'] ?? __('borrower.loan_profile.next_actions.continue_form') }}</p>
+                        <p class="text-[11px] uppercase tracking-widest text-gray-500 font-bold mb-1">{{ __('borrower.loan_profile.next_action_title') }}</p>
+                        <p class="text-base font-extrabold text-gray-900">{{ $next['label'] ?? __('borrower.loan_profile.next_actions.continue_form') }}</p>
                     </div>
                     <a href="{{ $next['url'] }}"
-                       class="inline-flex items-center justify-center font-semibold px-6 py-3 rounded-xl text-sm shrink-0 bg-brand-gold hover:bg-yellow-400 text-brand font-bold">
+                       class="inline-flex items-center justify-center font-extrabold px-6 py-3 rounded-xl text-sm shrink-0 bg-brand-gold hover:bg-yellow-400 text-brand shadow-sm">
                         {{ $next['button_label'] ?? __('borrower.loan_profile.actions.continue_to_form') }}
                     </a>
                 </div>

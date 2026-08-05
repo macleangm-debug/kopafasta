@@ -42,6 +42,17 @@ class CollateralSecureController extends Controller
 
         $service->borrowerAskGuarantor($application, $this->customer(), (bool) $data['ask_guarantor']);
 
+        if ($data['ask_guarantor']) {
+            return redirect()
+                ->route('site.borrower.application', $application)
+                ->with('collateral_secure_flash', [
+                    'title' => __('borrower.collateral_secure.sent_title'),
+                    'message' => __('borrower.collateral_secure.sent_body'),
+                    'confirm' => __('borrower.feedback.ok'),
+                    'tone' => 'success',
+                ]);
+        }
+
         return redirect()
             ->route('site.borrower.application', $application)
             ->with('status', __('borrower.collateral_secure.saved'));
@@ -54,11 +65,37 @@ class CollateralSecureController extends Controller
         ]);
 
         $asset = CustomerAsset::query()->findOrFail($data['customer_asset_id']);
-        $service->linkAsset($application, $this->customer(), $asset);
+        $state = $service->linkAsset($application, $this->customer(), $asset);
 
-        return redirect()
-            ->route('site.borrower.application', $application)
+        $flash = match ($state['status'] ?? '') {
+            \App\Services\CollateralSecureService::STATUS_AWAITING_FEE => [
+                'title' => __('borrower.collateral_secure.linked_fee_title'),
+                'message' => __('borrower.collateral_secure.linked_fee_body'),
+                'tone' => 'success',
+            ],
+            \App\Services\CollateralSecureService::STATUS_AWAITING_INSURANCE => [
+                'title' => __('borrower.collateral_secure.linked_insurance_title'),
+                'message' => __('borrower.collateral_secure.linked_insurance_body', [
+                    'date' => data_get($state, 'insurance.expiry') ?: '—',
+                ]),
+                'tone' => 'warning',
+            ],
+            \App\Services\CollateralSecureService::STATUS_SECURED => [
+                'title' => __('borrower.collateral_secure.linked_secured_title'),
+                'message' => __('borrower.collateral_secure.linked_secured_body'),
+                'tone' => 'success',
+            ],
+            default => null,
+        };
+
+        $redirect = redirect()->route('site.borrower.application', $application)
             ->with('status', __('borrower.collateral_secure.asset_linked'));
+
+        return $flash
+            ? $redirect->with('collateral_secure_flash', array_merge($flash, [
+                'confirm' => __('borrower.feedback.ok'),
+            ]))
+            : $redirect;
     }
 
     public function payFee(Request $request, LoanApplication $application, CollateralSecureService $service): RedirectResponse
@@ -128,10 +165,33 @@ class CollateralSecureController extends Controller
         ]);
 
         $asset = CustomerAsset::query()->findOrFail($data['customer_asset_id']);
-        $service->linkAsset($application, $customer, $asset);
+        $state = $service->linkAsset($application, $customer, $asset);
 
-        return redirect()
+        $flash = match ($state['status'] ?? '') {
+            \App\Services\CollateralSecureService::STATUS_AWAITING_FEE,
+            \App\Services\CollateralSecureService::STATUS_SECURED => [
+                'title' => __('borrower.collateral_secure.guarantor_linked_title'),
+                'message' => __('borrower.collateral_secure.guarantor_linked_body'),
+                'tone' => 'success',
+            ],
+            \App\Services\CollateralSecureService::STATUS_AWAITING_INSURANCE => [
+                'title' => __('borrower.collateral_secure.linked_insurance_title'),
+                'message' => __('borrower.collateral_secure.linked_insurance_body', [
+                    'date' => data_get($state, 'insurance.expiry') ?: '—',
+                ]),
+                'tone' => 'warning',
+            ],
+            default => null,
+        };
+
+        $redirect = redirect()
             ->route('site.borrower.guaranteed.show', $customerGuarantor)
             ->with('status', __('borrower.collateral_secure.asset_linked'));
+
+        return $flash
+            ? $redirect->with('collateral_secure_flash', array_merge($flash, [
+                'confirm' => __('borrower.feedback.ok'),
+            ]))
+            : $redirect;
     }
 }

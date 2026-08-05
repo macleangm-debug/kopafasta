@@ -3140,7 +3140,8 @@ class BorrowerController extends Controller
 
         if (($data['asset_type'] ?? '') === 'vehicle') {
             $details = $data['details'] ?? [];
-            $details['insurance_type'] = 'comprehensive';
+            $type = (string) ($details['insurance_type'] ?? 'comprehensive');
+            $details['insurance_type'] = in_array($type, ['comprehensive', 'third_party'], true) ? $type : 'comprehensive';
             $data['details'] = $details;
         }
 
@@ -3217,7 +3218,8 @@ class BorrowerController extends Controller
                 'insurance_policy_number',
                 'insurance_expires_at',
             ]);
-            $data['details']['insurance_type'] = 'comprehensive';
+            $type = (string) ($data['details']['insurance_type'] ?? 'comprehensive');
+            $data['details']['insurance_type'] = in_array($type, ['comprehensive', 'third_party'], true) ? $type : 'comprehensive';
         }
         $data['details'] = collect($data['details'] ?? [])->only($allowed)->all();
         $data['asset_type'] = $type;

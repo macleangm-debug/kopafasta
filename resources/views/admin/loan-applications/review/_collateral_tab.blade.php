@@ -325,9 +325,34 @@
                     </button>
                 </form>
             @else
-                <div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-sm text-slate-700">
-                    Collateral secure status:
-                    <span class="font-semibold">{{ str_replace('_', ' ', $csState['status'] ?? '—') }}</span>
+                @php
+                    $selectedId = data_get($csState, 'customer_asset_id');
+                    $selectedAsset = $selectedId ? \App\Models\CustomerAsset::query()->find($selectedId) : null;
+                @endphp
+                <div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-sm text-slate-700 space-y-2">
+                    <p>
+                        Collateral secure status:
+                        <span class="font-semibold">{{ str_replace('_', ' ', $csState['status'] ?? '—') }}</span>
+                    </p>
+                    @if ($selectedAsset)
+                        <div class="flex gap-3 items-center pt-1">
+                            @if ($selectedAsset->thumbnailPath())
+                                <img src="{{ asset('storage/'.$selectedAsset->thumbnailPath()) }}" alt="" class="size-12 rounded-lg object-cover ring-1 ring-gray-200">
+                            @endif
+                            <div>
+                                <p class="font-semibold text-gray-900">{{ $selectedAsset->label }}</p>
+                                <p class="text-xs text-gray-500">
+                                    {{ \App\Models\CustomerAsset::typeOptions()[$selectedAsset->asset_type] ?? $selectedAsset->asset_type }}
+                                    @if ($selectedAsset->detail('insurance_expires_at'))
+                                        · Insurance expires {{ $selectedAsset->detail('insurance_expires_at') }}
+                                    @endif
+                                    @if (data_get($csState, 'source') === 'guarantor')
+                                        · Guarantor collateral
+                                    @endif
+                                </p>
+                            </div>
+                        </div>
+                    @endif
                 </div>
             @endunless
         @endif

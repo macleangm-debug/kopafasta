@@ -59,6 +59,9 @@ class CustomerAssetService
         );
         if ($type === 'vehicle') {
             $details['insurance_type'] = $details['insurance_type'] ?? 'comprehensive';
+            if (! in_array($details['insurance_type'], ['comprehensive', 'third_party'], true)) {
+                $details['insurance_type'] = 'comprehensive';
+            }
         }
         if ($details !== []) {
             $metadata['details'] = $details;

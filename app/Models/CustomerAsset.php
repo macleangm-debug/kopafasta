@@ -118,10 +118,31 @@ class CustomerAsset extends Model
 
     public function hasComprehensiveInsurance(): bool
     {
+        return $this->hasVehicleInsurance();
+    }
+
+    /** Vehicle has an insurance certificate on file (comprehensive or third-party). */
+    public function hasVehicleInsurance(): bool
+    {
         $meta = $this->metadata ?? [];
 
-        // Certificate upload is the source of truth for underwriting.
         return filled($meta['insurance_document_path'] ?? null);
+    }
+
+    public function insuranceType(): ?string
+    {
+        $type = $this->detail('insurance_type');
+
+        return filled($type) ? (string) $type : null;
+    }
+
+    /** @return array<string, string> */
+    public static function insuranceTypeOptions(): array
+    {
+        return [
+            'comprehensive' => 'Comprehensive',
+            'third_party'   => 'Third-party',
+        ];
     }
 
     /** Ordered list of every stored image path (asset photos + person shot). @return array<int, string> */

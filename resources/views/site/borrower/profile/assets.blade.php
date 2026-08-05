@@ -100,10 +100,16 @@
                         @if ($isVehicle)
                             <div class="rounded-xl ring-1 ring-brand/20 bg-brand-muted/30 p-4">
                                 <label class="text-xs font-semibold text-brand mb-1 block">
-                                    {{ __('borrower.profile.comprehensive_insurance') }} <span class="text-red-500">*</span>
+                                    {{ __('borrower.profile.vehicle_insurance') }} <span class="text-red-500">*</span>
                                 </label>
-                                <p class="text-xs text-brand/80 mb-3">{{ __('borrower.profile.comprehensive_insurance_hint') }}</p>
-                                <input type="hidden" name="details[insurance_type]" value="comprehensive">
+                                <p class="text-xs text-brand/80 mb-3">{{ __('borrower.profile.vehicle_insurance_hint') }}</p>
+                                <div class="mb-3">
+                                    <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ __('borrower.profile.collateral_fields.insurance_type') }} <span class="text-red-500">*</span></label>
+                                    <select name="details[insurance_type]" required class="kf-field">
+                                        <option value="comprehensive" @selected(old('details.insurance_type', 'comprehensive') === 'comprehensive')>{{ __('borrower.profile.insurance_comprehensive') }}</option>
+                                        <option value="third_party" @selected(old('details.insurance_type') === 'third_party')>{{ __('borrower.profile.insurance_third_party') }}</option>
+                                    </select>
+                                </div>
                                 <div class="grid sm:grid-cols-2 gap-3">
                                     <div>
                                         <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ __('borrower.profile.collateral_fields.insurance_policy_number') }} <span class="text-red-500">*</span></label>
@@ -564,8 +570,19 @@
 
                                 @if ($asset->asset_type === 'vehicle')
                                     <div class="rounded-2xl ring-1 ring-brand/20 bg-brand-muted/20 p-4">
-                                        <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-1">{{ __('borrower.profile.comprehensive_insurance') }}</p>
-                                        <p class="text-[11px] text-brand/80 mb-3">{{ __('borrower.profile.comprehensive_insurance_hint') }}</p>
+                                        <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-1">{{ __('borrower.profile.vehicle_insurance') }}</p>
+                                        <p class="text-[11px] text-brand/80 mb-3">{{ __('borrower.profile.vehicle_insurance_hint') }}</p>
+                                        @if ($asset->insuranceType())
+                                            <p class="text-xs font-semibold text-gray-700 mb-2">
+                                                {{ __('borrower.profile.collateral_fields.insurance_type') }}:
+                                                {{ $asset->insuranceType() === 'third_party' ? __('borrower.profile.insurance_third_party') : __('borrower.profile.insurance_comprehensive') }}
+                                            </p>
+                                        @endif
+                                        @if ($asset->detail('insurance_expires_at'))
+                                            <p class="text-xs font-semibold text-gray-700 mb-3 tabular-nums">
+                                                {{ __('borrower.profile.collateral_fields.insurance_expires_at') }}: {{ $asset->detail('insurance_expires_at') }}
+                                            </p>
+                                        @endif
                                         @if ($insuranceDoc)
                                             <div class="flex flex-wrap items-center gap-3 mb-3">
                                                 @if (str_ends_with(strtolower($insuranceDoc), '.pdf'))
