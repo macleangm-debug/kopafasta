@@ -760,7 +760,23 @@ class AuthController extends Controller
             ? ($guarantorInvitation
                 ? __('borrower.guarantor_invite.continue_after_pin')
                 : __('borrower.apply.group.continue_after_pin'))
-            : 'Welcome! Create your 4-digit PIN to secure your account.';
+            : __('borrower.membership.welcome_pay_body');
+
+        if ($user->customer && ! $isGuarantorRegistration) {
+            try {
+                app(NotificationService::class)->notifyInApp(
+                    $user->customer,
+                    __('borrower.membership.welcome_pay_body'),
+                    'membership',
+                    'membership_welcome',
+                    __('borrower.membership.welcome_pay_title'),
+                    route('site.membership.renew'),
+                    __('borrower.membership.pay_registration'),
+                );
+            } catch (\Throwable) {
+                // Non-blocking — registration should still succeed.
+            }
+        }
 
         return redirect()->route('site.borrower.setup-pin')
             ->with('status', $welcome);

@@ -111,10 +111,43 @@ class MembershipController extends Controller
 
         if ($isFirstTime) {
             $quote = $gate->quote($customer, (float) $baseFee, 'registration_fee', $useWallet, $promoCode);
+            $paymentBreakdown = $quote;
+        }
 
-            if ($data['channel'] === 'mobile_money') {
+        if ($data['channel'] === 'mobile_money') {
+            try {
+                $payment = app(\App\Services\CustomerPaymentService::class)->create([
+                    'customer'       => $customer,
+                    'payment_type'   => 'registration_fee',
+                    'payment_method' => 'mobile_money',
+                    'amount'         => $paymentBreakdown['cash_due'] ?? $paymentBreakdown['after_discount'] ?? $baseFee,
+                    'reference'      => $paymentReference,
+                    'mobile_number'  => $data['payment_phone'] ?? null,
+                    'auto_verify'    => payment_gateway_is_dummy(),
+                ]);
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                return back()->withInput()->withErrors($e->errors())->with('feedback', [
+                    'tone' => 'error',
+                    'title' => __('borrower.membership.payment_error_title'),
+                    'message' => collect($e->errors())->flatten()->first() ?: 'Payment could not be started.',
+                ]);
+            } catch (\Throwable $e) {
+                report($e);
+
+                return back()->withInput()->withErrors([
+                    'payment_phone' => [__('borrower.membership.payment_error_title')],
+                ])->with('feedback', [
+                    'tone' => 'error',
+                    'title' => __('borrower.membership.payment_error_title'),
+                    'message' => $e->getMessage() ?: 'Payment could not be started.',
+                ]);
+            }
+
+            // Only settle wallet / commissions once payment is confirmed (dummy/instant path).
+            // Live PayIn stays in processing until webhook/poll verifies — settle then in finalize.
+            if ($isFirstTime && $payment->status !== 'processing' && is_array($paymentBreakdown)) {
                 if ($referrals->referrer($customer)) {
-                    $paymentBreakdown = $referrals->settleFee(
+                    $referrals->settleFee(
                         $customer,
                         (float) $baseFee,
                         $useWallet,
@@ -123,42 +156,24 @@ class MembershipController extends Controller
                         null,
                     );
                 } else {
-                    $affiliate = app(AffiliateService::class);
-                    $affiliate->accrueCommission(
+                    app(AffiliateService::class)->accrueCommission(
                         $customer,
                         (float) $baseFee,
                         'registration_fee',
                         \App\Models\MembershipHistory::class,
                         null,
                     );
-
-                    if ($useWallet && $quote['wallet_applied'] > 0) {
+                    if ($useWallet && ($paymentBreakdown['wallet_applied'] ?? 0) > 0) {
                         $referrals->debit(
                             $customer,
-                            $quote['wallet_applied'],
-                            'Applied to registration fee',
+                            $paymentBreakdown['wallet_applied'],
+                            'Applied to membership fee',
                             \App\Models\MembershipHistory::class,
                             null,
                         );
                     }
-
-                    $paymentBreakdown = $quote;
                 }
-            } else {
-                $paymentBreakdown = $quote;
             }
-        }
-
-        if ($data['channel'] === 'mobile_money') {
-            $payment = app(\App\Services\CustomerPaymentService::class)->create([
-                'customer'       => $customer,
-                'payment_type'   => 'registration_fee',
-                'payment_method' => 'mobile_money',
-                'amount'         => $paymentBreakdown['cash_due'] ?? $paymentBreakdown['after_discount'] ?? $baseFee,
-                'reference'      => $paymentReference,
-                'mobile_number'  => $data['payment_phone'] ?? null,
-                'auto_verify'    => payment_gateway_is_dummy(),
-            ]);
 
             if ($payment->status === 'processing') {
                 return redirect()

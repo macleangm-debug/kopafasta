@@ -33,7 +33,13 @@ class PromotionService
         return Promotion::query()
             ->where('status', 'active')
             ->when($type, fn ($q) => $q->where('type', $type))
-            ->when($appliesTo, fn ($q) => $q->where('applies_to', $appliesTo))
+            ->when($appliesTo, function ($q) use ($appliesTo) {
+                $q->where(function ($inner) use ($appliesTo) {
+                    $inner->where('applies_to', $appliesTo)
+                        ->orWhere('applies_to', 'all')
+                        ->orWhereNull('applies_to');
+                });
+            })
             ->get()
             ->filter(fn (Promotion $promotion) => $promotion->isActive())
             ->values();

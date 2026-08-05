@@ -1033,6 +1033,7 @@ class SettingsController extends Controller
     {
         $data = $request->validate([
             'duration_days'     => ['required', 'integer', 'min:30', 'max:3650'],
+            'registration_fee'  => ['required', 'numeric', 'min:0'],
             'renewal_fee'       => ['required', 'numeric', 'min:0'],
             'grace_period_days' => ['required', 'integer', 'min:0', 'max:90'],
             'max_expiry_years'  => ['required', 'integer', 'min:1', 'max:10'],

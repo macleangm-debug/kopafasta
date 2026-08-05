@@ -30,8 +30,8 @@ class MembershipService
         $group = Setting::group('membership');
         return [
             'duration_days'     => (int) ($group['duration_days']     ?? 365),
-            'registration_fee'  => (float) ($group['registration_fee'] ?? $group['renewal_fee'] ?? 10000),
-            'renewal_fee'       => (float) ($group['renewal_fee']     ?? 10000),
+            'registration_fee'  => (float) ($group['registration_fee'] ?? $group['renewal_fee'] ?? 20000),
+            'renewal_fee'       => (float) ($group['renewal_fee']     ?? 20000),
             'grace_period_days' => (int) ($group['grace_period_days'] ?? 14),
             'max_expiry_years'  => (int) ($group['max_expiry_years']  ?? 1),
             'currency'          => (string) ($group['currency']       ?? 'TZS'),

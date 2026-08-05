@@ -278,7 +278,7 @@
         <main class="flex-1 px-4 lg:px-8 py-6 lg:py-8">
             <div class="{{ $contentMax }} w-full">
                 @if ($portalMode !== 'guarantor')
-                    <x-site.membership-gate-banner :customer="$borrowerCustomer" />
+
                 @endif
                 {{ $slot }}
             </div>

@@ -86,15 +86,36 @@ class PayInService
         } catch (RequestException $e) {
             $body = $e->response?->json() ?? [];
             $message = (string) ($body['message'] ?? $e->getMessage());
+            \Illuminate\Support\Facades\Log::warning('PayIn collection failed', [
+                'status' => $e->response?->status(),
+                'message' => $message,
+                'body' => $body,
+            ]);
 
             throw ValidationException::withMessages([
                 'mobile_number' => [$message ?: 'PayIn collection failed.'],
+                'payment_phone' => [$message ?: 'PayIn collection failed.'],
+            ]);
+        }
+
+        $ok = (bool) ($response['success'] ?? false);
+        $requestRef = $response['request_ref'] ?? null;
+        if (! $ok || blank($requestRef)) {
+            $message = (string) ($response['message'] ?? 'PayIn did not accept this collection request.');
+            \Illuminate\Support\Facades\Log::warning('PayIn collection rejected', [
+                'message' => $message,
+                'body' => is_array($response) ? $response : [],
+            ]);
+
+            throw ValidationException::withMessages([
+                'mobile_number' => [$message],
+                'payment_phone' => [$message],
             ]);
         }
 
         return [
-            'ok' => (bool) ($response['success'] ?? false),
-            'request_ref' => $response['request_ref'] ?? null,
+            'ok' => true,
+            'request_ref' => $requestRef,
             'status' => $response['status'] ?? null,
             'operator' => $response['operator'] ?? null,
             'message' => (string) ($response['message'] ?? 'Collection request sent.'),

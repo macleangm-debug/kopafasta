@@ -89,6 +89,9 @@ Route::name('site.')->middleware(\App\Http\Middleware\SetLocale::class)->group(f
     Route::get('/how-it-works',     [\App\Http\Controllers\Site\PageController::class, 'howItWorks'])->name('how-it-works');
     Route::get('/about',            [\App\Http\Controllers\Site\PageController::class, 'about'])->name('about');
     Route::get('/faq',              [\App\Http\Controllers\Site\PageController::class, 'faq'])->name('faq');
+    Route::get('/legal',            [\App\Http\Controllers\Site\PageController::class, 'legalIndex'])->name('legal');
+    Route::get('/legal/terms',      [\App\Http\Controllers\Site\PageController::class, 'terms'])->name('legal.terms');
+    Route::get('/legal/privacy',    [\App\Http\Controllers\Site\PageController::class, 'privacy'])->name('legal.privacy');
     Route::get('/support',         [\App\Http\Controllers\Site\SupportCenterController::class, 'index'])->name('support');
     Route::get('/feedback',        [\App\Http\Controllers\Site\FeedbackController::class, 'index'])->name('feedback');
     Route::post('/feedback',       [\App\Http\Controllers\Site\FeedbackController::class, 'store'])->name('feedback.post');

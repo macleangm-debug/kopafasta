@@ -166,12 +166,15 @@
                                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Mobile number</label>
                                     <div class="flex gap-2">
                                         <span class="inline-flex items-center px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-semibold text-brand tabular-nums shrink-0" x-text="activeCountry.prefix"></span>
-                                        <input type="tel" inputmode="numeric" name="local_phone" x-model="form.local_phone" @input="validatePhone()"
+                                        <input type="tel" inputmode="numeric" name="local_phone" x-model="form.local_phone"
+                                               @input="onPhoneInput()"
+                                               autocomplete="tel-national"
+                                               autocapitalize="off" autocorrect="off" spellcheck="false"
+                                               data-lpignore="true" data-1p-ignore="true"
                                                :disabled="!activeCountry.active" :readonly="lockIdentity && !!form.local_phone"
-                                               placeholder=""
+                                               placeholder="712 345 678"
                                                class="flex-1 px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-base outline-none transition">
                                     </div>
-                                    <p x-show="errors.phone" x-cloak class="mt-1.5 text-xs text-red-600" x-text="errors.phone"></p>
                                     <p class="mt-1.5 text-xs text-gray-500">Enter your number without the leading zero.</p>
                                 </div>
 
@@ -221,29 +224,23 @@
                             <h2 class="text-2xl font-bold text-gray-900" x-text="isGuarantor ? @js(__('borrower.guarantor_invite.register_step_details')) : 'Tell us who you are'"></h2>
                             <p class="mt-1 text-sm text-gray-600" x-text="isGuarantor ? @js(__('borrower.guarantor_invite.register_step_details_hint')) : 'We\'ll use these details to build your borrower profile.'"></p>
 
-                            <div class="mt-6 space-y-4">
-                                <template x-if="isGuarantor && form.local_phone">
-                                    <div class="rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 text-sm">
-                                        <p class="text-xs font-medium text-gray-500 mb-1">{{ __('borrower.guarantor_invite.register_phone_locked') }}</p>
-                                        <p class="font-semibold text-gray-900" x-text="activeCountry.prefix + form.local_phone"></p>
-                                    </div>
-                                </template>
-                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div class="mt-6 space-y-5">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1.5">First name <span class="text-red-500">*</span></label>
-                                        <input name="first_name" x-model="form.first_name" required
-                                               class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Middle name</label>
-                                        <input name="middle_name" x-model="form.middle_name"
+                                        <input name="first_name" x-model="form.first_name" required autocomplete="given-name"
                                                class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Last name <span class="text-red-500">*</span></label>
-                                        <input name="last_name" x-model="form.last_name" required
+                                        <input name="last_name" x-model="form.last_name" required autocomplete="family-name"
                                                class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
                                     </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Middle name <span class="text-gray-400 font-normal">(optional)</span></label>
+                                    <input name="middle_name" x-model="form.middle_name" autocomplete="additional-name"
+                                           class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
                                 </div>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
@@ -264,8 +261,11 @@
                                             :value="old('date_of_birth')"
                                             :required="true"
                                             :max="now()->subYears(18)->format('Y-m-d')"
-                                            help="You must be at least 18 years old."
                                         />
+                                        <div class="mt-2 inline-flex items-start gap-2 rounded-xl bg-brand-muted/50 ring-1 ring-brand/10 px-3 py-2 text-xs text-brand">
+                                            <svg class="w-3.5 h-3.5 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                                            <span>Borrowers must be <strong>18 or older</strong>. Pick a date on or before {{ now()->subYears(18)->format('d M Y') }}.</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -281,8 +281,11 @@
                                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Password <span class="text-red-500">*</span></label>
                                     <div class="relative">
                                         <input :type="show ? 'text' : 'password'" name="password" x-model="form.password" @input="validatePasswords()" required minlength="8"
+                                               autocomplete="new-password" value=""
+                                               readonly onfocus="this.removeAttribute('readonly')"
+                                               data-lpignore="true" data-1p-ignore="true"
                                                class="w-full pr-14 px-3.5 py-3 rounded-xl bg-white border text-sm outline-none transition"
-                                               :class="errors.password ? 'border-red-400' : 'border-gray-300 focus:border-amber-500'">
+                                               :class="errors.password ? 'border-red-400' : 'border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10'">
                                         <button type="button" @click="show = !show" class="absolute inset-y-0 right-0 grid place-items-center pr-3 text-xs text-gray-500 font-medium">
                                             <span x-text="show ? 'Hide' : 'Show'"></span>
                                         </button>
@@ -292,14 +295,17 @@
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Confirm password <span class="text-red-500">*</span></label>
                                     <input :type="show ? 'text' : 'password'" name="password_confirmation" x-model="form.password_confirmation" @input="validatePasswords()" required minlength="8"
+                                           autocomplete="new-password" value=""
+                                           readonly onfocus="this.removeAttribute('readonly')"
+                                           data-lpignore="true" data-1p-ignore="true"
                                            class="w-full px-3.5 py-3 rounded-xl bg-white border text-sm outline-none transition"
-                                           :class="errors.password_confirmation ? 'border-red-400' : 'border-gray-300 focus:border-amber-500'">
+                                           :class="errors.password_confirmation ? 'border-red-400' : 'border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10'">
                                     <p x-show="errors.password_confirmation" x-cloak class="mt-1 text-xs text-red-600" x-text="errors.password_confirmation"></p>
                                 </div>
 
                                 <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/15 p-4 text-sm text-gray-800 flex items-start gap-2">
                                     <svg class="w-4 h-4 mt-0.5 flex-shrink-0 text-brand" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
-                                    By creating an account, you agree to our <a href="#" class="underline font-medium text-brand">Terms</a> and <a href="#" class="underline font-medium text-brand">Privacy Policy</a>.
+                                    By creating an account, you agree to our <a href="{{ route('site.legal.terms') }}" target="_blank" class="underline font-medium text-brand">Terms</a> and <a href="{{ route('site.legal.privacy') }}" target="_blank" class="underline font-medium text-brand">Privacy Policy</a>.
                                 </div>
                             </div>
                         </div>
@@ -312,7 +318,15 @@
                             </button>
                             <div x-show="step === 1"></div>
 
-                            <button type="button" @click="next()" x-show="step < 3"
+                            <button type="button" @click="next()" x-show="step === 1 && canContinueStep1" x-cloak
+                                    class="ml-auto inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold py-3 px-7 rounded-xl transition shadow-sm">
+                                Continue
+                                <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
+                            </button>
+                            <p x-show="step === 1 && !canContinueStep1" x-cloak class="ml-auto text-xs text-gray-500 max-w-[14rem] text-right">
+                                Enter a valid mobile number to continue.
+                            </p>
+                            <button type="button" @click="next()" x-show="step === 2"
                                     class="ml-auto inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold py-3 px-7 rounded-xl transition shadow-sm">
                                 Continue
                                 <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
@@ -368,19 +382,44 @@
                     return this.countries.find(c => c.code === this.form.country) ?? this.countries[0];
                 },
                 get canContinueStep1() {
-                    return this.activeCountry.active && this.form.local_phone.trim().length >= 7 && !this.errors.phone;
+                    const digits = (this.form.local_phone || '').replace(/\D/g, '').replace(/^0+/, '');
+                    return this.activeCountry.active && digits.length >= 9;
+                },
+                onPhoneInput() {
+                    // Strip non-digits while typing; no inline error spam.
+                    this.form.local_phone = (this.form.local_phone || '').replace(/[^\d\s]/g, '');
+                    this.errors.phone = '';
                 },
                 validatePhone() {
-                    const digits = (this.form.local_phone || '').replace(/\D/g, '');
+                    const digits = (this.form.local_phone || '').replace(/\D/g, '').replace(/^0+/, '');
                     this.errors.phone = digits.length >= 9 ? '' : 'Enter a valid phone number (at least 9 digits).';
+                    return ! this.errors.phone;
+                },
+                promptPhone() {
+                    if (! this.activeCountry.active) {
+                        return this.showNotice('KopaFasta is not yet operational in this country. Please join the waitlist.');
+                    }
+                    this.validatePhone();
+                    this.showNotice(this.errors.phone || 'Enter a valid mobile number to continue.');
+                },
+                showNotice(message) {
+                    window.dispatchEvent(new CustomEvent('open-feedback-default', {
+                        detail: {
+                            tone: 'warning',
+                            title: 'Mobile number required',
+                            message: message,
+                        },
+                    }));
                 },
                 validateEmail() {
                     if (!this.form.email) { this.errors.email = ''; return; }
                     this.errors.email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.form.email) ? '' : 'Enter a valid email address.';
                 },
                 validatePasswords() {
-                    this.errors.password = (this.form.password || '').length >= 8 ? '' : 'Password must be at least 8 characters.';
-                    this.errors.password_confirmation = this.form.password === this.form.password_confirmation ? '' : 'Passwords do not match.';
+                    const password = this.form.password || '';
+                    const confirm = this.form.password_confirmation || '';
+                    this.errors.password = password.length === 0 ? '' : (password.length >= 8 ? '' : 'Password must be at least 8 characters.');
+                    this.errors.password_confirmation = confirm.length === 0 ? '' : (password === confirm ? '' : 'Passwords do not match.');
                 },
                 chooseCountry(country) {
                     this.form.country = country.code;
@@ -391,20 +430,14 @@
                 },
                 next() {
                     if (this.step === 1) {
-                        this.validatePhone();
-                        if (!this.canContinueStep1) {
-                            if (!this.activeCountry.active) {
-                                return alert('KopaFasta is not yet operational in this country. Please join the waitlist.');
-                            }
-                            return;
+                        if (! this.canContinueStep1) {
+                            return this.promptPhone();
                         }
                     }
                     if (this.step === 2) {
-                        this.validateEmail();
                         if (!this.form.first_name || !this.form.last_name) {
-                            return alert('Please enter your first and last name.');
+                            return this.showNotice('Please enter your first and last name.');
                         }
-                        if (this.errors.email) return;
                     }
                     if (this.step < 3) this.step++;
                     window.scrollTo({ top: 0, behavior: 'smooth' });

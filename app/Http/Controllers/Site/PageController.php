@@ -81,4 +81,19 @@ class PageController extends Controller
     public function faq(): View { return view('site.faq'); }
     public function invest(): View { return view('site.invest'); }
     public function capitalPartners(): View { return view('site.capital-partners'); }
+
+    public function legalIndex(): View
+    {
+        return view('site.legal.index');
+    }
+
+    public function terms(): View
+    {
+        return view('site.legal.terms');
+    }
+
+    public function privacy(): View
+    {
+        return view('site.legal.privacy');
+    }
 }

@@ -176,8 +176,9 @@
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
                 <span>&copy; {{ date('Y') }} {{ brand('legal_name') }}.</span>
                 <span class="flex items-center gap-4">
-                    <a href="{{ route('site.faq') }}" class="hover:text-brand-gold transition">{{ __('site.footer.terms') }}</a>
-                    <a href="{{ route('site.faq') }}" class="hover:text-brand-gold transition">{{ __('site.footer.privacy') }}</a>
+                    <a href="{{ route('site.legal.terms') }}" class="hover:text-brand-gold transition">{{ __('site.footer.terms') }}</a>
+                    <a href="{{ route('site.legal.privacy') }}" class="hover:text-brand-gold transition">{{ __('site.footer.privacy') }}</a>
+                    <a href="{{ route('site.legal') }}" class="hover:text-brand-gold transition">Legal</a>
                 </span>
             </div>
         </div>
