@@ -162,28 +162,47 @@
                         @endif
                     </div>
                 @elseif ($isOwner)
-                    <div class="space-y-4">
-                        <p class="text-sm font-bold text-gray-900">{{ __('borrower.collateral_secure.insurance_needed_short') }}</p>
+                    @php
+                        $insReason = $insurance['reason'] ?? 'missing';
+                        $assetInsType = $selected['insurance_type'] ?? null;
+                        $insureHint = match (true) {
+                            $assetInsType === 'third_party' => __('borrower.collateral_secure.insure_asset_hint_third_party'),
+                            in_array($insReason, ['expiring_soon', 'buffer'], true) => __('borrower.collateral_secure.insure_asset_hint_expiring'),
+                            default => __('borrower.collateral_secure.insure_asset_hint_missing'),
+                        };
+                        $markupPct = (float) ($quoteDefaults['markup_percent'] ?? 0);
+                        $effectiveRate = $ratePct * (1 + ($markupPct / 100));
+                    @endphp
+                    <div class="space-y-4"
+                         x-data="{
+                             raw: '{{ number_format($suggested > 0 ? $suggested : 1000000) }}',
+                             rate: {{ $effectiveRate }},
+                             value() {
+                                 const n = Number(String(this.raw || '').replace(/[^\d]/g, ''));
+                                 return Number.isFinite(n) ? n : 0;
+                             },
+                             premium() { return Math.round(this.value() * (this.rate / 100)); }
+                         }">
+                        <div>
+                            <p class="text-sm font-bold text-gray-900">{{ $insureHint }}</p>
+                            <p class="text-xs text-gray-500 mt-1">{{ __('borrower.collateral_secure.insure_asset_eta') }}</p>
+                        </div>
                         <form method="POST" action="{{ route('site.borrower.collateral-secure.buy-insurance', $application) }}"
-                              class="rounded-2xl ring-1 ring-brand/15 bg-brand-muted/20 p-4 space-y-3"
-                              x-data="{
-                                  value: {{ $suggested > 0 ? $suggested : 1000000 }},
-                                  rate: {{ $ratePct }},
-                                  premium() { return Math.round(Number(this.value || 0) * (this.rate / 100)); }
-                              }">
+                              class="rounded-2xl ring-1 ring-brand/15 bg-brand-muted/20 p-4 space-y-3">
                             @csrf
                             <label class="block">
                                 <span class="text-xs font-bold uppercase tracking-widest text-gray-600">{{ __('borrower.collateral_secure.insured_value_label') }}</span>
-                                <input type="number" name="insured_value" x-model.number="value" min="100000" step="1000" required
+                                <input type="text" name="insured_value" x-model="raw" data-money-input="0" inputmode="numeric" autocomplete="off" required
                                        class="mt-1.5 w-full rounded-xl border-gray-200 text-base font-extrabold tabular-nums">
+                                <span class="mt-1 block text-xs text-gray-500">{{ __('borrower.collateral_secure.insured_value_help') }}</span>
                             </label>
                             <p class="text-sm font-bold text-gray-800">
                                 {{ __('borrower.collateral_secure.premium_label') }}:
                                 <span class="text-brand text-lg tabular-nums" x-text="new Intl.NumberFormat().format(premium())"></span>
-                                <span class="text-xs font-semibold text-gray-500">({{ rtrim(rtrim(number_format($ratePct, 2), '0'), '.') }}%)</span>
+                                <span class="text-xs font-semibold text-gray-500">({{ rtrim(rtrim(number_format($effectiveRate, 2), '0'), '.') }}%)</span>
                             </p>
-                            <button type="submit" class="inline-flex font-extrabold px-6 py-3 rounded-xl text-sm bg-brand-gold hover:brightness-95 text-brand shadow-sm">
-                                {{ __('borrower.collateral_secure.pay_premium') }}
+                            <button type="submit" class="w-full sm:w-auto inline-flex justify-center font-extrabold px-6 py-3 rounded-xl text-sm bg-brand-gold hover:brightness-95 text-brand shadow-sm">
+                                {{ __('borrower.collateral_secure.insure_asset') }}
                             </button>
                         </form>
                         <div class="flex flex-wrap gap-2">

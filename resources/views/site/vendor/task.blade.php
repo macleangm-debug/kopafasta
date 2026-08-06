@@ -18,6 +18,19 @@
         $loan = $task->loan;
         $application = $task->loanApplication;
         $asset = $application?->assetReservation?->asset;
+        $taskMeta = [];
+        if (is_string($task->notes)) {
+            $decoded = json_decode($task->notes, true);
+            $taskMeta = is_array($decoded) ? $decoded : [];
+        }
+        $collateralAsset = null;
+        if (! empty($taskMeta['customer_asset_id'])) {
+            $collateralAsset = \App\Models\CustomerAsset::query()->find($taskMeta['customer_asset_id']);
+        }
+        $assetProfile = $taskMeta['asset_profile'] ?? null;
+        if (! $assetProfile && $collateralAsset) {
+            $assetProfile = app(\App\Services\CollateralInsurancePartnerService::class)->assetProfilePayload($collateralAsset);
+        }
     @endphp
 
     <div class="mb-5">
@@ -49,6 +62,54 @@
                     <div><dt class="text-gray-500 text-xs">Completion</dt><dd class="font-medium">{{ $task->completed_at ? $task->completed_at->format('d M Y H:i') : 'Not completed' }}</dd></div>
                 </dl>
             </div>
+
+            @if ($task->task_type === 'vehicle_insurance' && $assetProfile)
+                <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
+                    <h2 class="font-bold mb-3">Collateral asset profile</h2>
+                    <div class="flex gap-4 items-start">
+                        @if (! empty($assetProfile['thumbnail']))
+                            <img src="{{ $assetProfile['thumbnail'] }}" alt="" class="size-20 rounded-xl object-cover ring-1 ring-gray-200 shrink-0">
+                        @endif
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[10px] uppercase tracking-widest text-brand font-bold">{{ $assetProfile['type_label'] ?? '' }}</p>
+                            <p class="text-lg font-extrabold text-gray-900">{{ $assetProfile['label'] ?? '—' }}</p>
+                            @if (! empty($assetProfile['registration_number']))
+                                <p class="text-sm text-gray-600 mt-1">Reg: {{ $assetProfile['registration_number'] }}</p>
+                            @endif
+                            @if (! empty($assetProfile['estimated_value']))
+                                <p class="text-sm text-gray-600">Est. value: {{ format_money($assetProfile['estimated_value']) }}</p>
+                            @endif
+                        </div>
+                    </div>
+                    @if (! empty($assetProfile['details']) && is_array($assetProfile['details']))
+                        <dl class="mt-4 grid grid-cols-2 gap-3 text-sm border-t border-gray-100 pt-4">
+                            @foreach ($assetProfile['details'] as $key => $value)
+                                @continue(! filled($value))
+                                <div>
+                                    <dt class="text-gray-500 text-xs">{{ str_replace('_', ' ', ucfirst((string) $key)) }}</dt>
+                                    <dd class="font-medium">{{ is_scalar($value) ? $value : json_encode($value) }}</dd>
+                                </div>
+                            @endforeach
+                        </dl>
+                    @endif
+                    @if (! empty($taskMeta['insured_value']))
+                        <div class="mt-4 pt-4 border-t border-gray-100 text-sm space-y-1">
+                            <p><span class="text-gray-500">Insured value:</span> <span class="font-bold">{{ format_money($taskMeta['insured_value']) }}</span></p>
+                            <p><span class="text-gray-500">Premium paid:</span> <span class="font-bold text-brand">{{ format_money($taskMeta['premium'] ?? $task->fee_amount) }}</span></p>
+                            @if (! empty($taskMeta['payment_reference']))
+                                <p><span class="text-gray-500">Payment ref:</span> <span class="font-mono text-xs">{{ $taskMeta['payment_reference'] }}</span></p>
+                            @endif
+                        </div>
+                    @endif
+                    @if (! empty($assetProfile['photos']))
+                        <div class="mt-4 pt-4 border-t border-gray-100 grid grid-cols-3 gap-2">
+                            @foreach ($assetProfile['photos'] as $photo)
+                                <img src="{{ $photo }}" alt="" class="aspect-square rounded-lg object-cover ring-1 ring-gray-200">
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+            @endif
 
             @if ($loan || $application)
                 <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">

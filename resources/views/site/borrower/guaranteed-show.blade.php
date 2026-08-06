@@ -90,28 +90,30 @@
         <div class="mb-6 overflow-hidden rounded-2xl ring-1 ring-brand/20 bg-white shadow-sm">
             <div class="px-5 sm:px-6 py-5 border-b border-brand/10 bg-gradient-to-br from-brand-muted/50 via-white to-white">
                 <p class="text-[11px] uppercase tracking-widest text-brand font-bold">{{ __('borrower.collateral_secure.eyebrow') }}</p>
-                <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">{{ __('borrower.collateral_secure.guarantor_title') }}</h2>
-                <p class="text-sm sm:text-base font-semibold text-gray-700 mt-2">{{ __('borrower.collateral_secure.guarantor_why') }}</p>
+                @if ($csStatus === 'awaiting_insurance')
+                    <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">{{ __('borrower.collateral_secure.guarantor_insurance_title') }}</h2>
+                    <p class="text-sm text-gray-600 mt-1.5">{{ __('borrower.collateral_secure.guarantor_insurance_why') }}</p>
+                @else
+                    <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">{{ __('borrower.collateral_secure.guarantor_title') }}</h2>
+                    <p class="text-sm text-gray-600 mt-1.5">{{ __('borrower.collateral_secure.guarantor_why') }}</p>
+                @endif
             </div>
-            <div class="px-5 sm:px-6 py-6 space-y-5">
+            <div class="px-5 sm:px-6 py-5 space-y-4">
                 @if ($csSelected)
                     <div class="rounded-2xl ring-1 ring-brand/15 overflow-hidden bg-brand-muted/20">
-                        <div class="flex gap-4 p-4">
-                            <div class="shrink-0 size-20 rounded-xl overflow-hidden bg-white ring-1 ring-gray-200">
+                        <div class="flex gap-3 sm:gap-4 p-3.5 sm:p-4 items-center">
+                            <div class="shrink-0 size-16 sm:size-20 rounded-xl overflow-hidden bg-white ring-1 ring-gray-200">
                                 @if (! empty($csSelected['thumbnail']))
                                     <img src="{{ $csSelected['thumbnail'] }}" alt="" class="h-full w-full object-cover">
                                 @else
-                                    <span class="h-full w-full grid place-items-center text-3xl">{{ $typeIcons[$csSelected['asset_type'] ?? ''] ?? '📦' }}</span>
+                                    <span class="h-full w-full grid place-items-center text-2xl">{{ $typeIcons[$csSelected['asset_type'] ?? ''] ?? '📦' }}</span>
                                 @endif
                             </div>
-                            <div class="min-w-0">
+                            <div class="min-w-0 flex-1">
                                 <p class="text-[10px] uppercase tracking-widest text-brand font-bold">{{ $csSelected['type_label'] ?? '' }}</p>
-                                <p class="text-lg font-extrabold text-gray-900 mt-0.5">{{ $csSelected['label'] }}</p>
-                                @if (! empty($csSelected['insurance_expires_at']))
-                                    <p class="text-sm font-semibold text-gray-700 mt-1">
-                                        {{ __('borrower.collateral_secure.insurance_expires') }}:
-                                        <span class="tabular-nums">{{ $csSelected['insurance_expires_at'] }}</span>
-                                    </p>
+                                <p class="text-base sm:text-lg font-extrabold text-gray-900 mt-0.5 truncate">{{ $csSelected['label'] }}</p>
+                                @if (! empty($csSelected['registration_number']))
+                                    <p class="text-xs sm:text-sm font-semibold text-gray-600 mt-0.5 truncate">{{ __('borrower.profile.collateral_fields.registration_number') }}: {{ $csSelected['registration_number'] }}</p>
                                 @endif
                             </div>
                         </div>
@@ -160,9 +162,18 @@
                         $csPurchase = $cs['insurance_purchase'] ?? null;
                         $csQuoteDefaults = $cs['insurance_quote_defaults'] ?? [];
                         $csRatePct = (float) ($csQuoteDefaults['rate_percent'] ?? 3.5);
+                        $csMarkupPct = (float) ($csQuoteDefaults['markup_percent'] ?? 0);
                         $csSuggested = (int) ($csQuoteDefaults['suggested_value'] ?? 0);
+                        $insReason = $csInsurance['reason'] ?? 'missing';
+                        $assetInsType = $csSelected['insurance_type'] ?? null;
+                        $insureHint = match (true) {
+                            $assetInsType === 'third_party' => __('borrower.collateral_secure.insure_asset_hint_third_party'),
+                            in_array($insReason, ['expiring_soon', 'buffer'], true) => __('borrower.collateral_secure.insure_asset_hint_expiring'),
+                            default => __('borrower.collateral_secure.insure_asset_hint_missing'),
+                        };
+                        $effectiveRate = $csRatePct * (1 + ($csMarkupPct / 100));
                     @endphp
-                    @if ($csPurchase)
+                    @if ($csPurchase && ! empty($csPurchase['paid_at'] ?? $csPurchase['partner_task_id'] ?? null))
                         <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 space-y-1">
                             <p class="text-sm font-extrabold text-emerald-950">{{ __('borrower.collateral_secure.insurance_purchase_pending') }}</p>
                             <p class="text-sm font-semibold text-emerald-900">
@@ -171,30 +182,55 @@
                                     'premium' => format_money($csPurchase['premium'] ?? 0),
                                 ]) }}
                             </p>
+                            <p class="text-xs text-emerald-800 mt-1">{{ __('borrower.collateral_secure.insure_asset_eta') }}</p>
+                        </div>
+                    @elseif ($csPurchase && ($csPurchase['status'] ?? '') === 'payment_pending')
+                        <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 space-y-2">
+                            <p class="text-sm font-extrabold text-amber-950">{{ __('borrower.collateral_secure.insurance_purchase_pending') }}</p>
+                            <p class="text-sm text-amber-900">
+                                {{ __('borrower.collateral_secure.insurance_purchase_summary', [
+                                    'value' => format_money($csPurchase['insured_value'] ?? 0),
+                                    'premium' => format_money($csPurchase['premium'] ?? 0),
+                                ]) }}
+                            </p>
+                            @if (! empty($csPurchase['payment_id']))
+                                <a href="{{ route('site.borrower.payments.show', $csPurchase['payment_id']) }}"
+                                   class="inline-flex font-extrabold px-5 py-2.5 rounded-xl text-sm bg-brand-gold hover:brightness-95 text-brand shadow-sm">
+                                    {{ __('borrower.collateral_secure.insure_asset') }}
+                                </a>
+                            @endif
                         </div>
                     @else
-                        <div class="space-y-4">
-                            <p class="text-sm font-bold text-gray-900">{{ __('borrower.collateral_secure.insurance_needed_short') }}</p>
+                        <div class="space-y-4"
+                             x-data="{
+                                 raw: '{{ number_format($csSuggested > 0 ? $csSuggested : 1000000) }}',
+                                 rate: {{ $effectiveRate }},
+                                 value() {
+                                     const n = Number(String(this.raw || '').replace(/[^\d]/g, ''));
+                                     return Number.isFinite(n) ? n : 0;
+                                 },
+                                 premium() { return Math.round(this.value() * (this.rate / 100)); }
+                             }">
+                            <div>
+                                <p class="text-sm font-bold text-gray-900">{{ $insureHint }}</p>
+                                <p class="text-xs text-gray-500 mt-1">{{ __('borrower.collateral_secure.insure_asset_eta') }}</p>
+                            </div>
                             <form method="POST" action="{{ route('site.borrower.collateral-secure.guarantor-buy-insurance', $customerGuarantor) }}"
-                                  class="rounded-2xl ring-1 ring-brand/15 bg-brand-muted/20 p-4 space-y-3"
-                                  x-data="{
-                                      value: {{ $csSuggested > 0 ? $csSuggested : 1000000 }},
-                                      rate: {{ $csRatePct }},
-                                      premium() { return Math.round(Number(this.value || 0) * (this.rate / 100)); }
-                                  }">
+                                  class="rounded-2xl ring-1 ring-brand/15 bg-brand-muted/20 p-4 space-y-3">
                                 @csrf
                                 <label class="block">
                                     <span class="text-xs font-bold uppercase tracking-widest text-gray-600">{{ __('borrower.collateral_secure.insured_value_label') }}</span>
-                                    <input type="number" name="insured_value" x-model.number="value" min="100000" step="1000" required
+                                    <input type="text" name="insured_value" x-model="raw" data-money-input="0" inputmode="numeric" autocomplete="off" required
                                            class="mt-1.5 w-full rounded-xl border-gray-200 text-base font-extrabold tabular-nums">
+                                    <span class="mt-1 block text-xs text-gray-500">{{ __('borrower.collateral_secure.insured_value_help') }}</span>
                                 </label>
                                 <p class="text-sm font-bold text-gray-800">
                                     {{ __('borrower.collateral_secure.premium_label') }}:
                                     <span class="text-brand text-lg tabular-nums" x-text="new Intl.NumberFormat().format(premium())"></span>
-                                    <span class="text-xs font-semibold text-gray-500">({{ rtrim(rtrim(number_format($csRatePct, 2), '0'), '.') }}%)</span>
+                                    <span class="text-xs font-semibold text-gray-500">({{ rtrim(rtrim(number_format($effectiveRate, 2), '0'), '.') }}%)</span>
                                 </p>
-                                <button type="submit" class="inline-flex font-extrabold px-6 py-3 rounded-xl text-sm bg-brand-gold hover:brightness-95 text-brand shadow-sm">
-                                    {{ __('borrower.collateral_secure.pay_premium') }}
+                                <button type="submit" class="w-full sm:w-auto inline-flex justify-center font-extrabold px-6 py-3 rounded-xl text-sm bg-brand-gold hover:brightness-95 text-brand shadow-sm">
+                                    {{ __('borrower.collateral_secure.insure_asset') }}
                                 </button>
                             </form>
                             <div class="flex flex-wrap gap-2">

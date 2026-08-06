@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\CustomerAsset;
+use App\Models\CustomerPayment;
 use App\Models\LoanApplication;
 use App\Models\Vendor;
 use App\Models\VendorTask;
@@ -91,13 +92,14 @@ class CollateralInsurancePartnerService
     /**
      * Open an insurance partner case for a specific customer asset after premium is collected.
      *
-     * @return array{task: VendorTask, quote: array<string, mixed>, partner: ?Vendor}
+     * @return array{task: ?VendorTask, quote: array<string, mixed>, partner: ?Vendor}
      */
     public function openCoverCase(
         LoanApplication $application,
         CustomerAsset $asset,
         int $insuredValue,
         Customer $payer,
+        ?CustomerPayment $payment = null,
     ): array {
         abort_unless((int) $asset->customer_id === (int) $payer->id
             || (int) $application->customer_id === (int) $payer->id, 403);
@@ -111,22 +113,26 @@ class CollateralInsurancePartnerService
 
         $partner = $this->suggestInsurer($application);
 
-        return DB::transaction(function () use ($application, $asset, $quote, $partner, $payer) {
+        return DB::transaction(function () use ($application, $asset, $quote, $partner, $payer, $payment) {
             $customer = $asset->customer ?? $application->customer;
+            $profile = $this->assetProfilePayload($asset);
             $details = collect([
                 $asset->label,
                 $asset->registration_number,
                 $asset->detail('make'),
+                $asset->detail('model'),
                 $asset->detail('year') ? 'Year '.$asset->detail('year') : null,
                 $asset->detail('chassis_number') ? 'Chassis '.$asset->detail('chassis_number') : null,
+                $asset->detail('colour'),
             ])->filter()->implode(' · ');
 
             $instructions = implode("\n", array_filter([
-                'Issue comprehensive cover for this collateral asset.',
+                'Issue comprehensive cover for this collateral asset within 1–2 days.',
                 'Insured value: '.format_money($quote['insured_value']),
                 'Premium collected: '.format_money($quote['premium']).' (rate '.$quote['rate_percent'].'%'
                     .($quote['markup_percent'] > 0 ? ' + markup '.$quote['markup_percent'].'%' : '').').',
-                'On completion enter policy number and expiry — the asset profile updates automatically.',
+                $payment?->reference ? 'Payment reference: '.$payment->reference : null,
+                'Full asset profile is included below — enter policy number and expiry to update the owner’s asset automatically.',
             ]));
 
             $task = null;
@@ -154,10 +160,23 @@ class CollateralInsurancePartnerService
                         'rate_percent' => $quote['rate_percent'],
                         'markup_percent' => $quote['markup_percent'],
                         'payer_customer_id' => $payer->id,
+                        'payment_id' => $payment?->id,
+                        'payment_reference' => $payment?->reference,
                         'insurance_type' => 'comprehensive',
+                        'asset_profile' => $profile,
                     ]),
-                    'fee_amount' => (int) round((float) ($partner->partner_cost ?? 0)),
+                    // Premium collected is credited to the partner wallet.
+                    'fee_amount' => $quote['premium'],
                 ]);
+
+                app(PartnerSettlementService::class)->accrue(
+                    $partner,
+                    $quote['premium'],
+                    'insurance_premium',
+                    $payment?->id,
+                    'Collateral insurance premium '.$payment?->reference,
+                    $task->id,
+                );
             }
 
             return [
@@ -166,6 +185,82 @@ class CollateralInsurancePartnerService
                 'partner' => $partner,
             ];
         });
+    }
+
+    /**
+     * After PayIn / verification confirms insurance_premium, open partner case and update collateral state.
+     */
+    public function fulfillPremiumPayment(\App\Models\CustomerPayment $payment): void
+    {
+        if ($payment->payment_type !== 'insurance_premium' || ! $payment->isVerified()) {
+            return;
+        }
+
+        $meta = (array) ($payment->provider_meta ?? []);
+        $ctx = (array) ($meta['collateral_insurance'] ?? []);
+        if (($ctx['fulfilled_at'] ?? null)) {
+            return;
+        }
+
+        $applicationId = (int) ($ctx['loan_application_id'] ?? $payment->source_id ?? 0);
+        $assetId = (int) ($ctx['customer_asset_id'] ?? 0);
+        $insuredValue = (int) ($ctx['insured_value'] ?? 0);
+        $payerId = (int) ($ctx['payer_customer_id'] ?? $payment->customer_id ?? 0);
+
+        $application = LoanApplication::query()->find($applicationId);
+        $asset = CustomerAsset::query()->find($assetId);
+        $payer = Customer::query()->find($payerId);
+        if (! $application || ! $asset || ! $payer || $insuredValue <= 0) {
+            return;
+        }
+
+        $opened = $this->openCoverCase($application, $asset, $insuredValue, $payer, $payment);
+        $quote = $opened['quote'];
+
+        app(CollateralSecureService::class)->recordInsurancePurchase($application, [
+            'insured_value' => $quote['insured_value'],
+            'premium' => $quote['premium'],
+            'rate_percent' => $quote['rate_percent'],
+            'markup_percent' => $quote['markup_percent'],
+            'partner_task_id' => $opened['task']?->id,
+            'partner_id' => $opened['partner']?->id,
+            'payment_id' => $payment->id,
+            'payment_reference' => $payment->reference,
+            'paid_at' => now()->toIso8601String(),
+        ]);
+
+        $meta['collateral_insurance'] = array_merge($ctx, [
+            'fulfilled_at' => now()->toIso8601String(),
+            'partner_task_id' => $opened['task']?->id,
+            'partner_id' => $opened['partner']?->id,
+        ]);
+        $payment->update(['provider_meta' => $meta]);
+    }
+
+    /** @return array<string, mixed> */
+    public function assetProfilePayload(CustomerAsset $asset): array
+    {
+        $typeOptions = CustomerAsset::typeOptions();
+        $photos = collect($asset->galleryPaths())
+            ->filter()
+            ->map(fn ($path) => asset('storage/'.$path))
+            ->values()
+            ->all();
+
+        return [
+            'id' => $asset->id,
+            'label' => $asset->label,
+            'asset_type' => $asset->asset_type,
+            'type_label' => $typeOptions[$asset->asset_type] ?? $asset->asset_type,
+            'registration_number' => $asset->registration_number,
+            'estimated_value' => $asset->estimated_value,
+            'details' => $asset->details(),
+            'insurance_type' => $asset->insuranceType(),
+            'insurance_expires_at' => $asset->detail('insurance_expires_at'),
+            'thumbnail' => $asset->thumbnailPath() ? asset('storage/'.$asset->thumbnailPath()) : null,
+            'photos' => $photos,
+            'owner_customer_id' => $asset->customer_id,
+        ];
     }
 
     /**

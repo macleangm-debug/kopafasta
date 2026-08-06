@@ -176,50 +176,18 @@ class CollateralSecureController extends Controller
         abort_unless((int) $asset->customer_id === (int) $customer->id, 403);
 
         $data = $request->validate([
-            'insured_value' => ['required', 'integer', 'min:100000'],
+            'insured_value' => ['required'],
         ]);
+        $insuredValue = \App\Support\MoneyFormat::toInteger($data['insured_value']);
+        abort_unless($insuredValue >= 100000, 422, __('borrower.collateral_secure.insurance_value_required'));
 
-        $insurance = app(\App\Services\CollateralInsurancePartnerService::class);
-        $quote = $insurance->quote((int) $data['insured_value']);
-        abort_unless($quote['premium'] > 0, 422);
-
-        $payInLive = app(\App\Services\PayInService::class)->isLiveCollectionEnabled();
-        app(CustomerPaymentService::class)->create([
-            'customer' => $customer,
-            'payment_type' => 'insurance_premium',
-            'payment_method' => 'mobile_money',
-            'amount' => $quote['premium'],
-            'reference' => 'INS-'.strtoupper(uniqid()),
-            'source' => $application,
-            'mobile_number' => $customer->phone,
-            'auto_verify' => ! $payInLive,
-        ]);
-
-        $opened = $insurance->openCoverCase($application, $asset, (int) $data['insured_value'], $customer);
-        if (! $payInLive) {
-            $service->recordInsurancePurchase($application, [
-                'insured_value' => $quote['insured_value'],
-                'premium' => $quote['premium'],
-                'rate_percent' => $quote['rate_percent'],
-                'markup_percent' => $quote['markup_percent'],
-                'partner_task_id' => $opened['task']?->id,
-                'partner_id' => $opened['partner']?->id,
-                'paid_at' => now()->toIso8601String(),
-            ]);
-        }
-
-        return redirect()
-            ->route('site.borrower.application', $application)
-            ->with('collateral_secure_flash', [
-                'title' => __('borrower.collateral_secure.insurance_paid_title'),
-                'message' => $payInLive
-                    ? 'Confirm the insurance payment on your phone. We will open the insurer case after payment.'
-                    : ($opened['task']
-                        ? __('borrower.collateral_secure.insurance_paid_body_partner')
-                        : __('borrower.collateral_secure.insurance_paid_body_manual')),
-                'confirm' => __('borrower.feedback.ok'),
-                'tone' => 'success',
-            ]);
+        return $this->startInsurancePremiumPayment(
+            $customer,
+            $application,
+            $asset,
+            $insuredValue,
+            route('site.borrower.application', $application),
+        );
     }
 
     public function guarantorBuyInsurance(Request $request, CustomerGuarantor $customerGuarantor, CollateralSecureService $service): RedirectResponse
@@ -239,44 +207,81 @@ class CollateralSecureController extends Controller
         abort_unless((int) $asset->customer_id === (int) $customer->id, 403);
 
         $data = $request->validate([
-            'insured_value' => ['required', 'integer', 'min:100000'],
+            'insured_value' => ['required'],
         ]);
+        $insuredValue = \App\Support\MoneyFormat::toInteger($data['insured_value']);
+        abort_unless($insuredValue >= 100000, 422, __('borrower.collateral_secure.insurance_value_required'));
 
+        return $this->startInsurancePremiumPayment(
+            $customer,
+            $application,
+            $asset,
+            $insuredValue,
+            route('site.borrower.guaranteed.show', $customerGuarantor),
+        );
+    }
+
+    private function startInsurancePremiumPayment(
+        $customer,
+        LoanApplication $application,
+        CustomerAsset $asset,
+        int $insuredValue,
+        string $returnUrl,
+    ): RedirectResponse {
         $insurance = app(\App\Services\CollateralInsurancePartnerService::class);
-        $quote = $insurance->quote((int) $data['insured_value']);
+        $quote = $insurance->quote($insuredValue);
         abort_unless($quote['premium'] > 0, 422);
 
-        app(CustomerPaymentService::class)->create([
+        $phone = $customer->phone;
+        abort_unless(filled($phone) || ! app(\App\Services\PayInService::class)->isLiveCollectionEnabled(), 422);
+
+        $payment = app(CustomerPaymentService::class)->create([
             'customer' => $customer,
             'payment_type' => 'insurance_premium',
             'payment_method' => 'mobile_money',
             'amount' => $quote['premium'],
             'reference' => 'INS-'.strtoupper(uniqid()),
             'source' => $application,
-            'mobile_number' => $customer->phone,
+            'mobile_number' => $phone,
             'auto_verify' => ! app(\App\Services\PayInService::class)->isLiveCollectionEnabled(),
+            'description' => 'Collateral insurance premium',
         ]);
 
-        $opened = $insurance->openCoverCase($application, $asset, (int) $data['insured_value'], $customer);
-        if (! app(\App\Services\PayInService::class)->isLiveCollectionEnabled()) {
-            $service->recordInsurancePurchase($application, [
-                'insured_value' => $quote['insured_value'],
-                'premium' => $quote['premium'],
-                'rate_percent' => $quote['rate_percent'],
-                'markup_percent' => $quote['markup_percent'],
-                'partner_task_id' => $opened['task']?->id,
-                'partner_id' => $opened['partner']?->id,
-                'paid_at' => now()->toIso8601String(),
-            ]);
+        $meta = (array) ($payment->provider_meta ?? []);
+        $meta['collateral_insurance'] = [
+            'loan_application_id' => $application->id,
+            'customer_asset_id' => $asset->id,
+            'insured_value' => $quote['insured_value'],
+            'premium' => $quote['premium'],
+            'rate_percent' => $quote['rate_percent'],
+            'markup_percent' => $quote['markup_percent'],
+            'payer_customer_id' => $customer->id,
+            'return_url' => $returnUrl,
+        ];
+        $payment->update(['provider_meta' => $meta]);
+
+        app(\App\Services\CollateralSecureService::class)->recordInsurancePurchase($application, [
+            'insured_value' => $quote['insured_value'],
+            'premium' => $quote['premium'],
+            'rate_percent' => $quote['rate_percent'],
+            'markup_percent' => $quote['markup_percent'],
+            'payment_id' => $payment->id,
+            'payment_reference' => $payment->reference,
+            'status' => $payment->isVerified() ? 'paid' : 'payment_pending',
+        ]);
+
+        if ($payment->status === 'processing') {
+            return redirect()->route('site.borrower.payments.show', $payment);
         }
 
-        return redirect()
-            ->route('site.borrower.guaranteed.show', $customerGuarantor)
+        if ($payment->isVerified()) {
+            $insurance->fulfillPremiumPayment($payment->fresh());
+        }
+
+        return redirect($returnUrl)
             ->with('collateral_secure_flash', [
                 'title' => __('borrower.collateral_secure.insurance_paid_title'),
-                'message' => $opened['task']
-                    ? __('borrower.collateral_secure.insurance_paid_body_partner')
-                    : __('borrower.collateral_secure.insurance_paid_body_manual'),
+                'message' => __('borrower.collateral_secure.insurance_paid_body_partner'),
                 'confirm' => __('borrower.feedback.ok'),
                 'tone' => 'success',
             ]);

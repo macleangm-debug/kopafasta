@@ -243,6 +243,13 @@ class CustomerPaymentService
     /** Where the borrower should go after a successful live payment. */
     public function successRedirectUrl(CustomerPayment $payment, ?string $fallback = null): string
     {
+        if ($payment->payment_type === 'insurance_premium') {
+            $return = data_get($payment->provider_meta, 'collateral_insurance.return_url');
+            if (filled($return)) {
+                return (string) $return;
+            }
+        }
+
         return match ($payment->payment_type) {
             'registration_fee' => route('site.borrower.dashboard'),
             'application_fee', 'valuation_fee' => route('site.borrower.apply'),
@@ -274,6 +281,10 @@ class CustomerPaymentService
                 'message' => __('borrower.celebration.post_approval_fee'),
             ],
             'loan_repayment' => $this->repaymentCelebrationCopy($payment),
+            'insurance_premium' => [
+                'title' => __('borrower.collateral_secure.insurance_paid_title'),
+                'message' => __('borrower.collateral_secure.insurance_paid_body_partner'),
+            ],
             'asset_deposit' => [
                 'title' => __('borrower.celebration.deposit_title'),
                 'message' => __('borrower.celebration.deposit'),
@@ -513,6 +524,14 @@ class CustomerPaymentService
             if (in_array($application->offer_status, ['asset_conversion_fee_due', 'pending_asset_conversion'], true)
                 && $application->alternative_loan_product_id) {
                 app(ApplicationOfferService::class)->completeAssetConversion($application);
+            }
+        }
+
+        if ($payment->payment_type === 'insurance_premium') {
+            try {
+                app(CollateralInsurancePartnerService::class)->fulfillPremiumPayment($payment->fresh());
+            } catch (\Throwable $e) {
+                report($e);
             }
         }
 
