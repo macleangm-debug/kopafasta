@@ -365,6 +365,8 @@
         @include('admin.loan-applications.review._committee_inputs')
     @endif
 
+    @include('admin.loan-applications.review._review_desk')
+
     {{-- Primary decision zone — same placement for screening and committee --}}
     <div id="review-action-zone" class="scroll-mt-24">
         @include('admin.loan-applications.review._recommendation')

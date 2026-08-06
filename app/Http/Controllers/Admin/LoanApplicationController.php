@@ -341,10 +341,18 @@ class LoanApplicationController extends ResourceController
     {
         abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
 
-        $person = $request->input('person', 'borrower') === 'guarantor' ? 'guarantor' : 'borrower';
+        $person = match ($request->input('person', 'borrower')) {
+            'guarantor' => 'guarantor',
+            'member' => 'member',
+            default => 'borrower',
+        };
         $guarantorLinkId = $person === 'guarantor' ? (int) $request->input('g') : null;
+        $memberId = $person === 'member' ? (int) $request->input('m') : null;
         if ($person === 'guarantor' && $guarantorLinkId < 1) {
-            return back()->with('error', 'Select a guarantor before saving their checklist.');
+            return back()->with('error', 'Select a guarantor before saving their review checklist.');
+        }
+        if ($person === 'member' && $memberId < 1) {
+            return back()->with('error', 'Select a group member before saving their review checklist.');
         }
 
         try {
@@ -354,20 +362,21 @@ class LoanApplicationController extends ResourceController
                 $request->input('items', []),
                 $person,
                 $guarantorLinkId ?: null,
+                $memberId ?: null,
             );
         } catch (\InvalidArgumentException $e) {
-            return back()->with('error', $e->getMessage());
+            return back()->with('error', $e->getMessage())->withInput();
         }
 
         return redirect()
             ->route('admin.loan-applications.show', array_filter([
                 'loan_application' => $loan_application,
-                'tab' => 'checklist',
-                'person' => $person,
-                'g' => $guarantorLinkId ?: null,
+                'review_person' => $person,
+                'review_g' => $guarantorLinkId ?: null,
+                'review_m' => $memberId ?: null,
             ]))
-            ->with('status', 'Screening checklist saved.')
-            ->withFragment('borrower-file');
+            ->with('status', 'Review checklist saved.')
+            ->withFragment('review-desk');
     }
 
     public function requestGuarantorChange(

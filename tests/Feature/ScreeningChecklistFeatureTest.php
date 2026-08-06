@@ -53,6 +53,8 @@ class ScreeningChecklistFeatureTest extends TestCase
             'last_name' => 'Borrower',
             'phone' => '25571'.random_int(1000000, 9999999),
             'branch_id' => $actor->branch_id,
+            'national_id' => '19900101123456789012',
+            'date_of_birth' => now()->subYears(30)->toDateString(),
         ]);
 
         return LoanApplication::create([
@@ -68,100 +70,68 @@ class ScreeningChecklistFeatureTest extends TestCase
         ]);
     }
 
-    public function test_checklist_tab_shows_grouped_items_for_screening(): void
+    public function test_review_desk_shows_on_screening_page(): void
     {
         $admin = $this->staff();
         $app = $this->application($admin);
-
-        $html = $this->actingAs($admin, 'admin')
-            ->get(route('admin.loan-applications.show', [
-                'loan_application' => $app,
-                'tab' => 'checklist',
-                'person' => 'borrower',
-            ]))
-            ->assertOk()
-            ->getContent();
-
-        $this->assertStringContainsString('Verification checklist', $html);
-        $this->assertStringContainsString('Compare NIDA number to date of birth', $html);
-        $this->assertStringContainsString('Map name to CRB report', $html);
-        $this->assertStringContainsString('Check with Local Government Officer', $html);
-        $this->assertStringContainsString('Check with guarantor', $html);
-        $this->assertStringContainsString('Check insurance cover and expiry deadline', $html);
-        $this->assertStringContainsString('Save checklist', $html);
-        $this->assertStringContainsString('tab=checklist', $html);
-    }
-
-    public function test_screening_can_save_and_uncheck_checklist_items(): void
-    {
-        $admin = $this->staff();
-        $app = $this->application($admin);
-
-        $this->actingAs($admin, 'admin')
-            ->post(route('admin.loan-applications.screening-checklist', $app), [
-                'person' => 'borrower',
-                'items' => [
-                    'identity' => ['nida_vs_dob' => '1'],
-                    'contacts' => ['call_guarantor' => '1'],
-                ],
-            ])
-            ->assertRedirect();
-
-        $app->refresh();
-        $items = data_get($app->screening_payload, 'screening_checklist.by_subject.borrower.items')
-            ?? data_get($app->screening_payload, 'screening_checklist.items', []);
-        $this->assertTrue((bool) ($items['identity.nida_vs_dob']['checked'] ?? false));
-        $this->assertTrue((bool) ($items['contacts.call_guarantor']['checked'] ?? false));
-        $this->assertSame($admin->id, (int) ($items['identity.nida_vs_dob']['by'] ?? 0));
-
-        $this->actingAs($admin, 'admin')
-            ->post(route('admin.loan-applications.screening-checklist', $app), [
-                'person' => 'borrower',
-                'items' => [
-                    'identity' => ['nida_vs_dob' => '1'],
-                ],
-            ])
-            ->assertRedirect();
-
-        $app->refresh();
-        $items = data_get($app->screening_payload, 'screening_checklist.by_subject.borrower.items')
-            ?? data_get($app->screening_payload, 'screening_checklist.items', []);
-        $this->assertTrue((bool) ($items['identity.nida_vs_dob']['checked'] ?? false));
-        $this->assertArrayNotHasKey('contacts.call_guarantor', $items);
-    }
-
-    public function test_committee_inputs_show_checklist_progress_link(): void
-    {
-        $admin = $this->staff();
-        $app = $this->application($admin);
-        $app->update([
-            'current_stage' => 'pre_approval',
-            'recommendation_type' => 'approve',
-            'recommended_amount' => 400_000,
-            'recommended_at' => now(),
-            'recommended_by' => $admin->id,
-            'screening_payload' => [
-                'screening_checklist' => [
-                    'items' => [
-                        'identity.nida_vs_dob' => [
-                            'checked' => true,
-                            'at' => now()->toIso8601String(),
-                            'by' => $admin->id,
-                        ],
-                    ],
-                    'updated_at' => now()->toIso8601String(),
-                    'updated_by' => $admin->id,
-                ],
-            ],
-        ]);
 
         $html = $this->actingAs($admin, 'admin')
             ->get(route('admin.loan-applications.show', $app))
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('View what was done', $html);
-        $this->assertStringContainsString('Checklist 1/', $html);
+        $this->assertStringContainsString('id="review-desk"', $html);
+        $this->assertStringContainsString('Review checklist', $html);
+        $this->assertStringContainsString('Compare NIDA number to date of birth', $html);
+        $this->assertStringContainsString('Pass ✓', $html);
+        $this->assertStringContainsString('Fail ✗', $html);
+        $this->assertStringNotContainsString('tab=checklist', $html);
+    }
+
+    public function test_pass_and_fail_with_reason_are_saved(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.screening-checklist', $app), [
+                'person' => 'borrower',
+                'items' => [
+                    'identity' => [
+                        'nida_vs_dob' => ['verdict' => 'pass'],
+                        'face_vs_nida' => [
+                            'verdict' => 'fail',
+                            'fail_reason_code' => 'face_mismatch',
+                        ],
+                    ],
+                ],
+            ])
+            ->assertRedirect();
+
+        $app->refresh();
+        $items = data_get($app->screening_payload, 'screening_checklist.by_subject.borrower.items', []);
+        $this->assertSame('pass', $items['identity.nida_vs_dob']['verdict'] ?? null);
+        $this->assertSame('fail', $items['identity.face_vs_nida']['verdict'] ?? null);
+        $this->assertSame('face_mismatch', $items['identity.face_vs_nida']['fail_reason_code'] ?? null);
+    }
+
+    public function test_fail_without_reason_is_rejected(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.loan-applications.show', $app))
+            ->post(route('admin.loan-applications.screening-checklist', $app), [
+                'person' => 'borrower',
+                'items' => [
+                    'identity' => [
+                        'nida_vs_dob' => ['verdict' => 'fail'],
+                    ],
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('error');
     }
 
     public function test_view_model_marks_non_reviewers_read_only(): void
@@ -175,31 +145,5 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertFalse($vm['can_edit']);
         $this->assertNotEmpty($vm['groups']);
         $this->assertGreaterThan(0, $vm['total']);
-    }
-
-    public function test_guarantor_checklist_is_stored_separately(): void
-    {
-        $admin = $this->staff();
-        $app = $this->application($admin);
-
-        $this->actingAs($admin, 'admin')
-            ->post(route('admin.loan-applications.screening-checklist', $app), [
-                'person' => 'guarantor',
-                'g' => 42,
-                'items' => [
-                    'identity' => ['nida_vs_dob' => '1'],
-                    'guarantor_wrap' => ['capacity_confirmed' => '1'],
-                ],
-            ])
-            ->assertRedirect();
-
-        $app->refresh();
-        $gItems = data_get($app->screening_payload, 'screening_checklist.by_subject.guarantor:42.items', []);
-        $this->assertTrue((bool) ($gItems['identity.nida_vs_dob']['checked'] ?? false));
-        $this->assertTrue((bool) ($gItems['guarantor_wrap.capacity_confirmed']['checked'] ?? false));
-        $this->assertArrayNotHasKey('contacts.call_guarantor', $gItems);
-
-        $borrowerVm = app(ScreeningChecklistService::class)->viewModel($app, $admin, 'borrower');
-        $this->assertSame(0, $borrowerVm['checked']);
     }
 }

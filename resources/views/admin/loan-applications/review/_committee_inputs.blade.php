@@ -131,7 +131,7 @@
                         Checklist {{ (int) ($cl['checked'] ?? 0) }}/{{ (int) $cl['total'] }}
                         ({{ (int) ($cl['percent'] ?? 0) }}%)
                     </p>
-                    <a href="{{ route('admin.loan-applications.show', ['loan_application' => $record, 'tab' => 'checklist', 'person' => 'borrower']) }}#borrower-file"
+                    <a href="{{ route('admin.loan-applications.show', ['loan_application' => $record]) }}#review-desk"
                        class="mt-2 inline-flex text-[11px] font-semibold underline underline-offset-2 text-white/90 hover:text-white">
                         View what was done
                     </a>

@@ -24,7 +24,6 @@
     $borrowerTabs = [
         ['affordability', 'Affordability'],
         ['crb', 'CRB'],
-        ['checklist', 'Checklist'],
         ['personal', 'Personal'],
         ['face', 'Face'],
         ['residence', 'Residence'],
@@ -38,7 +37,6 @@
     $guarantorTabs = [
         ['affordability', 'Affordability'],
         ['crb', 'CRB'],
-        ['checklist', 'Checklist'],
         ['personal', 'Personal'],
         ['face', 'Face'],
         ['residence', 'Residence'],
@@ -151,31 +149,12 @@
                    'bg-transparent text-gray-600 hover:bg-brand-muted/50' => $defaultTab !== $key,
                ])>
                 {{ $label }}
-                @if ($person === 'borrower' && in_array($key, ['documents', 'collateral', 'checklist'], true) && $key === 'documents' && $openDocRequestCount > 0)
+                @if ($person === 'borrower' && $key === 'documents' && $openDocRequestCount > 0)
                     <span @class([
                         'inline-flex min-w-[1.25rem] justify-center rounded-full text-[10px] font-bold px-1.5 py-0.5',
                         'bg-white/20 text-white' => $defaultTab === $key,
                         'bg-amber-100 text-amber-900' => $defaultTab !== $key,
                     ])>{{ $openDocRequestCount }}</span>
-                @endif
-                @if ($key === 'checklist')
-                    @php
-                        $clPerson = $person;
-                        $clG = $person === 'guarantor' ? (int) ($selectedGuarantor['link_id'] ?? 0) : null;
-                        $cl = app(\App\Services\ScreeningChecklistService::class)->viewModel(
-                            $record,
-                            auth()->user(),
-                            $clPerson,
-                            $clG ?: null,
-                        );
-                    @endphp
-                    @if (($cl['total'] ?? 0) > 0)
-                        <span @class([
-                            'inline-flex min-w-[1.25rem] justify-center rounded-full text-[10px] font-bold px-1.5 py-0.5',
-                            'bg-white/20 text-white' => $defaultTab === $key,
-                            'bg-brand-muted text-brand' => $defaultTab !== $key,
-                        ])>{{ (int) ($cl['checked'] ?? 0) }}/{{ (int) $cl['total'] }}</span>
-                    @endif
                 @endif
             </a>
         @endforeach
@@ -206,12 +185,6 @@
             @endif
         @elseif ($defaultTab === 'crb')
             @include('admin.loan-applications.review._subject_crb', ['review' => $subjectReview])
-        @elseif ($defaultTab === 'checklist')
-            @include('admin.loan-applications.review._screening_checklist', [
-                'review' => $review,
-                'checklistPerson' => $person,
-                'checklistGuarantorLinkId' => $person === 'guarantor' ? (int) ($selectedGuarantor['link_id'] ?? 0) : null,
-            ])
         @elseif ($defaultTab === 'personal')
             <div class="space-y-5">
                 @include('admin.loan-applications.review._profile_personal', ['review' => $subjectReview])
