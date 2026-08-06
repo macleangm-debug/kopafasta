@@ -264,7 +264,10 @@ class BorrowerPaymentController extends Controller
                 ->with('error', $e->getMessage() ?: __('borrower.payment_waiting.cannot_retry'));
         }
 
-        return redirect()->route('site.borrower.payments.show', $payment);
+        // Let the borrower pick/edit the number on the shared PSP gate.
+        return redirect()
+            ->route('site.borrower.payments.show', $payment)
+            ->with('prefer_payment_gate', true);
     }
 
     public function updatePhone(Request $request, CustomerPayment $payment, CustomerPaymentService $payments): RedirectResponse
@@ -361,12 +364,42 @@ class BorrowerPaymentController extends Controller
         ]);
     }
 
-    public function show(CustomerPayment $payment): View
+    public function show(CustomerPayment $payment, CustomerPaymentService $payments): View
     {
         $customer = $this->customer();
         abort_unless($payment->customer_id === $customer->id, 403);
 
         $payment->load(['bankAccount', 'mobileMoneyAccount', 'loan', 'loanProduct', 'customer']);
+
+        // Insurance: skip the MM/bank picker and push USSD as soon as we hit payments.show,
+        // unless the borrower explicitly returned to the gate to change number.
+        $preferPaymentGate = (bool) session('prefer_payment_gate');
+        if (
+            ! $preferPaymentGate
+            && $payment->payment_type === 'insurance_premium'
+            && $payment->awaitsCollection()
+        ) {
+            $phone = $payment->mobile_number
+                ?: data_get($payment->provider_meta, 'attempted_phone')
+                ?: $customer->phone;
+
+            if (filled($phone)) {
+                try {
+                    $payment = $payments->initiateCollection($payment, $phone);
+                    $payment->load(['bankAccount', 'mobileMoneyAccount', 'loan', 'loanProduct', 'customer']);
+                } catch (\Illuminate\Validation\ValidationException $e) {
+                    $attempted = $payment->fresh()->mobile_number
+                        ?: data_get($payment->fresh()->provider_meta, 'attempted_phone')
+                        ?: $phone;
+                    $message = CustomerPaymentService::localizeProviderMessage(
+                        collect($e->errors())->flatten()->first(),
+                        $attempted
+                    );
+                    session()->flash('show_collect_failed', true);
+                    session()->flash('collect_error', $message);
+                }
+            }
+        }
 
         $accounts = app(PaymentAccountService::class);
         $bankDetails = null;
@@ -399,6 +432,7 @@ class BorrowerPaymentController extends Controller
             'mobileDetails',
             'bankAccounts',
             'canSwitchToBank',
+            'preferPaymentGate',
         ));
     }
 

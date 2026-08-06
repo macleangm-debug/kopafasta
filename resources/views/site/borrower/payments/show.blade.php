@@ -1,9 +1,10 @@
 <x-site.borrower-layout :title="brand_title($payment->reference)" active="payments">
 
     @php
+        $preferPaymentGate = (bool) ($preferPaymentGate ?? session('prefer_payment_gate'));
         $isPayInWaiting = $payment->isPayInWaiting();
         $isReadyToPay = $payment->awaitsCollection();
-        $showCollectFailed = (bool) session('show_collect_failed');
+        $showCollectFailed = (bool) session('show_collect_failed') && ! $preferPaymentGate;
         $attemptedPhone = data_get($payment->provider_meta, 'attempted_phone')
             ?: data_get($payment->provider_meta, 'phone')
             ?: $payment->mobile_number;
@@ -44,7 +45,7 @@
     @endphp
 
     <div class="max-w-xl mx-auto space-y-5">
-    @if ($isPayInWaiting || ($showCollectFailed && $isReadyToPay))
+    @if (($isPayInWaiting || ($showCollectFailed && $isReadyToPay)) && ! $preferPaymentGate)
         <x-site.payment-waiting
             :payment="$payment"
             :initial-state="$showCollectFailed ? 'failed' : 'waiting'"

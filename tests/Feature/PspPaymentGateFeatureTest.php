@@ -31,9 +31,9 @@ class PspPaymentGateFeatureTest extends TestCase
 
         $payment = CustomerPayment::create([
             'customer_id' => $customer->id,
-            'payment_type' => 'insurance_premium',
+            'payment_type' => 'registration_fee',
             'payment_method' => 'mobile_money',
-            'amount' => 35000,
+            'amount' => 5000,
             'currency' => 'TZS',
             'status' => 'awaiting_payment',
             'reference' => 'INS-GATE-TEST-001',
@@ -49,7 +49,7 @@ class PspPaymentGateFeatureTest extends TestCase
             ->assertSee(__('borrower.membership.pay_now'), false);
     }
 
-    public function test_payment_gate_defaults_to_account_phone_not_payment_phone(): void
+    public function test_payment_gate_defaults_to_payment_phone_when_set(): void
     {
         $user = User::factory()->create([
             'role' => 'borrower',
@@ -68,19 +68,19 @@ class PspPaymentGateFeatureTest extends TestCase
 
         $payment = CustomerPayment::create([
             'customer_id' => $customer->id,
-            'payment_type' => 'insurance_premium',
+            'payment_type' => 'registration_fee',
             'payment_method' => 'mobile_money',
-            'amount' => 35000,
+            'amount' => 2000,
             'currency' => 'TZS',
             'status' => 'awaiting_payment',
-            'reference' => 'INS-GATE-PHONE-001',
+            'reference' => 'PAY-GATE-PHONE-001',
             'mobile_number' => '255715222132',
         ]);
 
         $this->actingAs($user)
             ->get(route('site.borrower.payments.show', $payment))
             ->assertOk()
-            ->assertSee('722111222', false)
-            ->assertDontSee('715222132', false);
+            ->assertSee('715222132', false)
+            ->assertDontSee('722111222', false);
     }
 }

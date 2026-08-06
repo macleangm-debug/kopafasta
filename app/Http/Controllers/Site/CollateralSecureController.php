@@ -336,8 +336,8 @@ class CollateralSecureController extends Controller
     }
 
     /**
-     * Insurance: start PayIn with the account phone and land on payments.show waiting UI.
-     * Failures still use payments.show (help / gate) so we never invent a second flow.
+     * Insurance: start PayIn immediately, then open shared payments.show waiting UI.
+     * payments.show also auto-starts when needed (e.g. resume / refresh).
      */
     private function redirectToInsurancePaymentWaiting(
         \App\Models\CustomerPayment $payment,
@@ -347,33 +347,30 @@ class CollateralSecureController extends Controller
             return redirect()->route('site.borrower.payments.show', $payment);
         }
 
-        if (! $payment->awaitsCollection()) {
-            return redirect()->route('site.borrower.payments.show', $payment);
+        $pushPhone = $payment->mobile_number
+            ?: data_get($payment->provider_meta, 'attempted_phone')
+            ?: $phone;
+
+        if ($payment->awaitsCollection() && filled($pushPhone)) {
+            try {
+                $payment = app(CustomerPaymentService::class)->initiateCollection($payment, $pushPhone);
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                $attempted = $payment->fresh()->mobile_number
+                    ?: data_get($payment->fresh()->provider_meta, 'attempted_phone')
+                    ?: $pushPhone;
+                $message = CustomerPaymentService::localizeProviderMessage(
+                    collect($e->errors())->flatten()->first(),
+                    $attempted
+                );
+
+                return redirect()
+                    ->route('site.borrower.payments.show', $payment)
+                    ->with('collect_error', $message)
+                    ->with('show_collect_failed', true);
+            }
         }
 
-        if (! filled($phone)) {
-            return redirect()->route('site.borrower.payments.show', $payment);
-        }
-
-        try {
-            $payment = app(CustomerPaymentService::class)->initiateCollection($payment, $phone);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            $attempted = $payment->fresh()->mobile_number
-                ?: data_get($payment->fresh()->provider_meta, 'attempted_phone')
-                ?: $phone;
-            $message = CustomerPaymentService::localizeProviderMessage(
-                collect($e->errors())->flatten()->first(),
-                $attempted
-            );
-
-            return redirect()
-                ->route('site.borrower.payments.show', $payment)
-                ->with('collect_error', $message)
-                ->with('show_collect_failed', true)
-                ->withErrors(['mobile_number' => $message]);
-        }
-
-        return redirect()->route('site.borrower.payments.show', $payment);
+        return redirect()->route('site.borrower.payments.show', $payment->fresh());
     }
 
     public function guarantorRespond(Request $request, CustomerGuarantor $customerGuarantor, CollateralSecureService $service): RedirectResponse

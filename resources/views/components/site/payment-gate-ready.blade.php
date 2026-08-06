@@ -9,8 +9,8 @@
 
 @php
     $customer = $payment->customer;
-    // Gate always opens on the member's account phone; they can change it before Pay now.
-    $defaultPhone = old('mobile_number', $customer->phone ?? '');
+    // Gate opens on last payment number when set, otherwise the member account phone.
+    $defaultPhone = old('mobile_number', $payment->mobile_number ?: ($customer->phone ?? ''));
 @endphp
 
 {{-- Thin wrapper: every awaiting CustomerPayment uses the shared PSP gate. --}}
