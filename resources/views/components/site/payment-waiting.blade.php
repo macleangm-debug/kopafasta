@@ -3,37 +3,41 @@
     'statusUrl' => null,
     'successUrl' => null,
     'retryUrl' => null,
+    'initialState' => 'waiting',
+    'errorMessage' => null,
+    'canSwitchToBank' => false,
 ])
 
 @php
     $statusUrl = $statusUrl ?? route('site.borrower.payments.status', $payment);
     $successUrl = $successUrl ?? app(\App\Services\CustomerPaymentService::class)->successRedirectUrl($payment);
-    $retryUrl = $retryUrl ?? (
-        $payment->payment_type === 'registration_fee'
-            ? route('site.membership.renew')
-            : route('site.borrower.payments')
-    );
+    $retryUrl = $retryUrl ?? route('site.borrower.payments.pay', $payment);
+    $phoneUpdateUrl = route('site.borrower.payments.phone', $payment);
+    $switchBankUrl = route('site.borrower.payments.switch-bank', $payment);
     $celebration = app(\App\Services\CustomerPaymentService::class)->celebrationCopy($payment);
     $waitingMessage = $payment->mobile_number
         ? __('borrower.payment_waiting.waiting_phone', ['phone' => $payment->mobile_number])
         : __('borrower.payment_waiting.waiting');
+    $failedMessage = $errorMessage ?: __('borrower.payment_waiting.failed');
     $paidTitle = $celebration['title'];
     $paidMessage = $celebration['message'];
     $phone = $payment->mobile_number;
+    $startFailed = $initialState === 'failed';
 @endphp
 
 <div
     x-data="{
-        state: 'waiting',
-        panel: 'waiting',
-        message: @js($waitingMessage),
+        state: @js($startFailed ? 'failed' : 'waiting'),
+        panel: @js($startFailed ? 'help' : 'waiting'),
+        message: @js($startFailed ? $failedMessage : $waitingMessage),
         paidTitle: @js($paidTitle),
+        changePhone: false,
         attempts: 0,
         maxAttempts: 36,
         noPromptAfterMs: 75000,
         startedAt: Date.now(),
         elapsedSec: 0,
-        showNoPrompt: false,
+        showNoPrompt: @js($startFailed),
         celebrated: false,
         timer: null,
         tickTimer: null,
@@ -46,6 +50,7 @@
             return m + ':' + s;
         },
         async poll() {
+            if (this.state === 'failed' && ! this.timer) return;
             this.attempts++;
             try {
                 const res = await fetch(this.statusUrl, {
@@ -54,13 +59,15 @@
                 });
                 const data = await res.json();
                 if (! res.ok || ! data.ok) throw new Error(data.message || 'Status check failed');
-                this.state = data.state;
+                this.state = data.state === 'ready' ? 'failed' : data.state;
                 if (data.state === 'waiting') {
                     this.message = @js($waitingMessage);
                 } else if (data.state === 'paid') {
                     if (data.title) this.paidTitle = data.title;
                     this.message = data.message || @js($paidMessage);
                     this.panel = 'waiting';
+                } else if (data.state === 'failed' || data.state === 'ready') {
+                    this.message = data.message || @js($failedMessage);
                 } else {
                     this.message = data.message || this.message;
                 }
@@ -71,7 +78,7 @@
                 }
                 if (data.state === 'failed') {
                     this.stopTimers();
-                    this.panel = 'waiting';
+                    this.panel = 'help';
                     return;
                 }
             } catch (e) {
@@ -166,7 +173,7 @@
             this.timer = setInterval(() => this.poll(), 5000);
         },
     }"
-    x-init="start()"
+    x-init="if (! @js($startFailed)) { start(); }"
     class="max-w-xl mx-auto rounded-3xl bg-gradient-to-br from-brand via-brand to-brand/90 text-white shadow-lg shadow-brand/20 overflow-hidden"
 >
     <div class="relative px-5 sm:px-7 py-7 sm:py-8 text-center">
@@ -192,36 +199,51 @@
 
             <template x-if="panel === 'help' && state !== 'paid'">
                 <div>
-                    <h2 class="mt-2 text-xl sm:text-2xl font-extrabold tracking-tight">{{ __('borrower.payment_waiting.help_title') }}</h2>
-                    <p class="mt-3 text-sm text-white/85 max-w-sm mx-auto">{{ __('borrower.payment_waiting.help_intro') }}</p>
+                    <h2 class="mt-2 text-xl sm:text-2xl font-extrabold tracking-tight"
+                        x-text="state === 'failed'
+                            ? @js(__('borrower.payment_waiting.operator_title'))
+                            : @js(__('borrower.payment_waiting.help_title'))"></h2>
+                    <p class="mt-3 text-sm text-white/85 max-w-sm mx-auto" x-text="message"></p>
+                    <p class="mt-2 text-sm text-white/75 max-w-sm mx-auto">{{ __('borrower.payment_waiting.operator_help') }}</p>
 
-                    <ul class="mt-5 text-left max-w-sm mx-auto space-y-2.5 text-sm text-white/90">
-                        <li class="flex gap-2.5">
-                            <span class="mt-0.5 text-brand-gold font-bold">•</span>
-                            <span>{{ __('borrower.payment_waiting.tip_ussd') }}</span>
-                        </li>
-                        @if ($phone)
-                            <li class="flex gap-2.5">
-                                <span class="mt-0.5 text-brand-gold font-bold">•</span>
-                                <span>{{ __('borrower.payment_waiting.tip_phone', ['phone' => $phone]) }}</span>
-                            </li>
-                        @endif
-                        <li class="flex gap-2.5">
-                            <span class="mt-0.5 text-brand-gold font-bold">•</span>
-                            <span>{{ __('borrower.payment_waiting.tip_signal') }}</span>
-                        </li>
-                        <li class="flex gap-2.5">
-                            <span class="mt-0.5 text-brand-gold font-bold">•</span>
-                            <span>{{ __('borrower.payment_waiting.tip_retry') }}</span>
-                        </li>
-                    </ul>
+                    <div class="mt-5 text-left max-w-sm mx-auto space-y-3" x-show="changePhone" x-cloak>
+                        <form method="POST" action="{{ $phoneUpdateUrl }}" class="rounded-2xl bg-white/10 ring-1 ring-white/20 p-4 space-y-3">
+                            @csrf
+                            <x-site.phone-input
+                                name="mobile_number"
+                                :label="__('borrower.payment_waiting.new_phone_label')"
+                                :value="$phone"
+                                :required="true"
+                                :locked-country="$payment->customer?->country_code"
+                                variant="rounded"
+                            />
+                            <button type="submit" class="w-full rounded-xl bg-white text-brand text-sm font-bold px-5 py-2.5">
+                                {{ __('borrower.payment_waiting.save_phone') }}
+                            </button>
+                        </form>
+                    </div>
 
                     <div class="mt-7 flex flex-wrap justify-center gap-3">
-                        <a href="{{ $retryUrl }}"
-                           class="rounded-xl bg-brand-gold text-brand text-sm font-bold px-5 py-2.5">
-                            {{ __('borrower.payment_waiting.try_again') }}
-                        </a>
+                        <form method="POST" action="{{ $retryUrl }}">
+                            @csrf
+                            <button type="submit" class="rounded-xl bg-brand-gold text-brand text-sm font-bold px-5 py-2.5">
+                                {{ __('borrower.payment_waiting.try_again') }}
+                            </button>
+                        </form>
+                        <button type="button" @click="changePhone = !changePhone"
+                                class="rounded-xl bg-white/15 ring-1 ring-white/30 hover:bg-white/25 text-white text-sm font-bold px-5 py-2.5 transition">
+                            {{ __('borrower.payment_waiting.change_phone') }}
+                        </button>
+                        @if ($canSwitchToBank)
+                            <form method="POST" action="{{ $switchBankUrl }}">
+                                @csrf
+                                <button type="submit" class="rounded-xl bg-white/15 ring-1 ring-white/30 hover:bg-white/25 text-white text-sm font-bold px-5 py-2.5 transition">
+                                    {{ __('borrower.payment_waiting.pay_by_bank') }}
+                                </button>
+                            </form>
+                        @endif
                         <button type="button" @click="keepWaiting()"
+                                x-show="state === 'timeout' || state === 'waiting'"
                                 class="rounded-xl bg-white/15 ring-1 ring-white/30 hover:bg-white/25 text-white text-sm font-bold px-5 py-2.5 transition">
                             {{ __('borrower.payment_waiting.keep_waiting') }}
                         </button>
@@ -285,7 +307,7 @@
                 <div class="mt-7 flex flex-wrap justify-center gap-3" x-show="state === 'failed' || state === 'timeout'" x-cloak>
                     <button type="button" @click="openHelp()"
                             class="rounded-xl bg-brand-gold text-brand text-sm font-bold px-5 py-2.5">
-                        {{ __('borrower.payment_waiting.no_prompt') }}
+                        {{ __('borrower.payment_waiting.change_phone') }}
                     </button>
                     <button type="button" @click="state = 'waiting'; attempts = 0; message = @js($waitingMessage); start()"
                             class="rounded-xl bg-white/15 ring-1 ring-white/30 text-white text-sm font-bold px-5 py-2.5">

@@ -142,7 +142,7 @@ class ApplicationFeePaymentService
             'auto_verify'    => $dummyGateway && ! $payInLive,
         ]);
 
-        $pending = in_array($payment->status, ['processing', 'pending_verification'], true);
+        $pending = in_array($payment->status, ['awaiting_payment', 'processing', 'pending_verification'], true);
 
         return [
             'status'     => $pending ? 'processing' : 'paid',

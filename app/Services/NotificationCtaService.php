@@ -55,7 +55,7 @@ class NotificationCtaService
             ];
         }
 
-        if (in_array($template, ['document_request', 'document_requests', 'application_document_request', 'profile_revision_requested'], true)) {
+        if (in_array($template, ['document_request', 'document_requests', 'application_document_request', 'application_document_request_reminder_1', 'profile_revision_requested'], true)) {
             if (! $this->documentActionStillOpen($notification, $meta, $actionUrl)) {
                 return $empty;
             }
@@ -72,7 +72,7 @@ class NotificationCtaService
             'guarantor_supplement_request' => __('borrower.guarantor_supplement.cta'),
             'loyalty_points_earned' => __('borrower.rewards.points_earned_cta'),
             'membership_issued', 'membership_renewed' => __('borrower.membership.notification_cta'),
-            'document_request', 'document_requests', 'application_document_request' => __('borrower.dashboard.document_requests_cta'),
+            'document_request', 'document_requests', 'application_document_request', 'application_document_request_reminder_1' => __('borrower.dashboard.document_requests_cta'),
             'profile_revision_requested' => __('borrower.notifications.profile_revision_cta'),
             default => __('borrower.notifications.view_application'),
         };
@@ -115,7 +115,12 @@ class NotificationCtaService
     public function consumeDocumentRequestCtas(int $applicationId, ?int $requestId = null): void
     {
         $query = NotificationLog::query()
-            ->whereIn('template', ['document_request', 'document_requests', 'application_document_request']);
+            ->whereIn('template', [
+                'document_request',
+                'document_requests',
+                'application_document_request',
+                'application_document_request_reminder_1',
+            ]);
 
         $query->where(function ($q) use ($applicationId, $requestId) {
             $q->where('meta->loan_application_id', $applicationId)

@@ -201,6 +201,15 @@ class MessagingCatalog
                 'description' => 'Analyst asks borrower to upload or retake documents/photos.',
             ],
             [
+                'code' => 'application_document_request_reminder',
+                'name' => 'Requested documents due tomorrow',
+                'group' => 'origination',
+                'critical' => false,
+                'default_channels' => ['in_app'],
+                'default_enabled' => true,
+                'description' => 'Reminder one day before open document requests are due. Lists the requested items.',
+            ],
+            [
                 'code' => 'application_approved',
                 'name' => 'Application approved',
                 'group' => 'origination',

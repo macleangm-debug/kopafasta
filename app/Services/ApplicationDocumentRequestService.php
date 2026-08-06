@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\CustomerDocument;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationDocumentRequest;
+use App\Models\NotificationLog;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
@@ -655,5 +656,85 @@ class ApplicationDocumentRequestService
         }
 
         return $marked;
+    }
+
+    /**
+     * In-app reminder for open document requests due tomorrow.
+     * Lists the requested documents and links to the application.
+     */
+    public function sendDueTomorrowReminders(): int
+    {
+        $start = now()->addDay()->startOfDay();
+        $end = now()->addDay()->endOfDay();
+        $dueOn = $start->toDateString();
+        $sent = 0;
+
+        LoanApplicationDocumentRequest::query()
+            ->with(['application.customer'])
+            ->whereIn('status', ['pending', 'rejected'])
+            ->whereNotNull('due_at')
+            ->whereBetween('due_at', [$start, $end])
+            ->orderBy('id')
+            ->get()
+            ->groupBy('loan_application_id')
+            ->each(function (Collection $requests) use (&$sent, $dueOn) {
+                $application = $requests->first()?->application;
+                $customer = $application?->customer;
+                if (! $application || ! $customer) {
+                    return;
+                }
+
+                if (in_array($application->status, ['withdrawn', 'rejected', 'disbursed', 'expired'], true)) {
+                    return;
+                }
+
+                $template = 'application_document_request_reminder_1';
+                if (NotificationLog::query()
+                    ->where('customer_id', $customer->id)
+                    ->where('channel', 'in_app')
+                    ->where('template', $template)
+                    ->where('meta->loan_application_id', $application->id)
+                    ->where('meta->due_on', $dueOn)
+                    ->exists()) {
+                    return;
+                }
+
+                $count = $requests->count();
+                $labels = $requests->pluck('label')->filter()->take(7)->implode(', ');
+                $suffix = $count > 7 ? '…' : '';
+                $dueDate = optional($requests->first()->due_at)
+                    ->timezone(config('app.timezone'))
+                    ->format('d M Y');
+
+                $params = [
+                    'application' => $application->application_number,
+                    'count' => $count,
+                    'labels' => $labels.$suffix,
+                    'date' => $dueDate ?: $dueOn,
+                ];
+
+                $uploadUrl = route('site.borrower.application', $application);
+
+                $this->notifier->notifyInApp(
+                    $customer,
+                    __('borrower.notifications.document_request_reminder_body', $params),
+                    'document_request',
+                    $template,
+                    __('borrower.notifications.document_request_reminder_title'),
+                    $uploadUrl,
+                    __('borrower.notifications.document_request_cta'),
+                    [
+                        'title_key' => 'borrower.notifications.document_request_reminder_title',
+                        'body_key' => 'borrower.notifications.document_request_reminder_body',
+                        'params' => $params,
+                        'loan_application_id' => $application->id,
+                        'due_on' => $dueOn,
+                    ],
+                );
+
+                $sent++;
+            });
+
+        return $sent;
     }
 }

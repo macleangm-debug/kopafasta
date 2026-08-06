@@ -120,9 +120,10 @@ class CustomerPaymentService
             }
 
             // Never mark live mobile-money as paid/verified without aggregator confirmation.
+            // PayIn collections start only when the borrower taps Pay now on the gate.
             $status = $autoVerify
                 ? 'verified'
-                : ($usePayIn ? 'processing' : ($isBank ? 'pending_verification' : ($liveGateway && $method === 'mobile_money' ? 'processing' : 'paid')));
+                : ($usePayIn ? 'awaiting_payment' : ($isBank ? 'pending_verification' : ($liveGateway && $method === 'mobile_money' ? 'awaiting_payment' : 'paid')));
 
             $proofPath = null;
             $proofName = null;
@@ -137,7 +138,7 @@ class CustomerPaymentService
                 $instructions = trim(($instructions ?? '')."\n".'Use reference: '.$reference);
             }
             if ($usePayIn) {
-                $instructions = trim(($instructions ?? '')."\nConfirm the payment prompt on your phone.");
+                $instructions = trim(($instructions ?? '')."\n".__('borrower.payment_waiting.gate_instructions'));
             }
 
             $payment = CustomerPayment::create([
@@ -161,57 +162,19 @@ class CustomerPaymentService
                 'loan_id'                 => $loan?->id,
                 'loan_product_id'         => $product?->id,
                 'created_by'              => auth()->id(),
+                'provider_meta'           => $usePayIn ? [
+                    'awaiting_collection' => true,
+                    'description' => $data['description'] ?? null,
+                    'operator' => $data['operator'] ?? null,
+                ] : null,
             ]);
-
-            if ($usePayIn) {
-                $collection = $payIn->collect(
-                    (string) $data['mobile_number'],
-                    $amount,
-                    $reference,
-                    $this->payInDescription($type, $reference, $data['description'] ?? null),
-                    $data['operator'] ?? null,
-                );
-
-                $remoteStatus = strtolower((string) ($collection['status'] ?? ''));
-                $meta = [
-                    'initiated_at' => now()->toIso8601String(),
-                    'operator' => $collection['operator'],
-                    'message' => $collection['message'],
-                    'phone' => $payIn->normalizePhone((string) $data['mobile_number']),
-                    'raw' => $collection['raw'],
-                ];
-
-                if (in_array($remoteStatus, ['failed', 'cancelled', 'canceled', 'expired', 'rejected'], true)) {
-                    $payment->update([
-                        'status' => 'rejected',
-                        'provider' => 'payin',
-                        'provider_ref' => $collection['request_ref'],
-                        'provider_meta' => $meta,
-                        'verification_notes' => trim(($payment->verification_notes ?? '')."\nPayIn collection status: {$remoteStatus}"),
-                        'payment_instructions' => trim(($payment->payment_instructions ?? '')."\n".$collection['message']),
-                    ]);
-
-                    throw \Illuminate\Validation\ValidationException::withMessages([
-                        'payment_phone' => [$collection['message'] ?: __('borrower.payments.aggregator_rejected')],
-                    ]);
-                }
-
-                $payment->update([
-                    'provider' => 'payin',
-                    'provider_ref' => $collection['request_ref'],
-                    'provider_meta' => $meta,
-                    'payment_instructions' => trim(($payment->payment_instructions ?? '')."\n".$collection['message']),
-                ]);
-
-                return $payment->fresh(['customer', 'bankAccount', 'mobileMoneyAccount']);
-            }
 
             // Never instant-finalize insurance — partner case opens only after verified payment.
             if ($type === 'insurance_premium') {
                 return $payment->fresh(['customer', 'bankAccount', 'mobileMoneyAccount']);
             }
 
-            if ($autoVerify || (! $isBank && ! $liveGateway)) {
+            if ($autoVerify || (! $isBank && ! $usePayIn && ! $liveGateway)) {
                 $this->finalizePayment($payment);
             } elseif ($isBank) {
                 $this->notifyBankStatus($payment->fresh(['customer']), 'bank_payment_pending');
@@ -219,6 +182,161 @@ class CustomerPaymentService
 
             return $payment->fresh(['customer', 'bankAccount', 'mobileMoneyAccount']);
         });
+    }
+
+    /**
+     * Start the PayIn USSD / STK push after the borrower taps Pay now on the payment gate.
+     */
+    public function initiateCollection(CustomerPayment $payment, ?string $mobileNumber = null, ?string $operator = null): CustomerPayment
+    {
+        $payment = $payment->fresh(['customer']);
+
+        if ($payment->payment_method !== 'mobile_money') {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'payment_method' => [__('borrower.payments.aggregator_required')],
+            ]);
+        }
+
+        if (! in_array($payment->status, ['awaiting_payment', 'processing'], true)
+            || ($payment->status === 'processing' && filled($payment->provider_ref))) {
+            if ($payment->status === 'processing' && filled($payment->provider_ref)) {
+                return $payment;
+            }
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'payment_method' => [__('borrower.payment_waiting.cannot_retry')],
+            ]);
+        }
+
+        $phone = filled($mobileNumber) ? $mobileNumber : $payment->mobile_number;
+        if (filled($phone)) {
+            $phone = PhoneNumber::normalizeForCountry(
+                (string) $phone,
+                $payment->customer?->country_code ?? null,
+            );
+        }
+
+        if (! filled($phone)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'mobile_number' => [__('borrower.payments.mobile_number_required')],
+            ]);
+        }
+
+        $payIn = app(PayInService::class);
+        if (! $payIn->isConfigured()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'payment_method' => [__('borrower.payments.aggregator_required')],
+            ]);
+        }
+
+        if ($payment->mobile_number !== $phone) {
+            $payment->update(['mobile_number' => $phone]);
+        }
+
+        $meta = (array) ($payment->provider_meta ?? []);
+        $description = $meta['description'] ?? null;
+        $operator = $operator ?? ($meta['operator'] ?? null);
+
+        try {
+            $collection = $payIn->collect(
+                (string) $phone,
+                (float) $payment->amount,
+                (string) $payment->reference,
+                $this->payInDescription($payment->payment_type, (string) $payment->reference, is_string($description) ? $description : null),
+                is_string($operator) ? $operator : null,
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $message = collect($e->errors())->flatten()->first()
+                ?: __('borrower.payments.aggregator_rejected');
+            $meta['awaiting_collection'] = true;
+            $meta['last_collect_error'] = $message;
+            $meta['last_collect_error_at'] = now()->toIso8601String();
+            $payment->update([
+                'status' => 'awaiting_payment',
+                'provider' => null,
+                'provider_ref' => null,
+                'provider_meta' => $meta,
+            ]);
+
+            throw $e;
+        }
+
+        $remoteStatus = strtolower((string) ($collection['status'] ?? ''));
+        $meta = array_merge($meta, [
+            'awaiting_collection' => false,
+            'initiated_at' => now()->toIso8601String(),
+            'operator' => $collection['operator'],
+            'message' => $collection['message'],
+            'phone' => $payIn->normalizePhone((string) $phone),
+            'raw' => $collection['raw'],
+        ]);
+        unset($meta['last_collect_error'], $meta['last_collect_error_at']);
+
+        if (in_array($remoteStatus, ['failed', 'cancelled', 'canceled', 'expired', 'rejected'], true)) {
+            $message = $collection['message'] ?: __('borrower.payments.aggregator_rejected');
+            $meta['awaiting_collection'] = true;
+            $meta['last_collect_error'] = $message;
+            $meta['last_collect_error_at'] = now()->toIso8601String();
+            $payment->update([
+                'status' => 'awaiting_payment',
+                'provider' => 'payin',
+                'provider_ref' => $collection['request_ref'],
+                'provider_meta' => $meta,
+                'verification_notes' => trim(($payment->verification_notes ?? '')."\nPayIn collection status: {$remoteStatus}"),
+                'payment_instructions' => trim(($payment->payment_instructions ?? '')."\n".$message),
+            ]);
+
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'payment_phone' => [$message],
+            ]);
+        }
+
+        $payment->update([
+            'status' => 'processing',
+            'provider' => 'payin',
+            'provider_ref' => $collection['request_ref'],
+            'provider_meta' => $meta,
+            'payment_instructions' => trim(($payment->payment_instructions ?? '')."\n".$collection['message']),
+        ]);
+
+        return $payment->fresh(['customer', 'bankAccount', 'mobileMoneyAccount']);
+    }
+
+    /**
+     * Switch a mobile-money gate payment to bank transfer before collection starts.
+     */
+    public function switchToBankTransfer(CustomerPayment $payment): CustomerPayment
+    {
+        $payment = $payment->fresh(['customer']);
+        abort_unless($payment->status === 'awaiting_payment', 422);
+        abort_unless($payment->payment_method === 'mobile_money', 422);
+
+        $product = $payment->loan_product_id
+            ? \App\Models\LoanProduct::query()->find($payment->loan_product_id)
+            : ($payment->loan_id ? $payment->loan?->product : null);
+        $resolved = $this->accounts->resolve($payment->payment_type, 'bank_transfer', $product);
+        abort_unless($resolved['bank_account'], 422, __('borrower.payment_waiting.bank_unavailable'));
+
+        $details = $this->accounts->bankTransferDetails($resolved['bank_account'], $payment->reference);
+        $instructions = trim(($resolved['instructions'] ?? '')."\n".'Use reference: '.$payment->reference);
+
+        $payment->update([
+            'payment_method' => 'bank_transfer',
+            'status' => 'pending_verification',
+            'bank_account_id' => $resolved['bank_account']->id,
+            'mobile_money_account_id' => null,
+            'provider' => null,
+            'provider_ref' => null,
+            'provider_meta' => array_merge((array) ($payment->provider_meta ?? []), [
+                'switched_from' => 'mobile_money',
+                'switched_at' => now()->toIso8601String(),
+            ]),
+            'payment_instructions' => $instructions,
+            'payment_date' => now()->toDateString(),
+        ]);
+
+        $this->notifyBankStatus($payment->fresh(['customer']), 'bank_payment_pending');
+
+        return $payment->fresh(['customer', 'bankAccount', 'mobileMoneyAccount']);
     }
 
     /**

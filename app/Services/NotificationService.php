@@ -198,12 +198,14 @@ class NotificationService
             'sent_at'     => now(),
         ];
 
-        if (is_array($i18n) && (filled($i18n['title_key'] ?? null) || filled($i18n['body_key'] ?? null) || isset($i18n['customer_guarantor_id']))) {
+        if (is_array($i18n) && (filled($i18n['title_key'] ?? null) || filled($i18n['body_key'] ?? null) || isset($i18n['customer_guarantor_id']) || isset($i18n['loan_application_id']) || isset($i18n['due_on']))) {
             $payload['meta'] = array_filter([
                 'title_key' => $i18n['title_key'] ?? null,
                 'body_key'  => $i18n['body_key'] ?? null,
                 'params'    => is_array($i18n['params'] ?? null) ? $i18n['params'] : [],
                 'customer_guarantor_id' => $i18n['customer_guarantor_id'] ?? null,
+                'loan_application_id' => $i18n['loan_application_id'] ?? null,
+                'due_on' => $i18n['due_on'] ?? null,
             ], static fn ($v) => $v !== null && $v !== []);
         }
 

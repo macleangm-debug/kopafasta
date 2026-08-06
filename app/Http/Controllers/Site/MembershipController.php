@@ -196,7 +196,7 @@ class MembershipController extends Controller
                 }
             }
 
-            if ($payment->status === 'processing') {
+            if (in_array($payment->status, ['processing', 'awaiting_payment'], true)) {
                 return redirect()
                     ->route('site.borrower.payments.show', $payment);
             }

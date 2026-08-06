@@ -132,7 +132,18 @@ class CustomerPayment extends Model
 
     public function isPending(): bool
     {
-        return in_array($this->status, ['pending_verification', 'clarification_requested', 'processing'], true);
+        return in_array($this->status, ['awaiting_payment', 'pending_verification', 'clarification_requested', 'processing'], true);
+    }
+
+    public function awaitsCollection(): bool
+    {
+        return $this->status === 'awaiting_payment' && $this->payment_method === 'mobile_money';
+    }
+
+    public function isPayInWaiting(): bool
+    {
+        return $this->status === 'processing'
+            && ($this->provider === 'payin' || $this->payment_type === 'insurance_premium');
     }
 
     public function isVerified(): bool
@@ -147,6 +158,6 @@ class CustomerPayment extends Model
 
     public function scopePending($query)
     {
-        return $query->whereIn('status', ['pending_verification', 'clarification_requested', 'processing']);
+        return $query->whereIn('status', ['awaiting_payment', 'pending_verification', 'clarification_requested', 'processing']);
     }
 }

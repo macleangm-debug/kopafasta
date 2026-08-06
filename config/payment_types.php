@@ -73,6 +73,7 @@ return [
     ],
 
     'statuses' => [
+        'awaiting_payment'          => 'Ready to pay',
         'pending_verification'    => 'Pending Verification',
         'clarification_requested' => 'Clarification Requested',
         'processing'              => 'Awaiting phone confirmation',

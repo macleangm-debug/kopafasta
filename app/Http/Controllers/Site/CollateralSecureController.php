@@ -127,7 +127,7 @@ class CollateralSecureController extends Controller
                 'auto_verify'    => ! app(\App\Services\PayInService::class)->isLiveCollectionEnabled(),
             ]);
 
-            if ($payment->status === 'processing') {
+            if (in_array($payment->status, ['processing', 'awaiting_payment'], true)) {
                 return redirect()
                     ->route('site.borrower.payments.show', $payment);
             }
@@ -185,7 +185,7 @@ class CollateralSecureController extends Controller
                 ->where('customer_id', $customer->id)
                 ->where('payment_type', 'insurance_premium')
                 ->first();
-            if ($existing && ! $existing->isVerified()) {
+            if ($existing && ! $existing->isVerified() && in_array($existing->status, ['awaiting_payment', 'processing'], true)) {
                 return redirect()->route('site.borrower.payments.show', $existing);
             }
         }
@@ -244,7 +244,7 @@ class CollateralSecureController extends Controller
                 ->where('customer_id', $customer->id)
                 ->where('payment_type', 'insurance_premium')
                 ->first();
-            if ($existing && ! $existing->isVerified()) {
+            if ($existing && ! $existing->isVerified() && in_array($existing->status, ['awaiting_payment', 'processing'], true)) {
                 return redirect()->route('site.borrower.payments.show', $existing);
             }
         }

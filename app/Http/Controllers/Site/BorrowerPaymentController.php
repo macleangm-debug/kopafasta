@@ -195,6 +195,83 @@ class BorrowerPaymentController extends Controller
         ]);
     }
 
+    public function pay(Request $request, CustomerPayment $payment, CustomerPaymentService $payments): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_unless($payment->customer_id === $customer->id, 403);
+
+        $data = $request->validate([
+            'mobile_number' => ['nullable', 'string', 'max:20'],
+            'mobile_number_local' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        $mobileNumber = PhoneNumber::fromRequest($request, 'mobile_number', $customer->country_code ?? null)
+            ?: ($data['mobile_number'] ?? null);
+
+        try {
+            $payment = $payments->initiateCollection($payment, $mobileNumber);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $message = collect($e->errors())->flatten()->first()
+                ?: __('borrower.payments.aggregator_rejected');
+
+            return redirect()
+                ->route('site.borrower.payments.show', $payment)
+                ->with('collect_error', $message)
+                ->with('show_collect_failed', true)
+                ->withErrors($e->errors());
+        }
+
+        return redirect()->route('site.borrower.payments.show', $payment);
+    }
+
+    public function updatePhone(Request $request, CustomerPayment $payment, CustomerPaymentService $payments): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_unless($payment->customer_id === $customer->id, 403);
+        abort_unless($payment->awaitsCollection(), 422);
+
+        $request->validate([
+            'mobile_number' => ['required', 'string', 'max:20'],
+            'mobile_number_local' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        $mobileNumber = PhoneNumber::fromRequest($request, 'mobile_number', $customer->country_code ?? null);
+        if (! filled($mobileNumber) || ! CustomerPaymentService::validateMobileNumber($mobileNumber)) {
+            return back()->withInput()->withErrors([
+                'mobile_number' => __('borrower.payments.mobile_number_required'),
+            ]);
+        }
+
+        $meta = (array) ($payment->provider_meta ?? []);
+        unset($meta['last_collect_error'], $meta['last_collect_error_at']);
+        $payment->update([
+            'mobile_number' => $mobileNumber,
+            'provider_meta' => $meta,
+        ]);
+
+        return redirect()
+            ->route('site.borrower.payments.show', $payment)
+            ->with('status', __('borrower.payment_waiting.phone_updated'));
+    }
+
+    public function switchBank(CustomerPayment $payment, CustomerPaymentService $payments): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_unless($payment->customer_id === $customer->id, 403);
+
+        try {
+            $payment = $payments->switchToBankTransfer($payment);
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('site.borrower.payments.show', $payment)
+                ->with('error', $e->getMessage() ?: __('borrower.payment_waiting.bank_unavailable'));
+        }
+
+        return redirect()
+            ->route('site.borrower.payments.show', $payment)
+            ->with('status', __('borrower.payment_waiting.switched_to_bank'));
+    }
+
     public function status(CustomerPayment $payment, CustomerPaymentService $payments): \Illuminate\Http\JsonResponse
     {
         $customer = $this->customer();
@@ -210,6 +287,7 @@ class BorrowerPaymentController extends Controller
             $payment->isVerified() || in_array($payment->status, ['paid', 'verified'], true) => 'paid',
             $payment->status === 'rejected' => 'failed',
             $payment->status === 'processing' => 'waiting',
+            $payment->awaitsCollection() => 'ready',
             default => 'pending',
         };
 
@@ -232,6 +310,7 @@ class BorrowerPaymentController extends Controller
                 'waiting' => $payment->mobile_number
                     ? __('borrower.payment_waiting.waiting_phone', ['phone' => $payment->mobile_number])
                     : __('borrower.payment_waiting.waiting'),
+                'ready' => __('borrower.payment_waiting.ready'),
                 default => __('borrower.payment_waiting.pending'),
             },
             'redirect_url' => $redirect,
@@ -244,11 +323,12 @@ class BorrowerPaymentController extends Controller
         $customer = $this->customer();
         abort_unless($payment->customer_id === $customer->id, 403);
 
-        $payment->load(['bankAccount', 'mobileMoneyAccount', 'loan']);
+        $payment->load(['bankAccount', 'mobileMoneyAccount', 'loan', 'loanProduct', 'customer']);
 
         $accounts = app(PaymentAccountService::class);
         $bankDetails = null;
         $mobileDetails = null;
+        $canSwitchToBank = false;
 
         if ($payment->payment_method === 'bank_transfer' && $payment->bankAccount) {
             $bankDetails = $accounts->bankTransferDetails($payment->bankAccount, $payment->reference);
@@ -258,7 +338,19 @@ class BorrowerPaymentController extends Controller
             $mobileDetails = $accounts->mobileMoneyDetails($payment->mobileMoneyAccount, $payment->reference);
         }
 
-        return view('site.borrower.payments.show', compact('payment', 'bankDetails', 'mobileDetails'));
+        if ($payment->awaitsCollection()) {
+            $product = $payment->loanProduct
+                ?? ($payment->loan_id ? $payment->loan?->product : null);
+            $bankResolved = $accounts->resolve($payment->payment_type, 'bank_transfer', $product);
+            $canSwitchToBank = (bool) ($bankResolved['bank_account'] ?? null);
+        }
+
+        return view('site.borrower.payments.show', compact(
+            'payment',
+            'bankDetails',
+            'mobileDetails',
+            'canSwitchToBank',
+        ));
     }
 
     public function uploadProof(Request $request, CustomerPayment $payment, CustomerPaymentService $service): RedirectResponse

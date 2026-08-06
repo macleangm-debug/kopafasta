@@ -298,9 +298,16 @@ class CollateralSecureFeatureTest extends TestCase
 
         $this->assertNotNull($payment);
         $response->assertRedirect(route('site.borrower.payments.show', $payment));
-        $this->assertSame('processing', $payment->status);
+        $this->assertSame('awaiting_payment', $payment->status);
         $this->assertSame('payment_pending', data_get($app->fresh()->screening_payload, 'collateral_secure.insurance_purchase.status'));
         $this->assertSame($payment->id, (int) data_get($app->fresh()->screening_payload, 'collateral_secure.insurance_purchase.payment_id'));
+
+        $this->actingAs($user)
+            ->post(route('site.borrower.payments.pay', $payment))
+            ->assertRedirect(route('site.borrower.payments.show', $payment));
+
+        $this->assertSame('processing', $payment->fresh()->status);
+        $this->assertSame('payin', $payment->fresh()->provider);
     }
 
     public function test_insure_it_resumes_pending_payment_gate(): void
