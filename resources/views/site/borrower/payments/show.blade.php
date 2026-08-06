@@ -45,8 +45,6 @@
             :payment="$payment"
             :initial-state="$showCollectFailed ? 'failed' : 'waiting'"
             :error-message="$collectError"
-            :can-switch-to-bank="$canSwitchToBank"
-            :gate-url="route('site.borrower.payments.show', $payment)"
         />
     @elseif ($isReadyToPay)
         <x-site.payment-gate-ready

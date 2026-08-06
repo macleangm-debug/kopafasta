@@ -362,6 +362,36 @@ class CustomerPaymentService
     }
 
     /**
+     * Send the borrower back to the shared PSP gate (MM | bank | Pay now)
+     * after they abandon or retry from the waiting / help card.
+     */
+    public function returnToPaymentGate(CustomerPayment $payment): CustomerPayment
+    {
+        $payment = $payment->fresh(['customer']);
+
+        abort_unless($payment->payment_method === 'mobile_money', 422);
+        abort_unless(in_array($payment->status, ['awaiting_payment', 'processing'], true), 422);
+
+        if ($payment->isVerified()) {
+            return $payment;
+        }
+
+        $meta = (array) ($payment->provider_meta ?? []);
+        $meta['awaiting_collection'] = true;
+        $meta['returned_to_gate_at'] = now()->toIso8601String();
+        unset($meta['last_collect_error'], $meta['last_collect_error_at'], $meta['initiated_at']);
+
+        $payment->update([
+            'status' => 'awaiting_payment',
+            'provider' => null,
+            'provider_ref' => null,
+            'provider_meta' => $meta,
+        ]);
+
+        return $payment->fresh(['customer', 'bankAccount', 'mobileMoneyAccount']);
+    }
+
+    /**
      * Switch a mobile-money gate payment to bank transfer before collection starts.
      */
     public function switchToBankTransfer(CustomerPayment $payment): CustomerPayment

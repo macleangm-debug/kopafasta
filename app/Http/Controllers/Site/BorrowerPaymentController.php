@@ -244,6 +244,22 @@ class BorrowerPaymentController extends Controller
         return redirect()->route('site.borrower.payments.show', $payment);
     }
 
+    public function returnToGate(CustomerPayment $payment, CustomerPaymentService $payments): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_unless($payment->customer_id === $customer->id, 403);
+
+        try {
+            $payment = $payments->returnToPaymentGate($payment);
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('site.borrower.payments.show', $payment)
+                ->with('error', $e->getMessage() ?: __('borrower.payment_waiting.cannot_retry'));
+        }
+
+        return redirect()->route('site.borrower.payments.show', $payment);
+    }
+
     public function updatePhone(Request $request, CustomerPayment $payment, CustomerPaymentService $payments): RedirectResponse
     {
         $customer = $this->customer();

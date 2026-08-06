@@ -2,19 +2,16 @@
     'payment',
     'statusUrl' => null,
     'successUrl' => null,
-    'retryUrl' => null,
     'gateUrl' => null,
     'initialState' => 'waiting',
     'errorMessage' => null,
-    'canSwitchToBank' => false,
 ])
 
 @php
     $statusUrl = $statusUrl ?? route('site.borrower.payments.status', $payment);
     $successUrl = $successUrl ?? app(\App\Services\CustomerPaymentService::class)->successRedirectUrl($payment);
-    $retryUrl = $retryUrl ?? route('site.borrower.payments.pay', $payment);
-    $gateUrl = $gateUrl ?? route('site.borrower.payments.show', $payment);
-    $switchBankUrl = route('site.borrower.payments.switch-bank', $payment);
+    // Always return to the shared PSP gate (MM | bank | Pay now) — never re-collect from here.
+    $gateUrl = $gateUrl ?? route('site.borrower.payments.gate', $payment);
     $celebration = app(\App\Services\CustomerPaymentService::class)->celebrationCopy($payment);
     $waitingMessage = $payment->mobile_number
         ? __('borrower.payment_waiting.waiting_phone', ['phone' => $payment->mobile_number])
@@ -151,15 +148,6 @@
         openHelp() {
             this.panel = 'help';
         },
-        keepWaiting() {
-            this.panel = 'waiting';
-            if (this.state !== 'waiting') {
-                this.state = 'waiting';
-                this.attempts = 0;
-                this.message = @js($waitingMessage);
-                this.start();
-            }
-        },
         start() {
             this.stopTimers();
             this.startedAt = Date.now();
@@ -208,29 +196,18 @@
                     <p class="mt-3 text-sm text-white/85 max-w-sm mx-auto" x-text="message"></p>
 
                     <div class="mt-7 flex flex-wrap justify-center gap-3">
-                        <form method="POST" action="{{ $retryUrl }}">
+                        <form method="POST" action="{{ $gateUrl }}">
                             @csrf
                             <button type="submit" class="rounded-xl bg-brand-gold text-brand text-sm font-bold px-5 py-2.5">
                                 {{ __('borrower.payment_waiting.try_again') }}
                             </button>
                         </form>
-                        <a href="{{ $gateUrl }}"
-                           class="rounded-xl bg-white/15 ring-1 ring-white/30 hover:bg-white/25 text-white text-sm font-bold px-5 py-2.5 transition inline-flex items-center">
-                            {{ __('borrower.payment_waiting.change_phone') }}
-                        </a>
-                        @if ($canSwitchToBank)
-                            <form method="POST" action="{{ $switchBankUrl }}">
-                                @csrf
-                                <button type="submit" class="rounded-xl bg-white/15 ring-1 ring-white/30 hover:bg-white/25 text-white text-sm font-bold px-5 py-2.5 transition">
-                                    {{ __('borrower.payment_waiting.pay_by_bank') }}
-                                </button>
-                            </form>
-                        @endif
-                        <button type="button" @click="keepWaiting()"
-                                x-show="state === 'timeout' || state === 'waiting'"
-                                class="rounded-xl bg-white/15 ring-1 ring-white/30 hover:bg-white/25 text-white text-sm font-bold px-5 py-2.5 transition">
-                            {{ __('borrower.payment_waiting.keep_waiting') }}
-                        </button>
+                        <form method="POST" action="{{ $gateUrl }}">
+                            @csrf
+                            <button type="submit" class="rounded-xl bg-white/15 ring-1 ring-white/30 hover:bg-white/25 text-white text-sm font-bold px-5 py-2.5 transition">
+                                {{ __('borrower.payment_waiting.change_phone') }}
+                            </button>
+                        </form>
                     </div>
                 </div>
             </template>
@@ -289,14 +266,18 @@
                 </div>
 
                 <div class="mt-7 flex flex-wrap justify-center gap-3" x-show="state === 'failed' || state === 'timeout'" x-cloak>
-                    <a href="{{ $gateUrl }}"
-                       class="rounded-xl bg-brand-gold text-brand text-sm font-bold px-5 py-2.5 inline-flex items-center">
-                        {{ __('borrower.payment_waiting.change_phone') }}
-                    </a>
-                    <button type="button" @click="state = 'waiting'; attempts = 0; message = @js($waitingMessage); start()"
-                            class="rounded-xl bg-white/15 ring-1 ring-white/30 text-white text-sm font-bold px-5 py-2.5">
-                        {{ __('borrower.payment_waiting.check_again') }}
-                    </button>
+                    <form method="POST" action="{{ $gateUrl }}">
+                        @csrf
+                        <button type="submit" class="rounded-xl bg-brand-gold text-brand text-sm font-bold px-5 py-2.5">
+                            {{ __('borrower.payment_waiting.try_again') }}
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ $gateUrl }}">
+                        @csrf
+                        <button type="submit" class="rounded-xl bg-white/15 ring-1 ring-white/30 text-white text-sm font-bold px-5 py-2.5">
+                            {{ __('borrower.payment_waiting.change_phone') }}
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>

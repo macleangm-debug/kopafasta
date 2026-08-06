@@ -135,7 +135,43 @@ class PaymentWaitingPollTest extends TestCase
             ->assertSee(__('borrower.payment_waiting.wait_estimate'), false)
             ->assertSee(__('borrower.payment_waiting.no_prompt'), false)
             ->assertSee(__('borrower.payment_waiting.help_title'), false)
-            ->assertSee(__('borrower.payment_waiting.try_again'), false);
+            ->assertSee(__('borrower.payment_waiting.try_again'), false)
+            ->assertSee(__('borrower.payment_waiting.change_phone'), false)
+            ->assertDontSee(__('borrower.payment_waiting.keep_waiting'), false)
+            ->assertSee(route('site.borrower.payments.gate', $payment), false);
+    }
+
+    public function test_return_to_gate_resets_processing_payment_to_psp_gate(): void
+    {
+        [$user, $customer] = $this->borrower();
+
+        $payment = CustomerPayment::create([
+            'reference' => 'PAY-WAIT-GATE',
+            'customer_id' => $customer->id,
+            'payment_type' => 'registration_fee',
+            'payment_method' => 'mobile_money',
+            'amount' => 5000,
+            'currency' => 'TZS',
+            'status' => 'processing',
+            'provider' => 'payin',
+            'provider_ref' => 'PAYREF-GATE',
+            'mobile_number' => '255711111111',
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('site.borrower.payments.gate', $payment))
+            ->assertRedirect(route('site.borrower.payments.show', $payment));
+
+        $payment->refresh();
+        $this->assertSame('awaiting_payment', $payment->status);
+        $this->assertNull($payment->provider_ref);
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.payments.show', $payment))
+            ->assertOk()
+            ->assertSee(__('borrower.payments_page.create.mobile_money'), false)
+            ->assertSee(__('borrower.payments_page.create.bank_transfer'), false)
+            ->assertSee(__('borrower.membership.pay_now'), false);
     }
 
     public function test_waiting_page_shows_swahili_type_label_in_sw_locale(): void
