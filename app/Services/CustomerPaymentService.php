@@ -381,10 +381,19 @@ class CustomerPaymentService
         $meta['returned_to_gate_at'] = now()->toIso8601String();
         unset($meta['last_collect_error'], $meta['last_collect_error_at'], $meta['initiated_at']);
 
+        $accountPhone = $payment->customer?->phone;
+        if (filled($accountPhone)) {
+            $accountPhone = PhoneNumber::normalizeForCountry(
+                (string) $accountPhone,
+                $payment->customer?->country_code ?? null,
+            );
+        }
+
         $payment->update([
             'status' => 'awaiting_payment',
             'provider' => null,
             'provider_ref' => null,
+            'mobile_number' => $accountPhone ?: $payment->mobile_number,
             'provider_meta' => $meta,
         ]);
 

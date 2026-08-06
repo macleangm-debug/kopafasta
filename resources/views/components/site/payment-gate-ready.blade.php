@@ -9,6 +9,8 @@
 
 @php
     $customer = $payment->customer;
+    // Gate always opens on the member's account phone; they can change it before Pay now.
+    $defaultPhone = old('mobile_number', $customer->phone ?? '');
 @endphp
 
 {{-- Thin wrapper: every awaiting CustomerPayment uses the shared PSP gate. --}}
@@ -25,7 +27,7 @@
     :default-method="old('payment_method', 'mobile_money')"
     :bank-accounts="$bankAccounts"
     :mobile-details="$mobileDetails"
-    :mobile-input-value="old('mobile_number', $payment->mobile_number ?: ($customer->phone ?? ''))"
+    :mobile-input-value="$defaultPhone"
     :country-code="$customer->country_code ?? 'TZ'"
     :show-promo="$showPromo"
     :promo-value="$promoValue"
