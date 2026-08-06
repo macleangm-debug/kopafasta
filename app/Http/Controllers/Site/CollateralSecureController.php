@@ -186,7 +186,7 @@ class CollateralSecureController extends Controller
                 ->where('payment_type', 'insurance_premium')
                 ->first();
             if ($existing && ! $existing->isVerified() && in_array($existing->status, ['awaiting_payment', 'processing'], true)) {
-                return redirect()->route('site.borrower.payments.show', $existing);
+                return $this->redirectToInsurancePaymentWaiting($existing, $customer->phone);
             }
         }
 
@@ -245,7 +245,7 @@ class CollateralSecureController extends Controller
                 ->where('payment_type', 'insurance_premium')
                 ->first();
             if ($existing && ! $existing->isVerified() && in_array($existing->status, ['awaiting_payment', 'processing'], true)) {
-                return redirect()->route('site.borrower.payments.show', $existing);
+                return $this->redirectToInsurancePaymentWaiting($existing, $customer->phone);
             }
         }
 
@@ -331,7 +331,48 @@ class CollateralSecureController extends Controller
             'status' => 'payment_pending',
         ]);
 
-        // Always open the aggregator payment gate. Partner case opens only after payment is verified.
+        // Skip the MM/bank picker — push USSD immediately and open the shared waiting screen.
+        return $this->redirectToInsurancePaymentWaiting($payment->fresh(), $phone);
+    }
+
+    /**
+     * Insurance: start PayIn with the account phone and land on payments.show waiting UI.
+     * Failures still use payments.show (help / gate) so we never invent a second flow.
+     */
+    private function redirectToInsurancePaymentWaiting(
+        \App\Models\CustomerPayment $payment,
+        ?string $phone,
+    ): RedirectResponse {
+        if ($payment->isPayInWaiting()) {
+            return redirect()->route('site.borrower.payments.show', $payment);
+        }
+
+        if (! $payment->awaitsCollection()) {
+            return redirect()->route('site.borrower.payments.show', $payment);
+        }
+
+        if (! filled($phone)) {
+            return redirect()->route('site.borrower.payments.show', $payment);
+        }
+
+        try {
+            $payment = app(CustomerPaymentService::class)->initiateCollection($payment, $phone);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $attempted = $payment->fresh()->mobile_number
+                ?: data_get($payment->fresh()->provider_meta, 'attempted_phone')
+                ?: $phone;
+            $message = CustomerPaymentService::localizeProviderMessage(
+                collect($e->errors())->flatten()->first(),
+                $attempted
+            );
+
+            return redirect()
+                ->route('site.borrower.payments.show', $payment)
+                ->with('collect_error', $message)
+                ->with('show_collect_failed', true)
+                ->withErrors(['mobile_number' => $message]);
+        }
+
         return redirect()->route('site.borrower.payments.show', $payment);
     }
 

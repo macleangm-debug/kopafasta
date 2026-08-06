@@ -244,7 +244,7 @@ class CollateralSecureFeatureTest extends TestCase
         $this->assertSame('rejected', $app->fresh()->status);
     }
 
-    public function test_insure_it_redirects_to_payment_gate(): void
+    public function test_insure_it_starts_collection_and_opens_waiting_screen(): void
     {
         $admin = $this->staff();
         [$app, $borrower] = $this->applicationWithGuarantor($admin);
@@ -272,7 +272,7 @@ class CollateralSecureFeatureTest extends TestCase
         $payIn = \Mockery::mock(\App\Services\PayInService::class)->makePartial();
         $payIn->shouldReceive('isConfigured')->andReturn(true);
         $payIn->shouldReceive('isLiveCollectionEnabled')->andReturn(true);
-        $payIn->shouldReceive('normalizePhone')->andReturnUsing(fn ($p) => (string) $p);
+        $payIn->shouldReceive('normalizePhone')->andReturnUsing(fn ($p) => preg_replace('/\D+/', '', (string) $p));
         $payIn->shouldReceive('collect')->once()->andReturn([
             'ok' => true,
             'request_ref' => 'PAYREF-INS-1',
@@ -298,24 +298,16 @@ class CollateralSecureFeatureTest extends TestCase
 
         $this->assertNotNull($payment);
         $response->assertRedirect(route('site.borrower.payments.show', $payment));
-        $this->assertSame('awaiting_payment', $payment->status);
+        $this->assertSame('processing', $payment->fresh()->status);
+        $this->assertSame('payin', $payment->fresh()->provider);
         $this->assertSame('payment_pending', data_get($app->fresh()->screening_payload, 'collateral_secure.insurance_purchase.status'));
         $this->assertSame($payment->id, (int) data_get($app->fresh()->screening_payload, 'collateral_secure.insurance_purchase.payment_id'));
 
         $this->actingAs($user)
-            ->post(route('site.borrower.payments.pay', $payment), [
-                'payment_method' => 'mobile_money',
-                'mobile_number' => $borrower->phone,
-                'mobile_number_local' => preg_replace('/^\+?255/', '', (string) $borrower->phone),
-            ])
-            ->assertRedirect(route('site.borrower.payments.show', $payment));
-
-        $this->assertSame('processing', $payment->fresh()->status);
-        $this->assertSame('payin', $payment->fresh()->provider);
-        $this->assertSame(
-            preg_replace('/\D+/', '', (string) $borrower->phone),
-            preg_replace('/\D+/', '', (string) $payment->fresh()->mobile_number)
-        );
+            ->get(route('site.borrower.payments.show', $payment))
+            ->assertOk()
+            ->assertSee(__('borrower.payment_waiting.title'), false)
+            ->assertDontSee(__('borrower.payments_page.create.bank_transfer'), false);
     }
 
     public function test_insure_it_resumes_pending_payment_gate(): void
