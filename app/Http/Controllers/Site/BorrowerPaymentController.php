@@ -199,11 +199,30 @@ class BorrowerPaymentController extends Controller
     {
         $customer = $this->customer();
         abort_unless($payment->customer_id === $customer->id, 403);
+        abort_unless($payment->awaitsCollection() || $payment->status === 'awaiting_payment', 422);
 
         $data = $request->validate([
+            'payment_method' => ['nullable', 'in:mobile_money,bank_transfer'],
             'mobile_number' => ['nullable', 'string', 'max:20'],
             'mobile_number_local' => ['nullable', 'string', 'max:20'],
         ]);
+
+        // Retry from the waiting card omits the picker — stay on mobile money.
+        $method = $data['payment_method'] ?? 'mobile_money';
+
+        if ($method === 'bank_transfer') {
+            try {
+                $payment = $payments->switchToBankTransfer($payment);
+            } catch (\Throwable $e) {
+                return redirect()
+                    ->route('site.borrower.payments.show', $payment)
+                    ->with('error', $e->getMessage() ?: __('borrower.payment_waiting.bank_unavailable'));
+            }
+
+            return redirect()
+                ->route('site.borrower.payments.show', $payment)
+                ->with('status', __('borrower.payment_waiting.switched_to_bank'));
+        }
 
         $mobileNumber = PhoneNumber::fromRequest($request, 'mobile_number', $customer->country_code ?? null)
             ?: ($data['mobile_number'] ?? null);
@@ -219,7 +238,7 @@ class BorrowerPaymentController extends Controller
                 ->route('site.borrower.payments.show', $payment)
                 ->with('collect_error', $message)
                 ->with('show_collect_failed', true)
-                ->withErrors(['payment_phone' => $message]);
+                ->withErrors(['mobile_number' => $message]);
         }
 
         return redirect()->route('site.borrower.payments.show', $payment);
@@ -328,7 +347,8 @@ class BorrowerPaymentController extends Controller
 
         $accounts = app(PaymentAccountService::class);
         $bankDetails = null;
-        $mobileDetails = null;
+        $mobileDetails = [];
+        $bankAccounts = [];
         $canSwitchToBank = false;
 
         if ($payment->payment_method === 'bank_transfer' && $payment->bankAccount) {
@@ -342,14 +362,19 @@ class BorrowerPaymentController extends Controller
         if ($payment->awaitsCollection()) {
             $product = $payment->loanProduct
                 ?? ($payment->loan_id ? $payment->loan?->product : null);
-            $bankResolved = $accounts->resolve($payment->payment_type, 'bank_transfer', $product);
-            $canSwitchToBank = (bool) ($bankResolved['bank_account'] ?? null);
+            $bankAccounts = $accounts->bankAccountsForDisplay($payment->payment_type, $payment->reference, $product);
+            $canSwitchToBank = collect($bankAccounts)->contains(fn ($row) => filled($row['account_number'] ?? null) && ($row['account_number'] ?? '') !== '—');
+            if (! $payment->mobileMoneyAccount) {
+                $resolvedMobile = $accounts->resolve($payment->payment_type, 'mobile_money', $product);
+                $mobileDetails = $accounts->mobileMoneyDetails($resolvedMobile['mobile_money_account'] ?? null, $payment->reference);
+            }
         }
 
         return view('site.borrower.payments.show', compact(
             'payment',
             'bankDetails',
             'mobileDetails',
+            'bankAccounts',
             'canSwitchToBank',
         ));
     }

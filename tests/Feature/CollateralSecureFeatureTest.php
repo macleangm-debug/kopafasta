@@ -303,7 +303,9 @@ class CollateralSecureFeatureTest extends TestCase
         $this->assertSame($payment->id, (int) data_get($app->fresh()->screening_payload, 'collateral_secure.insurance_purchase.payment_id'));
 
         $this->actingAs($user)
-            ->post(route('site.borrower.payments.pay', $payment))
+            ->post(route('site.borrower.payments.pay', $payment), [
+                'payment_method' => 'mobile_money',
+            ])
             ->assertRedirect(route('site.borrower.payments.show', $payment));
 
         $this->assertSame('processing', $payment->fresh()->status);

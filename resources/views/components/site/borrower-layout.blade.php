@@ -341,11 +341,60 @@
 @stack('scripts')
 <script>
 (function () {
+    const BUSY_KEYS = ['paying', 'submitting', 'applying', 'uploading', 'saving', 'busy', 'loading'];
+
     function spinnerHtml(label) {
         return '<svg class="size-4 animate-spin shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
             '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>' +
             '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>' +
             '</svg><span>' + label + '</span>';
+    }
+
+    function resetSubmitter(submitter) {
+        if (!(submitter instanceof HTMLElement)) {
+            return;
+        }
+        if (submitter.dataset.originalHtml != null) {
+            submitter.innerHTML = submitter.dataset.originalHtml;
+            delete submitter.dataset.originalHtml;
+        } else if (submitter.dataset.originalValue != null) {
+            submitter.value = submitter.dataset.originalValue;
+            delete submitter.dataset.originalValue;
+        }
+        submitter.disabled = false;
+        submitter.classList.remove('opacity-70', 'cursor-wait', 'inline-flex', 'items-center', 'gap-2');
+    }
+
+    function resetFormLoading(form) {
+        if (!(form instanceof HTMLFormElement) || form.dataset.loadingBound !== '1') {
+            return;
+        }
+        delete form.dataset.loadingBound;
+        form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(resetSubmitter);
+    }
+
+    function resetAlpineBusyFlags() {
+        document.querySelectorAll('[x-data]').forEach(function (el) {
+            const stack = el._x_dataStack;
+            if (! Array.isArray(stack)) {
+                return;
+            }
+            stack.forEach(function (data) {
+                if (! data || typeof data !== 'object') {
+                    return;
+                }
+                BUSY_KEYS.forEach(function (key) {
+                    if (Object.prototype.hasOwnProperty.call(data, key) && data[key] === true) {
+                        data[key] = false;
+                    }
+                });
+            });
+        });
+    }
+
+    function resetAllLoadingUi() {
+        document.querySelectorAll('form[data-loading-bound="1"]').forEach(resetFormLoading);
+        resetAlpineBusyFlags();
     }
 
     // Bubble phase so @submit.prevent (confirm modals) can cancel first.
@@ -360,8 +409,9 @@
         if (!(form instanceof HTMLFormElement) || form.dataset.skipLoading === '1' || form.dataset.loadingBound === '1') {
             return;
         }
-        // Alpine forms that already toggle a submitting flag.
-        if (form.getAttribute('x-data') && /submitting/.test(form.getAttribute('x-data'))) {
+        // Alpine forms that already toggle their own busy flag.
+        const xData = form.getAttribute('x-data') || '';
+        if (xData && new RegExp('\\b(' + BUSY_KEYS.join('|') + ')\\b').test(xData)) {
             return;
         }
 
@@ -376,6 +426,12 @@
         const label = (submitter.dataset.loadingLabel || submitter.textContent || 'Saving').trim().replace(/\s+/g, ' ');
         const loadingLabel = /…$|\.\.\.$/.test(label) ? label : (label + '…');
 
+        if (submitter.tagName === 'BUTTON') {
+            submitter.dataset.originalHtml = submitter.innerHTML;
+        } else {
+            submitter.dataset.originalValue = submitter.value;
+        }
+
         submitter.disabled = true;
         submitter.classList.add('opacity-70', 'cursor-wait', 'inline-flex', 'items-center', 'gap-2');
         if (submitter.tagName === 'BUTTON') {
@@ -383,6 +439,12 @@
         } else {
             submitter.value = loadingLabel;
         }
+    });
+
+    // Browser back/forward often restores the page from bfcache with the spinner
+    // still on the button (Insure It, repay, membership, etc.). Clear it.
+    window.addEventListener('pageshow', function () {
+        resetAllLoadingUi();
     });
 })();
 </script>

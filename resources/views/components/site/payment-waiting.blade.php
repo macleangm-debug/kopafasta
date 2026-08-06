@@ -13,7 +13,7 @@
     $statusUrl = $statusUrl ?? route('site.borrower.payments.status', $payment);
     $successUrl = $successUrl ?? app(\App\Services\CustomerPaymentService::class)->successRedirectUrl($payment);
     $retryUrl = $retryUrl ?? route('site.borrower.payments.pay', $payment);
-    $gateUrl = $gateUrl ?? route('site.borrower.payments.show', ['payment' => $payment, 'edit_phone' => 1]);
+    $gateUrl = $gateUrl ?? route('site.borrower.payments.show', $payment);
     $switchBankUrl = route('site.borrower.payments.switch-bank', $payment);
     $celebration = app(\App\Services\CustomerPaymentService::class)->celebrationCopy($payment);
     $waitingMessage = $payment->mobile_number

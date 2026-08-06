@@ -1,16 +1,17 @@
 <x-site.borrower-layout :title="brand_title($payment->reference)" active="payments">
 
     @php
-        $editPhone = request()->boolean('edit_phone');
         $isPayInWaiting = $payment->isPayInWaiting();
         $isReadyToPay = $payment->awaitsCollection();
-        $showCollectFailed = (bool) session('show_collect_failed') && ! $editPhone;
+        $showCollectFailed = (bool) session('show_collect_failed');
         $collectError = \App\Services\CustomerPaymentService::localizeProviderMessage(
             session('collect_error') ?: data_get($payment->provider_meta, 'last_collect_error')
         );
         $canSwitchToBank = $canSwitchToBank ?? false;
-        // Promo / referral / affiliate only on fee types that support them — and only before amount is locked.
-        // On this post-create gate the amount is already fixed, so codes stay hidden.
+        $bankAccounts = $bankAccounts ?? [];
+        $mobileDetails = is_array($mobileDetails ?? null) ? $mobileDetails : [];
+        // Promo / referral / affiliate only on fee types that support them.
+        // Amount is already locked on this post-create gate, so codes stay hidden here.
         $showPromo = false;
         $supportsDiscounts = \App\Services\CustomerPaymentService::supportsCodeDiscounts($payment->payment_type);
     @endphp
@@ -45,14 +46,14 @@
             :initial-state="$showCollectFailed ? 'failed' : 'waiting'"
             :error-message="$collectError"
             :can-switch-to-bank="$canSwitchToBank"
-            :gate-url="route('site.borrower.payments.show', ['payment' => $payment, 'edit_phone' => 1])"
+            :gate-url="route('site.borrower.payments.show', $payment)"
         />
     @elseif ($isReadyToPay)
         <x-site.payment-gate-ready
             :payment="$payment"
-            :can-switch-to-bank="$canSwitchToBank"
+            :bank-accounts="$canSwitchToBank ? $bankAccounts : []"
+            :mobile-details="$mobileDetails"
             :show-promo="$showPromo && $supportsDiscounts"
-            :edit-phone="$editPhone"
         />
     @else
     <section class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand via-brand to-brand/90 text-white shadow-lg shadow-brand/20">

@@ -35,9 +35,16 @@
         cancel() {
             if (this.form instanceof HTMLFormElement) {
                 delete this.form.dataset.loadingBound;
-                this.form.querySelectorAll('button[type=submit][disabled], input[type=submit][disabled]').forEach((btn) => {
+                this.form.querySelectorAll('button[type=submit], input[type=submit]').forEach((btn) => {
+                    if (btn.dataset.originalHtml != null) {
+                        btn.innerHTML = btn.dataset.originalHtml;
+                        delete btn.dataset.originalHtml;
+                    } else if (btn.dataset.originalValue != null) {
+                        btn.value = btn.dataset.originalValue;
+                        delete btn.dataset.originalValue;
+                    }
                     btn.disabled = false;
-                    btn.classList.remove('opacity-70', 'cursor-wait');
+                    btn.classList.remove('opacity-70', 'cursor-wait', 'inline-flex', 'items-center', 'gap-2');
                 });
             }
             this.open = false;

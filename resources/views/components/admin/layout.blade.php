@@ -579,6 +579,29 @@ document.addEventListener('keydown', function (event) {
             '</svg><span>' + label + '</span>';
     }
 
+    function resetSubmitter(submitter) {
+        if (!(submitter instanceof HTMLElement)) {
+            return;
+        }
+        if (submitter.dataset.originalHtml != null) {
+            submitter.innerHTML = submitter.dataset.originalHtml;
+            delete submitter.dataset.originalHtml;
+        } else if (submitter.dataset.originalValue != null) {
+            submitter.value = submitter.dataset.originalValue;
+            delete submitter.dataset.originalValue;
+        }
+        submitter.disabled = false;
+        submitter.classList.remove('opacity-70', 'cursor-wait');
+    }
+
+    function resetFormLoading(form) {
+        if (!(form instanceof HTMLFormElement) || form.dataset.loadingBound !== '1') {
+            return;
+        }
+        delete form.dataset.loadingBound;
+        form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(resetSubmitter);
+    }
+
     document.addEventListener('submit', function (event) {
         if (event.defaultPrevented) {
             return;
@@ -607,6 +630,12 @@ document.addEventListener('keydown', function (event) {
             || 'Saving').trim().replace(/\s+/g, ' ');
         const loadingLabel = /…$|\.\.\.$/.test(label) ? label : (label + '…');
 
+        if (submitter.tagName === 'BUTTON') {
+            submitter.dataset.originalHtml = submitter.innerHTML;
+        } else {
+            submitter.dataset.originalValue = submitter.value;
+        }
+
         submitter.disabled = true;
         submitter.classList.add('opacity-70', 'cursor-wait');
         if (submitter.tagName === 'BUTTON') {
@@ -618,6 +647,10 @@ document.addEventListener('keydown', function (event) {
         form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function (btn) {
             if (btn !== submitter) btn.disabled = true;
         });
+    });
+
+    window.addEventListener('pageshow', function () {
+        document.querySelectorAll('form[data-loading-bound="1"]').forEach(resetFormLoading);
     });
 })();
 </script>
